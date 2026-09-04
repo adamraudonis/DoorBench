@@ -54,7 +54,7 @@ python scripts/runpod_pod.py bootstrap       # scp scripts/pod_bootstrap.sh + ru
 python scripts/runpod_pod.py ssh tail -f /workspace/bootstrap.log
 ```
 
-`scripts/pod_bootstrap.sh` does, idempotently: apt libs for Kit (GLU, X11, Vulkan), uv + Python 3.11 venv,
+`scripts/pod_bootstrap.sh` (also reachable as `bash isaaclab/cloud/setup.sh` from a checkout on any Ubuntu 22.04 GPU box) does, idempotently: apt libs for Kit (GLU, X11, Vulkan), uv + Python 3.11 venv,
 `pip install "isaacsim[all,extscache]==5.1.0" --extra-index-url https://pypi.nvidia.com`, Isaac Lab `v2.3.2` with
 `./isaaclab.sh --install rsl_rl` (installs torch 2.10 cu128), `pip install -e DoorBench` (+ the Isaac Lab
 extension in `isaaclab/` when present), and a first headless `SimulationApp` start that pulls the extension
@@ -67,12 +67,19 @@ extensions; they are test-only extensions and the app still reports `app ready`.
 
 ```bash
 python scripts/runpod_pod.py ssh
-source /workspace/venv/bin/activate && export OMNI_KIT_ACCEPT_EULA=YES
+source /workspace/DoorBench/isaaclab/cloud/env.sh     # activates the venv, sets ISAACLAB_DIR / DOORBENCH_ASSETS, accepts the EULA
 cd /workspace/IsaacLab
 python scripts/reinforcement_learning/rsl_rl/train.py --task Isaac-Cartpole-v0 --headless --num_envs 512 --max_iterations 5
 ```
-Then the DoorBench pieces (`docs/ISAAC_LAB.md`): USD validation over all 1000 doors, the `DoorBench-Open-*`
-training tasks, the hero render and the full-dataset evaluation.
+Then the DoorBench pieces, from the DoorBench checkout (`isaaclab/cloud/README.md` has the details):
+
+```bash
+cd /workspace/DoorBench
+bash isaaclab/cloud/validate.sh --limit 40        # headless Isaac Sim import + settle + actuate of door.usda and door_rl.usda
+bash isaaclab/cloud/train.sh --task DoorBench-Open-Hand-v0 --num_envs 1024 --max_iterations 300
+bash isaaclab/cloud/hero.sh                        # docs/media/isaaclab_hero.{png,mp4}
+bash isaaclab/cloud/eval.sh logs/rsl_rl/doorbench_hand/<run>/model_300.pt
+```
 
 ## 5. Tear down (stops billing)
 
