@@ -180,7 +180,7 @@ _add(Material("leather", "Leather upholstery", "fabric", 900, False, 0.6, 0.5, 0
               base_color=(0.35, 0.18, 0.10, 1), roughness=0.6, texture="brown_leather", source="Leather 860-1,000 kg/m^3"))
 _add(Material("concrete", "Reinforced concrete", "stone", 2400, False, 0.65, 0.55, 30e9, 4e6, 1e5, 5e5,
               base_color=(0.60, 0.60, 0.58, 1), roughness=0.9, texture="concrete_panels", source="RC 2,400 kg/m^3"))
-_add(Material("chain_link", "Chain-link mesh (galvanized 9 ga)", "mesh", 7850, False, 0.6, 0.45, 200e9, 300e6, 2000, 6000,
+_add(Material("chain_link", "Chain-link mesh (galvanized 9 ga)", "mesh", 57.1, False, 0.6, 0.45, 200e9, 300e6, 2000, 6000,
               base_color=(0.70, 0.71, 0.72, 1), roughness=0.5, metallic=0.9, source="9 ga wire 2 in mesh ≈ 2.4 kg/m^2"))
 _add(Material("expanded_metal", "Expanded metal mesh", "mesh", 7850, False, 0.6, 0.45, 200e9, 250e6, 3000, 10000,
               base_color=(0.35, 0.36, 0.38, 1), roughness=0.6, metallic=0.8, texture="rusty_metal_grid", source="3/4 in #9 expanded steel ≈ 8 kg/m^2"))
@@ -366,7 +366,7 @@ _slab(SlabConstruction("rollup_steel", "Roll-up door 22 ga corrugated slats", "s
 _slab(SlabConstruction("rollup_alu_grille", "Roll-up aluminum grille (security)", "aluminum", 0.0, "aluminum", 0.35, "aluminum", 0.0, False,
                        (0.010,), 2.0, None, "Rolling grilles ≈ 8 kg/m^2"))
 _slab(SlabConstruction("chain_link_gate", "Chain-link gate (1-5/8 in frame)", "chain_link", 0.0, "chain_link", 1.0, "steel_galvanized", 0.0, True,
-                       (0.0003,), 6.5, None, "Frame ≈ 4 kg/m + 9 ga mesh 2.4 kg/m^2"))
+                       (0.042,), 6.5, None, "Frame ≈ 4 kg/m + 9 ga mesh 2.4 kg/m^2 (leaf depth = the 1-5/8 in frame pipe; the fabric's 2.4 kg/m^2 is kept as an areal-equivalent density 57 kg/m^3 x 42 mm)"))
 _slab(SlabConstruction("wrought_iron_gate", "Wrought iron gate", "wrought_iron", 0.0, "wrought_iron", 0.12, "wrought_iron", 0.0, False,
                        (0.025,), 5.0, None, "Ornamental iron gates ≈ 25-35 kg/m^2"))
 _slab(SlabConstruction("steel_bar_grille", "Steel bar door (detention/cell)", "steel", 0.0, "steel", 0.18, "steel", 0.0, False,

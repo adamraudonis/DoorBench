@@ -221,7 +221,8 @@ def _knob(shape="round", diameter=0.054, depth=0.060, rose_diameter=0.064, child
     if rose_diameter > 0:
         parts.append(_cyl(rose_diameter / 2, 0.008, 32, _T(0, 0, 0.004)))
     neck_h = depth - diameter * 0.75
-    parts.append(_cyl(0.011, neck_h, 20, _T(0, 0, neck_h / 2 + 0.006)))
+    # the neck rises from the rose; without a rose it starts at the mounting face
+    parts.append(_cyl(0.011, neck_h, 20, _T(0, 0, neck_h / 2 + (0.006 if rose_diameter > 0 else 0.0))))
     R = diameter / 2
     zc = neck_h + R * 0.9
     if shape == "round":
@@ -284,14 +285,15 @@ def pull_mesh(**p):
     return _cached("pull", _pull, **p)
 
 
-def _ring(ring_diameter=0.12, bar_diameter=0.014, backplate=0.09):
+def _ring(ring_diameter=0.12, bar_diameter=0.014, backplate=0.09, flat=True):
+    """Ring pull: back plate + hub on the face, ring hanging flat below the hub (in the plane of the door, 32 mm
+    proud).  The earlier version rotated the torus into the x-z plane, half of it inside the door."""
     parts = []
     plate = _cyl(backplate / 2, 0.004, 24, _T(0, 0, 0.002))
     parts.append(plate)
     hub = _cyl(0.012, 0.03, 16, _T(0, 0, 0.017))
     parts.append(hub)
     ring = creation.torus(major_radius=ring_diameter / 2, minor_radius=bar_diameter / 2, major_sections=32, minor_sections=10)
-    ring.apply_transform(_R([1, 0, 0], math.pi / 2))
     ring.apply_translation([0, -ring_diameter / 2 + 0.005, 0.032])
     parts.append(ring)
     return trimesh.util.concatenate(parts)
@@ -411,10 +413,11 @@ def _hinge_knuckle(height=0.114, radius=0.0075, leaf_w=0.05, leaf_t=0.003, knuck
     return trimesh.util.concatenate(parts)
 
 
-def _hinge_jamb_plate(height=0.114, radius=0.0075, leaf_w=0.05, leaf_t=0.003, knuckles=5):
-    """Frame-side plate (static: mortised into the jamb face, 6 mm from the pin)."""
+def _hinge_jamb_plate(height=0.114, radius=0.0075, leaf_w=0.05, leaf_t=0.003, knuckles=5, offset=0.006):
+    """Frame-side plate (static: mortised into the jamb face, `offset` from the pin; 4 mm keeps it within the
+    knuckle barrel's reach so plate and barrel stay in contact through the swing)."""
     l2 = creation.box(extents=[leaf_t, leaf_w, height * 0.92])
-    l2.apply_translation([-0.006 - leaf_t / 2, 0.007 + leaf_w / 2, 0])
+    l2.apply_translation([-offset - leaf_t / 2, 0.007 + leaf_w / 2, 0])
     return l2
 
 

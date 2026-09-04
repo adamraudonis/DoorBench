@@ -32,7 +32,7 @@ def slide_joint(spec, phys, axis, travel, name, initial=0.0, counterbalance=None
     return j
 
 
-def _add_hook(model, world, leaf_b, name, dir_, x_latch_edge, xc, yl, z, engaged, driver_joint, coeff):
+def _add_hook(model, world, leaf_b, name, dir_, x_latch_edge, xc, yl, z, engaged, driver_joint, coeff, t=0.044, wt=None):
     """Hook bolt on the leaf's latch edge: arm past the edge, vertical tip curling up behind a keeper bar on the jamb.
     Opening (+dir_) pulls the tip's inner face against the keeper.  Releasing rotates the hook down/outward."""
     hm = C.mat_from_material(model, "stainless", "mat_hook")
@@ -43,11 +43,17 @@ def _add_hook(model, world, leaf_b, name, dir_, x_latch_edge, xc, yl, z, engaged
     hk.geoms.append(C.box(f"{name}_hook_tip", (-dir_ * 0.036, 0, 0.0), (0.006, 0.005, 0.016), hm, 7900, True, True, ALL_TIERS, "latch", "Hook tip"))
     model.add_body(hk)
     model.equalities.append(Equality("joint", f"{name}_hook_couple", hk.joint.name, driver_joint, (0, coeff, 0, 0, 0), tiers=ALL_TIERS, label="hook = driver * coeff"))
-    world.geoms.append(C.box(f"{name}_hook_keeper", (xc + x_latch_edge - dir_ * 0.018, yl, z), (0.008, 0.015, 0.006), hm, 7900, True, True, ALL_TIERS, "latch", "Hook keeper bar"))
+    x_bar = xc + x_latch_edge - dir_ * 0.018
+    world.geoms.append(C.box(f"{name}_hook_keeper", (x_bar, yl, z), (0.008, 0.015, 0.006), hm, 7900, True, True, ALL_TIERS, "latch", "Hook keeper bar"))
     # faceplate on the stile edge around the hook (flush) and a keeper plate around the jamb pocket mouth
     leaf_b.geoms.append(C.box(f"{name}_hook_faceplate", (x_latch_edge + dir_ * 0.0006, 0.0, z), (0.0006, 0.011, 0.045), hm, 7900, False, True, FULL_SIMPLE, "leaf", "Hook faceplate"))
     if abs(yl) < 0.05:
-        model.meta.setdefault("_jamb_pockets", []).append((z, 0.12, yl))
+        # in-frame leaf: the keeper bar sits in a jamb pocket; build_sliding bridges it to the pocket back
+        model.meta.setdefault("_jamb_pockets", []).append((z, 0.12, yl, x_bar - dir_ * 0.008, name))
+    elif wt is not None:
+        # surface-mounted leaf: the keeper bar is bracketed back to the wall face
+        y0_, y1_ = sorted((yl + 0.015, -wt / 2 + 0.002))
+        world.geoms.append(C.box(f"{name}_hook_keeper_bracket", (x_bar, (y0_ + y1_) / 2, z), (0.008, (y1_ - y0_) / 2, 0.006), hm, 7900, False, True, FULL_SIMPLE, "latch", "Keeper wall bracket"))
         model.meta.setdefault("_jamb_keeper_plates", []).append((xc + x_latch_edge - dir_ * 0.0 , yl, z, dir_, name))
     return hk
 
@@ -113,6 +119,7 @@ def build_sliding(spec, phys, model: Model):
     SLIDE_STUD = 0.06
     hole_x0 = -Wo / 2 - jamb_t - (SLIDE_STUD if latch_side_ < 0 else 0.0)
     hole_x1 = Wo / 2 + jamb_t + (SLIDE_STUD if latch_side_ > 0 else 0.0)
+    wall_half = max(wall_half, hole_x1 + 0.6, -hole_x0 + 0.6)     # wall segments beside the rough opening (sensors / readers sit on them)
     world = C.add_floor_and_wall(model, spec, wall_half_width=wall_half, outdoor=outdoor, hole=(hole_x0, hole_x1, 0.0, Ho + jamb_t))
     mat_frame = C.mat_from_material(model, op["frame"]["material"], "mat_frame")
     jamb_pockets = []   # (z, h) pockets in the latch-side jamb for hooks (built after the leaves)
@@ -146,16 +153,27 @@ def build_sliding(spec, phys, model: Model):
     if track == "surface_flat_track":
         L = 2 * W + 0.1
         world.geoms.append(C.box("flat_track", (0, y_leaf + 0.02, Ho + 0.12), (L / 2, 0.004, 0.02), tm, 7850, True, True, FULL_SIMPLE, "track", "Flat track"))
+        ys0, ys1 = sorted((y_leaf + 0.024, -wt / 2 + 0.001))          # from the track's back face into the wall face
         for k in range(int(L / 0.6) + 1):
-            world.geoms.append(C.cyl(f"track_standoff_{k}", (-L / 2 + k * 0.6, y_leaf + 0.03, Ho + 0.12), 0.012, 0.012, tm, (0, 1, 0), 7850, False, True, FULL_ONLY, "track", "Track standoff"))
+            world.geoms.append(C.cyl(f"track_standoff_{k}", (-L / 2 + k * 0.6, (ys0 + ys1) / 2, Ho + 0.12), 0.012, max((ys1 - ys0) / 2, 0.004), tm, (0, 1, 0), 7850, False, True, FULL_ONLY, "track", "Track standoff"))
     elif track in ("top_hung_bypass", "top_hung", "top_hung_industrial", "auto_header", "elevator_hanger_track", "sectional_vertical_lift"):
-        world.geoms.append(C.box("track_header", (0, 0, Ho + jamb_t + 0.04), (Wo / 2 + W / 2 + 0.05, 0.04 if track != "auto_header" else 0.09, 0.04 if track != "auto_header" else 0.09), tm, 2700, True, True, FULL_SIMPLE, "track", "Track header"))
+        if abs(y_leaf) > wt / 2:
+            # surface-mounted leaf: the header is screwed to the wall face above the opening and covers the leaf's travel
+            tr_ = float(kin["travel_m"])
+            xh0 = min(-Wo / 2 - jamb_t, -W / 2 + min(0.0, s_open * tr_)) - 0.05
+            xh1 = max(Wo / 2 + jamb_t, W / 2 + max(0.0, s_open * tr_)) + 0.05
+            yh0, yh1 = sorted((y_leaf - 0.04, -wt / 2 + 0.002))
+            world.geoms.append(C.box("track_header", ((xh0 + xh1) / 2, (yh0 + yh1) / 2, Ho + jamb_t + 0.04), ((xh1 - xh0) / 2, (yh1 - yh0) / 2, 0.04), tm, 2700, True, True, FULL_SIMPLE, "track", "Track header (wall mounted)"))
+        else:
+            hh_ = 0.04 if track != "auto_header" else 0.09
+            world.geoms.append(C.box("track_header", (0, 0, Ho + jamb_t + hh_), (Wo / 2 + W / 2 + 0.05, hh_, hh_), tm, 2700, True, True, FULL_SIMPLE, "track", "Track header"))
     elif track == "bottom_rolling":
         world.geoms.append(C.box("bottom_rail", (0, y_leaf, 0.012), (Wo / 2 + jamb_t, 0.02, 0.012), tm, 2700, True, True, ALL_TIERS, "track", "Bottom rail"))
     elif track == "wood_groove_bottom":
         wm2 = C.mat_from_material(model, "hinoki", "mat_shikii")
-        world.geoms.append(C.box("shikii", (0, 0, 0.012), (Wo / 2 + 0.05, 0.05, 0.012), wm2, 410, True, True, ALL_TIERS, "track", "Shikii (bottom rail)"))
-        world.geoms.append(C.box("kamoi", (0, 0, Ho + 0.03), (Wo / 2 + 0.05, 0.05, 0.03), wm2, 410, True, True, ALL_TIERS, "track", "Kamoi (head rail)"))
+        rail_d = max(0.05, (n - 1) / 2 * (t + 0.05) + t / 2 + 0.02)     # grooves for every bypass track
+        world.geoms.append(C.box("shikii", (0, 0, 0.012), (Wo / 2 + 0.05, rail_d, 0.012), wm2, 410, True, True, ALL_TIERS, "track", "Shikii (bottom rail)"))
+        world.geoms.append(C.box("kamoi", (0, 0, Ho + 0.03), (Wo / 2 + 0.05, rail_d, 0.03), wm2, 410, True, True, ALL_TIERS, "track", "Kamoi (head rail)"))
     elif track in ("cantilever", "bottom_rail"):
         world.geoms.append(C.box("gate_rail", (s_open * W / 2, y_leaf, 0.01), (W + 0.2, 0.03, 0.01), tm, 7850, True, True, ALL_TIERS, "track", "Rail"))
     # fixed panel (patio / auto sliding sidelites)
@@ -171,7 +189,8 @@ def build_sliding(spec, phys, model: Model):
         else:
             for sgn in (-1, 1):
                 xf = sgn * (Wo / 4 + Wo / 8)
-                world.geoms.append(C.box(f"sidelite_{'r' if sgn > 0 else 'l'}", (xf, 0.042, Ho / 2), (Wo / 8 - 0.02, 0.003, Ho / 2 - 0.05), gm, 2500, True, True, ALL_TIERS, "glass", "Sidelite"))
+                xs0, xs1 = sorted((sgn * (Wo / 4 + 0.02), sgn * (Wo / 2 + 0.001)))     # glazed into the jamb
+                world.geoms.append(C.box(f"sidelite_{'r' if sgn > 0 else 'l'}", ((xs0 + xs1) / 2, 0.042, Ho / 2), ((xs1 - xs0) / 2, 0.003, Ho / 2 - 0.05), gm, 2500, True, True, ALL_TIERS, "glass", "Sidelite"))
     # leaves
     bodies = []
     pockets_keeper = []
@@ -195,6 +214,20 @@ def build_sliding(spec, phys, model: Model):
         leaf_defs = [("leaf", s_open, -s_open * (Wo / 4), y_leaf)]
     else:
         leaf_defs = [("leaf", s_open, 0.0, y_leaf)]
+    def _ebolt_bracket(name, x_b, y_back, z_lo, z_hi):
+        """Header bracket carrying a world-fixed solenoid housing that stands in front of a surface-mounted leaf: an
+        L over the leaf's top edge back to the wall face (or, on a sliding gate, to the post)."""
+        ebm_ = C.mat_from_material(model, "stainless", "mat_ebolt")
+        if fam == "gate_sliding":
+            x_post = latch_side * (Wo / 2 + 0.06)
+            xa0, xa1 = sorted((x_b, x_post))
+            world.geoms.append(C.box(f"{name}_electric_bolt_bracket", ((xa0 + xa1) / 2, y_back - 0.014, (z_lo + z_hi) / 2), ((xa1 - xa0) / 2 + 0.022, 0.014, (z_hi - z_lo) / 2), ebm_, 7900, False, True, FULL_SIMPLE, "lock", "Solenoid header bracket"))
+            ya0, ya1 = sorted((y_back - 0.028, 0.022))
+            world.geoms.append(C.box(f"{name}_electric_bolt_bracket_2", (x_post, (ya0 + ya1) / 2, (z_lo + z_hi) / 2), (0.022, (ya1 - ya0) / 2, (z_hi - z_lo) / 2), ebm_, 7900, False, True, FULL_SIMPLE, "lock", "Solenoid post bracket"))
+        elif abs(y_back) > wt / 2 + 0.005:
+            ya0, ya1 = sorted((y_back, (-wt / 2 + 0.002) if y_back < 0 else (wt / 2 - 0.002)))
+            world.geoms.append(C.box(f"{name}_electric_bolt_bracket", (x_b, (ya0 + ya1) / 2, (z_lo + z_hi) / 2), (0.022, (ya1 - ya0) / 2, (z_hi - z_lo) / 2), ebm_, 7900, False, True, FULL_SIMPLE, "lock", "Solenoid header bracket"))
+
     for name, dir_, xc, yl in leaf_defs:
         b = Body(name, None, (xc, yl, 0.0), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Sliding leaf")
         zb = 0.012 if track != "bottom_rolling" else 0.03
@@ -215,12 +248,29 @@ def build_sliding(spec, phys, model: Model):
         model.add_body(b)
         C.add_leaf_geoms(model, b, spec, leaf, 1.0, -W / 2, zb, phys, name_prefix=name)
         eb_pockets = spec["latch"]["model"] == "electric_bolt" and not center and fam != "sliding_bypass"
-        # hangers / rollers (visual)
+        # hangers / rollers (visual): the leaf must hang on / ride on its track at every position of the travel
         rm = C.mat_from_material(model, "steel_galvanized", "mat_roller")
         if track == "surface_flat_track":
+            # wheel rides on the flat track's top edge (track plane y = +0.02 in the leaf frame); the strap bolts to
+            # the leaf face and carries the axle
+            z_w = Ho + 0.14 + 0.05
             for k, xr in enumerate((-W / 2 + 0.12, W / 2 - 0.12)):
-                b.geoms.append(C.cyl(f"{name}_hanger_wheel_{k}", (xr, 0.0 + 0.0, zb + Hh + 0.12), 0.05, 0.01, rm, (0, 1, 0), 7850, False, True, FULL_SIMPLE, "track", "Hanger wheel"))
-                b.geoms.append(C.box(f"{name}_hanger_strap_{k}", (xr, -0.012, zb + Hh + 0.05), (0.02, 0.004, 0.07), rm, 7850, False, True, FULL_SIMPLE, "track", "Hanger strap"))
+                b.geoms.append(C.cyl(f"{name}_hanger_wheel_{k}", (xr, 0.02, z_w), 0.05, 0.01, rm, (0, 1, 0), 7850, False, True, FULL_SIMPLE, "track", "Hanger wheel"))
+                ys0_, ys1_ = -(t / 2 + 0.004), 0.009
+                zs0_ = zb + Hh - 0.06
+                b.geoms.append(C.box(f"{name}_hanger_strap_{k}", (xr, (ys0_ + ys1_) / 2, (zs0_ + z_w) / 2), (0.02, (ys1_ - ys0_) / 2, (z_w - zs0_) / 2), rm, 7850, False, True, FULL_SIMPLE, "track", "Hanger strap"))
+        elif track in ("top_hung_bypass", "top_hung", "top_hung_industrial", "auto_header", "elevator_hanger_track", "sectional_vertical_lift"):
+            # hanger brackets from the leaf's top edge up to the header (surface-mounted) or the head jamb (in-frame)
+            z_tgt = (Ho + jamb_t) if abs(yl) > wt / 2 else Ho
+            zs0_ = zb + Hh - 0.05
+            if z_tgt - zs0_ > 0.01:
+                for k, xr in enumerate((-W / 2 + 0.08, W / 2 - 0.08)):
+                    b.geoms.append(C.box(f"{name}_hanger_{k}", (xr, 0.0, (zs0_ + z_tgt) / 2), (0.02, 0.006, (z_tgt - zs0_) / 2), rm, 7850, False, True, FULL_SIMPLE, "track", "Hanger bracket"))
+        elif track in ("cantilever", "bottom_rail"):
+            # gate wheels in the bottom rail, riding on the ground rail
+            r_w = max(zb - 0.01, 0.015)
+            for k, xr in enumerate((-W / 2 + 0.15, W / 2 - 0.15)):
+                b.geoms.append(C.cyl(f"{name}_wheel_{k}", (xr, 0.0, 0.02 + r_w), r_w, 0.015, rm, (0, 1, 0), 7850, False, True, FULL_SIMPLE, "track", "Gate wheel"))
         elif track == "bottom_rolling":
             for k, xr in enumerate((-W / 2 + 0.1, W / 2 - 0.1)):
                 b.geoms.append(C.cyl(f"{name}_roller_{k}", (xr, 0, zb + 0.009), 0.015, 0.008, rm, (0, 1, 0), 7850, False, True, FULL_ONLY, "track", "Roller"))
@@ -243,6 +293,7 @@ def build_sliding(spec, phys, model: Model):
             eb.geoms.append(Geom(f"{name}_electric_bolt_geom", "capsule", (0.008, 0.042), (0, 0, 0), (1, 0, 0, 0), ebm, True, True, 7900.0, None, (0.4, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "lock", "Drop bolt"))
             model.add_body(eb)
             world.geoms.append(C.box(f"{name}_electric_bolt_housing", (x_b, y_b + f_eb * 0.004, zk + 0.13), (0.022, 0.014, 0.045), ebm, 7900, False, True, FULL_SIMPLE, "lock", "Solenoid housing"))
+            _ebolt_bracket(name, x_b, y_b + f_eb * 0.018, zb + Hh + 0.004, zk + 0.175)
             for sx_ in (-1, 1):
                 b.geoms.append(C.box(f"{name}_ebolt_keeper_{'p' if sx_ > 0 else 'n'}", (x_latch_edge + dir_ * 0.08 + sx_ * 0.018, f_eb * (t / 2 + 0.014), zk), (0.006, 0.014, 0.02), ebm, 7900, True, True, ALL_TIERS, "lock", "Keeper block"))
             b.geoms.append(C.box(f"{name}_ebolt_keeper_base", (x_latch_edge + dir_ * 0.08, f_eb * (t / 2 + 0.002), zk), (0.03, 0.002, 0.03), ebm, 7900, False, True, FULL_SIMPLE, "lock", "Keeper plate"))
@@ -262,16 +313,22 @@ def build_sliding(spec, phys, model: Model):
                 td.geoms.append(C.box(f"{name}_teardrop_top", (-dir_ * 0.04, 0, -0.005), (0.04, 0.004, 0.006), lm, 7800, True, True, FULL_SIMPLE, "latch", "Teardrop bar"))
                 td.geoms.append(C.box(f"{name}_teardrop_end", (-dir_ * 0.078, 0, -0.03), (0.005, 0.004, 0.03), lm, 7800, True, True, FULL_SIMPLE, "latch", "Teardrop end"))
                 td.sites.append(Site(f"{name}_teardrop_grip", (-dir_ * 0.078, -0.01, -0.05), QUAT_ID, 0.01, "grip"))
+                # pivot pin from the bar into the leaf through a pivot plate on the face
+                td.geoms.append(C.cyl(f"{name}_teardrop_pin_geom", (0, 0.006, 0), 0.006, 0.007, lm, (0, 1, 0), 7800, False, True, FULL_SIMPLE, "latch", "Teardrop pivot pin"))
+                b.geoms.append(C.box(f"{name}_teardrop_pin_housing", (x_latch_edge + dir_ * 0.06, -(t / 2 + 0.002), hz + 0.45), (0.015, 0.002, 0.015), lm, 7800, False, True, FULL_SIMPLE, "latch", "Teardrop pivot plate"))
                 model.add_body(td)
                 world.geoms.append(C.box(f"{name}_teardrop_keeper_post", (xc + x_latch_edge - dir_ * 0.005, yl - (t / 2 + 0.01), hz + 0.45 - 0.034), (0.005, 0.006, 0.018), lm, 7800, True, True, FULL_SIMPLE, "latch", "Keeper post"))
-                world.geoms.append(C.box(f"{name}_teardrop_keeper_base", (xc + x_latch_edge - dir_ * 0.005, yl - (t / 2 + 0.024), hz + 0.45 - 0.03), (0.005, 0.008, 0.02), lm, 7800, False, True, FULL_ONLY, "latch", "Keeper base"))
+                # keeper base runs out beyond the teardrop's swing to a wall bracket beside the closed leaf's edge
+                world.geoms.append(C.box(f"{name}_teardrop_keeper_base", (xc + x_latch_edge - dir_ * 0.035, yl - (t / 2 + 0.024), hz + 0.45 - 0.03), (0.035, 0.008, 0.02), lm, 7800, False, True, FULL_ONLY, "latch", "Keeper base"))
+                yk0, yk1 = sorted((yl - (t / 2 + 0.016), -wt / 2 + 0.002))
+                world.geoms.append(C.box(f"{name}_teardrop_keeper_bracket", (xc + x_latch_edge - dir_ * 0.07, (yk0 + yk1) / 2, hz + 0.45 - 0.03), (0.01, (yk1 - yk0) / 2, 0.02), lm, 7800, False, True, FULL_ONLY, "latch", "Keeper wall bracket"))
         elif opm.kind in ("hook_lock_slider",):
             # exterior face passes the fixed panel: flush pull there, lever handle on the robot face only
             hb = C.add_rotary_operator(model, b, spec, phys, H.OPERATORS["lever_l_shape"], -dir_, 1.0, x_latch_edge + dir_ * 0.06, hz, t, [-1.0], None, name=f"{name}_handle")
             C.add_pull(model, b, H.OPERATORS["pull_flush_recessed"], -dir_, x_latch_edge + dir_ * 0.09, hz, t, 1.0, name=f"{name}_ext_pull")
             hb.joint.label = "Slider handle / thumb latch (+ = unlock hook)"
             # the hook (latch) is always thrown when the leaf starts closed; the hook LOCK only freezes the handle
-            _add_hook(model, world, b, name, dir_, x_latch_edge, xc, yl, hz, True, hb.joint.name, 1.0 / max(H.OPERATORS["hook_lock_slider"].travel, 0.5))
+            _add_hook(model, world, b, name, dir_, x_latch_edge, xc, yl, hz, True, hb.joint.name, 1.0 / max(H.OPERATORS["hook_lock_slider"].travel, 0.5), t=t, wt=wt)
             if engaged and lk.kind == "hook_lock" and not release:
                 hb.joint.range = (0.0, 0.05)
                 hb.joint.notes = "hook lock engaged: handle blocked"
@@ -290,7 +347,7 @@ def build_sliding(spec, phys, model: Model):
             tt.geoms.append(C.box(f"{name}_hook_tt_col", (0, inside * 0.02, 0), (0.006, 0.012, 0.016), hm, 7100, True, False, ALL_TIERS, "lock", "Thumbturn"))
             tt.sites.append(Site(f"{name}_hook_tt_grip", (0, inside * 0.03, 0), QUAT_ID, 0.01, "grip"))
             model.add_body(tt)
-            _add_hook(model, world, b, name, dir_, x_latch_edge, xc, yl, hz + 0.08, eng, tt.joint.name, 1.0)
+            _add_hook(model, world, b, name, dir_, x_latch_edge, xc, yl, hz + 0.08, eng, tt.joint.name, 1.0, t=t, wt=wt)
             if eng and not release:
                 tt.joint.range = (0.0, 0.05)
         if opm.kind == "slide_bolt_handle":
@@ -329,6 +386,7 @@ def build_sliding(spec, phys, model: Model):
             eb.geoms.append(Geom(f"{name}_electric_bolt_geom", "capsule", (0.008, 0.042), (0, 0, 0), (1, 0, 0, 0), ebm, True, True, 7900.0, None, (0.4, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "lock", "Drop bolt"))
             model.add_body(eb)
             world.geoms.append(C.box(f"{name}_electric_bolt_housing", (x_b, y_b + f_eb * 0.004, zk + 0.13), (0.022, 0.014, 0.045), ebm, 7900, False, True, FULL_SIMPLE, "lock", "Solenoid housing"))
+            _ebolt_bracket(name, x_b, y_b + f_eb * 0.018, zb + Hh + 0.004, zk + 0.175)
             for sx_ in (-1, 1):
                 b.geoms.append(C.box(f"{name}_ebolt_keeper_{'p' if sx_ > 0 else 'n'}", (x_latch_edge + dir_ * 0.08 + sx_ * 0.018, f_eb * (t / 2 + 0.014), zk), (0.006, 0.014, 0.02), ebm, 7900, True, True, FULL_SIMPLE, "lock", "Keeper block"))
             b.geoms.append(C.box(f"{name}_ebolt_keeper_base", (x_latch_edge + dir_ * 0.08, f_eb * (t / 2 + 0.002), zk), (0.03, 0.002, 0.03), ebm, 7900, False, True, FULL_SIMPLE, "lock", "Keeper plate"))
@@ -348,7 +406,8 @@ def build_sliding(spec, phys, model: Model):
         jamb_col = jamb_t + SLIDE_STUD
         xj = latch_side * (Wo / 2 + jamb_col / 2)
         segs, prev = [], 0.0
-        for (zc, ph, yc) in sorted(jamb_pockets):
+        for pk_ in sorted(jamb_pockets):
+            zc, ph, yc = pk_[0], pk_[1], pk_[2]
             segs.append((prev, zc - ph / 2))
             # pocket: keep thin walls at +-y beyond the leaf thickness, remove the core around the leaf plane
             for sy in (-1, 1):
@@ -356,6 +415,10 @@ def build_sliding(spec, phys, model: Model):
                 if y1_ - y0_ > 1e-4:
                     world.geoms.append(C.box(f"jamb_latch_pwall_{int(zc * 1000)}_{'p' if sy > 0 else 'n'}", (xj, (y0_ + y1_) / 2, zc), (jamb_col / 2, (y1_ - y0_) / 2, ph / 2), mat_frame, 300, True, True, ALL_TIERS, "frame", "Jamb pocket wall"))
             world.geoms.append(C.box(f"jamb_latch_pback_{int(zc * 1000)}", (latch_side * (Wo / 2 + jamb_col - 0.004), yc, zc), (0.004, t / 2 + 0.006, ph / 2), mat_frame, 300, True, True, ALL_TIERS, "frame", "Jamb pocket back"))
+            if len(pk_) > 3:
+                # hook keeper bar inside the pocket: a bracket ties it to the pocket back
+                xk0, xk1 = sorted((pk_[3], latch_side * (Wo / 2 + jamb_col - 0.008)))
+                world.geoms.append(C.box(f"{pk_[4]}_hook_keeper_bracket", ((xk0 + xk1) / 2, yc, zc), (max((xk1 - xk0) / 2, 0.002), 0.015, 0.006), C.mat_from_material(model, "stainless", "mat_hook"), 7900, False, True, FULL_SIMPLE, "latch", "Keeper bracket"))
             prev = zc + ph / 2
         segs.append((prev, Ho))
         for k, (a, b) in enumerate(segs):
@@ -497,6 +560,8 @@ def build_revolving(spec, phys, model: Model):
             xb, yb = (R * 0.6) * math.cos(a), (R * 0.6) * math.sin(a)
             nx, ny = -math.sin(a), math.cos(a)
             rotor.geoms.append(Geom(f"wing_{k}_bar", "capsule", (0.012, 0.15), (xb + nx * (t / 2 + 0.05), yb + ny * (t / 2 + 0.05), 1.0), (1, 0, 0, 0), pm, True, True, 7900, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Push bar"))
+            for s_ in (-1, 1):   # stand-off posts from the wing face to the bar
+                rotor.geoms.append(C.cyl(f"wing_{k}_bar_post_{'p' if s_ > 0 else 'n'}", (xb + nx * (t / 2 + 0.025) + s_ * 0.12 * math.cos(a), yb + ny * (t / 2 + 0.025) + s_ * 0.12 * math.sin(a), 1.0), 0.008, 0.025, pm, (nx, ny, 0), 7900, False, True, FULL_SIMPLE, "operator", "Bar stand-off"))
             rotor.sites.append(Site(f"wing_{k}_push", (xb + nx * (t / 2 + 0.05), yb + ny * (t / 2 + 0.05), 1.0), QUAT_ID, 0.015, "push"))
     _sites(world, Hh, -R - 1.0, R + 1.0)
     model.meta.update({"primary_joint": "rotor_hinge", "operator_joint": None, "handle_height": 1.0, "drum_diameter": D})
@@ -529,7 +594,10 @@ def build_turnstile(spec, phys, model: Model, full_height=False):
         ax = np.array([0.0, math.sin(math.radians(45)), math.cos(math.radians(45))])
         boss = 0.27
         rotor = Body("rotor", None, (xc + cab_w / 2 + boss + 0.02, 0.0, cab_h - 0.05), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Tripod rotor")
-        rotor.geoms.append(C.cyl("hub_boss", (-(boss + 0.02) / 2, 0.0, 0.0), 0.04, (boss + 0.02) / 2, fm, (1, 0, 0), 800, False, True, ALL_TIERS, "leaf", "Hub shaft"))
+        # shaft housing: static, from the housing back plate through the recess to the rotor hub (the hub seats on it)
+        xs0, xs1 = xc - cab_w / 2 + 0.02, xc + cab_w / 2 + boss + 0.02
+        world.geoms.append(C.cyl("hub_boss", ((xs0 + xs1) / 2, 0.0, cab_h - 0.05), 0.04, (xs1 - xs0) / 2, fm, (1, 0, 0), 800, False, True, ALL_TIERS, "frame", "Hub shaft housing"))
+        model.meta.setdefault("clearance_allow", []).append(["arm_*_col", "hub_boss", "the arms sweep into the cabinet recess over the shaft housing"])
         rotor.joint = Joint("rotor_hinge", "hinge", tuple(ax), (0, 0, 0), None, damping=2.0, frictionloss=hf["coulomb_torque_Nm"] + 3.0, armature=0.05, role="primary", label="Tripod rotor (ratchets 120 deg; one-way enforced by env)", ratchet_one_way=bool(spec["kinematics"].get("one_way", True)))
         model.add_body(rotor)
         key, mesh = MESH.tripod_mesh(arm_len=0.5, r=0.019, hub_r=0.05)
@@ -637,13 +705,25 @@ def build_vertical(spec, phys, model: Model):
                 world.geoms.append(C.box(f"track_{'r' if sgn > 0 else 'l'}_flange_{'p' if sy > 0 else 'n'}", (sgn * (W / 2 + 0.032), track_y + sy * 0.029, zt_), (0.022, 0.004, hz_), tm, 7850, True, True, FULL_SIMPLE, "track", "Track flange"))
             for k in range(ns + 1):
                 lb.geoms.append(C.cyl(f"roller_{'r' if sgn > 0 else 'l'}_{k}", (sgn * (W / 2 + 0.03), track_y, max(0.04, 0.01 + k * (Hh / ns)) if k < ns else Hh - 0.05), 0.025, 0.01, tm, (1, 0, 0), 7850, False, True, FULL_ONLY, "track", "Track roller"))
-                lb.geoms.append(C.box(f"roller_arm_{'r' if sgn > 0 else 'l'}_{k}", (sgn * (W / 2 - 0.02), track_y / 2 + t / 4, 0.01 + k * (Hh / ns) if k < ns else Hh - 0.05), (0.03, track_y / 2 - t / 4, 0.006), tm, 7850, False, True, FULL_ONLY, "track", "Roller hinge arm"))
+                z_r = max(0.04, 0.01 + k * (Hh / ns)) if k < ns else Hh - 0.05
+                lb.geoms.append(C.box(f"roller_arm_{'r' if sgn > 0 else 'l'}_{k}", (sgn * (W / 2 - 0.02), track_y / 2 + t / 4, z_r), (0.03, track_y / 2 - t / 4, 0.006), tm, 7850, False, True, FULL_ONLY, "track", "Roller hinge arm"))
+                lb.geoms.append(C.cyl(f"roller_axle_{'r' if sgn > 0 else 'l'}_{k}", (sgn * (W / 2 + 0.015), track_y, z_r), 0.006, 0.012, tm, (1, 0, 0), 7850, False, True, FULL_ONLY, "track", "Roller axle"))
         # torsion spring shaft
         world.geoms.append(C.cyl("torsion_shaft", (0, 0.17, Ho + 0.25), 0.013, W / 2 + 0.2, tm, (1, 0, 0), 7850, True, True, FULL_SIMPLE, "mechanism", "Torsion spring shaft"))
         world.geoms.append(C.cyl("torsion_spring", (0, 0.17, Ho + 0.25), 0.03, 0.35, C.mat_from_material(model, "steel", "mat_spring"), (1, 0, 0), 7850, False, True, FULL_ONLY, "mechanism", "Torsion spring"))
+        # end bearing brackets on the wall beside the rough opening carry the torsion shaft
+        wt_g = float(op["wall_thickness"])
+        for sgn in (-1, 1):
+            world.geoms.append(C.box(f"torsion_bracket_{'r' if sgn > 0 else 'l'}", (sgn * (Wo / 2 + rough + 0.03), (wt_g / 2 - 0.002 + 0.17) / 2, Ho + 0.25), (0.02, (0.17 - wt_g / 2 + 0.002) / 2, 0.03), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Torsion shaft bearing bracket"))
         if kin.get("opener", "none_manual") != "none_manual":
             world.geoms.append(C.box("opener_rail", (0, 1.75, Ho + 0.15), (0.03, 1.25, 0.03), tm, 7850, True, True, FULL_ONLY, "mechanism", "Opener rail"))
             world.geoms.append(C.box("opener_unit", (0, 3.0, Ho + 0.1), (0.15, 0.2, 0.1), C.mat_from_material(model, "black_matte_metal", "mat_opener"), 500, True, True, FULL_ONLY, "mechanism", "Opener unit"))
+            # the opener hangs from the garage ceiling: ceiling slab on top of the wall, straps down to unit and rail
+            z_ceil = Ho + Hh + 0.3
+            wall_half_g = max(3.0, W / 2 + 1.0)
+            world.geoms.append(C.box("garage_ceiling", (0, (wt_g / 2 + 4.4) / 2, z_ceil + 0.05), (wall_half_g, (4.4 - wt_g / 2) / 2, 0.05), C.mat_rgba(model, "mat_ceiling", (0.92, 0.92, 0.90, 1), 0.9), 600, False, True, FULL_ONLY, "wall", "Garage ceiling"))
+            world.geoms.append(C.box("opener_strap", (0, 3.0, (Ho + 0.2 + z_ceil) / 2), (0.02, 0.02, (z_ceil - Ho - 0.2) / 2), tm, 7850, False, True, FULL_ONLY, "mechanism", "Opener hanger strap"))
+            world.geoms.append(C.box("rail_hanger", (0, 0.8, (Ho + 0.18 + z_ceil) / 2), (0.015, 0.015, (z_ceil - Ho - 0.18) / 2), tm, 7850, False, True, FULL_ONLY, "mechanism", "Rail hanger"))
     elif fam == "rollup":
         C.add_leaf_geoms(model, lb, spec, leaf, 1.0, -W / 2, 0.01, phys, name_prefix="curtain", y_center=y_leaf)
         # slats visual lines
@@ -651,21 +731,34 @@ def build_vertical(spec, phys, model: Model):
         for k in range(1, ns):
             lb.geoms.append(C.box(f"slat_line_{k}", (0, y_leaf - t / 2 - 0.001, 0.01 + k * Hh / ns), (W / 2, 0.001, 0.003), C.mat_rgba(model, "mat_slat_line", (0.25, 0.25, 0.25, 1), 0.7), 1.0, False, True, FULL_ONLY, "leaf", "Slat joint"))
         # guides + drum + hood
+        # guides: C-channels (web on the wall angle, two flanges sandwiching the curtain edge) the bottom bar runs in;
+        # the left guide is split around the slide-lock bar (the segment ends are the keeper, 4 mm clearance)
+        wt_r = float(op["wall_thickness"])
+        y_ff = y_leaf + (t / 2 + 0.016 + 0.004)
+        y_bf = y_leaf - (t / 2 + 0.016 + 0.004)
         for sgn in (-1, 1):
+            side = "r" if sgn > 0 else "l"
+            segs_ = [(0.0, Ho)]
             if sgn < 0 and spec["lock"]["model"] == "garage_slide_lock":
-                # left guide split around the slide-lock bar (bottom-bar height): the guide segments are the keeper
                 zsl_ = 0.30
-                world.geoms.append(C.box("guide_l", (sgn * (W / 2 + 0.035), y_leaf, (zsl_ - 0.015) / 2), (0.03, 0.025, (zsl_ - 0.015) / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
-                world.geoms.append(C.box("guide_l_upper", (sgn * (W / 2 + 0.035), y_leaf, (zsl_ + 0.015 + Ho) / 2), (0.03, 0.025, (Ho - zsl_ - 0.015) / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
-                continue
-            world.geoms.append(C.box(f"guide_{'r' if sgn > 0 else 'l'}", (sgn * (W / 2 + 0.035), y_leaf, Ho / 2), (0.03, 0.025, Ho / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
+                segs_ = [(0.0, zsl_ - 0.010), (zsl_ + 0.010, Ho)]
+            for si, (za_, zb2_) in enumerate(segs_):
+                sfx = "" if si == 0 else "_upper"
+                yw0, yw1 = sorted((wt_r / 2 - 0.002, y_ff + 0.004))
+                world.geoms.append(C.box(f"guide_{side}{sfx}", (sgn * (W / 2 + 0.032), (yw0 + yw1) / 2, (za_ + zb2_) / 2), (0.004, (yw1 - yw0) / 2, (zb2_ - za_) / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide (web / wall angle)"))
+                world.geoms.append(C.box(f"guide_{side}_flange_f{sfx}", (sgn * (W / 2 + 0.015), y_ff, (za_ + zb2_) / 2), (0.017, 0.004, (zb2_ - za_) / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide flange"))
+                world.geoms.append(C.box(f"guide_{side}_flange_b{sfx}", (sgn * (W / 2 + 0.015), y_bf, (za_ + zb2_) / 2), (0.017, 0.004, (zb2_ - za_) / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide flange"))
         # the curtain translates rigidly (no coiling is simulated): the coil sits in FRONT of the curtain plane, tangent to
         # it, inside an open-topped hood, so the raised curtain never intersects drum or hood (visual parts, no collision)
         world.geoms.append(C.cyl("coil_drum", (0, y_leaf + 0.278, Ho + 0.3), 0.25, W / 2 + 0.05, fm, (1, 0, 0), 300, False, True, FULL_SIMPLE, "mechanism", "Coil (visual)"))
+        world.geoms.append(C.cyl("coil_axle", (0, y_leaf + 0.278, Ho + 0.3), 0.02, W / 2 + 0.14, tm, (1, 0, 0), 7850, False, True, FULL_SIMPLE, "mechanism", "Coil axle (through the hood end plates)"))
         world.geoms.append(C.box("hood_front", (0, y_leaf + 0.54, Ho + 0.30), (W / 2 + 0.12, 0.02, 0.30), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Hood front"))
         for sx in (-1, 1):
             world.geoms.append(C.box(f"hood_end_{'r' if sx > 0 else 'l'}", (sx * (W / 2 + 0.12), y_leaf + 0.27, Ho + 0.30), (0.02, 0.29, 0.30), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Hood end plate"))
-        lb.geoms.append(C.box("bottom_bar", (0, y_leaf, 0.03), (W / 2, t / 2 + 0.015, 0.03), tm, 7850, True, True, ALL_TIERS, "leaf", "Bottom bar", mass=3.0 * W))
+            yh0, yh1 = sorted((wt_r / 2 - 0.002, y_leaf - 0.02 + 0.002))
+            world.geoms.append(C.box(f"hood_bracket_{'r' if sx > 0 else 'l'}", (sx * (W / 2 + 0.12), (yh0 + yh1) / 2, Ho + 0.30), (0.02, (yh1 - yh0) / 2, 0.05), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Hood wall bracket"))
+        # bottom bar: its ends run inside the guide channels (2 mm to the web, 1 mm to the flanges)
+        lb.geoms.append(C.box("bottom_bar", (0, y_leaf, 0.03), (W / 2 + 0.026, t / 2 + 0.015, 0.03), tm, 7850, True, True, ALL_TIERS, "leaf", "Bottom bar", mass=3.0 * W))
         if kin.get("opener") == "chain_hoist":
             world.geoms.append(C.cyl("hoist_chain", (W / 2 + 0.12, y_leaf, Ho / 2 + 0.3), 0.005, Ho / 2 + 0.3, C.mat_from_material(model, "steel", "mat_chain"), (0, 0, 1), 7850, True, True, FULL_ONLY, "mechanism", "Hoist chain"))
     # operator (lift handle / T-handle)
@@ -775,6 +868,11 @@ def build_horizontal(spec, phys, model: Model):
         model.add_body(lb)
         lm = C.mat_from_finish(model, leaf["finish"], "mat_leaf")
         lb.geoms.append(C.box("hatch_slab", (0, -Ho / 2, 0), (W / 2, Ho / 2 - 0.004, t / 2), lm, 1.0, True, True, ALL_TIERS, "leaf", "Hatch slab", mass=phys["mass"]["slab_kg"]))
+        # hinges on the far edge: knuckles on the leaf (on the axis) turning in plates screwed to the curb top
+        hm_h = C.mat_from_material(model, "steel_galvanized", "mat_hinge")
+        for k, xk in enumerate((-W / 2 + 0.12, W / 2 - 0.12)):
+            lb.geoms.append(C.cyl(f"hatch_hinge_{k}", (xk, 0.0, 0.0), 0.009, 0.045, hm_h, (1, 0, 0), 7850, False, True, FULL_SIMPLE, "hinge", "Hatch hinge knuckle"))
+            world.geoms.append(C.box(f"hatch_hinge_{k}_plate", (xk, Ho / 2 + 0.02, zf + 0.04 + 0.003), (0.05, 0.02, 0.003), hm_h, 7850, False, True, FULL_SIMPLE, "hinge", "Hatch hinge plate (curb)"))
         if leaf["panel_style"] == "riveted_steel":
             rm = C.mat_from_material(model, "steel", "mat_rivet")
             for i in range(4):
@@ -788,6 +886,11 @@ def build_horizontal(spec, phys, model: Model):
             ring = Body("ring", lb.name, (0, -Ho * 0.75, fz * t / 2), QUAT_ID, None, [], [], ALL_TIERS, "operator", "Ring pull")
             ring.joint = Joint("ring_hinge", "hinge", (fz, 0, 0), (0, 0, 0), (0.0, 1.5708), damping=0.01, role="operator", label="Ring pull (flip out)")
             ring.geoms.append(Geom("ring_geom", "capsule", (0.006, 0.035), (0, 0.04, fz * 0.006), tuple(quat_z_to((1, 0, 0))), hm, True, True, 7800, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Ring"))
+            # D-ring: pivot bar on the hinge axis (seated in the recess) and two legs to the grip bar
+            ring.geoms.append(Geom("ring_pivot", "capsule", (0.005, 0.035), (0, 0, 0), tuple(quat_z_to((1, 0, 0))), hm, False, True, 7800, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "operator", "Ring pivot bar"))
+            for sx_ in (-1, 1):
+                ring.geoms.append(Geom(f"ring_leg_{'p' if sx_ > 0 else 'n'}", "capsule", (0.005, 0.02), (sx_ * 0.035, 0.02, fz * 0.004), tuple(quat_z_to((0, 1, 0))), hm, False, True, 7800, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "operator", "Ring leg"))
+            model.meta.setdefault("clearance_allow", []).extend([["ring_pivot", "ring_recess", "pivot bar seats in the recess plate"], ["ring_leg_*", "ring_recess", "ring legs rest on the recess plate"]])
             ring.sites.append(Site("grip_ring", (0, 0.04, fz * 0.006), QUAT_ID, 0.01, "grip"))
             model.add_body(ring)
             lb.geoms.append(C.box("ring_recess", (0, -Ho * 0.75, fz * (t / 2 + 0.001)), (0.05, 0.05, 0.001), hm, 7800, False, True, FULL_ONLY, "operator", "Recess plate"))
@@ -863,16 +966,17 @@ def build_horizontal(spec, phys, model: Model):
         for k in range(n):
             x = -Wo / 2 + sw / 2 + k * pitch
             y = ((k % 2) - 0.5) * (t + 0.004)
-            s = Body(f"strip_{k}", None, (x, y, Ho - 0.006), QUAT_ID, None, [], [], ALL_TIERS if k % 2 == 0 else FULL_SIMPLE, "leaf", f"Strip {k + 1}")
+            # the strip hangs from its top edge, which is clamped into the hanger rail's underside (hinge axis there)
+            s = Body(f"strip_{k}", None, (x, y + ((k % 3) - 1) * (t + 0.002), Ho), QUAT_ID, None, [], [], ALL_TIERS if k % 2 == 0 else FULL_SIMPLE, "leaf", f"Strip {k + 1}")
             s.joint = Joint(f"strip_{k}_hinge", "hinge", (1, 0, 0), (0, 0, 0), (-1.25, 1.25), damping=0.05, frictionloss=0.02, armature=1e-4, role="primary" if k == n // 2 else "secondary", label="Strip swings both ways")
-            s.geoms.append(C.box(f"strip_{k}_geom", (0, ((k % 3) - 1) * (t + 0.002), -Hh / 2), (sw / 2, t / 2, Hh / 2), gm, 1250, True, True, ALL_TIERS if k % 2 == 0 else FULL_SIMPLE, "leaf", "PVC strip", friction=(0.6, 0.005, 0.0001)))
+            s.geoms.append(C.box(f"strip_{k}_geom", (0, 0, -Hh / 2), (sw / 2, t / 2, Hh / 2), gm, 1250, True, True, ALL_TIERS if k % 2 == 0 else FULL_SIMPLE, "leaf", "PVC strip", friction=(0.6, 0.005, 0.0001)))
             model.add_body(s)
             strips.append(s)
             if k > 0:
                 model.contact_excludes.append((s.name, strips[k - 1].name))
         _sites(world, Ho)
         model.meta.update({"primary_joint": f"strip_{n // 2}_hinge", "operator_joint": None, "handle_height": 1.0, "both_ways": True, "n_strips": n})
-        model.meta.setdefault("clearance_allow", []).append(["strip_*_geom", "strip_*_geom", "overlapping PVC strips push each other aside (compliant in reality)"])
+        model.meta.setdefault("clearance_allow", []).extend([["strip_*_geom", "strip_*_geom", "overlapping PVC strips push each other aside (compliant in reality)"], ["strip_*_geom", "hanger_rail", "the strip tops are clamped into the hanger rail"]])
         return strips
     if fam == "garage_tiltup":
         world = C.add_floor_and_wall(model, spec, wall_half_width=max(3.0, W / 2 + 1.0), wall_height=Ho + 1.2)

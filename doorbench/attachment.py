@@ -79,7 +79,7 @@ CLOSER_RE = re.compile(r"closer|strut|auto_operator|operator_arm|pneumatic|floor
 # x across the door, y up).  Symmetric meshes (levers, knobs, pulls) have no up direction and are not checked.
 MESH_UP = {"knocker": (0.0, 1.0, 0.0), "coat_hook": (0.0, 1.0, 0.0), "handleset": (0.0, 1.0, 0.0), "card_reader": (0.0, 1.0, 0.0),
            "keypad_body": (0.0, 1.0, 0.0), "thumb_latch": (0.0, 1.0, 0.0), "house_numbers": (0.0, 1.0, 0.0), "exit_sign": (0.0, 1.0, 0.0),
-           "magnalatch": (0.0, 1.0, 0.0)}
+           "magnalatch": (0.0, 1.0, 0.0), "ring": (0.0, 1.0, 0.0)}
 ENGAGED_RE = re.compile(r"0 = [^,;)]*?(engaged|thrown|extended|dropped|hooked|dogged|latched|joined|closed over|in keeper|in track|in floor socket|in the head|in socket)", re.I)
 
 

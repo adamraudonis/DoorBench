@@ -8,6 +8,9 @@ Checks (all tiers where applicable):
   return      releasing the operator lets the spring latch re-extend
   relatch     closing the door re-latches (spring latches with strike lip)
   closer      self-closing doors return to closed from 60 deg
+  attachment  deterministic attachment gate (doorbench/attachment.py): no floating parts, every body mounted on its
+              parent at rest and through the sweep, static geometry attached to frame / wall / floor, mechanisms move,
+              no degenerate / duplicate / flipped geometry; ``attachment_closer`` carries the closer-domain findings
   urdf        URDF loads in MuJoCo (structure check)
   usd         USD stage opens; joint & rigid-body counts match the IR
 Writes qa.json with pass/fail per check, metrics, and a signed_off flag.
@@ -96,6 +99,20 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
     except Exception as e:
         checks["clearance"] = False
         metrics["clearance_error"] = str(e)[:200]
+    # ---- deterministic attachment gate (nothing floats, everything mounted, every mechanism moves); findings on the
+    # closer / power-operator / gas-strut parts are reported under their own check so the two can be tracked apart
+    try:
+        from .attachment import run_attachment
+        at = run_attachment(door_dir, "full")
+        checks["attachment"] = bool(at["ok_door"])
+        checks["attachment_closer"] = at["n_closer_findings"] == 0
+        metrics["attachment_n_findings"] = at["n_findings"]
+        metrics["attachment_counts"] = at["counts"]
+        metrics["attachment_findings"] = at["findings"][:10]
+        metrics["attachment_joints"] = {k: {"status": v["status"], "moved": v["moved"], "ok": v["ok"]} for k, v in at["joints"].items()}
+    except Exception as e:
+        checks["attachment"] = False
+        metrics["attachment_error"] = str(e)[:200]
     m = models["full"]
     d = mujoco.MjData(m)
     # ---- mass gate: simulated moving mass must match the derived door mass (slab + glass + hardware)
@@ -134,6 +151,8 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         fl = float(m.dof_frictionloss[dof])
         preload = abs(float(m.jnt_stiffness[pj] * m.qpos_spring[m.jnt_qposadr[pj]])) if m.jnt_stiffness[pj] > 0 else 0.0
         push = 2.0 * (bias + fl + preload) + (60.0 if is_hinge else 80.0)
+        if lt.kind == "magnetic" and lt.holding_force > 0:
+            push += 2.0 * lt.holding_force      # a magnetic gasket / catch holds with its rated force until pulled harder
         push = min(push, 800.0 if is_hinge else 4000.0)
         metrics["qa_push"] = push
         mujoco.mj_resetData(m, d)
