@@ -1,8 +1,9 @@
 # Running DoorBench in Isaac Lab on a rented GPU box
 
 Isaac Sim needs an NVIDIA RTX-class GPU on Linux (Ubuntu 22.04 / 24.04, driver ≥ 535, glibc ≥ 2.35).
-Everything below was written for **Isaac Sim 5.1.0 + Isaac Lab v2.3.0** (Python 3.11, torch 2.7 cu128) and has
-**not been executed on the author's machine** (Apple silicon); see [`../STATUS.md`](../STATUS.md).
+Everything below targets **Isaac Sim 5.1.0 + Isaac Lab v2.3.2** (Python 3.11 uv venv, torch 2.7 cu128). The setup
+was executed on a RunPod Secure Cloud **L40S** on 2026-09-04; the replicable pod flow (API, pod spec, costs,
+troubleshooting) is in [`docs/RUNPOD.md`](../../docs/RUNPOD.md). Status of each script: [`../STATUS.md`](../STATUS.md).
 
 ## Instance recommendations (Sept 2026 list prices, on-demand, approximate)
 
@@ -25,8 +26,8 @@ Budget for the whole pipeline on an L40S: setup 15 min, USD validation of 1000 d
 
 ```bash
 git clone https://github.com/adamraudonis/DoorBench.git && cd DoorBench
-bash isaaclab/cloud/setup.sh          # 10-15 min: miniconda, isaacsim 5.1.0 wheels, IsaacLab v2.3.0, DoorBench, dataset
-source isaaclab/cloud/env.sh          # activates the env, exports DOORBENCH_ASSETS, defines the `ilab` alias
+bash isaaclab/cloud/setup.sh          # ~25 min: uv venv (py3.11), isaacsim 5.1.0 wheels, IsaacLab v2.3.2, DoorBench (+extension)
+source isaaclab/cloud/env.sh          # activates the venv, exports ISAACLAB_DIR / DOORBENCH_ASSETS, accepts the EULA
 ```
 
 ## Setup (container route)

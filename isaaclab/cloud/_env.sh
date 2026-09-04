@@ -7,12 +7,12 @@ if [ -f "$DOORBENCH_DIR/isaaclab/cloud/env.sh" ]; then
   source "$DOORBENCH_DIR/isaaclab/cloud/env.sh"
 fi
 ISAACLAB_DIR="${ISAACLAB_DIR:-$HOME/IsaacLab}"
-if [ -x "$ISAACLAB_DIR/isaaclab.sh" ]; then
+if command -v python >/dev/null 2>&1 && python -c "import importlib.util as u; assert u.find_spec('isaaclab')" 2>/dev/null; then
+  ILAB="python"                              # the venv from scripts/pod_bootstrap.sh (env.sh activated it)
+elif [ -x "$ISAACLAB_DIR/isaaclab.sh" ]; then
   ILAB="$ISAACLAB_DIR/isaaclab.sh -p"
 elif [ -x /isaac-sim/python.sh ]; then       # inside the nvcr.io/nvidia/isaac-sim container
   ILAB="/isaac-sim/python.sh"
-elif command -v python >/dev/null 2>&1 && python -c "import isaaclab" 2>/dev/null; then
-  ILAB="python"
 else
   echo "Isaac Lab not found: run isaaclab/cloud/setup.sh first (or set ISAACLAB_DIR)" >&2; exit 1
 fi
