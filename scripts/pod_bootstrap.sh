@@ -37,10 +37,14 @@ uv pip install -q pip setuptools wheel "packaging>=24"
 python -V
 
 echo "== [3/6] Isaac Sim $ISAACSIM_VERSION (pip wheels, ~10 GB)"
-python -c "import isaacsim" 2>/dev/null || pip install "isaacsim[all,extscache]==$ISAACSIM_VERSION" --extra-index-url https://pypi.nvidia.com 2>&1 | tail -1
+# uv downloads the ~10 GB of wheels concurrently (24 MB/s measured) where pip crawled at 0.4 MB/s on one RunPod host.
+export UV_LINK_MODE=copy UV_CACHE_DIR="$W/.uv-cache"
+python -c "import isaacsim" 2>/dev/null || uv pip install "isaacsim[all,extscache]==$ISAACSIM_VERSION" --extra-index-url https://pypi.nvidia.com 2>&1 | tail -2
 
 echo "== [4/6] Isaac Lab $ISAACLAB_TAG (installs torch cu128 + rsl_rl)"
 if [ ! -d $W/IsaacLab ]; then git clone -q https://github.com/isaac-sim/IsaacLab.git $W/IsaacLab; fi
+# pre-fetch torch cu128 with uv (fast, concurrent) so isaaclab.sh's pip step finds it installed
+uv pip install "torch==2.7.0" "torchvision==0.22.0" --index-url https://download.pytorch.org/whl/cu128 2>&1 | tail -1
 cd $W/IsaacLab && git fetch -q --tags && git checkout -q "$ISAACLAB_TAG" && ./isaaclab.sh --install rsl_rl 2>&1 | tail -3
 # isaaclab.sh can skip the core package and still exit 0 (seen on 2026-09-04: every sub-package installed, `isaaclab` missing);
 # install it explicitly and fail loudly if the import does not work.
