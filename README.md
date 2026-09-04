@@ -53,6 +53,26 @@ EOF
 cd viewer && bun install && bun run dev      # http://localhost:5173
 ```
 
+## Humanoid in the loop
+
+An off-the-shelf humanoid walks through DoorBench doors in plain MuJoCo on a CPU: the MuJoCo Menagerie **Unitree G1**
+(BSD-3) driven by the pretrained **unitree_rl_gym** sim2sim locomotion policy (BSD-3), merged into the door scene with
+`MjSpec.attach` through `DoorEnv`. Physics + policy run at 15–19x real time on an M4; no GPU involved.
+
+| open doorway (`db0119`) | automatic sliding door, opened by its sensor (`db0990`) |
+|---|---|
+| ![](docs/media/g1_door_db0119.gif) | ![](docs/media/g1_door_db0990.gif) |
+| **saloon pair pushed open, 240 N peak on the leaf, no damage (`db0123`)** | **latched push door: 423 N, latch holds, locomotion alone cannot open it (`db0705`)** |
+| ![](docs/media/g1_door_db0123.gif) | ![](docs/media/g1_door_db0705.gif) |
+
+```bash
+bash robot_demo/setup.sh                                     # fetch Menagerie G1 + unitree_rl_gym policy (pinned commits)
+python robot_demo/run_g1_door.py --door db0123_saloon        # -> docs/media/g1_door_db0123.{mp4,gif}, robot_demo/results/*.json
+```
+Setup, per-run numbers (time-to-pass, contact forces, real-time factors) and limitations: [robot_demo/README.md](robot_demo/README.md).
+A locomotion policy cannot operate levers, knobs or bolts; latched and locked doors need the loco-manipulation policies this
+benchmark is built to train.
+
 ## How doors are built
 
 1. **Taxonomy & sampler** (`doorbench/taxonomy.py`, `spec.py`): 30 families with sub-contexts (residential interior,

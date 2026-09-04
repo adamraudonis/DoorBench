@@ -47,6 +47,9 @@ labels = env.labels()
 The robot is attached 1.5 m in front of the door (`approach_point`).  `env.badge()` presents a credential;
 `env.unlocked_by_env` can be set by task logic.  `env.grip_sites()` lists grasp / push targets on the hardware.
 
+A complete worked example with a real humanoid (Menagerie Unitree G1 + the pretrained unitree_rl_gym locomotion policy,
+videos, contact forces, real-time factors) is in [`robot_demo/`](../robot_demo/README.md).
+
 ## Tiers and throughput
 
 * `full` – every mechanism body; 5–40 bodies; mesh visuals; ≈ 2–20 k steps/s single-threaded in MuJoCo.
