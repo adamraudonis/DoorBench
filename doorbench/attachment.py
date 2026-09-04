@@ -10,27 +10,33 @@ Closed kinematic loops (closer arms pinned to the frame by a ``connect`` equalit
 configuration with a Newton iteration on MuJoCo's own equality residuals (``LoopSolver``), so the checks see the
 configuration the physics engine would settle into, not the frozen tree pose.
 
-Rules (each finding carries ``rule``, the offending body / geoms, the measured distance and an explanation):
+Rules (each finding carries ``rule``, the offending body / geoms, the measured distance, the configuration and an
+explanation; ``domain`` is ``"closer"`` for closer / power-operator / gas-strut parts and ``"door"`` otherwise):
 
-  1. ``intra_body``      the geoms of one body form ONE connected cluster with gaps <= TOL_INTRA (two islands =
+  1. ``intra_body``      the geoms of one body form ONE connected cluster with gaps < TOL_INTRA (two islands =
                          a floating piece, e.g. chain-as-beads, a duplicated thumb piece)
   2. ``detached``        every non-world body is within TOL_ATTACH of its parent body's geoms, of the body it is
-                         pinned to by an equality, or (world children) of a static geom it is mounted on
-  3. ``static_floating`` every static geom belongs to a cluster (gaps <= TOL_ATTACH) that contains the floor, a
-                         wall or a ceiling: nothing static hangs in the air
+                         pinned to by a connect / weld equality, or (world children) of a static geom: hinges touch
+                         leaf and jamb, handles and locks touch the leaf, the closer body sits on the leaf ...
+  3. ``static_floating`` every static geom belongs to a cluster (gaps < TOL_ATTACH) that contains the floor, a
+                         wall or a ceiling: keepers, strikes, shoes, brackets and tracks are mounted on something
   4. ``loop_open`` / ``detached_in_motion``  through the sweep of every leaf and every independent mechanism joint
-                         (loops solved): equality partners stay within TOL_LOOP, bodies stay attached (rule 2)
+                         (loops solved at every step): connect / weld partners stay within TOL_LOOP (the forearm
+                         tip stays at the shoe) and every body that was attached at rest stays attached (rule 2):
+                         a leaf hangs on its hinges / hangers at every angle, a bolt stays in its guides
   5. ``no_actuation``    every joint with a usable range moves: leaf and operator joints are driven directly, coupled
                          joints (joint equalities, one-sided tendons) must follow their driver, loop joints (closer
                          pinion / elbow) must change when the door swings, a spring latch bolt must be coupled to the
                          door's operator.  Reported per joint (``joints`` in the result) so it complements the
-                         force-driven QA instead of duplicating it
+                         force-driven QA instead of duplicating it.  Joints whose driver is locked (or whose coupling
+                         cannot produce a visible motion over the driver's range) are reported as ``locked_by_driver``
   6. ``degenerate``      zero-size geoms, bodies with mass but no geoms, geoms without a material, exact-duplicate
-                         geoms, meshes with an implausible bounding box, visual meshes that do not cover their own
-                         collision proxy, meshes with a known "up" direction rendered upside-down, keypads / readers
+                         geoms, meshes with an implausible bounding box, collision proxies far from their visual
+                         part, meshes with a known "up" direction rendered upside-down / sideways (asymmetric
+                         handleset meshes used to be flipped by ``q_face`` on right-hinged doors), keypads / readers
                          on the wrong face
   7. ``no_keeper``       an engaged bolt / hook / bar (label "0 = engaged / thrown / hooked ...") must sit within
-                         TOL_KEEPER of a keeper, strike, pocket or socket on another body
+                         TOL_KEEPER of a keeper, strike, pocket or socket on another body when the door is closed
 
 Allow-lists only with a documented justification: ``model.meta["attachment_allow"]`` is a list of
 ``[rule, name_pattern, justification]`` (fnmatch on the body or geom name; ``rule`` may be ``"*"``).
@@ -57,22 +63,24 @@ LOCKED_RANGE = 0.006       # rad or m; joints with a smaller range are locked by
 MIN_HALF_EXTENT = 0.0002   # m; rule 6: a 0.4 mm slab is the thinnest legitimate geom (strike / keeper plates)
 MESH_EXTENT_MIN = 0.004    # m; rule 6: hardware meshes are at least 4 mm ...
 MESH_EXTENT_MAX = 2.5      # m; ... and at most 2.5 m (ladder pulls, closer arms) in every axis
-PROXY_MARGIN = 0.02        # m; rule 6: a collision-only proxy must lie inside its visual mesh's box grown by this
-MESH_ASYMMETRY = 0.006     # m; rule 6: mirrored surface points farther than this from the mesh = asymmetric mesh
+PROXY_MARGIN = 0.02        # m; rule 6: a collision-only proxy must lie inside its visual geoms' bounding box grown by this
 TOL_KEEPER = 0.008         # m; rule 7: an engaged bolt is captured if a keeper is within this (fork prongs: 6 mm)
 N_STEPS = 12               # sweep resolution for leaf joints (mechanism joints use N_STEPS // 2)
+EPS = 1e-6                 # comparisons: "within 3 mm" means dist <= TOL + EPS (a rod authored 3.000 mm from its guide passes)
 
 LEAF_ROLES = ("primary", "secondary")
 MECH_ROLES = ("operator", "latch", "lock", "mechanism", "decor")
 GROUND_SEMANTICS = ("floor", "wall")                       # static clusters must contain one of these
 KEEPER_SEMANTICS = ("frame", "latch", "lock", "track", "leaf")
-# meshes whose local frame has a known "up" (+y) direction: they must be rendered with +y toward world +z when
-# mounted on a vertical face (q_face flips asymmetric meshes on doors with u*v < 0 unless q_face_upright is used)
-MESH_UP = {"knocker": (0.0, 1.0, 0.0), "coat_hook": (0.0, 1.0, 0.0), "ring": (0.0, 1.0, 0.0), "handleset": (0.0, 1.0, 0.0),
-           "card_reader": (0.0, 1.0, 0.0), "keypad_body": (0.0, 1.0, 0.0), "thumb_latch": (0.0, 1.0, 0.0)}
+# closer / power-operator / gas-strut parts (owned by the closer mechanism model): findings on them are tagged
+# domain="closer" so the QA can report them separately from the rest of the door
+CLOSER_RE = re.compile(r"closer|strut|auto_operator|operator_arm|pneumatic|floor_spring|spring_hinge", re.I)
+# library meshes whose local +y is "up" when mounted on a vertical face (mesh frame of q_face: z away from the face,
+# x across the door, y up).  Symmetric meshes (levers, knobs, pulls) have no up direction and are not checked.
+MESH_UP = {"knocker": (0.0, 1.0, 0.0), "coat_hook": (0.0, 1.0, 0.0), "handleset": (0.0, 1.0, 0.0), "card_reader": (0.0, 1.0, 0.0),
+           "keypad_body": (0.0, 1.0, 0.0), "thumb_latch": (0.0, 1.0, 0.0), "house_numbers": (0.0, 1.0, 0.0), "exit_sign": (0.0, 1.0, 0.0),
+           "magnalatch": (0.0, 1.0, 0.0)}
 ENGAGED_RE = re.compile(r"0 = [^,;)]*?(engaged|thrown|extended|dropped|hooked|dogged|latched|joined|closed over|in keeper|in track|in floor socket|in the head|in socket)", re.I)
-
-_MESH_SYMMETRY_CACHE: Dict[str, bool] = {}
 
 
 # ---- model ---------------------------------------------------------------------------------------------------------
@@ -216,6 +224,18 @@ def _union_find(n: int, edges):
     return [find(i) for i in range(n)]
 
 
+def _quat_to_mat(q) -> np.ndarray:
+    w, x, y, z = [float(v) for v in q]
+    return np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+                     [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+                     [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
+
+
+def domain_of(*names: str) -> str:
+    """'closer' for closer / power-operator / gas-strut parts, else 'door'."""
+    return "closer" if any(n and CLOSER_RE.search(n) for n in names) else "door"
+
+
 class Attachment:
     def __init__(self, door_dir: str, tier: str = "full"):
         import mujoco
@@ -244,6 +264,8 @@ class Attachment:
         self.gvis: Dict[str, bool] = {}
         self.gcol: Dict[str, bool] = {}
         self.gmat: Dict[str, str] = {}
+        self.gquat: Dict[str, tuple] = {}
+        self.gmesh: Dict[str, str] = {}
         self.body_json: Dict[str, dict] = {}
         for b in self.model_json["bodies"]:
             self.body_json[b["name"]] = b
@@ -252,6 +274,9 @@ class Attachment:
                 self.gvis[g["name"]] = bool(g.get("visual", True))
                 self.gcol[g["name"]] = bool(g.get("collision", True))
                 self.gmat[g["name"]] = g.get("material", "")
+                self.gquat[g["name"]] = tuple(g.get("quat", (1, 0, 0, 0)))
+                if g.get("mesh_name"):
+                    self.gmesh[g["name"]] = g["mesh_name"]
         self.joints: Dict[str, dict] = {}
         for b in self.model_json["bodies"]:
             j = b.get("joint")
@@ -259,6 +284,7 @@ class Attachment:
                 self.joints[j["name"]] = dict(j, body=b["name"])
         self.eq_json = self.model_json.get("equalities", [])
         self.eq_slaves = {e["a"]: e["b"] for e in self.eq_json if e["kind"] == "joint"}
+        self.eq_coeff = {e["a"]: float(e["polycoeff"][1]) if len(e.get("polycoeff", [])) > 1 else 1.0 for e in self.eq_json if e["kind"] == "joint"}
         # one-sided fixed tendons: driven joint (positive unit coefficient) -> driver joints
         self.tendon_drivers: Dict[str, List[str]] = {}
         self.tendons = []
@@ -285,6 +311,8 @@ class Attachment:
             self.body_geoms[int(m.geom_bodyid[g])].append(g)
         self.static_geoms = list(self.body_geoms[0])
         self.findings: List[dict] = []
+        self._by_key: Dict[tuple, dict] = {}
+        self.detached_at_rest: set = set()
         self.joint_report: Dict[str, dict] = {}
 
     # ---- allow-list / recording --------------------------------------------------------------------------------
@@ -297,9 +325,22 @@ class Attachment:
         return None
 
     def record(self, rule: str, body: str, geoms: List[str], dist: float, why: str, config: str = "initial", severity: str = "fail", **extra):
+        """One finding per (rule, kind, body, first geom, joint): the worst configuration is kept and ``n_configs``
+        counts how many swept configurations showed it (a body that is detached through the whole sweep is ONE
+        finding, not one per sweep step)."""
         if self.allowed(rule, body, *geoms):
             return
-        self.findings.append({"rule": rule, "severity": severity, "body": body, "geoms": list(geoms), "dist": round(float(dist), 5), "config": config, "why": why, **extra})
+        key = (rule, extra.get("kind", ""), body, geoms[0] if geoms else "", extra.get("joint", ""))
+        prev = self._by_key.get(key)
+        if prev is not None:
+            prev["n_configs"] += 1
+            if dist > prev["dist"]:
+                prev.update({"geoms": list(geoms), "dist": round(float(dist), 5), "config": config, "why": why})
+            return
+        f = {"rule": rule, "severity": severity, "domain": domain_of(body, *geoms, extra.get("joint", "")), "body": body, "geoms": list(geoms),
+             "dist": round(float(dist), 5), "config": config, "why": why, "n_configs": 1, **extra}
+        self._by_key[key] = f
+        self.findings.append(f)
 
     # ---- geometry helpers -------------------------------------------------------------------------------------
     def forward(self, q: np.ndarray):
@@ -307,7 +348,8 @@ class Attachment:
         self.mj.mj_forward(self.m, self.d)
 
     def gdist(self, g1: int, g2: int, distmax: float) -> float:
-        """Signed distance between two geoms in the current pose (bounding-sphere broadphase first)."""
+        """Signed distance between two geoms in the current pose; returns ``distmax`` when they are farther apart
+        than that (bounding-sphere broadphase first)."""
         m, d = self.m, self.d
         if float(np.linalg.norm(d.geom_xpos[g1] - d.geom_xpos[g2])) > float(m.geom_rbound[g1] + m.geom_rbound[g2]) + distmax:
             return distmax
@@ -353,6 +395,9 @@ class Attachment:
         lo, hi = self.m.jnt_range[j]
         return bool(self.m.jnt_limited[j]) and (hi - lo) < LOCKED_RANGE
 
+    def _range(self, j: int) -> float:
+        return float(self.m.jnt_range[j][1] - self.m.jnt_range[j][0]) if self.m.jnt_limited[j] else 2 * math.pi
+
     def pose(self, q: np.ndarray) -> np.ndarray:
         """Couplings + loop closure."""
         return self.solver.solve(self.resolve(q))
@@ -367,7 +412,7 @@ class Attachment:
             edges = []
             for i in range(len(gs)):
                 for k in range(i + 1, len(gs)):
-                    if self.gdist(gs[i], gs[k], TOL_INTRA) <= TOL_INTRA:
+                    if self.gdist(gs[i], gs[k], TOL_INTRA + 2 * EPS) <= TOL_INTRA + EPS:
                         edges.append((i, k))
             comp = _union_find(len(gs), edges)
             clusters: Dict[int, List[int]] = {}
@@ -381,7 +426,7 @@ class Attachment:
                     continue
                 gap, _ = self.min_dist(c, main, 0.5)
                 self.record("intra_body", self.bname[b], [self.gname[g] for g in c], gap,
-                            f"{len(c)} geom(s) of body '{self.bname[b]}' form an island {gap * 1000:.1f} mm away from the rest of the body (nothing connects them)")
+                            f"{len(c)} geom(s) of body '{self.bname[b]}' form an island {gap * 1000:.1f} mm away from the rest of the body (nothing connects them): {', '.join(self.gname[g] for g in c[:4])}")
 
     # ---- rule 2 / 4: body attachment ---------------------------------------------------------------------------
     def _partners(self, b: int) -> Tuple[List[int], List[str]]:
@@ -407,14 +452,18 @@ class Attachment:
             gs = self.body_geoms[b]
             if not gs:
                 continue
+            if rule == "detached_in_motion" and b in self.detached_at_rest:
+                continue        # already reported at rest; the motion adds nothing
             partners, pnames = self._partners(b)
             if not partners:
                 continue
             dist, pair = self.min_dist(gs, partners, 0.25)
-            if dist > TOL_ATTACH:
+            if dist > TOL_ATTACH + EPS:
+                if rule == "detached":
+                    self.detached_at_rest.add(b)
                 self.record(rule, self.bname[b], [pair[0]] if pair else [self.gname[gs[0]]], dist,
                             f"body '{self.bname[b]}' is {dist * 1000:.1f} mm from anything it could be mounted on ({', '.join(pnames)})"
-                            + (f" (closest: {pair[1]})" if pair else ""), config=config)
+                            + (f" (closest: {pair[1]})" if pair else "") + ("" if rule == "detached" else f" at {config}"), config=config)
 
     # ---- rule 3: static geometry ----------------------------------------------------------------------------------
     def rule_static(self):
@@ -424,7 +473,7 @@ class Attachment:
         edges = []
         for i in range(len(gs)):
             for k in range(i + 1, len(gs)):
-                if self.gdist(gs[i], gs[k], TOL_ATTACH) <= TOL_ATTACH:
+                if self.gdist(gs[i], gs[k], TOL_ATTACH + 2 * EPS) <= TOL_ATTACH + EPS:
                     edges.append((i, k))
         comp = _union_find(len(gs), edges)
         clusters: Dict[int, List[int]] = {}
@@ -433,11 +482,11 @@ class Attachment:
         grounded = [c for c in clusters.values() if any(self.sem.get(self.gname[g], "") in GROUND_SEMANTICS for g in c)]
         ground_geoms = [g for c in grounded for g in c]
         for c in clusters.values():
-            if c in grounded:
+            if any(c is gc for gc in grounded):
                 continue
             gap, pair = self.min_dist(c, ground_geoms, 0.5) if ground_geoms else (0.5, None)
             self.record("static_floating", "world", [self.gname[g] for g in c], gap,
-                        f"{len(c)} static geom(s) hang in the air: {gap * 1000:.1f} mm from the nearest grounded geometry" + (f" ({pair[1]})" if pair else ""))
+                        f"{len(c)} static geom(s) hang in the air, {gap * 1000:.1f} mm from the nearest grounded geometry" + (f" ({pair[1]})" if pair else "") + f": {', '.join(self.gname[g] for g in c[:4])}")
 
     # ---- rule 6: degenerate content ------------------------------------------------------------------------------
     def rule_degenerate(self):
@@ -475,23 +524,23 @@ class Attachment:
                 ext = verts.max(axis=0) - verts.min(axis=0)
                 if float(ext.max()) > MESH_EXTENT_MAX or float(ext.max()) < MESH_EXTENT_MIN or float(ext.min()) < 1e-6:
                     self.record("degenerate", body, [name], float(ext.max()), f"mesh '{name}' has an implausible bounding box {np.round(ext, 4).tolist()} m", kind="mesh_extent")
-                self._check_mesh_up(g, mid, verts, name, body)
+                self._check_mesh_up(g, name, body)
         self._check_proxies()
         self._check_faces()
 
-    def _check_mesh_up(self, g: int, mid: int, verts: np.ndarray, name: str, body: str):
-        """Meshes with a known local up (+y): must map to world +z when mounted on a vertical face."""
-        m, mujoco = self.m, self.mj
-        mesh_name = mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_MESH, mid) or ""
-        prefix = mesh_name.rsplit("_", 1)[0]
-        R = np.asarray(self.d.geom_xmat[g]).reshape(3, 3)
-        if abs(float(R[2, 2])) > 0.5:          # local z (face normal) points up/down: hatch / floor hardware, no "up"
-            return
+    def _check_mesh_up(self, g: int, name: str, body: str):
+        """Meshes with a known local up (+y in the OBJ frame) must map to world +z when mounted on a vertical face.
+        The orientation is taken from the IR quaternion (model.json) and the body's world rotation: MuJoCo re-aligns
+        mesh vertices to their inertial frame, so ``geom_xmat`` is not the OBJ frame."""
+        mesh_name = self.gmesh.get(name, "")
+        prefix = mesh_name.rsplit("_", 1)[0] if mesh_name else ""
         up = MESH_UP.get(prefix)
         if up is None:
-            if not _mesh_y_asymmetric(mesh_name, verts, m, mid):
-                return
-            up = (0.0, 1.0, 0.0)
+            return
+        b = int(self.m.geom_bodyid[g])
+        R = np.asarray(self.d.xmat[b]).reshape(3, 3) @ _quat_to_mat(self.gquat.get(name, (1, 0, 0, 0)))
+        if abs(float(R[2, 2])) > 0.5:          # local z (face normal) points up/down: hatch / floor hardware, no "up"
+            return
         wz = float((R @ np.asarray(up, float))[2])
         if wz < 0.5:
             self.record("degenerate", body, [name], wz, f"mesh '{name}' ({prefix}) is mounted with its up direction pointing {'down' if wz < -0.5 else 'sideways'} (mirrored / flipped by the face quaternion)", kind="flipped_mesh")
@@ -499,7 +548,7 @@ class Attachment:
     def _check_proxies(self):
         """A collision-only proxy (group 3) must lie within the world box of its body's visual geoms (grown by
         PROXY_MARGIN): a mesh rendered elsewhere than the thing the robot touches is misplaced / mis-scaled."""
-        m, mujoco = self.m, self.mj
+        m = self.m
         for b in range(1, m.nbody):
             gs = self.body_geoms[b]
             vis = [g for g in gs if self.gvis.get(self.gname[g], True)]
@@ -538,29 +587,39 @@ class Attachment:
     # ---- rule 7: engaged bolts need a keeper ---------------------------------------------------------------------
     def rule_keepers(self, base: np.ndarray):
         m = self.m
+        slaves_of: Dict[str, List[str]] = {}
+        for a, master in self.eq_slaves.items():
+            slaves_of.setdefault(master, []).append(a)
         for jn, info in self.joints.items():
             if info.get("role") not in ("latch", "lock") or jn not in self.jid or not ENGAGED_RE.search(info.get("label", "") or ""):
                 continue
             j = self.jid[jn]
-            b = int(m.jnt_bodyid[j])
-            bolt = [g for g in self.body_geoms[b] if self.sem.get(self.gname[g], "") in ("latch", "lock")]
+            bodies = [int(m.jnt_bodyid[j])] + [int(m.jnt_bodyid[self.jid[s]]) for s in slaves_of.get(jn, []) if s in self.jid]
+            bolt = [g for b in bodies for g in self.body_geoms[b] if self.sem.get(self.gname[g], "") in ("latch", "lock")]
             if not bolt:
                 continue
             anc = set()
-            a = b
-            while a > 0:
-                anc.add(a)
-                a = int(m.body_parentid[a])
+            for b0 in bodies:
+                a = b0
+                while a > 0:
+                    anc.add(a)
+                    a = int(m.body_parentid[a])
             cands = [g for g in range(m.ngeom) if int(m.geom_bodyid[g]) not in anc and self.sem.get(self.gname[g], "") in KEEPER_SEMANTICS]
             if not cands:
                 continue
+            # engaged bolt with every leaf closed (0 = closed for every leaf joint), couplings resolved
             q = base.copy()
+            for ln, lj in self.joints.items():
+                if lj.get("role") in LEAF_ROLES and ln in self.jid:
+                    q[m.jnt_qposadr[self.jid[ln]]] = 0.0
+            q[m.jnt_qposadr[j]] = 0.0
+            q = self.resolve(q)
             q[m.jnt_qposadr[j]] = 0.0
             self.forward(q)
             dist, pair = self.min_dist(bolt, cands, 0.2)
-            if dist > TOL_KEEPER:
-                self.record("no_keeper", self.bname[b], [pair[0]] if pair else [self.gname[bolt[0]]], dist,
-                            f"engaged '{jn}' ({info.get('label', '')}): its bolt is {dist * 1000:.0f} mm from the nearest keeper / strike / pocket" + (f" ({pair[1]})" if pair else "") + " - nothing captures it", config=f"engaged:{jn}")
+            if dist > TOL_KEEPER + EPS:
+                self.record("no_keeper", self.bname[int(m.jnt_bodyid[j])], [pair[0]] if pair else [self.gname[bolt[0]]], dist,
+                            f"engaged '{jn}' ({info.get('label', '')}): its bolt is {dist * 1000:.0f} mm from the nearest keeper / strike / pocket" + (f" ({pair[1]})" if pair else "") + " - nothing captures it", config=f"engaged:{jn}", joint=jn)
 
     # ---- the gate -------------------------------------------------------------------------------------------------
     def run(self, n_steps: int = N_STEPS) -> dict:
@@ -587,7 +646,7 @@ class Attachment:
                 continue
             steps = n_steps if jn in leaf_joints else max(2, n_steps // 2)
             q = base.copy()
-            for k in range(1, steps + 1):
+            for k in range(0, steps + 1):
                 q = q.copy()
                 q[m.jnt_qposadr[j]] = lo + (hi - lo) * k / steps
                 q = self.pose(q)
@@ -598,8 +657,10 @@ class Attachment:
                         self.record("loop_open", en, [], r, f"equality '{en}' partners are {r * 1000:.1f} mm apart with {jn} at {q[m.jnt_qposadr[j]]:.3f} (the linkage cannot follow the motion)", config=config)
                 self.forward(q)
                 self.check_attachment(config, "detached_in_motion")
+        self.forward(base)
         # ---- rule 5: every joint moves ------------------------------------------------------------------------------
         op_joint = self.meta.get("operator_joint")
+        leaves_locked = all(self._locked(self.jid[n]) for n in leaf_joints) if leaf_joints else True
         for jn, info in self.joints.items():
             if jn not in self.jid:
                 continue
@@ -610,17 +671,18 @@ class Attachment:
             role = info.get("role")
             rng = None if not m.jnt_limited[j] else [float(m.jnt_range[j][0]), float(m.jnt_range[j][1])]
             rep = {"role": role, "range": rng, "moved": round(moved, 5), "status": "direct", "driver": None, "ok": True}
-            if self._locked(j):
-                rep["status"] = "locked"
-                master = self.eq_slaves.get(jn)
-                if master and master in self.jid and not self._locked(self.jid[master]):
-                    rep.update(status="coupled", driver=master, ok=moved >= tol)
-            elif jn in loop_names:
-                rep.update(status="loop", driver="+".join(leaf_joints), ok=moved >= tol)
-            elif jn in self.eq_slaves:
+            if jn in self.eq_slaves:
                 master = self.eq_slaves[jn]
                 rep.update(status="coupled", driver=master)
-                if master in self.jid and self._locked(self.jid[master]):
+                if master not in self.jid or self._locked(self.jid[master]) or abs(self.eq_coeff.get(jn, 1.0)) * self._range(self.jid[master]) < tol:
+                    rep["status"] = "locked_by_driver"      # driver locked, or the coupling cannot produce a visible motion
+                else:
+                    rep["ok"] = moved >= tol
+            elif self._locked(j):
+                rep["status"] = "locked"
+            elif jn in loop_names:
+                rep.update(status="loop", driver="+".join(leaf_joints))
+                if leaves_locked:
                     rep["status"] = "locked_by_driver"
                 else:
                     rep["ok"] = moved >= tol
@@ -647,41 +709,26 @@ class Attachment:
                        "direct": f"'{jn}' cannot move ({moved:.4f})"}.get(rep["status"], f"'{jn}' does not actuate")
                 self.record("no_actuation", info.get("body", ""), [], moved, why, config="sweep", joint=jn)
             self.joint_report[jn] = rep
+        return self.result(leaf_joints + indep)
+
+    def result(self, swept: List[str]) -> dict:
         fails = [f for f in self.findings if f.get("severity", "fail") == "fail"]
         counts: Dict[str, int] = {}
         for f in fails:
             counts[f["rule"]] = counts.get(f["rule"], 0) + 1
-        return {"ok": len(fails) == 0, "n_findings": len(fails), "findings": fails[:60], "counts": counts, "joints": self.joint_report,
-                "loop_joints": self.loop_joint_names, "swept": leaf_joints + indep}
-
-
-def _mesh_y_asymmetric(mesh_name: str, verts: np.ndarray, m, mid: int) -> bool:
-    """Is the mesh visibly asymmetric about its local y = 0 plane?  Mirrored surface samples farther than
-    MESH_ASYMMETRY from the surface mean the two halves differ (knocker ring, coat hook, card reader LED ...)."""
-    if mesh_name in _MESH_SYMMETRY_CACHE:
-        return _MESH_SYMMETRY_CACHE[mesh_name]
-    res = False
-    try:
-        import trimesh
-        faces = m.mesh_face[m.mesh_faceadr[mid]: m.mesh_faceadr[mid] + m.mesh_facenum[mid]]
-        mesh = trimesh.Trimesh(vertices=np.asarray(verts, float), faces=np.asarray(faces, int), process=False)
-        ext = mesh.extents
-        if float(ext[1]) > 0.02:
-            pts = mesh.sample(1500)
-            mirrored = pts * np.array([1.0, -1.0, 1.0])
-            _, dist, _ = trimesh.proximity.closest_point(mesh, mirrored)
-            res = bool(np.percentile(dist, 95) > MESH_ASYMMETRY)
-    except Exception:
-        res = False
-    _MESH_SYMMETRY_CACHE[mesh_name] = res
-    return res
+        door = [f for f in fails if f.get("domain") == "door"]
+        closer = [f for f in fails if f.get("domain") == "closer"]
+        return {"ok": len(fails) == 0, "ok_door": len(door) == 0, "n_findings": len(fails), "n_closer_findings": len(closer),
+                "findings": sorted(fails, key=lambda f: (f.get("domain") != "door", -f["dist"]))[:60], "counts": counts,
+                "joints": self.joint_report, "loop_joints": self.loop_joint_names, "swept": swept}
 
 
 def run_attachment(door_dir: str, tier: str = "full", n_steps: int = N_STEPS) -> dict:
     try:
         return Attachment(door_dir, tier).run(n_steps)
     except Exception as e:  # a gate that cannot run is a failure, not a pass
-        return {"ok": False, "n_findings": 1, "findings": [{"rule": "error", "severity": "fail", "body": "", "geoms": [], "dist": 0.0, "config": "error", "why": f"{type(e).__name__}: {e}"}], "counts": {"error": 1}, "joints": {}}
+        return {"ok": False, "ok_door": False, "n_findings": 1, "n_closer_findings": 0, "counts": {"error": 1}, "joints": {},
+                "findings": [{"rule": "error", "severity": "fail", "domain": "door", "body": "", "geoms": [], "dist": 0.0, "config": "error", "why": f"{type(e).__name__}: {e}", "n_configs": 1}]}
 
 
 def pose_with_loops(m, model_json: dict, q: np.ndarray) -> np.ndarray:
