@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adamraudonis/DoorBench/results/schema.json",
+  "title": "DoorBench benchmark result",
+  "description": "One evaluation run of a policy over DoorBench doors x scenarios x seeds, written by `doorbench benchmark run` (doorbench.benchmark.runner) and validated by scripts/validate_result.py.",
+  "type": "object",
+  "required": ["schema_version", "benchmark", "policy", "run", "aggregate", "episodes"],
+  "properties": {
+    "schema_version": {"type": "string", "enum": ["1.0"]},
+    "benchmark": {
+      "type": "object",
+      "required": ["name", "n_doors_total"],
+      "properties": {
+        "name": {"type": "string", "enum": ["DoorBench"]},
+        "dataset_version": {"type": ["string", "null"]},
+        "dataset_generated": {"type": ["string", "null"]},
+        "n_doors_total": {"type": "integer", "minimum": 1},
+        "commit": {"type": ["string", "null"], "description": "DoorBench git commit the assets and runner came from"},
+        "dirty": {"type": ["boolean", "null"]}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "required": ["name", "embodiment"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9_.-]+$"},
+        "class": {"type": "string"},
+        "description": {"type": "string"},
+        "embodiment": {"type": "string", "enum": ["hand_base", "robot"]},
+        "control_dt": {"type": "number", "exclusiveMinimum": 0},
+        "spec": {"type": "string"},
+        "extra": {"type": "object"}
+      }
+    },
+    "run": {
+      "type": "object",
+      "required": ["date", "simulator", "tier", "scenarios", "seeds", "n_doors"],
+      "properties": {
+        "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}"},
+        "label": {"type": "string"},
+        "simulator": {"type": "string", "enum": ["mujoco", "isaac_sim", "isaac_lab", "other"]},
+        "simulator_version": {"type": ["string", "null"]},
+        "tier": {"type": "string", "enum": ["full", "simple", "minimal"]},
+        "scenarios": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}, "task": {"type": "string"}, "time_budget_s": {"type": "number"}, "require_closed": {"type": "boolean"}, "description": {"type": "string"}}}},
+        "seeds": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 0}},
+        "n_doors": {"type": "integer", "minimum": 1},
+        "door_selection": {"type": "string"},
+        "time_budget_s": {"type": ["number", "object"]},
+        "randomize": {"type": "boolean"},
+        "control_dt": {"type": ["number", "null"]},
+        "workers": {"type": "integer"},
+        "wall_time_s": {"type": "number", "minimum": 0},
+        "host": {"type": "object"},
+        "command": {"type": "string"}
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "required": ["n_doors", "n_episodes", "n_success", "success_rate", "doors_solved", "doors_solved_any", "damage_rate", "by_family", "by_task", "by_difficulty", "by_scenario"],
+      "properties": {
+        "n_doors": {"type": "integer", "minimum": 0},
+        "n_episodes": {"type": "integer", "minimum": 0},
+        "n_success": {"type": "integer", "minimum": 0},
+        "success_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "doors_solved": {"type": "integer", "minimum": 0, "description": "doors succeeded on every seed (and scenario) evaluated"},
+        "doors_solved_any": {"type": "integer", "minimum": 0},
+        "damage_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "mean_time_to_pass_s": {"type": ["number", "null"]},
+        "median_time_to_pass_s": {"type": ["number", "null"]},
+        "mean_time_to_open_s": {"type": ["number", "null"]},
+        "mean_max_leaf_force_N": {"type": ["number", "null"]},
+        "mean_energy_J": {"type": ["number", "null"]},
+        "mean_wall_s": {"type": ["number", "null"]},
+        "mean_sim_time_s": {"type": ["number", "null"]},
+        "n_errors": {"type": "integer"},
+        "timeouts": {"type": "integer"},
+        "outcomes": {"type": "object"},
+        "by_family": {"$ref": "#/$defs/groups"},
+        "by_task": {"$ref": "#/$defs/groups"},
+        "by_difficulty": {"$ref": "#/$defs/groups"},
+        "by_scenario": {"$ref": "#/$defs/groups"},
+        "by_lock_state": {"$ref": "#/$defs/groups"}
+      }
+    },
+    "episodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["door_id", "family", "scenario", "seed", "task", "success", "outcome", "sim_time", "steps", "wall_s", "events", "labels"],
+        "properties": {
+          "door_id": {"type": "string", "pattern": "^db[0-9]{4}_[a-z_]+$"},
+          "family": {"type": "string"},
+          "difficulty": {"type": ["integer", "null"]},
+          "scenario": {"type": "string"},
+          "seed": {"type": "integer", "minimum": 0},
+          "tier": {"type": "string"},
+          "task": {"type": ["string", "null"]},
+          "success": {"type": "boolean"},
+          "outcome": {"type": "string", "enum": ["success", "fail", "damaged", "fell", "timeout", "error"]},
+          "sim_time": {"type": "number", "minimum": 0},
+          "steps": {"type": "integer", "minimum": 0},
+          "wall_s": {"type": "number", "minimum": 0},
+          "time_budget_s": {"type": "number"},
+          "control_dt": {"type": "number"},
+          "randomized": {"type": "boolean"},
+          "time_to_touch": {"type": ["number", "null"]},
+          "time_to_open": {"type": ["number", "null"]},
+          "time_to_pass": {"type": ["number", "null"], "description": "sim seconds until the robot base crossed the door plane"},
+          "time_to_goal": {"type": ["number", "null"]},
+          "time_to_close": {"type": ["number", "null"]},
+          "damage": {"type": "boolean"},
+          "damage_events": {"type": "array", "items": {"type": "object", "properties": {"t": {"type": ["number", "null"]}, "kind": {"type": ["string", "null"]}, "part": {"type": ["string", "null"]}, "value": {"type": ["number", "null"]}, "threshold": {"type": ["number", "null"]}}}},
+          "max_leaf_force_N": {"type": ["number", "null"]},
+          "max_operator_torque": {"type": ["number", "null"]},
+          "max_door_angle": {"type": ["number", "null"]},
+          "door_q_end": {"type": ["number", "null"]},
+          "energy_J": {"type": ["number", "null"]},
+          "labels": {"type": "object", "additionalProperties": {"type": "boolean"}},
+          "tracker_success": {"type": "boolean"},
+          "events": {"type": "array", "items": {"type": "array", "minItems": 2, "maxItems": 2, "prefixItems": [{"type": "string"}, {"type": "number"}]}},
+          "mujoco_warnings": {"type": "integer"},
+          "base_end": {"type": "array"},
+          "error": {"type": ["string", "null"]},
+          "traceback": {"type": "string"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "group": {
+      "type": "object",
+      "required": ["n_doors", "n_episodes", "n_success", "success_rate", "doors_solved", "damage_rate"],
+      "properties": {
+        "n_doors": {"type": "integer"},
+        "n_episodes": {"type": "integer"},
+        "n_success": {"type": "integer"},
+        "success_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "doors_solved": {"type": "integer"},
+        "doors_solved_any": {"type": "integer"},
+        "damage_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "mean_time_to_pass_s": {"type": ["number", "null"]},
+        "median_time_to_pass_s": {"type": ["number", "null"]},
+        "mean_time_to_open_s": {"type": ["number", "null"]},
+        "mean_max_leaf_force_N": {"type": ["number", "null"]},
+        "mean_energy_J": {"type": ["number", "null"]},
+        "outcomes": {"type": "object"}
+      }
+    },
+    "groups": {"type": "object", "additionalProperties": {"$ref": "#/$defs/group"}}
+  }
+}

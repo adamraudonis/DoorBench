@@ -62,3 +62,25 @@ Domain randomisation: `env.reset(randomize=True)` perturbs friction, damping, cl
 
 Report per family and per task: success rate, damage rate, mean time-to-pass, mean peak leaf force, and the
 `locked_recognize` false-positive rate (policies that keep pushing locked doors).
+
+## Running the benchmark (runner, baselines, leaderboard)
+
+`doorbench benchmark run` evaluates any policy over doors x scenarios x seeds in parallel and writes a result JSON
+(`results/schema.json`); `doorbench.benchmark.policy` documents the small policy interface (`reset(door_info)`,
+`act(obs) -> {"torques", "base_velocity", "badge", "done"}`), `doorbench.benchmark.scenarios` the scenarios and the
+success predicates (traversed the pass plane without damage within the time budget; closed again for close
+scenarios), `doorbench.benchmark.runner` the reference embodiment (DoorEnv's programmatic hand with per-joint torque
+limits + a synthetic base that can only cross the wall plane while the opening is clear) and the aggregation.
+
+```bash
+doorbench benchmark list-scenarios
+doorbench benchmark run --policy scripted_hand --doors all --seeds 3 --workers 8 --out results/scripted_hand.json
+doorbench benchmark run --policy ./my_policy.py:MyPolicy --doors family:swing_single --seeds 1 --dry-run
+python scripts/validate_result.py --submission results/myteam_mypolicy.json
+python scripts/build_results_index.py          # results/index.json + results/README.md (leaderboard)
+```
+
+Three baselines ship with the repo and their full runs are committed under [`results/`](../results/README.md):
+`random` (random torques), `scripted_hand` (the per-family oracle heuristic of `scripts/demo_mujoco.py`) and
+`g1_locomotion` (Unitree G1 + pretrained unitree_rl_gym locomotion policy, `bash robot_demo/setup.sh` first).
+How to implement a policy, run it on all 1000 doors and submit the JSON by pull request: [SUBMITTING.md](SUBMITTING.md).
