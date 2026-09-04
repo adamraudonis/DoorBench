@@ -1,0 +1,440 @@
+<?xml version="1.0" ?>
+<mujoco model="db0964_garage_sectional_full">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <mesh name="pull_bdc5e965ab" file="pull_bdc5e965ab.obj"/>
+    <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_frame" rgba="0.82 0.7 0.5 1" specular="0.2" shininess="0.45" reflectance="0"/>
+    <material name="mat_track" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_section_0" rgba="0.7 0.45 0.32 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_section_0_panel" rgba="0.644 0.414 0.294 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_section_1" rgba="0.7 0.45 0.32 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_section_1_panel" rgba="0.644 0.414 0.294 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_hinge_line" rgba="0.2 0.2 0.2 1" specular="0.2" shininess="0.3" reflectance="0"/>
+    <material name="mat_section_2" rgba="0.7 0.45 0.32 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_section_2_panel" rgba="0.644 0.414 0.294 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_section_3" rgba="0.7 0.45 0.32 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_section_3_panel" rgba="0.644 0.414 0.294 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_section_4" rgba="0.7 0.45 0.32 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_section_4_panel" rgba="0.644 0.414 0.294 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_spring" rgba="0.55 0.56 0.58 1" specular="0.8" shininess="0.55" reflectance="0.4"/>
+    <material name="mat_op_black_matte_metal" rgba="0.05 0.05 0.05 1" specular="0.38" shininess="0.3" reflectance="0.12"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -5.246875 2.714125" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 5.246875 2.714125" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="3.987625 -4.407375 3.553625" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.25 -1.1725 1.25" xyaxes="0.975133 0.221621 0 -0.065674 0.288965 0.955084" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="wall_left" type="box" size="0.4275 0.1 2.615" pos="-3.0125 0 2.615" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_right" type="box" size="0.4275 0.1 2.615" pos="3.0125 0 2.615" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_header" type="box" size="2.585 0.1 0.11" pos="0 0 5.12" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="garage_jamb_l" type="box" size="0.04 0.1 1.245" pos="-2.545 0 1.245" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
+    <geom name="garage_jamb_r" type="box" size="0.04 0.1 1.245" pos="2.545 0 1.245" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
+    <geom name="track_l" type="box" size="0.02 0.02 2.465" pos="-2.47 0.0825 2.465" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="track_r" type="box" size="0.02 0.02 2.465" pos="2.47 0.0825 2.465" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="torsion_shaft" type="cylinder" size="0.013 2.64" pos="0 0.12 2.74" quat="0.707107 0 0.707107 0" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="torsion_spring" type="cylinder" size="0.03 0.35" pos="0 0.12 2.74" quat="0.707107 0 0.707107 0" material="mat_spring" group="1" contype="0" conaffinity="0" density="7850"/>
+    <site name="approach_point" pos="0 -2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.245" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="door" pos="0 0 0">
+      <inertial pos="0 0.004771 1.228059" mass="211.424494" quat="0.707096 0.707118 0 0" diaginertia="102.968223199 473.768025095 576.564701174"/>
+      <joint name="door_slide" type="slide" axis="0 0 1" limited="true" range="0 2.39" damping="11.40592" frictionloss="73.792452" stiffness="247.326849" springref="7.966667" armature="0.5"/>
+      <geom name="section_0_slab" type="box" size="2.44 0.0225 0.244" pos="0 0 0.254" material="mat_section_0" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
+      <geom name="section_0_panel_0_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_0_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_1_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_1_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_2_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_2_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_3_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_3_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_4_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_4_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_5_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_5_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_6_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_6_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_7_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_7_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 0.0785" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_8_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_8_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_9_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_9_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_10_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_10_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_11_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_11_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_12_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_12_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_13_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_13_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_14_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_14_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_15_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_15_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 0.1955" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_16_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_16_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_17_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_17_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_18_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_18_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_19_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_19_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_20_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_20_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_21_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_21_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_22_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_22_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_23_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_23_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 0.3125" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_24_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_24_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_25_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_25_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_26_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_26_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_27_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_27_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_28_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_28_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_29_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_29_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_30_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_30_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_31_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_panel_31_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 0.4295" material="mat_section_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_slab" type="box" size="2.44 0.0225 0.244" pos="0 0 0.742" material="mat_section_1" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
+      <geom name="section_1_panel_0_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_0_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_1_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_1_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_2_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_2_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_3_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_3_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_4_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_4_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_5_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_5_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_6_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_6_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_7_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_7_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 0.5665" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_8_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_8_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_9_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_9_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_10_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_10_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_11_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_11_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_12_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_12_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_13_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_13_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_14_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_14_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_15_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_15_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 0.6835" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_16_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_16_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_17_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_17_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_18_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_18_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_19_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_19_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_20_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_20_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_21_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_21_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_22_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_22_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_23_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_23_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 0.8005" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_24_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_24_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_25_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_25_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_26_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_26_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_27_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_27_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_28_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_28_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_29_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_29_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_30_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_30_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_31_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_panel_31_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 0.9175" material="mat_section_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_line_1" type="box" size="2.42 0.001 0.004" pos="0 0.0235 0.498" material="mat_hinge_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_1_254" type="box" size="0.04 0.01 0.05" pos="-2.34 0.0325 0.498" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_1_488" type="box" size="0.04 0.01 0.05" pos="0 0.0325 0.498" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_1_722" type="box" size="0.04 0.01 0.05" pos="2.34 0.0325 0.498" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_2_slab" type="box" size="2.44 0.0225 0.244" pos="0 0 1.23" material="mat_section_2" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
+      <geom name="section_2_panel_0_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_0_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_1_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_1_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_2_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_2_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_3_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_3_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_4_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_4_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_5_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_5_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_6_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_6_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_7_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_7_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 1.0545" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_8_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_8_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_9_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_9_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_10_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_10_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_11_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_11_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_12_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_12_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_13_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_13_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_14_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_14_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_15_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_15_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 1.1715" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_16_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_16_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_17_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_17_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_18_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_18_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_19_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_19_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_20_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_20_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_21_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_21_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_22_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_22_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_23_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_23_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 1.2885" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_24_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_24_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_25_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_25_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_26_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_26_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_27_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_27_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_28_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_28_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_29_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_29_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_30_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_30_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_31_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_panel_31_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 1.4055" material="mat_section_2_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_line_2" type="box" size="2.42 0.001 0.004" pos="0 0.0235 0.986" material="mat_hinge_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_2_254" type="box" size="0.04 0.01 0.05" pos="-2.34 0.0325 0.986" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_2_488" type="box" size="0.04 0.01 0.05" pos="0 0.0325 0.986" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_2_722" type="box" size="0.04 0.01 0.05" pos="2.34 0.0325 0.986" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_3_slab" type="box" size="2.44 0.0225 0.244" pos="0 0 1.718" material="mat_section_3" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
+      <geom name="section_3_panel_0_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_0_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_1_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_1_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_2_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_2_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_3_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_3_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_4_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_4_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_5_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_5_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_6_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_6_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_7_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_7_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 1.5425" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_8_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_8_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_9_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_9_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_10_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_10_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_11_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_11_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_12_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_12_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_13_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_13_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_14_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_14_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_15_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_15_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 1.6595" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_16_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_16_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_17_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_17_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_18_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_18_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_19_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_19_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_20_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_20_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_21_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_21_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_22_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_22_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_23_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_23_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 1.7765" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_24_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_24_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_25_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_25_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_26_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_26_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_27_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_27_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_28_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_28_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_29_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_29_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_30_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_30_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_31_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_panel_31_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 1.8935" material="mat_section_3_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_line_3" type="box" size="2.42 0.001 0.004" pos="0 0.0235 1.474" material="mat_hinge_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_3_254" type="box" size="0.04 0.01 0.05" pos="-2.34 0.0325 1.474" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_3_488" type="box" size="0.04 0.01 0.05" pos="0 0.0325 1.474" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_3_722" type="box" size="0.04 0.01 0.05" pos="2.34 0.0325 1.474" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_4_slab" type="box" size="2.44 0.0225 0.244" pos="0 0 2.206" material="mat_section_4" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
+      <geom name="section_4_panel_0_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_0_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_1_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_1_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_2_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_2_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_3_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_3_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_4_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_4_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_5_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_5_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_6_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_6_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_7_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_7_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 2.0305" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_8_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_8_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_9_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_9_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_10_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_10_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_11_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_11_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_12_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_12_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_13_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_13_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_14_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_14_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_15_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_15_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 2.1475" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_16_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_16_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_17_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_17_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_18_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_18_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_19_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_19_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_20_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_20_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_21_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_21_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_22_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_22_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_23_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_23_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 2.2645" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_24_n" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 -0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_24_p" type="box" size="0.26125 0.003 0.0185" pos="-2.10875 0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_25_n" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 -0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_25_p" type="box" size="0.26125 0.003 0.0185" pos="-1.50625 0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_26_n" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 -0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_26_p" type="box" size="0.26125 0.003 0.0185" pos="-0.90375 0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_27_n" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 -0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_27_p" type="box" size="0.26125 0.003 0.0185" pos="-0.30125 0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_28_n" type="box" size="0.26125 0.003 0.0185" pos="0.30125 -0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_28_p" type="box" size="0.26125 0.003 0.0185" pos="0.30125 0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_29_n" type="box" size="0.26125 0.003 0.0185" pos="0.90375 -0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_29_p" type="box" size="0.26125 0.003 0.0185" pos="0.90375 0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_30_n" type="box" size="0.26125 0.003 0.0185" pos="1.50625 -0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_30_p" type="box" size="0.26125 0.003 0.0185" pos="1.50625 0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_31_n" type="box" size="0.26125 0.003 0.0185" pos="2.10875 -0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_4_panel_31_p" type="box" size="0.26125 0.003 0.0185" pos="2.10875 0.0255 2.3815" material="mat_section_4_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_line_4" type="box" size="2.42 0.001 0.004" pos="0 0.0235 1.962" material="mat_hinge_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_4_254" type="box" size="0.04 0.01 0.05" pos="-2.34 0.0325 1.962" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_4_488" type="box" size="0.04 0.01 0.05" pos="0 0.0325 1.962" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_4_722" type="box" size="0.04 0.01 0.05" pos="2.34 0.0325 1.962" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_l_0" type="cylinder" size="0.025 0.01" pos="-2.47 0.0825 0.01" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_l_0" type="box" size="0.03 0.03 0.006" pos="-2.42 0.0525 0.01" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_l_1" type="cylinder" size="0.025 0.01" pos="-2.47 0.0825 0.498" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_l_1" type="box" size="0.03 0.03 0.006" pos="-2.42 0.0525 0.498" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_l_2" type="cylinder" size="0.025 0.01" pos="-2.47 0.0825 0.986" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_l_2" type="box" size="0.03 0.03 0.006" pos="-2.42 0.0525 0.986" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_l_3" type="cylinder" size="0.025 0.01" pos="-2.47 0.0825 1.474" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_l_3" type="box" size="0.03 0.03 0.006" pos="-2.42 0.0525 1.474" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_l_4" type="cylinder" size="0.025 0.01" pos="-2.47 0.0825 1.962" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_l_4" type="box" size="0.03 0.03 0.006" pos="-2.42 0.0525 1.962" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_l_5" type="cylinder" size="0.025 0.01" pos="-2.47 0.0825 2.39" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_l_5" type="box" size="0.03 0.03 0.006" pos="-2.42 0.0525 2.39" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_r_0" type="cylinder" size="0.025 0.01" pos="2.47 0.0825 0.01" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_r_0" type="box" size="0.03 0.03 0.006" pos="2.42 0.0525 0.01" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_r_1" type="cylinder" size="0.025 0.01" pos="2.47 0.0825 0.498" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_r_1" type="box" size="0.03 0.03 0.006" pos="2.42 0.0525 0.498" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_r_2" type="cylinder" size="0.025 0.01" pos="2.47 0.0825 0.986" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_r_2" type="box" size="0.03 0.03 0.006" pos="2.42 0.0525 0.986" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_r_3" type="cylinder" size="0.025 0.01" pos="2.47 0.0825 1.474" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_r_3" type="box" size="0.03 0.03 0.006" pos="2.42 0.0525 1.474" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_r_4" type="cylinder" size="0.025 0.01" pos="2.47 0.0825 1.962" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_r_4" type="box" size="0.03 0.03 0.006" pos="2.42 0.0525 1.962" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_r_5" type="cylinder" size="0.025 0.01" pos="2.47 0.0825 2.39" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_r_5" type="box" size="0.03 0.03 0.006" pos="2.42 0.0525 2.39" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="lift_handle_n" type="mesh" mesh="pull_bdc5e965ab" pos="0 -0.0225 0.9" quat="0.707107 0.707107 0 0" material="mat_op_black_matte_metal" group="1" contype="0" conaffinity="0" density="3000"/>
+      <geom name="lift_handle_col_n" type="box" size="0.1 0.006 0.015" pos="0 -0.0725 0.9" material="mat_op_black_matte_metal" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
+      <geom name="lift_handle_p" type="mesh" mesh="pull_bdc5e965ab" pos="0 0.0225 0.9" quat="-0.707107 0.707107 0 0" material="mat_op_black_matte_metal" group="1" contype="0" conaffinity="0" density="3000"/>
+      <geom name="lift_handle_col_p" type="box" size="0.1 0.006 0.015" pos="0 0.0725 0.9" material="mat_op_black_matte_metal" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
+      <site name="lift_handle_grip_n" pos="0 -0.0725 0.9" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="lift_handle_grip_p" pos="0 0.0725 0.9" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="door_slide_pos" joint="door_slide"/>
+    <jointvel name="door_slide_vel" joint="door_slide"/>
+  </sensor>
+</mujoco>

@@ -1,0 +1,74 @@
+<?xml version="1.0" ?>
+<mujoco model="db0148_garage_sectional_simple">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <mesh name="pull_bdc5e965ab" file="pull_bdc5e965ab.obj"/>
+    <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_frame" rgba="0.82 0.7 0.5 1" specular="0.2" shininess="0.45" reflectance="0"/>
+    <material name="mat_track" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_section_0" rgba="0.93 0.93 0.91 1" specular="0.23" shininess="0.48" reflectance="0.02"/>
+    <material name="mat_section_1" rgba="0.93 0.93 0.91 1" specular="0.23" shininess="0.48" reflectance="0.02"/>
+    <material name="mat_hinge_line" rgba="0.2 0.2 0.2 1" specular="0.2" shininess="0.3" reflectance="0"/>
+    <material name="mat_section_2" rgba="0.93 0.93 0.91 1" specular="0.23" shininess="0.48" reflectance="0.02"/>
+    <material name="mat_section_3" rgba="0.93 0.93 0.91 1" specular="0.23" shininess="0.48" reflectance="0.02"/>
+    <material name="mat_section_4" rgba="0.93 0.93 0.91 1" specular="0.23" shininess="0.48" reflectance="0.02"/>
+    <material name="mat_spring" rgba="0.55 0.56 0.58 1" specular="0.8" shininess="0.55" reflectance="0.4"/>
+    <material name="mat_op_black_matte_metal" rgba="0.05 0.05 0.05 1" specular="0.38" shininess="0.3" reflectance="0.12"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -2.959375 2.073625" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 2.959375 2.073625" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="2.249125 -2.485875 2.547125" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.25 -1.1725 1.25" xyaxes="0.975133 0.221621 0 -0.065674 0.288965 0.955084" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="wall_left" type="box" size="0.8175 0.1 2.615" pos="-2.1825 0 2.615" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_right" type="box" size="0.8175 0.1 2.615" pos="2.1825 0 2.615" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_header" type="box" size="1.365 0.1 0.11" pos="0 0 5.12" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="garage_jamb_l" type="box" size="0.04 0.1 1.245" pos="-1.325 0 1.245" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
+    <geom name="garage_jamb_r" type="box" size="0.04 0.1 1.245" pos="1.325 0 1.245" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
+    <geom name="track_l" type="box" size="0.02 0.02 2.465" pos="-1.25 0.0825 2.465" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="track_r" type="box" size="0.02 0.02 2.465" pos="1.25 0.0825 2.465" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="torsion_shaft" type="cylinder" size="0.013 1.42" pos="0 0.12 2.74" quat="0.707107 0 0.707107 0" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <site name="approach_point" pos="0 -2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.245" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="door" pos="0 0 0">
+      <inertial pos="0 0 1.22493" mass="65.60456" quat="-0.5 0.5 0.5 0.5" diaginertia="32.068479436 32.171866625 64.209946458"/>
+      <joint name="door_slide" type="slide" axis="0 0 1" limited="true" range="0 2.39" damping="5.254828" frictionloss="63.837918" stiffness="103.46444" springref="7.966667" armature="0.5"/>
+      <geom name="section_0_slab" type="box" size="1.22 0.0225 0.244" pos="0 0 0.254" material="mat_section_0" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
+      <geom name="section_1_slab" type="box" size="1.22 0.0225 0.244" pos="0 0 0.742" material="mat_section_1" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
+      <geom name="section_2_slab" type="box" size="1.22 0.0225 0.244" pos="0 0 1.23" material="mat_section_2" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
+      <geom name="section_3_slab" type="box" size="1.22 0.0225 0.244" pos="0 0 1.718" material="mat_section_3" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
+      <geom name="section_4_slab" type="box" size="1.22 0.0225 0.244" pos="0 0 2.206" material="mat_section_4" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
+      <geom name="lift_handle_n" type="mesh" mesh="pull_bdc5e965ab" pos="0 -0.0225 0.9" quat="0.707107 0.707107 0 0" material="mat_op_black_matte_metal" group="1" contype="0" conaffinity="0" density="3000"/>
+      <geom name="lift_handle_col_n" type="box" size="0.1 0.006 0.015" pos="0 -0.0725 0.9" material="mat_op_black_matte_metal" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
+      <geom name="lift_handle_p" type="mesh" mesh="pull_bdc5e965ab" pos="0 0.0225 0.9" quat="-0.707107 0.707107 0 0" material="mat_op_black_matte_metal" group="1" contype="0" conaffinity="0" density="3000"/>
+      <geom name="lift_handle_col_p" type="box" size="0.1 0.006 0.015" pos="0 0.0725 0.9" material="mat_op_black_matte_metal" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
+      <site name="lift_handle_grip_n" pos="0 -0.0725 0.9" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="lift_handle_grip_p" pos="0 0.0725 0.9" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="door_slide_pos" joint="door_slide"/>
+    <jointvel name="door_slide_vel" joint="door_slide"/>
+  </sensor>
+</mujoco>

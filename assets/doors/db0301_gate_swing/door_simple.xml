@@ -1,0 +1,69 @@
+<?xml version="1.0" ?>
+<mujoco model="db0301_gate_swing_simple">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <mesh name="strap_hinge_3c1a7c1a5f" file="strap_hinge_3c1a7c1a5f.obj"/>
+    <material name="mat_floor" rgba="0.35 0.42 0.25 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_leaf" rgba="0.7 0.71 0.72 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_mesh_infill" rgba="0.6 0.62 0.64 0.55" specular="0.68" shininess="0.3" reflectance="0.1"/>
+    <material name="mat_hinge" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_op_steel_galvanized" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_frame" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_fence_mesh" rgba="0.6 0.62 0.64 0.5" specular="0.68" shininess="0.3" reflectance="0.1"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -2.33125 1.56275" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 2.33125 1.56275" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="1.77175 -1.95825 1.93575" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.524 -0.8 1.18" xyaxes="0.97561 0.219512 0 -0.070934 0.315262 0.94635" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="leaf_staple" type="box" size="0.02 0.008 0.012" pos="0.476 -0.01215 0.9" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
+    <geom name="post_hinge" type="cylinder" size="0.03 0.95" pos="-0.486 0 0.95" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="post_latch" type="box" size="0.03 0.03 0.95" pos="0.486 0 0.95" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="gate_stop" type="box" size="0.02 0.012 0.06" pos="0.436 -0.01215 0.3" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="fence_l" type="box" size="1 0.002 0.9" pos="-1.516 0 0.95" material="mat_fence_mesh" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="100"/>
+    <geom name="fence_post_l" type="cylinder" size="0.025 0.925" pos="-2.516 0 0.925" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="fence_r" type="box" size="1 0.002 0.9" pos="1.516 0 0.95" material="mat_fence_mesh" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="100"/>
+    <geom name="fence_post_r" type="cylinder" size="0.025 0.925" pos="2.516 0 0.925" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 0.91" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="leaf" pos="-0.456 0 0">
+      <inertial pos="0.387693 -0.00084 0.947802" mass="5.110494" quat="-0.499217 0.498476 0.501534 0.500768" diaginertia="0.449401136 1.632015837 2.081293522"/>
+      <joint name="leaf_hinge" type="hinge" axis="0 0 1" pos="0.003 0.00715 0" limited="true" range="0 3.141593" damping="0.263285" frictionloss="2.570028" armature="0.02"/>
+      <geom name="leaf_slab_col" type="box" size="0.45 0.00015 0.9" pos="0.453 0 0.95" material="mat_leaf" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.45 0.005 0.0001" density="1"/>
+      <geom name="leaf_rail_b" type="box" size="0.45 0.00015 0.0225" pos="0.453 0 0.0725" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_rail_t" type="box" size="0.45 0.00015 0.0225" pos="0.453 0 1.8275" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_stile_h" type="box" size="0.0225 0.00015 0.9" pos="0.0255 0 0.95" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_stile_l" type="box" size="0.0225 0.00015 0.9" pos="0.8805 0 0.95" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_mesh" type="box" size="0.405 0.0015 0.855" pos="0.453 0 0.95" material="mat_mesh_infill" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="hinge_strap_0" type="mesh" mesh="strap_hinge_3c1a7c1a5f" pos="0.003 -0.00315 0.2" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="hinge_strap_1" type="mesh" mesh="strap_hinge_3c1a7c1a5f" pos="0.003 -0.00315 1.7" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="leaf_hasp" type="box" size="0.06 0.003 0.02" pos="0.873 -0.00415 0.9" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
+      <site name="leaf_edge_mid" pos="0.903 0 0.9" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="leaf_hinge_pos" joint="leaf_hinge"/>
+    <jointvel name="leaf_hinge_vel" joint="leaf_hinge"/>
+  </sensor>
+</mujoco>

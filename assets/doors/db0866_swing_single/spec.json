@@ -1,0 +1,214 @@
+{
+ "schema_version": "1.0",
+ "id": "db0866_swing_single",
+ "index": 866,
+ "seed": 542393969,
+ "family": "swing_single",
+ "context": "commercial_office",
+ "use_case": "private office door",
+ "tags": [
+  "commercial_office",
+  "swing",
+  "single_leaf",
+  "hollow_metal_20ga",
+  "glass_vision",
+  "lever_return",
+  "lock:keyed_cylinder",
+  "closer:none",
+  "hinge:continuous_geared",
+  "normal"
+ ],
+ "extras": [
+  "rex_button"
+ ],
+ "robot": {
+  "approach_side": "-y",
+  "is_push": false,
+  "robot_outside": true,
+  "start_distance_m": 1.65
+ },
+ "leaf": {
+  "width": 0.965,
+  "height": 2.134,
+  "thickness": 0.044,
+  "slab": "hollow_metal_20ga",
+  "panel_style": "glass_vision",
+  "finish": {
+   "kind": "powder_coat",
+   "color": "grey",
+   "rgba": [
+    0.5,
+    0.51,
+    0.53,
+    1
+   ],
+   "texture": null,
+   "roughness": 0.54,
+   "metallic": 0.05
+  },
+  "count": 1,
+  "glazing": {
+   "material": "glass_frosted",
+   "thickness": 0.006,
+   "area_fraction": 0.0621761658031088,
+   "panel_style": "glass_vision",
+   "count": 1
+  }
+ },
+ "opening": {
+  "width": 0.972,
+  "height": 2.147,
+  "wall_thickness": 0.3,
+  "frame": {
+   "kind": "hollow_metal_frame",
+   "material": "steel_painted",
+   "casing": false,
+   "stop_depth": 0.016,
+   "jamb_depth": 0.146
+  },
+  "threshold": "none",
+  "sidelite": false,
+  "transom": false
+ },
+ "hinge": {
+  "model": "continuous_geared",
+  "count": 1,
+  "side": "right",
+  "swing": "pull",
+  "axis_tilt_deg": 0
+ },
+ "kinematics": {
+  "type": "hinge_vertical",
+  "max_open_deg": 90,
+  "stop": "wall_bumper"
+ },
+ "operator": {
+  "model": "lever_return",
+  "height": 1.04,
+  "sides": "both"
+ },
+ "latch": {
+  "model": "mortise_latch"
+ },
+ "lock": {
+  "model": "keyed_cylinder",
+  "engaged": true,
+  "robot_side_release": false
+ },
+ "closer": {
+  "model": "none",
+  "en_size": null,
+  "spring_adjust": 1.2
+ },
+ "seal": "automatic_drop_seal",
+ "condition": "normal",
+ "task": "locked_recognize",
+ "physics": {
+  "mass": {
+   "slab_kg": 36.306562736400004,
+   "slab_area_density_kg_m2": 18.79932,
+   "glass_kg": 1.9205999999999996,
+   "hardware_kg": 3.83,
+   "hardware_parts": {
+    "operator": 1.5,
+    "lock": 0.08,
+    "hinges_half": 2.25,
+    "rex_button": 0.0
+   },
+   "total_kg": 42.0571627364,
+   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+   "source": "Steel Door Institute (SDI) hollow metal door weights ~ 18ga 3'0x7'0 \u2248 100-110 lb; 16ga \u2248 120-135 lb"
+  },
+  "hinge": {
+   "coulomb_torque_Nm": 2.235903563576297,
+   "bearing_mu": 0.07,
+   "bearing_note": "Continuous geared aluminum hinge",
+   "pin_radius_m": 0.006,
+   "thrust_radius_m": 0.01,
+   "condition_multiplier": 1.3,
+   "seal_contribution_Nm": 1.1362151249999997,
+   "stick_torque_Nm": 0.0,
+   "formula": "mu*(m*g*r_thrust + 2*F_h*r_pin)*k_cond + seal_steady; F_h = m g (W/2)/span; seal_steady = min(3, 0.03*R*L*W/2) (gasket compression itself is the soft stop contact)",
+   "air_damping_Nms_per_rad": 0.33421151911287517,
+   "total_damping_symmetric": 0.33421151911287517
+  },
+  "closer": {
+   "model": "none",
+   "kind": "none",
+   "spring_stiffness_Nm_per_rad": 0.0,
+   "spring_preload_Nm": 0.0,
+   "damping_closing": 0.0,
+   "damping_opening": 0.0,
+   "en_size": null,
+   "hold_open_rad": null,
+   "backcheck_angle_rad": null,
+   "backcheck_damping": 0,
+   "latch_boost": 1.0
+  },
+  "inertia_about_hinge_kg_m2": 13.061679011989503,
+  "latch": {
+   "model": "mortise_latch",
+   "kind": "mortise_latch",
+   "throw_m": 0.019,
+   "bolt_spring_preload_N": 5.5,
+   "bolt_spring_rate_N_per_m": 550,
+   "holding_force_N": 0,
+   "yield_force_N": 6000,
+   "backset_m": 0.07,
+   "operator_travel": 0.96,
+   "operator_dead_travel": 0.05,
+   "operator_spring_preload": 0.45,
+   "operator_spring_rate": 1.2,
+   "operator_yield": 25.0,
+   "operator_grip_offset_m": 0.11,
+   "coupling": {
+    "type": "polynomial",
+    "bolt_q = c0 + c1*op_q": [
+     0.0,
+     -0.02087912087912088
+    ],
+    "dead_travel": 0.05
+   }
+  },
+  "lock": {
+   "model": "keyed_cylinder",
+   "kind": "keyed_cylinder",
+   "engaged": true,
+   "robot_side_release": false,
+   "outside_release": "key",
+   "inside_release": "button",
+   "handle_backlash_locked_rad": 0.060000000000000005,
+   "deadbolt_throw_m": 0.0,
+   "thumbturn_travel_rad": 0.0,
+   "thumbturn_torque_Nm": 0.0,
+   "chain_slack_m": 0.0,
+   "code": null
+  },
+  "damage": {
+   "leaf_dent_force_N": 7000.0,
+   "leaf_puncture_force_N": 25000,
+   "glass_break_force_N": 1500,
+   "operator_yield_torque_Nm": 25.0,
+   "latch_shear_yield_N": 6000,
+   "hinge_tearout_force_N": 11767.98,
+   "slam_velocity_rad_s": 4.0,
+   "slam_impulse_Ns": 16.82286509456,
+   "frame_impact_force_N": 3000.0,
+   "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
+  },
+  "compliance": {
+   "opening_force_start_N": 2.555318358372911,
+   "opening_force_90deg_N": 2.555318358372911,
+   "operator_force_N": 14.563636363636363,
+   "ada_interior_5lbf_ok": true,
+   "ibc_fire_exterior_ok": null,
+   "hardware_operable_5lbf_ok": true,
+   "panic_unlatch_15lbf_ok": null,
+   "lever_or_ada_hardware": true,
+   "handle_height_ada_ok": true,
+   "clear_width_ada_ok": true,
+   "notes": "ADA 2010 \u00a7404.2.9 (5 lbf interior), IBC \u00a71010.1.3 (30 lbf set in motion / 15 lbf full open), \u00a71010.1.10 (panic 15 lbf)"
+  },
+  "gravity": 9.80665
+ }
+}

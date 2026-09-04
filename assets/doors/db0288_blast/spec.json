@@ -1,0 +1,202 @@
+{
+ "schema_version": "1.0",
+ "id": "db0288_blast",
+ "index": 288,
+ "seed": 80515517,
+ "family": "blast",
+ "context": "security",
+ "use_case": "shelter blast door",
+ "tags": [
+  "blast",
+  "blast_steel",
+  "dog_lever"
+ ],
+ "extras": [
+  "warning_placard"
+ ],
+ "robot": {
+  "approach_side": "-y",
+  "is_push": true,
+  "robot_outside": true,
+  "start_distance_m": 1.7
+ },
+ "leaf": {
+  "width": 0.9,
+  "height": 2.0,
+  "thickness": 0.08,
+  "slab": "blast_steel",
+  "panel_style": "steel_flush",
+  "finish": {
+   "kind": "powder_coat",
+   "color": "olive",
+   "rgba": [
+    0.4,
+    0.42,
+    0.22,
+    1
+   ],
+   "texture": null,
+   "roughness": 0.45,
+   "metallic": 0.05
+  },
+  "count": 1,
+  "glazing": null
+ },
+ "opening": {
+  "width": 0.918,
+  "height": 2.07,
+  "wall_thickness": 0.28,
+  "frame": {
+   "kind": "vault_frame",
+   "material": "steel",
+   "casing": false,
+   "stop_depth": 0.02,
+   "jamb_depth": 0.28
+  },
+  "threshold": "sill_step",
+  "sidelite": false,
+  "transom": false
+ },
+ "hinge": {
+  "model": "vault_hinge",
+  "count": 2,
+  "side": "left",
+  "swing": "push",
+  "axis_tilt_deg": 0.0
+ },
+ "kinematics": {
+  "type": "hinge_vertical",
+  "max_open_deg": 100,
+  "stop": "none",
+  "bolts": 0
+ },
+ "operator": {
+  "model": "dog_lever",
+  "height": 1.0,
+  "sides": "both"
+ },
+ "latch": {
+  "model": "dogs_6"
+ },
+ "lock": {
+  "model": "dogs",
+  "engaged": true,
+  "robot_side_release": true
+ },
+ "closer": {
+  "model": "none",
+  "en_size": null,
+  "spring_adjust": 1.0
+ },
+ "seal": "gasket_rubber_heavy",
+ "condition": "old_dry",
+ "task": "unlock_open_traverse",
+ "physics": {
+  "mass": {
+   "slab_kg": 651.33,
+   "slab_area_density_kg_m2": 361.85,
+   "glass_kg": 0.0,
+   "hardware_kg": 21.3,
+   "hardware_parts": {
+    "operator": 1.2,
+    "lock": 0.0,
+    "hinges_half": 20.0,
+    "warning_placard": 0.1
+   },
+   "total_kg": 672.63,
+   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+   "source": "Blast doors 300-1500 kg typical"
+  },
+  "hinge": {
+   "coulomb_torque_Nm": 65.26006029444194,
+   "bearing_mu": 0.04,
+   "bearing_note": "Ball-bearing butt hinge (Hager BB1279 class)",
+   "pin_radius_m": 0.03,
+   "thrust_radius_m": 0.05,
+   "condition_multiplier": 3.5,
+   "seal_contribution_Nm": 3.0,
+   "stick_torque_Nm": 1.5,
+   "formula": "mu*(m*g*r_thrust + 2*F_h*r_pin)*k_cond + seal_steady; F_h = m g (W/2)/span; seal_steady = min(3, 0.03*R*L*W/2) (gasket compression itself is the soft stop contact)",
+   "air_damping_Nms_per_rad": 0.23698331999999997,
+   "total_damping_symmetric": 0.23698331999999997
+  },
+  "closer": {
+   "model": "none",
+   "kind": "none",
+   "spring_stiffness_Nm_per_rad": 0.0,
+   "spring_preload_Nm": 0.0,
+   "damping_closing": 0.0,
+   "damping_opening": 0.0,
+   "en_size": null,
+   "hold_open_rad": null,
+   "backcheck_angle_rad": null,
+   "backcheck_damping": 0,
+   "latch_boost": 1.0
+  },
+  "inertia_about_hinge_kg_m2": 181.96883599999998,
+  "latch": {
+   "model": "dogs_6",
+   "kind": "dogs",
+   "throw_m": 0.03,
+   "bolt_spring_preload_N": 0.0,
+   "bolt_spring_rate_N_per_m": 0,
+   "holding_force_N": 0,
+   "yield_force_N": 50000,
+   "backset_m": 0.0,
+   "operator_travel": 1.5708,
+   "operator_dead_travel": 0.05,
+   "operator_spring_preload": 1.5,
+   "operator_spring_rate": 2.0,
+   "operator_yield": 200.0,
+   "operator_grip_offset_m": 0.2,
+   "coupling": {
+    "type": "polynomial",
+    "bolt_q = c0 + c1*op_q": [
+     0.0,
+     -0.019726459758022095
+    ],
+    "dead_travel": 0.05
+   }
+  },
+  "lock": {
+   "model": "dogs",
+   "kind": "dogs",
+   "engaged": true,
+   "robot_side_release": true,
+   "outside_release": "lever",
+   "inside_release": "lever",
+   "handle_backlash_locked_rad": 0.06,
+   "deadbolt_throw_m": 0.0,
+   "thumbturn_travel_rad": 0.0,
+   "thumbturn_torque_Nm": 0.0,
+   "chain_slack_m": 0.0,
+   "code": null
+  },
+  "damage": {
+   "leaf_dent_force_N": 3500.0,
+   "leaf_puncture_force_N": 25000,
+   "glass_break_force_N": null,
+   "operator_yield_torque_Nm": 200.0,
+   "latch_shear_yield_N": 50000,
+   "hinge_tearout_force_N": 20000.0,
+   "slam_velocity_rad_s": 4.0,
+   "slam_impulse_Ns": 269.052,
+   "frame_impact_force_N": 3000.0,
+   "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
+  },
+  "compliance": {
+   "opening_force_start_N": 81.41470767614871,
+   "opening_force_90deg_N": 79.58543938346578,
+   "operator_force_N": 23.208000000000002,
+   "ada_interior_5lbf_ok": false,
+   "ibc_fire_exterior_ok": null,
+   "hardware_operable_5lbf_ok": false,
+   "panic_unlatch_15lbf_ok": null,
+   "lever_or_ada_hardware": true,
+   "handle_height_ada_ok": true,
+   "clear_width_ada_ok": false,
+   "notes": "ADA 2010 \u00a7404.2.9 (5 lbf interior), IBC \u00a71010.1.3 (30 lbf set in motion / 15 lbf full open), \u00a71010.1.10 (panic 15 lbf)"
+  },
+  "gravity": 9.80665
+ }
+}

@@ -1,0 +1,62 @@
+<?xml version="1.0" ?>
+<mujoco model="db0196_rollup_minimal">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <mesh name="pull_bdc5e965ab" file="pull_bdc5e965ab.obj"/>
+    <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_frame" rgba="0.45 0.48 0.52 1" specular="0.32" shininess="0.6" reflectance="0.08"/>
+    <material name="mat_track" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_curtain" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_slat_line" rgba="0.25 0.25 0.25 1" specular="0.2" shininess="0.3" reflectance="0"/>
+    <material name="mat_op_black_matte_metal" rgba="0.05 0.05 0.05 1" specular="0.38" shininess="0.3" reflectance="0.12"/>
+    <material name="mat_slidelock" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -3.53125 2.23375" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 3.53125 2.23375" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="2.68375 -2.96625 2.79875" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.25 -1.0204 0.51" xyaxes="0.975133 0.221621 0 -0.065674 0.288965 0.955084" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="wall_left" type="box" size="0.725 0.1 2.045" pos="-2.275 0 2.045" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_right" type="box" size="0.725 0.1 2.045" pos="2.275 0 2.045" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_header" type="box" size="1.55 0.1 0.8" pos="0 0 3.29" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="guide_l" type="box" size="0.03 0.025 0.4925" pos="-1.56 0.13 0.4925" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="guide_l_upper" type="box" size="0.03 0.025 0.7375" pos="-1.56 0.13 1.7525" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="guide_r" type="box" size="0.03 0.025 1.245" pos="1.56 0.13 1.245" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <site name="approach_point" pos="0 -2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.245" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="curtain" pos="0 0 0">
+      <inertial pos="0 0.129629 1.02572" mass="56.38976" quat="0 0 -0.706922 0.707292" diaginertia="34.591524037 43.32718154 77.91532923"/>
+      <joint name="curtain_slide" type="slide" axis="0 0 1" limited="true" range="0 2.39" damping="4.391788" frictionloss="75.057369" stiffness="62.494796" springref="7.966667" armature="0.5"/>
+      <geom name="curtain_slab" type="box" size="1.525 0.0004 1.22" pos="0 0.13 1.23" material="mat_curtain" group="0" contype="1" conaffinity="1" friction="0.42 0.005 0.0001" density="1"/>
+      <geom name="bottom_bar" type="box" size="1.525 0.0154 0.03" pos="0 0.13 0.03" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+      <geom name="lift_handle_n" type="mesh" mesh="pull_bdc5e965ab" pos="0 0.1296 0.16" quat="0.707107 0.707107 0 0" material="mat_op_black_matte_metal" group="1" contype="0" conaffinity="0" density="3000"/>
+      <geom name="lift_handle_col_n" type="box" size="0.1 0.006 0.015" pos="0 0.0796 0.16" material="mat_op_black_matte_metal" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
+      <site name="lift_handle_grip_n" pos="0 0.0796 0.16" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="curtain_slide_pos" joint="curtain_slide"/>
+    <jointvel name="curtain_slide_vel" joint="curtain_slide"/>
+  </sensor>
+</mujoco>

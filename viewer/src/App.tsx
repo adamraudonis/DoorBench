@@ -1,0 +1,57 @@
+import React, { useEffect, useMemo, useState } from "react";
+import type { Manifest } from "./types";
+import { Catalogue } from "./Catalogue";
+import { Families } from "./Families";
+import { DoorView } from "./DoorView";
+import { About } from "./About";
+
+export const ASSETS = "./assets";
+
+function useHash() {
+  const [hash, setHash] = useState(window.location.hash || "#/");
+  useEffect(() => {
+    const on = () => setHash(window.location.hash || "#/");
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
+  return hash;
+}
+
+export function App() {
+  const hash = useHash();
+  const [manifest, setManifest] = useState<Manifest | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    fetch(`${ASSETS}/manifest.json`).then((r) => { if (!r.ok) throw new Error(`manifest ${r.status}`); return r.json(); }).then(setManifest).catch((e) => setErr(String(e)));
+  }, []);
+  const route = useMemo(() => {
+    const h = hash.replace(/^#/, "");
+    if (h.startsWith("/door/")) return { page: "door", id: h.slice(6).split("?")[0] };
+    if (h.startsWith("/families")) return { page: "families" };
+    if (h.startsWith("/about")) return { page: "about" };
+    return { page: "catalogue", query: h.includes("?") ? h.split("?")[1] : "" };
+  }, [hash]);
+  return (
+    <div className="app">
+      <div className="topbar">
+        <a className="brand" href="#/">DoorBench</a>
+        <nav>
+          <a href="#/" className={route.page === "catalogue" ? "active" : ""}>Catalogue</a>
+          <a href="#/families" className={route.page === "families" ? "active" : ""}>Door types</a>
+          <a href="#/about" className={route.page === "about" ? "active" : ""}>About &amp; usage</a>
+        </nav>
+        <div className="spacer" />
+        {manifest && <span style={{ color: "var(--muted)", fontSize: 12 }}>{manifest.n_doors} doors · {manifest.n_signed_off} signed off · v{manifest.version}</span>}
+        <a href="https://github.com/adamraudonis/DoorBench" target="_blank" rel="noreferrer">GitHub</a>
+      </div>
+      <div className="content">
+        {err && <div className="err">Could not load manifest: {err}. Run <code>python scripts/generate_dataset.py</code> first.</div>}
+        {!manifest && !err && <div className="loading">Loading manifest…</div>}
+        {manifest && route.page === "catalogue" && <Catalogue manifest={manifest} query={route.query ?? ""} />}
+        {manifest && route.page === "families" && <Families manifest={manifest} />}
+        {manifest && route.page === "door" && <DoorView manifest={manifest} id={route.id!} />}
+        {manifest && route.page === "about" && <About manifest={manifest} />}
+      </div>
+    </div>
+  );
+}

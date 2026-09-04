@@ -1,0 +1,149 @@
+<?xml version="1.0" ?>
+<robot xmlns:doorbench="https://github.com/adamraudonis/DoorBench/schema/urdf-ext" name="db0978_pet_door_full">
+  <link name="world_env">
+    <visual name="floor_vis">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+      <material name="mat_floor"/>
+    </visual>
+    <collision name="floor_col">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+    </collision>
+    <visual name="wall_left_vis">
+      <origin xyz="-0.565 0 1.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.87 0.25 2.1"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_left_col">
+      <origin xyz="-0.565 0 1.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.87 0.25 2.1"/>
+      </geometry>
+    </collision>
+    <visual name="wall_right_vis">
+      <origin xyz="0.565 0 1.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.87 0.25 2.1"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_right_col">
+      <origin xyz="0.565 0 1.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.87 0.25 2.1"/>
+      </geometry>
+    </collision>
+    <visual name="wall_header_vis">
+      <origin xyz="0 0 1.27" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.26 0.25 1.66"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_header_col">
+      <origin xyz="0 0 1.27" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.26 0.25 1.66"/>
+      </geometry>
+    </collision>
+    <visual name="pet_frame_l_vis">
+      <origin xyz="-0.15 0 0.245" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.262 0.47"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="pet_frame_l_col">
+      <origin xyz="-0.15 0 0.245" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.262 0.47"/>
+      </geometry>
+    </collision>
+    <visual name="pet_frame_r_vis">
+      <origin xyz="0.15 0 0.245" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.262 0.47"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="pet_frame_r_col">
+      <origin xyz="0.15 0 0.245" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.262 0.47"/>
+      </geometry>
+    </collision>
+    <visual name="pet_frame_t_vis">
+      <origin xyz="0 0 0.46" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.26 0.262 0.04"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="pet_frame_t_col">
+      <origin xyz="0 0 0.46" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.26 0.262 0.04"/>
+      </geometry>
+    </collision>
+    <visual name="pet_sill_vis">
+      <origin xyz="0 0 0.044" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.26 0.262 0.012"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="pet_sill_col">
+      <origin xyz="0 0 0.044" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.26 0.262 0.012"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="flap">
+    <inertial>
+      <origin xyz="0 0 -0.19" rpy="0 0 0"/>
+      <mass value="0.5705"/>
+      <inertia ixx="0.006722439" ixy="0" ixz="0" iyy="0.009551691" iyz="0" izz="0.002831629"/>
+    </inertial>
+    <visual name="flap_geom_vis">
+      <origin xyz="0 0 -0.19" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.244 0.005 0.376"/>
+      </geometry>
+      <material name="mat_flap"/>
+    </visual>
+    <collision name="flap_geom_col">
+      <origin xyz="0 0 -0.19" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.244 0.005 0.376"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="flap_hinge" type="revolute">
+    <origin xyz="0 0 0.44" rpy="0 0 0"/>
+    <parent link="world_env"/>
+    <child link="flap"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-1.396263" upper="1.396263" effort="2000" velocity="10"/>
+    <dynamics damping="0.010268" friction="0.03318"/>
+  </joint>
+  <material name="mat_flap">
+    <color rgba="0.9 0.92 0.95 0.3"/>
+  </material>
+  <material name="mat_floor">
+    <color rgba="0.55 0.53 0.5 1"/>
+  </material>
+  <material name="mat_frame">
+    <color rgba="0.92 0.92 0.9 1"/>
+  </material>
+  <material name="mat_wall">
+    <color rgba="0.78 0.76 0.7 1"/>
+  </material>
+</robot>

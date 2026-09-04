@@ -1,0 +1,153 @@
+export type Vec3 = [number, number, number];
+export type Quat = [number, number, number, number]; // w x y z
+
+export interface GeomJ {
+  name: string;
+  type: "box" | "cylinder" | "capsule" | "sphere" | "mesh";
+  size: number[];
+  pos: Vec3;
+  quat: Quat;
+  material: string;
+  collision: boolean;
+  visual: boolean;
+  semantic: string;
+  part_label: string;
+  mesh_name?: string;
+  tiers: string[];
+}
+
+export interface JointJ {
+  name: string;
+  type: "hinge" | "slide";
+  axis: Vec3;
+  pos: Vec3;
+  range: [number, number] | null;
+  damping: number;
+  frictionloss: number;
+  stiffness: number;
+  springref: number;
+  armature: number;
+  role: string;
+  label: string;
+  robot_interactive: boolean;
+  initial: number;
+  modeled_at?: number;
+  notes: string;
+  damping_closing?: number | null;
+  damping_opening?: number | null;
+  ratchet_one_way?: boolean;
+}
+
+export interface SiteJ {
+  name: string;
+  pos: Vec3;
+  quat: Quat;
+  size: number;
+  role: string;
+}
+
+export interface BodyJ {
+  name: string;
+  parent: string | null;
+  pos: Vec3;
+  quat: Quat;
+  joint: JointJ | null;
+  geoms: GeomJ[];
+  sites: SiteJ[];
+  tiers: string[];
+  semantic: string;
+  label: string;
+  static: boolean;
+  mass: number;
+  com: Vec3;
+  inertia: number[][];
+}
+
+export interface MaterialJ {
+  name: string;
+  rgba: [number, number, number, number];
+  roughness: number;
+  metallic: number;
+  texture: string | null;
+  transparent: boolean;
+  emissive: Vec3;
+}
+
+export interface EqualityJ {
+  kind: "joint" | "connect" | "weld";
+  name: string;
+  a: string;
+  b: string | null;
+  polycoeff: number[];
+  label: string;
+  active: boolean;
+}
+
+export interface TendonJ {
+  name: string;
+  sites: [string, number][];
+  range: [number, number];
+  label: string;
+}
+
+export interface ModelJ {
+  name: string;
+  tier: string;
+  bodies: BodyJ[];
+  materials: Record<string, MaterialJ>;
+  equalities: EqualityJ[];
+  tendons: TendonJ[];
+  meta: Record<string, any>;
+}
+
+export interface ManifestDoor {
+  id: string;
+  index: number;
+  family: string;
+  context: string;
+  use_case: string;
+  task: string;
+  difficulty: number;
+  mass_kg: number;
+  leaf: { width: number; height: number; thickness: number; slab: string; panel_style: string };
+  operator: string;
+  latch: string;
+  lock: string;
+  lock_engaged: boolean;
+  robot_side_release: boolean;
+  closer: string;
+  hinge: string;
+  condition: string;
+  swing: string;
+  hinge_side: string;
+  extras: string[];
+  tags: string[];
+  n_bodies: number;
+  n_joints: number;
+  signed_off: boolean;
+  qa_failed: string[];
+  thumbs: string[];
+  files: Record<string, any>;
+  physics_summary: Record<string, number | boolean | null>;
+  error?: string;
+}
+
+export interface Manifest {
+  name: string;
+  version: string;
+  generated: string;
+  n_doors: number;
+  n_signed_off: number;
+  families: string[];
+  doors: ManifestDoor[];
+}
+
+export const FAMILY_LABELS: Record<string, string> = {
+  swing_single: "Swing (single)", swing_double: "Swing (pair)", dutch: "Dutch", saloon: "Saloon", pivot: "Pivot",
+  sliding_single: "Sliding", sliding_bypass: "Bypass closet", bifold: "Bifold", accordion: "Accordion", revolving: "Revolving",
+  turnstile_tripod: "Tripod turnstile", turnstile_fullheight: "Full-height turnstile", garage_sectional: "Garage (sectional)",
+  garage_tiltup: "Garage (tilt-up)", rollup: "Roll-up", pet_door: "Pet door", hatch_floor: "Floor hatch", hatch_ceiling: "Ceiling hatch",
+  ship_watertight: "Watertight (marine)", vault: "Vault", blast: "Blast door", gate_swing: "Gate (swing)", gate_sliding: "Gate (sliding)",
+  baby_gate: "Baby gate", stall: "Toilet stall", strip_curtain: "Strip curtain", cold_storage: "Cold storage", automatic_sliding: "Automatic sliding",
+  automatic_swing: "Automatic swing", elevator: "Elevator",
+};

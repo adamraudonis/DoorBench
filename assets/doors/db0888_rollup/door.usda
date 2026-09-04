@@ -1,0 +1,1205 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "World"
+{
+    def Xform "db0888_rollup" (
+        prepend apiSchemas = ["PhysicsArticulationRootAPI"]
+    )
+    {
+        custom string doorbench:couplings = "[]"
+        custom string doorbench:meta = '{"door_id": "db0888_rollup", "family": "rollup", "task": "open_only", "wall_y": 0.0, "primary_joint": "curtain_slide", "handle_height": 0.9, "counterbalance_fraction": 0.9, "operator_joint": null, "scene_extent": 3.2824999999999998, "cam_target_z": 1.855, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, 0.0796, 0.16], "handle_cam_pos": [0.25, -1.0204, 0.51]}'
+        custom bool physxArticulation:enabledSelfCollisions = 1
+        custom int physxArticulation:solverPositionIterationCount = 32
+
+        def Scope "Looks"
+        {
+            def Material "mat_floor"
+            {
+                token outputs:surface.connect = </World/db0888_rollup/Looks/mat_floor/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.55, 0.53, 0.5)
+                    float inputs:metallic = 0
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.85
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_wall"
+            {
+                token outputs:surface.connect = </World/db0888_rollup/Looks/mat_wall/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.78, 0.76, 0.7)
+                    float inputs:metallic = 0
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.9
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_frame"
+            {
+                token outputs:surface.connect = </World/db0888_rollup/Looks/mat_frame/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.45, 0.48, 0.52)
+                    float inputs:metallic = 0.2
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.4
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_track"
+            {
+                token outputs:surface.connect = </World/db0888_rollup/Looks/mat_track/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
+                    float inputs:metallic = 0.9
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.5
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_curtain"
+            {
+                token outputs:surface.connect = </World/db0888_rollup/Looks/mat_curtain/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
+                    float inputs:metallic = 0.9
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.5
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_slat_line"
+            {
+                token outputs:surface.connect = </World/db0888_rollup/Looks/mat_slat_line/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.25, 0.25, 0.25)
+                    float inputs:metallic = 0
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.7
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_chain"
+            {
+                token outputs:surface.connect = </World/db0888_rollup/Looks/mat_chain/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.55, 0.56, 0.58)
+                    float inputs:metallic = 1
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.45
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_op_black_matte_metal"
+            {
+                token outputs:surface.connect = </World/db0888_rollup/Looks/mat_op_black_matte_metal/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.05, 0.05, 0.05)
+                    float inputs:metallic = 0.3
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.7
+                    token outputs:surface
+                }
+            }
+
+            def Material "PhysMat_mat_floor" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.68
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.8
+            }
+
+            def Material "PhysMat_mat_wall" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.51
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.6
+            }
+
+            def Material "PhysMat_mat_track" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.51
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.6
+            }
+
+            def Material "PhysMat_mat_chain" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.51
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.6
+            }
+
+            def Material "PhysMat_mat_curtain" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.357
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.42
+            }
+
+            def Material "PhysMat_mat_op_black_matte_metal" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.51
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.6
+            }
+        }
+
+        def Xform "world_env"
+        {
+            custom string doorbench:semantic = "wall"
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "floor" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Floor"
+                custom string doorbench:semantic = "floor"
+                rel material:binding = </World/db0888_rollup/Looks/mat_floor>
+                rel material:binding:physics = </World/db0888_rollup/Looks/PhysMat_mat_floor> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (12, 12, 0.1)
+                double3 xformOp:translate = (0, 0, -0.05)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "wall_left" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Wall"
+                custom string doorbench:semantic = "wall"
+                rel material:binding = </World/db0888_rollup/Looks/mat_wall>
+                rel material:binding:physics = </World/db0888_rollup/Looks/PhysMat_mat_wall> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1.145, 0.2, 5.31)
+                double3 xformOp:translate = (-2.4275, 0, 2.6550000000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "wall_right" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Wall"
+                custom string doorbench:semantic = "wall"
+                rel material:binding = </World/db0888_rollup/Looks/mat_wall>
+                rel material:binding:physics = </World/db0888_rollup/Looks/PhysMat_mat_wall> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1.145, 0.2, 5.31)
+                double3 xformOp:translate = (2.4275, 0, 2.6550000000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "wall_header" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Wall header"
+                custom string doorbench:semantic = "wall"
+                rel material:binding = </World/db0888_rollup/Looks/mat_wall>
+                rel material:binding:physics = </World/db0888_rollup/Looks/PhysMat_mat_wall> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.71, 0.2, 1.6)
+                double3 xformOp:translate = (0, 0, 4.51)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "guide_l" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Curtain guide"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </World/db0888_rollup/Looks/mat_track>
+                rel material:binding:physics = </World/db0888_rollup/Looks/PhysMat_mat_track> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.06, 0.05, 3.71)
+                double3 xformOp:translate = (-1.865, 0.13, 1.855)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "guide_r" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Curtain guide"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </World/db0888_rollup/Looks/mat_track>
+                rel material:binding:physics = </World/db0888_rollup/Looks/PhysMat_mat_track> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.06, 0.05, 3.71)
+                double3 xformOp:translate = (1.865, 0.13, 1.855)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "coil_drum" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Coil (visual)"
+                custom string doorbench:semantic = "mechanism"
+                double height = 3.7600000000000002
+                rel material:binding = </World/db0888_rollup/Looks/mat_frame>
+                double radius = 0.25
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (0, 0.13, 4.01)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "hood" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Hood"
+                custom string doorbench:semantic = "mechanism"
+                rel material:binding = </World/db0888_rollup/Looks/mat_track>
+                rel material:binding:physics = </World/db0888_rollup/Looks/PhysMat_mat_track> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.9, 0.6, 0.04)
+                double3 xformOp:translate = (0, 0.13, 4.29)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hood_front" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Hood front"
+                custom string doorbench:semantic = "mechanism"
+                rel material:binding = </World/db0888_rollup/Looks/mat_track>
+                rel material:binding:physics = </World/db0888_rollup/Looks/PhysMat_mat_track> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.9, 0.04, 0.56)
+                double3 xformOp:translate = (0, 0.43, 4.03)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "hoist_chain" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Hoist chain"
+                custom string doorbench:semantic = "mechanism"
+                double height = 4.31
+                rel material:binding = </World/db0888_rollup/Looks/mat_chain>
+                rel material:binding:physics = </World/db0888_rollup/Looks/PhysMat_mat_chain> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.005
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (1.9500000000000002, 0.13, 2.155)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Xform "approach_point"
+            {
+                custom string doorbench:site_role = "approach"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, -2, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Xform "goal_point"
+            {
+                custom string doorbench:site_role = "goal"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 2, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Xform "door_plane_center"
+            {
+                custom string doorbench:site_role = "pass_plane"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 0, 1.855)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+        }
+
+        def Xform "curtain" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "leaf"
+            point3f physics:centerOfMass = (0, 0.12978135, 1.6232818)
+            float3 physics:diagonalInertia = (106.17154, 126.81898, 232.98683)
+            float physics:mass = 95.610435
+            quatf physics:principalAxes = (0.50006026, 0.4999397, 0.4999397, -0.50006026)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "curtain_slab" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Leaf slab"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_curtain>
+                rel material:binding:physics = </World/db0888_rollup/Looks/PhysMat_mat_curtain> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.0008, 3.66)
+                double3 xformOp:translate = (0, 0.13, 1.84)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 0.08625)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 0.1625)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_3" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 0.23875000000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_4" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 0.315)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_5" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 0.39125000000000004)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_6" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 0.4675)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_7" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 0.5437500000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_8" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 0.62)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_9" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 0.6962499999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_10" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 0.7725000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_11" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 0.8487500000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_12" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 0.925)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_13" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.00125)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_14" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.0775000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_15" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.15375)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_16" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.23)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_17" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.30625)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_18" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.3824999999999998)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_19" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.4587500000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_20" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.5350000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_21" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.61125)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_22" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.6875000000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_23" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.7637500000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_24" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.84)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_25" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.91625)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_26" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 1.9925)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_27" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 2.06875)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_28" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 2.145)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_29" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 2.22125)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_30" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 2.2975)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_31" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 2.37375)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_32" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 2.4499999999999997)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_33" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 2.5262499999999997)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_34" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 2.6024999999999996)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_35" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 2.6787499999999995)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_36" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 2.7549999999999994)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_37" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 2.8312500000000003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_38" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 2.9075)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_39" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 2.98375)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_40" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 3.06)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_41" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 3.13625)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_42" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 3.2125)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_43" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 3.28875)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_44" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 3.365)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_45" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 3.44125)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_46" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 3.5175)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "slat_line_47" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Slat joint"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_slat_line>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.002, 0.006)
+                double3 xformOp:translate = (0, 0.1286, 3.59375)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "bottom_bar" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Bottom bar"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0888_rollup/Looks/mat_track>
+                rel material:binding:physics = </World/db0888_rollup/Looks/PhysMat_mat_track> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.66, 0.0308, 0.06)
+                double3 xformOp:translate = (0, 0.13, 0.03)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Xform "lift_handle_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+                prepend references = @../../hardware/pull_bdc5e965ab.usdc@</pull_bdc5e965ab>
+            )
+            {
+                custom string doorbench:label = "Lift handle (garage exterior/interior step plate)"
+                custom string doorbench:semantic = "operator"
+                rel material:binding = </World/db0888_rollup/Looks/mat_op_black_matte_metal>
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                double3 xformOp:translate = (0, 0.1296, 0.16)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "lift_handle_col_n" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Pull grip"
+                custom string doorbench:semantic = "operator"
+                rel material:binding = </World/db0888_rollup/Looks/mat_op_black_matte_metal>
+                rel material:binding:physics = </World/db0888_rollup/Looks/PhysMat_mat_op_black_matte_metal> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                uniform token purpose = "guide"
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.2, 0.012, 0.03)
+                double3 xformOp:translate = (0, 0.0796, 0.16)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Xform "lift_handle_grip_n"
+            {
+                custom string doorbench:site_role = "grip"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 0.0796, 0.16)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+        }
+
+        def Scope "Joints"
+        {
+            def PhysicsPrismaticJoint "curtain_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Vertical lift (0 = closed, + = raised)"
+                custom string doorbench:notes = "counterbalance spring ~90% of weight counterbalance ~90% of 96 kg"
+                custom string doorbench:role = "primary"
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 6.2312183
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 70.15051
+                float drive:linear:physics:targetPosition = 12.033334
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body1 = </World/db0888_rollup/curtain>
+                point3f physics:localPos0 = (0, 0, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+                quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 3.61
+                custom float physxJoint:armature = 0.5
+                custom float physxJoint:jointFriction = 132.78105
+            }
+        }
+    }
+
+    def PhysicsScene "PhysicsScene"
+    {
+        vector3f physics:gravityDirection = (0, 0, -1)
+        float physics:gravityMagnitude = 9.81
+    }
+}
+

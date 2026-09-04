@@ -1,0 +1,145 @@
+<?xml version="1.0" ?>
+<mujoco model="db0780_garage_sectional_full">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <mesh name="lever_84834db174" file="lever_84834db174.obj"/>
+    <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_frame" rgba="0.82 0.7 0.5 1" specular="0.2" shininess="0.45" reflectance="0"/>
+    <material name="mat_track" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_section_0" rgba="0.93 0.93 0.91 1" specular="0.23" shininess="0.4" reflectance="0.02"/>
+    <material name="mat_glass" rgba="0.85 0.92 0.95 0.25" specular="0.2" shininess="0.95" reflectance="0.1"/>
+    <material name="mat_section_1" rgba="0.93 0.93 0.91 1" specular="0.23" shininess="0.4" reflectance="0.02"/>
+    <material name="mat_hinge_line" rgba="0.2 0.2 0.2 1" specular="0.2" shininess="0.3" reflectance="0"/>
+    <material name="mat_section_2" rgba="0.93 0.93 0.91 1" specular="0.23" shininess="0.4" reflectance="0.02"/>
+    <material name="mat_section_3" rgba="0.93 0.93 0.91 1" specular="0.23" shininess="0.4" reflectance="0.02"/>
+    <material name="mat_spring" rgba="0.55 0.56 0.58 1" specular="0.8" shininess="0.55" reflectance="0.4"/>
+    <material name="mat_op_black_matte_metal" rgba="0.05 0.05 0.05 1" specular="0.38" shininess="0.3" reflectance="0.12"/>
+    <material name="mat_lockbar" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -2.959375 1.918625" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 2.959375 1.918625" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="2.249125 -2.485875 2.392125" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.173 -1.165 1.25" xyaxes="0.975133 0.221621 0 -0.065674 0.288965 0.955084" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="wall_left" type="box" size="0.8175 0.1 2.305" pos="-2.1825 0 2.305" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_right" type="box" size="0.8175 0.1 2.305" pos="2.1825 0 2.305" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_header" type="box" size="1.365 0.1 0.11" pos="0 0 4.5" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="garage_jamb_l" type="box" size="0.04 0.1 1.09" pos="-1.325 0 1.09" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
+    <geom name="garage_jamb_r" type="box" size="0.04 0.1 1.09" pos="1.325 0 1.09" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
+    <geom name="track_l" type="box" size="0.02 0.02 2.155" pos="-1.25 0.085 2.155" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="track_r" type="box" size="0.02 0.02 2.155" pos="1.25 0.085 2.155" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="torsion_shaft" type="cylinder" size="0.013 1.42" pos="0 0.12 2.43" quat="0.707107 0 0.707107 0" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="torsion_spring" type="cylinder" size="0.03 0.35" pos="0 0.12 2.43" quat="0.707107 0 0.707107 0" material="mat_spring" group="1" contype="0" conaffinity="0" density="7850"/>
+    <site name="approach_point" pos="0 -2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.09" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="door" pos="0 0 0">
+      <inertial pos="0 0.01019 1.074153" mass="82.84129" quat="0.707161 -0.707052 0 0" diaginertia="30.309940895 51.492571587 81.696100197"/>
+      <joint name="door_slide" type="slide" axis="0 0 1" limited="true" range="0 2.08" damping="5.388149" frictionloss="43.194314" stiffness="111.351837" springref="6.933333" armature="0.5"/>
+      <geom name="section_0_slab" type="box" size="1.22 0.025 0.26625" pos="0 0 0.27625" material="mat_section_0" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
+      <geom name="section_0_glass_0" type="box" size="0.2775 0.0258 0.0426" pos="-0.8925 0 0.46795" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_glass_1" type="box" size="0.2775 0.0258 0.0426" pos="-0.2975 0 0.46795" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_glass_2" type="box" size="0.2775 0.0258 0.0426" pos="0.2975 0 0.46795" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_0_glass_3" type="box" size="0.2775 0.0258 0.0426" pos="0.8925 0 0.46795" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_slab" type="box" size="1.22 0.025 0.26625" pos="0 0 0.80875" material="mat_section_1" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
+      <geom name="section_1_glass_0" type="box" size="0.2775 0.0258 0.0426" pos="-0.8925 0 1.00045" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_glass_1" type="box" size="0.2775 0.0258 0.0426" pos="-0.2975 0 1.00045" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_glass_2" type="box" size="0.2775 0.0258 0.0426" pos="0.2975 0 1.00045" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_1_glass_3" type="box" size="0.2775 0.0258 0.0426" pos="0.8925 0 1.00045" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_line_1" type="box" size="1.2 0.001 0.004" pos="0 0.026 0.5425" material="mat_hinge_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_1_132" type="box" size="0.04 0.01 0.05" pos="-1.12 0.035 0.5425" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_1_244" type="box" size="0.04 0.01 0.05" pos="0 0.035 0.5425" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_1_355" type="box" size="0.04 0.01 0.05" pos="1.12 0.035 0.5425" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_2_slab" type="box" size="1.22 0.025 0.26625" pos="0 0 1.34125" material="mat_section_2" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
+      <geom name="section_2_glass_0" type="box" size="0.2775 0.0258 0.0426" pos="-0.8925 0 1.53295" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_glass_1" type="box" size="0.2775 0.0258 0.0426" pos="-0.2975 0 1.53295" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_glass_2" type="box" size="0.2775 0.0258 0.0426" pos="0.2975 0 1.53295" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_2_glass_3" type="box" size="0.2775 0.0258 0.0426" pos="0.8925 0 1.53295" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_line_2" type="box" size="1.2 0.001 0.004" pos="0 0.026 1.075" material="mat_hinge_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_2_132" type="box" size="0.04 0.01 0.05" pos="-1.12 0.035 1.075" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_2_244" type="box" size="0.04 0.01 0.05" pos="0 0.035 1.075" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_2_355" type="box" size="0.04 0.01 0.05" pos="1.12 0.035 1.075" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_3_slab" type="box" size="1.22 0.025 0.26625" pos="0 0 1.87375" material="mat_section_3" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
+      <geom name="section_3_glass_0" type="box" size="0.2775 0.0258 0.0426" pos="-0.8925 0 2.06545" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_glass_1" type="box" size="0.2775 0.0258 0.0426" pos="-0.2975 0 2.06545" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_glass_2" type="box" size="0.2775 0.0258 0.0426" pos="0.2975 0 2.06545" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_3_glass_3" type="box" size="0.2775 0.0258 0.0426" pos="0.8925 0 2.06545" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_line_3" type="box" size="1.2 0.001 0.004" pos="0 0.026 1.6075" material="mat_hinge_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="section_hinge_3_132" type="box" size="0.04 0.01 0.05" pos="-1.12 0.035 1.6075" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_3_244" type="box" size="0.04 0.01 0.05" pos="0 0.035 1.6075" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="section_hinge_3_355" type="box" size="0.04 0.01 0.05" pos="1.12 0.035 1.6075" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_l_0" type="cylinder" size="0.025 0.01" pos="-1.25 0.085 0.01" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_l_0" type="box" size="0.03 0.03 0.006" pos="-1.2 0.055 0.01" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_l_1" type="cylinder" size="0.025 0.01" pos="-1.25 0.085 0.5425" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_l_1" type="box" size="0.03 0.03 0.006" pos="-1.2 0.055 0.5425" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_l_2" type="cylinder" size="0.025 0.01" pos="-1.25 0.085 1.075" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_l_2" type="box" size="0.03 0.03 0.006" pos="-1.2 0.055 1.075" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_l_3" type="cylinder" size="0.025 0.01" pos="-1.25 0.085 1.6075" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_l_3" type="box" size="0.03 0.03 0.006" pos="-1.2 0.055 1.6075" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_l_4" type="cylinder" size="0.025 0.01" pos="-1.25 0.085 2.08" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_l_4" type="box" size="0.03 0.03 0.006" pos="-1.2 0.055 2.08" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_r_0" type="cylinder" size="0.025 0.01" pos="1.25 0.085 0.01" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_r_0" type="box" size="0.03 0.03 0.006" pos="1.2 0.055 0.01" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_r_1" type="cylinder" size="0.025 0.01" pos="1.25 0.085 0.5425" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_r_1" type="box" size="0.03 0.03 0.006" pos="1.2 0.055 0.5425" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_r_2" type="cylinder" size="0.025 0.01" pos="1.25 0.085 1.075" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_r_2" type="box" size="0.03 0.03 0.006" pos="1.2 0.055 1.075" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_r_3" type="cylinder" size="0.025 0.01" pos="1.25 0.085 1.6075" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_r_3" type="box" size="0.03 0.03 0.006" pos="1.2 0.055 1.6075" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_r_4" type="cylinder" size="0.025 0.01" pos="1.25 0.085 2.08" quat="0.707107 0 0.707107 0" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="roller_arm_r_4" type="box" size="0.03 0.03 0.006" pos="1.2 0.055 2.08" material="mat_track" group="1" contype="0" conaffinity="0" density="7850"/>
+      <body name="t_handle" pos="0 0 0.9">
+        <inertial pos="-0.029119 -0.045569 0" mass="0.302924" quat="-0.242059 0 0 0.970262" diaginertia="0.000114804 0.000528137 0.000615864"/>
+        <joint name="t_handle_hinge" type="hinge" axis="0 -1 0" limited="true" range="0 1.5708" damping="0.02" frictionloss="0.028" stiffness="0.4" springref="-0.75" armature="0.01"/>
+        <geom name="t_handle_spindle" type="cylinder" size="0.006 0.027" pos="0 0 0" quat="0.707107 -0.707107 0 0" material="mat_op_black_matte_metal" group="1" contype="0" conaffinity="0" density="7850"/>
+        <geom name="t_handle_t_n" type="mesh" mesh="lever_84834db174" pos="0 -0.025 0" quat="0.707107 0.707107 0 0" material="mat_op_black_matte_metal" group="1" contype="0" conaffinity="0" density="3000"/>
+        <geom name="t_handle_t_col_n" type="box" size="0.055 0.008 0.008" pos="-0.055 -0.065 0" material="mat_op_black_matte_metal" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
+        <site name="t_handle_grip_n" pos="-0.077 -0.065 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      </body>
+      <body name="lock_bar_l" pos="-1.17 0.03 0.9">
+        <inertial pos="-0.01 0 0" mass="0.095884" quat="0 0 0.707107 0.707107" diaginertia="0.0000017 0.00009424 0.00009424"/>
+        <joint name="lock_bar_l_slide" type="slide" axis="1 0 0" limited="true" range="0 0.03" damping="2" frictionloss="1" armature="0.1" ref="0.03"/>
+        <geom name="lock_bar_l_geom" type="capsule" size="0.006 0.05" pos="-0.01 0 0" quat="0.707107 0 0.707107 0" material="mat_lockbar" group="1" contype="0" conaffinity="0" density="7850"/>
+      </body>
+      <body name="lock_bar_r" pos="1.17 0.03 0.9">
+        <inertial pos="0.01 0 0" mass="0.095884" quat="0 0 0.707107 0.707107" diaginertia="0.0000017 0.00009424 0.00009424"/>
+        <joint name="lock_bar_r_slide" type="slide" axis="-1 0 0" limited="true" range="0 0.03" damping="2" frictionloss="1" armature="0.1" ref="0.03"/>
+        <geom name="lock_bar_r_geom" type="capsule" size="0.006 0.05" pos="0.01 0 0" quat="0.707107 0 0.707107 0" material="mat_lockbar" group="1" contype="0" conaffinity="0" density="7850"/>
+      </body>
+    </body>
+  </worldbody>
+  <equality>
+    <joint name="lock_bar_l_couple" joint1="lock_bar_l_slide" joint2="t_handle_hinge" polycoef="0 0.019099 0 0 0" active="true"/>
+    <joint name="lock_bar_r_couple" joint1="lock_bar_r_slide" joint2="t_handle_hinge" polycoef="0 0.019099 0 0 0" active="true"/>
+  </equality>
+  <sensor>
+    <jointpos name="door_slide_pos" joint="door_slide"/>
+    <jointvel name="door_slide_vel" joint="door_slide"/>
+    <jointpos name="t_handle_hinge_pos" joint="t_handle_hinge"/>
+    <jointvel name="t_handle_hinge_vel" joint="t_handle_hinge"/>
+    <jointpos name="lock_bar_l_slide_pos" joint="lock_bar_l_slide"/>
+    <jointvel name="lock_bar_l_slide_vel" joint="lock_bar_l_slide"/>
+    <jointpos name="lock_bar_r_slide_pos" joint="lock_bar_r_slide"/>
+    <jointvel name="lock_bar_r_slide_vel" joint="lock_bar_r_slide"/>
+  </sensor>
+</mujoco>

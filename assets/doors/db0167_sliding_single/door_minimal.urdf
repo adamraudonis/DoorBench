@@ -1,0 +1,152 @@
+<?xml version="1.0" ?>
+<robot xmlns:doorbench="https://github.com/adamraudonis/DoorBench/schema/urdf-ext" name="db0167_sliding_single_minimal">
+  <link name="world_env">
+    <visual name="floor_vis">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+      <material name="mat_floor"/>
+    </visual>
+    <collision name="floor_col">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+    </collision>
+    <visual name="wall_left_vis">
+      <origin xyz="-1.56125 0 1.51" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.8775 0.145 3.02"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_left_col">
+      <origin xyz="-1.56125 0 1.51" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.8775 0.145 3.02"/>
+      </geometry>
+    </collision>
+    <visual name="wall_right_vis">
+      <origin xyz="1.53125 0 1.51" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.9375 0.145 3.02"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_right_col">
+      <origin xyz="1.53125 0 1.51" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.9375 0.145 3.02"/>
+      </geometry>
+    </collision>
+    <visual name="wall_header_vis">
+      <origin xyz="-0.03 0 2.7295" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.185 0.145 0.581"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_header_col">
+      <origin xyz="-0.03 0 2.7295" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.185 0.145 0.581"/>
+      </geometry>
+    </collision>
+    <visual name="jamb_r_vis">
+      <origin xyz="0.553 0 1.21" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.019 0.145 2.42"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="jamb_r_col">
+      <origin xyz="0.553 0 1.21" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.019 0.145 2.42"/>
+      </geometry>
+    </collision>
+    <visual name="jamb_head_vis">
+      <origin xyz="0 0 2.4295" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.125 0.145 0.019"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="jamb_head_col">
+      <origin xyz="0 0 2.4295" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.125 0.145 0.019"/>
+      </geometry>
+    </collision>
+    <visual name="jamb_latch_0_vis">
+      <origin xyz="-0.583 0 1.21" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.079 0.145 2.42"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="jamb_latch_0_col">
+      <origin xyz="-0.583 0 1.21" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.079 0.145 2.42"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="leaf">
+    <inertial>
+      <origin xyz="-0.00181 -0.000164 1.211135" rpy="0 0 0"/>
+      <mass value="121.10781"/>
+      <inertia ixx="57.923124993" ixy="-0.008758834" ixz="-0.046269558" iyy="69.461825078" iyz="-0.004186861" izz="11.541185094"/>
+    </inertial>
+    <visual name="leaf_slab_vis">
+      <origin xyz="0 0 1.212" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.067 0.006 2.4"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <collision name="leaf_slab_col">
+      <origin xyz="0 0 1.212" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.067 0.006 2.4"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_pull_n_vis">
+      <origin xyz="-0.4435 -0.003 1" rpy="-1.570796 0 3.141593"/>
+      <geometry>
+        <mesh filename="../../hardware/pull_2b47e55ff8.obj"/>
+      </geometry>
+      <material name="mat_op_black_matte_metal"/>
+    </visual>
+    <collision name="leaf_pull_col_n_col">
+      <origin xyz="-0.4435 -0.048 1" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.006" length="0.26"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="leaf_slide" type="prismatic">
+    <origin xyz="0 -0.1075 0" rpy="0 0 0"/>
+    <parent link="world_env"/>
+    <child link="leaf"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="0" upper="1.067" effort="5000" velocity="10"/>
+    <dynamics damping="8.065684" friction="23.793616"/>
+  </joint>
+  <material name="mat_floor">
+    <color rgba="0.55 0.53 0.5 1"/>
+  </material>
+  <material name="mat_frame">
+    <color rgba="0.82 0.7 0.5 1"/>
+  </material>
+  <material name="mat_leaf">
+    <color rgba="0.5 0.51 0.53 1"/>
+  </material>
+  <material name="mat_op_black_matte_metal">
+    <color rgba="0.05 0.05 0.05 1"/>
+  </material>
+  <material name="mat_wall">
+    <color rgba="0.78 0.76 0.7 1"/>
+  </material>
+</robot>

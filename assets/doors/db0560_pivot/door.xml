@@ -1,0 +1,75 @@
+<?xml version="1.0" ?>
+<mujoco model="db0560_pivot_full">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <mesh name="pull_897e207f65" file="pull_897e207f65.obj"/>
+    <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_leaf" rgba="0.36 0.25 0.18 1" specular="0.2" shininess="0.55" reflectance="0"/>
+    <material name="mat_leaf_brace" rgba="0.324 0.225 0.162 1" specular="0.2" shininess="0.2" reflectance="0"/>
+    <material name="mat_hinge" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_op_stainless" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <material name="mat_frame" rgba="0.22 0.17 0.13 1" specular="0.8" shininess="0.6" reflectance="0.4"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -3.2175 2.2429" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 3.1175 2.2429" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="2.4073 -2.7107 2.7497" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.687 -0.895 1.33" xyaxes="0.97561 0.219512 0 -0.070934 0.315262 0.94635" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="wall_left" type="box" size="0.9245 0.1 1.656" pos="-1.5755 -0.05 1.656" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_right" type="box" size="0.9095 0.1 1.656" pos="1.5905 -0.05 1.656" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_header" type="box" size="0.666 0.1 0.2625" pos="0.015 -0.05 3.0495" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="jamb_hinge" type="box" size="0.0225 0.1 1.356" pos="-0.6285 -0.05 1.356" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
+    <geom name="jamb_strike" type="box" size="0.0225 0.1 1.356" pos="0.6285 -0.05 1.356" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
+    <geom name="stud_strike" type="box" size="0.015 0.1 1.356" pos="0.666 -0.05 1.356" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="500"/>
+    <geom name="jamb_head" type="box" size="0.666 0.1 0.0225" pos="0.015 -0.05 2.7345" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
+    <geom name="head_stud" type="box" size="0.666 0.1 0.015" pos="0.015 -0.05 2.772" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="500"/>
+    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.356" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="leaf" pos="-0.606 0 0">
+      <inertial pos="0.673643 0.000069 1.314737" mass="138.245729" quat="0.510617 0.510785 0.48898 -0.489149" diaginertia="18.762985862 79.574676357 97.932180814"/>
+      <joint name="leaf_hinge" type="hinge" axis="0 0 1" pos="0.019 0.04 0" limited="true" range="0 1.570796" solreflimit="0.02 1" damping="1.061129" frictionloss="2.257578" armature="0.02"/>
+      <geom name="leaf_slab" type="box" size="0.6 0.03 1.35" pos="0.603 0 1.358" material="mat_leaf" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
+      <geom name="leaf_plank_gap_1" type="box" size="0.002 0.031 1.34" pos="0.153 0 1.358" material="mat_leaf_brace" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_plank_gap_2" type="box" size="0.002 0.031 1.34" pos="0.303 0 1.358" material="mat_leaf_brace" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_plank_gap_3" type="box" size="0.002 0.031 1.34" pos="0.453 0 1.358" material="mat_leaf_brace" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_plank_gap_4" type="box" size="0.002 0.031 1.34" pos="0.603 0 1.358" material="mat_leaf_brace" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_plank_gap_5" type="box" size="0.002 0.031 1.34" pos="0.753 0 1.358" material="mat_leaf_brace" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_plank_gap_6" type="box" size="0.002 0.031 1.34" pos="0.903 0 1.358" material="mat_leaf_brace" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_plank_gap_7" type="box" size="0.002 0.031 1.34" pos="1.053 0 1.358" material="mat_leaf_brace" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="pivot_bottom" type="cylinder" size="0.02 0.006" pos="0.019 0.04 0.003" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="pivot_top" type="cylinder" size="0.02 0.006" pos="0.019 0.04 2.718" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="leaf_pull_n" type="mesh" mesh="pull_897e207f65" pos="1.113 -0.03 1.05" quat="0.707107 0.707107 0 0" material="mat_op_stainless" group="1" contype="0" conaffinity="0" density="3000"/>
+      <geom name="leaf_pull_col_n" type="capsule" size="0.016 0.88" pos="1.113 -0.095 1.05" material="mat_op_stainless" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
+      <geom name="leaf_pull_p" type="mesh" mesh="pull_897e207f65" pos="1.113 0.03 1.05" quat="-0.707107 0.707107 0 0" material="mat_op_stainless" group="1" contype="0" conaffinity="0" density="3000"/>
+      <geom name="leaf_pull_col_p" type="capsule" size="0.016 0.88" pos="1.113 0.095 1.05" material="mat_op_stainless" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
+      <site name="leaf_pull_grip_n" pos="1.113 -0.095 1.05" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_pull_grip_p" pos="1.113 0.095 1.05" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_edge_mid" pos="1.203 0 1.35" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="leaf_hinge_pos" joint="leaf_hinge"/>
+    <jointvel name="leaf_hinge_vel" joint="leaf_hinge"/>
+  </sensor>
+</mujoco>

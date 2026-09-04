@@ -1,0 +1,79 @@
+<?xml version="1.0" ?>
+<mujoco model="db0389_hatch_ceiling_full">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_ceiling" rgba="0.92 0.92 0.9 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_frame" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_leaf" rgba="0.85 0.75 0.58 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_op_steel_galvanized" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_strut" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <material name="mat_bolt" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -1.875 3.38" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 1.875 3.38" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="1.425 -1.575 3.68" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.35 -0.7375 1.602" xyaxes="0.843661 0.536875 0 0.426006 -0.669439 0.608581" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="ceil_a" type="box" size="1.3575 3 0.05" pos="-1.6425 0 2.35" material="mat_ceiling" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="600"/>
+    <geom name="ceil_b" type="box" size="1.3575 3 0.05" pos="1.6425 0 2.35" material="mat_ceiling" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="600"/>
+    <geom name="ceil_c" type="box" size="0.285 1.2725 0.05" pos="0 -1.7275 2.35" material="mat_ceiling" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="600"/>
+    <geom name="ceil_d" type="box" size="0.285 1.2725 0.05" pos="0 1.7275 2.35" material="mat_ceiling" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="600"/>
+    <geom name="curb_l" type="box" size="0.025 0.505 0.02" pos="-0.31 0 2.42" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="curb_r" type="box" size="0.025 0.505 0.02" pos="0.31 0 2.42" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="curb_n" type="box" size="0.285 0.025 0.02" pos="0 -0.48 2.42" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="curb_f" type="box" size="0.285 0.025 0.02" pos="0 0.48 2.42" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="hatch_bolt_keeper_b" type="box" size="0.025 0.014 0.004" pos="0.315 0 2.443" material="mat_bolt" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
+    <geom name="hatch_bolt_keeper_t" type="box" size="0.025 0.014 0.004" pos="0.315 0 2.465" material="mat_bolt" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
+    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 0 2.9" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 2.4" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="hatch" pos="0 0.455 2.44">
+      <inertial pos="0.046612 -0.443803 -0.030176" mass="4.898503" quat="-0.048388 0.755518 0.645713 -0.099524" diaginertia="0.162076243 0.298569909 0.421868756"/>
+      <joint name="hatch_hinge" type="hinge" axis="-1 0 0" limited="true" range="0 1.396263" damping="30.515985" frictionloss="0.162391" stiffness="25.125" springref="-3.333333" armature="0.02"/>
+      <geom name="hatch_slab" type="box" size="0.28 0.451 0.006" pos="0 -0.455 0" material="mat_leaf" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1"/>
+      <geom name="ring_recess" type="box" size="0.05 0.05 0.001" pos="0 -0.6825 0.007" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
+      <geom name="gas_strut" type="cylinder" size="0.01 0.2" pos="0.23 -0.364 -0.15" quat="0.316228 -0.948683 0 0" material="mat_strut" group="1" contype="0" conaffinity="0" density="7900"/>
+      <body name="ring" pos="0 -0.6825 0.006">
+        <inertial pos="0 0.04 0.006" mass="0.068808" quat="0 0 0.707107 0.707107" diaginertia="0.000001213 0.000035629 0.000035629"/>
+        <joint name="ring_hinge" type="hinge" axis="1 0 0" limited="true" range="0 1.5708" damping="0.01" armature="0.01"/>
+        <geom name="ring_geom" type="capsule" size="0.006 0.035" pos="0 0.04 0.006" quat="0.707107 0 0.707107 0" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
+        <site name="grip_ring" pos="0 0.04 0.006" size="0.01" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      </body>
+      <body name="hatch_bolt" pos="0.18 -0.455 0.014">
+        <inertial pos="0.08 0 0" mass="0.11364" quat="0 0 0.707107 0.707107" diaginertia="0.00000202 0.000156393 0.000156393"/>
+        <joint name="hatch_bolt_slide" type="slide" axis="-1 0 0" limited="true" range="0 0.04" damping="1" frictionloss="1" armature="0.1"/>
+        <geom name="hatch_bolt_geom" type="capsule" size="0.006 0.06" pos="0.08 0 0" quat="0.707107 0 0.707107 0" material="mat_bolt" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+        <site name="hatch_bolt_grip" pos="0 0 0.02" size="0.01" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      </body>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="hatch_hinge_pos" joint="hatch_hinge"/>
+    <jointvel name="hatch_hinge_vel" joint="hatch_hinge"/>
+    <jointpos name="ring_hinge_pos" joint="ring_hinge"/>
+    <jointvel name="ring_hinge_vel" joint="ring_hinge"/>
+    <jointpos name="hatch_bolt_slide_pos" joint="hatch_bolt_slide"/>
+    <jointvel name="hatch_bolt_slide_vel" joint="hatch_bolt_slide"/>
+  </sensor>
+</mujoco>

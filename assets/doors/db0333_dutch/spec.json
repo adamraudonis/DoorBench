@@ -1,0 +1,208 @@
+{
+ "schema_version": "1.0",
+ "id": "db0333_dutch",
+ "index": 333,
+ "seed": 1336075965,
+ "family": "dutch",
+ "context": "residential",
+ "use_case": "kitchen dutch door",
+ "tags": [
+  "dutch",
+  "solid_wood_fir",
+  "glass_9_lite",
+  "lever_euro_backplate"
+ ],
+ "extras": [],
+ "robot": {
+  "approach_side": "-y",
+  "is_push": true,
+  "robot_outside": false,
+  "start_distance_m": 1.25
+ },
+ "leaf": {
+  "width": 0.914,
+  "height": 2.032,
+  "thickness": 0.044,
+  "slab": "solid_wood_fir",
+  "panel_style": "glass_9_lite",
+  "finish": {
+   "kind": "stain",
+   "color": "douglas_fir",
+   "rgba": [
+    0.6629948311949309,
+    0.46188639906580187,
+    0.30232564302488846,
+    1.0
+   ],
+   "texture": "fine_grained_wood",
+   "roughness": 0.55,
+   "metallic": 0.0
+  },
+  "count": 1,
+  "glazing": {
+   "material": "glass_clear",
+   "thickness": 0.006,
+   "area_fraction": 0.27893573976119507,
+   "panel_style": "glass_9_lite",
+   "count": 9
+  },
+  "dutch_split_height": 1.016
+ },
+ "opening": {
+  "width": 0.921,
+  "height": 2.045,
+  "wall_thickness": 0.145,
+  "frame": {
+   "kind": "wood_jamb_casing",
+   "material": "pine",
+   "casing": true,
+   "stop_depth": 0.012,
+   "jamb_depth": 0.115
+  },
+  "threshold": "none",
+  "sidelite": false,
+  "transom": false
+ },
+ "hinge": {
+  "model": "butt_45_plain",
+  "count": 4,
+  "side": "left",
+  "swing": "push",
+  "axis_tilt_deg": 0.0
+ },
+ "kinematics": {
+  "type": "hinge_vertical",
+  "max_open_deg": 90,
+  "stop": "none",
+  "dutch": true,
+  "joining_bolt_engaged": false
+ },
+ "operator": {
+  "model": "lever_euro_backplate",
+  "height": 0.965,
+  "sides": "both"
+ },
+ "latch": {
+  "model": "tubular_residential_70"
+ },
+ "lock": {
+  "model": "none",
+  "engaged": false,
+  "robot_side_release": true
+ },
+ "closer": {
+  "model": "none",
+  "en_size": null,
+  "spring_adjust": 1.1
+ },
+ "seal": "kerf_foam",
+ "condition": "normal",
+ "task": "open_and_traverse",
+ "physics": {
+  "mass": {
+   "slab_kg": 30.051539282687997,
+   "slab_area_density_kg_m2": 22.439999999999998,
+   "glass_kg": 7.770792672000001,
+   "hardware_kg": 2.24,
+   "hardware_parts": {
+    "operator": 1.6,
+    "lock": 0.0,
+    "hinges_half": 0.64
+   },
+   "total_kg": 40.062331954688,
+   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+   "source": "Knape & Vogt calculated door weight table (lb/ft^2 by core & species), absupply.net/pdf/KV_Door-Weight-Table.pdf"
+  },
+  "hinge": {
+   "coulomb_torque_Nm": 1.448613119421672,
+   "bearing_mu": 0.12,
+   "bearing_note": "Plain bearing butt hinge, lubricated",
+   "pin_radius_m": 0.0048,
+   "thrust_radius_m": 0.0075,
+   "condition_multiplier": 1.3,
+   "seal_contribution_Nm": 0.81898056,
+   "stick_torque_Nm": 0.0,
+   "formula": "mu*(m*g*r_thrust + 2*F_h*r_pin)*k_cond + seal_steady; F_h = m g (W/2)/span; seal_steady = min(3, 0.03*R*L*W/2) (gasket compression itself is the soft stop contact)",
+   "air_damping_Nms_per_rad": 0.25610982095275425,
+   "total_damping_symmetric": 0.25610982095275425
+  },
+  "closer": {
+   "model": "none",
+   "kind": "none",
+   "spring_stiffness_Nm_per_rad": 0.0,
+   "spring_preload_Nm": 0.0,
+   "damping_closing": 0.0,
+   "damping_opening": 0.0,
+   "en_size": null,
+   "hold_open_rad": null,
+   "backcheck_angle_rad": null,
+   "backcheck_damping": 0,
+   "latch_boost": 1.0
+  },
+  "inertia_about_hinge_kg_m2": 11.162434011428203,
+  "latch": {
+   "model": "tubular_residential_70",
+   "kind": "tubular_latch",
+   "throw_m": 0.0127,
+   "bolt_spring_preload_N": 2.5,
+   "bolt_spring_rate_N_per_m": 300,
+   "holding_force_N": 0,
+   "yield_force_N": 2000,
+   "backset_m": 0.07,
+   "operator_travel": 0.65,
+   "operator_dead_travel": 0.04,
+   "operator_spring_preload": 0.4,
+   "operator_spring_rate": 1.0,
+   "operator_yield": 25.0,
+   "operator_grip_offset_m": 0.12,
+   "coupling": {
+    "type": "polynomial",
+    "bolt_q = c0 + c1*op_q": [
+     0.0,
+     -0.02081967213114754
+    ],
+    "dead_travel": 0.04
+   }
+  },
+  "lock": {
+   "model": "none",
+   "kind": "none",
+   "engaged": false,
+   "robot_side_release": true,
+   "outside_release": "none",
+   "inside_release": "lever",
+   "handle_backlash_locked_rad": 0.01,
+   "deadbolt_throw_m": 0.0,
+   "thumbturn_travel_rad": 0.0,
+   "thumbturn_torque_Nm": 0.0,
+   "chain_slack_m": 0.0,
+   "code": null
+  },
+  "damage": {
+   "leaf_dent_force_N": 1100.0,
+   "leaf_puncture_force_N": 3000,
+   "glass_break_force_N": 1500,
+   "operator_yield_torque_Nm": 25.0,
+   "latch_shear_yield_N": 2000,
+   "hinge_tearout_force_N": 3530.394,
+   "slam_velocity_rad_s": 4.0,
+   "slam_impulse_Ns": 16.0249327818752,
+   "frame_impact_force_N": 3000.0,
+   "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
+  },
+  "compliance": {
+   "opening_force_start_N": 1.7580256303661066,
+   "opening_force_90deg_N": 1.7580256303661066,
+   "operator_force_N": 8.75,
+   "ada_interior_5lbf_ok": true,
+   "ibc_fire_exterior_ok": null,
+   "hardware_operable_5lbf_ok": true,
+   "panic_unlatch_15lbf_ok": null,
+   "lever_or_ada_hardware": true,
+   "handle_height_ada_ok": true,
+   "clear_width_ada_ok": true,
+   "notes": "ADA 2010 \u00a7404.2.9 (5 lbf interior), IBC \u00a71010.1.3 (30 lbf set in motion / 15 lbf full open), \u00a71010.1.10 (panic 15 lbf)"
+  },
+  "gravity": 9.80665
+ }
+}

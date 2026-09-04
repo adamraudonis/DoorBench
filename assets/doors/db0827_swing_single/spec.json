@@ -1,0 +1,214 @@
+{
+ "schema_version": "1.0",
+ "id": "db0827_swing_single",
+ "index": 827,
+ "seed": 1193847134,
+ "family": "swing_single",
+ "context": "residential_exterior",
+ "use_case": "side entry / mudroom door",
+ "tags": [
+  "residential_exterior",
+  "swing",
+  "single_leaf",
+  "screen_wood",
+  "mesh_panel",
+  "push_button_screen",
+  "lock:none",
+  "closer:pneumatic_screen",
+  "hinge:butt_35_plain",
+  "normal"
+ ],
+ "extras": [
+  "kick_plate",
+  "threshold_saddle"
+ ],
+ "robot": {
+  "approach_side": "-y",
+  "is_push": true,
+  "robot_outside": false,
+  "start_distance_m": 1.8
+ },
+ "leaf": {
+  "width": 0.914,
+  "height": 2.134,
+  "thickness": 0.028,
+  "slab": "screen_wood",
+  "panel_style": "mesh_panel",
+  "finish": {
+   "kind": "paint",
+   "color": "red",
+   "rgba": [
+    0.65,
+    0.1,
+    0.1,
+    1
+   ],
+   "texture": null,
+   "roughness": 0.39,
+   "metallic": 0.0
+  },
+  "count": 1,
+  "glazing": null
+ },
+ "opening": {
+  "width": 0.921,
+  "height": 2.147,
+  "wall_thickness": 0.145,
+  "frame": {
+   "kind": "wood_jamb_brickmould",
+   "material": "pine",
+   "casing": true,
+   "stop_depth": 0.012,
+   "jamb_depth": 0.125
+  },
+  "threshold": "saddle",
+  "sidelite": false,
+  "transom": false
+ },
+ "hinge": {
+  "model": "butt_35_plain",
+  "count": 3,
+  "side": "right",
+  "swing": "push",
+  "axis_tilt_deg": 0
+ },
+ "kinematics": {
+  "type": "hinge_vertical",
+  "max_open_deg": 110,
+  "stop": "none"
+ },
+ "operator": {
+  "model": "push_button_screen",
+  "height": 1.016,
+  "sides": "both"
+ },
+ "latch": {
+  "model": "screen_pushbutton"
+ },
+ "lock": {
+  "model": "none",
+  "engaged": false,
+  "robot_side_release": true
+ },
+ "closer": {
+  "model": "pneumatic_screen",
+  "en_size": null,
+  "spring_adjust": 1.12
+ },
+ "seal": "brush_pile",
+ "condition": "normal",
+ "task": "open_and_traverse",
+ "physics": {
+  "mass": {
+   "slab_kg": 147.45598560000002,
+   "slab_area_density_kg_m2": 75.60000000000001,
+   "glass_kg": 0.0,
+   "hardware_kg": 2.4699999999999998,
+   "hardware_parts": {
+    "operator": 0.3,
+    "lock": 0.0,
+    "closer": 0.5,
+    "hinges_half": 0.27,
+    "kick_plate": 1.4,
+    "threshold_saddle": 0.0
+   },
+   "total_kg": 149.92598560000002,
+   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+   "source": "Wood screen door \u2248 8-10 kg"
+  },
+  "hinge": {
+   "coulomb_torque_Nm": 2.3003962302361773,
+   "bearing_mu": 0.12,
+   "bearing_note": "Plain bearing butt hinge, lubricated",
+   "pin_radius_m": 0.004,
+   "thrust_radius_m": 0.006,
+   "condition_multiplier": 1.3,
+   "seal_contribution_Nm": 0.42627131999999995,
+   "stick_torque_Nm": 0.0,
+   "formula": "mu*(m*g*r_thrust + 2*F_h*r_pin)*k_cond + seal_steady; F_h = m g (W/2)/span; seal_steady = min(3, 0.03*R*L*W/2) (gasket compression itself is the soft stop contact)",
+   "air_damping_Nms_per_rad": 0.2689657273194771,
+   "total_damping_symmetric": 4.268965727319477
+  },
+  "closer": {
+   "model": "pneumatic_screen",
+   "kind": "pneumatic",
+   "spring_stiffness_Nm_per_rad": 3.0,
+   "spring_preload_Nm": 3.3600000000000003,
+   "damping_closing": 25.0,
+   "damping_opening": 4.0,
+   "en_size": 1,
+   "hold_open_rad": 1.5708,
+   "backcheck_angle_rad": null,
+   "backcheck_damping": 0.0,
+   "latch_boost": 1.0,
+   "closing_time_est_s": 7.847999999999358,
+   "formula": "tau(theta) = tau0 + k*theta; tau0 = 1.15*EN1154 closing moment(size); tau90 = 0.85*EN1154 opening moment",
+   "source": "EN 1154:1996 Table 1"
+  },
+  "inertia_about_hinge_kg_m2": 41.75898471982508,
+  "latch": {
+   "model": "screen_pushbutton",
+   "kind": "tubular_latch",
+   "throw_m": 0.01,
+   "bolt_spring_preload_N": 2.0,
+   "bolt_spring_rate_N_per_m": 300,
+   "holding_force_N": 0,
+   "yield_force_N": 300,
+   "backset_m": 0.045,
+   "operator_travel": 0.006,
+   "operator_dead_travel": 0.001,
+   "operator_spring_preload": 3.0,
+   "operator_spring_rate": 400.0,
+   "operator_yield": 50.0,
+   "operator_grip_offset_m": 0.0,
+   "coupling": {
+    "type": "polynomial",
+    "bolt_q = c0 + c1*op_q": [
+     0.0,
+     -2.0
+    ],
+    "dead_travel": 0.001
+   }
+  },
+  "lock": {
+   "model": "none",
+   "kind": "none",
+   "engaged": false,
+   "robot_side_release": true,
+   "outside_release": "none",
+   "inside_release": "lever",
+   "handle_backlash_locked_rad": 0.01,
+   "deadbolt_throw_m": 0.0,
+   "thumbturn_travel_rad": 0.0,
+   "thumbturn_torque_Nm": 0.0,
+   "chain_slack_m": 0.0,
+   "code": null
+  },
+  "damage": {
+   "leaf_dent_force_N": 20.0,
+   "leaf_puncture_force_N": 40,
+   "glass_break_force_N": null,
+   "operator_yield_torque_Nm": 50.0,
+   "latch_shear_yield_N": 300,
+   "hinge_tearout_force_N": 1569.0639999999999,
+   "slam_velocity_rad_s": 4.0,
+   "slam_impulse_Ns": 59.97039424000001,
+   "frame_impact_force_N": 3000.0,
+   "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
+  },
+  "compliance": {
+   "opening_force_start_N": 6.667133368947205,
+   "opening_force_90deg_N": 12.217650424759562,
+   "operator_force_N": 5.4,
+   "ada_interior_5lbf_ok": null,
+   "ibc_fire_exterior_ok": true,
+   "hardware_operable_5lbf_ok": true,
+   "panic_unlatch_15lbf_ok": null,
+   "lever_or_ada_hardware": false,
+   "handle_height_ada_ok": true,
+   "clear_width_ada_ok": true,
+   "notes": "ADA 2010 \u00a7404.2.9 (5 lbf interior), IBC \u00a71010.1.3 (30 lbf set in motion / 15 lbf full open), \u00a71010.1.10 (panic 15 lbf)"
+  },
+  "gravity": 9.80665
+ }
+}

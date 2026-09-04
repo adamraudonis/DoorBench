@@ -1,0 +1,204 @@
+{
+ "schema_version": "1.0",
+ "id": "db0507_cold_storage",
+ "index": 507,
+ "seed": 17303356,
+ "family": "cold_storage",
+ "context": "food_service",
+ "use_case": "walk-in freezer door",
+ "tags": [
+  "cold_storage",
+  "cold_storage_100"
+ ],
+ "extras": [
+  "warning_placard",
+  "kick_plate"
+ ],
+ "robot": {
+  "approach_side": "-y",
+  "is_push": false,
+  "robot_outside": true,
+  "start_distance_m": 1.2
+ },
+ "leaf": {
+  "width": 0.91,
+  "height": 2.13,
+  "thickness": 0.1,
+  "slab": "cold_storage_100",
+  "panel_style": "steel_flush",
+  "finish": {
+   "kind": "metal_bare",
+   "color": "stainless",
+   "rgba": [
+    0.75,
+    0.76,
+    0.77,
+    1
+   ],
+   "texture": null,
+   "roughness": 0.35,
+   "metallic": 1.0
+  },
+  "count": 1,
+  "glazing": null
+ },
+ "opening": {
+  "width": 0.93,
+  "height": 2.15,
+  "wall_thickness": 0.1,
+  "frame": {
+   "kind": "cold_room_frame",
+   "material": "stainless",
+   "casing": true,
+   "stop_depth": 0.02,
+   "jamb_depth": 0.12
+  },
+  "threshold": "saddle",
+  "sidelite": false,
+  "transom": false
+ },
+ "hinge": {
+  "model": "cam_lift",
+  "count": 2,
+  "side": "right",
+  "swing": "pull",
+  "axis_tilt_deg": 4.0
+ },
+ "kinematics": {
+  "type": "hinge_vertical",
+  "max_open_deg": 150,
+  "stop": "none",
+  "self_closing": true,
+  "gasket_compression_m": 0.012
+ },
+ "operator": {
+  "model": "cold_storage_handle",
+  "height": 1.0,
+  "sides": "both"
+ },
+ "latch": {
+  "model": "roller_latch"
+ },
+ "lock": {
+  "model": "none",
+  "engaged": false,
+  "robot_side_release": true
+ },
+ "closer": {
+  "model": "none",
+  "en_size": null,
+  "spring_adjust": 1.0
+ },
+ "seal": "gasket_rubber_heavy",
+ "condition": "new",
+ "task": "open_and_traverse",
+ "physics": {
+  "mass": {
+   "slab_kg": 43.7590608,
+   "slab_area_density_kg_m2": 22.576,
+   "glass_kg": 0.0,
+   "hardware_kg": 5.5,
+   "hardware_parts": {
+    "operator": 2.5,
+    "lock": 0.0,
+    "hinges_half": 1.5,
+    "warning_placard": 0.1,
+    "kick_plate": 1.4
+   },
+   "total_kg": 49.2590608,
+   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+   "source": "Walk-in cooler doors \u2248 20-25 kg/m^2"
+  },
+  "hinge": {
+   "coulomb_torque_Nm": 3.946810082444867,
+   "bearing_mu": 0.12,
+   "bearing_note": "Cam-lift hinge (cold storage)",
+   "pin_radius_m": 0.008,
+   "thrust_radius_m": 0.012,
+   "condition_multiplier": 1.0,
+   "seal_contribution_Nm": 3.0,
+   "stick_torque_Nm": 0.0,
+   "formula": "mu*(m*g*r_thrust + 2*F_h*r_pin)*k_cond + seal_steady; F_h = m g (W/2)/span; seal_steady = min(3, 0.03*R*L*W/2) (gasket compression itself is the soft stop contact)",
+   "air_damping_Nms_per_rad": 0.26379278847558,
+   "total_damping_symmetric": 0.26379278847558
+  },
+  "closer": {
+   "model": "none",
+   "kind": "none",
+   "spring_stiffness_Nm_per_rad": 0.0,
+   "spring_preload_Nm": 0.0,
+   "damping_closing": 0.0,
+   "damping_opening": 0.0,
+   "en_size": null,
+   "hold_open_rad": null,
+   "backcheck_angle_rad": null,
+   "backcheck_damping": 0,
+   "latch_boost": 1.0
+  },
+  "inertia_about_hinge_kg_m2": 13.638191966826668,
+  "latch": {
+   "model": "roller_latch",
+   "kind": "roller",
+   "throw_m": 0.006,
+   "bolt_spring_preload_N": 12.0,
+   "bolt_spring_rate_N_per_m": 3000,
+   "holding_force_N": 0,
+   "yield_force_N": 200,
+   "backset_m": 0.0,
+   "operator_travel": 0.5,
+   "operator_dead_travel": 0.03,
+   "operator_spring_preload": 1.2,
+   "operator_spring_rate": 2.5,
+   "operator_yield": 60.0,
+   "operator_grip_offset_m": 0.15,
+   "coupling": {
+    "type": "polynomial",
+    "bolt_q = c0 + c1*op_q": [
+     0.0,
+     -0.012765957446808512
+    ],
+    "dead_travel": 0.03
+   }
+  },
+  "lock": {
+   "model": "none",
+   "kind": "none",
+   "engaged": false,
+   "robot_side_release": true,
+   "outside_release": "none",
+   "inside_release": "lever",
+   "handle_backlash_locked_rad": 0.0,
+   "deadbolt_throw_m": 0.0,
+   "thumbturn_travel_rad": 0.0,
+   "thumbturn_torque_Nm": 0.0,
+   "chain_slack_m": 0.0,
+   "code": null
+  },
+  "damage": {
+   "leaf_dent_force_N": 7600.0,
+   "leaf_puncture_force_N": 26000,
+   "glass_break_force_N": null,
+   "operator_yield_torque_Nm": 60.0,
+   "latch_shear_yield_N": 200,
+   "hinge_tearout_force_N": 9806.65,
+   "slam_velocity_rad_s": 4.0,
+   "slam_impulse_Ns": 19.703624320000003,
+   "frame_impact_force_N": 3000.0,
+   "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
+  },
+  "compliance": {
+   "opening_force_start_N": 4.755192870415502,
+   "opening_force_90deg_N": 4.755192870415502,
+   "operator_force_N": 0.0,
+   "ada_interior_5lbf_ok": true,
+   "ibc_fire_exterior_ok": null,
+   "hardware_operable_5lbf_ok": true,
+   "panic_unlatch_15lbf_ok": null,
+   "lever_or_ada_hardware": true,
+   "handle_height_ada_ok": true,
+   "clear_width_ada_ok": false,
+   "notes": "ADA 2010 \u00a7404.2.9 (5 lbf interior), IBC \u00a71010.1.3 (30 lbf set in motion / 15 lbf full open), \u00a71010.1.10 (panic 15 lbf)"
+  },
+  "gravity": 9.80665
+ }
+}

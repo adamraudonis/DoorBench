@@ -1,0 +1,188 @@
+{
+ "schema_version": "1.0",
+ "id": "db0033_gate_sliding",
+ "index": 33,
+ "seed": 1899611127,
+ "family": "gate_sliding",
+ "context": "outdoor",
+ "use_case": "pedestrian sliding gate",
+ "tags": [
+  "gate",
+  "sliding",
+  "chain_link_gate"
+ ],
+ "extras": [],
+ "robot": {
+  "approach_side": "-y",
+  "is_push": false,
+  "robot_outside": false,
+  "start_distance_m": 1.2
+ },
+ "leaf": {
+  "width": 3.6,
+  "height": 2.1,
+  "thickness": 0.0003,
+  "slab": "chain_link_gate",
+  "panel_style": "mesh_panel",
+  "finish": {
+   "kind": "natural",
+   "color": "chain_link",
+   "rgba": [
+    0.7,
+    0.71,
+    0.72,
+    1
+   ],
+   "texture": null,
+   "roughness": 0.5,
+   "metallic": 0.9
+  },
+  "count": 1,
+  "glazing": null
+ },
+ "opening": {
+  "width": 3.65,
+  "height": 2.15,
+  "wall_thickness": 0.1,
+  "frame": {
+   "kind": "gate_posts",
+   "material": "steel_galvanized",
+   "casing": false,
+   "stop_depth": 0,
+   "jamb_depth": 0.1,
+   "post_size": 0.1
+  },
+  "threshold": "none",
+  "sidelite": false,
+  "transom": false,
+  "outdoor": true,
+  "ground_clearance": 0.08
+ },
+ "hinge": {
+  "model": "none",
+  "count": 0,
+  "side": "left",
+  "swing": "slide",
+  "axis_tilt_deg": 0.0
+ },
+ "kinematics": {
+  "type": "slide_horizontal",
+  "travel_m": 3.6,
+  "roller": "cantilever_gate",
+  "track": "cantilever",
+  "stop": "track_end"
+ },
+ "operator": {
+  "model": "slide_bolt_heavy",
+  "height": 1.0,
+  "sides": "both"
+ },
+ "latch": {
+  "model": "slide_bolt_heavy"
+ },
+ "lock": {
+  "model": "slide_bolt",
+  "engaged": true,
+  "robot_side_release": true
+ },
+ "closer": {
+  "model": "none",
+  "en_size": null,
+  "spring_adjust": 1.0
+ },
+ "seal": "none",
+ "condition": "normal",
+ "task": "unlock_open_traverse",
+ "physics": {
+  "mass": {
+   "slab_kg": 17.803800000000003,
+   "slab_area_density_kg_m2": 2.355,
+   "glass_kg": 0.0,
+   "hardware_kg": 1.4,
+   "hardware_parts": {
+    "operator": 1.2,
+    "lock": 0.2,
+    "hinges_half": 0.0
+   },
+   "total_kg": 19.2038,
+   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+   "source": "Frame \u2248 4 kg/m + 9 ga mesh 2.4 kg/m^2"
+  },
+  "roller": {
+   "coulomb_force_N": 6.120560721275001,
+   "mu_rolling": 0.025,
+   "note": "Cantilever gate carriages (4 sealed bearing trolleys)",
+   "condition_multiplier": 1.3,
+   "counterbalance_fraction": 0.0,
+   "net_lift_force_N": null,
+   "formula": "F = mu_roll * m * g * k_cond",
+   "viscous_damping_N_s_per_m": 2.96019
+  },
+  "closer": {
+   "model": "none",
+   "kind": "none",
+   "spring_stiffness_Nm_per_rad": 0.0,
+   "spring_preload_Nm": 0.0,
+   "damping_closing": 0.0,
+   "damping_opening": 0.0
+  },
+  "hinge": {
+   "coulomb_torque_Nm": 0.0,
+   "stick_torque_Nm": 0.0,
+   "air_damping_Nms_per_rad": 0.0,
+   "total_damping_symmetric": 0.0
+  },
+  "latch": {
+   "model": "slide_bolt_heavy",
+   "kind": "slide_bolt",
+   "throw_m": 0.06,
+   "bolt_spring_preload_N": 0.0,
+   "bolt_spring_rate_N_per_m": 0,
+   "holding_force_N": 0,
+   "yield_force_N": 15000,
+   "backset_m": 0.0,
+   "operator_travel": 0.08,
+   "operator_dead_travel": 0.0,
+   "operator_spring_preload": 3.0,
+   "operator_spring_rate": 40.0,
+   "operator_yield": 1500.0,
+   "operator_grip_offset_m": 0.05,
+   "coupling": {
+    "type": "polynomial",
+    "bolt_q = c0 + c1*op_q": [
+     0.0,
+     -0.75
+    ],
+    "dead_travel": 0.0
+   }
+  },
+  "lock": {
+   "model": "slide_bolt",
+   "kind": "slide_bolt",
+   "engaged": true,
+   "robot_side_release": true,
+   "outside_release": "none_locked",
+   "inside_release": "slide",
+   "handle_backlash_locked_rad": 0.01,
+   "deadbolt_throw_m": 0.0,
+   "thumbturn_travel_rad": 0.0,
+   "thumbturn_torque_Nm": 0.0,
+   "chain_slack_m": 0.0,
+   "code": null
+  },
+  "damage": {
+   "leaf_dent_force_N": 2000.0,
+   "leaf_puncture_force_N": 6000,
+   "glass_break_force_N": null,
+   "operator_yield_torque_Nm": 1500.0,
+   "latch_shear_yield_N": 15000,
+   "hinge_tearout_force_N": 20000.0,
+   "slam_velocity_rad_s": 2.0,
+   "slam_impulse_Ns": 7.681520000000001,
+   "frame_impact_force_N": 3000.0,
+   "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
+  },
+  "compliance": {},
+  "gravity": 9.80665
+ }
+}

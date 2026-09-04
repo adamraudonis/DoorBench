@@ -1,0 +1,156 @@
+<?xml version="1.0" ?>
+<robot xmlns:doorbench="https://github.com/adamraudonis/DoorBench/schema/urdf-ext" name="db0651_garage_tiltup_full">
+  <link name="world_env">
+    <visual name="floor_vis">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+      <material name="mat_floor"/>
+    </visual>
+    <collision name="floor_col">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+    </collision>
+    <visual name="wall_left_vis">
+      <origin xyz="-2.275 0 1.69" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.45 0.2 3.38"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_left_col">
+      <origin xyz="-2.275 0 1.69" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.45 0.2 3.38"/>
+      </geometry>
+    </collision>
+    <visual name="wall_right_vis">
+      <origin xyz="2.275 0 1.69" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.45 0.2 3.38"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_right_col">
+      <origin xyz="2.275 0 1.69" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.45 0.2 3.38"/>
+      </geometry>
+    </collision>
+    <visual name="wall_header_vis">
+      <origin xyz="0 0 2.78" rpy="0 0 0"/>
+      <geometry>
+        <box size="3.1 0.2 1.2"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_header_col">
+      <origin xyz="0 0 2.78" rpy="0 0 0"/>
+      <geometry>
+        <box size="3.1 0.2 1.2"/>
+      </geometry>
+    </collision>
+    <visual name="jamb_l_vis">
+      <origin xyz="-1.58 0 1.09" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.2 2.18"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="jamb_l_col">
+      <origin xyz="-1.58 0 1.09" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.2 2.18"/>
+      </geometry>
+    </collision>
+    <visual name="pivot_bracket_l_vis">
+      <origin xyz="-1.545 0.06 1.065" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.12 0.06"/>
+      </geometry>
+      <material name="mat_track"/>
+    </visual>
+    <visual name="jamb_r_vis">
+      <origin xyz="1.58 0 1.09" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.2 2.18"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="jamb_r_col">
+      <origin xyz="1.58 0 1.09" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.2 2.18"/>
+      </geometry>
+    </collision>
+    <visual name="pivot_bracket_r_vis">
+      <origin xyz="1.545 0.06 1.065" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.12 0.06"/>
+      </geometry>
+      <material name="mat_track"/>
+    </visual>
+  </link>
+  <link name="door">
+    <inertial>
+      <origin xyz="0 -0.000451 0.008758" rpy="0 0 0"/>
+      <mass value="70.991025"/>
+      <inertia ixx="26.678774987" ixy="0" ixz="0" iyy="81.309260868" iyz="-0.005567193" izz="54.658545463"/>
+    </inertial>
+    <visual name="door_slab_vis">
+      <origin xyz="0 0 0.01" rpy="0 0 0"/>
+      <geometry>
+        <box size="3.05 0.045 2.13"/>
+      </geometry>
+      <material name="mat_door"/>
+    </visual>
+    <collision name="door_slab_col">
+      <origin xyz="0 0 0.01" rpy="0 0 0"/>
+      <geometry>
+        <box size="3.05 0.045 2.13"/>
+      </geometry>
+    </collision>
+    <visual name="lift_handle_n_vis">
+      <origin xyz="0 -0.0225 -0.165" rpy="1.570796 0 0"/>
+      <geometry>
+        <mesh filename="../../hardware/pull_bdc5e965ab.obj"/>
+      </geometry>
+      <material name="mat_op_black_matte_metal"/>
+    </visual>
+    <collision name="lift_handle_col_n_col">
+      <origin xyz="0 -0.0725 -0.165" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.2 0.012 0.03"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="door_hinge" type="revolute">
+    <origin xyz="0 0 1.065" rpy="0 0 0"/>
+    <parent link="world_env"/>
+    <child link="door"/>
+    <axis xyz="-1 0 0"/>
+    <limit lower="0" upper="0.01" effort="2000" velocity="10"/>
+    <dynamics damping="15.253702" friction="5.529074"/>
+  </joint>
+  <material name="mat_door">
+    <color rgba="0.93 0.93 0.91 1"/>
+  </material>
+  <material name="mat_floor">
+    <color rgba="0.55 0.53 0.5 1"/>
+  </material>
+  <material name="mat_frame">
+    <color rgba="0.82 0.7 0.5 1"/>
+  </material>
+  <material name="mat_op_black_matte_metal">
+    <color rgba="0.05 0.05 0.05 1"/>
+  </material>
+  <material name="mat_track">
+    <color rgba="0.65 0.66 0.68 1"/>
+  </material>
+  <material name="mat_wall">
+    <color rgba="0.78 0.76 0.7 1"/>
+  </material>
+</robot>

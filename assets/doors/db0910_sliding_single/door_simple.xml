@@ -1,0 +1,86 @@
+<?xml version="1.0" ?>
+<mujoco model="db0910_sliding_single_simple">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_frame" rgba="0.88 0.78 0.6 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_track" rgba="0.8 0.81 0.83 1" specular="0.8" shininess="0.6" reflectance="0.4"/>
+    <material name="mat_shikii" rgba="0.88 0.78 0.6 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_fixed_glass" rgba="0.85 0.92 0.95 0.25" specular="0.2" shininess="0.95" reflectance="0.1"/>
+    <material name="mat_fixed_shoji" rgba="0.98 0.96 0.9 0.45" specular="0.2" shininess="0.1" reflectance="0.1"/>
+    <material name="mat_leaf" rgba="0.561 0.522 0.464 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_kumiko" rgba="0.88 0.78 0.6 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_roller" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_op_hinoki" rgba="0.88 0.78 0.6 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -2.425 1.609" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 2.425 1.609" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="1.843 -2.037 1.997" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="-0.685 -0.815 1.28" xyaxes="0.97561 0.219512 0 -0.070934 0.315262 0.94635" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="wall_left" type="box" size="0.7305 0.0725 1.35" pos="-1.7695 0 1.35" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_right" type="box" size="0.7605 0.0725 1.35" pos="1.7395 0 1.35" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_header" type="box" size="1.009 0.0725 0.4105" pos="-0.03 0 2.2895" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="jamb_r" type="box" size="0.0095 0.0725 0.93" pos="0.9695 0 0.93" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
+    <geom name="jamb_head" type="box" size="0.979 0.0725 0.0095" pos="0 0 1.8695" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
+    <geom name="shikii" type="box" size="1.01 0.05 0.012" pos="0 0 0.012" material="mat_shikii" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="410"/>
+    <geom name="kamoi" type="box" size="1.01 0.05 0.03" pos="0 0 1.89" material="mat_shikii" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="410"/>
+    <geom name="fixed_panel_glass" type="box" size="0.46 0.003 0.88" pos="0.48 0.04 0.93" material="mat_fixed_shoji" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="fixed_panel_stile" type="box" size="0.03 0.012 0.93" pos="0.03 0.04 0.93" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1400"/>
+    <geom name="jamb_latch_0" type="box" size="0.0395 0.0725 0.93" pos="-0.9995 0 0.93" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
+    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 0.93" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="leaf" pos="-0.48 0 0">
+      <inertial pos="-0.000225 0 0.927043" mass="8.220866" quat="0.500021 0.500021 0.499979 -0.499979" diaginertia="0.619108836 2.218686491 2.836560266"/>
+      <joint name="leaf_slide" type="slide" axis="1 0 0" limited="true" range="0 0.95" damping="2.422844" frictionloss="9.952039" armature="0.5"/>
+      <geom name="leaf_slab" type="box" size="0.475 0.015 0.9" pos="0 0 0.927" material="mat_leaf" group="0" contype="1" conaffinity="1" friction="0.3 0.005 0.0001" density="1"/>
+      <geom name="leaf_kumiko_v1" type="box" size="0.006 0.017 0.85" pos="-0.339286 0 0.927" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_v2" type="box" size="0.006 0.017 0.85" pos="-0.203571 0 0.927" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_v3" type="box" size="0.006 0.017 0.85" pos="-0.067857 0 0.927" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_v4" type="box" size="0.006 0.017 0.85" pos="0.067857 0 0.927" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_v5" type="box" size="0.006 0.017 0.85" pos="0.203571 0 0.927" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_v6" type="box" size="0.006 0.017 0.85" pos="0.339286 0 0.927" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_h1" type="box" size="0.435 0.017 0.006" pos="0 0 0.177" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_h2" type="box" size="0.435 0.017 0.006" pos="0 0 0.327" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_h3" type="box" size="0.435 0.017 0.006" pos="0 0 0.477" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_h4" type="box" size="0.435 0.017 0.006" pos="0 0 0.627" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_h5" type="box" size="0.435 0.017 0.006" pos="0 0 0.777" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_h6" type="box" size="0.435 0.017 0.006" pos="0 0 0.927" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_h7" type="box" size="0.435 0.017 0.006" pos="0 0 1.077" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_h8" type="box" size="0.435 0.017 0.006" pos="0 0 1.227" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_h9" type="box" size="0.435 0.017 0.006" pos="0 0 1.377" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_h10" type="box" size="0.435 0.017 0.006" pos="0 0 1.527" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_kumiko_h11" type="box" size="0.435 0.017 0.006" pos="0 0 1.677" material="mat_kumiko" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_pull_n" type="box" size="0.015 0.0005 0.04" pos="-0.385 -0.0155 1" material="mat_op_hinoki" group="1" contype="0" conaffinity="0" density="1000"/>
+      <geom name="leaf_pull_p" type="box" size="0.015 0.0005 0.04" pos="-0.385 0.0155 1" material="mat_op_hinoki" group="1" contype="0" conaffinity="0" density="1000"/>
+      <site name="leaf_pull_grip_n" pos="-0.385 -0.015 1" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_pull_grip_p" pos="-0.385 0.015 1" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_edge_mid" pos="-0.475 0 0.927" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="leaf_slide_pos" joint="leaf_slide"/>
+    <jointvel name="leaf_slide_vel" joint="leaf_slide"/>
+  </sensor>
+</mujoco>

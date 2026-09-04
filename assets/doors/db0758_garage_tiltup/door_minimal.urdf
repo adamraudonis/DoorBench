@@ -1,0 +1,139 @@
+<?xml version="1.0" ?>
+<robot xmlns:doorbench="https://github.com/adamraudonis/DoorBench/schema/urdf-ext" name="db0758_garage_tiltup_minimal">
+  <link name="world_env">
+    <visual name="floor_vis">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+      <material name="mat_floor"/>
+    </visual>
+    <collision name="floor_col">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+    </collision>
+    <visual name="wall_left_vis">
+      <origin xyz="-2.9525 0 1.845" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.975 0.2 3.69"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_left_col">
+      <origin xyz="-2.9525 0 1.845" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.975 0.2 3.69"/>
+      </geometry>
+    </collision>
+    <visual name="wall_right_vis">
+      <origin xyz="2.9525 0 1.845" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.975 0.2 3.69"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_right_col">
+      <origin xyz="2.9525 0 1.845" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.975 0.2 3.69"/>
+      </geometry>
+    </collision>
+    <visual name="wall_header_vis">
+      <origin xyz="0 0 3.09" rpy="0 0 0"/>
+      <geometry>
+        <box size="4.93 0.2 1.2"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_header_col">
+      <origin xyz="0 0 3.09" rpy="0 0 0"/>
+      <geometry>
+        <box size="4.93 0.2 1.2"/>
+      </geometry>
+    </collision>
+    <visual name="jamb_l_vis">
+      <origin xyz="-2.495 0 1.245" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.2 2.49"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="jamb_l_col">
+      <origin xyz="-2.495 0 1.245" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.2 2.49"/>
+      </geometry>
+    </collision>
+    <visual name="jamb_r_vis">
+      <origin xyz="2.495 0 1.245" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.2 2.49"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="jamb_r_col">
+      <origin xyz="2.495 0 1.245" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.2 2.49"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="door">
+    <inertial>
+      <origin xyz="0 -0.000247 0.008718" rpy="0 0 0"/>
+      <mass value="129.69712"/>
+      <inertia ixx="64.175666375" ixy="0" ixz="0" iyy="320.542162962" iyz="-0.010532113" izz="256.414382567"/>
+    </inertial>
+    <visual name="door_slab_vis">
+      <origin xyz="0 0 0.01" rpy="0 0 0"/>
+      <geometry>
+        <box size="4.88 0.045 2.44"/>
+      </geometry>
+      <material name="mat_door"/>
+    </visual>
+    <collision name="door_slab_col">
+      <origin xyz="0 0 0.01" rpy="0 0 0"/>
+      <geometry>
+        <box size="4.88 0.045 2.44"/>
+      </geometry>
+    </collision>
+    <visual name="lift_handle_n_vis">
+      <origin xyz="0 -0.0225 -0.32" rpy="1.570796 0 0"/>
+      <geometry>
+        <mesh filename="../../hardware/pull_bdc5e965ab.obj"/>
+      </geometry>
+      <material name="mat_op_black_matte_metal"/>
+    </visual>
+    <collision name="lift_handle_col_n_col">
+      <origin xyz="0 -0.0725 -0.32" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.2 0.012 0.03"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="door_hinge" type="revolute">
+    <origin xyz="0 0 1.22" rpy="0 0 0"/>
+    <parent link="world_env"/>
+    <child link="door"/>
+    <axis xyz="-1 0 0"/>
+    <limit lower="0" upper="1.53589" effort="2000" velocity="10"/>
+    <dynamics damping="21.089312" friction="6.540348"/>
+  </joint>
+  <material name="mat_door">
+    <color rgba="0.09 0.13 0.28 1"/>
+  </material>
+  <material name="mat_floor">
+    <color rgba="0.55 0.53 0.5 1"/>
+  </material>
+  <material name="mat_frame">
+    <color rgba="0.82 0.7 0.5 1"/>
+  </material>
+  <material name="mat_op_black_matte_metal">
+    <color rgba="0.05 0.05 0.05 1"/>
+  </material>
+  <material name="mat_wall">
+    <color rgba="0.78 0.76 0.7 1"/>
+  </material>
+</robot>

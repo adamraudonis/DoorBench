@@ -1,0 +1,56 @@
+<?xml version="1.0" ?>
+<mujoco model="db0998_turnstile_tripod_simple">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <mesh name="tripod_ae832648e5" file="tripod_ae832648e5.obj"/>
+    <material name="mat_floor" rgba="0.35 0.42 0.25 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_frame" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <material name="mat_op_stainless" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -1.875 1.05" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 1.875 1.05" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="1.425 -1.575 1.35" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.55 -1.1 1.3" xyaxes="0.975133 0.221621 0 -0.065674 0.288965 0.955084" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="cabinet" type="box" size="0.14 0.45 0.49" pos="-0.315 0 0.49" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="cabinet_top" type="box" size="0.15 0.46 0.01" pos="-0.315 0 0.99" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
+    <geom name="guide_rail_post" type="box" size="0.02 0.45 0.5" pos="0.715 0 0.5" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
+    <geom name="hub_boss" type="cylinder" size="0.04 0.135" pos="-0.04 0 0.93" quat="0.707107 0 0.707107 0" material="mat_frame" group="1" contype="0" conaffinity="0" density="800"/>
+    <site name="approach_point" pos="0.375 -1.2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0.375 1.2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0.375 0 1" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="rotor" pos="0.115 0 0.93">
+      <inertial pos="0 0 0" mass="28.690546" quat="0.653281 -0.270598 -0.270598 -0.653281" diaginertia="1.492934731 1.869150248 3.306555113"/>
+      <joint name="rotor_hinge" type="hinge" axis="0 0.707107 0.707107" limited="false" damping="2" frictionloss="3.05914" armature="0.05"/>
+      <geom name="tripod_mesh" type="mesh" mesh="tripod_ae832648e5" pos="0 0 0" quat="0.92388 -0.382683 0 0" material="mat_op_stainless" group="1" contype="0" conaffinity="0" density="7900"/>
+      <geom name="arm_0_col" type="capsule" size="0.019 0.25" pos="0.25 0 0" quat="0.707107 0 0.707107 0" material="mat_op_stainless" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="7900"/>
+      <geom name="arm_1_col" type="capsule" size="0.019 0.25" pos="-0.125 0.153093 -0.153093" quat="0.440243 -0.695494 -0.567868 0" material="mat_op_stainless" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="7900"/>
+      <geom name="arm_2_col" type="capsule" size="0.019 0.25" pos="-0.125 -0.153093 0.153093" quat="0.897879 0.341011 -0.278434 0" material="mat_op_stainless" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="7900"/>
+      <site name="arm_push" pos="0.45 0 0" size="0.015" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="rotor_hinge_pos" joint="rotor_hinge"/>
+    <jointvel name="rotor_hinge_vel" joint="rotor_hinge"/>
+  </sensor>
+</mujoco>

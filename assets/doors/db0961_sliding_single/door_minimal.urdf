@@ -1,0 +1,136 @@
+<?xml version="1.0" ?>
+<robot xmlns:doorbench="https://github.com/adamraudonis/DoorBench/schema/urdf-ext" name="db0961_sliding_single_minimal">
+  <link name="world_env">
+    <visual name="floor_vis">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+      <material name="mat_floor"/>
+    </visual>
+    <collision name="floor_col">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+    </collision>
+    <visual name="wall_left_vis">
+      <origin xyz="-1.493 0 1.51" rpy="0 0 0"/>
+      <geometry>
+        <box size="2.014 0.145 3.02"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_left_col">
+      <origin xyz="-1.493 0 1.51" rpy="0 0 0"/>
+      <geometry>
+        <box size="2.014 0.145 3.02"/>
+      </geometry>
+    </collision>
+    <visual name="wall_right_vis">
+      <origin xyz="1.523 0 1.51" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.954 0.145 3.02"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_right_col">
+      <origin xyz="1.523 0 1.51" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.954 0.145 3.02"/>
+      </geometry>
+    </collision>
+    <visual name="wall_header_vis">
+      <origin xyz="0.03 0 2.7295" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.032 0.145 0.581"/>
+      </geometry>
+      <material name="mat_wall"/>
+    </visual>
+    <collision name="wall_header_col">
+      <origin xyz="0.03 0 2.7295" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.032 0.145 0.581"/>
+      </geometry>
+    </collision>
+    <visual name="jamb_l_vis">
+      <origin xyz="-0.4765 0 1.21" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.019 0.145 2.42"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="jamb_l_col">
+      <origin xyz="-0.4765 0 1.21" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.019 0.145 2.42"/>
+      </geometry>
+    </collision>
+    <visual name="jamb_head_vis">
+      <origin xyz="0 0 2.4295" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.972 0.145 0.019"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="jamb_head_col">
+      <origin xyz="0 0 2.4295" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.972 0.145 0.019"/>
+      </geometry>
+    </collision>
+    <visual name="jamb_latch_0_vis">
+      <origin xyz="0.5065 0 1.21" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.079 0.145 2.42"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="jamb_latch_0_col">
+      <origin xyz="0.5065 0 1.21" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.079 0.145 2.42"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="leaf">
+    <inertial>
+      <origin xyz="0 0 1.212" rpy="0 0 0"/>
+      <mass value="67.56288"/>
+      <inertia ixx="32.441082545" ixy="0" ixz="0" iyy="37.133662375" iyz="0" izz="4.71438012"/>
+    </inertial>
+    <visual name="leaf_slab_vis">
+      <origin xyz="0 0 1.212" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.914 0.044 2.4"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <collision name="leaf_slab_col">
+      <origin xyz="0 0 1.212" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.914 0.044 2.4"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="leaf_slide" type="prismatic">
+    <origin xyz="0 -0.1075 0" rpy="0 0 0"/>
+    <parent link="world_env"/>
+    <child link="leaf"/>
+    <axis xyz="-1 0 0"/>
+    <limit lower="0" upper="0.914" effort="5000" velocity="10"/>
+    <dynamics damping="5.418144" friction="80.4493"/>
+  </joint>
+  <material name="mat_floor">
+    <color rgba="0.55 0.53 0.5 1"/>
+  </material>
+  <material name="mat_frame">
+    <color rgba="0.82 0.7 0.5 1"/>
+  </material>
+  <material name="mat_leaf">
+    <color rgba="0.399 0.275 0.174 1"/>
+  </material>
+  <material name="mat_wall">
+    <color rgba="0.78 0.76 0.7 1"/>
+  </material>
+</robot>

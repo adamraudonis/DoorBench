@@ -1,0 +1,82 @@
+<?xml version="1.0" ?>
+<mujoco model="db0043_bifold_simple">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <mesh name="pull_1e5d69a91a" file="pull_1e5d69a91a.obj"/>
+    <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_frame" rgba="0.82 0.7 0.5 1" specular="0.2" shininess="0.45" reflectance="0"/>
+    <material name="mat_track" rgba="0.8 0.81 0.83 1" specular="0.8" shininess="0.6" reflectance="0.4"/>
+    <material name="mat_panel_0_0" rgba="0.72 0.73 0.74 1" specular="0.2" shininess="0.64" reflectance="0"/>
+    <material name="mat_panel_0_0_panel" rgba="0.662 0.672 0.681 1" specular="0.2" shininess="0.64" reflectance="0"/>
+    <material name="mat_panel_0_1" rgba="0.72 0.73 0.74 1" specular="0.2" shininess="0.64" reflectance="0"/>
+    <material name="mat_panel_0_1_panel" rgba="0.662 0.672 0.681 1" specular="0.2" shininess="0.64" reflectance="0"/>
+    <material name="mat_op_stainless" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -2.54875 1.73965" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 2.54875 1.73965" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="1.93705 -2.14095 2.14745" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.572 -0.8775 1.28" xyaxes="0.97561 0.219512 0 -0.070934 0.315262 0.94635" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="wall_left" type="box" size="1.019 0.0725 1.35" pos="-1.481 0 1.35" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_right" type="box" size="1.019 0.0725 1.35" pos="1.481 0 1.35" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_header" type="box" size="0.462 0.0725 0.324" pos="0 0 2.376" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="jamb_hinge" type="box" size="0.0095 0.0725 1.026" pos="-0.4715 0 1.026" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
+    <geom name="jamb_strike" type="box" size="0.0095 0.0725 1.026" pos="0.4715 0 1.026" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
+    <geom name="stud_strike" type="box" size="0.015 0.0725 1.026" pos="0.496 0 1.026" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="500"/>
+    <geom name="jamb_head" type="box" size="0.496 0.0725 0.0095" pos="0.015 0 2.0615" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
+    <geom name="head_stud" type="box" size="0.496 0.0725 0.015" pos="0.015 0 2.086" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="500"/>
+    <geom name="fold_track" type="box" size="0.462 0.02 0.015" pos="0 0 2.037" material="mat_track" group="1" contype="0" conaffinity="0" density="2700"/>
+    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.026" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="panel_0_0" pos="-0.462 0 0">
+      <inertial pos="0.2335 0 1.036043" mass="6.692598" quat="-0.5 -0.5 -0.5 0.5" diaginertia="0.117102939 2.302993542 2.41872703"/>
+      <joint name="panel_0_0_hinge" type="hinge" axis="0 0 -1" pos="0.02 0 0" limited="true" range="0 1.570796" damping="0.673679" frictionloss="1.400572" armature="0.02"/>
+      <geom name="panel_0_0_slab" type="box" size="0.2285 0.0175 1.016" pos="0.2335 0 1.036" material="mat_panel_0_0" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
+      <geom name="panel_0_0_panel_0_n" type="box" size="0.1185 0.003 0.83344" pos="0.2335 -0.0205 1.09696" material="mat_panel_0_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_panel_0_p" type="box" size="0.1185 0.003 0.83344" pos="0.2335 0.0205 1.09696" material="mat_panel_0_0_panel" group="1" contype="0" conaffinity="0" density="1"/>
+      <body name="panel_0_1" pos="0.457 0 0">
+        <inertial pos="0.384494 -0.062603 1.003347" mass="0.486884" quat="0.56237 0.416591 -0.570449 0.42986" diaginertia="0.001858473 0.013974787 0.015369699"/>
+        <joint name="panel_0_1_hinge" type="hinge" axis="0 0 -1" limited="true" range="-3.141593 0" damping="0.2" frictionloss="0.1" armature="0.005"/>
+        <geom name="panel_0_1_slab" type="box" size="0.2285 0.0175 1.016" pos="0.2335 0 1.036" material="mat_panel_0_1" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
+        <geom name="panel_0_1_panel_0_n" type="box" size="0.1185 0.003 0.83344" pos="0.2335 -0.0205 1.09696" material="mat_panel_0_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_panel_0_p" type="box" size="0.1185 0.003 0.83344" pos="0.2335 0.0205 1.09696" material="mat_panel_0_1_panel" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_pull_n" type="mesh" mesh="pull_1e5d69a91a" pos="0.397 -0.0175 1" quat="0.707107 0.707107 0 0" material="mat_op_stainless" group="1" contype="0" conaffinity="0" density="3000"/>
+        <geom name="panel_0_1_pull_col_n" type="capsule" size="0.0095 0.08" pos="0.397 -0.0775 1" material="mat_op_stainless" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
+        <site name="panel_0_1_pull_grip_n" pos="0.397 -0.0775 1" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      </body>
+    </body>
+  </worldbody>
+  <equality>
+    <joint name="panel_0_1_couple" joint1="panel_0_1_hinge" joint2="panel_0_0_hinge" polycoef="0 -2 0 0 0" active="true"/>
+  </equality>
+  <contact>
+    <exclude body1="panel_0_1" body2="panel_0_0"/>
+  </contact>
+  <sensor>
+    <jointpos name="panel_0_0_hinge_pos" joint="panel_0_0_hinge"/>
+    <jointvel name="panel_0_0_hinge_vel" joint="panel_0_0_hinge"/>
+    <jointpos name="panel_0_1_hinge_pos" joint="panel_0_1_hinge"/>
+    <jointvel name="panel_0_1_hinge_vel" joint="panel_0_1_hinge"/>
+  </sensor>
+</mujoco>

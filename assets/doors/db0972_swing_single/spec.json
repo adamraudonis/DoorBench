@@ -1,0 +1,220 @@
+{
+ "schema_version": "1.0",
+ "id": "db0972_swing_single",
+ "index": 972,
+ "seed": 1985818247,
+ "family": "swing_single",
+ "context": "residential_exterior",
+ "use_case": "patio door (hinged)",
+ "tags": [
+  "residential_exterior",
+  "swing",
+  "single_leaf",
+  "solid_wood_oak",
+  "glass_half",
+  "lever_euro_backplate",
+  "lock:none",
+  "closer:residential_light",
+  "hinge:butt_45_plain",
+  "old_dry"
+ ],
+ "extras": [
+  "house_number",
+  "threshold_saddle"
+ ],
+ "robot": {
+  "approach_side": "-y",
+  "is_push": true,
+  "robot_outside": true,
+  "start_distance_m": 1.3
+ },
+ "leaf": {
+  "width": 1.067,
+  "height": 2.032,
+  "thickness": 0.044,
+  "slab": "solid_wood_oak",
+  "panel_style": "glass_half",
+  "finish": {
+   "kind": "stain",
+   "color": "oak_red",
+   "rgba": [
+    0.4949758076150951,
+    0.341293802831376,
+    0.21555398073560592,
+    1.0
+   ],
+   "texture": "red_oak_veneer",
+   "roughness": 0.5,
+   "metallic": 0.0
+  },
+  "count": 1,
+  "glazing": {
+   "material": "glass_frosted",
+   "thickness": 0.006,
+   "area_fraction": 0.3354000000000001,
+   "panel_style": "glass_half",
+   "count": 1
+  }
+ },
+ "opening": {
+  "width": 1.074,
+  "height": 2.045,
+  "wall_thickness": 0.115,
+  "frame": {
+   "kind": "wood_jamb_brickmould",
+   "material": "pine",
+   "casing": true,
+   "stop_depth": 0.012,
+   "jamb_depth": 0.125
+  },
+  "threshold": "saddle",
+  "sidelite": false,
+  "transom": false
+ },
+ "hinge": {
+  "model": "butt_45_plain",
+  "count": 3,
+  "side": "left",
+  "swing": "push",
+  "axis_tilt_deg": 0
+ },
+ "kinematics": {
+  "type": "hinge_vertical",
+  "max_open_deg": 178,
+  "stop": "none"
+ },
+ "operator": {
+  "model": "lever_euro_backplate",
+  "height": 0.965,
+  "sides": "both"
+ },
+ "latch": {
+  "model": "tubular_residential_70"
+ },
+ "lock": {
+  "model": "none",
+  "engaged": false,
+  "robot_side_release": true
+ },
+ "closer": {
+  "model": "residential_light",
+  "en_size": null,
+  "spring_adjust": 1.3
+ },
+ "seal": "silicone_bulb",
+ "condition": "old_dry",
+ "task": "hold_and_pass",
+ "physics": {
+  "mass": {
+   "slab_kg": 44.38121387391999,
+   "slab_area_density_kg_m2": 30.799999999999997,
+   "glass_kg": 10.907932464000003,
+   "hardware_kg": 3.7800000000000002,
+   "hardware_parts": {
+    "operator": 1.6,
+    "lock": 0.0,
+    "closer": 1.6,
+    "hinges_half": 0.48,
+    "house_number": 0.1,
+    "threshold_saddle": 0.0
+   },
+   "total_kg": 59.069146337919996,
+   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+   "source": "Knape & Vogt calculated door weight table (lb/ft^2 by core & species), absupply.net/pdf/KV_Door-Weight-Table.pdf oak \u2248 2.9 lb/ft^2 @1-3/8in"
+  },
+  "hinge": {
+   "coulomb_torque_Nm": 4.254778760958119,
+   "bearing_mu": 0.12,
+   "bearing_note": "Plain bearing butt hinge, lubricated",
+   "pin_radius_m": 0.0048,
+   "thrust_radius_m": 0.0075,
+   "condition_multiplier": 3.5,
+   "seal_contribution_Nm": 1.6424331,
+   "stick_torque_Nm": 1.5,
+   "formula": "mu*(m*g*r_thrust + 2*F_h*r_pin)*k_cond + seal_steady; F_h = m g (W/2)/span; seal_steady = min(3, 0.03*R*L*W/2) (gasket compression itself is the soft stop contact)",
+   "air_damping_Nms_per_rad": 0.47566273347558197,
+   "total_damping_symmetric": 6.475662733475582
+  },
+  "closer": {
+   "model": "residential_light",
+   "kind": "surface_overhead",
+   "spring_stiffness_Nm_per_rad": 8.721690881435862,
+   "spring_preload_Nm": 16.900000000000002,
+   "damping_closing": 32.0,
+   "damping_opening": 6.0,
+   "en_size": 2,
+   "hold_open_rad": null,
+   "backcheck_angle_rad": null,
+   "backcheck_damping": 0.0,
+   "latch_boost": 1.2,
+   "closing_time_est_s": 3.0139999999998897,
+   "formula": "tau(theta) = tau0 + k*theta; tau0 = 1.15*EN1154 closing moment(size); tau90 = 0.85*EN1154 opening moment",
+   "source": "EN 1154:1996 Table 1"
+  },
+  "inertia_about_hinge_kg_m2": 22.426054270646585,
+  "latch": {
+   "model": "tubular_residential_70",
+   "kind": "tubular_latch",
+   "throw_m": 0.0127,
+   "bolt_spring_preload_N": 2.5,
+   "bolt_spring_rate_N_per_m": 300,
+   "holding_force_N": 0,
+   "yield_force_N": 2000,
+   "backset_m": 0.07,
+   "operator_travel": 0.65,
+   "operator_dead_travel": 0.04,
+   "operator_spring_preload": 0.4,
+   "operator_spring_rate": 1.0,
+   "operator_yield": 25.0,
+   "operator_grip_offset_m": 0.12,
+   "coupling": {
+    "type": "polynomial",
+    "bolt_q = c0 + c1*op_q": [
+     0.0,
+     -0.02081967213114754
+    ],
+    "dead_travel": 0.04
+   }
+  },
+  "lock": {
+   "model": "none",
+   "kind": "none",
+   "engaged": false,
+   "robot_side_release": true,
+   "outside_release": "none",
+   "inside_release": "lever",
+   "handle_backlash_locked_rad": 0.06,
+   "deadbolt_throw_m": 0.0,
+   "thumbturn_travel_rad": 0.0,
+   "thumbturn_torque_Nm": 0.0,
+   "chain_slack_m": 0.0,
+   "code": null
+  },
+  "damage": {
+   "leaf_dent_force_N": 1800.0,
+   "leaf_puncture_force_N": 5000,
+   "glass_break_force_N": 1500,
+   "operator_yield_torque_Nm": 25.0,
+   "latch_shear_yield_N": 2000,
+   "hinge_tearout_force_N": 3530.394,
+   "slam_velocity_rad_s": 4.0,
+   "slam_impulse_Ns": 23.627658535168,
+   "frame_impact_force_N": 3000.0,
+   "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
+  },
+  "compliance": {
+   "opening_force_start_N": 23.188105180100433,
+   "opening_force_90deg_N": 35.67531091193256,
+   "operator_force_N": 8.75,
+   "ada_interior_5lbf_ok": null,
+   "ibc_fire_exterior_ok": true,
+   "hardware_operable_5lbf_ok": true,
+   "panic_unlatch_15lbf_ok": null,
+   "lever_or_ada_hardware": true,
+   "handle_height_ada_ok": true,
+   "clear_width_ada_ok": true,
+   "notes": "ADA 2010 \u00a7404.2.9 (5 lbf interior), IBC \u00a71010.1.3 (30 lbf set in motion / 15 lbf full open), \u00a71010.1.10 (panic 15 lbf)"
+  },
+  "gravity": 9.80665
+ }
+}

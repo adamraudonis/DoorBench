@@ -1,0 +1,146 @@
+<?xml version="1.0" ?>
+<robot xmlns:doorbench="https://github.com/adamraudonis/DoorBench/schema/urdf-ext" name="db0742_gate_swing_minimal">
+  <link name="world_env">
+    <visual name="floor_vis">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+      <material name="mat_floor"/>
+    </visual>
+    <collision name="floor_col">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+    </collision>
+    <visual name="post_hinge_vis">
+      <origin xyz="-0.656 0 0.6" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 1.2"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="post_hinge_col">
+      <origin xyz="-0.656 0 0.6" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 1.2"/>
+      </geometry>
+    </collision>
+    <visual name="post_latch_vis">
+      <origin xyz="0.656 0 0.6" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 1.2"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="post_latch_col">
+      <origin xyz="0.656 0 0.6" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 1.2"/>
+      </geometry>
+    </collision>
+    <visual name="gate_stop_vis">
+      <origin xyz="0.586 -0.0245 0.4" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.024 0.12"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="gate_stop_col">
+      <origin xyz="0.586 -0.0245 0.4" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.024 0.12"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="leaf">
+    <inertial>
+      <origin xyz="0.631325 -0.0195 0.658497" rpy="0 0 0"/>
+      <mass value="11.1924"/>
+      <inertia ixx="0.891749538" ixy="0" ixz="-0.045525433" iyy="2.319301127" iyz="-0.000792129" izz="1.431843227"/>
+    </inertial>
+    <collision name="leaf_slab_col_col">
+      <origin xyz="0.6 -0.0195 0.65" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.2 0.025 1"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_rail_b_vis">
+      <origin xyz="0.6 -0.0195 0.1725" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.2 0.025 0.045"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <visual name="leaf_rail_t_vis">
+      <origin xyz="0.6 -0.0195 1.1275" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.2 0.025 0.045"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <visual name="leaf_stile_h_vis">
+      <origin xyz="0.0225 -0.0195 0.65" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.045 0.025 1"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <visual name="leaf_stile_l_vis">
+      <origin xyz="1.1775 -0.0195 0.65" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.045 0.025 1"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <visual name="leaf_ring_pull_n_vis">
+      <origin xyz="1.11 -0.032 0.8" rpy="1.570796 0 0"/>
+      <geometry>
+        <mesh filename="../../hardware/ring_cc5c941a8a.obj"/>
+      </geometry>
+      <material name="mat_op_wrought_iron"/>
+    </visual>
+    <collision name="leaf_ring_pull_col_n_col">
+      <origin xyz="1.11 -0.064 0.74" rpy="0 1.570796 0"/>
+      <geometry>
+        <cylinder radius="0.008" length="0.1"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_ring_pull_p_vis">
+      <origin xyz="1.11 -0.007 0.8" rpy="-1.570796 0 0"/>
+      <geometry>
+        <mesh filename="../../hardware/ring_cc5c941a8a.obj"/>
+      </geometry>
+      <material name="mat_op_wrought_iron"/>
+    </visual>
+    <collision name="leaf_ring_pull_col_p_col">
+      <origin xyz="1.11 0.025 0.74" rpy="0 1.570796 0"/>
+      <geometry>
+        <cylinder radius="0.008" length="0.1"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="leaf_hinge" type="revolute">
+    <origin xyz="-0.603 0.0195 0" rpy="0 0 0"/>
+    <parent link="world_env"/>
+    <child link="leaf"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="1.919862" effort="2000" velocity="10"/>
+    <dynamics damping="1.374492" friction="5.913009"/>
+    <doorbench:spring stiffness="5" springref="-1.537382" note="tau = -stiffness*(q - springref); not native URDF"/>
+    <doorbench:closer damping_closing="1" damping_opening="1" backcheck_angle="0" backcheck_damping="0"/>
+  </joint>
+  <material name="mat_floor">
+    <color rgba="0.35 0.42 0.25 1"/>
+  </material>
+  <material name="mat_frame">
+    <color rgba="0.7 0.45 0.32 1"/>
+  </material>
+  <material name="mat_leaf">
+    <color rgba="0.7 0.45 0.32 1"/>
+  </material>
+  <material name="mat_op_wrought_iron">
+    <color rgba="0.08 0.08 0.09 1"/>
+  </material>
+</robot>

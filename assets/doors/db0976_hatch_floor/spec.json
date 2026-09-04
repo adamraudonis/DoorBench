@@ -1,0 +1,186 @@
+{
+ "schema_version": "1.0",
+ "id": "db0976_hatch_floor",
+ "index": 976,
+ "seed": 1866457956,
+ "family": "hatch_floor",
+ "context": "utility",
+ "use_case": "ship deck hatch",
+ "tags": [
+  "hatch_floor",
+  "steel_plate_security"
+ ],
+ "extras": [],
+ "robot": {
+  "approach_side": "-y",
+  "is_push": true,
+  "robot_outside": false,
+  "start_distance_m": 2.0
+ },
+ "leaf": {
+  "width": 0.9,
+  "height": 1.5,
+  "thickness": 0.006,
+  "slab": "steel_plate_security",
+  "panel_style": "riveted_steel",
+  "finish": {
+   "kind": "powder_coat",
+   "color": "safety_yellow",
+   "rgba": [
+    0.95,
+    0.8,
+    0.05,
+    1
+   ],
+   "texture": null,
+   "roughness": 0.49,
+   "metallic": 0.05
+  },
+  "count": 1,
+  "glazing": null
+ },
+ "opening": {
+  "width": 0.91,
+  "height": 1.51,
+  "wall_thickness": 0.2,
+  "frame": {
+   "kind": "hatch_curb",
+   "material": "pine",
+   "casing": true,
+   "stop_depth": 0.02,
+   "jamb_depth": 0.2
+  },
+  "threshold": "none",
+  "sidelite": false,
+  "transom": false,
+  "horizontal": true,
+  "elevation": 0.0
+ },
+ "hinge": {
+  "model": "hatch_hinge",
+  "count": 2,
+  "side": "far",
+  "swing": "up",
+  "axis_tilt_deg": 0.0
+ },
+ "kinematics": {
+  "type": "hinge_horizontal",
+  "max_open_deg": 75,
+  "stop": "prop_arm",
+  "gravity_assisted_close": true,
+  "ceiling": false
+ },
+ "operator": {
+  "model": "pull_d",
+  "height": 0.0,
+  "sides": "robot"
+ },
+ "lock": {
+  "model": "padlock",
+  "engaged": false,
+  "robot_side_release": true
+ },
+ "latch": {
+  "model": "none"
+ },
+ "closer": {
+  "model": "gas_strut",
+  "en_size": null,
+  "spring_adjust": 1.0,
+  "gas_force_N": 260
+ },
+ "seal": "none",
+ "condition": "normal",
+ "task": "open_and_traverse",
+ "physics": {
+  "mass": {
+   "slab_kg": 63.58500000000001,
+   "slab_area_density_kg_m2": 47.1,
+   "glass_kg": 0.0,
+   "hardware_kg": 2.25,
+   "hardware_parts": {
+    "operator": 0.5,
+    "lock": 0.35,
+    "closer": 0.6,
+    "hinges_half": 0.8
+   },
+   "total_kg": 65.83500000000001,
+   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+   "source": "Steel plate 7,850 kg/m^3"
+  },
+  "hinge": {
+   "coulomb_torque_Nm": 1.208602142748,
+   "bearing_mu": 0.12,
+   "bearing_note": "Plain bearing butt hinge, lubricated",
+   "pin_radius_m": 0.008,
+   "thrust_radius_m": 0.012,
+   "condition_multiplier": 1.3,
+   "seal_contribution_Nm": 0.0,
+   "stick_torque_Nm": 0.0,
+   "formula": "mu*(m*g*r_thrust + 2*F_h*r_pin)*k_cond + seal_steady; F_h = m g (W/2)/span; seal_steady = min(3, 0.03*R*L*W/2) (gasket compression itself is the soft stop contact)",
+   "air_damping_Nms_per_rad": 0.17773749,
+   "total_damping_symmetric": 30.17773749
+  },
+  "closer": {
+   "model": "gas_strut",
+   "kind": "gas_strut",
+   "spring_stiffness_Nm_per_rad": -19.5,
+   "spring_preload_Nm": -65.0,
+   "damping_closing": 30.0,
+   "damping_opening": 30.0,
+   "en_size": null,
+   "hold_open_rad": null,
+   "backcheck_angle_rad": null,
+   "backcheck_damping": 0.0,
+   "latch_boost": 1.0,
+   "formula": "lift assist: tau = -F*arm (negative = assists opening)",
+   "source": "Gas spring 150-400 N"
+  },
+  "inertia_about_hinge_kg_m2": 17.775647505000002,
+  "latch": {
+   "model": "none",
+   "kind": "none",
+   "throw_m": 0.0,
+   "bolt_spring_preload_N": 0,
+   "bolt_spring_rate_N_per_m": 0,
+   "holding_force_N": 0,
+   "yield_force_N": 1000000000.0,
+   "backset_m": 0.0,
+   "operator_travel": 0.0,
+   "operator_dead_travel": 0.0,
+   "operator_spring_preload": 0.0,
+   "operator_spring_rate": 0.0,
+   "operator_yield": 2000.0,
+   "operator_grip_offset_m": 0.06,
+   "coupling": null
+  },
+  "lock": {
+   "model": "padlock",
+   "kind": "padlock",
+   "engaged": false,
+   "robot_side_release": true,
+   "outside_release": "key",
+   "inside_release": "key",
+   "handle_backlash_locked_rad": 0.01,
+   "deadbolt_throw_m": 0.0,
+   "thumbturn_travel_rad": 0.0,
+   "thumbturn_torque_Nm": 0.0,
+   "chain_slack_m": 0.0,
+   "code": null
+  },
+  "damage": {
+   "leaf_dent_force_N": 3500.0,
+   "leaf_puncture_force_N": 25000,
+   "glass_break_force_N": null,
+   "operator_yield_torque_Nm": 2000.0,
+   "latch_shear_yield_N": 1000000000.0,
+   "hinge_tearout_force_N": 5883.99,
+   "slam_velocity_rad_s": 4.0,
+   "slam_impulse_Ns": 26.334000000000003,
+   "frame_impact_force_N": 3000.0,
+   "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
+  },
+  "compliance": {},
+  "gravity": 9.80665
+ }
+}

@@ -1,0 +1,80 @@
+<?xml version="1.0" ?>
+<mujoco model="db0840_revolving_simple">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_frame" rgba="0.8 0.81 0.83 1" specular="0.8" shininess="0.6" reflectance="0.4"/>
+    <material name="mat_drum_glass" rgba="0.85 0.92 0.95 0.25" specular="0.2" shininess="0.95" reflectance="0.1"/>
+    <material name="mat_floor_ring" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -2.96875 2.04825" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 2.96875 2.04825" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="2.25625 -2.49375 2.52325" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.55 -1.1 1.35" xyaxes="0.975133 0.221621 0 -0.065674 0.288965 0.955084" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="wall_left" type="box" size="0.875 0.15 1.367" pos="-2.125 0 1.367" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_right" type="box" size="0.875 0.15 1.367" pos="2.125 0 1.367" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_header" type="box" size="1.25 0.15 0.25" pos="0 0 2.484" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="drum_0" type="box" size="0.138884 0.006 1.117" pos="1.212329 0.136597 1.117" quat="0.666347 0 0 0.745642" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_1" type="box" size="0.138884 0.006 1.117" pos="1.151538 0.40294 1.117" quat="0.578671 0 0 0.815561" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_2" type="box" size="0.138884 0.006 1.117" pos="1.033004 0.649079 1.117" quat="0.483719 0 0 0.875223" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_3" type="box" size="0.138884 0.006 1.117" pos="0.86267 0.86267 1.117" quat="0.382683 0 0 0.92388" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_10" type="box" size="0.138884 0.006 1.117" pos="-0.86267 0.86267 1.117" quat="-0.382683 0 0 0.92388" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_11" type="box" size="0.138884 0.006 1.117" pos="-1.033004 0.649079 1.117" quat="-0.483719 0 0 0.875223" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_12" type="box" size="0.138884 0.006 1.117" pos="-1.151538 0.40294 1.117" quat="-0.578671 0 0 0.815561" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_13" type="box" size="0.138884 0.006 1.117" pos="-1.212329 0.136597 1.117" quat="-0.666347 0 0 0.745642" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_14" type="box" size="0.138884 0.006 1.117" pos="-1.212329 -0.136597 1.117" quat="-0.745642 0 0 0.666347" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_15" type="box" size="0.138884 0.006 1.117" pos="-1.151538 -0.40294 1.117" quat="-0.815561 0 0 0.578671" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_16" type="box" size="0.138884 0.006 1.117" pos="-1.033004 -0.649079 1.117" quat="-0.875223 0 0 0.483719" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_17" type="box" size="0.138884 0.006 1.117" pos="-0.86267 -0.86267 1.117" quat="-0.92388 0 0 0.382683" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_24" type="box" size="0.138884 0.006 1.117" pos="0.86267 -0.86267 1.117" quat="-0.92388 0 0 -0.382683" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_25" type="box" size="0.138884 0.006 1.117" pos="1.033004 -0.649079 1.117" quat="-0.875223 0 0 -0.483719" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_26" type="box" size="0.138884 0.006 1.117" pos="1.151538 -0.40294 1.117" quat="-0.815561 0 0 -0.578671" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_27" type="box" size="0.138884 0.006 1.117" pos="1.212329 -0.136597 1.117" quat="-0.745642 0 0 -0.666347" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+    <geom name="drum_canopy" type="cylinder" size="1.28 0.1" pos="0 0 2.334" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
+    <site name="approach_point" pos="0 -2.2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 2.2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.067" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="rotor" pos="0 0 0">
+      <inertial pos="0 0 1.115863" mass="396.757111" quat="0.707107 0 0.707107 0" diaginertia="193.122004449 310.068145257 310.068145257"/>
+      <joint name="rotor_hinge" type="hinge" axis="0 0 1" limited="false" damping="39" frictionloss="3.592034" armature="0.5"/>
+      <geom name="rotor_shaft" type="cylinder" size="0.06 1.117" pos="0 0 1.117" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
+      <geom name="wing_0_glass" type="box" size="0.58 0.005 1.017" pos="0.6 0 1.117" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+      <geom name="wing_0_stile" type="box" size="0.02 0.03 1.117" pos="1.18 0 1.117" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
+      <geom name="wing_0_rail_b" type="box" size="0.58 0.03 0.04" pos="0.58 0 0.06" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
+      <geom name="wing_0_rail_t" type="box" size="0.58 0.03 0.04" pos="0.58 0 2.164" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
+      <geom name="wing_1_glass" type="box" size="0.58 0.005 1.017" pos="-0.3 0.519615 1.117" quat="0.5 0 0 0.866025" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+      <geom name="wing_1_stile" type="box" size="0.02 0.03 1.117" pos="-0.59 1.02191 1.117" quat="0.5 0 0 0.866025" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
+      <geom name="wing_1_rail_b" type="box" size="0.58 0.03 0.04" pos="-0.29 0.502295 0.06" quat="0.5 0 0 0.866025" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
+      <geom name="wing_1_rail_t" type="box" size="0.58 0.03 0.04" pos="-0.29 0.502295 2.164" quat="0.5 0 0 0.866025" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
+      <geom name="wing_2_glass" type="box" size="0.58 0.005 1.017" pos="-0.3 -0.519615 1.117" quat="-0.5 0 0 0.866025" material="mat_drum_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+      <geom name="wing_2_stile" type="box" size="0.02 0.03 1.117" pos="-0.59 -1.02191 1.117" quat="-0.5 0 0 0.866025" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
+      <geom name="wing_2_rail_b" type="box" size="0.58 0.03 0.04" pos="-0.29 -0.502295 0.06" quat="-0.5 0 0 0.866025" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
+      <geom name="wing_2_rail_t" type="box" size="0.58 0.03 0.04" pos="-0.29 -0.502295 2.164" quat="-0.5 0 0 0.866025" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="rotor_hinge_pos" joint="rotor_hinge"/>
+    <jointvel name="rotor_hinge_vel" joint="rotor_hinge"/>
+  </sensor>
+</mujoco>

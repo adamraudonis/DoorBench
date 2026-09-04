@@ -1,0 +1,1115 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "World"
+{
+    def Xform "db0190_turnstile_fullheight" (
+        prepend apiSchemas = ["PhysicsArticulationRootAPI"]
+    )
+    {
+        custom string doorbench:couplings = "[]"
+        custom string doorbench:meta = '{"door_id": "db0190_turnstile_fullheight", "family": "turnstile_fullheight", "task": "push_through", "wall_y": 0.0, "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 1.0, "ratchet_deg": 120.0, "one_way": true, "locked": true, "scene_extent": 2.2249999999999996, "cam_target_z": 1.15, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.55, -1.1, 1.35]}'
+        custom bool physxArticulation:enabledSelfCollisions = 1
+        custom int physxArticulation:solverPositionIterationCount = 32
+
+        def Scope "Looks"
+        {
+            def Material "mat_floor"
+            {
+                token outputs:surface.connect = </World/db0190_turnstile_fullheight/Looks/mat_floor/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.35, 0.42, 0.25)
+                    float inputs:metallic = 0
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.85
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_wall"
+            {
+                token outputs:surface.connect = </World/db0190_turnstile_fullheight/Looks/mat_wall/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.78, 0.76, 0.7)
+                    float inputs:metallic = 0
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.9
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_frame"
+            {
+                token outputs:surface.connect = </World/db0190_turnstile_fullheight/Looks/mat_frame/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.45, 0.48, 0.52)
+                    float inputs:metallic = 0.2
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.4
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_op_stainless"
+            {
+                token outputs:surface.connect = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.75, 0.76, 0.77)
+                    float inputs:metallic = 1
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.35
+                    token outputs:surface
+                }
+            }
+
+            def Material "PhysMat_mat_floor" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.68
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.8
+            }
+
+            def Material "PhysMat_mat_frame" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.51
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.6
+            }
+
+            def Material "PhysMat_mat_op_stainless" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.51
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.6
+            }
+        }
+
+        def Xform "world_env"
+        {
+            custom string doorbench:semantic = "wall"
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "floor" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Floor"
+                custom string doorbench:semantic = "floor"
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_floor>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_floor> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (12, 12, 0.1)
+                double3 xformOp:translate = (0, 0, -0.05)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "cage_bar_0" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.07155251244057927, 0.7264848504707038, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_1" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.21190781439575737, 0.6985664450845125, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_2" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.3441196178829783, 0.6438025229742992, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_3" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.4631070974394611, 0.5642976309547981, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_4" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.564297630954798, 0.4631070974394612, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_5" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.6438025229742991, 0.34411961788297846, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_6" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.6985664450845124, 0.21190781439575754, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_7" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.7264848504707037, 0.0715525124405794, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_8" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.7264848504707038, -0.07155251244057922, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_9" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.6985664450845125, -0.21190781439575734, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_10" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.6438025229742992, -0.3441196178829783, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_11" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.5642976309547981, -0.46310709743946105, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_12" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.46310709743946094, -0.5642976309547981, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_13" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.34411961788297846, -0.6438025229742991, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_14" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.21190781439575757, -0.6985664450845124, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_bar_15" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage bar"
+                custom string doorbench:semantic = "frame"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.02
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.07155251244057913, -0.7264848504707038, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "cage_roof" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Cage roof"
+                custom string doorbench:semantic = "frame"
+                double height = 0.04
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.78
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 0, 2.22)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "barrier_n" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Barrier"
+                custom string doorbench:semantic = "wall"
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.8, 0.04, 2.2)
+                double3 xformOp:translate = (1.13, -0.83, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "barrier_p" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Barrier"
+                custom string doorbench:semantic = "wall"
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_frame>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.8, 0.04, 2.2)
+                double3 xformOp:translate = (1.13, 0.83, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Xform "approach_point"
+            {
+                custom string doorbench:site_role = "approach"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (1.13, -1.5, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Xform "goal_point"
+            {
+                custom string doorbench:site_role = "goal"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (1.13, 1.5, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Xform "door_plane_center"
+            {
+                custom string doorbench:site_role = "pass_plane"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.365, 0, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+        }
+
+        def Xform "rotor" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "leaf"
+            point3f physics:centerOfMass = (-7.6334357e-19, 2.5444785e-18, 1.0950496)
+            float3 physics:diagonalInertia = (3.4586158, 88.55866, 88.55866)
+            float physics:mass = 218.16316
+            quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cylinder "rotor_column" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Rotor column"
+                custom string doorbench:semantic = "leaf"
+                double height = 2.2
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.06
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 0, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_0_arm_0" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (0.325, 0, 0.15)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_0_arm_1" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (0.325, 0, 0.40714285714285714)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_0_arm_2" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (0.325, 0, 0.6642857142857144)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_0_arm_3" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (0.325, 0, 0.9214285714285715)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_0_arm_4" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (0.325, 0, 1.1785714285714286)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_0_arm_5" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (0.325, 0, 1.4357142857142857)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_0_arm_6" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (0.325, 0, 1.6928571428571428)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_0_arm_7" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (0.325, 0, 1.95)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_1_arm_0" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, -0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16249999999999995, 0.2814582562299426, 0.15)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_1_arm_1" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, -0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16249999999999995, 0.2814582562299426, 0.40714285714285714)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_1_arm_2" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, -0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16249999999999995, 0.2814582562299426, 0.6642857142857144)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_1_arm_3" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, -0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16249999999999995, 0.2814582562299426, 0.9214285714285715)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_1_arm_4" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, -0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16249999999999995, 0.2814582562299426, 1.1785714285714286)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_1_arm_5" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, -0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16249999999999995, 0.2814582562299426, 1.4357142857142857)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_1_arm_6" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, -0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16249999999999995, 0.2814582562299426, 1.6928571428571428)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_1_arm_7" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, -0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16249999999999995, 0.2814582562299426, 1.95)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_2_arm_0" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16250000000000014, -0.28145825622994247, 0.15)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_2_arm_1" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16250000000000014, -0.28145825622994247, 0.40714285714285714)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_2_arm_2" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16250000000000014, -0.28145825622994247, 0.6642857142857144)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_2_arm_3" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16250000000000014, -0.28145825622994247, 0.9214285714285715)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_2_arm_4" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16250000000000014, -0.28145825622994247, 1.1785714285714286)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_2_arm_5" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16250000000000014, -0.28145825622994247, 1.4357142857142857)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_2_arm_6" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16250000000000014, -0.28145825622994247, 1.6928571428571428)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "wing_2_arm_7" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Arm"
+                custom string doorbench:semantic = "operator"
+                double height = 0.65
+                rel material:binding = </World/db0190_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </World/db0190_turnstile_fullheight/Looks/PhysMat_mat_op_stainless> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.019
+                quatf xformOp:orient = (0.70710677, 0.61237246, -0.35355338, 0)
+                double3 xformOp:translate = (-0.16250000000000014, -0.28145825622994247, 1.95)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Xform "wing_0_push"
+            {
+                custom string doorbench:site_role = "push"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.52, 0, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Xform "wing_1_push"
+            {
+                custom string doorbench:site_role = "push"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.25999999999999995, 0.45033320996790815, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Xform "wing_2_push"
+            {
+                custom string doorbench:site_role = "push"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.26000000000000023, -0.450333209967908, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+        }
+
+        def Scope "Joints"
+        {
+            def PhysicsRevoluteJoint "rotor_hinge" (
+                prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Rotor (ratchets 360/wings deg; one-way enforced by env)"
+                custom bool doorbench:ratchet_one_way = 1
+                custom string doorbench:role = "primary"
+                custom float doorbench:zero_offset = 0
+                float drive:angular:physics:damping = 0.10471976
+                float drive:angular:physics:maxForce = 1000000
+                float drive:angular:physics:stiffness = 0
+                float drive:angular:physics:targetPosition = 0
+                uniform token drive:angular:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body1 = </World/db0190_turnstile_fullheight/rotor>
+                point3f physics:localPos0 = (0, 0, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+                quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+                float physics:lowerLimit = -2.864789
+                float physics:upperLimit = 2.864789
+                custom float physxJoint:armature = 0.3
+                custom float physxJoint:jointFriction = 4.1315336
+            }
+        }
+    }
+
+    def PhysicsScene "PhysicsScene"
+    {
+        vector3f physics:gravityDirection = (0, 0, -1)
+        float physics:gravityMagnitude = 9.81
+    }
+}
+

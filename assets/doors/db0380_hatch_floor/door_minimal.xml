@@ -1,0 +1,65 @@
+<?xml version="1.0" ?>
+<mujoco model="db0380_hatch_floor_minimal">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_pit" rgba="0.3 0.3 0.3 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_frame" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_leaf" rgba="0.675 0.625 0.54 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_op_wrought_iron" rgba="0.08 0.08 0.09 1" specular="0.56" shininess="0.25" reflectance="0.24"/>
+    <material name="mat_strut" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -2.040625 1.326375" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 2.040625 1.326375" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="1.550875 -1.714125 1.652875" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.35 -0.8875 0.902" xyaxes="0.843661 0.536875 0 -0.426006 0.669439 0.608581" fovy="38"/>
+    <geom name="floor_a" type="box" size="2.7725 6 0.05" pos="-3.2275 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2400"/>
+    <geom name="floor_b" type="box" size="2.7725 6 0.05" pos="3.2275 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2400"/>
+    <geom name="floor_c" type="box" size="0.455 2.6225 0.05" pos="0 -3.3775 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2400"/>
+    <geom name="floor_d" type="box" size="0.455 2.6225 0.05" pos="0 3.3775 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2400"/>
+    <geom name="curb_l" type="box" size="0.025 0.805 0.02" pos="-0.48 0 0.02" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="curb_r" type="box" size="0.025 0.805 0.02" pos="0.48 0 0.02" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="curb_n" type="box" size="0.455 0.025 0.02" pos="0 -0.78 0.02" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="curb_f" type="box" size="0.455 0.025 0.02" pos="0 0.78 0.02" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 0 -1" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="hatch" pos="0 0.755 0.04">
+      <inertial pos="0 -0.755 0" mass="10.044" quat="0.707107 0 0 -0.707107" diaginertia="0.678090528 1.888395876 2.566245348"/>
+      <joint name="hatch_hinge" type="hinge" axis="-1 0 0" limited="true" range="0 1.308997" damping="30.677737" frictionloss="3.355694" stiffness="12.75" springref="-3.333333" armature="0.02"/>
+      <geom name="hatch_slab" type="box" size="0.45 0.751 0.006" pos="0 -0.755 0" material="mat_leaf" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1"/>
+      <body name="ring" pos="0 -1.1325 0.006">
+        <inertial pos="0 0.04 0.006" mass="0.068808" quat="0 0 0.707107 0.707107" diaginertia="0.000001213 0.000035629 0.000035629"/>
+        <joint name="ring_hinge" type="hinge" axis="1 0 0" limited="true" range="0 1.5708" damping="0.01" armature="0.01"/>
+        <geom name="ring_geom" type="capsule" size="0.006 0.035" pos="0 0.04 0.006" quat="0.707107 0 0.707107 0" material="mat_op_wrought_iron" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
+        <site name="grip_ring" pos="0 0.04 0.006" size="0.01" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      </body>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="hatch_hinge_pos" joint="hatch_hinge"/>
+    <jointvel name="hatch_hinge_vel" joint="hatch_hinge"/>
+    <jointpos name="ring_hinge_pos" joint="ring_hinge"/>
+    <jointvel name="ring_hinge_vel" joint="ring_hinge"/>
+  </sensor>
+</mujoco>

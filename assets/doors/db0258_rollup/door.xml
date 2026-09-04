@@ -1,0 +1,104 @@
+<?xml version="1.0" ?>
+<mujoco model="db0258_rollup_full">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <mesh name="pull_bdc5e965ab" file="pull_bdc5e965ab.obj"/>
+    <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_frame" rgba="0.45 0.48 0.52 1" specular="0.32" shininess="0.6" reflectance="0.08"/>
+    <material name="mat_track" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_curtain" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_slat_line" rgba="0.25 0.25 0.25 1" specular="0.2" shininess="0.3" reflectance="0"/>
+    <material name="mat_chain" rgba="0.55 0.56 0.58 1" specular="0.8" shininess="0.55" reflectance="0.4"/>
+    <material name="mat_op_black_matte_metal" rgba="0.05 0.05 0.05 1" specular="0.38" shininess="0.3" reflectance="0.12"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -4.103125 2.698875" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 4.103125 2.698875" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="3.118375 -3.446625 3.355375" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.25 -1.0204 0.51" xyaxes="0.975133 0.221621 0 -0.065674 0.288965 0.955084" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="wall_left" type="box" size="0.5725 0.1 2.35" pos="-2.4275 0 2.35" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_right" type="box" size="0.5725 0.1 2.35" pos="2.4275 0 2.35" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_header" type="box" size="1.855 0.1 0.8" pos="0 0 3.9" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="guide_l" type="box" size="0.03 0.025 1.55" pos="-1.865 0.13 1.55" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="guide_r" type="box" size="0.03 0.025 1.55" pos="1.865 0.13 1.55" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="coil_drum" type="cylinder" size="0.25 1.88" pos="0 0.13 3.4" quat="0.707107 0 0.707107 0" material="mat_frame" group="1" contype="0" conaffinity="0" density="300"/>
+    <geom name="hood" type="box" size="1.95 0.3 0.02" pos="0 0.13 3.68" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="hood_front" type="box" size="1.95 0.02 0.28" pos="0 0.43 3.42" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="hoist_chain" type="cylinder" size="0.005 1.85" pos="1.95 0.13 1.85" material="mat_chain" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <site name="approach_point" pos="0 -2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 2 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.55" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="curtain" pos="0 0 0">
+      <inertial pos="0 0.129744 1.323969" mass="81.589353" quat="0 0 -0.706994 0.707219" diaginertia="76.540700326 90.519804136 167.05682803"/>
+      <joint name="curtain_slide" type="slide" axis="0 0 1" limited="true" range="0 3" damping="5.547682" frictionloss="333.992407" stiffness="72.03524" springref="10" armature="0.5"/>
+      <geom name="curtain_slab" type="box" size="1.83 0.0004 1.525" pos="0 0.13 1.535" material="mat_curtain" group="0" contype="1" conaffinity="1" friction="0.42 0.005 0.0001" density="1"/>
+      <geom name="slat_line_1" type="box" size="1.83 0.001 0.003" pos="0 0.1286 0.08625" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_2" type="box" size="1.83 0.001 0.003" pos="0 0.1286 0.1625" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_3" type="box" size="1.83 0.001 0.003" pos="0 0.1286 0.23875" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_4" type="box" size="1.83 0.001 0.003" pos="0 0.1286 0.315" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_5" type="box" size="1.83 0.001 0.003" pos="0 0.1286 0.39125" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_6" type="box" size="1.83 0.001 0.003" pos="0 0.1286 0.4675" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_7" type="box" size="1.83 0.001 0.003" pos="0 0.1286 0.54375" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_8" type="box" size="1.83 0.001 0.003" pos="0 0.1286 0.62" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_9" type="box" size="1.83 0.001 0.003" pos="0 0.1286 0.69625" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_10" type="box" size="1.83 0.001 0.003" pos="0 0.1286 0.7725" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_11" type="box" size="1.83 0.001 0.003" pos="0 0.1286 0.84875" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_12" type="box" size="1.83 0.001 0.003" pos="0 0.1286 0.925" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_13" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.00125" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_14" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.0775" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_15" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.15375" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_16" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.23" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_17" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.30625" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_18" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.3825" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_19" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.45875" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_20" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.535" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_21" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.61125" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_22" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.6875" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_23" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.76375" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_24" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.84" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_25" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.91625" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_26" type="box" size="1.83 0.001 0.003" pos="0 0.1286 1.9925" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_27" type="box" size="1.83 0.001 0.003" pos="0 0.1286 2.06875" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_28" type="box" size="1.83 0.001 0.003" pos="0 0.1286 2.145" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_29" type="box" size="1.83 0.001 0.003" pos="0 0.1286 2.22125" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_30" type="box" size="1.83 0.001 0.003" pos="0 0.1286 2.2975" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_31" type="box" size="1.83 0.001 0.003" pos="0 0.1286 2.37375" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_32" type="box" size="1.83 0.001 0.003" pos="0 0.1286 2.45" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_33" type="box" size="1.83 0.001 0.003" pos="0 0.1286 2.52625" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_34" type="box" size="1.83 0.001 0.003" pos="0 0.1286 2.6025" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_35" type="box" size="1.83 0.001 0.003" pos="0 0.1286 2.67875" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_36" type="box" size="1.83 0.001 0.003" pos="0 0.1286 2.755" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_37" type="box" size="1.83 0.001 0.003" pos="0 0.1286 2.83125" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_38" type="box" size="1.83 0.001 0.003" pos="0 0.1286 2.9075" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="slat_line_39" type="box" size="1.83 0.001 0.003" pos="0 0.1286 2.98375" material="mat_slat_line" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="bottom_bar" type="box" size="1.83 0.0154 0.03" pos="0 0.13 0.03" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+      <geom name="lift_handle_n" type="mesh" mesh="pull_bdc5e965ab" pos="0 0.1296 0.16" quat="0.707107 0.707107 0 0" material="mat_op_black_matte_metal" group="1" contype="0" conaffinity="0" density="3000"/>
+      <geom name="lift_handle_col_n" type="box" size="0.1 0.006 0.015" pos="0 0.0796 0.16" material="mat_op_black_matte_metal" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
+      <site name="lift_handle_grip_n" pos="0 0.0796 0.16" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="curtain_slide_pos" joint="curtain_slide"/>
+    <jointvel name="curtain_slide_vel" joint="curtain_slide"/>
+  </sensor>
+</mujoco>

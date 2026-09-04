@@ -1,0 +1,1807 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "World"
+{
+    def Xform "db0343_bifold" (
+        prepend apiSchemas = ["PhysicsArticulationRootAPI"]
+    )
+    {
+        custom string doorbench:couplings = '[{"type": "polynomial", "driven": "panel_0_1_hinge", "driver": "panel_0_0_hinge", "coeff": [0, -2.0, 0, 0, 0], "label": "q = -2 * q_pivot (track-guided fold)"}]'
+        custom string doorbench:meta = '{"door_id": "db0343_bifold", "family": "bifold", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "panel_0_0_hinge", "secondary_joint": null, "operator_joint": null, "handle_height": 1.0, "scene_extent": 2.315, "cam_target_z": 1.21, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.402, -0.0475, 1.0], "handle_cam_pos": [0.5820000000000001, -0.8475, 1.28]}'
+        custom bool physxArticulation:enabledSelfCollisions = 1
+        custom int physxArticulation:solverPositionIterationCount = 32
+
+        def Scope "Looks"
+        {
+            def Material "mat_floor"
+            {
+                token outputs:surface.connect = </World/db0343_bifold/Looks/mat_floor/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.55, 0.53, 0.5)
+                    float inputs:metallic = 0
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.85
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_wall"
+            {
+                token outputs:surface.connect = </World/db0343_bifold/Looks/mat_wall/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.78, 0.76, 0.7)
+                    float inputs:metallic = 0
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.9
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_frame"
+            {
+                token outputs:surface.connect = </World/db0343_bifold/Looks/mat_frame/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.82, 0.7, 0.5)
+                    float inputs:metallic = 0
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.55
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_track"
+            {
+                token outputs:surface.connect = </World/db0343_bifold/Looks/mat_track/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.8, 0.81, 0.83)
+                    float inputs:metallic = 1
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.4
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_panel_0_0"
+            {
+                token outputs:surface.connect = </World/db0343_bifold/Looks/mat_panel_0_0/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.2, 0.21, 0.23)
+                    float inputs:metallic = 0
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.59
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_panel_0_0_louver"
+            {
+                token outputs:surface.connect = </World/db0343_bifold/Looks/mat_panel_0_0_louver/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.17, 0.1785, 0.1955)
+                    float inputs:metallic = 0
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.6
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_panel_0_1"
+            {
+                token outputs:surface.connect = </World/db0343_bifold/Looks/mat_panel_0_1/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.2, 0.21, 0.23)
+                    float inputs:metallic = 0
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.59
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_panel_0_1_louver"
+            {
+                token outputs:surface.connect = </World/db0343_bifold/Looks/mat_panel_0_1_louver/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.17, 0.1785, 0.1955)
+                    float inputs:metallic = 0
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.6
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_op_nickel_satin"
+            {
+                token outputs:surface.connect = </World/db0343_bifold/Looks/mat_op_nickel_satin/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.72, 0.7, 0.66)
+                    float inputs:metallic = 1
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.35
+                    token outputs:surface
+                }
+            }
+
+            def Material "PhysMat_mat_floor" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.68
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.8
+            }
+
+            def Material "PhysMat_mat_wall" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.51
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.6
+            }
+
+            def Material "PhysMat_mat_frame" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.51
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.6
+            }
+
+            def Material "PhysMat_mat_panel_0_0" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.2975
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.35
+            }
+
+            def Material "PhysMat_mat_panel_0_1" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.2975
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.35
+            }
+
+            def Material "PhysMat_mat_op_nickel_satin" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.51
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.6
+            }
+        }
+
+        def Xform "world_env"
+        {
+            custom string doorbench:semantic = "wall"
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "floor" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Floor"
+                custom string doorbench:semantic = "floor"
+                rel material:binding = </World/db0343_bifold/Looks/mat_floor>
+                rel material:binding:physics = </World/db0343_bifold/Looks/PhysMat_mat_floor> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (12, 12, 0.1)
+                double3 xformOp:translate = (0, 0, -0.05)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "wall_left" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Wall"
+                custom string doorbench:semantic = "wall"
+                rel material:binding = </World/db0343_bifold/Looks/mat_wall>
+                rel material:binding:physics = </World/db0343_bifold/Looks/PhysMat_mat_wall> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (2.038, 0.145, 3.02)
+                double3 xformOp:translate = (-1.481, 0, 1.51)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "wall_right" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Wall"
+                custom string doorbench:semantic = "wall"
+                rel material:binding = </World/db0343_bifold/Looks/mat_wall>
+                rel material:binding:physics = </World/db0343_bifold/Looks/PhysMat_mat_wall> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (2.038, 0.145, 3.02)
+                double3 xformOp:translate = (1.481, 0, 1.51)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "wall_header" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Wall header"
+                custom string doorbench:semantic = "wall"
+                rel material:binding = </World/db0343_bifold/Looks/mat_wall>
+                rel material:binding:physics = </World/db0343_bifold/Looks/PhysMat_mat_wall> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.924, 0.145, 0.6)
+                double3 xformOp:translate = (0, 0, 2.7199999999999998)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "jamb_hinge" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Hinge jamb"
+                custom string doorbench:semantic = "frame"
+                rel material:binding = </World/db0343_bifold/Looks/mat_frame>
+                rel material:binding:physics = </World/db0343_bifold/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.019, 0.145, 2.42)
+                double3 xformOp:translate = (-0.47150000000000003, 0, 1.21)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "jamb_strike" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Strike jamb"
+                custom string doorbench:semantic = "frame"
+                rel material:binding = </World/db0343_bifold/Looks/mat_frame>
+                rel material:binding:physics = </World/db0343_bifold/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.019, 0.145, 2.42)
+                double3 xformOp:translate = (0.47150000000000003, 0, 1.21)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "stud_strike" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Stud"
+                custom string doorbench:semantic = "wall"
+                rel material:binding = </World/db0343_bifold/Looks/mat_wall>
+                rel material:binding:physics = </World/db0343_bifold/Looks/PhysMat_mat_wall> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.03, 0.145, 2.42)
+                double3 xformOp:translate = (0.496, 0, 1.21)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "jamb_head" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Head jamb"
+                custom string doorbench:semantic = "frame"
+                rel material:binding = </World/db0343_bifold/Looks/mat_frame>
+                rel material:binding:physics = </World/db0343_bifold/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.992, 0.145, 0.019)
+                double3 xformOp:translate = (0.014999999999999986, 0, 2.4295)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "head_stud" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Head stud"
+                custom string doorbench:semantic = "frame"
+                rel material:binding = </World/db0343_bifold/Looks/mat_wall>
+                rel material:binding:physics = </World/db0343_bifold/Looks/PhysMat_mat_wall> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.992, 0.145, 0.03)
+                double3 xformOp:translate = (0.014999999999999986, 0, 2.454)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "casing_l_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Casing"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </World/db0343_bifold/Looks/mat_frame>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.07, 0.016, 2.439)
+                double3 xformOp:translate = (-0.511, -0.08049999999999999, 1.21)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "casing_r_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Casing"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </World/db0343_bifold/Looks/mat_frame>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.07, 0.016, 2.439)
+                double3 xformOp:translate = (0.511, -0.08049999999999999, 1.21)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "casing_h_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Casing"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </World/db0343_bifold/Looks/mat_frame>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1.092, 0.016, 0.07)
+                double3 xformOp:translate = (0, -0.08049999999999999, 2.4690000000000003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "casing_l_p" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Casing"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </World/db0343_bifold/Looks/mat_frame>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.07, 0.016, 2.439)
+                double3 xformOp:translate = (-0.511, 0.08049999999999999, 1.21)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "casing_r_p" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Casing"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </World/db0343_bifold/Looks/mat_frame>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.07, 0.016, 2.439)
+                double3 xformOp:translate = (0.511, 0.08049999999999999, 1.21)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "casing_h_p" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Casing"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </World/db0343_bifold/Looks/mat_frame>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1.092, 0.016, 0.07)
+                double3 xformOp:translate = (0, 0.08049999999999999, 2.4690000000000003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "fold_track" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Top track"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </World/db0343_bifold/Looks/mat_track>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.924, 0.04, 0.03)
+                double3 xformOp:translate = (0, 0, 2.405)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Xform "approach_point"
+            {
+                custom string doorbench:site_role = "approach"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, -1.5, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Xform "goal_point"
+            {
+                custom string doorbench:site_role = "goal"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 1.5, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Xform "door_plane_center"
+            {
+                custom string doorbench:site_role = "pass_plane"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 0, 1.21)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+        }
+
+        def Xform "panel_0_0" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "leaf"
+            point3f physics:centerOfMass = (0.2335, 0, 1.2200199)
+            float3 physics:diagonalInertia = (0.14786106, 4.0554414, 4.201578)
+            float physics:mass = 8.447705
+            quatf physics:principalAxes = (0.5, -0.49999997, -0.49999997, -0.5)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (-0.462, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "panel_0_0_slab" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Leaf slab"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0>
+                rel material:binding:physics = </World/db0343_bifold/Looks/PhysMat_mat_panel_0_0> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.457, 0.035, 2.4)
+                double3 xformOp:translate = (0.2335, 0, 1.22)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.30920000000000003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.35960000000000003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.41000000000000003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_3" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.46040000000000003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_4" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.5108)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_5" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.5612)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_6" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.6116)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_7" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.662)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_8" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.7124)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_9" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.7628)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_10" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.8132)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_11" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.8636)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_12" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.914)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_13" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.9644)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_14" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.0148000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_15" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.0652)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_16" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.1156000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_17" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.166)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_18" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.2164000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_19" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.2668)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_20" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.3172000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_21" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.3676000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_22" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.418)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_23" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.4684)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_24" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.5188000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_25" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.5692000000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_26" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.6196)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_27" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.67)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_28" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.7204000000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_29" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.7708000000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_30" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.8212)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_31" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.8716)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_32" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.922)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_33" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.9724000000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_34" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 2.0228)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_35" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 2.0732)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_36" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 2.1236)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_37" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 2.174)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_38" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 2.2244)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_0_louver_39" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_0_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 2.2748)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+        }
+
+        def Xform "panel_0_1" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "leaf"
+            point3f physics:centerOfMass = (0.3573346, -0.029942492, 1.064163)
+            float3 physics:diagonalInertia = (0.0015563219, 0.020801697, 0.022290394)
+            float physics:mass = 0.14229724
+            quatf physics:principalAxes = (0.48282987, 0.5443652, 0.44805187, -0.5194144)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (-0.0050000000000000044, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "panel_0_1_slab" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Leaf slab"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1>
+                rel material:binding:physics = </World/db0343_bifold/Looks/PhysMat_mat_panel_0_1> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.457, 0.035, 2.4)
+                double3 xformOp:translate = (0.2335, 0, 1.22)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.30920000000000003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.35960000000000003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.41000000000000003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_3" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.46040000000000003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_4" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.5108)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_5" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.5612)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_6" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.6116)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_7" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.662)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_8" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.7124)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_9" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.7628)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_10" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.8132)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_11" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.8636)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_12" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.914)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_13" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 0.9644)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_14" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.0148000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_15" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.0652)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_16" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.1156000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_17" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.166)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_18" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.2164000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_19" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.2668)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_20" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.3172000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_21" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.3676000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_22" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.418)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_23" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.4684)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_24" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.5188000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_25" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.5692000000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_26" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.6196)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_27" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.67)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_28" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.7204000000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_29" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.7708000000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_30" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.8212)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_31" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.8716)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_32" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.922)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_33" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 1.9724000000000002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_34" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 2.0228)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_35" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 2.0732)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_36" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 2.1236)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_37" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 2.174)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_38" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 2.2244)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "panel_0_1_louver_39" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Louver slat"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0343_bifold/Looks/mat_panel_0_1_louver>
+                double size = 1
+                quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
+                float3 xformOp:scale = (0.277, 0.004, 0.05292)
+                double3 xformOp:translate = (0.2335, 0, 2.2748)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Xform "panel_0_1_knob" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+                prepend references = @../../hardware/knob_13f7a2a65f.usdc@</knob_13f7a2a65f>
+            )
+            {
+                custom string doorbench:label = "Bifold knob"
+                custom string doorbench:semantic = "operator"
+                rel material:binding = </World/db0343_bifold/Looks/mat_op_nickel_satin>
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                double3 xformOp:translate = (0.40700000000000003, -0.0175, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Sphere "panel_0_1_knob_col" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Knob grip"
+                custom string doorbench:semantic = "operator"
+                rel material:binding = </World/db0343_bifold/Looks/mat_op_nickel_satin>
+                rel material:binding:physics = </World/db0343_bifold/Looks/PhysMat_mat_op_nickel_satin> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.016
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.40700000000000003, -0.0475, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Xform "panel_0_1_grip"
+            {
+                custom string doorbench:site_role = "grip"
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.40700000000000003, -0.0475, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+        }
+
+        def Scope "Joints"
+        {
+            def PhysicsRevoluteJoint "panel_0_0_hinge" (
+                prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Pivot panel (0 = closed, + = folding open)"
+                custom string doorbench:role = "primary"
+                custom float doorbench:zero_offset = 0
+                float drive:angular:physics:damping = 0.011986111
+                float drive:angular:physics:maxForce = 1000000
+                float drive:angular:physics:stiffness = 0
+                float drive:angular:physics:targetPosition = 0
+                uniform token drive:angular:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body1 = </World/db0343_bifold/panel_0_0>
+                point3f physics:localPos0 = (-0.442, 0, 0)
+                point3f physics:localPos1 = (0.02, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
+                quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 90
+                custom float physxJoint:armature = 0.02
+                custom float physxJoint:jointFriction = 1.0953918
+            }
+
+            def PhysicsRevoluteJoint "panel_0_1_hinge" (
+                prepend apiSchemas = ["PhysicsDriveAPI:angular"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Panel-to-panel hinge (driven)"
+                custom string doorbench:role = "secondary"
+                custom float doorbench:zero_offset = 0
+                float drive:angular:physics:damping = 0.0034906585
+                float drive:angular:physics:maxForce = 1000000
+                float drive:angular:physics:stiffness = 0
+                float drive:angular:physics:targetPosition = 0
+                uniform token drive:angular:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0343_bifold/panel_0_0>
+                rel physics:body1 = </World/db0343_bifold/panel_0_1>
+                point3f physics:localPos0 = (0.457, 0, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
+                quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
+                float physics:lowerLimit = -180
+                float physics:upperLimit = 0
+                custom float physxJoint:armature = 0.005
+                custom float physxJoint:jointFriction = 0.1
+                custom float physxMimicJoint:rotX:gearing = 2
+                custom float physxMimicJoint:rotX:offset = 0
+                custom string physxMimicJoint:rotX:referenceJoint = "/World/db0343_bifold/Joints/panel_0_0_hinge"
+            }
+        }
+    }
+
+    def PhysicsScene "PhysicsScene"
+    {
+        vector3f physics:gravityDirection = (0, 0, -1)
+        float physics:gravityMagnitude = 9.81
+    }
+}
+

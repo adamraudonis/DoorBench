@@ -1,0 +1,71 @@
+<?xml version="1.0" ?>
+<mujoco model="db0042_sliding_bypass_simple">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_frame" rgba="0.82 0.7 0.5 1" specular="0.2" shininess="0.45" reflectance="0"/>
+    <material name="mat_track" rgba="0.8 0.81 0.83 1" specular="0.8" shininess="0.6" reflectance="0.4"/>
+    <material name="mat_leaf_0" rgba="0.93 0.93 0.91 1" specular="0.2" shininess="0.35" reflectance="0"/>
+    <material name="mat_roller" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_op_nickel_satin" rgba="0.72 0.7 0.66 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <material name="mat_leaf_1" rgba="0.93 0.93 0.91 1" specular="0.2" shininess="0.35" reflectance="0"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -2.54875 1.73965" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 2.54875 1.73965" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="1.93705 -2.14095 2.14745" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="-0.634 -0.839 1.28" xyaxes="0.97561 0.219512 0 -0.070934 0.315262 0.94635" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="wall_left" type="box" size="0.7885 0.0725 1.35" pos="-1.7115 0 1.35" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_right" type="box" size="0.7585 0.0725 1.35" pos="1.7415 0 1.35" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_header" type="box" size="0.953 0.0725 0.3145" pos="0.03 0 2.3855" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="jamb_l" type="box" size="0.0095 0.0725 1.026" pos="-0.9135 0 1.026" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
+    <geom name="jamb_head" type="box" size="0.923 0.0725 0.0095" pos="0 0 2.0615" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
+    <geom name="track_header" type="box" size="1.411 0.04 0.04" pos="0 0 2.111" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
+    <geom name="jamb_latch_0" type="box" size="0.0395 0.0725 1.026" pos="0.9435 0 1.026" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
+    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.026" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="leaf_0" pos="-0.447 -0.0215 0">
+      <inertial pos="-0.000119 -0.000006 1.027991" mass="15.458789" quat="0.499995 0.500011 -0.499989 0.500005" diaginertia="1.0780896 5.319009473 6.393940686"/>
+      <joint name="leaf_0_slide" type="slide" axis="1 0 0" limited="true" range="0 0.884" damping="2.782689" frictionloss="4.605337" armature="0.5"/>
+      <geom name="leaf_0_slab" type="box" size="0.457 0.0175 1.016" pos="0 0 1.028" material="mat_leaf_0" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
+      <geom name="leaf_0_pull_n" type="box" size="0.025 0.0005 0.05" pos="-0.367 -0.018 1" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="1000"/>
+      <site name="leaf_0_pull_grip_n" pos="-0.367 -0.0175 1" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_0_edge_mid" pos="-0.457 0 1.028" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    </body>
+    <body name="leaf_1" pos="0.437 0.0215 0">
+      <inertial pos="0.000119 -0.000006 1.027991" mass="15.458789" quat="0.500005 0.499989 -0.500011 0.499995" diaginertia="1.0780896 5.319009473 6.393940686"/>
+      <joint name="leaf_1_slide" type="slide" axis="-1 0 0" limited="true" range="0 0.884" damping="2.782689" frictionloss="4.605337" armature="0.5"/>
+      <geom name="leaf_1_slab" type="box" size="0.457 0.0175 1.016" pos="0 0 1.028" material="mat_leaf_1" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
+      <geom name="leaf_1_pull_n" type="box" size="0.025 0.0005 0.05" pos="0.367 -0.018 1" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="1000"/>
+      <site name="leaf_1_pull_grip_n" pos="0.367 -0.0175 1" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_1_edge_mid" pos="0.457 0 1.028" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="leaf_0_slide_pos" joint="leaf_0_slide"/>
+    <jointvel name="leaf_0_slide_vel" joint="leaf_0_slide"/>
+    <jointpos name="leaf_1_slide_pos" joint="leaf_1_slide"/>
+    <jointvel name="leaf_1_slide_vel" joint="leaf_1_slide"/>
+  </sensor>
+</mujoco>

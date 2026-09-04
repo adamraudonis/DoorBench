@@ -1,0 +1,214 @@
+{
+ "schema_version": "1.0",
+ "id": "db0039_swing_single",
+ "index": 39,
+ "seed": 1176754261,
+ "family": "swing_single",
+ "context": "storefront_glass",
+ "use_case": "gym entrance",
+ "tags": [
+  "storefront_glass",
+  "swing",
+  "single_leaf",
+  "glass_frameless_19",
+  "glass_frameless",
+  "paddle_push_pull",
+  "lock:thumbturn_only",
+  "closer:floor_spring",
+  "hinge:pivot_center",
+  "worn"
+ ],
+ "extras": [],
+ "robot": {
+  "approach_side": "-y",
+  "is_push": false,
+  "robot_outside": true,
+  "start_distance_m": 2.1
+ },
+ "leaf": {
+  "width": 0.914,
+  "height": 2.134,
+  "thickness": 0.019,
+  "slab": "glass_frameless_19",
+  "panel_style": "glass_frameless",
+  "finish": {
+   "kind": "glass",
+   "color": "glass_clear",
+   "rgba": [
+    0.85,
+    0.92,
+    0.95,
+    0.25
+   ],
+   "texture": null,
+   "roughness": 0.05,
+   "metallic": 0.0
+  },
+  "count": 1,
+  "glazing": {
+   "material": "glass_frosted",
+   "thickness": 0.012,
+   "area_fraction": 0.95,
+   "panel_style": "glass_frameless",
+   "count": 1
+  }
+ },
+ "opening": {
+  "width": 0.923,
+  "height": 2.147,
+  "wall_thickness": 0.145,
+  "frame": {
+   "kind": "aluminum_storefront",
+   "material": "aluminum",
+   "casing": false,
+   "stop_depth": 0.012,
+   "jamb_depth": 0.114
+  },
+  "threshold": "saddle",
+  "sidelite": false,
+  "transom": false
+ },
+ "hinge": {
+  "model": "pivot_center",
+  "count": 2,
+  "side": "right",
+  "swing": "pull",
+  "axis_tilt_deg": 0
+ },
+ "kinematics": {
+  "type": "hinge_vertical",
+  "max_open_deg": 90,
+  "stop": "overhead_90"
+ },
+ "operator": {
+  "model": "paddle_push_pull",
+  "height": 0.965,
+  "sides": "both"
+ },
+ "latch": {
+  "model": "mortise_latch"
+ },
+ "lock": {
+  "model": "thumbturn_only",
+  "engaged": false,
+  "robot_side_release": true
+ },
+ "closer": {
+  "model": "floor_spring",
+  "en_size": null,
+  "spring_adjust": 1.15
+ },
+ "seal": "brush_pile",
+ "condition": "worn",
+ "task": "hold_and_pass",
+ "physics": {
+  "mass": {
+   "slab_kg": 4.632380500000003,
+   "slab_area_density_kg_m2": 47.5,
+   "glass_kg": 55.58856599999999,
+   "hardware_kg": 4.2,
+   "hardware_parts": {
+    "operator": 1.8,
+    "lock": 0.4,
+    "hinges_half": 2.0
+   },
+   "total_kg": 64.4209465,
+   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+   "source": "Soda-lime glass 2,500 kg/m^3 (ASTM C1036); tempered same density"
+  },
+  "hinge": {
+   "coulomb_torque_Nm": 2.101243890139083,
+   "bearing_mu": 0.05,
+   "bearing_note": "Floor pivot w/ thrust bearing",
+   "pin_radius_m": 0.012,
+   "thrust_radius_m": 0.02,
+   "condition_multiplier": 2.0,
+   "seal_contribution_Nm": 0.42627131999999995,
+   "stick_torque_Nm": 0.5,
+   "formula": "mu*(m*g*r_thrust + 2*F_h*r_pin)*k_cond + seal_steady; F_h = m g (W/2)/span; seal_steady = min(3, 0.03*R*L*W/2) (gasket compression itself is the soft stop contact)",
+   "air_damping_Nms_per_rad": 0.2689657273194771,
+   "total_damping_symmetric": 8.268965727319477
+  },
+  "closer": {
+   "model": "floor_spring",
+   "kind": "floor_spring",
+   "spring_stiffness_Nm_per_rad": 14.514930809980854,
+   "spring_preload_Nm": 29.9,
+   "damping_closing": 90.0,
+   "damping_opening": 8.0,
+   "en_size": 4,
+   "hold_open_rad": 1.5708,
+   "backcheck_angle_rad": 1.4,
+   "backcheck_damping": 60.0,
+   "latch_boost": 1.3,
+   "closing_time_est_s": 3.953999999999786,
+   "formula": "tau(theta) = tau0 + k*theta; tau0 = 1.15*EN1154 closing moment(size); tau90 = 0.85*EN1154 opening moment",
+   "source": "EN 1154:1996 Table 1"
+  },
+  "inertia_about_hinge_kg_m2": 17.94093833757854,
+  "latch": {
+   "model": "mortise_latch",
+   "kind": "mortise_latch",
+   "throw_m": 0.019,
+   "bolt_spring_preload_N": 5.5,
+   "bolt_spring_rate_N_per_m": 550,
+   "holding_force_N": 0,
+   "yield_force_N": 6000,
+   "backset_m": 0.07,
+   "operator_travel": 0.4,
+   "operator_dead_travel": 0.03,
+   "operator_spring_preload": 0.6,
+   "operator_spring_rate": 1.5,
+   "operator_yield": 30.0,
+   "operator_grip_offset_m": 0.09,
+   "coupling": {
+    "type": "polynomial",
+    "bolt_q = c0 + c1*op_q": [
+     0.0,
+     -0.05135135135135135
+    ],
+    "dead_travel": 0.03
+   }
+  },
+  "lock": {
+   "model": "thumbturn_only",
+   "kind": "thumbturn_only",
+   "engaged": false,
+   "robot_side_release": true,
+   "outside_release": "none_locked",
+   "inside_release": "thumbturn",
+   "handle_backlash_locked_rad": 0.04,
+   "deadbolt_throw_m": 0.0254,
+   "thumbturn_travel_rad": 1.5708,
+   "thumbturn_torque_Nm": 0.3,
+   "chain_slack_m": 0.0,
+   "code": null
+  },
+  "damage": {
+   "leaf_dent_force_N": 1500.0,
+   "leaf_puncture_force_N": 1500,
+   "glass_break_force_N": 1500,
+   "operator_yield_torque_Nm": 30.0,
+   "latch_shear_yield_N": 6000,
+   "hinge_tearout_force_N": 19613.3,
+   "slam_velocity_rad_s": 4.0,
+   "slam_impulse_Ns": 25.768378600000002,
+   "frame_impact_force_N": 3000.0,
+   "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
+  },
+  "compliance": {
+   "opening_force_start_N": 39.44325714822703,
+   "opening_force_90deg_N": 66.50636394434353,
+   "operator_force_N": 13.333333333333336,
+   "ada_interior_5lbf_ok": null,
+   "ibc_fire_exterior_ok": true,
+   "hardware_operable_5lbf_ok": true,
+   "panic_unlatch_15lbf_ok": null,
+   "lever_or_ada_hardware": true,
+   "handle_height_ada_ok": true,
+   "clear_width_ada_ok": true,
+   "notes": "ADA 2010 \u00a7404.2.9 (5 lbf interior), IBC \u00a71010.1.3 (30 lbf set in motion / 15 lbf full open), \u00a71010.1.10 (panic 15 lbf)"
+  },
+  "gravity": 9.80665
+ }
+}

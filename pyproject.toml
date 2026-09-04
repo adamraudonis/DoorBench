@@ -1,0 +1,35 @@
+[project]
+name = "doorbench"
+version = "0.1.0"
+description = "DoorBench: a physics-grounded dataset and benchmark of 1000+ articulated doors for humanoid robot simulation (MJCF / URDF / USD)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Adam Raudonis" }]
+dependencies = [
+  "numpy>=1.26",
+  "trimesh>=4.0",
+  "shapely>=2.0",
+  "mapbox-earcut",
+  "manifold3d",
+  "scipy",
+  "pillow",
+  "pyyaml",
+  "lxml",
+]
+
+[project.optional-dependencies]
+mujoco = ["mujoco>=3.1"]
+usd = ["usd-core>=24.0"]
+all = ["mujoco>=3.1", "usd-core>=24.0", "gymnasium>=0.29"]
+dev = ["pytest"]
+
+[project.scripts]
+doorbench = "doorbench.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["doorbench*"]

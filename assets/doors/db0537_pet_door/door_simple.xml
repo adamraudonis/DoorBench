@@ -1,0 +1,55 @@
+<?xml version="1.0" ?>
+<mujoco model="db0537_pet_door_simple">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_frame" rgba="0.92 0.92 0.9 1" specular="0.2" shininess="0.6" reflectance="0"/>
+    <material name="mat_flap" rgba="0.85 0.9 0.95 0.45" specular="0.2" shininess="0.7" reflectance="0.1"/>
+    <material name="mat_magnet" rgba="0.55 0.56 0.58 1" specular="0.8" shininess="0.55" reflectance="0.4"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -1.875 0.78" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 1.875 0.78" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="1.425 -1.575 1.08" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.48 -0.8 0.585" xyaxes="0.97561 0.219512 0 -0.070934 0.315262 0.94635" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="wall_left" type="box" size="0.4225 0.125 1.05" pos="-0.5775 0 1.05" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_right" type="box" size="0.4225 0.125 1.05" pos="0.5775 0 1.05" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_header" type="box" size="0.155 0.125 0.77" pos="0 0 1.33" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="pet_frame_l" type="box" size="0.02 0.131 0.295" pos="-0.175 0 0.305" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+    <geom name="pet_frame_r" type="box" size="0.02 0.131 0.295" pos="0.175 0 0.305" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+    <geom name="pet_frame_t" type="box" size="0.155 0.131 0.02" pos="0 0 0.58" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+    <geom name="pet_sill" type="box" size="0.155 0.131 0.006" pos="0 0 0.044" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+    <site name="approach_point" pos="0 -1 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 0.305" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="flap" pos="0 0 0.56">
+      <inertial pos="0 0 -0.25" mass="0.96" quat="-0.5 0.5 0.5 0.5" diaginertia="0.00691616 0.01968256 0.02659616"/>
+      <joint name="flap_hinge" type="hinge" axis="1 0 0" limited="true" range="-1.919862 1.919862" damping="0.010731" frictionloss="0.049279" armature="0.02"/>
+      <geom name="flap_geom" type="box" size="0.147 0.002 0.248" pos="0 0 -0.25" material="mat_flap" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1"/>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="flap_hinge_pos" joint="flap_hinge"/>
+    <jointvel name="flap_hinge_vel" joint="flap_hinge"/>
+  </sensor>
+</mujoco>

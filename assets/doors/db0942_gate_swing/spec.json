@@ -1,0 +1,202 @@
+{
+ "schema_version": "1.0",
+ "id": "db0942_gate_swing",
+ "index": 942,
+ "seed": 769612589,
+ "family": "gate_swing",
+ "context": "chain_link",
+ "use_case": "utility yard gate",
+ "tags": [
+  "gate",
+  "chain_link",
+  "chain_link_gate",
+  "gate_latch_fork"
+ ],
+ "extras": [],
+ "robot": {
+  "approach_side": "-y",
+  "is_push": false,
+  "robot_outside": true,
+  "start_distance_m": 1.6
+ },
+ "leaf": {
+  "width": 1.0,
+  "height": 1.2,
+  "thickness": 0.0003,
+  "slab": "chain_link_gate",
+  "panel_style": "mesh_panel",
+  "finish": {
+   "kind": "natural",
+   "color": "chain_link",
+   "rgba": [
+    0.7,
+    0.71,
+    0.72,
+    1
+   ],
+   "texture": null,
+   "roughness": 0.5,
+   "metallic": 0.9
+  },
+  "count": 1,
+  "glazing": null
+ },
+ "opening": {
+  "width": 1.012,
+  "height": 1.22,
+  "wall_thickness": 0.1,
+  "frame": {
+   "kind": "gate_posts",
+   "material": "steel_galvanized",
+   "casing": false,
+   "stop_depth": 0.0,
+   "jamb_depth": 0.1,
+   "post_size": 0.1
+  },
+  "threshold": "none",
+  "sidelite": false,
+  "transom": false,
+  "outdoor": true,
+  "ground_clearance": 0.1
+ },
+ "hinge": {
+  "model": "chain_link_hinge",
+  "count": 2,
+  "side": "right",
+  "swing": "pull",
+  "axis_tilt_deg": 0.0
+ },
+ "kinematics": {
+  "type": "hinge_vertical",
+  "max_open_deg": 180,
+  "stop": "none"
+ },
+ "operator": {
+  "model": "gate_latch_fork",
+  "height": 0.9,
+  "sides": "both"
+ },
+ "latch": {
+  "model": "fork_gravity"
+ },
+ "lock": {
+  "model": "none",
+  "engaged": false,
+  "robot_side_release": true
+ },
+ "closer": {
+  "model": "none",
+  "en_size": null,
+  "spring_adjust": 1.0
+ },
+ "seal": "none",
+ "condition": "sagging",
+ "task": "open_only",
+ "physics": {
+  "mass": {
+   "slab_kg": 2.826,
+   "slab_area_density_kg_m2": 2.355,
+   "glass_kg": 0.0,
+   "hardware_kg": 1.2,
+   "hardware_parts": {
+    "operator": 0.6,
+    "lock": 0.0,
+    "hinges_half": 0.6
+   },
+   "total_kg": 4.026,
+   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+   "source": "Frame \u2248 4 kg/m + 9 ga mesh 2.4 kg/m^2"
+  },
+  "hinge": {
+   "coulomb_torque_Nm": 0.24478575197999997,
+   "bearing_mu": 0.12,
+   "bearing_note": "Plain bearing butt hinge, lubricated",
+   "pin_radius_m": 0.008,
+   "thrust_radius_m": 0.01,
+   "condition_multiplier": 2.5,
+   "seal_contribution_Nm": 0.0,
+   "stick_torque_Nm": 6.0,
+   "formula": "mu*(m*g*r_thrust + 2*F_h*r_pin)*k_cond + seal_steady; F_h = m g (W/2)/span; seal_steady = min(3, 0.03*R*L*W/2) (gasket compression itself is the soft stop contact)",
+   "air_damping_Nms_per_rad": 0.21671999999999997,
+   "total_damping_symmetric": 0.21671999999999997
+  },
+  "closer": {
+   "model": "none",
+   "kind": "none",
+   "spring_stiffness_Nm_per_rad": 0.0,
+   "spring_preload_Nm": 0.0,
+   "damping_closing": 0.0,
+   "damping_opening": 0.0,
+   "en_size": null,
+   "hold_open_rad": null,
+   "backcheck_angle_rad": null,
+   "backcheck_damping": 0,
+   "latch_boost": 1.0
+  },
+  "inertia_about_hinge_kg_m2": 1.342000030195,
+  "latch": {
+   "model": "fork_gravity",
+   "kind": "gravity_bar",
+   "throw_m": 0.03,
+   "bolt_spring_preload_N": 0,
+   "bolt_spring_rate_N_per_m": 0,
+   "holding_force_N": 0,
+   "yield_force_N": 2000,
+   "backset_m": 0.0,
+   "operator_travel": 0.06,
+   "operator_dead_travel": 0.005,
+   "operator_spring_preload": 2.0,
+   "operator_spring_rate": 40.0,
+   "operator_yield": 200.0,
+   "operator_grip_offset_m": 0.04,
+   "coupling": {
+    "type": "polynomial",
+    "bolt_q = c0 + c1*op_q": [
+     0.0,
+     -0.5454545454545454
+    ],
+    "dead_travel": 0.005
+   }
+  },
+  "lock": {
+   "model": "none",
+   "kind": "none",
+   "engaged": false,
+   "robot_side_release": true,
+   "outside_release": "none",
+   "inside_release": "lever",
+   "handle_backlash_locked_rad": 0.05,
+   "deadbolt_throw_m": 0.0,
+   "thumbturn_travel_rad": 0.0,
+   "thumbturn_torque_Nm": 0.0,
+   "chain_slack_m": 0.0,
+   "code": null
+  },
+  "damage": {
+   "leaf_dent_force_N": 2000.0,
+   "leaf_puncture_force_N": 6000,
+   "glass_break_force_N": null,
+   "operator_yield_torque_Nm": 200.0,
+   "latch_shear_yield_N": 2000,
+   "hinge_tearout_force_N": 3138.1279999999997,
+   "slam_velocity_rad_s": 4.0,
+   "slam_impulse_Ns": 1.6104,
+   "frame_impact_force_N": 3000.0,
+   "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
+  },
+  "compliance": {
+   "opening_force_start_N": 6.787810599978262,
+   "opening_force_90deg_N": 0.26607146954347827,
+   "operator_force_N": 0.0,
+   "ada_interior_5lbf_ok": null,
+   "ibc_fire_exterior_ok": true,
+   "hardware_operable_5lbf_ok": true,
+   "panic_unlatch_15lbf_ok": null,
+   "lever_or_ada_hardware": false,
+   "handle_height_ada_ok": true,
+   "clear_width_ada_ok": true,
+   "notes": "ADA 2010 \u00a7404.2.9 (5 lbf interior), IBC \u00a71010.1.3 (30 lbf set in motion / 15 lbf full open), \u00a71010.1.10 (panic 15 lbf)"
+  },
+  "gravity": 9.80665
+ }
+}

@@ -1,0 +1,209 @@
+{
+ "schema_version": "1.0",
+ "id": "db0564_swing_single",
+ "index": 564,
+ "seed": 445247439,
+ "family": "swing_single",
+ "context": "institutional",
+ "use_case": "library door",
+ "tags": [
+  "institutional",
+  "swing",
+  "single_leaf",
+  "solid_core_pb",
+  "steel_flush",
+  "lever_straight",
+  "lock:electric_strike",
+  "closer:lcn_4040",
+  "hinge:butt_45_plain",
+  "worn"
+ ],
+ "extras": [],
+ "robot": {
+  "approach_side": "-y",
+  "is_push": false,
+  "robot_outside": false,
+  "start_distance_m": 2.15
+ },
+ "leaf": {
+  "width": 0.914,
+  "height": 2.134,
+  "thickness": 0.044,
+  "slab": "solid_core_pb",
+  "panel_style": "steel_flush",
+  "finish": {
+   "kind": "paint",
+   "color": "beige",
+   "rgba": [
+    0.82,
+    0.75,
+    0.62,
+    1
+   ],
+   "texture": null,
+   "roughness": 0.51,
+   "metallic": 0.0
+  },
+  "count": 1,
+  "glazing": null
+ },
+ "opening": {
+  "width": 0.921,
+  "height": 2.147,
+  "wall_thickness": 0.115,
+  "frame": {
+   "kind": "hollow_metal_frame",
+   "material": "steel_painted",
+   "casing": false,
+   "stop_depth": 0.016,
+   "jamb_depth": 0.146
+  },
+  "threshold": "none",
+  "sidelite": false,
+  "transom": false
+ },
+ "hinge": {
+  "model": "butt_45_plain",
+  "count": 3,
+  "side": "left",
+  "swing": "pull",
+  "axis_tilt_deg": 0
+ },
+ "kinematics": {
+  "type": "hinge_vertical",
+  "max_open_deg": 90,
+  "stop": "wall_bumper"
+ },
+ "operator": {
+  "model": "lever_straight",
+  "height": 0.965,
+  "sides": "both"
+ },
+ "latch": {
+  "model": "deadlatch_grade1"
+ },
+ "lock": {
+  "model": "electric_strike",
+  "engaged": true,
+  "robot_side_release": true
+ },
+ "closer": {
+  "model": "lcn_4040",
+  "en_size": null,
+  "spring_adjust": 1.28
+ },
+ "seal": "automatic_drop_seal",
+ "condition": "worn",
+ "task": "unlock_open_traverse",
+ "physics": {
+  "mass": {
+   "slab_kg": 56.407765919999996,
+   "slab_area_density_kg_m2": 28.919999999999998,
+   "glass_kg": 0.0,
+   "hardware_kg": 6.38,
+   "hardware_parts": {
+    "operator": 1.4,
+    "lock": 0.9,
+    "closer": 3.6,
+    "hinges_half": 0.48
+   },
+   "total_kg": 62.78776592,
+   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+   "source": "VT Industries Technical Bulletin: Architectural wood door weights by core type PC-5 core 1-3/4in \u2248 5.5 lb/ft^2"
+  },
+  "hinge": {
+   "coulomb_torque_Nm": 2.5589985821896524,
+   "bearing_mu": 0.12,
+   "bearing_note": "Plain bearing butt hinge, lubricated",
+   "pin_radius_m": 0.0048,
+   "thrust_radius_m": 0.0075,
+   "condition_multiplier": 2.0,
+   "seal_contribution_Nm": 1.0656782999999999,
+   "stick_torque_Nm": 0.5,
+   "formula": "mu*(m*g*r_thrust + 2*F_h*r_pin)*k_cond + seal_steady; F_h = m g (W/2)/span; seal_steady = min(3, 0.03*R*L*W/2) (gasket compression itself is the soft stop contact)",
+   "air_damping_Nms_per_rad": 0.2689657273194771,
+   "total_damping_symmetric": 12.268965727319477
+  },
+  "closer": {
+   "model": "lcn_4040",
+   "kind": "surface_overhead",
+   "spring_stiffness_Nm_per_rad": 12.363155979378426,
+   "spring_preload_Nm": 33.28,
+   "damping_closing": 81.0,
+   "damping_opening": 12.0,
+   "en_size": 4,
+   "hold_open_rad": null,
+   "backcheck_angle_rad": 1.22,
+   "backcheck_damping": 60.0,
+   "latch_boost": 1.3,
+   "closing_time_est_s": 3.429999999999844,
+   "formula": "tau(theta) = tau0 + k*theta; tau0 = 1.15*EN1154 closing moment(size); tau90 = 0.85*EN1154 opening moment",
+   "source": "EN 1154:1996 Table 1"
+  },
+  "inertia_about_hinge_kg_m2": 17.494345925736532,
+  "latch": {
+   "model": "deadlatch_grade1",
+   "kind": "deadlatch",
+   "throw_m": 0.019,
+   "bolt_spring_preload_N": 6.0,
+   "bolt_spring_rate_N_per_m": 600,
+   "holding_force_N": 0,
+   "yield_force_N": 4500,
+   "backset_m": 0.07,
+   "operator_travel": 0.96,
+   "operator_dead_travel": 0.05,
+   "operator_spring_preload": 0.45,
+   "operator_spring_rate": 1.2,
+   "operator_yield": 25.0,
+   "operator_grip_offset_m": 0.115,
+   "coupling": {
+    "type": "polynomial",
+    "bolt_q = c0 + c1*op_q": [
+     0.0,
+     -0.02087912087912088
+    ],
+    "dead_travel": 0.05
+   }
+  },
+  "lock": {
+   "model": "electric_strike",
+   "kind": "electric_strike",
+   "engaged": true,
+   "robot_side_release": true,
+   "outside_release": "card",
+   "inside_release": "lever",
+   "handle_backlash_locked_rad": 0.09,
+   "deadbolt_throw_m": 0.0,
+   "thumbturn_travel_rad": 0.0,
+   "thumbturn_torque_Nm": 0.0,
+   "chain_slack_m": 0.0,
+   "code": null
+  },
+  "damage": {
+   "leaf_dent_force_N": 2600.0,
+   "leaf_puncture_force_N": 3800,
+   "glass_break_force_N": null,
+   "operator_yield_torque_Nm": 25.0,
+   "latch_shear_yield_N": 4500,
+   "hinge_tearout_force_N": 3530.394,
+   "slam_velocity_rad_s": 4.0,
+   "slam_impulse_Ns": 25.115106368,
+   "frame_impact_force_N": 3000.0,
+   "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
+  },
+  "compliance": {
+   "opening_force_start_N": 44.10072643469618,
+   "opening_force_90deg_N": 67.06189148323986,
+   "operator_force_N": 13.930434782608694,
+   "ada_interior_5lbf_ok": false,
+   "ibc_fire_exterior_ok": null,
+   "hardware_operable_5lbf_ok": true,
+   "panic_unlatch_15lbf_ok": null,
+   "lever_or_ada_hardware": true,
+   "handle_height_ada_ok": true,
+   "clear_width_ada_ok": true,
+   "notes": "ADA 2010 \u00a7404.2.9 (5 lbf interior), IBC \u00a71010.1.3 (30 lbf set in motion / 15 lbf full open), \u00a71010.1.10 (panic 15 lbf)"
+  },
+  "gravity": 9.80665
+ }
+}

@@ -1,0 +1,65 @@
+<?xml version="1.0" ?>
+<mujoco model="db0742_gate_swing_minimal">
+  <compiler angle="radian" meshdir="../../hardware" texturedir="../../textures" autolimits="true" inertiafromgeom="false"/>
+  <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10" noslip_iterations="3">
+    <flag multiccd="enable"/>
+  </option>
+  <size memory="16M"/>
+  <default>
+    <geom condim="4" solref="0.005 1" solimp="0.95 0.99 0.001"/>
+    <joint solreflimit="0.005 1" solimplimit="0.95 0.99 0.001"/>
+    <tendon solreflimit="0.005 1"/>
+    <equality solref="0.002 1"/>
+  </default>
+  <visual>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.7 0.7 0.7" specular="0.2 0.2 0.2"/>
+    <quality shadowsize="4096"/>
+    <map znear="0.01" zfar="60"/>
+  </visual>
+  <asset>
+    <mesh name="ring_cc5c941a8a" file="ring_cc5c941a8a.obj"/>
+    <material name="mat_floor" rgba="0.35 0.42 0.25 1" specular="0.2" shininess="0.15" reflectance="0"/>
+    <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_leaf" rgba="0.7 0.45 0.32 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_hinge" rgba="0.45 0.3 0.22 1" specular="0.5" shininess="0.1" reflectance="0.2"/>
+    <material name="mat_op_wrought_iron" rgba="0.08 0.08 0.09 1" specular="0.56" shininess="0.25" reflectance="0.24"/>
+    <material name="mat_frame" rgba="0.7 0.45 0.32 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <material name="mat_fence" rgba="0.7 0.45 0.32 1" specular="0.2" shininess="0.4" reflectance="0"/>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
+  </asset>
+  <worldbody>
+    <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
+    <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
+    <camera name="robot_view" pos="0 -1.875 1.035" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 1.875 1.035" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="1.425 -1.575 1.335" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.687 -0.8445 1.02" xyaxes="0.97561 0.219512 0 -0.070934 0.315262 0.94635" fovy="38"/>
+    <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
+    <geom name="post_hinge" type="box" size="0.05 0.05 0.6" pos="-0.656 0 0.6" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="350"/>
+    <geom name="post_latch" type="box" size="0.05 0.05 0.6" pos="0.656 0 0.6" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="350"/>
+    <geom name="gate_stop" type="box" size="0.02 0.012 0.06" pos="0.586 -0.0245 0.4" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="350"/>
+    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 0.51" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="leaf" pos="-0.606 0 0">
+      <inertial pos="0.634325 0 0.658497" mass="11.1924" quat="0.706174 -0.706807 -0.029519 -0.029512" diaginertia="0.887939002 1.435653055 2.319301835"/>
+      <joint name="leaf_hinge" type="hinge" axis="0 0 1" pos="0.003 0.0195 0" limited="true" range="0 1.919862" damping="1.374492" frictionloss="5.913009" stiffness="5" springref="-1.537382" armature="0.02"/>
+      <geom name="leaf_slab_col" type="box" size="0.6 0.0125 0.5" pos="0.603 0 0.65" material="mat_leaf" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.35 0.005 0.0001" density="1"/>
+      <geom name="leaf_rail_b" type="box" size="0.6 0.0125 0.0225" pos="0.603 0 0.1725" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_rail_t" type="box" size="0.6 0.0125 0.0225" pos="0.603 0 1.1275" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_stile_h" type="box" size="0.0225 0.0125 0.5" pos="0.0255 0 0.65" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_stile_l" type="box" size="0.0225 0.0125 0.5" pos="1.1805 0 0.65" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_ring_pull_n" type="mesh" mesh="ring_cc5c941a8a" pos="1.113 -0.0125 0.8" quat="0.707107 0.707107 0 0" material="mat_op_wrought_iron" group="1" contype="0" conaffinity="0" density="3000"/>
+      <geom name="leaf_ring_pull_col_n" type="capsule" size="0.008 0.05" pos="1.113 -0.0445 0.74" quat="0.707107 0 0.707107 0" material="mat_op_wrought_iron" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
+      <geom name="leaf_ring_pull_p" type="mesh" mesh="ring_cc5c941a8a" pos="1.113 0.0125 0.8" quat="-0.707107 0.707107 0 0" material="mat_op_wrought_iron" group="1" contype="0" conaffinity="0" density="3000"/>
+      <geom name="leaf_ring_pull_col_p" type="capsule" size="0.008 0.05" pos="1.113 0.0445 0.74" quat="0.707107 0 0.707107 0" material="mat_op_wrought_iron" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
+      <site name="leaf_ring_pull_grip_n" pos="1.113 -0.0445 0.74" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_ring_pull_grip_p" pos="1.113 0.0445 0.74" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_edge_mid" pos="1.203 0 0.5" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    </body>
+  </worldbody>
+  <sensor>
+    <jointpos name="leaf_hinge_pos" joint="leaf_hinge"/>
+    <jointvel name="leaf_hinge_vel" joint="leaf_hinge"/>
+  </sensor>
+</mujoco>

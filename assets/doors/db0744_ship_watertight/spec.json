@@ -1,0 +1,205 @@
+{
+ "schema_version": "1.0",
+ "id": "db0744_ship_watertight",
+ "index": 744,
+ "seed": 765544136,
+ "family": "ship_watertight",
+ "context": "marine",
+ "use_case": "offshore platform weathertight door",
+ "tags": [
+  "watertight",
+  "ship_watertight",
+  "wheel_ship_hatch",
+  "dogs6"
+ ],
+ "extras": [
+  "warning_placard"
+ ],
+ "robot": {
+  "approach_side": "-y",
+  "is_push": true,
+  "robot_outside": false,
+  "start_distance_m": 1.55
+ },
+ "leaf": {
+  "width": 0.7,
+  "height": 1.5,
+  "thickness": 0.008,
+  "slab": "ship_watertight",
+  "panel_style": "riveted_steel",
+  "finish": {
+   "kind": "powder_coat",
+   "color": "charcoal",
+   "rgba": [
+    0.2,
+    0.21,
+    0.23,
+    1
+   ],
+   "texture": null,
+   "roughness": 0.46,
+   "metallic": 0.05
+  },
+  "count": 1,
+  "glazing": null
+ },
+ "opening": {
+  "width": 0.71,
+  "height": 1.51,
+  "wall_thickness": 0.012,
+  "frame": {
+   "kind": "ship_coaming",
+   "material": "steel_painted",
+   "casing": true,
+   "stop_depth": 0.03,
+   "jamb_depth": 0.15
+  },
+  "threshold": "coaming",
+  "sidelite": false,
+  "transom": false,
+  "sill_height": 0.3
+ },
+ "hinge": {
+  "model": "ship_hinge",
+  "count": 2,
+  "side": "left",
+  "swing": "push",
+  "axis_tilt_deg": 0.0
+ },
+ "kinematics": {
+  "type": "hinge_vertical",
+  "max_open_deg": 110,
+  "stop": "hook_holdback",
+  "dogs": 0,
+  "wheel_dogging": true
+ },
+ "operator": {
+  "model": "wheel_ship_hatch",
+  "height": 0.75,
+  "sides": "both"
+ },
+ "latch": {
+  "model": "dogs_6"
+ },
+ "lock": {
+  "model": "dogs",
+  "engaged": true,
+  "robot_side_release": true
+ },
+ "closer": {
+  "model": "none",
+  "en_size": null,
+  "spring_adjust": 1.0
+ },
+ "seal": "watertight_rubber",
+ "condition": "worn",
+ "task": "unlock_open_traverse",
+ "physics": {
+  "mass": {
+   "slab_kg": 65.94,
+   "slab_area_density_kg_m2": 62.800000000000004,
+   "glass_kg": 0.0,
+   "hardware_kg": 6.6,
+   "hardware_parts": {
+    "operator": 5.0,
+    "lock": 0.0,
+    "hinges_half": 1.5,
+    "warning_placard": 0.1
+   },
+   "total_kg": 72.53999999999999,
+   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+   "source": "Quick-acting WT doors \u2248 90-120 kg/m^2"
+  },
+  "hinge": {
+   "coulomb_torque_Nm": 5.466097888799999,
+   "bearing_mu": 0.08,
+   "bearing_note": "Oil-impregnated bronze bushing",
+   "pin_radius_m": 0.01,
+   "thrust_radius_m": 0.015,
+   "condition_multiplier": 2.0,
+   "seal_contribution_Nm": 3.0,
+   "stick_torque_Nm": 0.5,
+   "formula": "mu*(m*g*r_thrust + 2*F_h*r_pin)*k_cond + seal_steady; F_h = m g (W/2)/span; seal_steady = min(3, 0.03*R*L*W/2) (gasket compression itself is the soft stop contact)",
+   "air_damping_Nms_per_rad": 0.06504308999999998,
+   "total_damping_symmetric": 0.06504308999999998
+  },
+  "closer": {
+   "model": "none",
+   "kind": "none",
+   "spring_stiffness_Nm_per_rad": 0.0,
+   "spring_preload_Nm": 0.0,
+   "damping_closing": 0.0,
+   "damping_opening": 0.0,
+   "en_size": null,
+   "hold_open_rad": null,
+   "backcheck_angle_rad": null,
+   "backcheck_damping": 0,
+   "latch_boost": 1.0
+  },
+  "inertia_about_hinge_kg_m2": 11.848586879999997,
+  "latch": {
+   "model": "dogs_6",
+   "kind": "dogs",
+   "throw_m": 0.03,
+   "bolt_spring_preload_N": 0.0,
+   "bolt_spring_rate_N_per_m": 0,
+   "holding_force_N": 0,
+   "yield_force_N": 50000,
+   "backset_m": 0.0,
+   "operator_travel": 9.4248,
+   "operator_dead_travel": 0.1,
+   "operator_spring_preload": 0.0,
+   "operator_spring_rate": 0.0,
+   "operator_yield": 500.0,
+   "operator_grip_offset_m": 0.18,
+   "coupling": {
+    "type": "polynomial",
+    "bolt_q = c0 + c1*op_q": [
+     0.0,
+     -0.0032172271791352093
+    ],
+    "dead_travel": 0.1
+   }
+  },
+  "lock": {
+   "model": "dogs",
+   "kind": "dogs",
+   "engaged": true,
+   "robot_side_release": true,
+   "outside_release": "lever",
+   "inside_release": "lever",
+   "handle_backlash_locked_rad": 0.04,
+   "deadbolt_throw_m": 0.0,
+   "thumbturn_travel_rad": 0.0,
+   "thumbturn_torque_Nm": 0.0,
+   "chain_slack_m": 0.0,
+   "code": null
+  },
+  "damage": {
+   "leaf_dent_force_N": 3500.0,
+   "leaf_puncture_force_N": 25000,
+   "glass_break_force_N": null,
+   "operator_yield_torque_Nm": 500.0,
+   "latch_shear_yield_N": 50000,
+   "hinge_tearout_force_N": 11767.98,
+   "slam_velocity_rad_s": 4.0,
+   "slam_impulse_Ns": 29.016,
+   "frame_impact_force_N": 3000.0,
+   "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
+  },
+  "compliance": {
+   "opening_force_start_N": 9.62273853032258,
+   "opening_force_90deg_N": 8.816286917419356,
+   "operator_force_N": 0.0,
+   "ada_interior_5lbf_ok": true,
+   "ibc_fire_exterior_ok": null,
+   "hardware_operable_5lbf_ok": true,
+   "panic_unlatch_15lbf_ok": null,
+   "lever_or_ada_hardware": false,
+   "handle_height_ada_ok": false,
+   "clear_width_ada_ok": false,
+   "notes": "ADA 2010 \u00a7404.2.9 (5 lbf interior), IBC \u00a71010.1.3 (30 lbf set in motion / 15 lbf full open), \u00a71010.1.10 (panic 15 lbf)"
+  },
+  "gravity": 9.80665
+ }
+}

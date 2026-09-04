@@ -1,0 +1,207 @@
+{
+ "schema_version": "1.0",
+ "id": "db0709_gate_swing",
+ "index": 709,
+ "seed": 1982731949,
+ "family": "gate_swing",
+ "context": "wrought_iron",
+ "use_case": "estate pedestrian gate",
+ "tags": [
+  "gate",
+  "wrought_iron",
+  "wrought_iron_gate",
+  "lever_euro_backplate"
+ ],
+ "extras": [],
+ "robot": {
+  "approach_side": "-y",
+  "is_push": false,
+  "robot_outside": true,
+  "start_distance_m": 1.45
+ },
+ "leaf": {
+  "width": 1.2,
+  "height": 1.8,
+  "thickness": 0.025,
+  "slab": "wrought_iron_gate",
+  "panel_style": "ornamental_scroll",
+  "finish": {
+   "kind": "powder_coat",
+   "color": "navy",
+   "rgba": [
+    0.09,
+    0.13,
+    0.28,
+    1
+   ],
+   "texture": null,
+   "roughness": 0.69,
+   "metallic": 0.05
+  },
+  "count": 1,
+  "glazing": null
+ },
+ "opening": {
+  "width": 1.212,
+  "height": 1.82,
+  "wall_thickness": 0.1,
+  "frame": {
+   "kind": "gate_posts",
+   "material": "wrought_iron",
+   "casing": false,
+   "stop_depth": 0.0,
+   "jamb_depth": 0.1,
+   "post_size": 0.15
+  },
+  "threshold": "none",
+  "sidelite": false,
+  "transom": false,
+  "outdoor": true,
+  "ground_clearance": 0.1
+ },
+ "hinge": {
+  "model": "strap_heavy",
+  "count": 2,
+  "side": "right",
+  "swing": "pull",
+  "axis_tilt_deg": 0.0
+ },
+ "kinematics": {
+  "type": "hinge_vertical",
+  "max_open_deg": 90,
+  "stop": "none"
+ },
+ "operator": {
+  "model": "lever_euro_backplate",
+  "height": 1.0,
+  "sides": "both"
+ },
+ "latch": {
+  "model": "mortise_euro"
+ },
+ "lock": {
+  "model": "deadbolt_double",
+  "engaged": false,
+  "robot_side_release": true
+ },
+ "closer": {
+  "model": "gate_hydraulic",
+  "en_size": null,
+  "spring_adjust": 1.0
+ },
+ "seal": "none",
+ "condition": "rusty",
+ "task": "hold_and_pass",
+ "physics": {
+  "mass": {
+   "slab_kg": 60.696,
+   "slab_area_density_kg_m2": 28.099999999999998,
+   "glass_kg": 0.0,
+   "hardware_kg": 7.0,
+   "hardware_parts": {
+    "operator": 1.6,
+    "lock": 0.6,
+    "closer": 1.8,
+    "hinges_half": 3.0
+   },
+   "total_kg": 67.696,
+   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+   "source": "Ornamental iron gates \u2248 25-35 kg/m^2"
+  },
+  "hinge": {
+   "coulomb_torque_Nm": 32.39690374591999,
+   "bearing_mu": 0.3,
+   "bearing_note": "Strap hinge on pintle (gate)",
+   "pin_radius_m": 0.0125,
+   "thrust_radius_m": 0.016,
+   "condition_multiplier": 6.0,
+   "seal_contribution_Nm": 0.0,
+   "stick_torque_Nm": 4.0,
+   "formula": "mu*(m*g*r_thrust + 2*F_h*r_pin)*k_cond + seal_steady; F_h = m g (W/2)/span; seal_steady = min(3, 0.03*R*L*W/2) (gasket compression itself is the soft stop contact)",
+   "air_damping_Nms_per_rad": 0.6740858879999999,
+   "total_damping_symmetric": 8.674085888
+  },
+  "closer": {
+   "model": "gate_hydraulic",
+   "kind": "gate",
+   "spring_stiffness_Nm_per_rad": 5.0,
+   "spring_preload_Nm": 44.71597486969599,
+   "damping_closing": 90.0,
+   "damping_opening": 8.0,
+   "en_size": 5,
+   "hold_open_rad": null,
+   "backcheck_angle_rad": null,
+   "backcheck_damping": 0.0,
+   "latch_boost": 1.3,
+   "note": "spring tension raised to 44.7 N*m to overcome 34.4 N*m hinge/seal friction",
+   "closing_time_est_s": 2.409999999999956,
+   "formula": "tau(theta) = tau0 + k*theta; tau0 = 1.15*EN1154 closing moment(size); tau90 = 0.85*EN1154 opening moment",
+   "source": "EN 1154:1996 Table 1"
+  },
+  "inertia_about_hinge_kg_m2": 32.49760583333333,
+  "latch": {
+   "model": "mortise_euro",
+   "kind": "mortise_latch",
+   "throw_m": 0.014,
+   "bolt_spring_preload_N": 4.0,
+   "bolt_spring_rate_N_per_m": 400,
+   "holding_force_N": 0,
+   "yield_force_N": 4000,
+   "backset_m": 0.055,
+   "operator_travel": 0.65,
+   "operator_dead_travel": 0.04,
+   "operator_spring_preload": 0.4,
+   "operator_spring_rate": 1.0,
+   "operator_yield": 25.0,
+   "operator_grip_offset_m": 0.12,
+   "coupling": {
+    "type": "polynomial",
+    "bolt_q = c0 + c1*op_q": [
+     0.0,
+     -0.02295081967213115
+    ],
+    "dead_travel": 0.04
+   }
+  },
+  "lock": {
+   "model": "deadbolt_double",
+   "kind": "deadbolt_double",
+   "engaged": false,
+   "robot_side_release": true,
+   "outside_release": "key",
+   "inside_release": "key",
+   "handle_backlash_locked_rad": 0.03,
+   "deadbolt_throw_m": 0.0254,
+   "thumbturn_travel_rad": 1.5708,
+   "thumbturn_torque_Nm": 0.35,
+   "chain_slack_m": 0.0,
+   "code": null
+  },
+  "damage": {
+   "leaf_dent_force_N": 4000.0,
+   "leaf_puncture_force_N": 30000,
+   "glass_break_force_N": null,
+   "operator_yield_torque_Nm": 25.0,
+   "latch_shear_yield_N": 4000,
+   "hinge_tearout_force_N": 15690.64,
+   "slam_velocity_rad_s": 4.0,
+   "slam_impulse_Ns": 27.078400000000002,
+   "frame_impact_force_N": 3000.0,
+   "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
+  },
+  "compliance": {
+   "opening_force_start_N": 72.10033654721421,
+   "opening_force_90deg_N": 75.52609799963597,
+   "operator_force_N": 8.75,
+   "ada_interior_5lbf_ok": null,
+   "ibc_fire_exterior_ok": false,
+   "hardware_operable_5lbf_ok": true,
+   "panic_unlatch_15lbf_ok": null,
+   "lever_or_ada_hardware": true,
+   "handle_height_ada_ok": true,
+   "clear_width_ada_ok": true,
+   "notes": "ADA 2010 \u00a7404.2.9 (5 lbf interior), IBC \u00a71010.1.3 (30 lbf set in motion / 15 lbf full open), \u00a71010.1.10 (panic 15 lbf)"
+  },
+  "gravity": 9.80665
+ }
+}

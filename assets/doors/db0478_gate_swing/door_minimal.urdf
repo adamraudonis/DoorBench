@@ -1,0 +1,133 @@
+<?xml version="1.0" ?>
+<robot xmlns:doorbench="https://github.com/adamraudonis/DoorBench/schema/urdf-ext" name="db0478_gate_swing_minimal">
+  <link name="world_env">
+    <visual name="floor_vis">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+      <material name="mat_floor"/>
+    </visual>
+    <collision name="floor_col">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_staple_vis">
+      <origin xyz="0.626 -0.0345 1" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.016 0.024"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+    <visual name="post_hinge_vis">
+      <origin xyz="-0.681 0 0.675" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.075" length="1.35"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="post_hinge_col">
+      <origin xyz="-0.681 0 0.675" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.075" length="1.35"/>
+      </geometry>
+    </collision>
+    <visual name="post_latch_vis">
+      <origin xyz="0.681 0 0.675" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.15 0.15 1.35"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="post_latch_col">
+      <origin xyz="0.681 0 0.675" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.15 0.15 1.35"/>
+      </geometry>
+    </collision>
+    <visual name="gate_stop_vis">
+      <origin xyz="0.586 -0.0345 0.35" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.024 0.12"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="gate_stop_col">
+      <origin xyz="0.586 -0.0345 0.35" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.024 0.12"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="leaf">
+    <inertial>
+      <origin xyz="0.606705 -0.029812 0.703529" rpy="0 0 0"/>
+      <mass value="19.098"/>
+      <inertia ixx="2.28948409" ixy="0.003353275" ixz="-0.037961602" iyy="4.624672147" iyz="0.001764882" izz="2.34187096"/>
+    </inertial>
+    <collision name="leaf_slab_col_col">
+      <origin xyz="0.6 -0.0295 0.7" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.2 0.045 1.2"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_rail_b_vis">
+      <origin xyz="0.6 -0.0295 0.13" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.2 0.045 0.06"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <visual name="leaf_rail_t_vis">
+      <origin xyz="0.6 -0.0295 1.27" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.2 0.045 0.06"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <visual name="leaf_stile_h_vis">
+      <origin xyz="0.03 -0.0295 0.7" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.045 1.2"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <visual name="leaf_stile_l_vis">
+      <origin xyz="1.17 -0.0295 0.7" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.045 1.2"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <visual name="leaf_hasp_vis">
+      <origin xyz="1.17 -0.056 1" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.12 0.006 0.04"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+  </link>
+  <joint name="leaf_hinge" type="revolute">
+    <origin xyz="-0.603 0.0295 0" rpy="0 0 0"/>
+    <parent link="world_env"/>
+    <child link="leaf"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="3.141593" effort="2000" velocity="10"/>
+    <dynamics damping="0.499391" friction="1.382494"/>
+    <doorbench:closer damping_closing="0" damping_opening="0" backcheck_angle="0" backcheck_damping="0"/>
+  </joint>
+  <material name="mat_floor">
+    <color rgba="0.35 0.42 0.25 1"/>
+  </material>
+  <material name="mat_frame">
+    <color rgba="0.65 0.66 0.68 1"/>
+  </material>
+  <material name="mat_leaf">
+    <color rgba="0.65 0.66 0.68 1"/>
+  </material>
+  <material name="mat_op_steel_galvanized">
+    <color rgba="0.65 0.66 0.68 1"/>
+  </material>
+</robot>

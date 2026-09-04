@@ -1,0 +1,45 @@
+name: Deploy site (catalogue + 3D viewer)
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Build viewer
+        working-directory: viewer
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+      - name: Assemble site (viewer + dataset assets)
+        run: |
+          mkdir -p site
+          cp -r viewer/dist/* site/
+          mkdir -p site/assets
+          cp assets/manifest.json site/assets/
+          cp -r assets/hardware site/assets/hardware
+          rsync -a --include='*/' --include='model.json' --include='spec.json' --include='qa.json' --include='thumb_*.jpg' --include='door.xml' --include='door_simple.xml' --include='door_minimal.xml' --include='scene.xml' --include='door.urdf' --include='door.usda' --exclude='*' assets/doors/ site/assets/doors/
+          touch site/.nojekyll
+          du -sh site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

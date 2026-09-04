@@ -1,0 +1,102 @@
+<?xml version="1.0" ?>
+<robot xmlns:doorbench="https://github.com/adamraudonis/DoorBench/schema/urdf-ext" name="db0393_turnstile_tripod_minimal">
+  <link name="world_env">
+    <visual name="floor_vis">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+      <material name="mat_floor"/>
+    </visual>
+    <collision name="floor_col">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+    </collision>
+    <visual name="cabinet_vis">
+      <origin xyz="-0.315 0 0.49" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.28 0.9 0.98"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="cabinet_col">
+      <origin xyz="-0.315 0 0.49" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.28 0.9 0.98"/>
+      </geometry>
+    </collision>
+    <visual name="guide_rail_post_vis">
+      <origin xyz="0.715 0 0.5" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.9 1"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="guide_rail_post_col">
+      <origin xyz="0.715 0 0.5" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.04 0.9 1"/>
+      </geometry>
+    </collision>
+    <visual name="hub_boss_vis">
+      <origin xyz="-0.04 0 0.93" rpy="0 1.570796 0"/>
+      <geometry>
+        <cylinder radius="0.04" length="0.27"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+  </link>
+  <link name="rotor">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="28.690546"/>
+      <inertia ixx="1.869150248" ixy="0" ixz="0" iyy="2.399744922" iyz="0.906810191" izz="2.399744922"/>
+    </inertial>
+    <visual name="tripod_mesh_vis">
+      <origin xyz="0 0 0" rpy="-0.785398 0 0"/>
+      <geometry>
+        <mesh filename="../../hardware/tripod_ae832648e5.obj"/>
+      </geometry>
+      <material name="mat_op_stainless"/>
+    </visual>
+    <collision name="arm_0_col_col">
+      <origin xyz="0.25 0 0" rpy="0 1.570796 0"/>
+      <geometry>
+        <cylinder radius="0.019" length="0.5"/>
+      </geometry>
+    </collision>
+    <collision name="arm_1_col_col">
+      <origin xyz="-0.125 0.153093 -0.153093" rpy="-2.356194 -0.523599 1.148367"/>
+      <geometry>
+        <cylinder radius="0.019" length="0.5"/>
+      </geometry>
+    </collision>
+    <collision name="arm_2_col_col">
+      <origin xyz="-0.125 -0.153093 0.153093" rpy="0.785398 -0.523599 -0.221072"/>
+      <geometry>
+        <cylinder radius="0.019" length="0.5"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rotor_hinge" type="revolute">
+    <origin xyz="0.115 0 0.93" rpy="0 0 0"/>
+    <parent link="world_env"/>
+    <child link="rotor"/>
+    <axis xyz="0 0.707107 0.707107"/>
+    <limit lower="-0.05" upper="0.05" effort="2000" velocity="10"/>
+    <dynamics damping="2" friction="3.084245"/>
+    <doorbench:ratchet one_way="true"/>
+    <doorbench:note text="locked until credential (env releases: set range None)"/>
+  </joint>
+  <material name="mat_floor">
+    <color rgba="0.35 0.42 0.25 1"/>
+  </material>
+  <material name="mat_frame">
+    <color rgba="0.75 0.76 0.77 1"/>
+  </material>
+  <material name="mat_op_stainless">
+    <color rgba="0.75 0.76 0.77 1"/>
+  </material>
+</robot>

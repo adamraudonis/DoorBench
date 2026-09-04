@@ -1,0 +1,144 @@
+<?xml version="1.0" ?>
+<robot xmlns:doorbench="https://github.com/adamraudonis/DoorBench/schema/urdf-ext" name="db0415_gate_sliding_full">
+  <link name="world_env">
+    <visual name="floor_vis">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+      <material name="mat_floor"/>
+    </visual>
+    <collision name="floor_col">
+      <origin xyz="0 0 -0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="12 12 0.1"/>
+      </geometry>
+    </collision>
+    <visual name="post_l_vis">
+      <origin xyz="-1.885 0.08 0.9" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.12 0.12 1.8"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="post_l_col">
+      <origin xyz="-1.885 0.08 0.9" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.12 0.12 1.8"/>
+      </geometry>
+    </collision>
+    <visual name="post_r_vis">
+      <origin xyz="1.885 0.08 0.9" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.12 0.12 1.8"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
+    <collision name="post_r_col">
+      <origin xyz="1.885 0.08 0.9" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.12 0.12 1.8"/>
+      </geometry>
+    </collision>
+    <visual name="gate_rail_vis">
+      <origin xyz="-1.8 -0.06 0.01" rpy="0 0 0"/>
+      <geometry>
+        <box size="7.6 0.06 0.02"/>
+      </geometry>
+      <material name="mat_track"/>
+    </visual>
+    <collision name="gate_rail_col">
+      <origin xyz="-1.8 -0.06 0.01" rpy="0 0 0"/>
+      <geometry>
+        <box size="7.6 0.06 0.02"/>
+      </geometry>
+    </collision>
+  </link>
+  <link name="leaf">
+    <inertial>
+      <origin xyz="0.005152 -0.000161 0.830512" rpy="0 0 0"/>
+      <mass value="149.237243"/>
+      <inertia ixx="27.91424688" ixy="0.040849463" ixz="-0.130316951" iyy="189.914696051" iyz="0.004061058" izz="162.004250414"/>
+    </inertial>
+    <collision name="leaf_slab_col_col">
+      <origin xyz="0 0 0.83" rpy="0 0 0"/>
+      <geometry>
+        <box size="3.6 0.006 1.5"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_rail_b_vis">
+      <origin xyz="0 0 0.1025" rpy="0 0 0"/>
+      <geometry>
+        <box size="3.6 0.006 0.045"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <visual name="leaf_rail_t_vis">
+      <origin xyz="0 0 1.5575" rpy="0 0 0"/>
+      <geometry>
+        <box size="3.6 0.006 0.045"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <visual name="leaf_stile_h_vis">
+      <origin xyz="-1.7775 0 0.83" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.045 0.006 1.5"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <visual name="leaf_stile_l_vis">
+      <origin xyz="1.7775 0 0.83" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.045 0.006 1.5"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <visual name="leaf_mesh_vis">
+      <origin xyz="0 0 0.83" rpy="0 0 0"/>
+      <geometry>
+        <box size="3.51 0.003 1.41"/>
+      </geometry>
+      <material name="mat_mesh_infill"/>
+    </visual>
+    <visual name="leaf_pull_n_vis">
+      <origin xyz="1.71 -0.003 1" rpy="1.570796 0 0"/>
+      <geometry>
+        <mesh filename="../../hardware/pull_1e5d69a91a.obj"/>
+      </geometry>
+      <material name="mat_op_stainless"/>
+    </visual>
+    <collision name="leaf_pull_col_n_col">
+      <origin xyz="1.71 -0.063 1" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.0095" length="0.16"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="leaf_slide" type="prismatic">
+    <origin xyz="0 -0.06 0" rpy="0 0 0"/>
+    <parent link="world_env"/>
+    <child link="leaf"/>
+    <axis xyz="-1 0 0"/>
+    <limit lower="0" upper="3.6" effort="5000" velocity="10"/>
+    <dynamics damping="9.5235" friction="354.14559"/>
+  </joint>
+  <material name="mat_floor">
+    <color rgba="0.35 0.42 0.25 1"/>
+  </material>
+  <material name="mat_frame">
+    <color rgba="0.65 0.66 0.68 1"/>
+  </material>
+  <material name="mat_leaf">
+    <color rgba="0.35 0.36 0.38 1"/>
+  </material>
+  <material name="mat_mesh_infill">
+    <color rgba="0.6 0.62 0.64 0.55"/>
+  </material>
+  <material name="mat_op_stainless">
+    <color rgba="0.75 0.76 0.77 1"/>
+  </material>
+  <material name="mat_track">
+    <color rgba="0.8 0.81 0.83 1"/>
+  </material>
+</robot>
