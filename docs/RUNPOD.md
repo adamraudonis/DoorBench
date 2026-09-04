@@ -87,7 +87,10 @@ bash isaaclab/cloud/eval.sh logs/rsl_rl/doorbench_hand/<run>/model_300.pt
 python scripts/runpod_pod.py terminate       # DELETE /v1/pods/<id>; the volume is deleted with the pod
 ```
 Copy results out first (`scp -i ~/.ssh/runpod_doorbench -P <port> -r root@<ip>:/workspace/DoorBench/results .`).
-A *stopped* pod still bills for its volume; *terminate* is the clean end. Revoke the API key in Settings when done.
+A *stopped* pod (`python scripts/runpod_pod.py stop`) pauses GPU billing and keeps `/workspace`, but it is tied to
+its host: `start` fails with `There are not enough free GPUs on the host machine` whenever that host is busy
+(it happened to us after a 3-hour pause). Treat stop/start as a short pause only; for anything longer, copy your
+results out and *terminate*, then re-create + bootstrap (~25 min, fully scripted). Revoke the API key in Settings when done.
 
 ## Troubleshooting log (what went wrong for us, so it does not for you)
 

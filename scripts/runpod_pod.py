@@ -9,6 +9,7 @@ Replicable one-command flow (see docs/RUNPOD.md):
     python scripts/runpod_pod.py bootstrap        # copies scripts/pod_bootstrap.sh and runs it in tmux (~25 min)
     python scripts/runpod_pod.py ssh              # interactive shell
     python scripts/runpod_pod.py status           # GPU, cost/h, uptime, spend so far
+    python scripts/runpod_pod.py stop / start     # pause GPU billing keeping /workspace, resume later
     python scripts/runpod_pod.py terminate        # stops billing (volume is deleted too)
 
 The pod id is remembered in ~/.runpod/doorbench_pod.json.  Only uses the standard library.
@@ -113,6 +114,7 @@ def cmd_wait(a):
         ip, pm = pod.get("publicIp"), pod.get("portMappings") or {}
         if ip and pm.get("22"):
             st = _state(); st.update({"ip": ip, "port": pm["22"], "gpu": (pod.get("gpu") or {}).get("displayName")}); _save(st)
+            (STATE.parent / "ssh").write_text(f"{ip} {pm['22']}\n")      # `read IP PORT < ~/.runpod/ssh` for shell one-liners
             print(f"ssh -i {KEY_FILE} -p {pm['22']} root@{ip}")
             return
         print("waiting for public IP / port 22 ...", pod.get("desiredStatus"), flush=True)
@@ -149,6 +151,21 @@ def cmd_status(a):
                       "hours_since_create": round(hours, 2), "spend_estimate_usd": round(hours * float(pod.get("costPerHr") or 0), 2)}, indent=1))
 
 
+def cmd_stop(a):
+    """Stop the pod: GPU billing stops, the /workspace volume (and its install) is kept (volume storage is still billed)."""
+    st = _state()
+    _req("POST", f"/pods/{st['id']}/stop")
+    print(f"stopped pod {st['id']} (GPU billing paused; `start` resumes with the same /workspace)")
+
+
+def cmd_start(a):
+    """Resume a stopped pod (the public IP / SSH port usually change: run `wait` afterwards)."""
+    st = _state()
+    _req("POST", f"/pods/{st['id']}/start")
+    st.pop("ip", None); st.pop("port", None); _save(st)
+    print(f"start requested for pod {st['id']} - run `wait` next")
+
+
 def cmd_terminate(a):
     st = _state()
     _req("DELETE", f"/pods/{st['id']}")
@@ -164,6 +181,8 @@ def main():
     p = sub.add_parser("ssh"); p.add_argument("cmd", nargs="*"); p.set_defaults(f=cmd_ssh)
     sub.add_parser("bootstrap").set_defaults(f=cmd_bootstrap)
     sub.add_parser("status").set_defaults(f=cmd_status)
+    sub.add_parser("stop").set_defaults(f=cmd_stop)
+    sub.add_parser("start").set_defaults(f=cmd_start)
     sub.add_parser("terminate").set_defaults(f=cmd_terminate)
     a = ap.parse_args(); a.f(a)
 
