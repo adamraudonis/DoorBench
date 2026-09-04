@@ -11,7 +11,7 @@ Fable subagent working in its own git worktree (merged by main).
 | G1 | Force-driven QA sign-off (load all tiers, settle, hold, actuate, latch return, relatch, closer return, URDF/USD) | done | main | 1000/1000 pass; `doorbench/qa.py` |
 | G2 | Deterministic kinematic clearance gate: sweep every joint of every door with all geometry collidable, flag any interpenetration > 2 mm | doing | main | `doorbench/clearance.py`, `scripts/clearance_report.py`; 934/1000 clean, remaining tail being fixed; to be wired into `qa.json` + manifest + viewer badge |
 | G3 | Lock/latch mechanism realism inspection (every operator/latch/lock type rendered close-up and reviewed; missing barrels, guides, keepers, strikes, housings) | todo | agent:locks | first finding: db0006 heavy slide bolt has no barrel/guides/keeper (user report) |
-| G4 | pytest: MuJoCo import of every family + QA smoke test | todo | agent:mujoco | `tests/test_mujoco_import.py` |
+| G4 | pytest: MuJoCo import of every family + QA smoke test | done | agent:mujoco | `tests/test_mujoco_import.py`: 30 family representatives + 20 seeded random doors; all MJCF tiers + scene.xml + door.urdf load, 500 free steps (no warnings, finite), `run_qa` hold / actuate / locked / relatch / closer, `DoorEnv` 200-step hand episode + labels, clearance gate on 10 doors; 267 tests, ~5 s (`pytest -q tests/`) |
 
 ## Dataset / physics
 
@@ -28,7 +28,7 @@ Fable subagent working in its own git worktree (merged by main).
 | B1 | DoorEnv + LabelTracker (touched / actuated / unlatched / opened / traversed / damaged …) | done | main | `doorbench/benchmark/` |
 | B2 | Scenario + reward spec per door: start zone (randomisable), approach point, pass plane, goal zone, reward events (touch handle, unlatch, open, traverse, close), time budget / expected transit time; scenarios: open-and-traverse, open-then-close, hold-open-for-human, wait-for-human, close-behind | todo | agent:bench | emitted into `spec.json["benchmark"]` + `docs/BENCHMARK.md` |
 | B3 | Viewer "Show evaluation" overlay (default off): start/goal zones, reward markers, human path, expected transit time | todo | agent:bench | `viewer/src/DoorView.tsx` |
-| B4 | MuJoCo physics demo video: door opened by a programmatic hand, rendered to mp4 | todo | agent:mujoco | `scripts/demo_mujoco.py` |
+| B4 | MuJoCo physics demo video: door opened by a programmatic hand, rendered to mp4 | done | agent:mujoco | `scripts/demo_mujoco.py`: hand drives operator joints / keypad keys / handwheel through `DoorEnv`, synthetic robot base passes, HUD with joint states + LabelTracker labels; 7 doors (lever+closer, patio slider hook lock, garage sectional, revolving, panic pair, vault, keypad) in `docs/media/demo_<id>.mp4|gif`, README section. Side fixes in `benchmark/labels.py`: multi-operator + all lock/latch joints from IR roles (pairs, vaults, hooks, dogs), touch marking for programmatic hands, overload must be sustained (joint-stop impulses are not damage), `DoorEnv.close()` |
 | B5 | Real humanoid in the loop: Unitree G1/H1 (MuJoCo Menagerie, BSD) walking through a DoorBench door with an off-the-shelf pretrained policy (unitree_rl_gym sim2sim); GPU rental only if CPU inference is too slow | todo | agent:robot | licence check first; report feasibility + video |
 
 ## Viewer / site

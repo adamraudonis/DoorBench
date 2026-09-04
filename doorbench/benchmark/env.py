@@ -71,6 +71,10 @@ class DoorEnv:
         self.robot_bodies = robot_bodies
         self.pj = self._jid(self.meta.get("primary_joint"))
         self.oj = self._jid(self.meta.get("operator_joint")) if self.meta.get("operator_joint") else -1
+        # joint names by IR role (present in this tier): operators (both leaves of a pair) and lock parts
+        self.operator_joints = [j["name"] for b in self.model_json["bodies"] if (j := b.get("joint")) and j.get("role") == "operator" and self._jid(j["name"]) >= 0]
+        self.lock_joints = [j["name"] for b in self.model_json["bodies"] if (j := b.get("joint")) and j.get("role") == "lock" and self._jid(j["name"]) >= 0]
+        self.latch_joints = [j["name"] for b in self.model_json["bodies"] if (j := b.get("joint")) and j.get("role") == "latch" and self._jid(j["name"]) >= 0]
         self._install_passive_callback()
         self.tracker = None
         self.task = self.spec.get("task", "open_and_traverse")
@@ -161,7 +165,7 @@ class DoorEnv:
         if randomize:
             self._domain_randomize()
         mujoco.mj_forward(self.m, self.d)
-        self.tracker = LabelTracker(self.m, self.spec, self.meta, self.robot_bodies, self.robot_base)
+        self.tracker = LabelTracker(self.m, self.spec, self.meta, self.robot_bodies, self.robot_base, operator_joints=self.operator_joints, lock_joints=self.lock_joints, latch_joints=self.latch_joints)
         self.tracker.L.task = self.task
         self.unlocked_by_env = False
         self._t0 = self.d.time
@@ -256,6 +260,8 @@ class DoorEnv:
             self.tracker.L.notes.append(f"badge presented at t={self.d.time:.2f}")
 
     # --- programmatic hand -------------------------------------------------
+    # Without a robot model there are no robot geoms, so the tracker cannot see contacts: applying a wrench with
+    # these helpers counts as the hand touching the door (grip / push sites and operator joints -> the operator).
     def apply_site_force(self, site_name: str, force_xyz, torque_xyz=(0, 0, 0)):
         sid = self.mj.mj_name2id(self.m, self.mj.mjtObj.mjOBJ_SITE, site_name)
         if sid < 0:
@@ -263,10 +269,22 @@ class DoorEnv:
         bid = self.m.site_bodyid[sid]
         pos = self.d.site_xpos[sid]
         self.mj.mj_applyFT(self.m, self.d, np.asarray(force_xyz, float), np.asarray(torque_xyz, float), pos, bid, self.d.qfrc_applied)
+        if self.tracker:
+            self.tracker.mark_touch(self.d, operator=("grip" in site_name or "push" in site_name))
 
     def apply_joint_torque(self, joint_name: str, tau: float):
         j = self._jid(joint_name)
+        if j < 0:
+            raise KeyError(joint_name)
         self.d.qfrc_applied[self.m.jnt_dofadr[j]] += tau
+        if self.tracker and tau:
+            self.tracker.mark_touch(self.d, operator=joint_name in self.operator_joints)
+
+    def close(self):
+        """Remove the global passive-force callback (it references this env's model); call when done with the env."""
+        if getattr(self, "_cb", None) is not None:
+            self.mj.set_mjcb_passive(None)
+            self._cb = None
 
     def grip_sites(self):
         return [self.mj.mj_id2name(self.m, self.mj.mjtObj.mjOBJ_SITE, i) for i in range(self.m.nsite) if "grip" in (self.mj.mj_id2name(self.m, self.mj.mjtObj.mjOBJ_SITE, i) or "") or "push" in (self.mj.mj_id2name(self.m, self.mj.mjtObj.mjOBJ_SITE, i) or "")]

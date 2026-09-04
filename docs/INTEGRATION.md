@@ -10,6 +10,13 @@ m = mujoco.MjModel.from_xml_path("assets/doors/db0002_swing_single/door.xml")   
 * Meshes resolve via `meshdir="../../hardware"`; keep the folder structure or edit `<compiler meshdir>`.
 * Merge with a robot using `mujoco.MjSpec` (see `doorbench/benchmark/env.py::_merge_with_robot`).
 * MJX: use `door_simple.xml` / `door_minimal.xml` (primitives only, no tendon limits in `minimal`).
+* Import / physics test over the generated dataset (one door per family + 20 seeded random doors; all tiers,
+  `scene.xml`, `door.urdf`, 500 free steps, QA hold / actuate / relatch / closer, `DoorEnv` episode, clearance gate):
+
+  ```bash
+  pytest -q tests/test_mujoco_import.py            # ~5 s; DOORBENCH_ASSETS=<dir> to test another dataset directory
+  python scripts/demo_mujoco.py --ids db0002_swing_single --out /tmp/demo    # video of a programmatic hand opening it
+  ```
 
 ## Isaac Sim / Isaac Lab (USD)
 

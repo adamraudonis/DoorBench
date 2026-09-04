@@ -64,10 +64,26 @@ class EpisodeLabels:
         return asdict(self)
 
 
-class LabelTracker:
-    """Stateful per-step labeller.  Construct once per episode."""
+# lock-role joints that a robot withdraws to release a lock (0 = engaged, + = withdrawn); ALL of them must be
+# withdrawn for `lock_released`.  Coupled parts (thumbturn + deadbolt, wheel + bolts, handle + hook) move together.
+LOCK_RELEASE_PATTERNS = ("deadbolt_slide", "deadbolt_thumbturn_hinge", "aux_bolt_slide", "slide_bolt_slide", "slide_latch_slide",
+                         "hook_hinge", "hook_thumbturn_hinge", "join_bolt_slide", "dog_", "bolt_", "garage_slide_lock_slide",
+                         "hatch_bolt_slide", "pin_slide")
+# momentary buttons: ANY press releases (REX button on a maglock, elevator call button)
+RELEASE_BUTTON_PATTERNS = ("rex_button_slide", "call_button_slide")
+# joints that are driven by the environment / by other lock parts and never count as a robot-side release
+LOCK_IGNORE_PATTERNS = ("keypad_key_", "lock_bar_", "electric_bolt_slide")
+LEGACY_LOCK_JOINTS = ("leaf_deadbolt_thumbturn_hinge", "rex_button_slide", "leaf_aux_bolt_slide", "slide_latch_slide", "leaf_slide_bolt_slide", "leaf_pin_slide", "leaf_deadbolt_slide")
 
-    def __init__(self, model, spec: dict, meta: dict, robot_body_names: list[str] | None = None, robot_base_body: str | None = None, clearance_angle_deg: float = 60.0, clearance_travel_m: float = 0.55, robot_width_m: float = 0.5):
+
+class LabelTracker:
+    """Stateful per-step labeller.  Construct once per episode.
+
+    `operator_joints` / `lock_joints` are the joint names with role "operator" / "lock" in model.json (DoorEnv passes
+    them); without them the tracker falls back to `meta["operator_joint"]` and a fixed list of lock joint names.
+    """
+
+    def __init__(self, model, spec: dict, meta: dict, robot_body_names: list[str] | None = None, robot_base_body: str | None = None, clearance_angle_deg: float = 60.0, clearance_travel_m: float = 0.55, robot_width_m: float = 0.5, operator_joints: list[str] | None = None, lock_joints: list[str] | None = None, latch_joints: list[str] | None = None):
         import mujoco
         self.mj = mujoco
         self.m = model
@@ -80,11 +96,21 @@ class LabelTracker:
         self.robot_base = robot_base_body
         self.clear_angle = math.radians(clearance_angle_deg)
         self.clear_travel = clearance_travel_m
+        if spec.get("kinematics", {}).get("type") == "slide_vertical":
+            self.clear_travel = max(self.clear_travel, 1.9)      # overhead / garage / roll-up: the opening must clear the robot's height
         self.robot_width = robot_width_m
         # joint ids
         self.pj = self._jid(meta.get("primary_joint"))
         self.oj = self._jid(meta.get("operator_joint")) if meta.get("operator_joint") else -1
+        self.op_joints = [j for j in (self._jid(n) for n in (operator_joints or [])) if j >= 0] or ([self.oj] if self.oj >= 0 else [])
         self.bj = self._jid("leaf_latch_bolt_slide")
+        # latch parts (0 = extended, + = retracted); only those carried by the primary leaf, so the second leaf of a
+        # pair or the upper leaf of a dutch door does not hold `latch_released` back
+        lj = [j for j in (self._jid(n) for n in (latch_joints or [])) if j >= 0 and model.jnt_range[j][1] - model.jnt_range[j][0] > 1e-6]
+        if lj and self.pj >= 0:
+            under = [j for j in lj if self._under(model.jnt_bodyid[j], model.jnt_bodyid[self.pj])]
+            lj = under or lj
+        self.latch_joints = lj or ([self.bj] if self.bj >= 0 else [])
         self.is_hinge = self.pj >= 0 and int(model.jnt_type[self.pj]) == int(mujoco.mjtJoint.mjJNT_HINGE)
         self.open_thr = math.radians(10) if self.is_hinge else 0.10
         self.closed_thr = math.radians(3) if self.is_hinge else 0.03
@@ -113,9 +139,17 @@ class LabelTracker:
         self.approach_site = self._sid("approach_point")
         self._prev_side = None
         self._prev_qd = None
+        self._op_over = {}
         self._f = np.zeros(6)
         self.lock_engaged = bool(spec.get("lock", {}).get("engaged"))
-        self.lock_release_joints = [self._jid(n) for n in ("leaf_deadbolt_thumbturn_hinge", "rex_button_slide", "leaf_aux_bolt_slide", "slide_latch_slide", "leaf_slide_bolt_slide", "leaf_pin_slide", "leaf_deadbolt_slide") if self._jid(n) >= 0]
+        self.lock_releasable = bool(spec.get("lock", {}).get("robot_side_release", True))
+        names = list(lock_joints) if lock_joints is not None else [n for n in LEGACY_LOCK_JOINTS if self._jid(n) >= 0]
+        names = [n for n in names if self._jid(n) >= 0 and not any(p in n for p in LOCK_IGNORE_PATTERNS)]
+        self.release_buttons = [self._jid(n) for n in names if any(p in n for p in RELEASE_BUTTON_PATTERNS)]
+        self.lock_release_joints = [self._jid(n) for n in names if any(p in n for p in LOCK_RELEASE_PATTERNS) and not any(p in n for p in RELEASE_BUTTON_PATTERNS)]
+        # a lift pin (gates, baby gates) is modelled as the operator but is what releases the lock
+        self.lock_release_joints += [j for j in range(model.njnt) if "pin_slide" in (mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j) or "")]
+        self.lock_release_joints = [j for j in dict.fromkeys(self.lock_release_joints) if model.jnt_range[j][1] - model.jnt_range[j][0] > 1e-6]
         self.keypad_joints = {mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j): j for j in range(model.njnt) if "keypad_key_" in (mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j) or "")}
         self.code = spec.get("lock", {}).get("code")
         self._key_seq = []
@@ -128,6 +162,17 @@ class LabelTracker:
 
     def _sid(self, name):
         return self.mj.mj_name2id(self.m, self.mj.mjtObj.mjOBJ_SITE, name)
+
+    def _under(self, body: int, ancestor: int) -> bool:
+        """True if `body` is `ancestor` or one of its descendants."""
+        b = int(body)
+        for _ in range(32):
+            if b == ancestor:
+                return True
+            if b == 0:
+                return False
+            b = int(self.m.body_parentid[b])
+        return False
 
     def q(self, d, j):
         return float(d.qpos[self.m.jnt_qposadr[j]]) if j >= 0 else 0.0
@@ -167,27 +212,31 @@ class LabelTracker:
                     if fn > thr:
                         self._damage(d, "impact", mj.mj_id2name(m, mj.mjtObj.mjOBJ_GEOM, other), fn, thr)
         L.max_leaf_contact_force = max(L.max_leaf_contact_force, max_leaf_f)
-        # ---- operator
-        if self.oj >= 0:
-            lo, hi = m.jnt_range[self.oj]
-            qo = self.q(d, self.oj)
+        # ---- operator(s): any operator joint (both touch bars of a pair count) at >= 70 % of its travel
+        for oj in self.op_joints:
+            lo, hi = m.jnt_range[oj]
+            qo = self.q(d, oj)
             if hi - lo > 1e-6 and (qo - lo) >= 0.7 * (hi - lo):
                 L.operator_actuated = True
-            tau = abs(float(d.qfrc_constraint[m.jnt_dofadr[self.oj]] + d.qfrc_applied[m.jnt_dofadr[self.oj]]))
+            tau = abs(float(d.qfrc_constraint[m.jnt_dofadr[oj]] + d.qfrc_applied[m.jnt_dofadr[oj]]))
             L.max_operator_torque = max(L.max_operator_torque, tau)
             ythr = self.damage.get("operator_yield_torque_Nm") or 1e9
-            if tau > ythr:
-                self._damage(d, "operator_overload", self.meta.get("operator_joint"), tau, ythr)
+            # yield is quasi-static: the load must be sustained (>= 10 ms), a single-step constraint impulse from the
+            # operator hitting its stop is not an overload
+            self._op_over[oj] = self._op_over.get(oj, 0) + 1 if tau > ythr else 0
+            if self._op_over[oj] * m.opt.timestep >= 0.01 - 1e-9:
+                self._damage(d, "operator_overload", mj.mj_id2name(m, mj.mjtObj.mjOBJ_JOINT, oj), tau, ythr)
                 L.hardware_misuse = True
         # ---- latch / lock
-        if self.bj >= 0:
-            throw = m.jnt_range[self.bj][1]
-            if throw > 0 and self.q(d, self.bj) >= 0.8 * throw:
+        if self.latch_joints:
+            if all((self.q(d, j) - m.jnt_range[j][0]) >= 0.8 * (m.jnt_range[j][1] - m.jnt_range[j][0]) for j in self.latch_joints):
                 L.latch_released = True
         else:
             L.latch_released = True
-        if self.lock_engaged and not L.lock_released:
-            for j in self.lock_release_joints:
+        if self.lock_engaged and not L.lock_released and self.lock_releasable:
+            if self.lock_release_joints and all((self.q(d, j) - m.jnt_range[j][0]) > 0.8 * (m.jnt_range[j][1] - m.jnt_range[j][0]) for j in self.lock_release_joints):
+                L.lock_released = True
+            for j in self.release_buttons:
                 lo, hi = m.jnt_range[j]
                 if hi - lo > 1e-6 and (self.q(d, j) - lo) > 0.8 * (hi - lo):
                     L.lock_released = True
@@ -270,3 +319,12 @@ class LabelTracker:
 
     def mark_closed(self, d):
         self._closed_now = abs(self.q(d, self.pj)) < self.closed_thr
+
+    def mark_touch(self, d, operator: bool = False):
+        """Record a touch from a programmatic hand (no robot geoms: DoorEnv.apply_* call this)."""
+        L = self.L
+        if not L.touched_door:
+            L.touched_door = True
+            L.time_to_touch = float(d.time)
+        if operator:
+            L.touched_operator = True
