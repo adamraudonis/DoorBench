@@ -69,6 +69,20 @@ def build_model(spec: dict, phys: dict | None = None) -> Model:
             floor = 0.5
         j.armature = max(j.armature, floor)
     op = spec["opening"]
+    # --- mass reconciliation: the derived slab + glass mass (physics.py, calibrated to manufacturer weight tables) is
+    # distributed over the leaf bodies by volume, so the simulated moving mass matches the spec whatever the geometry
+    # builder did (glass panes, split leaves, strips and rotors otherwise carried density-based masses)
+    leaf_bodies = [b for b in model.bodies if getattr(b, "semantic", "") == "leaf" and not b.static]
+    hw_now = float(sum(b.inertial("full")[0] for b in model.bodies if not b.static and getattr(b, "semantic", "") != "leaf"))
+    slab_glass = float(phys["mass"].get("slab_kg", 0.0) + phys["mass"].get("glass_kg", 0.0))
+    # hardware that is not modelled as its own body (tracks, hangers, straps, plates) rides on the leaf
+    tgt_mass = max(0.5 * slab_glass, float(phys["mass"]["total_kg"]) - hw_now)
+    if tgt_mass > 0 and leaf_bodies:
+        vols = [max(sum((g.volume() or 0.0) for g in b.geoms), 1e-6) for b in leaf_bodies]
+        vt = sum(vols)
+        for b, vol in zip(leaf_bodies, vols):
+            b.mass_override = tgt_mass * vol / vt
+        model.meta["mass_reconciled_kg"] = tgt_mass
     model.meta["scene_extent"] = max(1.5, 0.75 * max(op["width"], op["height"]) + 0.5)
     model.meta["cam_target_z"] = 0.5 * op["height"] + float(op.get("elevation", 0.0) or 0.0) + float(op.get("sill_height", 0.0) or 0.0) * 0.5
     model.meta["cam_target_x"] = 0.0

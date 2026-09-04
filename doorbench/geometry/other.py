@@ -651,7 +651,7 @@ def build_vertical(spec, phys, model: Model):
         j.notes = f"{spec['lock']['model']}: locked (T-handle lock bars engaged; env unlock frees the joint)"
         model.meta["locked"] = True
     # counterbalance from the actual body mass (sections + hardware)
-    mtot = lb.inertial("full")[0]
+    mtot = float(phys["mass"]["total_kg"])     # the leaf mass is reconciled to the spec after building; size the spring from it
     if cb and mtot > 0:
         k_ = 0.3 * cb * mtot * 9.81 / max(kin["travel_m"], 0.1)
         j.stiffness = k_

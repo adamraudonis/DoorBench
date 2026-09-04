@@ -98,6 +98,11 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         metrics["clearance_error"] = str(e)[:200]
     m = models["full"]
     d = mujoco.MjData(m)
+    # ---- mass gate: simulated moving mass must match the derived door mass (slab + glass + hardware)
+    moving_mass = float(sum(m.body_mass[b] for b in range(1, m.nbody) if m.body_dofnum[b] > 0 or m.body_parentid[b] != 0))
+    tgt_mass = float(phys["mass"]["total_kg"])
+    metrics["moving_mass_kg"] = moving_mass
+    checks["mass"] = bool(abs(moving_mass - tgt_mass) <= max(0.2 * tgt_mass, 0.5))
     pj = _jid(m, model_meta.get("primary_joint") or "")
     oj = _jid(m, model_meta.get("operator_joint") or "") if model_meta.get("operator_joint") else -1
     bj = _jid(m, "leaf_latch_bolt_slide")

@@ -11,8 +11,8 @@ def Xform "World"
         prepend apiSchemas = ["PhysicsArticulationRootAPI"]
     )
     {
-        custom string doorbench:couplings = '[{"type": "one_sided_tendon", "terms": [["leaf_latch_bolt_slide", 1.0], ["leaf_handle_hinge", -0.02081967213114754]], "range": [0.0, 10.0], "label": "bolt_q >= scale*handle_q (one-sided)"}]'
-        custom string doorbench:meta = '{"door_id": "db0233_swing_single", "family": "swing_single", "task": "unlock_open_traverse", "wall_y": 0.108, "u": 1.0, "v": -1.0, "hinge_x": -0.4605, "leaf_edge_x_local": 0.917, "handle_height": 1.05, "primary_joint": "leaf_hinge", "operator_joint": "leaf_handle_hinge", "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": 0.35350000000000004, "handle_cam_target": [0.2825, -0.077, 1.05], "handle_cam_pos": [0.46249999999999997, -0.877, 1.33]}'
+        custom string doorbench:couplings = '[{"type": "one_sided_tendon", "terms": [["leaf_latch_bolt_slide", 1.0], ["leaf_handle_hinge", -0.015679012345679012]], "range": [0.0, 10.0], "label": "bolt_q >= scale*handle_q (one-sided)"}]'
+        custom string doorbench:meta = '{"door_id": "db0233_swing_single", "family": "swing_single", "task": "unlock_open_traverse", "wall_y": 0.108, "u": 1.0, "v": -1.0, "hinge_x": -0.4605, "leaf_edge_x_local": 0.917, "handle_height": 1.05, "primary_joint": "leaf_hinge", "operator_joint": "leaf_handle_hinge", "mass_reconciled_kg": 30.446868255410624, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": 0.35350000000000004, "handle_cam_target": [0.29689999999999994, -0.077, 1.05], "handle_cam_pos": [0.47689999999999994, -0.877, 1.33]}'
         custom bool physxArticulation:enabledSelfCollisions = 1
         custom int physxArticulation:solverPositionIterationCount = 32
 
@@ -93,17 +93,47 @@ def Xform "World"
                 }
             }
 
-            def Material "mat_op_stainless"
+            def Material "mat_op_nickel_satin"
             {
-                token outputs:surface.connect = </World/db0233_swing_single/Looks/mat_op_stainless/Shader.outputs:surface>
+                token outputs:surface.connect = </World/db0233_swing_single/Looks/mat_op_nickel_satin/Shader.outputs:surface>
 
                 def Shader "Shader"
                 {
                     uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.75, 0.76, 0.77)
+                    color3f inputs:diffuseColor = (0.72, 0.7, 0.66)
                     float inputs:metallic = 1
                     float inputs:opacity = 1
                     float inputs:roughness = 0.35
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_keypad"
+            {
+                token outputs:surface.connect = </World/db0233_swing_single/Looks/mat_keypad/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.05, 0.05, 0.05)
+                    float inputs:metallic = 0.3
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.7
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_key"
+            {
+                token outputs:surface.connect = </World/db0233_swing_single/Looks/mat_key/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.85, 0.85, 0.82)
+                    float inputs:metallic = 0
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.5
                     token outputs:surface
                 }
             }
@@ -243,13 +273,31 @@ def Xform "World"
                 float physics:staticFriction = 0.4
             }
 
-            def Material "PhysMat_mat_op_stainless" (
+            def Material "PhysMat_mat_keypad" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.51
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.6
+            }
+
+            def Material "PhysMat_mat_op_nickel_satin" (
                 prepend apiSchemas = ["PhysicsMaterialAPI"]
             )
             {
                 float physics:dynamicFriction = 0.595
                 float physics:restitution = 0.05
                 float physics:staticFriction = 0.7
+            }
+
+            def Material "PhysMat_mat_key" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.51
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.6
             }
 
             def Material "PhysMat_mat_bolt" (
@@ -815,10 +863,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.44934878, 0.0004733537, 0.88276094)
-            float3 physics:diagonalInertia = (0.9223105, 5.4562473, 6.3708215)
-            float physics:mass = 14.116694
-            quatf physics:principalAxes = (0.50115865, -0.49488583, -0.50045085, -0.50346494)
+            point3f physics:centerOfMass = (0.45658368, 0.0013994838, 0.889309)
+            float3 physics:diagonalInertia = (2.0408049, 11.616894, 13.639903)
+            float physics:mass = 30.446869
+            quatf physics:principalAxes = (0.49566138, 0.5044215, -0.49984217, 0.5000366)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -898,32 +946,23 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
-            def Cube "leaf_handle_escutcheon_n" (
-                prepend apiSchemas = ["MaterialBindingAPI"]
+            def Xform "leaf_handle_keypad_body" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysicsMeshCollisionAPI"]
+                prepend references = @../../hardware/keypad_body_4e81d77325.usdc@</keypad_body_4e81d77325>
             )
             {
-                custom string doorbench:label = "Escutcheon plate"
-                custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0233_swing_single/Looks/mat_op_stainless>
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.003, 0.22)
-                double3 xformOp:translate = (0.847, -0.0235, 1.05)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "leaf_handle_escutcheon_p" (
-                prepend apiSchemas = ["MaterialBindingAPI"]
-            )
-            {
-                custom string doorbench:label = "Escutcheon plate"
-                custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0233_swing_single/Looks/mat_op_stainless>
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.003, 0.22)
-                double3 xformOp:translate = (0.847, 0.0235, 1.05)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                custom string doorbench:label = "Keypad body"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0233_swing_single/Looks/mat_keypad>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_keypad> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                uniform token physics:approximation = "convexHull"
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                quatf xformOp:orient = (-0.70710677, 0.70710677, 4.3297803e-17, 4.3297803e-17)
+                double3 xformOp:translate = (0.847, 0.022, 1.17)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Cube "kick_plate_p" (
@@ -968,10 +1007,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "operator"
-            point3f physics:centerOfMass = (-0.040195666, -1.7357082e-18, 3.805084e-18)
-            float3 physics:diagonalInertia = (0.0015087154, 0.0034551613, 0.0049248366)
-            float physics:mass = 0.7495744
-            quatf physics:principalAxes = (1.0872821e-16, 0.70710677, 0.70710677, -8.054057e-17)
+            point3f physics:centerOfMass = (-0.023919389, -1.5176261e-18, 3.780433e-18)
+            float3 physics:diagonalInertia = (0.0012218143, 0.0032448452, 0.004300836)
+            float physics:mass = 0.85728794
+            quatf physics:principalAxes = (0, 0.70710677, 0.70710677, 1.718948e-17)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -987,7 +1026,7 @@ def Xform "World"
                 custom string doorbench:label = "Spindle"
                 custom string doorbench:semantic = "mechanism"
                 double height = 0.041999999999999996
-                rel material:binding = </World/db0233_swing_single/Looks/mat_op_stainless>
+                rel material:binding = </World/db0233_swing_single/Looks/mat_op_nickel_satin>
                 double radius = 0.006
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
                 double3 xformOp:translate = (0, 0, 0)
@@ -996,12 +1035,12 @@ def Xform "World"
 
             def Xform "leaf_handle_lever_n" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/lever_f913fc5b7b.usdc@</lever_f913fc5b7b>
+                prepend references = @../../hardware/lever_a61139b160.usdc@</lever_a61139b160>
             )
             {
                 custom string doorbench:label = "Lever"
                 custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0233_swing_single/Looks/mat_op_stainless>
+                rel material:binding = </World/db0233_swing_single/Looks/mat_op_nickel_satin>
                 quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
                 double3 xformOp:translate = (0, -0.022, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
@@ -1014,17 +1053,17 @@ def Xform "World"
                 uniform token axis = "Z"
                 custom string doorbench:label = "Lever grip"
                 custom string doorbench:semantic = "operator"
-                double height = 0.111
-                rel material:binding = </World/db0233_swing_single/Looks/mat_op_stainless>
-                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_op_stainless> (
+                double height = 0.096
+                rel material:binding = </World/db0233_swing_single/Looks/mat_op_nickel_satin>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_op_nickel_satin> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
                 custom float physxCollision:restOffset = 0
                 uniform token purpose = "guide"
-                double radius = 0.0095
+                double radius = 0.008
                 quatf xformOp:orient = (0.70710677, 0, -0.70710677, 0)
-                double3 xformOp:translate = (-0.065, -0.077, 0)
+                double3 xformOp:translate = (-0.056, -0.077, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -1036,8 +1075,8 @@ def Xform "World"
                 custom string doorbench:label = "Lever hub"
                 custom string doorbench:semantic = "operator"
                 double height = 0.044
-                rel material:binding = </World/db0233_swing_single/Looks/mat_op_stainless>
-                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_op_stainless> (
+                rel material:binding = </World/db0233_swing_single/Looks/mat_op_nickel_satin>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_op_nickel_satin> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -1051,12 +1090,12 @@ def Xform "World"
 
             def Xform "leaf_handle_lever_p" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/lever_f913fc5b7b.usdc@</lever_f913fc5b7b>
+                prepend references = @../../hardware/lever_a61139b160.usdc@</lever_a61139b160>
             )
             {
                 custom string doorbench:label = "Lever"
                 custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0233_swing_single/Looks/mat_op_stainless>
+                rel material:binding = </World/db0233_swing_single/Looks/mat_op_nickel_satin>
                 quatf xformOp:orient = (-0.70710677, 0.70710677, 4.3297803e-17, 4.3297803e-17)
                 double3 xformOp:translate = (0, 0.022, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
@@ -1069,17 +1108,17 @@ def Xform "World"
                 uniform token axis = "Z"
                 custom string doorbench:label = "Lever grip"
                 custom string doorbench:semantic = "operator"
-                double height = 0.111
-                rel material:binding = </World/db0233_swing_single/Looks/mat_op_stainless>
-                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_op_stainless> (
+                double height = 0.096
+                rel material:binding = </World/db0233_swing_single/Looks/mat_op_nickel_satin>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_op_nickel_satin> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
                 custom float physxCollision:restOffset = 0
                 uniform token purpose = "guide"
-                double radius = 0.0095
+                double radius = 0.008
                 quatf xformOp:orient = (0.70710677, 0, -0.70710677, 0)
-                double3 xformOp:translate = (-0.065, 0.077, 0)
+                double3 xformOp:translate = (-0.056, 0.077, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -1091,8 +1130,8 @@ def Xform "World"
                 custom string doorbench:label = "Lever hub"
                 custom string doorbench:semantic = "operator"
                 double height = 0.044
-                rel material:binding = </World/db0233_swing_single/Looks/mat_op_stainless>
-                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_op_stainless> (
+                rel material:binding = </World/db0233_swing_single/Looks/mat_op_nickel_satin>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_op_nickel_satin> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -1108,7 +1147,7 @@ def Xform "World"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (-0.10400000000000001, -0.077, 0)
+                double3 xformOp:translate = (-0.08960000000000001, -0.077, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -1116,8 +1155,440 @@ def Xform "World"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (-0.10400000000000001, 0.077, 0)
+                double3 xformOp:translate = (-0.08960000000000001, 0.077, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+        }
+
+        def Xform "leaf_keypad_key_1" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "lock"
+            point3f physics:centerOfMass = (0, 0.002, 0)
+            float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
+            float physics:mass = 0.0009408
+            quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0.36749999999999994, 0.041999999999999996, 1.1985)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "leaf_keypad_key_0_geom" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Key 1"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0233_swing_single/Looks/mat_key>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_key> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.014, 0.004, 0.014)
+                double3 xformOp:translate = (0, 0.002, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+        }
+
+        def Xform "leaf_keypad_key_2" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "lock"
+            point3f physics:centerOfMass = (0, 0.002, 0)
+            float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
+            float physics:mass = 0.0009408
+            quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0.38649999999999995, 0.041999999999999996, 1.1985)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "leaf_keypad_key_1_geom" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Key 2"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0233_swing_single/Looks/mat_key>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_key> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.014, 0.004, 0.014)
+                double3 xformOp:translate = (0, 0.002, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+        }
+
+        def Xform "leaf_keypad_key_3" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "lock"
+            point3f physics:centerOfMass = (0, 0.002, 0)
+            float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
+            float physics:mass = 0.0009408
+            quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0.40549999999999997, 0.041999999999999996, 1.1985)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "leaf_keypad_key_2_geom" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Key 3"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0233_swing_single/Looks/mat_key>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_key> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.014, 0.004, 0.014)
+                double3 xformOp:translate = (0, 0.002, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+        }
+
+        def Xform "leaf_keypad_key_4" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "lock"
+            point3f physics:centerOfMass = (0, 0.002, 0)
+            float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
+            float physics:mass = 0.0009408
+            quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0.36749999999999994, 0.041999999999999996, 1.1795)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "leaf_keypad_key_3_geom" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Key 4"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0233_swing_single/Looks/mat_key>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_key> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.014, 0.004, 0.014)
+                double3 xformOp:translate = (0, 0.002, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+        }
+
+        def Xform "leaf_keypad_key_5" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "lock"
+            point3f physics:centerOfMass = (0, 0.002, 0)
+            float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
+            float physics:mass = 0.0009408
+            quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0.38649999999999995, 0.041999999999999996, 1.1795)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "leaf_keypad_key_4_geom" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Key 5"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0233_swing_single/Looks/mat_key>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_key> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.014, 0.004, 0.014)
+                double3 xformOp:translate = (0, 0.002, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+        }
+
+        def Xform "leaf_keypad_key_6" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "lock"
+            point3f physics:centerOfMass = (0, 0.002, 0)
+            float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
+            float physics:mass = 0.0009408
+            quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0.40549999999999997, 0.041999999999999996, 1.1795)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "leaf_keypad_key_5_geom" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Key 6"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0233_swing_single/Looks/mat_key>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_key> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.014, 0.004, 0.014)
+                double3 xformOp:translate = (0, 0.002, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+        }
+
+        def Xform "leaf_keypad_key_7" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "lock"
+            point3f physics:centerOfMass = (0, 0.002, 0)
+            float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
+            float physics:mass = 0.0009408
+            quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0.36749999999999994, 0.041999999999999996, 1.1604999999999999)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "leaf_keypad_key_6_geom" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Key 7"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0233_swing_single/Looks/mat_key>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_key> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.014, 0.004, 0.014)
+                double3 xformOp:translate = (0, 0.002, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+        }
+
+        def Xform "leaf_keypad_key_8" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "lock"
+            point3f physics:centerOfMass = (0, 0.002, 0)
+            float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
+            float physics:mass = 0.0009408
+            quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0.38649999999999995, 0.041999999999999996, 1.1604999999999999)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "leaf_keypad_key_7_geom" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Key 8"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0233_swing_single/Looks/mat_key>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_key> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.014, 0.004, 0.014)
+                double3 xformOp:translate = (0, 0.002, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+        }
+
+        def Xform "leaf_keypad_key_9" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "lock"
+            point3f physics:centerOfMass = (0, 0.002, 0)
+            float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
+            float physics:mass = 0.0009408
+            quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0.40549999999999997, 0.041999999999999996, 1.1604999999999999)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "leaf_keypad_key_8_geom" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Key 9"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0233_swing_single/Looks/mat_key>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_key> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.014, 0.004, 0.014)
+                double3 xformOp:translate = (0, 0.002, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+        }
+
+        def Xform "leaf_keypad_key_star" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "lock"
+            point3f physics:centerOfMass = (0, 0.002, 0)
+            float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
+            float physics:mass = 0.0009408
+            quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0.36749999999999994, 0.041999999999999996, 1.1415)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "leaf_keypad_key_9_geom" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Key *"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0233_swing_single/Looks/mat_key>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_key> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.014, 0.004, 0.014)
+                double3 xformOp:translate = (0, 0.002, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+        }
+
+        def Xform "leaf_keypad_key_0" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "lock"
+            point3f physics:centerOfMass = (0, 0.002, 0)
+            float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
+            float physics:mass = 0.0009408
+            quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0.38649999999999995, 0.041999999999999996, 1.1415)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "leaf_keypad_key_10_geom" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Key 0"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0233_swing_single/Looks/mat_key>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_key> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.014, 0.004, 0.014)
+                double3 xformOp:translate = (0, 0.002, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+        }
+
+        def Xform "leaf_keypad_key_hash" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:semantic = "lock"
+            point3f physics:centerOfMass = (0, 0.002, 0)
+            float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
+            float physics:mass = 0.0009408
+            quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom bool physxRigidBody:enableCCD = 1
+            custom int physxRigidBody:solverPositionIterationCount = 16
+            custom int physxRigidBody:solverVelocityIterationCount = 4
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0.40549999999999997, 0.041999999999999996, 1.1415)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "leaf_keypad_key_11_geom" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Key #"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0233_swing_single/Looks/mat_key>
+                rel material:binding:physics = </World/db0233_swing_single/Looks/PhysMat_mat_key> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.014, 0.004, 0.014)
+                double3 xformOp:translate = (0, 0.002, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
         }
 
@@ -1228,13 +1699,13 @@ def Xform "World"
             )
             {
                 custom float doorbench:initial = 0
-                custom string doorbench:label = "European lever on backplate (DIN 18255) (0 = rest, + = actuated)"
+                custom string doorbench:label = "Electronic keypad lever set (residential) (0 = rest, + = actuated)"
                 custom string doorbench:role = "operator"
                 custom float doorbench:zero_offset = 0
                 float drive:angular:physics:damping = 0.00034906584
                 float drive:angular:physics:maxForce = 1000000
                 float drive:angular:physics:stiffness = 0.017453292
-                float drive:angular:physics:targetPosition = -22.918312
+                float drive:angular:physics:targetPosition = -20.053522
                 uniform token drive:angular:physics:type = "force"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </World/db0233_swing_single/leaf>
@@ -1244,9 +1715,321 @@ def Xform "World"
                 quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
                 quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
                 float physics:lowerLimit = 0
-                float physics:upperLimit = 37.242256
+                float physics:upperLimit = 49.84733
                 custom float physxJoint:armature = 0.01
                 custom float physxJoint:jointFriction = 0.052
+            }
+
+            def PhysicsPrismaticJoint "leaf_keypad_key_1_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Key 1 (press)"
+                custom string doorbench:role = "lock"
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 0.5
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 2000
+                float drive:linear:physics:targetPosition = -0.0015
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0233_swing_single/leaf>
+                rel physics:body1 = </World/db0233_swing_single/leaf_keypad_key_1>
+                point3f physics:localPos0 = (0.828, 0.042, 1.1985)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.0015
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 0.05
+            }
+
+            def PhysicsPrismaticJoint "leaf_keypad_key_2_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Key 2 (press)"
+                custom string doorbench:role = "lock"
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 0.5
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 2000
+                float drive:linear:physics:targetPosition = -0.0015
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0233_swing_single/leaf>
+                rel physics:body1 = </World/db0233_swing_single/leaf_keypad_key_2>
+                point3f physics:localPos0 = (0.847, 0.042, 1.1985)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.0015
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 0.05
+            }
+
+            def PhysicsPrismaticJoint "leaf_keypad_key_3_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Key 3 (press)"
+                custom string doorbench:role = "lock"
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 0.5
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 2000
+                float drive:linear:physics:targetPosition = -0.0015
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0233_swing_single/leaf>
+                rel physics:body1 = </World/db0233_swing_single/leaf_keypad_key_3>
+                point3f physics:localPos0 = (0.866, 0.042, 1.1985)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.0015
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 0.05
+            }
+
+            def PhysicsPrismaticJoint "leaf_keypad_key_4_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Key 4 (press)"
+                custom string doorbench:role = "lock"
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 0.5
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 2000
+                float drive:linear:physics:targetPosition = -0.0015
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0233_swing_single/leaf>
+                rel physics:body1 = </World/db0233_swing_single/leaf_keypad_key_4>
+                point3f physics:localPos0 = (0.828, 0.042, 1.1795)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.0015
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 0.05
+            }
+
+            def PhysicsPrismaticJoint "leaf_keypad_key_5_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Key 5 (press)"
+                custom string doorbench:role = "lock"
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 0.5
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 2000
+                float drive:linear:physics:targetPosition = -0.0015
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0233_swing_single/leaf>
+                rel physics:body1 = </World/db0233_swing_single/leaf_keypad_key_5>
+                point3f physics:localPos0 = (0.847, 0.042, 1.1795)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.0015
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 0.05
+            }
+
+            def PhysicsPrismaticJoint "leaf_keypad_key_6_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Key 6 (press)"
+                custom string doorbench:role = "lock"
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 0.5
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 2000
+                float drive:linear:physics:targetPosition = -0.0015
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0233_swing_single/leaf>
+                rel physics:body1 = </World/db0233_swing_single/leaf_keypad_key_6>
+                point3f physics:localPos0 = (0.866, 0.042, 1.1795)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.0015
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 0.05
+            }
+
+            def PhysicsPrismaticJoint "leaf_keypad_key_7_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Key 7 (press)"
+                custom string doorbench:role = "lock"
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 0.5
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 2000
+                float drive:linear:physics:targetPosition = -0.0015
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0233_swing_single/leaf>
+                rel physics:body1 = </World/db0233_swing_single/leaf_keypad_key_7>
+                point3f physics:localPos0 = (0.828, 0.042, 1.1605)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.0015
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 0.05
+            }
+
+            def PhysicsPrismaticJoint "leaf_keypad_key_8_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Key 8 (press)"
+                custom string doorbench:role = "lock"
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 0.5
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 2000
+                float drive:linear:physics:targetPosition = -0.0015
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0233_swing_single/leaf>
+                rel physics:body1 = </World/db0233_swing_single/leaf_keypad_key_8>
+                point3f physics:localPos0 = (0.847, 0.042, 1.1605)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.0015
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 0.05
+            }
+
+            def PhysicsPrismaticJoint "leaf_keypad_key_9_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Key 9 (press)"
+                custom string doorbench:role = "lock"
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 0.5
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 2000
+                float drive:linear:physics:targetPosition = -0.0015
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0233_swing_single/leaf>
+                rel physics:body1 = </World/db0233_swing_single/leaf_keypad_key_9>
+                point3f physics:localPos0 = (0.866, 0.042, 1.1605)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.0015
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 0.05
+            }
+
+            def PhysicsPrismaticJoint "leaf_keypad_key_star_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Key * (press)"
+                custom string doorbench:role = "lock"
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 0.5
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 2000
+                float drive:linear:physics:targetPosition = -0.0015
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0233_swing_single/leaf>
+                rel physics:body1 = </World/db0233_swing_single/leaf_keypad_key_star>
+                point3f physics:localPos0 = (0.828, 0.042, 1.1415)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.0015
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 0.05
+            }
+
+            def PhysicsPrismaticJoint "leaf_keypad_key_0_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Key 0 (press)"
+                custom string doorbench:role = "lock"
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 0.5
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 2000
+                float drive:linear:physics:targetPosition = -0.0015
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0233_swing_single/leaf>
+                rel physics:body1 = </World/db0233_swing_single/leaf_keypad_key_0>
+                point3f physics:localPos0 = (0.847, 0.042, 1.1415)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.0015
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 0.05
+            }
+
+            def PhysicsPrismaticJoint "leaf_keypad_key_hash_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
+            )
+            {
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Key # (press)"
+                custom string doorbench:role = "lock"
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 0.5
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 2000
+                float drive:linear:physics:targetPosition = -0.0015
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0233_swing_single/leaf>
+                rel physics:body1 = </World/db0233_swing_single/leaf_keypad_key_hash>
+                point3f physics:localPos0 = (0.866, 0.042, 1.1415)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.0015
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 0.05
             }
 
             def PhysicsPrismaticJoint "leaf_latch_bolt_slide" (

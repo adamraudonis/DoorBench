@@ -20,8 +20,8 @@ Fable subagent working in its own git worktree (merged by main).
 | D1 | 1000 doors, 30 families, MJCF/URDF/USD, physics with provenance | done | main | |
 | D2 | Regenerate + redeploy after G2/G3 land | todo | main | `scripts/generate_dataset.py`, Pages workflow |
 | D3 | Photoreal Blender renders (Poly Haven CC0) | todo | — | later stage |
-| D4 | Mass consistency gate: simulated moving mass of every door must match `spec.physics.mass.total_kg` (found by agent:mujoco: 315/1000 differ by >25 %, e.g. dutch, pivot glass, turnstiles, revolving up to 10-20x) | todo | main | fix inertial assignment in geometry builders; add to QA as `checks.mass` |
-| D5 | Keypad locks on doors without a keypad (db0233, db0086: `keypad_code_*` engaged, plain lever) | todo | main | spec post-processing: keypad lock ⇒ keypad operator |
+| D4 | Mass consistency gate: simulated moving mass of every door must match `spec.physics.mass.total_kg` (found by agent:mujoco: 315/1000 differed by >25 %, e.g. dutch, pivot glass, turnstiles, revolving up to 10-20x) | done | main | `build.py` reconciles the leaf bodies' mass to the spec (total minus modelled hardware, by volume); `checks.mass` in qa.json; 1000/1000 within 5 % |
+| D5 | Keypad locks on doors without a keypad (db0233, db0086: `keypad_code_*` engaged, plain lever) | done | main | spec post-processing swaps in `lever_keypad` / `knob_keypad_deadbolt` |
 
 ## Benchmark
 

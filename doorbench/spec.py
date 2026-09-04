@@ -1462,6 +1462,10 @@ def generate_all(seed: int = 20260903) -> list[dict]:
             s["kinematics"]["max_open_deg"] = min(mo, cap)
         if s["family"] == "pet_door":
             s["kinematics"]["max_open_deg"] = min(s["kinematics"].get("max_open_deg") or 75, 75)
+        if H.LOCKS[s["lock"]["model"]].kind == "keypad_code" and "keypad" not in H.OPERATORS[s["operator"]["model"]].style_params:
+            # a keypad lock needs a keypad on the door: swap the operator for the matching keypad set
+            s["operator"]["model"] = "knob_keypad_deadbolt" if H.OPERATORS[s["operator"]["model"]].kind == "knob" else "lever_keypad"
+            s.setdefault("tags", []).append("keypad_operator_required")
         if s["kinematics"].get("both_ways") and s["family"] in ("baby_gate",):
             s["opening"]["width"] = _round(max(s["opening"]["width"], s["leaf"]["width"] + s["leaf"]["thickness"] + 0.024))
         if s["kinematics"].get("double_egress"):

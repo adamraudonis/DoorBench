@@ -225,9 +225,9 @@
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="-0.475538 0.026366 1.07112" rpy="0 0 0"/>
-      <mass value="19.494758"/>
-      <inertia ixx="7.000706264" ixy="-0.017123164" ixz="-0.062183751" iyy="8.400521173" iyz="-0.008781624" izz="1.412007916"/>
+      <origin xyz="-0.457 0.029 1.080685" rpy="0 0 0"/>
+      <mass value="27.953627"/>
+      <inertia ixx="10.531651372" ixy="0" ixz="0" iyy="12.472239741" iyz="0" izz="1.94960897"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="-0.457 0.029 1.08" rpy="0 0 0"/>
@@ -305,50 +305,49 @@
       </geometry>
       <material name="mat_glass"/>
     </visual>
-    <visual name="leaf_handleset_n_vis">
-      <origin xyz="-0.809 0.007 0.905" rpy="-1.570796 0 3.141593"/>
-      <geometry>
-        <mesh filename="../../hardware/handleset_6f5f7b5b57.obj"/>
-      </geometry>
-      <material name="mat_op_bronze"/>
-    </visual>
-    <collision name="leaf_handleset_col_n_col">
-      <origin xyz="-0.809 -0.053 0.905" rpy="0 0 0"/>
-      <geometry>
-        <cylinder radius="0.011" length="0.18"/>
-      </geometry>
-    </collision>
   </link>
   <link name="leaf_handle">
     <inertial>
-      <origin xyz="0 0.058082 0" rpy="0 0 0"/>
-      <mass value="0.549341"/>
-      <inertia ixx="0.000270874" ixy="0" ixz="0" iyy="0.000155778" iyz="0" izz="0.000270874"/>
+      <origin xyz="0.025007 0 0" rpy="0 0 0"/>
+      <mass value="0.82"/>
+      <inertia ixx="0.003239028" ixy="0" ixz="0" iyy="0.001198839" iyz="0" izz="0.004272715"/>
     </inertial>
-    <visual name="leaf_handle_knob_p_vis">
-      <origin xyz="0 0.022 0" rpy="1.570796 0 3.141593"/>
+    <visual name="leaf_handle_lever_n_vis">
+      <origin xyz="0 -0.022 0" rpy="-1.570796 0 3.141593"/>
       <geometry>
-        <mesh filename="../../hardware/knob_d1888f6f03.obj"/>
+        <mesh filename="../../hardware/lever_a61139b160.obj"/>
       </geometry>
-      <material name="mat_op_brass"/>
+      <material name="mat_op_nickel_satin"/>
     </visual>
-    <visual name="leaf_handle_knob_col_p_vis">
-      <origin xyz="0 0.0685 0" rpy="0 0 0"/>
+    <collision name="leaf_handle_lever_col_n_col">
+      <origin xyz="0.056 -0.077 0" rpy="0 1.570796 0"/>
       <geometry>
-        <sphere radius="0.0243"/>
-      </geometry>
-      <material name="mat_op_brass"/>
-    </visual>
-    <collision name="leaf_handle_knob_col_p_col">
-      <origin xyz="0 0.0685 0" rpy="0 0 0"/>
-      <geometry>
-        <sphere radius="0.0243"/>
+        <cylinder radius="0.008" length="0.096"/>
       </geometry>
     </collision>
-    <collision name="leaf_handle_knob_neck_p_col">
-      <origin xyz="0 0.034 0" rpy="-1.570796 0 0"/>
+    <collision name="leaf_handle_hub_col_n_col">
+      <origin xyz="0 -0.052 0" rpy="-1.570796 0 0"/>
       <geometry>
-        <cylinder radius="0.011" length="0.024"/>
+        <cylinder radius="0.012" length="0.044"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_handle_lever_p_vis">
+      <origin xyz="0 0.022 0" rpy="1.570796 0 3.141593"/>
+      <geometry>
+        <mesh filename="../../hardware/lever_a61139b160.obj"/>
+      </geometry>
+      <material name="mat_op_nickel_satin"/>
+    </visual>
+    <collision name="leaf_handle_lever_col_p_col">
+      <origin xyz="0.056 0.077 0" rpy="0 1.570796 0"/>
+      <geometry>
+        <cylinder radius="0.008" length="0.096"/>
+      </geometry>
+    </collision>
+    <collision name="leaf_handle_hub_col_p_col">
+      <origin xyz="0 0.052 0" rpy="-1.570796 0 0"/>
+      <geometry>
+        <cylinder radius="0.012" length="0.044"/>
       </geometry>
     </collision>
   </link>
@@ -378,7 +377,7 @@
     <child link="leaf"/>
     <axis xyz="0 0 1"/>
     <limit lower="0" upper="1.658063" effort="2000" velocity="10"/>
-    <dynamics damping="0.318966" friction="2.261978"/>
+    <dynamics damping="0.318966" friction="2.254843"/>
     <doorbench:closer damping_closing="0" damping_opening="0" backcheck_angle="0" backcheck_damping="0"/>
   </joint>
   <joint name="leaf_handle_hinge" type="revolute">
@@ -387,8 +386,8 @@
     <child link="leaf_handle"/>
     <axis xyz="0 1 0"/>
     <limit lower="0" upper="0.87" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.038"/>
-    <doorbench:spring stiffness="0.5" springref="-0.5" note="tau = -stiffness*(q - springref); not native URDF"/>
+    <dynamics damping="0.02" friction="0.052"/>
+    <doorbench:spring stiffness="1" springref="-0.35" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_latch_bolt_slide" type="prismatic">
     <origin xyz="-0.914 0.029 0.965" rpy="0 0 0"/>
@@ -398,7 +397,7 @@
     <limit lower="0" upper="0.0127" effort="5000" velocity="10"/>
     <dynamics damping="2" friction="0.3"/>
     <doorbench:spring stiffness="300" springref="-0.008333" note="tau = -stiffness*(q - springref); not native URDF"/>
-    <mimic joint="leaf_handle_hinge" multiplier="0.039688" offset="0"/>
+    <mimic joint="leaf_handle_hinge" multiplier="0.015679" offset="0"/>
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
   </joint>
   <material name="mat_bolt">
@@ -416,11 +415,8 @@
   <material name="mat_leaf">
     <color rgba="0.04 0.04 0.04 1"/>
   </material>
-  <material name="mat_op_brass">
-    <color rgba="0.85 0.66 0.3 1"/>
-  </material>
-  <material name="mat_op_bronze">
-    <color rgba="0.3 0.22 0.15 1"/>
+  <material name="mat_op_nickel_satin">
+    <color rgba="0.72 0.7 0.66 1"/>
   </material>
   <material name="mat_threshold">
     <color rgba="0.8 0.81 0.83 1"/>

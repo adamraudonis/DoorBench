@@ -122,7 +122,10 @@ benchmark is built to train.
    (hinge knuckles are allowed 12 mm where they are mortised; parts that live inside their own housing are
    allow-listed explicitly). `scripts/clearance_report.py` prints a dataset-wide grouped report; the result is
    `checks.clearance` in every `qa.json`.
-6. **Sign-off, gate 2 - physics** (`qa.py`): each door is loaded in MuJoCo (all tiers), settled, pushed while latched (must hold),
+6. **Sign-off, gate 2 - mass** (`build.py`, `qa.py`): the simulated moving mass of every door is reconciled to the
+   derived mass (slab + glass + hardware from the weight tables) and checked in MuJoCo (`checks.mass`, within 20 %;
+   the current build is within 5 % for all 1000 doors).
+7. **Sign-off, gate 3 - physics** (`qa.py`): each door is loaded in MuJoCo (all tiers), settled, pushed while latched (must hold),
    its operator actuated (must open; chained doors open only to the slack limit; locked doors must not open),
    released (latch must re-extend), slammed (must re-latch), its closer tested (must return), and its URDF/USD
    checked. `qa.json` records every metric; the catalogue shows the result. Current build: 1000 / 1000 signed off.
