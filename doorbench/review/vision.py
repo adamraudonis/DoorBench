@@ -365,15 +365,24 @@ class SheetRenderer:
         if pts and ids:
             c = np.mean(pts, axis=0)
             r = max(0.10, max(np.linalg.norm(d.geom_xpos[g] - c) + m.geom_rbound[g] for g in ids))
-            side = -1.0 if c[1] <= self.wall_y else 1.0
-            return c, min(r, 0.45), side
+            return c, min(r, 0.45), self.face_side(c)
         if not ids:
             t = self.meta.get("handle_cam_target")
             c = np.array(t, float) if t else np.array([0.0, self.wall_y, 1.0])
             return c, 0.25, -1.0
         lo, hi = self.bbox(ids)
         c = (lo + hi) / 2
-        return c, min(max(float(np.linalg.norm(hi - lo) / 2), 0.10), 0.45), (-1.0 if c[1] <= self.wall_y else 1.0)
+        return c, min(max(float(np.linalg.norm(hi - lo) / 2), 0.10), 0.45), self.face_side(c)
+
+    def face_side(self, p) -> float:
+        """-1 if the point is on the robot side (-y) of the leaf it is nearest to, +1 on the far side.  Leaves hang off
+        the wall plane (barn doors, roll-up curtains, pocket sliders), so compare with the leaf, not with wall_y."""
+        d = self.d
+        leaves = self.geom_ids(semantics=("leaf",))
+        if not leaves:
+            return -1.0 if p[1] <= self.wall_y else 1.0
+        g = min(leaves, key=lambda g: (d.geom_xpos[g][0] - p[0]) ** 2 + (d.geom_xpos[g][2] - p[2]) ** 2 + 4.0 * (d.geom_xpos[g][1] - p[1]) ** 2)
+        return -1.0 if p[1] <= d.geom_xpos[g][1] else 1.0
 
     def mechanism_target(self, q, prefer: str = "closer"):
         """(centre, radius, what) of the mechanism to inspect in state q.  prefer="closer": closer linkage, then the
@@ -568,7 +577,7 @@ Rules:
 def user_prompt(facts: dict, sheet_info: dict | None = None) -> str:
     lines = facts_lines(facts)
     panels = ""
-    if sheet_info:
+    if sheet_info and sheet_info.get("panels"):
         panels = "\nPanels on this sheet: " + "; ".join(p["label"] for p in sheet_info["panels"])
     return "Review sheet for one door. Spec facts (what should be there):\n" + "\n".join(lines) + f"\nExpected parts by label: {', '.join(facts.get('part_labels', []))}" + panels + "\n\nInspect every panel and return the JSON verdict."
 
