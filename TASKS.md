@@ -42,6 +42,23 @@ Fable subagent working in its own git worktree (merged by main).
 | V3 | Fix resize feedback loop, HUD stacking, camera framing | done | main | |
 | V4 | Info icon (ⓘ) with a plain-language explanation on every physics-panel row; fix units (slide operators in mm, translational springs in N) | todo | agent:bench | user request |
 
+## Isaac Lab (needs an NVIDIA GPU on Linux; this Mac cannot run Isaac Sim)
+
+| # | Task | Status | Owner | Notes |
+|---|------|--------|-------|-------|
+| I1 | Static USD validation of all 1000 `door.usda` (schemas, articulation root, joints, drives, masses, mesh references) with usd-core here; Isaac Sim headless import validation script for the GPU box | todo | agent:isaac | `scripts/isaaclab/validate_usd_static.py`, `scripts/isaaclab/validate_usd_isaacsim.py` |
+| I2 | Isaac Lab extension `doorbench_isaaclab`: multi-door scene (one door USD per env via multi-asset spawning), `DoorBench-Open-G1-v0` manager-based RL task (obs/rewards/terminations from the benchmark spec), RSL-RL PPO train/play scripts, one-command install | todo | agent:isaac | `isaaclab/` |
+| I3 | One-command cloud setup (Isaac Sim container + Isaac Lab + DoorBench) for Lambda/RunPod/any Ubuntu GPU box; hero-shot script rendering hundreds of envs with different doors in one 3D scene | todo | agent:isaac | `isaaclab/cloud/` |
+| I4 | Run I1-I3 live on a GPU box: validation report, short training run, hero screenshot/video into README + site | blocked | main | needs a GPU instance from the user (no cloud credentials on this machine) |
+
+## Benchmark runs & submissions
+
+| # | Task | Status | Owner | Notes |
+|---|------|--------|-------|-------|
+| R1 | Benchmark runner: `doorbench benchmark run --policy ...` evaluates any policy (small Python interface) over all 1000 doors × scenarios × seeds in MuJoCo, parallel on CPU, writes a `results/*.json` with per-door outcomes + aggregate score | todo | agent:benchrun | |
+| R2 | Baseline policies + full runs published: random, scripted heuristic hand, G1 locomotion-only; "N / 1000 doors successful" tables in README + a Results page on the site (per-door badge in the catalogue) | todo | agent:benchrun | |
+| R3 | Submission flow for researchers: `docs/SUBMITTING.md`, result JSON schema + validator, PR-based leaderboard with a CI check | todo | agent:benchrun | |
+
 ## Process
 
 | # | Task | Status | Owner | Notes |
