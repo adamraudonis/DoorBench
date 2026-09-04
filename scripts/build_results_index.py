@@ -1,14 +1,15 @@
 #!/usr/bin/env python
-"""Build results/index.json (the leaderboard index the site reads) and the leaderboard table in results/README.md
-from every result file under results/.
+"""Build results/index.json (the leaderboard index the site reads) and the leaderboard tables in results/README.md and
+the root README from every result file under results/.
 
-    python scripts/build_results_index.py            # validates, writes results/index.json, updates results/README.md
+    python scripts/build_results_index.py            # validates, writes results/index.json, updates results/README.md + README.md
     python scripts/build_results_index.py --check    # exit 1 if index.json / README.md are out of date (CI)
 
-index.json holds, per result file, the run metadata, the aggregate numbers, the per-family / per-task /
-per-difficulty / per-lock-state breakdowns and a compact per-door outcome map for the `default` scenario
-(`doors: {door_id: [n_success, n_episodes]}`), so the catalogue can show a badge per door without loading the
-multi-megabyte result files.
+index.json holds, per result file, the run metadata and one block per suite present in the file (`suites.core`,
+`suites.human`): the aggregate numbers, the per-family / per-scenario / per-difficulty / per-lock-state breakdowns
+and a compact per-door outcome map (`doors: {door_id: [n_success, n_episodes]}`) so the catalogue can show a badge
+per door without loading the multi-megabyte result files.  Core and human numbers are never mixed: the headline
+"N / 1000 doors" is the core suite; the human suite (advanced, opt-in) gets its own table.
 """
 from __future__ import annotations
 
@@ -23,77 +24,124 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 RESULTS = os.path.join(ROOT, "results")
 RESERVED = {"schema.json", "index.json"}
 START, END = "<!-- leaderboard:start -->", "<!-- leaderboard:end -->"
+ROOT_START, ROOT_END = "<!-- baseline-results:start -->", "<!-- baseline-results:end -->"
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from validate_result import validate_file  # noqa: E402
+from validate_result import CORE_SCENARIOS, HUMAN_SCENARIOS, SUITE_OF, SUITES, manifest_scenarios, validate_file  # noqa: E402
 
-FAMILY_ORDER = None
+SCENARIO_ORDER = list(CORE_SCENARIOS) + list(HUMAN_SCENARIOS)
+LOCKS = ["unlocked", "locked_releasable", "locked_no_release"]
 
 
 def _slim_group(g: dict) -> dict:
-    return {k: g.get(k) for k in ("n_doors", "n_episodes", "n_success", "success_rate", "doors_solved", "doors_solved_any", "damage_rate", "mean_time_to_pass_s")}
+    return {k: g.get(k) for k in ("n_doors", "n_episodes", "n_success", "success_rate", "doors_solved", "doors_solved_any", "damage_rate", "mean_time_to_pass_s", "mean_return", "human_collision_rate")}
 
 
-def summarize(path: str) -> dict:
-    with open(path) as f:
-        doc = json.load(f)
-    run, pol, agg, bench = doc["run"], doc["policy"], doc["aggregate"], doc["benchmark"]
-    default_eps = [e for e in doc["episodes"] if e.get("scenario") == "default"] or doc["episodes"]
+def suite_block(suite: str, tab: dict, eps: list[dict], n_doors_suite: int) -> dict:
     doors = {}
-    for e in default_eps:
+    for e in eps:
         s = doors.setdefault(e["door_id"], [0, 0])
         s[0] += int(bool(e.get("success")))
         s[1] += 1
-    scen_names = [s["name"] for s in run["scenarios"]]
-    head = agg["by_scenario"].get("default", agg) if "default" in scen_names else agg
+    return {
+        "suite": suite, "scenarios": tab.get("scenarios", []), "n_doors": tab["n_doors"], "n_doors_suite": n_doors_suite,
+        "complete": tab["n_doors"] >= n_doors_suite,
+        "doors_solved": tab["doors_solved"], "doors_solved_any": tab["doors_solved_any"], "n_episodes": tab["n_episodes"], "n_success": tab["n_success"],
+        "success_rate": tab["success_rate"], "damage_rate": tab["damage_rate"], "human_collision_rate": tab.get("human_collision_rate"), "mean_return": tab.get("mean_return"),
+        "mean_time_to_pass_s": tab.get("mean_time_to_pass_s"), "median_time_to_pass_s": tab.get("median_time_to_pass_s"),
+        "outcomes": tab.get("outcomes", {}), "n_errors": tab.get("n_errors", 0), "mean_wall_s": tab.get("mean_wall_s"),
+        "by_family": {k: _slim_group(v) for k, v in tab["by_family"].items()},
+        "by_scenario": {k: _slim_group(v) for k, v in tab["by_scenario"].items()},
+        "by_difficulty": {k: _slim_group(v) for k, v in tab["by_difficulty"].items()},
+        "by_lock_state": {k: _slim_group(v) for k, v in tab.get("by_lock_state", {}).items()},
+        "doors": doors,
+    }
+
+
+def summarize(path: str, n_total: int, n_human: int) -> dict:
+    with open(path) as f:
+        doc = json.load(f)
+    run, pol, agg, bench = doc["run"], doc["policy"], doc["aggregate"], doc["benchmark"]
+    suites = {}
+    for suite in SUITES:
+        if suite in agg:
+            eps = [e for e in doc["episodes"] if e.get("suite") == suite and e.get("outcome") != "error"]
+            suites[suite] = suite_block(suite, agg[suite], eps, n_total if suite == "core" else n_human)
     return {
         "file": os.path.basename(path), "policy": pol["name"], "description": pol.get("description", ""), "embodiment": pol.get("embodiment", "hand_base"),
         "policy_class": pol.get("class"), "extra": pol.get("extra", {}),
         "simulator": run["simulator"], "simulator_version": run.get("simulator_version"), "tier": run["tier"], "date": run["date"][:10], "label": run.get("label", ""),
         "commit": bench.get("commit"), "dataset_version": bench.get("dataset_version"), "n_doors_total": bench.get("n_doors_total"),
-        "n_doors": run["n_doors"], "seeds": run["seeds"], "scenarios": scen_names, "randomize": run.get("randomize"), "time_budget_s": run.get("time_budget_s"),
-        "wall_time_s": run.get("wall_time_s"), "mean_wall_s": agg.get("mean_wall_s"), "host": (run.get("host") or {}).get("platform"),
-        "leaderboard": "default" in scen_names and run["n_doors"] >= (bench.get("n_doors_total") or run["n_doors"]),
-        "doors_solved": head["doors_solved"], "doors_solved_any": head["doors_solved_any"], "n_episodes": head["n_episodes"], "n_success": head["n_success"],
-        "success_rate": head["success_rate"], "damage_rate": head["damage_rate"], "mean_time_to_pass_s": head.get("mean_time_to_pass_s"), "median_time_to_pass_s": head.get("median_time_to_pass_s"),
-        "outcomes": head.get("outcomes", {}),
-        "by_family": {k: _slim_group(v) for k, v in agg["by_family"].items()},
-        "by_task": {k: _slim_group(v) for k, v in agg["by_task"].items()},
-        "by_difficulty": {k: _slim_group(v) for k, v in agg["by_difficulty"].items()},
-        "by_lock_state": {k: _slim_group(v) for k, v in agg.get("by_lock_state", {}).items()},
-        "by_scenario": {k: _slim_group(v) for k, v in agg["by_scenario"].items()},
-        "doors": doors,
+        "suite": run.get("suite", "core"), "scenario_filter": run.get("scenario_filter", "all"), "n_doors": run["n_doors"], "seeds": run["seeds"],
+        "scenarios": [s["name"] for s in run["scenarios"]], "randomize": run.get("randomize"), "time_budget_s": run.get("time_budget_s"),
+        "wall_time_s": run.get("wall_time_s"), "host": (run.get("host") or {}).get("platform"), "door_selection": run.get("door_selection", "all"),
+        # leaderboard = a complete core run (every door, every listed core scenario, the scenario's own budget)
+        "leaderboard": "core" in suites and suites["core"]["complete"] and run.get("scenario_filter", "all") == "all" and not isinstance(run.get("time_budget_s"), (int, float)),
+        "suites": suites,
     }
 
 
+def _rows(index: dict, suite: str, complete_only: bool = False) -> list[dict]:
+    rows = [r for r in index["results"] if suite in r["suites"] and (not complete_only or r["suites"][suite]["complete"])]
+    return sorted(rows, key=lambda r: (-int(bool(r["suites"][suite]["complete"])), -r["suites"][suite]["doors_solved"], -r["suites"][suite]["success_rate"]))
+
+
+def _pct(x):
+    return "-" if x is None else f"{100 * x:.1f} %"
+
+
+def _secs(x):
+    return "-" if x is None else f"{x:.1f} s"
+
+
+def _scenario_table(rows: list[dict], suite: str, scenarios: list[str]) -> list[str]:
+    lines = ["| scenario | doors | " + " | ".join(f"`{r['policy']}`" for r in rows) + " |", "|---|---|" + "---|" * len(rows)]
+    for s in scenarios:
+        if not any(s in r["suites"][suite]["by_scenario"] for r in rows):
+            continue
+        n = max((r["suites"][suite]["by_scenario"].get(s, {}).get("n_doors") or 0) for r in rows)
+        lines.append(f"| {s} | {n} | " + " | ".join((lambda g: f"{g['doors_solved']} ({_pct(g['success_rate'])})" if g else "-")(r["suites"][suite]["by_scenario"].get(s)) for r in rows) + " |")
+    return lines
+
+
 def leaderboard_md(index: dict) -> str:
-    rows = sorted(index["results"], key=lambda r: (-int(bool(r["leaderboard"])), -r["doors_solved"], -r["success_rate"]))
-    total = index.get("n_doors_total") or 1000
-    lines = ["| policy | embodiment | simulator | tier | doors | seeds | solved (all seeds) | episode success | damage | median time-to-traverse | date | commit |",
+    total, n_human = index.get("n_doors_total") or 1000, index.get("n_doors_human") or 0
+    core = _rows(index, "core")
+    lines = ["### Core suite (default: no simulated person)", "",
+             "| policy | embodiment | simulator | tier | doors | seeds | solved (every scenario, every seed) | episode success | damage | median time-to-traverse | date | commit |",
              "|---|---|---|---|---|---|---|---|---|---|---|---|"]
-    for r in rows:
-        tt = f"{r['median_time_to_pass_s']:.1f} s" if r.get("median_time_to_pass_s") is not None else "-"
-        lines.append(f"| [{r['policy']}]({r['file']}) | {r['embodiment']} | {r['simulator']} {r.get('simulator_version') or ''} | {r['tier']} | {r['n_doors']} | {len(r['seeds'])} | "
-                     f"**{r['doors_solved']} / {total}** | {100 * r['success_rate']:.1f} % | {100 * r['damage_rate']:.1f} % | {tt} | {r['date']} | {(r.get('commit') or '')[:8]} |")
-    fams = sorted({f for r in rows for f in r["by_family"]})
-    lines += ["", "Per family, doors solved on every seed (default scenario, `n` doors per family):", "",
-              "| family | n | " + " | ".join(r["policy"] for r in rows) + " |", "|---|---|" + "---|" * len(rows)]
+    for r in core:
+        c = r["suites"]["core"]
+        note = "" if c["complete"] else f" (subset: {r.get('door_selection', '')})"
+        lines.append(f"| [{r['policy']}]({r['file']}){note} | {r['embodiment']} | {r['simulator']} {r.get('simulator_version') or ''} | {r['tier']} | {c['n_doors']} | {len(r['seeds'])} | "
+                     f"**{c['doors_solved']} / {c['n_doors_suite'] if c['complete'] else c['n_doors']}** | {_pct(c['success_rate'])} | {_pct(c['damage_rate'])} | {_secs(c['median_time_to_pass_s'])} | {r['date']} | {(r.get('commit') or '')[:8]} |")
+    fams = sorted({f for r in core for f in r["suites"]["core"]["by_family"]})
+    lines += ["", "Per family, doors solved (core suite, `n` doors per family):", "",
+              "| family | n | " + " | ".join(f"`{r['policy']}`" for r in core) + " |", "|---|---|" + "---|" * len(core)]
     for f in fams:
-        n = max((r["by_family"].get(f, {}).get("n_doors") or 0) for r in rows)
-        lines.append(f"| {f} | {n} | " + " | ".join(str(r["by_family"].get(f, {}).get("doors_solved", 0)) for r in rows) + " |")
-    tasks = sorted({t for r in rows for t in r["by_task"]})
-    lines += ["", "Per task (doors solved on every seed / doors with that task):", "",
-              "| task | n | " + " | ".join(r["policy"] for r in rows) + " |", "|---|---|" + "---|" * len(rows)]
-    for t in tasks:
-        n = max((r["by_task"].get(t, {}).get("n_doors") or 0) for r in rows)
-        lines.append(f"| {t} | {n} | " + " | ".join(str(r["by_task"].get(t, {}).get("doors_solved", 0)) for r in rows) + " |")
-    locks = ["unlocked", "locked_releasable", "locked_no_release"]
-    lines += ["", "Per lock state:", "", "| lock state | n | " + " | ".join(r["policy"] for r in rows) + " |", "|---|---|" + "---|" * len(rows)]
-    for k in locks:
-        n = max((r["by_lock_state"].get(k, {}).get("n_doors") or 0) for r in rows)
+        n = max((r["suites"]["core"]["by_family"].get(f, {}).get("n_doors") or 0) for r in core)
+        lines.append(f"| {f} | {n} | " + " | ".join(str(r["suites"]["core"]["by_family"].get(f, {}).get("doors_solved", 0)) for r in core) + " |")
+    lines += ["", "Per scenario (doors solved on every seed / doors listing the scenario; episode success in brackets):", ""] + _scenario_table(core, "core", list(CORE_SCENARIOS))
+    lines += ["", "Per lock state:", "", "| lock state | n | " + " | ".join(f"`{r['policy']}`" for r in core) + " |", "|---|---|" + "---|" * len(core)]
+    for k in LOCKS:
+        n = max((r["suites"]["core"]["by_lock_state"].get(k, {}).get("n_doors") or 0) for r in core) if core else 0
         if n:
-            lines.append(f"| {k} | {n} | " + " | ".join(str(r["by_lock_state"].get(k, {}).get("doors_solved", 0)) for r in rows) + " |")
+            lines.append(f"| {k} | {n} | " + " | ".join(str(r["suites"]["core"]["by_lock_state"].get(k, {}).get("doors_solved", 0)) for r in core) + " |")
+    human = _rows(index, "human")
+    lines += ["", "### Human suite (advanced, opt-in: `--suite human`)", "",
+              f"A kinematic person is simulated; {n_human} doors list one of `hold_open_for_human`, `wait_for_human`, `knock_and_wait`.  "
+              "These numbers are reported separately and never enter the core number above.", ""]
+    if human:
+        lines += ["| policy | embodiment | simulator | tier | doors | seeds | solved | episode success | human collisions | damage | date | commit |",
+                  "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+        for r in human:
+            h = r["suites"]["human"]
+            lines.append(f"| [{r['policy']}]({r['file']}) | {r['embodiment']} | {r['simulator']} {r.get('simulator_version') or ''} | {r['tier']} | {h['n_doors']} | {len(r['seeds'])} | "
+                         f"**{h['doors_solved']} / {h['n_doors_suite'] if h['complete'] else h['n_doors']}** | {_pct(h['success_rate'])} | {_pct(h['human_collision_rate'])} | {_pct(h['damage_rate'])} | {r['date']} | {(r.get('commit') or '')[:8]} |")
+        lines += [""] + _scenario_table(human, "human", list(HUMAN_SCENARIOS))
+    else:
+        lines.append("_No human-suite run yet._")
     lines.append("")
-    lines.append(f"_Generated by `scripts/build_results_index.py` on {index['generated'][:10]} from {len(rows)} result file(s)._")
+    lines.append(f"_Generated by `scripts/build_results_index.py` on {index['generated'][:10]} from {len(index['results'])} result file(s)._")
     return "\n".join(lines)
 
 
@@ -102,30 +150,42 @@ WHAT = {
     "g1_locomotion": "Unitree G1 (MuJoCo Menagerie) + pretrained unitree_rl_gym locomotion policy, walks toward the goal, arms parked",
     "random": "uniform random torques within the hand limits on every reachable joint + a random-walk base",
 }
-ROOT_START, ROOT_END = "<!-- baseline-results:start -->", "<!-- baseline-results:end -->"
 
 
 def root_readme_block(index: dict, manifest: dict | None) -> str:
-    """The headline + per-family tables of the root README 'Baseline results' section."""
-    rows = sorted([r for r in index["results"] if r["leaderboard"]], key=lambda r: -r["doors_solved"])
-    total = index.get("n_doors_total") or 1000
-    out = ["| policy | what it is | doors solved (all seeds) | episode success | damage | median time-to-traverse | wall time |", "|---|---|---|---|---|---|---|"]
+    """The root README 'Baseline results' tables: core headline + per family + per scenario, then the human suite."""
+    total, n_human = index.get("n_doors_total") or 1000, index.get("n_doors_human") or 0
+    rows = _rows(index, "core")
+    out = ["**Core suite** (the default: every door, every core scenario it lists, no simulated person):", "",
+           "| policy | what it is | doors solved (every scenario, every seed) | episode success | damage | median time-to-traverse | wall time |", "|---|---|---|---|---|---|---|"]
     for r in rows:
-        tt = f"{r['median_time_to_pass_s']:.1f} s" if r.get("median_time_to_pass_s") is not None else "-"
+        c = r["suites"]["core"]
         wall = f"{r['wall_time_s'] / 60:.1f} min" if r.get("wall_time_s") else "-"
-        out.append(f"| `{r['policy']}` | {WHAT.get(r['policy'], r['description'])} | **{r['doors_solved']} / {total}** | {100 * r['success_rate']:.1f} % | {100 * r['damage_rate']:.1f} % | {tt} | {wall} |")
+        head = f"**{c['doors_solved']} / {total}**" if c["complete"] else f"**{c['doors_solved']} / {c['n_doors']}** (subset `{r.get('door_selection', '')}`)"
+        out.append(f"| `{r['policy']}` | {WHAT.get(r['policy'], r['description'])} | {head} | {_pct(c['success_rate'])} | {_pct(c['damage_rate'])} | {_secs(c['median_time_to_pass_s'])} | {wall} |")
     fam_n = {}
     if manifest:
         for d in manifest["doors"]:
             fam_n[d["family"]] = fam_n.get(d["family"], 0) + 1
     else:
         for r in rows:
-            for f, g in r["by_family"].items():
+            for f, g in r["suites"]["core"]["by_family"].items():
                 fam_n[f] = max(fam_n.get(f, 0), g.get("n_doors") or 0)
     fams = sorted(fam_n, key=lambda f: (-fam_n[f], f))
-    out += ["", "Doors solved per family (of the family's door count):", "", "| family | doors | " + " | ".join(f"`{r['policy']}`" for r in rows) + " |", "|---|---|" + "---|" * len(rows)]
+    out += ["", "Doors solved per family (core suite; of the family's door count):", "", "| family | doors | " + " | ".join(f"`{r['policy']}`" for r in rows) + " |", "|---|---|" + "---|" * len(rows)]
     for f in fams:
-        out.append(f"| {f} | {fam_n[f]} | " + " | ".join(str(r["by_family"].get(f, {}).get("doors_solved", 0)) for r in rows) + " |")
+        out.append(f"| {f} | {fam_n[f]} | " + " | ".join(str(r["suites"]["core"]["by_family"].get(f, {}).get("doors_solved", 0)) for r in rows) + " |")
+    out += ["", "Per core scenario (doors solved on every seed / doors listing it; episode success in brackets):", ""] + _scenario_table(rows, "core", list(CORE_SCENARIOS))
+    hrows = _rows(index, "human")
+    out += ["", f"**Human suite** (advanced, opt-in `--suite human`: a simulated person; {n_human} doors list `hold_open_for_human`, `wait_for_human` or `knock_and_wait`; reported separately, never part of the core number):", ""]
+    if hrows:
+        out += ["| policy | doors | doors solved | episode success | human collisions | damage |", "|---|---|---|---|---|---|"]
+        for r in hrows:
+            h = r["suites"]["human"]
+            out.append(f"| `{r['policy']}` | {h['n_doors']} | **{h['doors_solved']} / {h['n_doors_suite'] if h['complete'] else h['n_doors']}** | {_pct(h['success_rate'])} | {_pct(h['human_collision_rate'])} | {_pct(h['damage_rate'])} |")
+        out += [""] + _scenario_table(hrows, "human", list(HUMAN_SCENARIOS))
+    else:
+        out.append("_No human-suite run yet._")
     out.append("")
     return "\n".join(out)
 
@@ -145,14 +205,17 @@ def update_root_readme(path: str, block: str) -> str | None:
 
 def update_readme(path: str, table: str) -> str:
     header = ("# DoorBench benchmark results\n\n"
-              "Every file here is one full run of a policy over the DoorBench doors, written by `doorbench benchmark run` "
+              "Every file here is one run of a policy over the DoorBench doors, written by `doorbench benchmark run` "
               "and validated by `scripts/validate_result.py` against `schema.json`.  `index.json` is generated from them "
               "(`scripts/build_results_index.py`) and feeds the [Results page](https://adamraudonis.github.io/DoorBench/#/results) "
-              "of the site.  \"Solved\" means success on **every** seed evaluated for that door in the `default` scenario "
-              "(each door's own task).  To add your own run, read [docs/SUBMITTING.md](../docs/SUBMITTING.md).\n\n")
+              "of the site.  A door is **solved** when the policy succeeded on **every** scenario the door lists in the suite, on "
+              "**every** seed.  The **core** suite (no simulated person) is the default and the headline number; the **human** "
+              "suite is advanced and opt-in, reported in its own table.  To add your own run, read [docs/SUBMITTING.md](../docs/SUBMITTING.md).\n\n")
     if os.path.exists(path):
         with open(path) as f:
             cur = f.read()
+        if START in cur:
+            cur = header + cur[cur.index(START):]
     else:
         cur = header + START + "\n" + END + "\n"
     if START in cur and END in cur:
@@ -173,6 +236,9 @@ def build(check: bool = False) -> int:
     if os.path.exists(mp):
         with open(mp) as f:
             manifest = json.load(f)
+    n_total = (len(manifest["doors"]) if manifest else 0)
+    listed = manifest_scenarios(manifest) or {}
+    n_human = sum(1 for ss in listed.values() if any(SUITE_OF.get(s) == "human" for s in ss))
     bad = 0
     results = []
     for p in files:
@@ -181,10 +247,11 @@ def build(check: bool = False) -> int:
             bad += 1
             print(f"FAIL {p}: {errs[:5]}")
             continue
-        results.append(summarize(p))
+        results.append(None)
     if bad:
         return 1
-    n_total = max([r.get("n_doors_total") or 0 for r in results] + [len(manifest["doors"]) if manifest else 0]) or 1000
+    n_total = max([n_total] + [json.load(open(p))["benchmark"].get("n_doors_total") or 0 for p in files]) or 1000
+    results = [summarize(p, n_total, n_human) for p in files]
     prev_generated = None
     ip = os.path.join(RESULTS, "index.json")
     if os.path.exists(ip):
@@ -193,7 +260,8 @@ def build(check: bool = False) -> int:
                 prev_generated = json.load(f).get("generated")
         except Exception:
             pass
-    index = {"schema_version": "1.0", "generated": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "n_doors_total": n_total, "results": results}
+    index = {"schema_version": "1.1", "generated": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "n_doors_total": n_total, "n_doors_human": n_human,
+             "suites": {"core": list(CORE_SCENARIOS), "human": list(HUMAN_SCENARIOS)}, "results": results}
     table = leaderboard_md(index)
     rp = os.path.join(RESULTS, "README.md")
     new_readme = update_readme(rp, table)

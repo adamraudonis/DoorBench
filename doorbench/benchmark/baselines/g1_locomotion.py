@@ -1,13 +1,14 @@
 """Unitree G1 + pretrained unitree_rl_gym locomotion policy as a benchmark baseline (robot embodiment).
 
 The robot (MuJoCo Menagerie `unitree_g1/g1.xml`, BSD-3) is attached to the door scene at the approach point by
-`robot_demo/run_g1_door.py`'s `G1DoorEnv`; the legs are driven by the pretrained sim2sim policy (`motion.pt`,
-BSD-3) through the 500 Hz PD loop of `deploy_mujoco.py`, the waist / arms are parked, and a P-controller on the
-yaw-rate command steers the robot along the door centre line toward `goal_point` after a 1 s settle.
+`robot_demo/run_g1_door.py`'s `G1DoorEnv` (DoorEnv places it at the scenario's seeded start pose); the legs are
+driven by the pretrained sim2sim policy (`motion.pt`, BSD-3) through the 500 Hz PD loop of `deploy_mujoco.py`, the
+waist / arms are parked, and a P-controller on the yaw-rate command steers the robot along the door centre line
+toward `goal_point` after a 1 s settle.
 
 This is a locomotion-only controller: it can walk through open doorways, automatic doors and free-swinging doors
 (saloon, strip curtains, turnstiles it can push), and it will walk into everything else.  It cannot reach for a
-lever, knob, bar, keypad or bolt.  Run `bash robot_demo/setup.sh` once to fetch the model and the policy.
+lever, knob, bar, keypad or bolt, never declares a door locked and never knocks.  Run `bash robot_demo/setup.sh` once to fetch the model and the policy.
 """
 from __future__ import annotations
 
@@ -124,9 +125,7 @@ class G1LocomotionPolicy(Policy):
         for a, v in hold_a.items():
             d.qpos[m.jnt_qposadr[m.actuator_trnid[a, 0]]] = v
             self.ctrl[a] = v
-        start = info.get("base", {}).get("start")
-        if start is not None:
-            d.qpos[self.qa] += float(start[0]) - float(info.get("approach_point", [0, -1.5, 0])[0])
+        # the environment has already placed the robot at the scenario's seeded start pose (x, y, yaw)
         mujoco.mj_forward(m, d)
         self.goal_y = float(info["goal_point"][1])
         self.cmd = np.zeros(3, np.float32)

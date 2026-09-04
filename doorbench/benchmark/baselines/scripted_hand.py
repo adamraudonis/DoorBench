@@ -4,13 +4,18 @@ It is an *oracle* heuristic - it reads the door's spec (joint names, lock parts,
 allowed to know it) and does what a competent person would do:
 
   1. release every robot-side lock part (thumbturn, slide bolts, dogs, hooks, lift pins, REX / call buttons),
-     entering a keypad code key by key when there is one,
+     entering a keypad code key by key when there is one, presenting a badge where the lock needs one,
   2. actuate the operator(s) (lever / knob / thumb latch / touch bars of both leaves / handwheel one full turn),
   3. push, pull, slide or lift the leaf (both leaves of a pair) with the sign-off QA's calibrated push force,
   4. walk the base through once the opening is clear, hold the door until it is past, let go (closers return),
-     or close it behind for close scenarios,
-  5. `peek`: open to 30 deg and hold; `open_only`: open and hold; `close`: close at a controlled speed;
-     `locked_recognize`: try gently for a few seconds, give up (`done`) if the leaf did not move.
+     or close it behind for `open_then_close`,
+  5. `close_only`: close at a controlled speed and seat the latch; `locked_recognize`: try gently for a few seconds,
+     declare the door locked (`declare_locked`) if the leaf did not move.
+
+Human suite (advanced, opt in with `--suite human`): `knock_and_wait` knocks first and waits 3.3 s before the
+sequence above; `wait_for_human` steps aside, waits until the person coming through has finished their path, then
+opens; `hold_open_for_human` opens, steps beside the doorway away from the person's path, holds the leaf until the
+person is through the plane, then walks through.
 
 It has no perception and no arm kinematics: it cannot fail for reasons a robot would (reach, grasp, balance), and it
 cannot open what its hand cannot reach (far-side locks, unpowered / env-released access control).
@@ -22,22 +27,23 @@ import math
 import numpy as np
 
 from ..policy import Policy
-from ..scenarios import TRAVERSE_TASKS
 
 DEG = math.radians
 MOMENTARY = ("rex_button_slide", "call_button_slide")
+TRAVERSE = ("open_and_traverse", "unlock_and_traverse", "open_then_close", "hold_open_for_human", "wait_for_human", "knock_and_wait")
 
 
 class ScriptedHandPolicy(Policy):
     name = "scripted_hand"
-    description = "Oracle heuristic hand from scripts/demo_mujoco.py: releases robot-side lock parts (keypad code, thumbturn, bolts, dogs), actuates the operator(s), pushes / slides / lifts the leaf with the QA push force, walks the base through when the opening is clear, lets go or closes behind."
+    description = "Oracle heuristic hand from scripts/demo_mujoco.py: releases robot-side lock parts (keypad code, thumbturn, bolts, dogs, badge), actuates the operator(s), pushes / slides / lifts the leaf with the QA push force, walks the base through when the opening is clear, lets go or closes behind; knocks, waits for or holds the door for the simulated person of the human suite."
     control_dt = 0.004
 
     # ------------------------------------------------------------------ setup
     def reset(self, info: dict, env=None) -> None:
         self.info = info
-        self.task = info["task"]
-        self.require_closed = bool(info["scenario"] in ("traverse_close",))
+        self.scenario = info["scenario"]
+        self.traverse = self.scenario in TRAVERSE
+        self.require_closed = self.scenario == "open_then_close"
         self.joints = info["joints"]
         self.lim = info["torque_limits"]
         self.pj = info["primary_joint"]
@@ -95,16 +101,12 @@ class ScriptedHandPolicy(Policy):
         else:
             self.mode = "swing"
             self.target = min(DEG(80), max(0.85 * self.hi, min(0.97 * self.hi, DEG(62))))
-        if self.task == "peek":
-            self.target = DEG(30) if self.is_hinge else min(0.3, 0.6 * self.hi)
-            if self.mode == "vertical":
-                self.target = min(1.0, 0.5 * self.hi)
         if both_ways and self.mode == "swing":
             self.target = min(self.target, 0.97 * self.hi)
         # gains (as in the demo hands)
         p = self.push
         self.kp, self.kd = (3.0 * p, 0.35 * p) if self.mode == "swing" else ((4.0 * p, 1.0 * p) if self.mode == "slide" else (2.0 * p, 0.6 * p))
-        # timeline
+        # timeline (hand time = sim time - delay)
         self.t_press = 0.5
         self.t_lock = self.t_press
         n_keys = len(self.code_keys)
@@ -116,11 +118,37 @@ class ScriptedHandPolicy(Policy):
             self.t_push = None      # after the wheel has turned
         self.t_wheel_done = None
         self.goal_y = float(info["goal_point"][1])
+        self.plane_y = float((info.get("pass_plane") or {}).get("center", [0, 0, 0])[1])
         self.t_pass = None
         self.released = False
         self.hold_after = 1.0
         self.give_up_at = self.t_push + 3.0 if self.t_push is not None else 8.0
         self.done = False
+        # ---- human suite
+        self.delay = 0.0            # hand time offset: knock-and-wait, waiting for the person to come through
+        self.knocked = False
+        self.knock_at = 0.3
+        self.hold_for_human = self.scenario == "hold_open_for_human"
+        self.human_through = False
+        self.aside = None           # [x, y] the base steps to before doing anything else
+        self.park_x = 0.0
+        self._stall = {}            # leaf -> time the closing servo stalled (friction feed-forward ramp)
+        human = info.get("human")
+        path = (human or {}).get("path") or []
+        if self.scenario == "knock_and_wait":
+            self.delay = self.knock_at + 3.3       # `waited` needs the door opened >= 3 s after the knock
+        elif self.scenario == "wait_for_human" and path:
+            self.delay = float(path[-1][0]) + 0.3   # the person has finished their path (the env opens the door for them)
+            # the person passes beside the start zone on the side away from the handle: step to the other side
+            hx = float(path[2][1]) if len(path) > 2 else 0.0
+            sx = float(info["base"]["start"][0])
+            self.aside = [(-1.0 if hx > sx else 1.0) * 0.5 + 0.0, float(info["base"]["start"][1])]
+        elif self.hold_for_human and path:
+            # the person walks up behind the robot on the handle side and through the plane: hold the leaf from the
+            # hinge side of the doorway, 0.8 m before the wall (outside the 0.52 m collision radius of their path)
+            hx = float(path[1][1]) if len(path) > 1 else 0.25
+            self.aside = [(-1.0 if hx >= 0 else 1.0) * 0.6, -0.8]
+            self.park_x = self.aside[0] * 0.75          # 0.45 m beside the goal centre (inside the 0.5 m goal zone)
 
     # ------------------------------------------------------------------ helpers
     @staticmethod
@@ -166,30 +194,53 @@ class ScriptedHandPolicy(Policy):
             return 14.0
         return 3.0 if hinge else 60.0
 
+    @staticmethod
+    def _toward(bx, by, tx, ty, speed=1.0):
+        dx, dy = tx - bx, ty - by
+        n = math.hypot(dx, dy)
+        if n < 0.03:
+            return [0.0, 0.0], True
+        s = min(speed, 3.0 * n)
+        return [s * dx / n, s * dy / n], False
+
     # ------------------------------------------------------------------ act
     def act(self, obs: dict) -> dict:
         t = obs["t"]
+        tt = t - self.delay            # hand time
         out: dict[str, float] = {}
         bx, by = obs["base"]["pos"][0], obs["base"]["pos"][1]
         flags = obs["flags"]
-        task = self.task
         base_v = [0.0, 0.0]
         walking = False
-        # ---- when may the base walk
-        if task == "traverse_open":
-            walking = t > 0.3
-        elif task in TRAVERSE_TASKS:
-            walking = flags["door_open_clear"] or (self.automatic and t > self.t_press)
-        if walking and self.t_pass is None:
-            base_v = [float(np.clip(-2.0 * bx, -0.5, 0.5)), 1.0 if flags["door_open_clear"] or task == "traverse_open" else (0.6 if by < -0.9 else 0.0)]
-        elif self.automatic and t > self.t_press and by < -0.9 and self.t_pass is None:
+        human = obs.get("human_xy")
+        # ---- knock first (knock_and_wait), step aside (human scenarios)
+        knock = False
+        if self.scenario == "knock_and_wait" and not self.knocked and t >= self.knock_at:
+            knock, self.knocked = True, True
+        at_aside = True
+        if self.aside is not None and self.t_pass is None:
+            base_v, at_aside = self._toward(bx, by, self.aside[0], self.aside[1])
+        # ---- hold-open: the person is through once they are past the plane by their radius (+ margin)
+        if self.hold_for_human and human is not None and human[1] > self.plane_y + 0.5:
+            self.human_through = True
+        # ---- when may the base walk: once the hand is at work (never during the knock / wait delay) and the opening
+        # is clear *now* (a door that closed again behind the person must be re-opened first)
+        clear = flags.get("door_clear_now", flags["door_open_clear"])
+        if self.traverse and self.t_pass is None and tt >= self.t_press:
+            walking = clear or self.automatic
+            if self.hold_for_human and not self.human_through:
+                walking = False
+        if walking:
+            # through the centre of the opening; the person of hold_open_for_human parks 0.8 m past the goal, so stop
+            # short of the goal centre and to the side of their path (outside the 0.52 m collision radius)
+            x_t = self.park_x if (self.hold_for_human and by > 0.3) else 0.0
+            base_v = [float(np.clip(-2.0 * (bx - x_t), -0.5, 0.5)), 1.0 if clear else (0.6 if by < -0.9 else 0.0)]
+        elif self.automatic and self.traverse and tt > self.t_press and by < -0.9 and self.t_pass is None and at_aside:
             base_v = [float(np.clip(-2.0 * bx, -0.5, 0.5)), 0.6]        # step into the sensor's range
-        if task in TRAVERSE_TASKS and self.t_pass is None and by >= self.goal_y + 0.3:
+        if self.traverse and self.t_pass is None and by >= self.goal_y + (-0.1 if self.hold_for_human else 0.3):
             self.t_pass = t
-        if task == "traverse_open":
-            return {"base_velocity": base_v}
-        if t < self.t_press:
-            return {"base_velocity": base_v}
+        if tt < self.t_press:
+            return {"base_velocity": base_v, "knock": knock}
         badge = False
         if self.badge_needed and not self.badged and not flags["lock_released"]:
             badge, self.badged = True, True
@@ -200,13 +251,13 @@ class ScriptedHandPolicy(Policy):
             else:
                 out[jn] = out.get(jn, 0.0) + self.lock_effort(jn)      # bolts: a steady pull (the QA's 60 N)
         for t0, t1, jn in self.key_times:
-            if t0 <= t < t1:
+            if t0 <= tt < t1:
                 out[jn] = out.get(jn, 0.0) + 10.0                      # keypad key: steady 10 N press
-        if self.buttons and t < self.t_op + 0.5 and not flags["lock_released"]:
+        if self.buttons and tt < self.t_op + 0.5 and not flags["lock_released"]:
             for jn in self.buttons:
                 out[jn] = out.get(jn, 0.0) + 20.0                      # REX / call button: steady 20 N press
-        # ---- close task: close at a controlled speed (no slam)
-        if task == "close":
+        # ---- close_only: close at a controlled speed (no slam)
+        if self.scenario == "close_only":
             self._close(obs, out)
             return {"torques": out, "badge": badge}
         # ---- let go / close behind after passing
@@ -219,16 +270,16 @@ class ScriptedHandPolicy(Policy):
                 self.released = True
             if self.released:
                 return {"torques": {jn: v for jn, v in out.items() if jn in self.locks}}
-        # ---- locked_recognize: try gently, then give up
-        gentle = task == "locked_recognize"
-        if gentle and t > self.give_up_at:
+        # ---- locked_recognize: try gently, then declare
+        gentle = self.scenario == "locked_recognize"
+        if gentle and tt > self.give_up_at:
             q, _ = self._q(obs, self.pj)
             if abs(q) < (DEG(5) if self.is_hinge else 0.03):
-                return {"torques": {}, "done": True}
+                return {"torques": {}, "declare_locked": True}
         # ---- 2. operator(s)
         q_leaf, _ = self._q(obs, self.pj)
         release_op = DEG(20) if self.is_hinge else 0.15
-        if t >= self.t_op:
+        if tt >= self.t_op:
             if self.wheel:
                 rng = self.joints[self.wheel].get("range") or [0.0, 2 * math.pi]
                 end = float(rng[1])
@@ -237,17 +288,17 @@ class ScriptedHandPolicy(Policy):
                     self.velocity(obs, self.wheel, 2.4, 25.0, min(60.0, self.lim.get(self.wheel, 60.0)), out)
                 else:
                     if self.t_wheel_done is None:
-                        self.t_wheel_done = t
-                        self.t_push = t + 0.4
+                        self.t_wheel_done = tt
+                        self.t_push = tt + 0.4
                         self.give_up_at = self.t_push + 3.0
                     self.servo(obs, self.wheel, end - 0.02, 40.0, 4.0, min(30.0, self.lim.get(self.wheel, 30.0)), out)
             for o in self.ops:
                 if o == self.wheel:
                     continue
-                if q_leaf < release_op or self.mode in ("slide", "vertical") or task in ("open_only", "peek"):
+                if q_leaf < release_op or self.mode in ("slide", "vertical"):
                     self.operate(obs, o, self.op_effort(o), out)
         # ---- 3. leaf
-        if self.t_push is not None and t >= self.t_push and not self.automatic:
+        if self.t_push is not None and tt >= self.t_push and not self.automatic:
             if self.mode == "rotor":
                 if self.t_pass is None:
                     self.velocity(obs, self.pj, 0.9, 120.0, self.push, out, floor=0.0)
@@ -256,7 +307,7 @@ class ScriptedHandPolicy(Policy):
                 for lf in self.leaves:
                     tgt = self.target if lf == self.pj else self._secondary_target(lf)
                     self.servo(obs, lf, tgt, self.kp, self.kd, lim, out)
-        return {"torques": out, "base_velocity": base_v, "badge": badge}
+        return {"torques": out, "base_velocity": base_v, "badge": badge, "knock": knock}
 
     def _secondary_target(self, lf):
         rng = self.joints.get(lf, {}).get("range")
@@ -268,16 +319,29 @@ class ScriptedHandPolicy(Policy):
         return min(self.target, 0.97 * hi) if hi > 1e-6 else self.target
 
     def _close(self, obs, out):
-        """Drive every leaf back to 0 at a controlled speed: fast far from the stop, slow near it (no slam)."""
+        """Drive every leaf back to 0 at a controlled speed: fast far from the stop, slow near it (no slam).  A leaf
+        that stalls against track / hinge friction (a dirty-track slider resists ~100 N) gets a feed-forward push on
+        top of the velocity servo, which brakes it again once it moves."""
+        t = obs["t"]
         for lf in self.leaves:
             q, dq = self._q(obs, lf)
             near = abs(q) < (DEG(12) if self.is_hinge else 0.12)
             v = (0.35 if near else 1.0) * (1.0 if self.is_hinge else 0.5)
             v_t = -v if q > 0 else v
+            sgn = -1.0 if q >= 0 else 1.0
             if abs(q) < (DEG(1.0) if self.is_hinge else 0.01):
-                # seat it: a modest constant push so the latch bolt rides over the strike lip
-                out[lf] = out.get(lf, 0.0) + (-1.0 if q >= 0 else 1.0) * min(0.25 * self.push, 40.0 if self.is_hinge else 120.0)
+                # seat it: a steady push so the latch bolt rides over the strike lip (a slider's needs to beat the
+                # track friction; a hinged leaf or a vertical door gets a modest one so nothing slams)
+                seat = min(0.25 * self.push, 40.0) if self.is_hinge else (min(0.25 * self.push, 120.0) if self.mode == "vertical" else min(0.5 * self.push, 200.0))
+                out[lf] = out.get(lf, 0.0) + sgn * seat
+                self._stall.pop(lf, None)
                 continue
             kv = 2.0 * self.push
-            tau = float(np.clip(kv * (v_t - dq), -self.push, self.push))
-            out[lf] = out.get(lf, 0.0) + tau
+            tau = kv * (v_t - dq)
+            if abs(dq) < 0.3 * v and self.mode != "vertical":
+                # stalled against friction: feed-forward that builds up over 0.5 s (vertical doors close under gravity)
+                t0 = self._stall.setdefault(lf, t)
+                tau += sgn * min(0.5 * self.push, self.push * max(0.0, t - t0))
+            else:
+                self._stall.pop(lf, None)
+            out[lf] = out.get(lf, 0.0) + float(np.clip(tau, -self.push, self.push))

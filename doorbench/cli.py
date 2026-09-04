@@ -6,7 +6,8 @@
   doorbench qa <door_id>                    run the sign-off checks on an exported door
   doorbench view <door_id>                  open in the MuJoCo viewer
   doorbench stats                           dataset statistics from assets/manifest.json
-  doorbench benchmark run --policy scripted_hand --doors all --seeds 3 --scenarios default --workers 8 --out results/scripted_hand.json
+  doorbench benchmark run --policy scripted_hand --doors all --seeds 3 --workers 8 --out results/scripted_hand.json   # core suite
+  doorbench benchmark run --policy scripted_hand --suite human --out results/scripted_hand_human.json                  # opt-in human suite
   doorbench benchmark run --policy my_pkg.policies:MyPolicy --doors family:swing_single --dry-run
   doorbench benchmark list-scenarios | list-policies
 """
@@ -19,6 +20,7 @@ import sys
 
 
 def main(argv=None):
+    from .benchmark import runner as R
     ap = argparse.ArgumentParser(prog="doorbench")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("list"); p.add_argument("--family"); p.add_argument("--task"); p.add_argument("--assets", default="assets")
@@ -31,13 +33,14 @@ def main(argv=None):
     bsub = b.add_subparsers(dest="bcmd", required=True)
     r = bsub.add_parser("run", help="run a policy; writes a result JSON (results/schema.json)")
     r.add_argument("--policy", required=True, help="random | scripted_hand | g1_locomotion | module.path:Class | path/to/file.py:Class")
-    r.add_argument("--doors", default="all", help="all | family:<f,..> | difficulty:<n,..> | task:<t,..> | lock:locked|unlocked | first:<n> | sample:<n>[:<seed>] | ids:<a,b> | <a,b> | @file")
+    r.add_argument("--doors", default="all", help="all | family:<f,..> | difficulty:<n,..> | scenario:<s,..> | lock:locked|unlocked | first:<n> | every:<n>[:<offset>] | sample:<n>[:<seed>] | ids:<a,b> | <a,b> | @file")
     r.add_argument("--seeds", default="3", help="number of seeds (0..n-1) or an explicit list 0,1,2; seed 0 = nominal door, >= 1 randomised")
-    r.add_argument("--scenarios", default="default", help="comma-separated scenario names or 'all' (see list-scenarios)")
+    r.add_argument("--suite", default="core", choices=list(R.SUITE_CHOICES), help="core (default: no simulated person, all 1000 doors) | human (advanced, opt-in: the 79 doors with a human scenario) | all (both, kept in separate tables)")
+    r.add_argument("--scenarios", default=None, help="narrow to these scenario types (comma list; must belong to --suite), 'primary' = each door's primary scenario only; default: every scenario the door lists in the suite")
     r.add_argument("--workers", type=int, default=max(1, min(8, os.cpu_count() or 1)))
     r.add_argument("--tier", default="full", choices=["full", "simple", "minimal"])
     r.add_argument("--assets", default="assets")
-    r.add_argument("--budget", type=float, default=None, help="sim-time budget per episode (s); default per scenario (20 s)")
+    r.add_argument("--budget", type=float, default=None, help="sim-time budget per episode (s); default: the scenario's own time_budget_s")
     r.add_argument("--wall-timeout", type=float, default=120.0, help="wall-clock limit per episode (s)")
     r.add_argument("--control-dt", type=float, default=None, help="override the policy's control period (s)")
     r.add_argument("--no-randomize", action="store_true", help="nominal physics for every seed")
@@ -84,12 +87,12 @@ def main(argv=None):
         f = {"full": "scene.xml", "simple": "door_simple.xml", "minimal": "door_minimal.xml"}[a.tier]
         subprocess.call([sys.executable, "-m", "mujoco.viewer", "--mjcf", os.path.join(a.assets, "doors", a.door_id, f)])
     elif a.cmd == "benchmark":
-        from .benchmark import runner as R
-        from .benchmark.scenarios import SCENARIOS
+        from .benchmark.scenarios import SCENARIO_DESCRIPTIONS, SCENARIO_SUITE, SCENARIO_TYPES
         from .benchmark.policy import BASELINES, load_policy_class, policy_meta
         if a.bcmd == "list-scenarios":
-            for s in SCENARIOS.values():
-                print(f"{s.name:16s} task={s.task or 'spec.task':22s} budget={s.time_budget_s:>5.1f} s  {'close behind  ' if s.require_closed else ''}{s.description}")
+            for n in SCENARIO_TYPES:
+                print(f"{n:22s} suite={SCENARIO_SUITE[n]:6s} {SCENARIO_DESCRIPTIONS[n]}")
+            print("\nThe core suite is the default (no simulated person); the human suite is opt-in: --suite human | all.")
         elif a.bcmd == "list-policies":
             for k, v in BASELINES.items():
                 try:
@@ -101,10 +104,10 @@ def main(argv=None):
             seeds = int(a.seeds) if a.seeds.isdigit() else [int(x) for x in a.seeds.split(",") if x.strip()]
             n_seeds = seeds if isinstance(seeds, int) else len(seeds)
             if a.dry_run:
-                R.dry_run(a.doors, a.scenarios, n_seeds, assets=a.assets)
+                R.dry_run(a.doors, a.suite, a.scenarios, n_seeds, assets=a.assets)
                 return
-            out = a.out or os.path.join("results", f"{R.load_policy_class(a.policy).name}.json")
-            R.run_benchmark(a.policy, doors=a.doors, seeds=seeds, scenarios=a.scenarios, workers=a.workers, tier=a.tier, assets=a.assets, time_budget_s=a.budget,
+            out = a.out or os.path.join("results", f"{R.load_policy_class(a.policy).name}{'' if a.suite == 'core' else '_' + a.suite}.json")
+            R.run_benchmark(a.policy, doors=a.doors, seeds=seeds, suite=a.suite, scenarios=a.scenarios, workers=a.workers, tier=a.tier, assets=a.assets, time_budget_s=a.budget,
                             wall_timeout_s=a.wall_timeout, randomize=not a.no_randomize, control_dt=a.control_dt, label=a.label, out=out)
     elif a.cmd == "stats":
         import collections

@@ -109,12 +109,15 @@ benchmark is built to train.
 
 ## Baseline results
 
-Every baseline below was run over **all 1000 doors, 3 seeds each**, with `doorbench benchmark run` (MuJoCo 3.12, `full`
-tier, 20 s budget per episode, seed 0 = the nominal door, seeds 1-2 with randomised friction / damping / closer / masses).
-A door counts as **solved** only if the policy succeeded at the door's own task (`spec.task`: open and traverse, unlock,
-hold against the closer, push through, close, peek, recognise a locked door, ...) on **every** seed without a damage
-event.  The full result files, the JSON schema and the validator are in [`results/`](results/README.md); the same numbers
-are on the [Results page](https://adamraudonis.github.io/DoorBench/#/results) of the site with a per-door grid, and every
+Every baseline below was run with `doorbench benchmark run` (MuJoCo 3.12, `full` tier) over **all 1000 doors, every
+scenario each door lists in the core suite, 3 seeds each** (seed 0 = the nominal door, seeds 1-2 with randomised
+friction / damping / closer / masses and start pose).  The **core** suite - open & traverse, open then close, close
+only, unlock & traverse, recognise a locked door - involves nobody but the robot and is the benchmark; the **human**
+suite (hold the door for a person, wait for a person coming through, knock & wait) is an advanced, opt-in add-on
+(`--suite human`) reported separately.  A door counts as **solved** only if the policy met the scenario's own
+success criterion (e.g. opened ∧ traversed ∧ no damage) on **every** scenario and **every** seed.  The full result
+files, the JSON schema and the validator are in [`results/`](results/README.md); the same numbers are on the
+[Results page](https://adamraudonis.github.io/DoorBench/#/results) of the site with a per-door grid, and every
 catalogue card carries the per-door outcome of each baseline.
 
 <!-- baseline-results:start -->
@@ -164,28 +167,31 @@ Doors solved per family (of the family's door count):
 Reading the table honestly:
 
 * **`scripted_hand` is an upper bound for the reference embodiment, not a robot.** It has no perception or arm and
-  cannot fail for a robot's reasons; it fails where the door cannot be opened from where the robot stands.  Its 140
-  unsolved doors are: 15 pet doors (the opening is narrower than the 0.45 m the base needs), 38 exit doors where the
-  robot stands on the *pull* side of a panic device with only a pull handle, 12 credential-locked turnstiles,
-  11 "jammed" doors (`jam_stuck`, task `locked_recognize`) that open under a normal 25 N m push, 22 accordion / bifold /
-  revolving doors whose panels or wings rub the head jamb and do not move under 150 N m, 6 rotors given the task
-  `traverse_open`, 11 doors that succeed on 1-2 of the 3 randomised seeds, and 25 singles (a deadbolt whose thumbturn
-  mesh collides with its housing, electric bolts without a release path, unpowered automatic doors, `peek` on automatic
-  doors that open fully, ...).  Most of these are dataset or task-assignment defects that the benchmark run exposed
-  (`python scripts/validate_result.py` + the per-door grid on the site make them easy to find); they are listed in
-  `TASKS.md`.
+  cannot fail for a robot's reasons; it fails where the door cannot be opened from where the robot stands or where
+  the dataset itself is at fault.  Its unsolved doors are dominated by: exit doors where the robot stands on the
+  *pull* side of a panic device with only a pull handle, pet doors (the opening is narrower than the 0.45 m the base
+  needs), credential-locked turnstiles, "jammed" doors (`jam_stuck`, `locked_recognize`) that open under a normal
+  push, accordion / bifold / revolving doors whose panels or wings rub the head jamb, delayed-egress and mechanical
+  keypad locks that open without ever reporting `lock_released`, and doors that succeed on some seeds only.  These
+  are dataset or scenario-assignment defects that the benchmark run exposed (the per-door grid on the site and
+  `python scripts/validate_result.py` make them easy to find); they are listed in `TASKS.md`.
 * **`g1_locomotion` is the honest number for an off-the-shelf humanoid controller**: it can only pass what a walking
   robot can pass (open doorways, sensor-operated doors, saloon pairs, strip curtains, turnstiles it can push through),
-  and it "passes" `locked_recognize` doors by walking into them without breaking anything.  Everything with a lever,
-  knob, bar, bolt or keypad is out of reach, which is exactly what the benchmark is for.
-* **`random` is the floor**: it damages 55 % of the doors it touches (operator overload, slams) and its successes are
-  the `locked_recognize` / `open_only` / `peek` doors that tolerate flailing.
+  and it "passes" `locked_recognize` doors by walking into them without breaking anything (the scenario criterion is
+  `!opened ∧ !damage ∧ !hardware_misuse`; it never declares anything).  Everything with a lever, knob, bar, bolt or
+  keypad is out of reach, which is exactly what the benchmark is for.
+* **`random` is the floor**: it damages most of the doors it touches (operator overload, slams) and its successes
+  are the `locked_recognize` doors that tolerate flailing plus the odd free-swinging leaf.
+* The **human suite** is only run for `scripted_hand`; its remaining failures are the same unreachable exit devices
+  plus doors whose closer shuts the leaf on the person's heels.  A policy that ignores people entirely is a complete
+  core submission.
 
-Reproduce any row (a few minutes for the hand baselines, ~20 min for the G1 on a 10-core CPU), then validate and index:
+Reproduce any row (a few minutes for the hand baselines, ~40 min for the G1 on a 10-core CPU), then validate and index:
 
 ```bash
 doorbench benchmark run --policy scripted_hand --doors all --seeds 3 --workers 8 --out results/scripted_hand.json
-bash robot_demo/setup.sh && doorbench benchmark run --policy g1_locomotion --doors all --seeds 3 --workers 6 --out results/g1_locomotion.json
+doorbench benchmark run --policy scripted_hand --suite human --seeds 3 --workers 8 --out results/scripted_hand_human.json
+bash robot_demo/setup.sh && doorbench benchmark run --policy g1_locomotion --doors all --seeds 3 --workers 8 --out results/g1_locomotion.json
 python scripts/validate_result.py --all && python scripts/build_results_index.py
 ```
 
