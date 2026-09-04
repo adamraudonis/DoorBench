@@ -26,8 +26,8 @@ Fable subagent working in its own git worktree (merged by main).
 | # | Task | Status | Owner | Notes |
 |---|------|--------|-------|-------|
 | B1 | DoorEnv + LabelTracker (touched / actuated / unlatched / opened / traversed / damaged …) | done | main | `doorbench/benchmark/` |
-| B2 | Scenario + reward spec per door: start zone (randomisable), approach point, pass plane, goal zone, reward events (touch handle, unlatch, open, traverse, close), time budget / expected transit time; scenarios: open-and-traverse, open-then-close, hold-open-for-human, wait-for-human, close-behind | todo | agent:bench | emitted into `spec.json["benchmark"]` + `docs/BENCHMARK.md` |
-| B3 | Viewer "Show evaluation" overlay (default off): start/goal zones, reward markers, human path, expected transit time | todo | agent:bench | `viewer/src/DoorView.tsx` |
+| B2 | Scenario + reward spec per door: start zone (randomisable), approach point, pass plane, goal zone, reward events (touch handle, unlatch, open, traverse, close), time budget / expected transit time; scenarios: open-and-traverse, open-then-close, hold-open-for-human, wait-for-human, close-behind | review | agent:bench | `doorbench/benchmark/scenarios.py` → `spec.json["benchmark"]` (+ manifest summary); 8 scenario types incl. unlock_and_traverse / locked_recognize / knock_and_wait; seeded assignment: open_and_traverse 761 · unlock 141 · locked_recognize 98 · open_then_close 294 · close_only 115 · hold_open 42 · wait_for_human 29 · knock 10; `DoorEnv.reset(scenario=)`, kinematic human (mocap capsule), `reward()` / `success`; `tests/test_benchmark_scenarios.py`; formulas in `docs/BENCHMARK.md` |
+| B3 | Viewer "Show evaluation" overlay (default off): start/goal zones, reward markers, human path, expected transit time | review | agent:bench | `viewer/src/evaluation.ts` + Evaluation panel section, scenario selector, person timeline scrubber, deep links `#/door/<id>?eval=1&scenario=…&t=…`; screenshots in `docs/media/` |
 | B4 | MuJoCo physics demo video: door opened by a programmatic hand, rendered to mp4 | todo | agent:mujoco | `scripts/demo_mujoco.py` |
 | B5 | Real humanoid in the loop: Unitree G1/H1 (MuJoCo Menagerie, BSD) walking through a DoorBench door with an off-the-shelf pretrained policy (unitree_rl_gym sim2sim); GPU rental only if CPU inference is too slow | todo | agent:robot | licence check first; report feasibility + video |
 
@@ -36,7 +36,8 @@ Fable subagent working in its own git worktree (merged by main).
 | # | Task | Status | Owner | Notes |
 |---|------|--------|-------|-------|
 | V1 | Catalogue with thumbnails + filters, families page, 3D view with joint sliders + physics panel | done | main | live at https://adamraudonis.github.io/DoorBench/ |
-| V2 | "Open / close" must actuate the operator first (latch retracts) and open joined leaves together (dutch joining bolt); slider on a latched leaf auto-unlatches; clearance badge in the panel | todo | agent:bench | |
+| V2 | "Open / close" must actuate the operator first (latch retracts) and open joined leaves together (dutch joining bolt); slider on a latched leaf auto-unlatches; clearance badge in the panel | review | agent:bench | `viewer/src/doorLogic.ts` (pure, `bun test` against model.json: knob+latch, dutch joined/free, pair active leaf, locked stall, slide-bolt gate); operator → leaf → release phases; locked joints (range < 0.006) never driven; "latch retracted" toast; QA section lists `clearance` + failure pairs |
+| V4 | Info icons (ⓘ, hover + click, accessible) on every physics / QA / evaluation row with plain-language explanation, unit and derivation; fix units for linear operators (mm, N, N/m) | review | agent:bench | `viewer/src/glossary.ts`; units follow the operator joint type from model.json |
 | V3 | Fix resize feedback loop, HUD stacking, camera framing | done | main | |
 
 ## Process

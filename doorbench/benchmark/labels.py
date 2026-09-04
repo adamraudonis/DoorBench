@@ -59,6 +59,8 @@ class EpisodeLabels:
     success: bool = False
     task: str = ""
     notes: list = field(default_factory=list)
+    reward_events: list = field(default_factory=list)   # [{t, event, reward}] from the scenario reward table (DoorEnv)
+    episode_return: float = 0.0
 
     def to_dict(self):
         return asdict(self)
@@ -85,6 +87,11 @@ class LabelTracker:
         self.pj = self._jid(meta.get("primary_joint"))
         self.oj = self._jid(meta.get("operator_joint")) if meta.get("operator_joint") else -1
         self.bj = self._jid("leaf_latch_bolt_slide")
+        if self.bj < 0:   # pairs / dutch doors name their bolt after the active leaf
+            for j in range(model.njnt):
+                if (mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j) or "").endswith("latch_bolt_slide"):
+                    self.bj = j
+                    break
         self.is_hinge = self.pj >= 0 and int(model.jnt_type[self.pj]) == int(mujoco.mjtJoint.mjJNT_HINGE)
         self.open_thr = math.radians(10) if self.is_hinge else 0.10
         self.closed_thr = math.radians(3) if self.is_hinge else 0.03
@@ -95,7 +102,7 @@ class LabelTracker:
             b = model.geom_bodyid[g]
             bname = mujoco.mj_id2name(mujoco.mjtObj.mjOBJ_BODY, b) if False else mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, b)
             gname = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, g) or ""
-            if bname in self.robot_bodies:
+            if bname in self.robot_bodies or bname == "human":   # the simulated human (DoorEnv) is neither door nor robot
                 continue
             if b == 0:
                 self.frame_geoms.add(g)
@@ -120,6 +127,7 @@ class LabelTracker:
         self.code = spec.get("lock", {}).get("code")
         self._key_seq = []
         self._key_down = set()
+        self.step_leaf_force = 0.0
 
     def _jid(self, name):
         if not name:
@@ -167,16 +175,21 @@ class LabelTracker:
                     if fn > thr:
                         self._damage(d, "impact", mj.mj_id2name(m, mj.mjtObj.mjOBJ_GEOM, other), fn, thr)
         L.max_leaf_contact_force = max(L.max_leaf_contact_force, max_leaf_f)
+        self.step_leaf_force = max_leaf_f
         # ---- operator
         if self.oj >= 0:
             lo, hi = m.jnt_range[self.oj]
             qo = self.q(d, self.oj)
             if hi - lo > 1e-6 and (qo - lo) >= 0.7 * (hi - lo):
                 L.operator_actuated = True
-            tau = abs(float(d.qfrc_constraint[m.jnt_dofadr[self.oj]] + d.qfrc_applied[m.jnt_dofadr[self.oj]]))
+            dof = m.jnt_dofadr[self.oj]
+            tau_drive = abs(float(d.qfrc_applied[dof] + d.qfrc_actuator[dof]))
+            tau = abs(float(d.qfrc_constraint[dof] + d.qfrc_applied[dof]))
             L.max_operator_torque = max(L.max_operator_torque, tau)
             ythr = self.damage.get("operator_yield_torque_Nm") or 1e9
-            if tau > ythr:
+            # overload = driven beyond yield, or driven into the far end stop; a lever snapping back to rest under its own
+            # return spring is not misuse (the constraint impulse at q = 0 is ignored)
+            if tau_drive > ythr or (tau > ythr and (qo - lo) > 0.5 * (hi - lo)):
                 self._damage(d, "operator_overload", self.meta.get("operator_joint"), tau, ythr)
                 L.hardware_misuse = True
         # ---- latch / lock

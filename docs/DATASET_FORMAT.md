@@ -43,6 +43,10 @@ assets/
 (mass breakdown, hinge friction model, EN 1154 closer parameters, latch/lock parameters, compliance flags,
 damage thresholds).
 
+`spec.json → benchmark` holds the door's evaluation scenarios (start zone with a seeded `randomize` rule, approach
+point, handle targets = grip / push site names, pass plane, goal zone, optional simulated-human path, reward table,
+success criteria, time budget, expected transit time with its terms).  Schema and formulas: [BENCHMARK.md](BENCHMARK.md).
+
 ## Lock state
 
 `spec.lock.engaged` and `spec.lock.robot_side_release` define the initial state.  When engaged without a robot-side
@@ -66,4 +70,5 @@ card readers (`env.badge()`), delayed egress timers, maglock breakaway, elevator
 
 `doors[]` entries carry the catalogue fields: id, family, context, use case, task, difficulty (1–5), mass, leaf dims,
 operator / latch / lock / closer / hinge ids, condition, swing/side, extras, tags, body/joint counts, QA sign-off,
-thumbnail paths, file paths and a physics summary.
+thumbnail paths, file paths, a physics summary and a `benchmark` summary
+(`{scenarios: [...], primary, time_budget_s, expected_transit_s, has_human}`).
