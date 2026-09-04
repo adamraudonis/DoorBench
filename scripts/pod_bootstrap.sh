@@ -39,6 +39,10 @@ if [ ! -d $W/IsaacLab ]; then git clone -q https://github.com/isaac-sim/IsaacLab
 cd $W/IsaacLab && git fetch -q --tags && git checkout -q "$ISAACLAB_TAG" && ./isaaclab.sh --install rsl_rl 2>&1 | tail -3
 # isaaclab.sh can skip the core package and still exit 0 (seen on 2026-09-04: every sub-package installed, `isaaclab` missing);
 # install it explicitly and fail loudly if the import does not work.
+# isaaclab's dependency `flatdict` builds from source with a setup.py that imports pkg_resources, which setuptools >= 81
+# (what pip's isolated build env picks) no longer ships -> build it once without isolation against setuptools < 81.
+FLATDICT_PIN=$(grep -o "flatdict[=<>~!]*[0-9.]*" $W/IsaacLab/source/isaaclab/setup.py | head -1)   # e.g. flatdict==4.0.1
+pip install -q "setuptools<81" wheel && pip install -q --no-build-isolation "${FLATDICT_PIN:-flatdict}" 2>&1 | tail -1
 pip install -q -e $W/IsaacLab/source/isaaclab 2>&1 | tail -1
 python -c "import isaaclab, isaaclab_tasks, rsl_rl; print('ISAACLAB_IMPORT_OK', isaaclab.__version__)" || { echo "ISAACLAB_IMPORT_FAILED"; exit 1; }
 

@@ -22,7 +22,7 @@ auditable `spec.json` that lists every physical parameter, its formula and its s
 | Closers | 17 (EN 1154 sized surface/concealed/floor-spring, spring hinges, pneumatic, gate, gas strut, hold-open, automatic operators) |
 | Conditions | new · normal · worn · old/dry · rusty · swollen · sagging · damaged · well oiled |
 | Formats | MJCF full/simple/minimal · URDF full/simple/minimal · USD |
-| Benchmark | per-door **scenarios** in `spec.json["benchmark"]` (open & traverse, open then close, close only, unlock & traverse, locked-recognize, hold open for a human, wait for a human, knock & wait) with a seeded start zone, handle targets, pass plane, goal zone, simulated-human paths, reward tables, time budgets and expected transit times; 20+ per-episode labels; MuJoCo environment with lock/access-control logic, a kinematic human and per-step rewards ([docs/BENCHMARK.md](docs/BENCHMARK.md)) |
+| Benchmark | per-door **scenarios** in `spec.json["benchmark"]` in two suites: **core** (open & traverse, open then close, close only, unlock & traverse, locked-recognize; no person involved, the default for every run and table) and the opt-in **human** suite (hold open for a human, wait for a human, knock & wait) with a seeded start zone, handle targets, pass plane, goal zone, simulated-human paths, reward tables, time budgets and expected transit times; 20+ per-episode labels; MuJoCo environment with lock/access-control logic, a kinematic human and per-step rewards ([docs/BENCHMARK.md](docs/BENCHMARK.md)) |
 
 ## Quick start
 
@@ -41,7 +41,7 @@ python -m mujoco.viewer --mjcf assets/doors/db0002_swing_single/scene.xml
 python - <<'EOF'
 from doorbench.benchmark import DoorEnv
 env = DoorEnv("assets/doors/db0002_swing_single", tier="full")
-print(env.scenario_names)                     # e.g. ['open_and_traverse', 'open_then_close', 'knock_and_wait']
+print(env.core_scenarios, env.human_scenarios)   # e.g. ['open_and_traverse', 'open_then_close'] ['knock_and_wait']  (human suite = opt-in)
 env.reset(scenario="open_and_traverse", seed=1)   # seeded start pose from the start zone
 for _ in range(800):
     env.apply_joint_torque(env.meta["operator_joint"], 2.0)   # turn the knob
