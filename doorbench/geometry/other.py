@@ -342,6 +342,9 @@ def build_sliding(spec, phys, model: Model):
             act = kin.get("actuator", {})
             model.meta.setdefault("actuators", []).append({"name": f"{name}_drive", "joint": j.name, "kind": "position", "kp": 400.0, "kv": 60.0, "forcerange": (-act.get("max_force_N", 150), act.get("max_force_N", 150)), "ctrlrange": (0.0, tr)})
             j.frictionloss = max(j.frictionloss, 5.0)
+            if fam == "automatic_sliding":
+                from . import closers as CL
+                CL.add_sliding_operator(model, world, b, spec, phys, Wo, Ho, jamb_t, yl, tr, s_open, name)
     # latch-side jamb with hook pockets
     jamb_pockets += model.meta.pop("_jamb_pockets", [])
     if fam not in ("gate_sliding",) and latch_side != 0 and not (track == "top_hung_pocket" and latch_side == s_open):
@@ -799,8 +802,8 @@ def build_horizontal(spec, phys, model: Model):
                 g.pos = (g.pos[0], -Ho * 0.75, t / 2 + (g.pos[1]))
                 g.quat = tuple(quat_from_axis_angle([1, 0, 0], -math.pi / 2)) if g.type == "mesh" else tuple(quat_from_axis_angle([1, 0, 0], math.pi / 2))
         if cl["kind"] == "gas_strut":
-            sm = C.mat_from_material(model, "stainless", "mat_strut")
-            lb.geoms.append(C.cyl("gas_strut", (W / 2 - 0.05, -Ho * 0.4, -0.15), 0.01, 0.2, sm, (0, 0.6, -0.8), 7900, False, True, FULL_ONLY, "closer", "Gas strut"))
+            from . import closers as CL
+            CL.add_gas_strut(model, world, lb, spec, phys, W, Ho, t, zf, ceiling)
         if spec["lock"]["model"] in ("padlock", "slide_bolt") and spec["lock"].get("engaged") and not spec["lock"].get("robot_side_release"):
             j.range = (0.0, 0.005)
         if spec["lock"]["model"] == "slide_bolt":

@@ -92,6 +92,9 @@ class Clearance:
             pass
         self.joints = _joint_info(mj_)
         self.sem = _semantics(mj_)
+        self.linkages = mj_.get("linkages", []) or []
+        from .closers import loop_joints
+        self.loop_joints = loop_joints(self.linkages)
         m = self.m
         self.jid = {mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_JOINT, j): j for j in range(m.njnt)}
         self.gname = [mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, g) for g in range(m.ngeom)]
@@ -109,7 +112,8 @@ class Clearance:
 
     # ---- kinematic helpers -------------------------------------------------------------------------------
     def resolve(self, q: np.ndarray) -> np.ndarray:
-        """Apply joint-polynomial equalities and one-sided tendon couplings to make q consistent."""
+        """Apply joint-polynomial equalities, one-sided tendon couplings and closed-loop linkages (closer arms, struts)
+        to make q consistent."""
         m, mujoco = self.m, self.mj
         for _ in range(2):
             for e in range(m.neq):
@@ -130,6 +134,11 @@ class Clearance:
                         if coef > 0:
                             q[adr] += (lo - length) / coef
                             break
+        if self.linkages:
+            from .closers import solve_linkages
+            self.d.qpos[:] = q
+            solve_linkages(m, self.d, self.linkages)
+            q[:] = self.d.qpos
         return q
 
     def _locked(self, jname: str) -> bool:
@@ -207,7 +216,7 @@ class Clearance:
         record("initial", "", 0.0, self.contacts(self.resolve(base.copy()), lambda a, b: self.tol_for(a, b)))
         released = self.released_qpos()
         leaf_joints = [n for n, j in self.joints.items() if j.get("role") in LEAF_ROLES and n in self.jid]
-        mech_joints = [n for n, j in self.joints.items() if j.get("role") in MECH_ROLES and n in self.jid]
+        mech_joints = [n for n, j in self.joints.items() if j.get("role") in MECH_ROLES and n in self.jid and n not in self.loop_joints]
         for jn in leaf_joints:
             j = self.jid[jn]
             lo, hi = (m.jnt_range[j] if m.jnt_limited[j] else (-math.pi, math.pi))

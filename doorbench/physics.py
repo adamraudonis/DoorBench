@@ -127,52 +127,12 @@ def air_damping(W: float, Hh: float) -> float:
     return 0.5 * AIR_DENSITY * 1.2 * Hh * W ** 4 / 4
 
 
-def closer_params(spec: dict, mass_kg: float, friction_Nm: float = 0.0) -> dict:
-    cl = H.CLOSERS[spec["closer"]["model"]]
-    W = spec["leaf"]["width"]
-    need = 1.3 * friction_Nm   # closing moment must beat hinge + steady seal friction with margin
-    out = {"model": cl.id, "kind": cl.kind, "spring_stiffness_Nm_per_rad": 0.0, "spring_preload_Nm": 0.0,
-           "damping_closing": 0.0, "damping_opening": 0.0, "en_size": None, "hold_open_rad": cl.hold_open,
-           "backcheck_angle_rad": cl.backcheck_angle, "backcheck_damping": cl.backcheck_damping, "latch_boost": cl.latch_boost}
-    if cl.kind == "none":
-        return out
-    if cl.kind in ("surface_overhead", "concealed_overhead", "floor_spring", "electromagnetic_hold", "auto_operator_low_energy", "auto_operator_full", "pneumatic", "gate"):
-        size = cl.en_size or spec["closer"].get("en_size") or H.closer_size_for(mass_kg, W)
-        size = int(max(1, min(7, size)))
-        adj = spec["closer"].get("spring_adjust", 1.15)
-        while size < 7 and H.EN1154_SIZES[size].closing_moment_min * adj < need and cl.kind not in ("pneumatic", "gate"):
-            size += 1   # installer picks the next size up when the door is stiff
-        cs = H.EN1154_SIZES[size]
-        # closers are set 10-20% above the minimum closing moment; opening moment ~85% of the max allowed
-        tau0 = max(cs.closing_moment_min * adj, need)
-        tau90 = min(cs.opening_moment_max * 0.85, tau0 * 2.8)
-        k = max((tau90 - tau0) / (math.pi / 2), 0.5)
-        if cl.kind == "pneumatic":
-            tau0, k = max(3.0 * adj, need), 3.0
-        if cl.kind == "gate":
-            tau0, k = max(4.0 * adj, need), 5.0
-        if tau0 > cs.closing_moment_min * adj + 1e-9:
-            out["note"] = f"spring tension raised to {tau0:.1f} N*m to overcome {friction_Nm:.1f} N*m hinge/seal friction"
-        out.update({"en_size": size, "spring_stiffness_Nm_per_rad": k, "spring_preload_Nm": tau0,
-                    "damping_closing": cl.closing_damping * CONDITIONS[spec["condition"]]["damping_mult"],
-                    "damping_opening": cl.opening_damping,
-                    "closing_time_est_s": _closing_time(mass_kg, W, tau0, k, cl.closing_damping),
-                    "formula": "tau(theta) = tau0 + k*theta; tau0 = 1.15*EN1154 closing moment(size); tau90 = 0.85*EN1154 opening moment",
-                    "source": H.SOURCES_EN if hasattr(H, 'SOURCES_EN') else "EN 1154:1996 Table 1"})
-    elif cl.kind == "spring_hinge":
-        n = spec["hinge"]["count"]
-        # Bommer 4310 class: ~2.5-4 N*m per hinge at 90 deg, preload ~1 N*m
-        k_each = spec["closer"].get("spring_hinge_k", 2.2)
-        out.update({"spring_stiffness_Nm_per_rad": k_each * n, "spring_preload_Nm": max(0.9 * n, need),
-                    "damping_closing": cl.closing_damping, "damping_opening": cl.opening_damping,
-                    "formula": "n_hinges * (0.9 N*m + 2.2 N*m/rad * theta)", "source": "Bommer 4310 adjustable spring hinge"})
-    elif cl.kind == "gas_strut":
-        F = spec["closer"].get("gas_force_N", 250.0)
-        arm = 0.25
-        out.update({"spring_stiffness_Nm_per_rad": -F * arm * 0.3, "spring_preload_Nm": -F * arm,
-                    "damping_closing": 30.0, "damping_opening": 30.0,
-                    "formula": "lift assist: tau = -F*arm (negative = assists opening)", "source": "Gas spring 150-400 N"})
-    return out
+def closer_params(spec: dict, mass_kg: float, friction_Nm: float = 0.0, air_damping: float = 0.0) -> dict:
+    """Door-level closer design (EN 1154 size, spring curve, valve settings, door-level damping targets).  The
+    mechanism realising it (arm linkage / strut / pivot spring), its calibrated reduced model and the valve law are
+    added to this block by the geometry builder; see doorbench/closers.py and docs/PHYSICS.md."""
+    from .closers import closer_design
+    return closer_design(spec, mass_kg, friction_Nm, spec["leaf"]["width"], air_damping)
 
 
 def _closing_time(m, W, tau0, k, b):
@@ -292,14 +252,14 @@ def derive(spec: dict) -> dict:
         hf = hinge_friction(spec, m)
         phys["hinge"] = hf
         phys["hinge"]["air_damping_Nms_per_rad"] = air_damping(W, Hh) if kin != "rotor" else 0.5 * air_damping(W, Hh)
-        phys["closer"] = closer_params(spec, m, hf["coulomb_torque_Nm"] + 0.5 * hf["stick_torque_Nm"])
+        phys["closer"] = closer_params(spec, m, hf["coulomb_torque_Nm"] + 0.5 * hf["stick_torque_Nm"], phys["hinge"]["air_damping_Nms_per_rad"])
         phys["hinge"]["total_damping_symmetric"] = phys["hinge"]["air_damping_Nms_per_rad"] + (
             phys["closer"]["damping_opening"] if phys["closer"]["kind"] != "none" else 0.0)
         # moment of inertia about hinge line for reporting
         phys["inertia_about_hinge_kg_m2"] = m * W * W / 3 + m * spec["leaf"]["thickness"] ** 2 / 12
     else:
         phys["roller"] = roller_friction(spec, m)
-        phys["closer"] = closer_params(spec, m) if spec["closer"]["model"] != "none" else {"model": "none", "kind": "none", "spring_stiffness_Nm_per_rad": 0.0, "spring_preload_Nm": 0.0, "damping_closing": 0.0, "damping_opening": 0.0}
+        phys["closer"] = closer_params(spec, m)
         phys["hinge"] = {"coulomb_torque_Nm": 0.0, "stick_torque_Nm": 0.0, "air_damping_Nms_per_rad": 0.0, "total_damping_symmetric": 0.0}
     if "roller" not in phys and spec["kinematics"].get("roller"):
         phys["roller"] = roller_friction(spec, m)

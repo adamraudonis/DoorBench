@@ -7,7 +7,9 @@ Checks (all tiers where applicable):
   actuate     driving the operator retracts the latch and the door opens (if robot-side release exists)
   return      releasing the operator lets the spring latch re-extend
   relatch     closing the door re-latches (spring latches with strike lip)
-  closer      self-closing doors return to closed from 60 deg
+  closer_*    self-closing doors: linkage integrity (loop violation < 1 mm, arms move), closes within the closing-time
+              window from max opening and from 15 deg, latch action re-latches, no slam, backcheck, hold-open,
+              delayed action; automatic operators open in time and close on power loss (doorbench/closers.py)
   urdf        URDF loads in MuJoCo (structure check)
   usd         USD stage opens; joint & rigid-body counts match the IR
 Writes qa.json with pass/fail per check, metrics, and a signed_off flag.
@@ -133,6 +135,7 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         bias = abs(float(d.qfrc_bias[dof] - d.qfrc_passive[dof]))
         fl = float(m.dof_frictionloss[dof])
         preload = abs(float(m.jnt_stiffness[pj] * m.qpos_spring[m.jnt_qposadr[pj]])) if m.jnt_stiffness[pj] > 0 else 0.0
+        preload = max(preload, float(phys.get("closer", {}).get("spring_preload_Nm", 0.0) or 0.0))   # full tier: the closer acts through its mechanism, not the door joint
         push = 2.0 * (bias + fl + preload) + (60.0 if is_hinge else 80.0)
         push = min(push, 800.0 if is_hinge else 4000.0)
         metrics["qa_push"] = push
@@ -226,21 +229,19 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
             metrics["locked_displacement"] = _q(m, d, pj)
             thr_l = thr + (math.asin(min(0.99, lk.chain_slack / max(W - 0.1, 0.2))) if lk.chain_slack else 0.0)
             checks["locked_holds"] = bool(_q(m, d, pj) < thr_l)
-        # closer returns from 60 deg (not applicable to gates with a gravity fork latch: the fork is not self-latching
-        # and must be lifted to close the gate, so a closer cannot bring the gate home on its own)
-        if lt.id == "fork_gravity":
-            metrics["closer_note"] = "fork latch: gate closes only with the fork lifted; closer return not applicable"
-        elif is_hinge and spec["closer"]["model"] not in ("none", "gas_strut") and phys["closer"].get("spring_preload_Nm", 0) > 0 and not spec["kinematics"].get("both_ways") and not env_release_only and not (spec["lock"]["engaged"] and lk.kind in ("chain", "swing_bar_guard", "padlock")):
-            mujoco.mj_resetData(m, d)
-            qa = m.jnt_qposadr[pj]
-            d.qpos[qa] = math.radians(min(60.0, (spec["kinematics"].get("max_open_deg") or 90) * 0.8))
-            if bj >= 0:
-                d.qpos[m.jnt_qposadr[bj]] = 0.0
-            mujoco.mj_forward(m, d)
-            for _ in range(int(12.0 / m.opt.timestep)):
-                mujoco.mj_step(m, d)
-            metrics["closer_final_angle"] = _q(m, d, pj)
-            checks["closer_returns"] = bool(_q(m, d, pj) < math.radians(6.0))
+        # closer / operator mechanism: loop integrity, closing time window, latch action, no slam, backcheck, hold-open,
+        # delayed action, automatic operators (doorbench/closers.py: run_closer_qa)
+        if is_hinge and spec["closer"]["model"] != "none":
+            try:
+                from .closers import run_closer_qa
+                with open(os.path.join(door_dir, "model.json")) as f_:
+                    model_json_ = json.load(f_)
+                cchecks, cmetrics = run_closer_qa(m, spec, phys, model_json_, model_meta, pj, bj)
+                checks.update(cchecks)
+                metrics.update(cmetrics)
+            except Exception as e:  # a closer test that cannot run is a failure
+                checks["closer_qa"] = False
+                metrics["closer_qa_error"] = f"{type(e).__name__}: {e}"[:300]
     # ---- simple & minimal tiers settle
     for tier in ("simple", "minimal"):
         if tier in models:

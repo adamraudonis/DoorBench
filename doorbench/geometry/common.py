@@ -1130,75 +1130,10 @@ def add_touchbar(model: Model, leaf_body: Body, spec: dict, op: H.OperatorModel,
 # Closer
 # ---------------------------------------------------------------------------
 def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dict, u: float, v: float, x_hinge_axis: float, Hh: float, t: float, Wo: float, jamb_t: float, tier_full_arms=True):
-    cl = H.CLOSERS[spec["closer"]["model"]]
-    if cl.kind in ("none", "spring_hinge", "gate", "gas_strut", "pneumatic"):
-        if cl.kind == "pneumatic":
-            m = mat_from_material(model, "aluminum", "mat_closer")
-            leaf_body.geoms.append(cyl("closer_pneumatic", (u * 0.25, v * (t / 2 + 0.03), Hh * 0.6), 0.015, 0.16, m, (1, 0, 0), 2700, False, True, FULL_SIMPLE, "closer", "Pneumatic closer"))
-        return
-    m = mat_from_material(model, "aluminum_dark" if cl.kind != "floor_spring" else "stainless", "mat_closer")
-    l, w, h = cl.body_size
-    if cl.kind == "floor_spring":
-        world.geoms.append(box("floor_spring_cover", (x_hinge_axis + u * 0.12, 0, 0.002), (0.17, 0.06, 0.002), m, 7900, False, True, FULL_SIMPLE, "closer", "Floor spring cover plate"))
-        return
-    if cl.kind == "concealed_overhead":
-        world.geoms.append(box("closer_concealed_slot", (x_hinge_axis + u * 0.3, v * (t / 2 + 0.01), float(spec["opening"]["height"]) + 0.005), (0.25, 0.008, 0.004), m, 2700, False, True, FULL_ONLY, "closer", "Concealed closer track"))
-        return
-    if cl.kind in ("auto_operator_low_energy", "auto_operator_full"):
-        # header-mounted operator box on the push face side of the frame
-        world.geoms.append(box("auto_operator_header", (0, -v * (t / 2 + w / 2 + 0.01), Hh + jamb_t + h / 2 + 0.01), (min(l / 2, Wo / 2 + jamb_t), w / 2, h / 2), m, 1500, True, True, FULL_SIMPLE, "closer", "Automatic operator header"))
-        # arm to the leaf (visual)
-        leaf_body.geoms.append(box("auto_operator_arm", (u * 0.25, -v * (t / 2 + 0.03), Hh - 0.02), (0.22, 0.008, 0.008), m, 2700, False, True, FULL_ONLY, "closer", "Operator arm"))
-        return
-    # surface closer: regular arm, body on pull face (+v side) near top, pinion at x_p from hinge
-    x_p = u * 0.30
-    y_body = v * (t / 2 + h / 2)
-    zc = Hh - 0.06 - 0.02
-    key, mesh = MESH.closer_body_mesh(l=l, w=w, h=h)
-    # mesh frame: z away from face -> world v*y; length along x
-    q = q_face(v, u)
-    leaf_body.geoms.append(mesh_geom("closer_body", key, mesh, (x_p, v * t / 2, zc), q, m, 2000, False, FULL_SIMPLE, "closer", cl.name))
-    leaf_body.geoms.append(box("closer_body_col", (x_p, v * (t / 2 + h / 2), zc), (l / 2, h / 2, w / 2), m, 2000, True, False, FULL_SIMPLE, "closer", "Closer body"))
-    # arm kinematic loop (full tier)
-    if not tier_full_arms:
-        return
-    wt_ = float(spec["opening"]["wall_thickness"])
-    Ho_ = float(spec["opening"]["height"])
-    pin_y = v * max(t / 2 + h + 0.01, wt_ / 2 + 0.035)       # pinion clear of the head/casing face
-    pin_z = Ho_ + 0.03                                       # arm plane above the head: the leaf swings under it
-    leaf_body.geoms.append(cyl("closer_pinion_shaft", (x_p, pin_y, (zc + pin_z) / 2), 0.008, (pin_z - zc) / 2, m, (0, 0, 1), 2700, False, True, FULL_ONLY, "closer", "Pinion shaft"))
-    # shoe on the frame casing face above the opening, 10 cm from the hinge line
-    x_b_rel, y_b = u * 0.10, v * (wt_ / 2 + 0.012 + 0.02)
-    L1, L2 = 0.28, 0.26
-    pfx = "" if leaf_body.name == "leaf" else leaf_body.name + "_"
-    arm1 = Body(pfx + "closer_arm_main", leaf_body.name, (x_p, pin_y, pin_z), QUAT_ID, None, [], [], FULL_ONLY, "closer", "Closer main arm")
-    arm1.joint = Joint(pfx + "closer_pinion", "hinge", (0, 0, 1), (0, 0, 0), None, damping=0.01, role="mechanism", label="Closer pinion", robot_interactive=False)
-    # initial arm geometry at door closed: solve elbow position (2-link IK) in leaf frame
-    px, py = x_p, pin_y
-    bx, by = x_hinge_axis * 0 + x_b_rel, y_b   # bracket in leaf frame at q=0 (leaf frame coincides w/ world at hinge axis)
-    d = math.hypot(bx - px, by - py)
-    d = min(max(d, abs(L1 - L2) + 1e-3), L1 + L2 - 1e-3)
-    a = math.atan2(by - py, bx - px)
-    cosang = (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d)
-    ang = math.acos(max(-1, min(1, cosang)))
-    # choose elbow on the side away from the door (further out in +v y)
-    e1 = (px + L1 * math.cos(a + ang), py + L1 * math.sin(a + ang))
-    e2 = (px + L1 * math.cos(a - ang), py + L1 * math.sin(a - ang))
-    ex, ey = e1 if v * e1[1] > v * e2[1] else e2
-    th1 = math.atan2(ey - py, ex - px)
-    arm1.quat = tuple(quat_from_axis_angle([0, 0, 1], th1))
-    arm1.geoms.append(box("closer_arm_main_geom", (L1 / 2, 0, 0), (L1 / 2, 0.008, 0.005), m, 2700, False, True, FULL_ONLY, "closer", "Main arm"))
-    model.add_body(arm1)
-    arm2 = Body(pfx + "closer_arm_fore", arm1.name, (L1, 0, 0), QUAT_ID, None, [], [], FULL_ONLY, "closer", "Closer forearm")
-    arm2.joint = Joint(pfx + "closer_elbow", "hinge", (0, 0, 1), (0, 0, 0), None, damping=0.01, role="mechanism", label="Closer elbow", robot_interactive=False)
-    th2 = math.atan2(by - ey, bx - ex) - th1
-    arm2.quat = tuple(quat_from_axis_angle([0, 0, 1], th2))
-    arm2.geoms.append(box("closer_arm_fore_geom", ((L2 - 0.035) / 2, 0, 0), ((L2 - 0.035) / 2, 0.007, 0.004), m, 2700, False, True, FULL_ONLY, "closer", "Forearm"))
-    model.add_body(arm2)
-    # bracket on frame (world), and connect constraint between forearm tip and bracket
-    world.geoms.append(box("closer_bracket", (x_hinge_axis + bx, by, pin_z + 0.0), (0.03, 0.02, 0.012), m, 2700, False, True, FULL_ONLY, "closer", "Closer soffit bracket"))
-    model.equalities.append(Equality("connect", pfx + "closer_arm_connect", arm2.name, "world", (0, 0, 0, 0, 0), (L2, 0, 0), FULL_ONLY, "Closer forearm pinned to frame bracket"))
-    model.contact_excludes += [(arm1.name, leaf_body.name), (arm2.name, leaf_body.name), (arm1.name, arm2.name)]
+    """Closer / operator mechanism as a real linkage (arm closers, telescoping struts, pivot springs): see
+    geometry/closers.py.  Pairs get their own mechanism per leaf (names prefixed with the leaf name)."""
+    from . import closers as CL
+    CL.add_closer(model, world, leaf_body, spec, phys, u, v, x_hinge_axis, Hh, t, Wo, jamb_t, tier_full_arms)
 
 
 # ---------------------------------------------------------------------------

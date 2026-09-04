@@ -162,6 +162,12 @@ class DoorEnv:
         mujoco = self.mj
         m = self.m
         rules = []
+        from ..closers import passive_rules, passive_torque
+        # closer / operator valve law (sweep / latch / backcheck / delayed action / hold-open) in the coordinates of
+        # the joint it acts on: the mechanism joint in the full tier, the door joint in the reduced tiers
+        self._closer_rules = passive_rules(m, self.spec.get("physics", {}).get("closer"))
+        self._closer_released = False        # electromagnetic hold-open released (fire alarm) / hold-open arm knocked off
+        closer_joints = {law["joint"] for law, _, _ in self._closer_rules}
         for b in self.model_json["bodies"]:
             j = b.get("joint")
             if not j:
@@ -170,7 +176,7 @@ class DoorEnv:
             if jid < 0:
                 continue
             dof = m.jnt_dofadr[jid]
-            if j.get("damping_closing") is not None and j.get("damping_opening") is not None and j["damping_closing"] > 0:
+            if j["name"] not in closer_joints and j.get("damping_closing") is not None and j.get("damping_opening") is not None and j["damping_closing"] > 0:
                 rules.append(("closer", dof, float(j["damping_closing"]), float(j["damping_opening"]), float(m.dof_damping[dof]), j.get("backcheck_angle"), j.get("backcheck_damping") or 0.0))
             if j.get("ratchet_one_way"):
                 rules.append(("ratchet", dof, 0.0, 0.0, 0.0, None, 0.0))
@@ -185,6 +191,8 @@ class DoorEnv:
             # the callback is global to the process: ignore models that are not ours (other envs, plain mujoco use)
             if (int(model.nv), int(model.nbody), int(model.ngeom), int(model.njnt)) != sig:
                 return
+            if self._closer_rules:
+                passive_torque(self._closer_rules, model, data, data.qfrc_passive, self._closer_released)
             for kind, dof, b_close, b_open, b_base, bc_ang, bc_damp in self._rules:
                 v = data.qvel[dof]
                 q = data.qpos[model.jnt_qposadr[model.dof_jntid[dof]]]

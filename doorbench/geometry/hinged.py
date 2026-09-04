@@ -581,7 +581,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         pair["pockets"] += [dict(p, leaf=leaf_name, u=u) for p in pockets]
         pair.setdefault("head_pockets", []).extend(head_pockets)
     # --- closer
-    C.add_closer(model, world, leaf_body, spec, phys, u, v, hx, Hh, t, Wo, 0.019 if not pair else pair.get("jamb_t", 0.019), tier_full_arms=not pair)
+    C.add_closer(model, world, leaf_body, spec, phys, u, v, hx, Hh, t, Wo, 0.019 if not pair else pair.get("jamb_t", 0.019))
     # --- extras (world-level extras only once for pairs)
     ex_spec = spec
     if pair and leaf_name != "leaf_a":

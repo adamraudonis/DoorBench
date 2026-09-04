@@ -51,7 +51,8 @@ def build_model(spec: dict, phys: dict | None = None) -> Model:
         GO.build_horizontal(spec, phys, model)
     else:
         raise ValueError(f"unknown family {fam}")
-    if fam == "automatic_swing":
+    if fam == "automatic_swing" and not any(a["name"].endswith("swing_operator") for a in model.meta.get("actuators", [])):
+        # fallback (no operator linkage could be placed): door-level position servo
         act = spec["kinematics"].get("actuator", {})
         model.meta.setdefault("actuators", []).append({"name": "swing_operator", "joint": model.meta["primary_joint"], "kind": "position", "kp": 150.0, "kv": 40.0, "forcerange": (-act.get("max_torque_Nm", 60), act.get("max_torque_Nm", 60)), "ctrlrange": (0.0, 1.6)})
     # Armature floors: reflected inertia of internal lock/latch mechanisms (gears, springs, spindles).  Also required so

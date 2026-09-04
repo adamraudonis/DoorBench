@@ -298,6 +298,21 @@ class Joint:
     backcheck_angle: Optional[float] = None
     backcheck_damping: Optional[float] = None
     ratchet_one_way: bool = False
+    # per-tier attribute overrides ({tier: {attr: value}}): the full tier of a door with a closer LINKAGE carries no
+    # closer spring / damping on the door joint (the pinion does), the reduced tiers carry the calibrated equivalent
+    overrides: dict = field(default_factory=dict)
+
+    def for_tier(self, tier: str) -> "Joint":
+        """A shallow copy with this tier's overrides applied (the joint itself is shared by all tiers)."""
+        ov = self.overrides.get(tier) if self.overrides else None
+        if not ov:
+            return self
+        import copy
+        j = copy.copy(self)
+        j.overrides = {}
+        for k, v in ov.items():
+            setattr(j, k, v)
+        return j
 
     def to_dict(self):
         return {
@@ -384,7 +399,7 @@ class Body:
         m, com, I = self.inertial(tier)
         return {
             "name": self.name, "parent": self.parent, "pos": [float(p) for p in self.pos], "quat": [float(q) for q in self.quat],
-            "joint": None if self.joint is None else self.joint.to_dict(),
+            "joint": None if self.joint is None else self.joint.for_tier(tier).to_dict(),
             "geoms": [g.to_dict() for g in self.geoms if tier in g.tiers],
             "sites": [s.to_dict() for s in self.sites if tier in s.tiers],
             "tiers": sorted(self.tiers), "semantic": self.semantic, "label": self.label, "static": self.static,
@@ -403,10 +418,20 @@ class Equality:
     tiers: frozenset = FULL_ONLY
     label: str = ""
     active: bool = True
+    solref: Optional[tuple] = None   # constraint softness override (MJCF)
+    solimp: Optional[tuple] = None
 
     def to_dict(self):
-        return {"kind": self.kind, "name": self.name, "a": self.a, "b": self.b, "polycoeff": list(self.polycoeff),
-                "anchor": list(self.anchor), "tiers": sorted(self.tiers), "label": self.label, "active": self.active}
+        d = {"kind": self.kind, "name": self.name, "a": self.a, "b": self.b, "polycoeff": list(self.polycoeff),
+             "anchor": list(self.anchor), "tiers": sorted(self.tiers), "label": self.label, "active": self.active,
+             "type": self.kind}
+        if self.kind in ("connect", "weld"):
+            d["body1"], d["body2"] = self.a, (self.b or "world")
+        else:
+            d["joint1"], d["joint2"] = self.a, self.b
+        if self.solref:
+            d["solref"] = list(self.solref)
+        return d
 
 
 @dataclass
@@ -433,6 +458,7 @@ class Model:
     tendons: list = field(default_factory=list)
     contact_excludes: list = field(default_factory=list)  # (body1, body2)
     meta: dict = field(default_factory=dict)
+    linkages: list = field(default_factory=list)          # closed loops for viewers / loop solvers (docs/DATASET_FORMAT.md)
 
     # ---- helpers ----
     def body(self, name) -> Body:
@@ -499,6 +525,7 @@ class Model:
             "tendons": [t.to_dict() for t in self.tendons if tier in t.tiers],
             "contact_excludes": [list(x) for x in self.contact_excludes if x[0] in names and x[1] in names],
             "meta": self.meta,
+            "linkages": [lk for lk in self.linkages if tier == "full"],
         }
 
     def _joint_names(self, body_names):

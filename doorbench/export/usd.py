@@ -541,7 +541,7 @@ def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full",
                 p0, q0 = wt[b.name]
             W.add_fixed_joint(jp, body0, body_paths[b.name], p0, q0, [0, 0, 0], [1, 0, 0, 0], label=f"{b.name} rigidly attached")
             continue
-        jt = b.joint
+        jt = b.joint.for_tier(tier)
         axis = np.asarray(jt.axis, float)
         qa = _quat_x_to(axis)
         jpos = np.asarray(jt.pos, float)
@@ -582,9 +582,36 @@ def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full",
             W.add_mimic(joint_paths[q.a], joint_types[q.a], joint_paths[q.b], joint_types[q.b], gearing=-c1, offset=-c0, label=q.label)
             couplings.append({"type": "mimic", "driven": q.a, "driver": q.b, "coeff": list(q.polycoeff), "gearing": -c1, "offset": -c0, "label": q.label,
                               "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"})
-        elif q.kind == "connect":
-            couplings.append({"type": "loop_closure_point", "body1": q.a, "body2": q.b, "anchor": list(q.anchor), "label": q.label,
-                              "note": "not exported to USD (PhysX articulations are trees); closer arms are visual"})
+        elif q.kind == "connect" and q.a in body_paths:
+            # loop closure: a spherical joint OUTSIDE the articulation tree (physxJoint:excludeFromArticulation) pins the
+            # point `anchor` of body1 to body2 (the fixed base when body2 is the world / a static body); PhysX solves it
+            # as a maximal-coordinate constraint between the two articulation links
+            b2 = q.b if (q.b in body_paths and not model.body(q.b).static) else None
+            path2 = body_paths[b2] if b2 else base_path
+            pos1_w, quat1_w = wt[q.a]
+            anchor_w = pos1_w + quat_rotate(quat1_w, np.asarray(q.anchor, float))
+            if b2:
+                pos2_w, quat2_w = wt[b2]
+                lp2, _ = _relative(pos2_w, quat2_w, anchor_w, np.array([1.0, 0, 0, 0]))
+            else:
+                lp2 = anchor_w
+            lp1, _ = _relative(pos1_w, quat1_w, anchor_w, np.array([1.0, 0, 0, 0]))
+            jp_ = joints_path.AppendChild(_safe(q.name))
+            sj = W.UsdPhysics.SphericalJoint.Define(W.stage, jp_)
+            sj.CreateBody0Rel().SetTargets([body_paths[q.a]])
+            sj.CreateBody1Rel().SetTargets([path2])
+            sj.CreateLocalPos0Attr(_v3(W.Gf, lp1))
+            sj.CreateLocalRot0Attr(_q(W.Gf, [1, 0, 0, 0]))
+            sj.CreateLocalPos1Attr(_v3(W.Gf, lp2))
+            sj.CreateLocalRot1Attr(_q(W.Gf, [1, 0, 0, 0]))
+            sj.CreateExcludeFromArticulationAttr(True)
+            pj_ = sj.GetPrim()
+            pj_.AddAppliedSchema("PhysxJointAPI")
+            pj_.CreateAttribute("physxJoint:enableProjection", W.Sdf.ValueTypeNames.Bool).Set(True)
+            pj_.CreateAttribute("doorbench:role", W.Sdf.ValueTypeNames.String).Set("loop_closure")
+            pj_.CreateAttribute("doorbench:label", W.Sdf.ValueTypeNames.String).Set(q.label)
+            couplings.append({"type": "loop_closure_point", "body1": q.a, "body2": q.b, "anchor": list(q.anchor), "label": q.label, "usd_joint": str(jp_),
+                              "note": "UsdPhysics SphericalJoint with physics:excludeFromArticulation = true (PhysX loop joint between two articulation links)"})
         elif q.kind == "weld":
             couplings.append({"type": "weld", "body1": q.a, "body2": q.b, "label": q.label, "active": q.active,
                               "note": "breakable weld (maglock): environment logic, see doorbench.benchmark.DoorEnv"})
@@ -604,8 +631,9 @@ def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full",
                 pass
     W.set_json(W.root.GetPrim(), "doorbench:couplings", couplings)
     meta = {k: v for k, v in model.meta.items() if k not in ("notes",)}
-    meta["usd_layout"] = "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)"
+    meta["usd_layout"] = "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`); loop closures = spherical joints excluded from the articulation"
     meta["joints"] = {name: str(p) for name, p in joint_paths.items()}
+    meta["linkages"] = list(model.linkages)
     W.set_json(W.root.GetPrim(), "doorbench:meta", meta)
     return W.save()
 
@@ -939,7 +967,7 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
         pos0, rot0, pos1, rot1 = joint_frames(parent, child, anchor_w, axis_w)
         revolute = jtype == "revolute"
         if active and src is not None and src.joint is not None:
-            jt = src.joint
+            jt = src.joint.for_tier("simple")       # the canonical RL articulation is the reduced (calibrated) model
             if jt.range is not None:
                 lo, hi = jt.range[0] - jt.modeled_at, jt.range[1] - jt.modeled_at
             else:

@@ -216,7 +216,7 @@ def build_mjcf(model: Model, tier: str = "full", mesh_dir_rel: str = "../../hard
             e.set("quat", _f(b.quat))
         _inertial_xml(e, b, tier)
         if b.joint is not None:
-            _joint_xml(e, b.joint)
+            _joint_xml(e, b.joint.for_tier(tier))
         for g in b.geoms:
             if tier in g.tiers:
                 _geom_xml(e, g, tier, mesh_dir_rel, mats)
@@ -264,7 +264,11 @@ def build_mjcf(model: Model, tier: str = "full", mesh_dir_rel: str = "../../hard
                 ET.SubElement(ee, "joint", name=q.name, joint1=q.a, joint2=q.b, polycoef=_f(q.polycoeff), active="true" if q.active else "false")
             elif kind == "connect":
                 b2 = q.b if q.b in body_names and not model.body(q.b).static else "world"
-                ET.SubElement(ee, "connect", name=q.name, body1=q.a, body2=b2, anchor=_f(q.anchor), active="true" if q.active else "false")
+                ce_ = ET.SubElement(ee, "connect", name=q.name, body1=q.a, body2=b2, anchor=_f(q.anchor), active="true" if q.active else "false")
+                if q.solref:
+                    ce_.set("solref", _f(q.solref))
+                if q.solimp:
+                    ce_.set("solimp", _f(q.solimp))
             else:
                 b2 = q.b if q.b in body_names and not model.body(q.b).static else "world"
                 ET.SubElement(ee, "weld", name=q.name, body1=q.a, body2=b2, active="true" if q.active else "false")
@@ -276,7 +280,7 @@ def build_mjcf(model: Model, tier: str = "full", mesh_dir_rel: str = "../../hard
             ET.SubElement(ce, "exclude", body1=a, body2=b)
     # actuators (position servos for automatic doors / general-purpose joint motors on primary joints)
     act = model.meta.get("actuators", [])
-    act = [a for a in act if a["joint"] in joint_names]
+    act = [a for a in act if a["joint"] in joint_names and tier in a.get("tiers", ("full", "simple", "minimal"))]
     if act:
         ae = ET.SubElement(root, "actuator")
         for a in act:

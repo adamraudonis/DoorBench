@@ -106,7 +106,7 @@ def build_urdf(model: Model, tier="full", mesh_dir_rel="../../hardware") -> ET.E
             ET.SubElement(j, "parent", link=parent)
             ET.SubElement(j, "child", link=b.name)
             continue
-        jt = b.joint
+        jt = b.joint.for_tier(tier)
         typ = {"hinge": "revolute", "slide": "prismatic"}[jt.type]
         if jt.range is None:
             typ = "continuous" if jt.type == "hinge" else "prismatic"
