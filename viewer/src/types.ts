@@ -79,9 +79,34 @@ export interface EqualityJ {
   a: string;
   b: string | null;
   polycoeff: number[];
+  anchor?: Vec3;          // connect: anchor point in body `a`'s frame (MJCF semantics; body b's point = same world point at the rest pose)
   label: string;
   active: boolean;
 }
+
+/** Closed kinematic loops declared by the generator (model.json["linkages"]).  Optional: when absent the viewer derives the
+ *  same information from the bodies + `connect` equalities (kinematics.ts). */
+export interface TwoBarLinkageJ {
+  name: string;
+  type: "two_bar";
+  pinion: { body: string; joint: string; parent: string };
+  elbow: { body: string; joint: string };
+  anchor: { body: string; pos: Vec3 };
+  equality: string;
+  axis: Vec3;
+  L1: number;
+  L2: number;
+  elbow_sign: 1 | -1;
+}
+export interface TelescopingLinkageJ {
+  name: string;
+  type: "telescoping";
+  base: { body: string; joint: string; parent: string; pos: Vec3 };
+  slide: { body: string; joint: string; axis_local: Vec3; offset: number };
+  anchor: { body: string; pos: Vec3 };
+  equality: string;
+}
+export type LinkageJ = TwoBarLinkageJ | TelescopingLinkageJ;
 
 export interface TendonJ {
   name: string;
@@ -97,6 +122,7 @@ export interface ModelJ {
   materials: Record<string, MaterialJ>;
   equalities: EqualityJ[];
   tendons: TendonJ[];
+  linkages?: LinkageJ[];
   meta: Record<string, any>;
 }
 

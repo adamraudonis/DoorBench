@@ -6,7 +6,7 @@ import { FAMILY_LABELS } from "./types";
 import { buildScene, type BuiltScene, type JointHandle } from "./scene";
 import { buildEvaluationOverlay, type EvalOverlay } from "./evaluation";
 import { GLOSSARY, REWARD_LABELS, type GlossaryEntry } from "./glossary";
-import { activeLeaf, isLocked, openClosePhases, sliderReaction, type Phase } from "./doorLogic";
+import { activeLeaf, isLocked, openClosePhases, parsePoseQuery, sliderReaction, type Phase } from "./doorLogic";
 import { ASSETS } from "./App";
 
 function fmt(x: any, digits = 3): string {
@@ -19,6 +19,8 @@ const deg = (rad: number | null | undefined, d = 1) => rad == null ? "–" : `${
 const nice = (s: string | undefined | null) => (s ?? "–").replace(/_/g, " ");
 
 let TIP_OPEN_KEY: string | null = null;   // deep link `tip=<row key>` opens that explanation on load
+
+const LOOP_LABELS: Record<string, string> = { two_bar: "two-bar arm", telescoping: "telescoping strut", generic: "closed loop (numeric)" };
 
 /** Accessible info icon: tooltip on hover, focus and click / tap.  `entry` overrides the glossary lookup by key. */
 function Info({ k, entry, label }: { k?: string; entry?: GlossaryEntry; label: string }) {
@@ -101,6 +103,9 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
   const scenarioRef = useRef<ScenarioJ | undefined>(undefined);
   const showEvalRef = useRef(false);
   showEvalRef.current = showEval;
+  const queryRef = useRef(query);
+  queryRef.current = query;
+  const builtModel = useRef<ModelJ | null>(null);   // the model the current scene was built from (pose is kept across rebuilds of the same model)
 
   useEffect(() => {
     setModel(null); setSpec(null); setQa(null); setErr(null); setScenIdx(0); setHumanT(0); setHumanPlay(false);
@@ -173,6 +178,8 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
         if (s >= 1) q.shift();
         force((x) => x + 1);
       }
+      // closed kinematic loops (closer arms, struts) follow the driver joints; no-op unless a joint moved this frame
+      if (b && b.solveLoops().changed) force((x) => x + 1);
       const hr = humanRef.current;
       if (hr.play && overlay.current && hr.dur > 0) {
         const dt = hr.last ? (now - hr.last) / 1000 : 0;
@@ -194,11 +201,16 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
     const t = three.current;
     if (!t || !model) return;
     let cancelled = false;
+    // same model rebuilt (walls / collision toggled): keep the pose; new door: apply the `q=` pose deep link
+    const keep = built.current && builtModel.current === model ? Array.from(built.current.joints.values()).filter((h) => !h.loopSolved).map((h) => [h.name, h.q] as const) : parsePoseQuery(queryRef.current);
     if (built.current) { t.scene.remove(built.current.root); built.current.dispose(); built.current = null; }
     queue.current = [];
     buildScene(model, { showEnv, showCollision: showCol }).then((b) => {
       if (cancelled) { b.dispose(); return; }
       built.current = b;
+      builtModel.current = model;
+      for (const [name, q] of keep) if (b.joints.get(name)?.loopSolved === false) b.setJoint(name, q);
+      b.solveLoops();
       t.scene.add(b.root);
       const c = b.bounds.getCenter(new THREE.Vector3());
       const size = b.bounds.getSize(new THREE.Vector3()).length() || 3;
@@ -302,8 +314,10 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
     if (r.operatorTo != null && operator) b.setJoint(operator, r.operatorTo);
     if (r.mirror) b.setJoint(r.mirror.joint, r.mirror.q);
     if (r.note) toast(r.note);
+    b.solveLoops();
     force((x) => x + 1);
   };
+  const loopResults = built.current?.loopResults ?? [];
 
   const dl = entry.files ?? {};
   const fileLink = (label: string, rel: string | undefined) => rel ? <a key={label} href={`${ASSETS}/doors/${rel}`} download>{label}</a> : null;
@@ -331,7 +345,7 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
         <div className="hud">
           {primaryH && <button className="primary" onClick={openClose} title="Actuates the operator (retracts the latch), moves the leaf, releases the operator">Open / close door</button>}
           {opH && <button onClick={() => animate(operator, opH.range ? (opH.q > (opH.range[0] + opH.range[1]) / 2 ? opH.range[0] : opH.range[1]) : opH.q + 1)}>Actuate operator</button>}
-          <button onClick={() => { const b = built.current; queue.current = []; if (b) for (const h of b.joints.values()) b.setJoint(h.name, h.modeledAt); force((x) => x + 1); }}>Reset</button>
+          <button onClick={() => { const b = built.current; queue.current = []; if (b) { for (const h of b.joints.values()) b.setJoint(h.name, h.modeledAt); b.solveLoops(); } force((x) => x + 1); }}>Reset</button>
           <button onClick={() => setShowEnv((v) => !v)}>{showEnv ? "Hide" : "Show"} walls</button>
           <button onClick={() => setShowCol((v) => !v)}>{showCol ? "Hide" : "Show"} collision</button>
           <button className={showEval ? "active" : ""} aria-pressed={showEval} disabled={!scenario} title={scenario ? "Draw the benchmark scenario: start zone, approach, handle targets, pass plane, goal, human path" : "no benchmark block in spec.json"} onClick={() => { const v = !showEval; setShowEval(v); if (v) setTimeout(frameEvaluation, 0); }}>{showEval ? "Hide" : "Show"} evaluation</button>
@@ -362,12 +376,23 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
         <h3>Joints</h3>
         {joints.map((h) => (
           <div className="joint" key={h.name}>
-            <div className="lbl"><span className="name" title={h.label}>{h.name}{h.name === primary ? " ★" : ""}{!h.interactive ? " (driven)" : ""}{isLocked(h) && h.role === "operator" ? " 🔒" : ""}</span><span className="val">{h.type === "hinge" ? `${(h.q * 180 / Math.PI).toFixed(1)}°` : `${(h.q * 1000).toFixed(1)} mm`}</span></div>
-            <input type="range" min={h.range ? h.range[0] : -3.14} max={h.range ? h.range[1] : 3.14} step={0.001} value={h.q} aria-label={h.label || h.name}
+            <div className="lbl"><span className="name" title={h.loopSolved ? "solved by the closed-loop linkage: follows the door, not user-driven" : h.label}>{h.name}{h.name === primary ? " ★" : ""}{h.loopSolved ? " (linkage)" : !h.interactive ? " (driven)" : ""}{isLocked(h) && h.role === "operator" ? " 🔒" : ""}</span><span className="val">{h.type === "hinge" ? `${(h.q * 180 / Math.PI).toFixed(1)}°` : `${(h.q * 1000).toFixed(1)} mm`}</span></div>
+            <input type="range" min={h.range ? h.range[0] : -3.14} max={h.range ? h.range[1] : 3.14} step={0.001} value={h.q} aria-label={h.label || h.name} disabled={h.loopSolved}
               onChange={(e) => onSlider(h, parseFloat(e.target.value))} />
             <div style={{ fontSize: 11, color: "var(--muted)" }}>{h.label}</div>
           </div>
         ))}
+        {loopResults.length > 0 && (
+          <div className="loops" aria-label="Mechanism loops">
+            {loopResults.map((r) => (
+              <div className={"loop " + (r.ok ? "ok" : "bad")} key={r.name} title={`${r.equality}: ${r.joints.join(" + ")} · ${r.source === "schema" ? "from model.json linkages" : "derived from the connect equality"}`}>
+                <span className="name">{r.name}</span>
+                <span className="type">{LOOP_LABELS[r.type] ?? r.type} · {r.joints.join(" + ")}</span>
+                <span className="val">{r.ok ? "closed" : `open ${(r.separation * 1000).toFixed(1)} mm${r.stretched ? " (reach)" : ""}`}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <h3>Evaluation</h3>
         {!bench && <p style={{ fontSize: 12, color: "var(--muted)" }}>No benchmark block in spec.json (regenerate the dataset).</p>}
         {bench && scenario && (
