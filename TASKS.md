@@ -49,7 +49,7 @@ Fable subagent working in its own git worktree (merged by main).
 | I1 | Static USD validation of all 1000 `door.usda` (schemas, articulation root, joints, drives, masses, mesh references) with usd-core here; Isaac Sim headless import validation script for the GPU box | todo | agent:isaac | `scripts/isaaclab/validate_usd_static.py`, `scripts/isaaclab/validate_usd_isaacsim.py` |
 | I2 | Isaac Lab extension `doorbench_isaaclab`: multi-door scene (one door USD per env via multi-asset spawning), `DoorBench-Open-G1-v0` manager-based RL task (obs/rewards/terminations from the benchmark spec), RSL-RL PPO train/play scripts, one-command install | todo | agent:isaac | `isaaclab/` |
 | I3 | One-command cloud setup (Isaac Sim container + Isaac Lab + DoorBench) for Lambda/RunPod/any Ubuntu GPU box; hero-shot script rendering hundreds of envs with different doors in one 3D scene | todo | agent:isaac | `isaaclab/cloud/` |
-| I4 | Run I1-I3 live on a GPU box: validation report, short training run, hero screenshot/video into README + site | blocked | main | needs a GPU instance from the user (no cloud credentials on this machine) |
+| I4 | Run I1-I3 live on a GPU box: validation report, short training run, hero screenshot/video into README + site | doing | main | RunPod Secure Cloud pod `doorbench-isaaclab` (L40S 46 GB, driver 580, Ubuntu 22.04, 150 GB volume, $1.09/h) created 2026-09-04 17:13 UTC on the user's account; base install (Isaac Sim 5.1 pip + Isaac Lab main) running; terminate when done |
 
 ## Benchmark runs & submissions
 
