@@ -256,7 +256,7 @@ def test_episode_is_deterministic():
 def test_locked_recognize_needs_no_release():
     """A locked door without a robot-side release: the hand tries gently, declares it locked, and the door stays shut."""
     man = R.load_manifest(ASSETS)
-    locked = next(d for d in man["doors"] if d["lock_engaged"] and not d["robot_side_release"] and d["family"] == "swing_single" and "locked_recognize" in R.door_scenarios(d, "core"))
+    locked = next(d for d in man["doors"] if d["lock_engaged"] and not d["robot_side_release"] and d["family"] == "swing_single" and d["lock"] in ("deadbolt_single", "keyed_cylinder") and "locked_recognize" in R.door_scenarios(d, "core"))
     R._init_worker("scripted_hand")
     job = R.Job(door=locked, door_dir=os.path.join(ASSETS, "doors", locked["id"]), scenario="locked_recognize", seed=0, tier="full", policy_spec="scripted_hand")
     ep = R.run_episode(job)
