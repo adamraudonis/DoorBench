@@ -43,6 +43,31 @@ def _max_pen(m, d):
     return worst
 
 
+SPRING_LATCH_KINDS = ("tubular_latch", "deadlatch", "mortise_latch", "rim_latch", "vertical_rods", "hook", "gravity_bar", "dogs", "multi_bolt", "electric_bolt")
+ENV_RELEASE_LOCK_KINDS = ("mag_lock", "delayed_egress", "card_reader", "electric_strike", "interlock")
+FREE_SWING_FAMILIES = ("saloon", "strip_curtain", "pet_door", "turnstile_tripod", "turnstile_fullheight", "revolving", "bifold", "accordion", "sliding_bypass")
+
+
+def door_flags(spec: dict) -> dict:
+    """What the QA expects of a door, derived from its spec (shared with the tests).
+
+    spring_latch      a spring latch holds the leaf shut until the operator retracts it
+    lock_engaged      an engaged lock that physically holds (not a child cover / jammed hardware)
+    has_holding       latched or locked: a push on the closed leaf must not open it   -> check "hold"
+    env_release_only  the lock is released by environment logic (badge / REX / timer), not by the operator
+    can_release       driving the operator (and any thumbturn / bolt / dogs) must open the door -> "actuate_opens"
+    free_swing        families without a latch that a push must open                    -> "free_opens"
+    """
+    lk = H.LOCKS[spec["lock"]["model"]]
+    lt = H.LATCHES[spec["latch"]["model"]]
+    spring_latch = lt.throw > 0 and lt.kind in SPRING_LATCH_KINDS
+    lock_engaged = bool(spec["lock"]["engaged"]) and lk.kind not in ("none", "child_lock_cover", "jam_stuck")
+    env_release_only = bool(spec["lock"]["engaged"]) and lk.kind in ENV_RELEASE_LOCK_KINDS
+    can_release = bool(spec["lock"].get("robot_side_release", True)) or lk.kind == "jam_stuck"
+    return {"spring_latch": spring_latch, "lock_engaged": lock_engaged, "has_holding": spring_latch or lock_engaged, "env_release_only": env_release_only,
+            "can_release": can_release, "free_swing": spec["family"] in FREE_SWING_FAMILIES, "lock_kind": lk.kind, "latch_kind": lt.kind}
+
+
 def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict) -> dict:
     import mujoco
     t0 = time.time()
@@ -89,11 +114,8 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
     # ---- latch / lock behaviour (hinged & sliding single leaf with an operator joint)
     lk = H.LOCKS[spec["lock"]["model"]]
     lt = H.LATCHES[spec["latch"]["model"]]
-    spring_latch = lt.throw > 0 and lt.kind in ("tubular_latch", "deadlatch", "mortise_latch", "rim_latch", "vertical_rods", "hook", "gravity_bar", "dogs", "multi_bolt", "electric_bolt")
-    lock_engaged = spec["lock"]["engaged"] and lk.kind not in ("none", "child_lock_cover", "jam_stuck")
-    has_holding = spring_latch or lock_engaged
-    env_release_only = spec["lock"]["engaged"] and lk.kind in ("mag_lock", "delayed_egress", "card_reader", "electric_strike", "interlock")
-    free_swing = fam in ("saloon", "strip_curtain", "pet_door", "turnstile_tripod", "turnstile_fullheight", "revolving", "bifold", "accordion", "sliding_bypass")
+    flags = door_flags(spec)
+    has_holding, env_release_only, free_swing = flags["has_holding"], flags["env_release_only"], flags["free_swing"]
     HINGE, SLIDE = int(mujoco.mjtJoint.mjJNT_HINGE), int(mujoco.mjtJoint.mjJNT_SLIDE)
     if pj >= 0 and not free_swing and int(m.jnt_type[pj]) in (HINGE, SLIDE):
         is_hinge = int(m.jnt_type[pj]) == HINGE
@@ -125,7 +147,7 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         else:
             checks["free_opens"] = bool(moved > thr_free)
         # actuate operator (if any) with generous effort; for deadbolt/thumbturn drive it too
-        can_release = spec["lock"].get("robot_side_release", True) or lk.kind == "jam_stuck"
+        can_release = flags["can_release"]
         if env_release_only:
             metrics["note"] = "lock released by environment logic (badge / REX / timer); actuation not tested by QA"
         elif oj >= 0 and can_release:
