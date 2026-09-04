@@ -199,6 +199,9 @@ def _lever(shape="straight", length=0.125, diameter=0.019, rose_diameter=0.07, s
         knob = creation.icosphere(subdivisions=2, radius=r * 1.6)
         knob.apply_translation([-length, 0, zc])
         parts.append(knob)
+    elif shape == "T":
+        # T-handle: bar centred on the spindle
+        parts.append(tube_along_path([(-length / 2, 0, zc), (length / 2, 0, zc)], r, 14))
     elif shape == "safeguard":
         # horizontal-axis handle: bar along -x with grip block
         path = [(0, 0, zc), (-length * 0.35, 0, zc), (-length, 0, zc + 0.03)]
@@ -442,6 +445,11 @@ def _keypad(w=0.07, h=0.15, keys=10, depth=0.02):
     body = creation.box(extents=[w, h, depth])
     body.apply_translation([0, 0, depth / 2])
     parts.append(body)
+    if depth > 0.025:
+        # mechanical pushbutton lock: rounded top cap
+        cap = creation.box(extents=[w * 0.9, 0.012, depth * 0.6])
+        cap.apply_translation([0, h / 2 + 0.006, depth * 0.3])
+        parts.append(cap)
     return trimesh.util.concatenate(parts)
 
 
@@ -459,16 +467,18 @@ def escutcheon_mesh(**p):
     return _cached("escutcheon", _escutcheon, **p)
 
 
-def _handleset_grip(grip_length=0.24, plate=(0.30, 0.07)):
+def _handleset_grip(grip_length=0.24, plate=(0.30, 0.07), thumb=False):
+    """Handleset grip: back plate + bow grip.  The thumb press is a separate articulated body (thumb=False)."""
     parts = []
     pl = creation.box(extents=[plate[1], plate[0], 0.006])
     pl.apply_translation([0, 0, 0.003])
     parts.append(pl)
     grip = tube_along_path([(0, -grip_length / 2, 0.006), (0, -grip_length / 2 + 0.03, 0.06), (0, grip_length / 2 - 0.03, 0.06), (0, grip_length / 2, 0.006)], 0.011, 14)
     parts.append(grip)
-    thumb = creation.box(extents=[0.035, 0.04, 0.008])
-    thumb.apply_translation([0, grip_length / 2 + 0.03, 0.02])
-    parts.append(thumb)
+    if thumb:
+        th = creation.box(extents=[0.035, 0.04, 0.008])
+        th.apply_translation([0, grip_length / 2 + 0.03, 0.02])
+        parts.append(th)
     return trimesh.util.concatenate(parts)
 
 

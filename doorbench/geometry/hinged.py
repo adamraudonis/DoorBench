@@ -62,6 +62,34 @@ def _lock_state(spec):
     return lk, engaged, release
 
 
+def _add_door_hasp(model, world, leaf_body, spec, u, hx, x_edge, t, z_h, locked, leaf_name, Wo, material="steel_galvanized", v=1.0):
+    """Hasp & staple (+ padlock when locked) across the leaf / post (or jamb) joint on the OUTSIDE face.  Posts and
+    jambs stand proud of the leaf face, so the hasp hinge plate is a packing block that brings the strap plane 4 mm
+    clear of the post / jamb face (and of the stop moulding on the stop side) where the staple is screwed on."""
+    op = spec["opening"]
+    outdoor = bool(op.get("outdoor"))
+    face = -1.0 if (outdoor or spec["robot"]["robot_outside"]) else 1.0
+    is_gate = op["frame"]["kind"] in ("gate_posts", "pressure_frame")
+    jt = C.frame_jamb_thickness(spec)
+    sx_w = u * (Wo / 2)
+    if is_gate:
+        y_surf = face * jt / 2
+        x_st = sx_w + u * min(0.028, jt * 0.5)
+    else:
+        depth = op["wall_thickness"] if op["frame"]["kind"] != "aluminum_storefront" else max(0.114, op["wall_thickness"])
+        y_surf = float(model.meta.get("wall_y", 0.0)) + face * depth / 2
+        x_st = sx_w + u * min(0.028, max(0.012, jt * 0.6))
+    plane_h = max(0.006, abs(y_surf) - t / 2 + 0.004)
+    if not is_gate and face == -v and op["frame"].get("stop_depth", 0) > 0:
+        plane_h = max(plane_h, 0.032 + 0.006)          # strap clears the 32 mm stop moulding on the stop side
+    hinge_x = x_edge - u * 0.055
+    strap_len = abs(x_st - (hx + hinge_x)) + 0.022
+    y_eye = face * (t / 2 + plane_h + 0.003 + 0.008)
+    mat = C.mat_from_material(model, material, f"mat_op_{material}")
+    pm = C.mat_from_material(model, "brass", "mat_padlock")
+    C.add_hasp_assembly(model, leaf_body, world, leaf_name, (hinge_x, face * t / 2, z_h), (0, face, 0), (u, 0, 0), strap_len, plane_h, (x_st, y_eye, z_h), (x_st, y_surf, z_h), (0, face, 0), locked, mat, pm)
+
+
 def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
     """Single hinged leaf (also used per-leaf for pairs via `pair`)."""
     leaf = spec["leaf"]
@@ -178,16 +206,44 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         locked_backlash = phys["lock"]["handle_backlash_locked_rad"]
     # --- operators
     x_spindle = x_edge - u * (lt.backset if lt.backset > 0 else 0.065)
-    keypad_face = None
-    if "keypad" in opm.style_params and lk.kind == "keypad_code":
-        keypad_face = 1.0 if not spec["robot"]["robot_outside"] else -1.0   # keypad is on the OUTSIDE face; thumbturn inside
+    outside_face = 1.0 if not spec["robot"]["robot_outside"] else -1.0
+    keypad_face = outside_face if lk.kind == "keypad_code" else None     # keypad on the OUTSIDE face; thumbturn inside
+    # lock trims on the operator: key cylinder outside (keyed lever / knob), turn button inside (privacy / keyed)
+    cyl_face = outside_face if lk.kind == "keyed_cylinder" else None
+    btn_face = -outside_face if lk.kind in ("privacy_button", "keyed_cylinder") else None
     if opm.kind in ("lever", "knob", "keypad_lever", "card_lever", "keypad_deadbolt", "paddle", "t_handle", "cremone", "wheel") and faces:
-        hb = C.add_rotary_operator(model, leaf_body, spec, phys, opm, u, v, x_spindle, hz, t, faces, locked_backlash, name=f"{leaf_name}_handle", keypad_face=keypad_face if keypad_face is not None else -1.0)
+        hb = C.add_rotary_operator(model, leaf_body, spec, phys, opm, u, v, x_spindle, hz, t, faces, locked_backlash, name=f"{leaf_name}_handle", cylinder_face=cyl_face, button_face=btn_face, rim_case_face=(-outside_face if opm.style_params.get("rim_box") else None))
         handle_joint = hb.joint.name
-        if keypad_face is not None:
-            C.add_keypad_buttons(model, leaf_body, u, x_spindle, hz + 0.12, t, keypad_face, opm.style_params.get("keys", 10), spec["lock"].get("code"), name=f"{leaf_name}_keypad")
         if opm.kind == "wheel":
             j.notes += " handwheel drives boltwork"
+        if opm.kind == "cremone":
+            # cremone bolt: the knob turns a pinion that drives a surface rod up to a shoot bolt in the head and a rod
+            # down toward the sill (visual); rods and guides live on the swing-side face (no stop moulding there)
+            f_r = v
+            cm_ = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
+            y_r = f_r * (t / 2 + 0.012)
+            x_r = x_spindle - u * 0.045                       # rod beside the knob's backplate (clear of any thumbturn)
+            z_top_r, z_bot_r = zb + Hh - 0.075, zb + 0.03
+            leaf_body.geoms.append(C.cyl(f"{leaf_name}_cremone_rod_up", (x_r, y_r, (hz + 0.04 + z_top_r) / 2), 0.006, (z_top_r - hz - 0.04) / 2, cm_, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "lock", "Cremone rod (up)"))
+            leaf_body.geoms.append(C.cyl(f"{leaf_name}_cremone_rod_down", (x_r, y_r, (hz - 0.04 + z_bot_r) / 2), 0.006, (hz - 0.04 - z_bot_r) / 2, cm_, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "lock", "Cremone rod (down)"))
+            leaf_body.geoms.append(C.box(f"{leaf_name}_cremone_gearbox", (x_r, y_r, hz), (0.012, 0.010, 0.045), cm_, 7850, False, True, FULL_SIMPLE, "lock", "Cremone rod junction (driven by the knob's gearbox)"))
+            for k_, zg in enumerate((hz + 0.25, z_top_r - 0.10, hz - 0.25, z_bot_r + 0.10)):
+                C.add_guide_loop(leaf_body.geoms, f"{leaf_name}_cremone_guide_{k_}", (x_r, f_r * t / 2, zg), (0, 0, 1), (0, f_r, 0), 0.0, 0.009, 0.021, cm_, 0.004, 0.014, False, FULL_SIMPLE, "lock", "Rod guide")
+            sbolt = Body(f"{leaf_name}_cremone_top_bolt", leaf_body.name, (x_r, y_r, zb + Hh), QUAT_ID, None, [], [], FULL_SIMPLE, "lock", "Cremone shoot bolt (top)")
+            sbolt.joint = Joint(f"{leaf_name}_cremone_top_bolt_slide", "slide", (0, 0, -1), (0, 0, 0), (0.0, 0.02), damping=2.0, frictionloss=0.5, role="lock", label="Shoot bolt (0 = thrown into the head, + = retracted)", robot_interactive=False)
+            sbolt.geoms.append(Geom(f"{leaf_name}_cremone_top_bolt_geom", "capsule", (0.006, 0.03), (0, 0, -0.016), (1, 0, 0, 0), cm_, True, True, 7850.0, None, (0.4, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "lock", "Shoot bolt"))
+            model.add_body(sbolt)
+            model.equalities.append(Equality("joint", f"{leaf_name}_cremone_couple", sbolt.joint.name, hb.joint.name, (0, 0.02 / max(opm.travel, 1e-6), 0, 0, 0), tiers=FULL_SIMPLE, label="shoot bolt = knob * 0.02/travel"))
+            model.meta.setdefault("clearance_allow", []).append([f"{leaf_name}_cremone_rod_up", f"{leaf_name}_cremone_top_bolt_geom", "the shoot bolt is the end of the rod"])
+            head_pockets.append({"x": hx + x_r, "hx": 0.010, "w": 0.015, "depth": 0.026, "y": y_r})
+    if lk.kind == "keypad_code" and not pair:
+        # keypad / pushbutton unit above the handle on the outside face, whatever the operator
+        z_min = None
+        if opm.style_params.get("escutcheon"):
+            z_min = hz + opm.style_params["escutcheon"][0] / 2
+        if opm.kind == "handleset":
+            z_min = hz + 0.175 + 0.03
+        C.add_keypad(model, leaf_body, spec, u, x_spindle, hz, t, keypad_face, mechanical=(lk.id == "keypad_mechanical"), keys=opm.style_params.get("keys", 10), name=f"{leaf_name}_keypad", z_min=z_min, z_max=zb + Hh - 0.03)
     elif opm.kind in ("pull", "flush_pull", "ring_pull", "push_plate", "handleset"):
         for f in (faces if opm.kind != "handleset" else [-1.0]):
             C.add_pull(model, leaf_body, opm, u, x_edge - u * 0.105, hz, t, f, name=f"{leaf_name}_{opm.kind}")
@@ -196,9 +252,10 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
             knob = H.OPERATORS["knob_round"]
             hb = C.add_rotary_operator(model, leaf_body, spec, phys, knob, u, v, x_spindle, hz, t, [1.0], locked_backlash, name=f"{leaf_name}_handle")
             handle_joint = hb.joint.name
-            # thumb piece (robot side) drives the same latch: small body with hinge about x on the -1 face
-            tp = Body(f"{leaf_name}_thumbpiece", leaf_body.name, (x_edge - u * 0.09, -1.0 * (t / 2 + 0.02), hz + 0.19), QUAT_ID, None, [], [], FULL_SIMPLE, "operator", "Thumb latch")
-            tp.joint = Joint(f"{leaf_name}_thumbpiece_hinge", "hinge", (u, 0, 0), (0, 0, 0.02), (0.0, opm.travel), damping=0.02, frictionloss=0.02, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Thumb piece (press down)")
+            # thumb piece (robot side) drives the same latch: small body with hinge about x on the -1 face, sitting at
+            # the top of the grip plate (the deadbolt cylinder is above it, as on a Kwikset / Schlage handleset)
+            tp = Body(f"{leaf_name}_thumbpiece", leaf_body.name, (x_edge - u * 0.105, -1.0 * (t / 2 + 0.018), hz + 0.112), QUAT_ID, None, [], [], FULL_SIMPLE, "operator", "Thumb latch")
+            tp.joint = Joint(f"{leaf_name}_thumbpiece_hinge", "hinge", (-1, 0, 0), (0, 0, 0.02), (0.0, opm.travel), damping=0.02, frictionloss=0.02, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Thumb piece (press in)")
             tm = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
             tp.geoms.append(C.box(f"{leaf_name}_thumbpiece_geom", (0, 0, 0), (0.018, 0.004, 0.02), tm, 3000, True, True, FULL_SIMPLE, "operator", "Thumb piece"))
             tp.sites.append(Site(f"{leaf_name}_thumb_push", (0, -0.005, 0.01), QUAT_ID, 0.01, "push"))
@@ -208,7 +265,8 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
                 model.tendons[-1].kind = "fixed"
     elif opm.kind in ("panic_touchbar", "panic_crossbar"):
         face = -v
-        pad, handle_joint = C.add_touchbar(model, leaf_body, spec, opm, u, v, x_edge, x_leaf0, hz, t, W, face, name=f"{leaf_name}_exit_device", z_top=zb + Hh, z_bot=zb)
+        rim_in_case = lt.kind == "rim_latch" and opm.kind == "panic_touchbar" and not pair
+        pad, handle_joint = C.add_touchbar(model, leaf_body, spec, opm, u, v, x_edge, x_leaf0, hz, t, W, face, name=f"{leaf_name}_exit_device", z_top=zb + Hh, z_bot=zb, case_end_gap=0.012 if rim_in_case else 0.03)
         if far_op and far_op != "none":
             fo = H.OPERATORS[far_op]
             if fo.kind in ("pull",):
@@ -222,61 +280,106 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         leaf_body.geoms.append(C.mesh_geom(f"{leaf_name}_suffolk_grip", key, mesh, (x_edge - u * 0.08, -1.0 * t / 2, hz - 0.05), C.q_face(-1.0, u), mat, 7000, False, ALL_TIERS, "operator", "Suffolk grip"))
         leaf_body.geoms.append(Geom(f"{leaf_name}_suffolk_grip_col", "capsule", (0.008, 0.09), (x_edge - u * 0.08, -1.0 * (t / 2 + 0.035), hz - 0.05), (1, 0, 0, 0), mat, True, False, 7000, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Grip"))
         leaf_body.sites.append(Site(f"{leaf_name}_grip_n", (x_edge - u * 0.08, -1.0 * (t / 2 + 0.035), hz - 0.05), QUAT_ID, 0.012, "grip"))
-        thumb = Body(f"{leaf_name}_thumb", leaf_body.name, (x_edge - u * 0.08, -1.0 * (t / 2 + 0.012), hz + 0.115), QUAT_ID, None, [], [], ALL_TIERS, "operator", "Thumb press")
-        thumb.joint = Joint(f"{leaf_name}_thumb_hinge", "hinge", (u, 0, 0), (0, 0.012, -0.02), (0.0, opm.travel), damping=0.02, frictionloss=0.05, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Thumb press (+ = pressed)")
-        thumb.geoms.append(C.box(f"{leaf_name}_thumb_geom", (0, 0, 0), (0.015, 0.003, 0.025), mat, 7000, True, True, ALL_TIERS, "operator", "Thumb press"))
-        thumb.sites.append(Site(f"{leaf_name}_thumb_push", (0, -0.004, 0.01), QUAT_ID, 0.01, "push"))
+        # thumb piece: a horizontal pad standing off the plate top, pivoting on a pin along x at the door face; pressing
+        # the pad DOWN (+q) rotates its tang, which passes through the door at pivot level, UP under the latch bar
+        thumb = Body(f"{leaf_name}_thumb", leaf_body.name, (x_edge - u * 0.08, -1.0 * t / 2, hz + 0.095), QUAT_ID, None, [], [], ALL_TIERS, "operator", "Thumb press")
+        thumb.joint = Joint(f"{leaf_name}_thumb_hinge", "hinge", (1, 0, 0), (0, 0, 0), (0.0, opm.travel), damping=0.02, frictionloss=0.05, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Thumb press (+ = pad pressed down)")
+        thumb.geoms.append(C.box(f"{leaf_name}_thumb_geom", (0, -0.020, 0.0), (0.015, 0.014, 0.003), mat, 7000, True, True, ALL_TIERS, "operator", "Thumb pad"))
+        thumb.geoms.append(C.box(f"{leaf_name}_thumb_boss", (0, -0.006, 0.0), (0.012, 0.006, 0.008), mat, 7000, False, True, FULL_SIMPLE, "operator", "Pivot boss"))
+        thumb.geoms.append(C.box(f"{leaf_name}_thumb_lifter", (0, (0.002 + t + 0.010) / 2, -0.017), (0.004, (t + 0.008) / 2, 0.004), mat, 7000, False, True, FULL_SIMPLE, "operator", "Lifter tang (through the door, under the latch bar)"))
+        thumb.sites.append(Site(f"{leaf_name}_thumb_push", (0, -0.024, 0.005), QUAT_ID, 0.01, "push"))
         model.add_body(thumb)
+        # latch bar on the far face at the thumb-press height (a Suffolk latch bar pivots level with the thumb press)
         bar_y = 1.0 * (t / 2 + 0.012)
-        bar = Body(f"{leaf_name}_latch_bar", leaf_body.name, (x_edge - u * 0.20, bar_y, hz + 0.02), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Latch bar")
+        bar_z = hz + 0.09
+        bar = Body(f"{leaf_name}_latch_bar", leaf_body.name, (x_edge - u * 0.20, bar_y, bar_z), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Latch bar")
         bar.joint = Joint(f"{leaf_name}_latch_bar_hinge", "hinge", (0, -u, 0), (0, 0, 0), (0.0, 0.6), damping=0.01, frictionloss=0.01, role="latch", label="Latch bar (0 = in keeper, + = lifted)", robot_interactive=False)
         bar.geoms.append(Geom(f"{leaf_name}_latch_bar_geom", "capsule", (0.006, 0.10), (u * 0.106, 0, 0), tuple(quat_z_to((u, 0, 0))), mat, True, True, 7850.0, 0.25, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "latch", "Latch bar"))
         model.add_body(bar)
+        # pivot plate on the far face (the bar's hinge pin) - leaf fixed, visual
+        leaf_body.geoms.append(C.box(f"{leaf_name}_latch_bar_pivot", (x_edge - u * 0.20, 1.0 * (t / 2 + 0.002), bar_z), (0.018, 0.002, 0.018), mat, 7000, False, True, FULL_SIMPLE, "latch", "Latch bar pivot plate"))
+        leaf_body.geoms.append(C.cyl(f"{leaf_name}_latch_bar_pin", (x_edge - u * 0.20, 1.0 * (t / 2 + 0.010), bar_z), 0.005, 0.010, mat, (0, 1, 0), 7000, False, True, FULL_ONLY, "latch", "Latch bar pivot pin"))
+        model.meta.setdefault("clearance_allow", []).append([f"{leaf_name}_latch_bar_geom", f"{leaf_name}_latch_bar_pin", "bar on its pivot pin"])
         model.equalities.append(Equality("joint", f"{leaf_name}_thumb_couple", bar.joint.name, thumb.joint.name, (0, 0.6 / max(opm.travel, 1e-6), 0, 0, 0), tiers=ALL_TIERS, label="bar lift = thumb press"))
-        # the bar tip (12 mm past the edge) drops into a keeper pocket in the jamb / post
-        pockets.append({"z": hz + 0.065, "h": 0.14, "w": 0.02, "depth": 0.02, "ramp": False, "y": bar_y})
+        # the bar tip (12 mm past the edge) drops into a keeper pocket in the jamb / post; keeper plate around the mouth
+        pockets.append({"z": bar_z + 0.045, "h": 0.14, "w": 0.02, "depth": 0.02, "ramp": False, "y": bar_y})
+        C.add_keeper_ring(world.geoms, f"{leaf_name}_latch_bar_keeper", (u * (Wo / 2), bar_y, bar_z + 0.045), (-u, 0, 0), (0, 0, 1), 0.010, 0.070, mat, bar=0.005)
         handle_joint = None
     elif opm.kind in ("gate_latch_fork",):
-        # fork gravity latch: pivots on a bracket above the gate's top rail (2 cm inboard of the latch edge), tines
-        # hang down over the top rail; lifting the fork (rotation about y) raises the tines clear of the rail
+        # chain-link fork latch (e.g. "chain link fence fork latch 1-3/8 in frame / 2-3/8 in post"): a flat two-prong
+        # fork strapped to the GATE's latch stile, lying horizontally with its prongs straddling the post.  Lifting the
+        # fork (hinge about the gate normal) swings the prongs up and back off the post; dropped, the post sits between
+        # the prongs and blocks the gate in both directions.  A padlock through the arm eye locks it down.
         mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
+        ps_ = C.frame_jamb_thickness(spec)
         sx_w = u * (Wo / 2)
-        z_top = zb + Hh
-        fork = Body(f"{leaf_name}_fork", None, (hx + x_edge - u * 0.02, 0.0, z_top + 0.04), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Fork latch")
-        fork.joint = Joint(f"{leaf_name}_fork_hinge", "hinge", (0, u, 0), (0, 0, 0), (0.0, 1.2), damping=0.02, frictionloss=0.02, role="latch", label="Fork latch (0 = dropped over the top rail, + = lifted)")
-        L = 0.10
-        ty = t / 2 + 0.006
+        x_piv = x_edge - u * 0.14
+        A = abs(sx_w + u * ps_ / 2 - (hx + x_piv))       # pivot -> post centre
+        ty = ps_ / 2 + 0.006                              # prong inner faces 6 mm clear of the post
+        y_arm = -1.0 * (t / 2 + 0.012)                    # flat arm on the robot face, strapped around the stile
+        h_f = 0.05                                        # the arm rises slightly to the fork (prongs above the pivot)
+        dens = 2500.0                                     # pressed-steel fork, ~0.25 kg
+        fork = Body(f"{leaf_name}_fork", leaf_body.name, (x_piv, 0.0, hz), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Fork latch")
+        fork.joint = Joint(f"{leaf_name}_fork_hinge", "hinge", (0, -u, 0), (0, 0, 0), (0.0, 1.2), damping=0.02, frictionloss=0.02, role="operator", label="Fork latch (0 = dropped over the post, + = lifted; lift to open AND to close)")
+        x_root = A - ps_ / 2 - 0.020                      # prong root / bridge, 20 mm short of the post face
+        L_pr = A + 0.03 - x_root                          # prongs reach 30 mm past the post centre
+        # sloping arm from the pivot eye up to the prong root
+        a_len = math.hypot(x_root, h_f)
+        fork.geoms.append(C.box(f"{leaf_name}_fork_arm", (u * x_root / 2, y_arm, h_f / 2), (a_len / 2, 0.004, 0.012), mat, dens, True, True, ALL_TIERS, "latch", "Fork arm", quat=quat_from_axis_angle([0, 1, 0], -u * math.atan2(h_f, x_root))))
+        fork.geoms.append(C.cyl(f"{leaf_name}_fork_eye", (0, y_arm, 0), 0.014, 0.005, mat, (0, 1, 0), dens, False, True, FULL_SIMPLE, "latch", "Pivot eye"))
+        # straight parallel prongs: the post is captured without back-driving the fork.  Like the real product the
+        # fork is NOT self-latching: the gate is closed with the fork lifted and the fork dropped over the post.
         for sy in (-1, 1):
-            fork.geoms.append(C.box(f"{leaf_name}_fork_tine_{'p' if sy > 0 else 'n'}", (-u * L / 2, sy * ty, -0.05), (L / 2, 0.003, 0.03), mat, 7800, True, True, ALL_TIERS, "latch", "Fork tine"))
-        fork.geoms.append(C.box(f"{leaf_name}_fork_bridge", (0.0, 0, 0.0), (0.005, ty + 0.003, 0.01), mat, 7800, True, True, ALL_TIERS, "latch", "Fork bridge"))
-        fork.geoms.append(C.box(f"{leaf_name}_fork_handle", (-u * 0.07, 0.0, 0.0), (0.05, 0.02, 0.005), mat, 7800, True, True, ALL_TIERS, "operator", "Fork lift tab"))
-        fork.sites.append(Site(f"{leaf_name}_fork_grip", (-u * 0.10, 0.0, 0.0), QUAT_ID, 0.012, "grip"))
+            fork.geoms.append(C.box(f"{leaf_name}_fork_tine_{'p' if sy > 0 else 'n'}", (u * (x_root + L_pr / 2), sy * (ty + 0.003), h_f), (L_pr / 2, 0.003, 0.012), mat, dens, True, True, ALL_TIERS, "latch", "Fork prong"))
+        fork.geoms.append(C.box(f"{leaf_name}_fork_bridge", (u * x_root, 0.0, h_f), (0.004, ty + 0.006, 0.012), mat, dens, True, True, ALL_TIERS, "latch", "Fork bridge"))
+        fork.geoms.append(Geom(f"{leaf_name}_fork_handle", "capsule", (0.006, 0.018), (u * x_root, y_arm, h_f + 0.030), (1, 0, 0, 0), mat, True, True, dens, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Fork lift handle"))
+        fork.sites.append(Site(f"{leaf_name}_fork_grip", (u * x_root, y_arm, h_f + 0.055), QUAT_ID, 0.012, "grip"))
         model.add_body(fork)
-        world.geoms.append(C.box(f"{leaf_name}_fork_bracket", ((sx_w + hx + x_edge - u * 0.02) / 2, 0.0, z_top + 0.04), (abs(sx_w - (hx + x_edge - u * 0.02)) / 2 + 0.004, 0.006, 0.006), mat, 7800, False, True, FULL_SIMPLE, "latch", "Fork pivot bracket"))
-        model.meta.setdefault("clearance_allow", []).append([f"{leaf_name}_fork_bridge", f"{leaf_name}_fork_bracket", "fork pivots on its bracket"])
+        handle_joint = fork.joint.name
+        # strap plates around the stile + pivot pin through the stile into the arm's eye (leaf-fixed, visual)
+        for sy in (-1, 1):
+            leaf_body.geoms.append(C.box(f"{leaf_name}_fork_strap_{'p' if sy > 0 else 'n'}", (x_piv, sy * (t / 2 + 0.002), hz), (0.020, 0.002, 0.030), mat, 7800, False, True, FULL_SIMPLE, "latch", "Fork strap"))
+        leaf_body.geoms.append(C.cyl(f"{leaf_name}_fork_pin", (x_piv, (y_arm - 0.008 + t / 2 + 0.004) / 2, hz), 0.005, (t / 2 + 0.004 - y_arm + 0.008) / 2, mat, (0, 1, 0), 7800, False, True, FULL_ONLY, "latch", "Pivot pin"))
+        model.meta.setdefault("clearance_allow", []).extend([[f"{leaf_name}_fork_eye", f"{leaf_name}_fork_pin", "pivot pin through the fork eye"], [f"{leaf_name}_fork_arm", f"{leaf_name}_fork_pin", "pivot pin through the arm"]])
+        if lk.kind == "padlock" and engaged:
+            pm = C.mat_from_material(model, "brass", "mat_padlock")
+            leaf_body.geoms.append(C.box(f"{leaf_name}_fork_lug", (x_piv + u * 0.05, y_arm, hz - 0.024), (0.006, 0.004, 0.012), mat, 7800, False, True, FULL_SIMPLE, "lock", "Padlock lug"))
+            C.add_padlock(fork.geoms, f"{leaf_name}_fork_padlock", (u * 0.05, y_arm, 0.0), (0, 1, 0), (0, 0, -1), pm, ALL_TIERS, "lock", "Padlock (fork locked down)")
+            fork.joint.range = (0.0, 0.001)
+            model.meta.setdefault("clearance_allow", []).extend([[f"{leaf_name}_fork_padlock*", f"{leaf_name}_fork_arm", "shackle through the arm eye"], [f"{leaf_name}_fork_padlock*", f"{leaf_name}_fork_lug", "shackle through the lug"]])
     elif opm.kind in ("slide_bolt_handle",):
-        # manual slide bolt on the robot face: bolt capsule enters pocket in strike jamb; knob for grasp
+        # surface-mounted barrel / slide bolt on the robot face (e.g. National Hardware 4 in barrel bolt, 12 in heavy
+        # gate slide bolt): mounting plate + guide loops + rod with L-handle on the leaf; U keeper on the post face
+        # (standoff so the rod clears a post thicker than the leaf) or a keeper plate over a jamb pocket.
         mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
         L = opm.style_params.get("length", 0.1)
         d = opm.style_params.get("diameter", 0.012)
-        sb = Body(f"{leaf_name}_slide_bolt", leaf_body.name, (x_edge - u * L * 0.6, -1.0 * (t / 2 + d), hz), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Slide bolt")
-        engaged_sb = engaged
-        q0 = 0.0 if engaged_sb else opm.travel
-        sb.joint = Joint(f"{leaf_name}_slide_bolt_slide", "slide", (-u, 0, 0), (0, 0, 0), (0.0, opm.travel), damping=1.0, frictionloss=opm.spring_torque_preload, role="lock", label="Slide bolt (0 = engaged, + = withdrawn)", initial=q0, modeled_at=q0)
-        p_sb = min(0.045, opm.travel - 0.004)     # engaged protrusion past the leaf edge; withdrawn tip clears the edge by 4 mm
-        sb.geoms.append(Geom(f"{leaf_name}_slide_bolt_rod", "capsule", (d / 2, L / 2), (u * (p_sb + 0.1 * L - d / 2) - (0 if engaged_sb else u * opm.travel), 0, 0), tuple(quat_z_to((u, 0, 0))), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "latch", "Bolt rod"))
-        sb.geoms.append(Geom(f"{leaf_name}_slide_bolt_knob", "capsule", (0.006, 0.02), (0 - (0 if engaged_sb else u * opm.travel), -0.02, 0), tuple(quat_z_to((0, -1, 0))), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Bolt knob"))
-        sb.sites.append(Site(f"{leaf_name}_grip_n", (0, -0.04, 0), QUAT_ID, 0.012, "grip"))
-        model.add_body(sb)
-        leaf_body.geoms.append(C.box(f"{leaf_name}_slide_bolt_guide", (x_edge - u * L * 0.6, -1.0 * (t / 2 + d / 2), hz - 0.02), (L * 0.35, d / 2, 0.006), mat, 7800, False, True, FULL_SIMPLE, "latch", "Bolt guides"))
-        pockets.append({"z": hz, "h": d + 0.01, "w": d + 0.004, "depth": p_sb + 0.01, "ramp": False, "y": -1.0 * (t / 2 + d)})
-    elif opm.kind == "hasp":
-        mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
-        leaf_body.geoms.append(C.box(f"{leaf_name}_hasp", (x_edge - u * 0.03, -1.0 * (t / 2 + 0.004), hz), (0.06, 0.003, 0.02), mat, 7800, False, True, ALL_TIERS, "lock", "Hasp (visual)"))
-        world.geoms.append(C.box(f"{leaf_name}_staple", (u * (Wo / 2 + 0.02), -1.0 * (t / 2 + 0.012), hz), (0.02, 0.008, 0.012), mat, 7800, False, True, ALL_TIERS, "lock", "Staple (visual)"))
-        if engaged and lk.kind == "padlock":
+        ps_ = C.frame_jamb_thickness(spec)
+        is_gate = spec["opening"]["frame"]["kind"] in ("gate_posts", "pressure_frame")
+        face = -1.0
+        standoff = max(d, 0.012, (ps_ / 2 - t / 2 + d / 2 + 0.006) if is_gate else 0.0)
+        sx_w = u * (Wo / 2)
+        gap_edge = abs(sx_w - (hx + x_edge))
+        protrusion = min(opm.travel - 0.004, max(0.036, gap_edge + 0.032))
+        sb, info = C.add_barrel_bolt(model, leaf_body, f"{leaf_name}_slide_bolt", (x_edge, face * t / 2, hz), (u, 0, 0), (0, face, 0), L, d, opm.travel, engaged, mat, protrusion=protrusion, standoff=standoff, role="lock", label="Slide bolt (0 = engaged, + = withdrawn)", frictionloss=opm.spring_torque_preload, joint_name=f"{leaf_name}_slide_bolt_slide", grip_site=f"{leaf_name}_grip_n")
+        y_rod = face * (t / 2 + standoff)
+        if is_gate:
+            x_keep = sx_w + u * min(0.020, max(0.012, protrusion - gap_edge - 0.012))
+            C.add_keeper_loop(world.geoms, f"{leaf_name}_slide_bolt_keeper", (x_keep, face * ps_ / 2, hz), (x_keep, y_rod, hz), (u, 0, 0), (0, face, 0), d / 2, mat)
+        else:
+            pockets.append({"z": hz, "h": d + 0.008, "w": d + 0.004, "depth": protrusion + 0.01, "ramp": False, "y": y_rod})
+            C.add_keeper_ring(world.geoms, f"{leaf_name}_slide_bolt_keeper", (sx_w, y_rod, hz), (-u, 0, 0), (0, 0, 1), (d + 0.004) / 2, (d + 0.008) / 2, mat)
+        if lk.kind == "padlock" and engaged:
+            # padlockable bolt: lug on the mounting plate behind the handle; padlock through it blocks the handle
             pm = C.mat_from_material(model, "brass", "mat_padlock")
-            world.geoms.append(C.box(f"{leaf_name}_padlock", (u * (Wo / 2 + 0.02), -1.0 * (t / 2 + 0.03), hz - 0.03), (0.02, 0.01, 0.025), pm, 8500, False, True, ALL_TIERS, "lock", "Padlock (visual; joint locked)"))
+            s_lug = info["s_knob"] - 0.020
+            leaf_body.geoms.append(C.obox(f"{leaf_name}_slide_bolt_lug", (x_edge, face * t / 2, hz), (u, 0, 0), (0, face, 0), s_lug, 0.0, (standoff + d / 2 + 0.012) / 2, 0.003, 0.006, (standoff + d / 2 + 0.012) / 2, mat, False, FULL_SIMPLE, "lock", "Padlock lug"))
+            bar_pt = (x_edge + u * s_lug, face * (t / 2 + standoff + d / 2 + 0.014), hz)
+            C.add_padlock(leaf_body.geoms, f"{leaf_name}_slide_bolt_padlock", bar_pt, (u, 0, 0), (0, 0, -1), pm, ALL_TIERS, "lock", "Padlock (bolt locked)")
+            sb.joint.range = (0.0, 0.001)
+            model.meta.setdefault("clearance_allow", []).extend([[f"{leaf_name}_slide_bolt_padlock*", f"{leaf_name}_slide_bolt_lug", "shackle through the lug"], [f"{leaf_name}_slide_bolt_padlock*", f"{leaf_name}_slide_bolt_knob*", "padlock against the handle"], [f"{leaf_name}_slide_bolt_padlock*", f"{leaf_name}_slide_bolt_rod", "padlock beside the rod"]])
+    elif opm.kind == "hasp":
+        _add_door_hasp(model, world, leaf_body, spec, u, hx, x_edge, t, hz, engaged and lk.kind == "padlock", leaf_name, Wo, opm.material, v=v)
     elif opm.kind == "lift_latch":
         # vertical pin latch (MagnaLatch / baby gate): spring-loaded pin on the POST drops into a striker cup on the
         # gate face; the cup has an approach ramp so the gate self-latches when the closer swings it shut.
@@ -291,9 +394,16 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         pin.sites.append(Site(f"{leaf_name}_grip_pin", (0, 0, 0.065), QUAT_ID, 0.012, "grip"))
         model.add_body(pin)
         handle_joint = pin.joint.name
-        world.geoms.append(C.box(f"{leaf_name}_pin_bracket", ((sx_w + x_pin_w) / 2, y_pin, hz + 0.02), (abs(sx_w - x_pin_w) / 2 + 0.012, 0.012, 0.006), mat, 7800, False, True, FULL_SIMPLE, "latch", "Pin bracket"))
-        world.geoms.append(C.box(f"{leaf_name}_pin_housing", (x_pin_w, y_pin, hz + 0.02), (0.015, 0.015, 0.02), mat, 7800, False, True, FULL_SIMPLE, "latch", "Pin housing"))
-        model.meta.setdefault("clearance_allow", []).append([f"{leaf_name}_pin_geom", f"{leaf_name}_pin_housing", "pin slides inside its housing"])
+        # latch body: a housing on the post (bracketed out over the gate edge, like the D&D MagnaLatch / a pressure
+        # gate latch housing) that the pin runs through; the pull knob sits on top of the housing
+        is_mag = opm.id == "gate_latch_magnetic"
+        hw, hd, htop, hbot = (0.022, 0.020, 0.045, 0.015) if is_mag else (0.018, 0.016, 0.045, 0.015)   # bottom clear of the striker cup
+        world.geoms.append(C.box(f"{leaf_name}_pin_housing", (x_pin_w, y_pin, hz + (htop - hbot) / 2), (hw, hd, (htop + hbot) / 2), mat, 1800, False, True, FULL_SIMPLE, "latch", "Latch housing"))
+        xb0, xb1 = x_pin_w + u * hw, sx_w + u * 0.006     # bracket from the housing's edge-side face to the post face
+        for k, (zc_, hz_) in enumerate(((hz + 0.024, 0.010), (hz - 0.006, 0.006))):
+            world.geoms.append(C.box(f"{leaf_name}_pin_bracket{'' if k == 0 else '_2'}", ((xb0 + xb1) / 2, y_pin, zc_), (abs(xb1 - xb0) / 2, hd, hz_), mat, 1800, False, True, FULL_SIMPLE if k == 0 else FULL_ONLY, "latch", "Housing bracket to the post"))
+        world.geoms.append(C.box(f"{leaf_name}_pin_post_plate", (sx_w + u * 0.003, y_pin, hz + 0.01), (0.003, hd + 0.006, 0.05), mat, 1800, False, True, FULL_ONLY, "latch", "Post mounting plate"))
+        model.meta.setdefault("clearance_allow", []).extend([[f"{leaf_name}_pin_geom", f"{leaf_name}_pin_housing", "pin slides inside its housing"], [f"{leaf_name}_pin_knob", f"{leaf_name}_pin_housing", "knob seats on the housing"], [f"{leaf_name}_pin_geom", f"{leaf_name}_pin_bracket*", "pin passes the bracket"]])
         # striker cup on the gate (leaf-local): walls +-y, floor, bracket to the face, approach ramp on the -v side
         km = C.mat_from_material(model, "steel_galvanized", "mat_keeper")
         xc_ = x_edge - u * 0.04
@@ -307,9 +417,6 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         phi = math.atan2(d_[2], d_[1])
         mid = (xc_, y_w - v * 0.0225, hz - 0.045)
         leaf_body.geoms.append(C.box(f"{leaf_name}_cup_ramp", (mid[0] - n_up[0] * 0.004, mid[1] - n_up[1] * 0.004, mid[2] - n_up[2] * 0.004), (0.016, 0.0301, 0.004), km, 7800, True, True, ALL_TIERS, "latch", "Cup ramp", quat=C.quat_from_axis_angle([1, 0, 0], phi), friction=(0.12, 0.005, 0.0001)))
-        if opm.id == "gate_latch_magnetic":
-            key, mesh = MESH.magnalatch_mesh(height=opm.style_params.get("height", 0.2))
-            world.geoms.append(C.mesh_geom(f"{leaf_name}_magnalatch_body", key, mesh, (sx_w + u * 0.03, -0.03, hz - 0.1), C.q_face(-1.0, u), mat, 2000, False, FULL_ONLY, "latch", "MagnaLatch body"))
     elif opm.kind == "push_button_screen":
         # push-button latch: small button on the robot face (slide), lever-ish; couples to a small latch bolt
         mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
@@ -325,10 +432,15 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
     # --- latches
     if lt.throw > 0 and lt.kind in ("tubular_latch", "deadlatch", "mortise_latch", "rim_latch", "roller", "ball_catch", "hook") and fam not in ("stall",) and opm.kind not in ("lift_latch", "slide_bolt_handle", "gate_latch_fork", "thumb_latch", "hasp"):
         scale_eff = scale if handle_joint else 0.0
-        res = C.add_spring_latch(model, leaf_body, spec, phys, u, v, x_edge, hz if lt.kind != "rim_latch" else hz, t, lt, handle_joint, scale_eff, name=f"{leaf_name}_latch_bolt")
+        # rim exit device: the Pullman latch bolt lives in the surface case on the push face (not in the slab) and
+        # shoots into a pocket + lip strike at that offset in the jamb (Von Duprin 299 strike)
+        y_bolt = -v * (t / 2 + 0.022) if (lt.kind == "rim_latch" and opm.kind == "panic_touchbar" and not pair) else 0.0
+        res = C.add_spring_latch(model, leaf_body, spec, phys, u, v, x_edge, hz, t, lt, handle_joint, scale_eff, name=f"{leaf_name}_latch_bolt", y=y_bolt, faceplate=(lt.kind not in ("rim_latch", "roller", "ball_catch")))
         for pk in res.pockets:
             if lt.kind in ("roller", "ball_catch"):
                 pk["ramp_both"] = True
+            if abs(y_bolt) > 1e-6:
+                pk["stop_cut_half"] = opm.style_params.get("bar_height", 0.05) * 0.75 + 0.010   # stop cut for the rim case
             pockets.append(pk)
         model.tendons += res.tendons
     elif lt.kind == "vertical_rods" and handle_joint:
@@ -369,6 +481,8 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
     eqs = []
     if lk.kind in ("deadbolt_single", "deadbolt_double", "thumbturn_only", "mortise_deadbolt", "night_latch", "multipoint", "keypad_code") and lk.deadbolt_throw > 0:
         zdb = hz + 0.14 if lk.kind != "mortise_deadbolt" else hz + 0.06
+        if opm.kind == "handleset":
+            zdb = hz + 0.175          # above the thumb press at the top of the grip plate
         # thumbturn on the inside face (+1 = far side from robot means robot is outside)
         inside_face = 1.0 if spec["robot"]["robot_outside"] else -1.0
         tt_side = inside_face if lk.inside_release == "thumbturn" else None
@@ -383,25 +497,53 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
                 tt_side = -(keypad_face if keypad_face is not None else -1.0)   # thumbturn opposite the keypad
         if engaged and not release:
             tt_side = None  # no accessible release -> deadbolt fixed
-        body, pk, eq = C.add_deadbolt(model, leaf_body, spec, u, v, x_edge, zdb, t, lk.deadbolt_throw, engaged, tt_side, lk.thumbturn_travel or 1.5708, lk.thumbturn_torque or 0.3, name=f"{leaf_name}_deadbolt", keyed_side=keyed)
+        tt_so = 0.0
+        if lk.kind == "night_latch":
+            # rim night latch (Yale 77): surface case on the inside face carrying the snib / turn; keyed cylinder outside
+            nm_ = C.mat_from_material(model, "brass_antique", "mat_night_latch")
+            tt_so = 0.028
+            leaf_body.geoms.append(C.box(f"{leaf_name}_night_latch_case", (x_edge - u * 0.060, inside_face * (t / 2 + tt_so / 2), zdb), (0.046, tt_so / 2, 0.042), nm_, 2500, True, True, FULL_SIMPLE, "lock", "Rim night latch case"))
+        body, pk, eq = C.add_deadbolt(model, leaf_body, spec, u, v, x_edge, zdb, t, lk.deadbolt_throw, engaged, tt_side, lk.thumbturn_travel or 1.5708, lk.thumbturn_torque or 0.3, name=f"{leaf_name}_deadbolt", keyed_side=keyed, tt_standoff=tt_so)
         pockets += pk
         eqs += eq
+        bm_ = C.mat_from_material(model, "brass", "mat_deadbolt")
+        if not pair:
+            C.add_strike_plate(world.geoms, f"{leaf_name}_deadbolt_strike", u * (Wo / 2), u, 0.0, zdb, 0.0095, 0.0155, bm_)
+        if lk.kind == "multipoint":
+            # multipoint lock: two more lock points (hook / shoot bolts) at +-0.5 m, driven with the main bolt
+            drive = (f"{leaf_name}_deadbolt_slide", 1.0) if body.joint is not None else None
+            for tag, zm in (("upper", min(zdb + 0.5, zb + Hh - 0.12)), ("lower", max(zdb - 0.55, zb + 0.15))):
+                _, pk2, eq2 = C.add_deadbolt(model, leaf_body, spec, u, v, x_edge, zm, t, lk.deadbolt_throw, engaged, None, 1.5708, 0.3, name=f"{leaf_name}_multipoint_{tag}", keyed_side=None, couple_to=drive)
+                pockets += pk2
+                eqs += eq2
+                if not pair:
+                    C.add_strike_plate(world.geoms, f"{leaf_name}_multipoint_{tag}_strike", u * (Wo / 2), u, 0.0, zm, 0.0095, 0.0155, bm_)
+            # the lock points sit on a full-height faceplate strip
+            leaf_body.geoms.append(C.box(f"{leaf_name}_multipoint_strip", (x_edge - u * 0.0004, 0.0, (zb + zb + Hh) / 2), (0.0004, min(0.010, t / 2 - 0.002), Hh / 2 - 0.02), bm_, 8500, False, True, FULL_ONLY, "leaf", "Multipoint faceplate strip"))
     if lk.kind == "slide_bolt" and opm.kind != "slide_bolt_handle":
-        # auxiliary slide bolt on the inside face
+        # auxiliary barrel bolt (4 in brass barrel bolt) on the inside face above the handle: mounting plate, two
+        # guide loops, rod with knob; the rod enters a keeper plate mortised over a pocket in the jamb
         sbm = H.OPERATORS["slide_bolt_barrel"]
         inside_face = 1.0 if spec["robot"]["robot_outside"] else -1.0
         mat = C.mat_from_material(model, sbm.material, f"mat_op_{sbm.material}")
-        L, d = 0.1, 0.012
+        L, d, standoff, prot = 0.1, 0.012, 0.012, 0.030
         zsb = hz + 0.25
-        sb = Body(f"{leaf_name}_aux_bolt", leaf_body.name, (x_edge - u * L * 0.6, inside_face * (t / 2 + d), zsb), QUAT_ID, None, [], [], FULL_SIMPLE, "lock", "Barrel bolt")
-        q0 = 0.0 if engaged else sbm.travel
-        sb.joint = Joint(f"{leaf_name}_aux_bolt_slide", "slide", (-u, 0, 0), (0, 0, 0), (0.0, sbm.travel), damping=1.0, frictionloss=1.0, role="lock", label="Barrel bolt (0 = engaged, + = withdrawn)", initial=q0, modeled_at=q0) if (release or not engaged) else None
-        xoff = 0 if engaged else -u * sbm.travel
-        sb.geoms.append(Geom(f"{leaf_name}_aux_bolt_rod", "capsule", (d / 2, L / 2), (u * L * 0.15 + xoff, 0, 0), tuple(quat_z_to((u, 0, 0))), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "lock", "Bolt rod"))
-        sb.geoms.append(Geom(f"{leaf_name}_aux_bolt_knob", "capsule", (0.006, 0.015), (xoff, inside_face * 0.015, 0), tuple(quat_z_to((0, inside_face, 0))), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "operator", "Bolt knob"))
-        sb.sites.append(Site(f"{leaf_name}_aux_bolt_grip", (xoff, inside_face * 0.03, 0), QUAT_ID, 0.01, "grip"))
-        model.add_body(sb)
-        pockets.append({"z": zsb, "h": d + 0.01, "w": d + 0.004, "depth": sbm.travel * 0.6 + 0.012, "ramp": False, "y": inside_face * (t / 2 + d)})
+        x_ab = x_edge
+        if pair and inside_face == -v:
+            # pairs: the astragal on the other leaf laps this face at the edge; mount the barrel 30 mm inboard
+            x_ab, prot, L = x_edge - u * 0.03, prot + 0.03, 0.13
+        sb, _ = C.add_barrel_bolt(model, leaf_body, f"{leaf_name}_aux_bolt", (x_ab, inside_face * t / 2, zsb), (u, 0, 0), (0, inside_face, 0), L, d, sbm.travel, engaged, mat, protrusion=prot, standoff=standoff, tiers=FULL_SIMPLE, role="lock", label="Barrel bolt (0 = engaged, + = withdrawn)", joint_name=f"{leaf_name}_aux_bolt_slide", grip_site=f"{leaf_name}_aux_bolt_grip", rod_semantic="lock")
+        if engaged and not release:
+            sb.joint.range = (0.0, 0.001)
+            sb.joint.notes = "no inside access: bolt fixed"
+        y_rod = inside_face * (t / 2 + standoff)
+        pockets.append({"z": zsb, "h": d + 0.008, "w": d + 0.004, "depth": prot + 0.012, "ramp": False, "y": y_rod})
+        if not pair:
+            C.add_keeper_ring(world.geoms, f"{leaf_name}_aux_bolt_keeper", (u * (Wo / 2), y_rod, zsb), (-u, 0, 0), (0, 0, 1), (d + 0.004) / 2, (d + 0.008) / 2, mat)
+    if lk.kind == "padlock" and opm.kind not in ("hasp", "slide_bolt_handle", "gate_latch_fork") and not pair:
+        # padlock with any other operator: a hasp & staple above the handle on the outside face (padlock hanging in
+        # the staple when locked; hasp flipped open otherwise)
+        _add_door_hasp(model, world, leaf_body, spec, u, hx, x_edge, t, min(hz + 0.20, zb + Hh - 0.08), engaged and not release, leaf_name, Wo, v=v)
     if lk.kind in ("mag_lock", "delayed_egress") and engaged:
         model.equalities.append(Equality("weld", f"{leaf_name}_maglock", leaf_body.name, "world", (0, 0, 0, 0, 0), (0, 0, 0), ALL_TIERS, f"{lk.name} (env releases on REX / badge / timer)", active=True))
         mm = C.mat_from_material(model, "aluminum_dark", "mat_maglock")
@@ -410,10 +552,23 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         leaf_body.geoms.append(C.box(f"{leaf_name}_maglock_armature", (x_edge - u * 0.30, -v * (t / 2 + 0.005), Ho - 0.065), (0.09, 0.005, 0.02), mm, 7800, False, True, FULL_SIMPLE, "lock", "Maglock armature plate"))
         model.meta.setdefault("breakable_welds", []).append({"name": f"{leaf_name}_maglock", "holding_force_N": H.LATCHES["mag_lock_1200" if "1200" in lk.name else "mag_lock_600"].holding_force})
     if lk.kind == "chain" and engaged:
+        # door chain: anchor plate on the inside face of the leaf, slotted track on the jamb's inside face, chain links
+        # between them (links ride with the leaf; the leaf joint range models the slack)
         cm = C.mat_from_material(model, "brass", "mat_chain")
-        for k in range(6):
-            leaf_body.geoms.append(C.sphere(f"{leaf_name}_chain_{k}", (x_edge - u * (0.02 + k * 0.015), 1.0 * (t / 2 + 0.01), hz + 0.30 - k * 0.004), 0.006, cm, 8500, False, FULL_ONLY, "lock", "Door chain"))
-        world.geoms.append(C.box(f"{leaf_name}_chain_track", (hx + x_edge + u * 0.03, 1.0 * (t / 2 + 0.012), hz + 0.30), (0.025, 0.004, 0.012), cm, 8500, False, True, FULL_ONLY, "lock", "Chain track"))
+        f_c = 1.0 if spec["robot"]["robot_outside"] else -1.0
+        z_c = hz + 0.30
+        depth_c = op["wall_thickness"] if op["frame"]["kind"] != "aluminum_storefront" else max(0.114, op["wall_thickness"])
+        y_track = float(model.meta.get("wall_y", 0.0)) + f_c * (depth_c / 2 + 0.005)
+        leaf_body.geoms.append(C.box(f"{leaf_name}_chain_plate", (x_edge - u * 0.05, f_c * (t / 2 + 0.002), z_c), (0.012, 0.002, 0.020), cm, 8500, False, True, FULL_SIMPLE, "lock", "Chain anchor plate"))
+        world.geoms.append(C.box(f"{leaf_name}_chain_track", (hx + x_edge + u * 0.035, y_track, z_c), (0.035, 0.005, 0.010), cm, 8500, False, True, FULL_SIMPLE, "lock", "Chain track (slotted)"))
+        p0 = np.array([x_edge - u * 0.05, f_c * (t / 2 + 0.008), z_c])
+        p1 = np.array([x_edge + u * 0.012, y_track, z_c - 0.012])
+        n_l = 6
+        for k in range(n_l):
+            a_ = p0 + (p1 - p0) * (k + 0.5) / n_l
+            leaf_body.geoms.append(Geom(f"{leaf_name}_chain_{k}", "capsule", (0.003, 0.006), tuple(a_), tuple(quat_z_to(p1 - p0)), cm, False, True, 8500.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_ONLY, "lock", "Chain link"))
+        # the links are drawn rigid with the leaf (a real chain hangs slack): they may pass the track / jamb face
+        model.meta.setdefault("clearance_allow", []).extend([[f"{leaf_name}_chain_*", f"{leaf_name}_chain_track", "chain end in its track"], [f"{leaf_name}_chain_*", "jamb_*", "slack chain vs jamb"], [f"{leaf_name}_chain_*", "stop_*", "slack chain vs stop"], [f"{leaf_name}_chain_*", "seal_*", "slack chain vs seal"], [f"{leaf_name}_chain_*", "casing_*", "slack chain vs casing"], [f"{leaf_name}_chain_*", "stud_*", "slack chain vs stud"]])
     if lk.kind == "swing_bar_guard" and engaged:
         gm = C.mat_from_material(model, "stainless", "mat_guard")
         world.geoms.append(C.box(f"{leaf_name}_guard_bar", (hx + x_edge + u * 0.02, 1.0 * (t / 2 + 0.03), hz + 0.30), (0.06, 0.006, 0.01), gm, 7900, False, True, FULL_ONLY, "lock", "Swing bar guard"))
@@ -594,18 +749,13 @@ def build_dutch(spec, phys, model: Model):
     for pk in ub.pockets:
         pk["ramp_both"] = True
     pockets += ub.pockets
-    # joining bolt: slide body on upper leaf inside face near the split; capsule drops into keeper on lower leaf
+    # joining bolt (Dutch door bolt): vertical barrel bolt on the upper leaf's inside face next to the split, its rod
+    # dropping through a keeper loop on the lower leaf so the two leaves swing as one
     jm = C.mat_from_material(model, "brass", "mat_joinbolt")
     inside = 1.0 if spec["robot"]["robot_outside"] else -1.0
-    jb = Body("join_bolt", upper.name, (x_edge - u * 0.12, inside * (t / 2 + 0.012), split + 0.06), QUAT_ID, None, [], [], FULL_SIMPLE, "lock", "Joining bolt")
     eng = bool(spec["kinematics"].get("joining_bolt_engaged"))
-    jb.joint = Joint("join_bolt_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, 0.05), damping=1.0, frictionloss=1.0, role="lock", label="Joining bolt (0 = joined, + = lifted)", initial=0.0 if eng else 0.05)
-    jb.geoms.append(Geom("join_bolt_rod", "capsule", (0.006, 0.05), (0, 0, -0.04), (1, 0, 0, 0), jm, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "lock", "Joining bolt"))
-    jb.geoms.append(Geom("join_bolt_knob", "capsule", (0.006, 0.012), (0, inside * 0.012, 0.01), tuple(quat_z_to((0, inside, 0))), jm, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "operator", "Bolt knob"))
-    jb.sites.append(Site("join_bolt_grip", (0, inside * 0.03, 0.01), QUAT_ID, 0.01, "grip"))
-    model.add_body(jb)
-    for sy in (-1, 1):
-        lower.geoms.append(C.box(f"join_keeper_{'p' if sy > 0 else 'n'}", (x_edge - u * 0.12 + sy * 0.014, inside * (t / 2 + 0.012), split - 0.03), (0.005, 0.012, 0.02), jm, 8500, True, True, FULL_SIMPLE, "lock", "Keeper"))
+    jb, _ = C.add_barrel_bolt(model, upper, "join_bolt", (x_edge - u * 0.12, inside * t / 2, split + 0.004), (0, 0, -1), (0, inside, 0), 0.10, 0.012, 0.05, eng, jm, protrusion=0.034, standoff=0.012, tiers=FULL_SIMPLE, role="lock", label="Joining bolt (0 = joined, + = lifted)", handle_at="rear", joint_name="join_bolt_slide", grip_site="join_bolt_grip", rod_semantic="lock")
+    C.add_keeper_loop(lower.geoms, "join_keeper", (x_edge - u * 0.12, inside * t / 2, split - 0.03), (x_edge - u * 0.12, inside * (t / 2 + 0.012), split - 0.03), (0, 0, -1), (0, inside, 0), 0.006, jm, FULL_SIMPLE, base=0.026)
     C.add_frame(model, spec, v, world, True, strike_pockets=pockets, u=u)
     C.add_hinge_visuals(model, world, lower, spec, (0, y_pin), split - C.BOTTOM_CLEAR - 0.004, C.BOTTOM_CLEAR, v, u)
     C.add_hinge_visuals(model, world, upper, spec, (0, y_pin), Hh - split - 0.004, split + 0.004, v, u)
@@ -902,6 +1052,9 @@ def build_stall(spec, phys, model: Model):
         sb.geoms.append(Geom("slide_latch_knob", "capsule", (0.005, 0.012), (xo, inside * 0.012, 0), tuple(quat_z_to((0, inside, 0))), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Latch knob"))
         sb.sites.append(Site("grip_latch", (xo, inside * 0.03, 0), QUAT_ID, 0.01, "grip"))
         model.add_body(sb)
+        # housing on the door: back plate + guide bracket the flat bar slides through (partition slide latch)
+        lb.geoms.append(C.box("slide_latch_plate", (x_edge - u * 0.045, inside * (t / 2 + 0.001), hz), (0.048, 0.001, 0.022), mat, 7900, False, True, FULL_SIMPLE, "latch", "Slide latch back plate"))
+        C.add_guide_loop(lb.geoms, "slide_latch_guide", (x_edge - u * 0.05, inside * t / 2, hz), (u, 0, 0), (0, inside, 0), 0.026, 0.015, 0.015, mat, 0.003, 0.010, False, FULL_SIMPLE, "latch", "Slide latch guide")
         # keeper on pilaster
         yb_ = inside * (t / 2 + 0.008)
         for sy in (-1, 1):
