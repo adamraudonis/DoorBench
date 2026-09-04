@@ -242,6 +242,7 @@ export class LoopSolver {
   readonly art: Articulation;
   readonly loops: Loop[] = [];
   readonly owned = new Set<string>();
+  readonly coupled = new Set<string>();     // joints driven by a joint equality / tendon: inputs to the loops, never unknowns
   readonly warnings: string[] = [];
   private readonly tol: number;
   private readonly forceGeneric: boolean;
@@ -254,6 +255,9 @@ export class LoopSolver {
     this.tol = opts.tolerance ?? 1e-4;
     this.forceGeneric = !!opts.forceGeneric;
     this.art = new Articulation(model);
+    // polynomial joint couplings (rising hinges, bolt <- handle) and one-sided tendons are set by the scene each frame
+    for (const e of model.equalities ?? []) if (e.kind === "joint" && e.b) this.coupled.add(e.a);
+    for (const t of model.tendons ?? []) if (t.sites?.[0]?.[0]) this.coupled.add(t.sites[0][0]);
     const schema = new Map<string, LinkageJ>();
     for (const l of model.linkages ?? []) if (l && typeof l === "object" && l.equality) schema.set(l.equality, l);
     for (const e of model.equalities ?? []) {
@@ -293,10 +297,11 @@ export class LoopSolver {
     const segB = common === undefined ? chainB : chainB.slice(0, chainB.indexOf(common));
     const jointsOf = (seg: number[], side: 1 | -1): LoopJoint[] => seg.map((i) => art.bodies[i].joint).filter((j): j is KJoint => !!j).map((joint) => ({ joint, side }));
     const allA = jointsOf(segA, 1), allB = jointsOf(segB, -1);
-    let ownedA = allA.filter((x) => x.joint.role === "mechanism"), ownedB = allB.filter((x) => x.joint.role === "mechanism");
+    const free = (x: LoopJoint) => !this.coupled.has(x.joint.name);
+    let ownedA = allA.filter((x) => free(x) && x.joint.role === "mechanism"), ownedB = allB.filter((x) => free(x) && x.joint.role === "mechanism");
     if (!ownedA.length && !ownedB.length) {
-      ownedA = allA.filter((x) => !x.joint.interactive && !DRIVER_ROLES.has(x.joint.role));
-      ownedB = allB.filter((x) => !x.joint.interactive && !DRIVER_ROLES.has(x.joint.role));
+      ownedA = allA.filter((x) => free(x) && !x.joint.interactive && !DRIVER_ROLES.has(x.joint.role));
+      ownedB = allB.filter((x) => free(x) && !x.joint.interactive && !DRIVER_ROLES.has(x.joint.role));
     }
     const warnings: string[] = [];
     const base = { name: link?.name ?? e.name.replace(/_connect$/, ""), equality: e.name, source: link ? "schema" as const : "derived" as const, warnings, stretched: false, lastSeparation: 0 };

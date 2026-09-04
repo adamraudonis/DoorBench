@@ -13,7 +13,16 @@ function load(id: string): ModelJ {
   return JSON.parse(readFileSync(path.join(ASSETS, id, "model.json"), "utf8"));
 }
 
-/** Sweep the primary joint over its range (plus the secondary joint of pairs) and return the worst separation per loop. */
+/** Joint -> [c0, c1] for joints driven by a polynomial coupling off the leaf joints (rising hinges, ...), as scene.ts applies them. */
+function leafCouplings(model: ModelJ): Map<string, [number, number]> {
+  const leaves = new Set([model.meta.primary_joint, model.meta.secondary_joint].filter(Boolean));
+  const out = new Map<string, [number, number]>();
+  for (const e of model.equalities ?? []) if (e.kind === "joint" && e.b && leaves.has(e.b)) out.set(e.a, [e.polycoeff[0], e.polycoeff[1]]);
+  return out;
+}
+
+/** Sweep the primary joint over its range (plus the secondary joint of pairs and the joints coupled to them) and return the
+ *  worst separation per loop. */
 function sweep(model: ModelJ, opts: { forceGeneric?: boolean } = {}, steps = 60) {
   const s = new LoopSolver(model, opts);
   const primary = s.art.joints.get(model.meta.primary_joint);
@@ -21,9 +30,12 @@ function sweep(model: ModelJ, opts: { forceGeneric?: boolean } = {}, steps = 60)
   const [lo, hi] = primary.range ?? [0, 1.5];
   const worst = new Map<string, number>();
   const trace = new Map<string, number[]>();
+  const couplings = leafCouplings(model);
   for (let i = 0; i <= steps; i++) {
-    s.setQ(primary.name, lo + (hi - lo) * i / steps);
-    if (model.meta.secondary_joint) s.setQ(model.meta.secondary_joint, lo + (hi - lo) * i / steps);
+    const q = lo + (hi - lo) * i / steps;
+    s.setQ(primary.name, q);
+    if (model.meta.secondary_joint) s.setQ(model.meta.secondary_joint, q);
+    for (const [j, [c0, c1]] of couplings) s.setQ(j, c0 + c1 * q);
     for (const r of s.solve()) {
       worst.set(r.name, Math.max(worst.get(r.name) ?? 0, r.separation));
       for (const j of r.joints) { const t = trace.get(j) ?? []; t.push(s.getQ(j)); trace.set(j, t); }
@@ -100,16 +112,29 @@ describe.skipIf(!have)("closed-loop linkage solver", () => {
     for (const [, sep] of s3.worst) expect(sep).toBeLessThan(1e-3);
   });
 
-  test("every closer door of another family closes its loop (cold storage)", () => {
-    const { worst, solver } = sweep(load("db0188_cold_storage"));
-    expect(solver.loops.length).toBeGreaterThan(0);
-    for (const [, sep] of worst) expect(sep).toBeLessThan(1e-3);
+  test("rising-hinge cold storage: the coupled leaf_rise stays an input, the arm closes in its plane", () => {
+    const model = load("db0188_cold_storage");
+    const { worst, solver } = sweep(model);
+    expect(solver.loops.length).toBe(1);
+    expect(solver.loops[0].type).toBe("two_bar");
+    expect(solver.coupled.has("leaf_rise")).toBe(true);
+    expect(solver.owned.has("leaf_rise")).toBe(false);
+    expect(solver.owned.has("closer_pinion")).toBe(true);
+    // the rising hinge lifts the whole closer with the leaf while the shoe stays on the frame: the planar arm cannot
+    // follow that lift, so the residual may be up to the rise itself (a limitation of the door model, see the report)
+    // but never more, and with the leaf flat the loop closes exactly
+    const rise = solver.art.joints.get("leaf_rise")!;
+    for (const [, sep] of worst) expect(sep).toBeLessThan(rise.range![1] + 1e-3);
+    const flat = new LoopSolver(model);
+    flat.setQ("leaf_hinge", 1.5); flat.setQ("leaf_rise", 0);
+    expect(flat.solve()[0].separation).toBeLessThan(1e-4);
   });
 
   test("every door with a connect loop closes it (< 1 mm) over the whole leaf travel", () => {
     // manifest -> only doors that can carry a mechanism loop (closer / operator), then whatever model.json declares
     const manifest = JSON.parse(readFileSync(path.join(ASSETS, "..", "manifest.json"), "utf8"));
     const failures: string[] = [];
+    const geometryNotes: string[] = [];
     let nLoops = 0, nDoors = 0;
     for (const d of manifest.doors as { id: string; closer: string; operator: string }[]) {
       let model: ModelJ;
@@ -118,11 +143,19 @@ describe.skipIf(!have)("closed-loop linkage solver", () => {
       nDoors++;
       const { solver, worst } = sweep(model, {}, 36);
       for (const w of solver.warnings) failures.push(`${d.id}: ${w}`);
+      // a rising hinge (slide joint coupled to the leaf angle) lifts the closer with the leaf while the shoe stays on the
+      // frame: no planar arm can follow that, so the residual up to the rise itself is a limitation of the door model
+      // (reported, not a solver failure); anything beyond it is
+      const rise = [...leafCouplings(model)].reduce((acc, [j]) => { const jt = solver.art.joints.get(j); return acc + (jt && jt.type === "slide" && jt.range ? jt.range[1] - jt.range[0] : 0); }, 0);
       for (const [name, sep] of worst) {
         nLoops++;
-        if (!(sep < 1e-3)) failures.push(`${d.id} ${name}: worst separation ${(sep * 1000).toFixed(2)} mm`);
+        expect(solver.owned.has(name)).toBe(false);
+        for (const j of solver.coupled) expect(solver.owned.has(j)).toBe(false);
+        if (!(sep < 1e-3 + rise)) failures.push(`${d.id} ${name}: worst separation ${(sep * 1000).toFixed(2)} mm`);
+        else if (!(sep < 1e-3)) geometryNotes.push(`${d.id} ${name}: ${(sep * 1000).toFixed(1)} mm (rising hinge lifts the closer by up to ${(rise * 1000).toFixed(0)} mm)`);
       }
     }
+    if (geometryNotes.length) console.log(`loops that cannot fully close because of the door geometry:\n  ${geometryNotes.join("\n  ")}`);
     expect(nDoors).toBeGreaterThan(0);
     expect(nLoops).toBeGreaterThanOrEqual(nDoors);
     expect(failures).toEqual([]);

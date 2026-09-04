@@ -103,8 +103,6 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
   const scenarioRef = useRef<ScenarioJ | undefined>(undefined);
   const showEvalRef = useRef(false);
   showEvalRef.current = showEval;
-  const queryRef = useRef(query);
-  queryRef.current = query;
   const builtModel = useRef<ModelJ | null>(null);   // the model the current scene was built from (pose is kept across rebuilds of the same model)
 
   useEffect(() => {
@@ -164,6 +162,8 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
     ro.observe(el);
     const t = { scene, camera, renderer, controls, anim: 0 };
     three.current = t;
+    // dev server only: lets scripts / the browser tooling aim the camera and read the built scene (screenshots, checks)
+    if ((import.meta as any).env?.DEV) (window as any).__doorbench = { three: t, get built() { return built.current; }, refresh: () => force((x) => x + 1) };
     const loop = (now: number) => {
       t.anim = requestAnimationFrame(loop);
       const b = built.current;
@@ -202,7 +202,7 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
     if (!t || !model) return;
     let cancelled = false;
     // same model rebuilt (walls / collision toggled): keep the pose; new door: apply the `q=` pose deep link
-    const keep = built.current && builtModel.current === model ? Array.from(built.current.joints.values()).filter((h) => !h.loopSolved).map((h) => [h.name, h.q] as const) : parsePoseQuery(queryRef.current);
+    const keep = built.current && builtModel.current === model ? Array.from(built.current.joints.values()).filter((h) => !h.loopSolved).map((h) => [h.name, h.q] as const) : [];
     if (built.current) { t.scene.remove(built.current.root); built.current.dispose(); built.current = null; }
     queue.current = [];
     buildScene(model, { showEnv, showCollision: showCol }).then((b) => {
@@ -227,6 +227,21 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
     }).catch((e) => setErr(String(e)));
     return () => { cancelled = true; };
   }, [model, showEnv, showCol]);
+
+  // `q=` pose deep link: applied once per (door, query) as soon as the scene exists, and again when the hash changes
+  const appliedPose = useRef<string | null>(null);
+  useEffect(() => {
+    const b = built.current;
+    const key = `${id}|${query}`;
+    if (!b || appliedPose.current === key) return;
+    appliedPose.current = key;
+    const pose = parsePoseQuery(query);
+    if (!pose.length) return;
+    queue.current = [];
+    for (const [name, q] of pose) if (b.joints.get(name)?.loopSolved === false) b.setJoint(name, q);
+    b.solveLoops();
+    force((x) => x + 1);
+  }, [id, query, joints]);
 
   const bench: BenchmarkJ | undefined = spec?.benchmark;
   const scenarios: ScenarioJ[] = bench?.scenarios ?? [];
