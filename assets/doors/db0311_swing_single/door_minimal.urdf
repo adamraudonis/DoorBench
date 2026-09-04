@@ -53,6 +53,86 @@
         <box size="1.224 0.2 0.51"/>
       </geometry>
     </collision>
+    <visual name="leaf_staple_leg_n_vis">
+      <origin xyz="-0.565 -0.055 1.1775" rpy="-1.570796 0 3.141593"/>
+      <geometry>
+        <box size="0.006 0.005 0.026"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+    <collision name="leaf_staple_leg_n_col">
+      <origin xyz="-0.565 -0.055 1.1775" rpy="-1.570796 0 3.141593"/>
+      <geometry>
+        <box size="0.006 0.005 0.026"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_staple_leg_p_vis">
+      <origin xyz="-0.565 -0.055 1.1525" rpy="-1.570796 0 3.141593"/>
+      <geometry>
+        <box size="0.006 0.005 0.026"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+    <collision name="leaf_staple_leg_p_col">
+      <origin xyz="-0.565 -0.055 1.1525" rpy="-1.570796 0 3.141593"/>
+      <geometry>
+        <box size="0.006 0.005 0.026"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_staple_bridge_vis">
+      <origin xyz="-0.565 -0.0655 1.165" rpy="-1.570796 0 3.141593"/>
+      <geometry>
+        <box size="0.006 0.03 0.005"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+    <collision name="leaf_staple_bridge_col">
+      <origin xyz="-0.565 -0.0655 1.165" rpy="-1.570796 0 3.141593"/>
+      <geometry>
+        <box size="0.006 0.03 0.005"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_staple_base_vis">
+      <origin xyz="-0.565 -0.043 1.165" rpy="-1.570796 0 3.141593"/>
+      <geometry>
+        <box size="0.032 0.042 0.002"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+    <visual name="leaf_padlock_shackle_vis">
+      <origin xyz="-0.565 -0.057 1.165" rpy="0 -1.570796 0"/>
+      <geometry>
+        <cylinder radius="0.004" length="0.032"/>
+      </geometry>
+      <material name="mat_padlock"/>
+    </visual>
+    <visual name="leaf_padlock_leg_a_vis">
+      <origin xyz="-0.549 -0.057 1.153" rpy="3.141593 0 0"/>
+      <geometry>
+        <cylinder radius="0.004" length="0.024"/>
+      </geometry>
+      <material name="mat_padlock"/>
+    </visual>
+    <visual name="leaf_padlock_leg_b_vis">
+      <origin xyz="-0.581 -0.057 1.153" rpy="3.141593 0 0"/>
+      <geometry>
+        <cylinder radius="0.004" length="0.024"/>
+      </geometry>
+      <material name="mat_padlock"/>
+    </visual>
+    <visual name="leaf_padlock_body_vis">
+      <origin xyz="-0.565 -0.057 1.123" rpy="-1.570796 0 3.141593"/>
+      <geometry>
+        <box size="0.044 0.036 0.016"/>
+      </geometry>
+      <material name="mat_padlock"/>
+    </visual>
+    <collision name="leaf_padlock_body_col">
+      <origin xyz="-0.565 -0.057 1.123" rpy="-1.570796 0 3.141593"/>
+      <geometry>
+        <box size="0.044 0.036 0.016"/>
+      </geometry>
+    </collision>
     <visual name="jamb_hinge_vis">
       <origin xyz="0.567 0.058 1.0735" rpy="0 0 0"/>
       <geometry>
@@ -213,8 +293,8 @@
   <link name="leaf">
     <inertial>
       <origin xyz="-0.5335 0.029 1.076" rpy="0 0 0"/>
-      <mass value="61.981123"/>
-      <inertia ixx="23.531608461" ixy="0" ixz="0" iyy="29.40201105" iyz="0" izz="5.890401831"/>
+      <mass value="61.870378"/>
+      <inertia ixx="23.489563271" ixy="0" ixz="0" iyy="29.349476896" iyz="0" izz="5.879877134"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="-0.5335 0.029 1.076" rpy="0 0 0"/>
@@ -309,6 +389,26 @@
       </geometry>
     </collision>
   </link>
+  <link name="leaf_hasp">
+    <inertial>
+      <origin xyz="-0.0545 -0.0015 0" rpy="0 0 0"/>
+      <mass value="0.089271"/>
+      <inertia ixx="0.00000918" ixy="0" ixz="0" iyy="0.000097499" iyz="0" izz="0.000088453"/>
+    </inertial>
+    <visual name="leaf_hasp_strap_vis">
+      <origin xyz="-0.0545 -0.0015 0" rpy="-1.570796 0 3.141593"/>
+      <geometry>
+        <box size="0.109 0.035 0.003"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+    <collision name="leaf_hasp_strap_col">
+      <origin xyz="-0.0545 -0.0015 0" rpy="-1.570796 0 3.141593"/>
+      <geometry>
+        <box size="0.109 0.035 0.003"/>
+      </geometry>
+    </collision>
+  </link>
   <joint name="leaf_hinge" type="revolute">
     <origin xyz="0.534 -0.029 0" rpy="0 0 0"/>
     <parent link="world_env"/>
@@ -339,6 +439,14 @@
     <mimic joint="leaf_handle_hinge" multiplier="0.021538" offset="0"/>
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
   </joint>
+  <joint name="leaf_hasp_hinge" type="revolute">
+    <origin xyz="-1.012 -0.017 1.165" rpy="0 0 0"/>
+    <parent link="leaf"/>
+    <child link="leaf_hasp"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="0.0015" effort="2000" velocity="10"/>
+    <dynamics damping="0.02" friction="0.05"/>
+  </joint>
   <material name="mat_bolt">
     <color rgba="0.75 0.76 0.77 1"/>
   </material>
@@ -353,6 +461,12 @@
   </material>
   <material name="mat_op_glass_clear">
     <color rgba="0.85 0.92 0.95 0.25"/>
+  </material>
+  <material name="mat_op_steel_galvanized">
+    <color rgba="0.65 0.66 0.68 1"/>
+  </material>
+  <material name="mat_padlock">
+    <color rgba="0.85 0.66 0.3 1"/>
   </material>
   <material name="mat_wall">
     <color rgba="0.78 0.76 0.7 1"/>

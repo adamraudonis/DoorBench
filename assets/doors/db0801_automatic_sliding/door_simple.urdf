@@ -118,6 +118,13 @@
         <box size="0.06 0.024 2.384"/>
       </geometry>
     </collision>
+    <visual name="leaf_electric_bolt_housing_vis">
+      <origin xyz="1.13 -0.0405 2.176" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.044 0.028 0.09"/>
+      </geometry>
+      <material name="mat_ebolt"/>
+    </visual>
     <visual name="jamb_latch_0_vis">
       <origin xyz="1.2725 0 1.192" rpy="0 0 0"/>
       <geometry>
@@ -160,9 +167,9 @@
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="0 0 1.079" rpy="0 0 0"/>
-      <mass value="89.5976"/>
-      <inertia ixx="34.01708027" ixy="0" ixz="0" iyy="44.753672675" iyz="0" izz="10.766831595"/>
+      <origin xyz="0.002927 -0.000182 1.084442" rpy="0 0 0"/>
+      <mass value="89.447232"/>
+      <inertia ixx="34.237606449" ixy="0.008411369" ixz="-0.251711502" iyy="45.030814285" iyz="0.015641911" izz="10.824348012"/>
     </inertial>
     <visual name="leaf_glass_vis">
       <origin xyz="0 0 1.079" rpy="0 0 0"/>
@@ -177,6 +184,59 @@
         <box size="1.2 0.045 2.134"/>
       </geometry>
     </collision>
+    <visual name="leaf_ebolt_keeper_n_vis">
+      <origin xyz="0.502 -0.0365 2.046" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.012 0.028 0.04"/>
+      </geometry>
+      <material name="mat_ebolt"/>
+    </visual>
+    <collision name="leaf_ebolt_keeper_n_col">
+      <origin xyz="0.502 -0.0365 2.046" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.012 0.028 0.04"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_ebolt_keeper_p_vis">
+      <origin xyz="0.538 -0.0365 2.046" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.012 0.028 0.04"/>
+      </geometry>
+      <material name="mat_ebolt"/>
+    </visual>
+    <collision name="leaf_ebolt_keeper_p_col">
+      <origin xyz="0.538 -0.0365 2.046" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.012 0.028 0.04"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_ebolt_keeper_base_vis">
+      <origin xyz="0.52 -0.0245 2.046" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.06 0.004 0.06"/>
+      </geometry>
+      <material name="mat_ebolt"/>
+    </visual>
+  </link>
+  <link name="leaf_electric_bolt">
+    <inertial>
+      <origin xyz="0 0 0.04" rpy="0 0 0"/>
+      <mass value="0.150368"/>
+      <inertia ixx="0.000115179" ixy="0" ixz="0" iyy="0.000115179" iyz="0" izz="0.000004703"/>
+    </inertial>
+    <visual name="leaf_electric_bolt_geom_vis">
+      <origin xyz="0 0 0.04" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.008" length="0.084"/>
+      </geometry>
+      <material name="mat_ebolt"/>
+    </visual>
+    <collision name="leaf_electric_bolt_geom_col">
+      <origin xyz="0 0 0.04" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.008" length="0.084"/>
+      </geometry>
+    </collision>
   </link>
   <joint name="leaf_slide" type="prismatic">
     <origin xyz="0.61 0 0" rpy="0 0 0"/>
@@ -186,6 +246,18 @@
     <limit lower="0" upper="1.18" effort="5000" velocity="10"/>
     <dynamics damping="6.47988" friction="21.087655"/>
   </joint>
+  <joint name="leaf_electric_bolt_slide" type="prismatic">
+    <origin xyz="1.13 -0.0365 2.081" rpy="0 0 0"/>
+    <parent link="world_env"/>
+    <child link="leaf_electric_bolt"/>
+    <axis xyz="0 0 1"/>
+    <doorbench:zero_offset value="0.04" note="URDF q=0 is the spec initial state; DoorBench q = urdf_q + value"/>
+    <limit lower="-0.04" upper="0" effort="5000" velocity="10"/>
+    <dynamics damping="5" friction="2"/>
+  </joint>
+  <material name="mat_ebolt">
+    <color rgba="0.75 0.76 0.77 1"/>
+  </material>
   <material name="mat_fixed_glass">
     <color rgba="0.85 0.92 0.95 0.25"/>
   </material>

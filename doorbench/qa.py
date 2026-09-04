@@ -64,7 +64,7 @@ def door_flags(spec: dict) -> dict:
     lock_engaged = bool(spec["lock"]["engaged"]) and lk.kind not in ("none", "child_lock_cover", "jam_stuck")
     env_release_only = bool(spec["lock"]["engaged"]) and lk.kind in ENV_RELEASE_LOCK_KINDS
     can_release = bool(spec["lock"].get("robot_side_release", True)) or lk.kind == "jam_stuck"
-    return {"spring_latch": spring_latch, "lock_engaged": lock_engaged, "has_holding": spring_latch or lock_engaged, "env_release_only": env_release_only,
+    return {"spring_latch": spring_latch, "lock_engaged": lock_engaged, "has_holding": spring_latch or lock_engaged or H.OPERATORS[spec["operator"]["model"]].kind == "cremone", "env_release_only": env_release_only,   # cremone shoot bolts are the door's latch
             "can_release": can_release, "free_swing": spec["family"] in FREE_SWING_FAMILIES, "lock_kind": lk.kind, "latch_kind": lt.kind}
 
 
@@ -226,8 +226,11 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
             metrics["locked_displacement"] = _q(m, d, pj)
             thr_l = thr + (math.asin(min(0.99, lk.chain_slack / max(W - 0.1, 0.2))) if lk.chain_slack else 0.0)
             checks["locked_holds"] = bool(_q(m, d, pj) < thr_l)
-        # closer returns from 60 deg
-        if is_hinge and spec["closer"]["model"] not in ("none", "gas_strut") and phys["closer"].get("spring_preload_Nm", 0) > 0 and not spec["kinematics"].get("both_ways") and not env_release_only and not (spec["lock"]["engaged"] and lk.kind in ("chain", "swing_bar_guard", "padlock")):
+        # closer returns from 60 deg (not applicable to gates with a gravity fork latch: the fork is not self-latching
+        # and must be lifted to close the gate, so a closer cannot bring the gate home on its own)
+        if lt.id == "fork_gravity":
+            metrics["closer_note"] = "fork latch: gate closes only with the fork lifted; closer return not applicable"
+        elif is_hinge and spec["closer"]["model"] not in ("none", "gas_strut") and phys["closer"].get("spring_preload_Nm", 0) > 0 and not spec["kinematics"].get("both_ways") and not env_release_only and not (spec["lock"]["engaged"] and lk.kind in ("chain", "swing_bar_guard", "padlock")):
             mujoco.mj_resetData(m, d)
             qa = m.jnt_qposadr[pj]
             d.qpos[qa] = math.radians(min(60.0, (spec["kinematics"].get("max_open_deg") or 90) * 0.8))
@@ -268,6 +271,18 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         except Exception as e:
             checks["usd_opens"] = False
             metrics["usd_error"] = str(e)[:300]
+    # ---- canonical RL USD opens with the fixed 7-DoF structure (Isaac Lab multi-door spawning)
+    if "usd_rl" in files and isinstance(files["usd_rl"], str) and files["usd_rl"].endswith(".usda"):
+        try:
+            from pxr import Usd, UsdPhysics
+            from .export.usd import RL_DOF_JOINTS
+            st = Usd.Stage.Open(files["usd_rl"])
+            names = {p.GetName() for p in st.Traverse() if p.IsA(UsdPhysics.RevoluteJoint) or p.IsA(UsdPhysics.PrismaticJoint)}
+            checks["usd_rl_opens"] = names == set(RL_DOF_JOINTS)
+            metrics["usd_rl_joints"] = sorted(names)
+        except Exception as e:
+            checks["usd_rl_opens"] = False
+            metrics["usd_rl_error"] = str(e)[:300]
     signed = all(v for k, v in checks.items())
     return {"checks": checks, "metrics": metrics, "signed_off": bool(signed), "time_s": time.time() - t0, "mujoco_version": mujoco.__version__}
 

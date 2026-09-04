@@ -44,9 +44,39 @@ def _add_hook(model, world, leaf_b, name, dir_, x_latch_edge, xc, yl, z, engaged
     model.add_body(hk)
     model.equalities.append(Equality("joint", f"{name}_hook_couple", hk.joint.name, driver_joint, (0, coeff, 0, 0, 0), tiers=ALL_TIERS, label="hook = driver * coeff"))
     world.geoms.append(C.box(f"{name}_hook_keeper", (xc + x_latch_edge - dir_ * 0.018, yl, z), (0.008, 0.015, 0.006), hm, 7900, True, True, ALL_TIERS, "latch", "Hook keeper bar"))
+    # faceplate on the stile edge around the hook (flush) and a keeper plate around the jamb pocket mouth
+    leaf_b.geoms.append(C.box(f"{name}_hook_faceplate", (x_latch_edge + dir_ * 0.0006, 0.0, z), (0.0006, 0.011, 0.045), hm, 7900, False, True, FULL_SIMPLE, "leaf", "Hook faceplate"))
     if abs(yl) < 0.05:
         model.meta.setdefault("_jamb_pockets", []).append((z, 0.12, yl))
+        model.meta.setdefault("_jamb_keeper_plates", []).append((xc + x_latch_edge - dir_ * 0.0 , yl, z, dir_, name))
     return hk
+
+
+def _add_sliding_hasp(model, world, leaf_b, spec, name, dir_, x_latch_edge, xc, yl, t, z_h, Wo, latch_side, locked, material):
+    """Hasp on a sliding leaf + staple on the member beside its latch edge: on sliding gates the posts stand behind
+    the leaf, so the hasp sits on the back face and the staple is a bracket off the post's front face; sliding doors
+    carry the hasp on the robot face with the staple standing off the latch jamb / wall face."""
+    op, kin, fam = spec["opening"], spec["kinematics"], spec["family"]
+    if kin.get("track") == "top_hung_pocket" or latch_side == 0:
+        return
+    wt = op["wall_thickness"]
+    toward = (-dir_, 0.0, 0.0)
+    hinge_x = x_latch_edge + dir_ * 0.06
+    x_st = latch_side * (Wo / 2 + 0.03)
+    if fam == "gate_sliding":
+        # hasp on the robot face (it flips open into free space); the staple is a bracket welded to the post that
+        # stands behind the leaf, reaching forward past the leaf's edge to the strap plane
+        face, y_surf, plane_h = -1.0, 0.02, 0.006
+    else:
+        face = -1.0
+        y_surf = -wt / 2
+        plane_h = max(0.006, abs(y_surf) - abs(yl - t / 2) + 0.004) if abs(y_surf) > abs(yl - t / 2) else 0.006
+    y_plane = yl + face * (t / 2 + plane_h)
+    y_eye = y_plane + face * (0.003 + 0.008)
+    strap_len = abs(x_st - (xc + hinge_x)) + 0.022
+    mat = C.mat_from_material(model, material, f"mat_op_{material}")
+    pm = C.mat_from_material(model, "brass", "mat_padlock")
+    C.add_hasp_assembly(model, leaf_b, world, name, (hinge_x, face * t / 2, z_h), (0, face, 0), toward, strap_len, plane_h, (x_st, y_eye, z_h), (x_st, y_surf, z_h), (0, -1.0, 0), locked, mat, pm)
 
 
 # ---------------------------------------------------------------------------
@@ -204,7 +234,7 @@ def build_sliding(spec, phys, model: Model):
             # electric DROP bolt (world-fixed solenoid above the leaf face) into a keeper bracket on the leaf: a bolt
             # perpendicular to the travel is the only kind that can hold a sliding leaf
             ebm = C.mat_from_material(model, "stainless", "mat_ebolt")
-            f_eb = -1.0 if abs(yl) >= 0.05 else 1.0          # surface-hung leaves: keeper on the robot face (wall behind)
+            f_eb = -1.0 if (abs(yl) >= 0.05 or fixed_panel) else 1.0   # keeper on the robot face when a wall / fixed panel is behind
             x_b = xc + x_latch_edge + dir_ * 0.08
             y_b = yl + f_eb * (t / 2 + 0.014)
             zk = zb + Hh - 0.10
@@ -264,19 +294,13 @@ def build_sliding(spec, phys, model: Model):
             if eng and not release:
                 tt.joint.range = (0.0, 0.05)
         if opm.kind == "slide_bolt_handle":
-            # drop bolt (cane bolt): vertical rod on the leaf face drops into a floor socket, blocking travel
+            # drop bolt (cane bolt, e.g. 12 in cane bolt): vertical rod in guide loops on the leaf face, bent-over
+            # handle at the top, drops into a floor socket that blocks the travel
             mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
             dia = opm.style_params.get("diameter", 0.02)
-            eng = engaged
             xb = x_latch_edge + dir_ * 0.12
             L = zb + 0.30 - 0.026
-            sb = Body(f"{name}_slide_bolt", b.name, (xb, -(t / 2 + dia), zb + 0.30), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Drop bolt")
-            sb.joint = Joint(f"{name}_slide_bolt_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, 0.08), damping=2.0, frictionloss=opm.spring_torque_preload, role="lock", label="Drop bolt (0 = in floor socket, + = lifted)", initial=0.0 if eng else 0.08, modeled_at=0.0 if eng else 0.08)
-            zo = 0 if eng else 0.08
-            sb.geoms.append(Geom(f"{name}_slide_bolt_rod", "capsule", (dia / 2, L / 2 - dia / 2), (0, 0, -L / 2 + zo), (1, 0, 0, 0), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "latch", "Drop bolt rod"))
-            sb.geoms.append(Geom(f"{name}_slide_bolt_knob", "capsule", (0.008, 0.03), (0, -0.03, 0.02 + zo), tuple(quat_z_to((0, -1, 0))), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Bolt handle"))
-            sb.sites.append(Site(f"{name}_grip_bolt", (0, -0.06, 0.02 + zo), QUAT_ID, 0.012, "grip"))
-            model.add_body(sb)
+            sb, info = C.add_barrel_bolt(model, b, f"{name}_slide_bolt", (xb, -t / 2, zb), (0, 0, -1), (0, -1, 0), L, dia, 0.08, engaged, mat, protrusion=zb - 0.026, standoff=dia, role="lock", label="Drop bolt (0 = in floor socket, + = lifted)", frictionloss=opm.spring_torque_preload, damping=2.0, handle_at="rear", handle_len=0.06, joint_name=f"{name}_slide_bolt_slide", grip_site=f"{name}_grip_bolt")
             km = C.mat_from_material(model, "steel_galvanized", "mat_keeper")
             yk = yl - (t / 2 + dia)
             for sx_ in (-1, 1):
@@ -285,12 +309,30 @@ def build_sliding(spec, phys, model: Model):
             world.geoms.append(C.box(f"{name}_socket_base", (xc + xb, yk, 0.01), (dia / 2 + 0.014, dia / 2 + 0.014, 0.01), km, 7800, False, True, FULL_SIMPLE, "lock", "Socket base"))
             model.meta["operator_joint"] = sb.joint.name
         elif opm.kind == "hasp":
-            mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
-            b.geoms.append(C.box(f"{name}_hasp", (x_latch_edge + dir_ * 0.04, -(t / 2 + 0.004), hz), (0.06, 0.003, 0.02), mat, 7800, True, True, ALL_TIERS, "lock", "Hasp"))
-            if engaged:
+            # hasp on the leaf's back face, staple on a standoff from the post that stands behind the leaf's path
+            _add_sliding_hasp(model, world, b, spec, name, dir_, x_latch_edge, xc, yl, t, hz, Wo, latch_side, engaged and lk.kind == "padlock", opm.material)
+            if engaged and lk.kind == "padlock":
                 j.range = (0.0, 0.003)
         elif opm.kind == "none":
             pass
+        if lk.kind == "padlock" and opm.kind != "hasp" and fam in ("sliding_single", "gate_sliding") and not center:
+            _add_sliding_hasp(model, world, b, spec, name, dir_, x_latch_edge, xc, yl, t, min(hz + 0.20, zb + Hh - 0.08), Wo, latch_side, engaged and not release, "steel_galvanized")
+        if spec["lock"]["model"] == "electric_bolt" and not eb_pockets and fam in ("gate_sliding", "automatic_sliding") and not center:
+            # electric drop bolt LOCK on a leaf whose latch is not the bolt: same world-fixed solenoid + keeper geometry
+            ebm = C.mat_from_material(model, "stainless", "mat_ebolt")
+            f_eb = -1.0 if (abs(yl) >= 0.05 or fixed_panel) else 1.0
+            x_b = xc + x_latch_edge + dir_ * 0.08
+            y_b = yl + f_eb * (t / 2 + 0.014)
+            zk = zb + Hh - 0.10
+            eb = Body(f"{name}_electric_bolt", None, (x_b, y_b, zk + 0.035), QUAT_ID, None, [], [], FULL_SIMPLE, "lock", "Electric drop bolt")
+            eb.joint = Joint(f"{name}_electric_bolt_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, 0.04), damping=5.0, frictionloss=2.0, role="lock", label="Electric drop bolt (0 = dropped into the keeper; lifts on access-control release)", robot_interactive=False, initial=0.0 if engaged else 0.04)
+            eb.geoms.append(Geom(f"{name}_electric_bolt_geom", "capsule", (0.008, 0.042), (0, 0, 0), (1, 0, 0, 0), ebm, True, True, 7900.0, None, (0.4, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "lock", "Drop bolt"))
+            model.add_body(eb)
+            world.geoms.append(C.box(f"{name}_electric_bolt_housing", (x_b, y_b + f_eb * 0.004, zk + 0.13), (0.022, 0.014, 0.045), ebm, 7900, False, True, FULL_SIMPLE, "lock", "Solenoid housing"))
+            for sx_ in (-1, 1):
+                b.geoms.append(C.box(f"{name}_ebolt_keeper_{'p' if sx_ > 0 else 'n'}", (x_latch_edge + dir_ * 0.08 + sx_ * 0.018, f_eb * (t / 2 + 0.014), zk), (0.006, 0.014, 0.02), ebm, 7900, True, True, FULL_SIMPLE, "lock", "Keeper block"))
+            b.geoms.append(C.box(f"{name}_ebolt_keeper_base", (x_latch_edge + dir_ * 0.08, f_eb * (t / 2 + 0.002), zk), (0.03, 0.002, 0.03), ebm, 7900, False, True, FULL_SIMPLE, "lock", "Keeper plate"))
+            model.meta["env_release_joint"] = eb.joint.name
         # electric bolt / keyed lock -> lock joint
         if engaged and lk.kind in ("electric_strike", "keyed_cylinder", "padlock", "slide_bolt", "interlock") and opm.kind not in ("slide_bolt_handle",) and (not release or lk.kind in ("interlock", "electric_strike")):
             j.range = (0.0, 0.002)
@@ -319,6 +361,11 @@ def build_sliding(spec, phys, model: Model):
         for k, (a, b) in enumerate(segs):
             if b - a > 1e-4:
                 world.geoms.append(C.box(f"jamb_latch_{k}", (xj, 0, (a + b) / 2), (jamb_col / 2, wt / 2, (b - a) / 2), mat_frame, 300, True, True, ALL_TIERS, "frame", "Latch jamb"))
+        km_ = C.mat_from_material(model, "stainless", "mat_hook")
+        for (_, yc_, zc_, d_, nm_) in model.meta.pop("_jamb_keeper_plates", []):
+            C.add_keeper_ring(world.geoms, f"{nm_}_hook_keeper_plate", (latch_side * (Wo / 2), yc_, zc_), (-latch_side, 0, 0), (0, 0, 1), t / 2 + 0.006, 0.06, km_, bar=0.006, thick=0.001, tiers=FULL_SIMPLE, semantic="latch", label="Hook keeper plate")
+    else:
+        model.meta.pop("_jamb_keeper_plates", None)
     # floor guide (barn)
     if "floor_guide" in spec.get("extras", []):
         for sy in (-1, 1):
@@ -606,9 +653,10 @@ def build_vertical(spec, phys, model: Model):
         # guides + drum + hood
         for sgn in (-1, 1):
             if sgn < 0 and spec["lock"]["model"] == "garage_slide_lock":
-                # left guide split around the slide-lock bar (z = 1.0): the guide segments are the keeper
-                world.geoms.append(C.box("guide_l", (sgn * (W / 2 + 0.035), y_leaf, 0.985 / 2), (0.03, 0.025, 0.985 / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
-                world.geoms.append(C.box("guide_l_upper", (sgn * (W / 2 + 0.035), y_leaf, (1.015 + Ho) / 2), (0.03, 0.025, (Ho - 1.015) / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
+                # left guide split around the slide-lock bar (bottom-bar height): the guide segments are the keeper
+                zsl_ = 0.30
+                world.geoms.append(C.box("guide_l", (sgn * (W / 2 + 0.035), y_leaf, (zsl_ - 0.015) / 2), (0.03, 0.025, (zsl_ - 0.015) / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
+                world.geoms.append(C.box("guide_l_upper", (sgn * (W / 2 + 0.035), y_leaf, (zsl_ + 0.015 + Ho) / 2), (0.03, 0.025, (Ho - zsl_ - 0.015) / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
                 continue
             world.geoms.append(C.box(f"guide_{'r' if sgn > 0 else 'l'}", (sgn * (W / 2 + 0.035), y_leaf, Ho / 2), (0.03, 0.025, Ho / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
         # the curtain translates rigidly (no coiling is simulated): the coil sits in FRONT of the curtain plane, tangent to
@@ -661,22 +709,21 @@ def build_vertical(spec, phys, model: Model):
         sm = C.mat_from_material(model, "steel_galvanized", "mat_slidelock")
         inside = 1.0
         y_sl = (y_leaf if fam == "rollup" else 0.0) + inside * (t / 2 + 0.01)
-        z_sl = 1.0
+        z_sl = 1.0 if fam != "rollup" else 0.30         # roll-up: on the bottom bar, below the coil when raised
         if fam == "garage_sectional":
             sh_ = Hh / max(1, int(kin.get("n_sections", 4)))
             z_sl = 0.01 + (int((1.0 - 0.01) / sh_) + 0.5) * sh_      # mid-section, clear of the section hinges / roller arms
-        sl = Body("garage_slide_lock", lb.name, (-W / 2 + 0.06, y_sl, z_sl), QUAT_ID, None, [], [], FULL_SIMPLE, "lock", "Slide lock")
+        # garage inside slide lock (e.g. National Hardware garage door side lock): plate + guides + spring bar with a
+        # knob on the inside face; the bar shoots through a slot / keeper in the vertical track (roll-up: the split guide)
         eng = bool(spec["lock"].get("engaged"))
-        sl.joint = Joint("garage_slide_lock_slide", "slide", (1, 0, 0), (0, 0, 0), (0.0, 0.05), damping=1.0, frictionloss=1.0, role="lock", label="Slide lock (0 = in track, + = withdrawn)", initial=0.0 if eng else 0.05, modeled_at=0.0 if eng else 0.05)
-        sl.geoms.append(Geom("garage_slide_lock_geom", "capsule", (0.006, 0.04), (-0.06 + (0 if eng else 0.05), 0, 0), tuple(quat_z_to((1, 0, 0))), sm, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "lock", "Slide lock bar"))
-        sl.sites.append(Site("slide_lock_grip", (0, inside * 0.02, 0), QUAT_ID, 0.01, "grip"))
-        sl.joint.modeled_at = sl.joint.initial
-        model.add_body(sl)
-        # keeper channel on the track: bar tip (x ~ -W/2-0.046 when engaged) between two blocks (roll-up: the split guide is the keeper)
+        y_face = (y_leaf if fam == "rollup" else 0.0) + inside * t / 2
+        sl, _ = C.add_barrel_bolt(model, lb, "garage_slide_lock", (-W / 2, y_face, z_sl), (-1, 0, 0), (0, inside, 0), 0.14, 0.012, 0.05, eng, sm, protrusion=0.045, standoff=0.010, tiers=FULL_SIMPLE, role="lock", label="Slide lock (0 = in track, + = withdrawn)", joint_name="garage_slide_lock_slide", grip_site="slide_lock_grip", rod_semantic="lock")
+        # keeper on the track: bar tip (x ~ -W/2-0.045 when engaged) captured by a U-loop off the track flange
         if fam != "rollup":
-            for sz in (-1, 1):
-                world.geoms.append(C.box(f"slide_lock_keeper_{'t' if sz > 0 else 'b'}", (-W / 2 - 0.045, y_sl, z_sl + sz * 0.011), (0.015, 0.012, 0.004), tm, 7850, True, True, FULL_SIMPLE, "lock", "Slide lock keeper"))
-            world.geoms.append(C.box("slide_lock_keeper_back", (-W / 2 - 0.062, y_sl, z_sl), (0.003, 0.012, 0.015), tm, 7850, True, True, FULL_SIMPLE, "lock", "Keeper back"))
+            C.add_keeper_loop(world.geoms, "slide_lock_keeper", (-W / 2 - 0.045, t / 2 + 0.027, z_sl), (-W / 2 - 0.045, y_sl, z_sl), (-1, 0, 0), (0, -1, 0), 0.006, tm, FULL_SIMPLE, base=0.03)
+        else:
+            # the curtain is modelled as a rigid translating sheet: raised, it (and its hardware) occupies the coil volume
+            model.meta.setdefault("clearance_allow", []).append(["coil_drum", "garage_slide_lock*", "curtain coils into the drum (translation approximation)"])
     _sites(world, Ho, -2.0, 2.0)
     model.meta.update({"primary_joint": j.name, "handle_height": hz, "counterbalance_fraction": cb})
     if "operator_joint" not in model.meta:
@@ -736,12 +783,14 @@ def build_horizontal(spec, phys, model: Model):
         opm = H.OPERATORS[spec["operator"]["model"]]
         hm = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
         if opm.kind == "ring_pull":
-            ring = Body("ring", lb.name, (0, -Ho * 0.75, t / 2), QUAT_ID, None, [], [], ALL_TIERS, "operator", "Ring pull")
-            ring.joint = Joint("ring_hinge", "hinge", (1, 0, 0), (0, 0, 0), (0.0, 1.5708), damping=0.01, role="operator", label="Ring pull (flip up)")
-            ring.geoms.append(Geom("ring_geom", "capsule", (0.006, 0.035), (0, 0.04, 0.006), tuple(quat_z_to((1, 0, 0))), hm, True, True, 7800, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Ring"))
-            ring.sites.append(Site("grip_ring", (0, 0.04, 0.006), QUAT_ID, 0.01, "grip"))
+            # recessed ring pull on the face the user reaches: top of a floor hatch, UNDERSIDE of a ceiling hatch
+            fz = -1.0 if ceiling else 1.0
+            ring = Body("ring", lb.name, (0, -Ho * 0.75, fz * t / 2), QUAT_ID, None, [], [], ALL_TIERS, "operator", "Ring pull")
+            ring.joint = Joint("ring_hinge", "hinge", (fz, 0, 0), (0, 0, 0), (0.0, 1.5708), damping=0.01, role="operator", label="Ring pull (flip out)")
+            ring.geoms.append(Geom("ring_geom", "capsule", (0.006, 0.035), (0, 0.04, fz * 0.006), tuple(quat_z_to((1, 0, 0))), hm, True, True, 7800, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Ring"))
+            ring.sites.append(Site("grip_ring", (0, 0.04, fz * 0.006), QUAT_ID, 0.01, "grip"))
             model.add_body(ring)
-            lb.geoms.append(C.box("ring_recess", (0, -Ho * 0.75, t / 2 + 0.001), (0.05, 0.05, 0.001), hm, 7800, False, True, FULL_ONLY, "operator", "Recess plate"))
+            lb.geoms.append(C.box("ring_recess", (0, -Ho * 0.75, fz * (t / 2 + 0.001)), (0.05, 0.05, 0.001), hm, 7800, False, True, FULL_ONLY, "operator", "Recess plate"))
             model.meta["operator_joint"] = "ring_hinge"
         elif opm.kind == "pull":
             C.add_pull(model, lb, opm, 1.0, 0.0, -Ho * 0.75, t, 1.0, name="hatch_pull")
@@ -755,15 +804,15 @@ def build_horizontal(spec, phys, model: Model):
         if spec["lock"]["model"] in ("padlock", "slide_bolt") and spec["lock"].get("engaged") and not spec["lock"].get("robot_side_release"):
             j.range = (0.0, 0.005)
         if spec["lock"]["model"] == "slide_bolt":
+            # barrel bolt on the operated face of the hatch shooting into a keeper loop on the curb
             bm = C.mat_from_material(model, "steel_galvanized", "mat_bolt")
-            sb = Body("hatch_bolt", lb.name, (W / 2 - 0.1, -Ho * 0.5, t / 2 + 0.008), QUAT_ID, None, [], [], FULL_SIMPLE, "lock", "Hatch slide bolt")
             eng = bool(spec["lock"].get("engaged"))
-            sb.joint = Joint("hatch_bolt_slide", "slide", (-1, 0, 0), (0, 0, 0), (0.0, 0.04), damping=1.0, frictionloss=1.0, role="lock", label="Slide bolt (0 = engaged)", initial=0.0 if eng else 0.04, modeled_at=0.0 if eng else 0.04)
-            sb.geoms.append(Geom("hatch_bolt_geom", "capsule", (0.006, 0.06), (0.08 - (0 if eng else 0.04), 0, 0), tuple(quat_z_to((1, 0, 0))), bm, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "lock", "Bolt"))
-            sb.sites.append(Site("hatch_bolt_grip", (0, 0, 0.02), QUAT_ID, 0.01, "grip"))
-            model.add_body(sb)
-            for sz in (-1, 1):
-                world.geoms.append(C.box(f"hatch_bolt_keeper_{'t' if sz > 0 else 'b'}", (Wo / 2 + 0.03, 0.0, zf + 0.04 + t / 2 + 0.008 + sz * 0.011), (0.025, 0.014, 0.004), bm, 7800, True, True, FULL_SIMPLE, "lock", "Keeper"))
+            # the bolt sits on the leaf's top face and shoots into a keeper loop on the curb top (a ceiling hatch's
+            # leaf lies inside its curb above the ceiling slab, so the bolt stays on the loft side)
+            sb, _ = C.add_barrel_bolt(model, lb, "hatch_bolt", (W / 2, -Ho * 0.5, t / 2), (1, 0, 0), (0, 0, 1), 0.12, 0.012, 0.04, eng, bm, protrusion=0.036, standoff=0.010, tiers=FULL_SIMPLE, role="lock", label="Slide bolt (0 = engaged)", joint_name="hatch_bolt_slide", grip_site="hatch_bolt_grip", rod_semantic="lock")
+            if eng and not spec["lock"].get("robot_side_release"):
+                sb.joint.range = (0.0, 0.001)
+            C.add_keeper_loop(world.geoms, "hatch_bolt_keeper", (Wo / 2 + 0.028, 0.0, zf + 0.04), (Wo / 2 + 0.028, 0.0, zf + 0.04 + t / 2 + 0.010), (1, 0, 0), (0, 0, 1), 0.006, bm, FULL_SIMPLE, base=0.03)
         if kin.get("stop") == "prop_arm":
             model.meta.setdefault("notes", []).append("prop arm holds hatch open (env can lock joint at max)")
         world.sites.append(Site("approach_point", (0, -1.5, zf if not ceiling else 0), QUAT_ID, 0.05, "approach"))

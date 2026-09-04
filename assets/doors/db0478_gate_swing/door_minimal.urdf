@@ -14,10 +14,49 @@
         <box size="12 12 0.1"/>
       </geometry>
     </collision>
-    <visual name="leaf_staple_vis">
-      <origin xyz="0.626 -0.0345 1" rpy="0 0 0"/>
+    <visual name="leaf_staple_leg_n_vis">
+      <origin xyz="0.634 -0.088 0.9875" rpy="1.570796 0 0"/>
       <geometry>
-        <box size="0.04 0.016 0.024"/>
+        <box size="0.006 0.005 0.026"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+    <collision name="leaf_staple_leg_n_col">
+      <origin xyz="0.634 -0.088 0.9875" rpy="1.570796 0 0"/>
+      <geometry>
+        <box size="0.006 0.005 0.026"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_staple_leg_p_vis">
+      <origin xyz="0.634 -0.088 1.0125" rpy="1.570796 0 0"/>
+      <geometry>
+        <box size="0.006 0.005 0.026"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+    <collision name="leaf_staple_leg_p_col">
+      <origin xyz="0.634 -0.088 1.0125" rpy="1.570796 0 0"/>
+      <geometry>
+        <box size="0.006 0.005 0.026"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_staple_bridge_vis">
+      <origin xyz="0.634 -0.0985 1" rpy="1.570796 0 0"/>
+      <geometry>
+        <box size="0.006 0.03 0.005"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+    <collision name="leaf_staple_bridge_col">
+      <origin xyz="0.634 -0.0985 1" rpy="1.570796 0 0"/>
+      <geometry>
+        <box size="0.006 0.03 0.005"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_staple_base_vis">
+      <origin xyz="0.634 -0.076 1" rpy="1.570796 0 0"/>
+      <geometry>
+        <box size="0.032 0.042 0.002"/>
       </geometry>
       <material name="mat_op_steel_galvanized"/>
     </visual>
@@ -63,9 +102,9 @@
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="0.606705 -0.029812 0.703529" rpy="0 0 0"/>
-      <mass value="20.6104"/>
-      <inertia ixx="2.470791857" ixy="0.003618826" ixz="-0.04096784" iyy="4.990907049" iyz="0.001904645" izz="2.527327324"/>
+      <origin xyz="0.6 -0.0295 0.7" rpy="0 0 0"/>
+      <mass value="20.49556"/>
+      <inertia ixx="2.464369811" ixy="0" ixz="0" iyy="4.921822371" iyz="0" izz="2.464369811"/>
     </inertial>
     <collision name="leaf_slab_col_col">
       <origin xyz="0.6 -0.0295 0.7" rpy="0 0 0"/>
@@ -101,13 +140,26 @@
       </geometry>
       <material name="mat_leaf"/>
     </visual>
-    <visual name="leaf_hasp_vis">
-      <origin xyz="1.17 -0.056 1" rpy="0 0 0"/>
+  </link>
+  <link name="leaf_hasp">
+    <inertial>
+      <origin xyz="-0.054209 -0.017681 0" rpy="0 0 0"/>
+      <mass value="0.093366"/>
+      <inertia ixx="0.00002094" ixy="-0.000031893" ixz="0" iyy="0.000099307" iyz="0" izz="0.000101185"/>
+    </inertial>
+    <visual name="leaf_hasp_strap_vis">
+      <origin xyz="-0.054209 -0.017681 0" rpy="1.570796 0 -2.8"/>
       <geometry>
-        <box size="0.12 0.006 0.04"/>
+        <box size="0.114 0.035 0.003"/>
       </geometry>
       <material name="mat_op_steel_galvanized"/>
     </visual>
+    <collision name="leaf_hasp_strap_col">
+      <origin xyz="-0.054209 -0.017681 0" rpy="1.570796 0 -2.8"/>
+      <geometry>
+        <box size="0.114 0.035 0.003"/>
+      </geometry>
+    </collision>
   </link>
   <joint name="leaf_hinge" type="revolute">
     <origin xyz="-0.603 0.0295 0" rpy="0 0 0"/>
@@ -117,6 +169,15 @@
     <limit lower="0" upper="1.745329" effort="2000" velocity="10"/>
     <dynamics damping="0.499391" friction="1.382494"/>
     <doorbench:closer damping_closing="0" damping_opening="0" backcheck_angle="0" backcheck_damping="0"/>
+  </joint>
+  <joint name="leaf_hasp_hinge" type="revolute">
+    <origin xyz="1.145 -0.1085 1" rpy="0 0 0"/>
+    <parent link="leaf"/>
+    <child link="leaf_hasp"/>
+    <axis xyz="0 0 -1"/>
+    <doorbench:zero_offset value="2.8" note="URDF q=0 is the spec initial state; DoorBench q = urdf_q + value"/>
+    <limit lower="-2.8" upper="0.1" effort="2000" velocity="10"/>
+    <dynamics damping="0.02" friction="0.05"/>
   </joint>
   <material name="mat_floor">
     <color rgba="0.35 0.42 0.25 1"/>

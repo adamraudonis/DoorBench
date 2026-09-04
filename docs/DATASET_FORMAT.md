@@ -12,7 +12,8 @@ assets/
     door_minimal.xml            MJCF, leaf only (hinge friction/damping/closer spring)
     scene.xml                   MJCF wrapper for `python -m mujoco.viewer --mjcf scene.xml`
     door.urdf / door_simple.urdf / door_minimal.urdf
-    door.usda                   UsdPhysics articulation (references ../../hardware/*.usdc)
+    door.usda                   UsdPhysics articulation, full fidelity (references ../../hardware/*.usdc)
+    door_rl.usda                canonical 8-link / 7-joint articulation for Isaac Lab multi-door RL (docs/ISAAC_LAB.md)
     qa.json                     automated sign-off record
     thumb_*.jpg                 catalogue thumbnails (robot view, far side, isometric, handle detail, open)
 ```
@@ -43,6 +44,10 @@ assets/
 (mass breakdown, hinge friction model, EN 1154 closer parameters, latch/lock parameters, compliance flags,
 damage thresholds).
 
+`spec.json → benchmark` holds the door's evaluation scenarios (start zone with a seeded `randomize` rule, approach
+point, handle targets = grip / push site names, pass plane, goal zone, optional simulated-human path, reward table,
+success criteria, time budget, expected transit time with its terms).  Schema and formulas: [BENCHMARK.md](BENCHMARK.md).
+
 ## Lock state
 
 `spec.lock.engaged` and `spec.lock.robot_side_release` define the initial state.  When engaged without a robot-side
@@ -58,12 +63,17 @@ card readers (`env.badge()`), delayed egress timers, maglock breakaway, elevator
 * **URDF** joints have `q = 0` at the spec's initial state (`doorbench:zero_offset` gives the MJCF offset).
   Springs, closers, ratchets, welds and loop closures are exported as `doorbench:*` extension elements; couplings use
   `<mimic>` (bilateral).
-* **USD** uses `UsdPhysics` revolute/prismatic joints with drives carrying closer springs (`stiffness`/`damping`/`targetPosition`),
-  `physxJoint:jointFriction`, `physxJoint:armature`, `PhysxMimicJoint`-style attributes for couplings, and a JSON string
-  `doorbench:couplings` on the root prim.  Mass properties are explicit (`MassAPI`).
+* **USD** (`door.usda`): default prim `/<door_id>`, static `Env`, `Articulation` with a fixed `base` link; `UsdPhysics`
+  revolute/prismatic joints (q = 0 at the spec's initial state, `doorbench:zero_offset` = MJCF `ref`) with force drives
+  carrying closer / latch / return springs (`stiffness`/`damping`/`targetPosition`), Coulomb friction efforts
+  (`physxJointAxis:*:staticFrictionEffort`), `physxJoint:armature`, `PhysxMimicJointAPI` couplings and a JSON string
+  `doorbench:couplings` on the root prim.  Mass properties are explicit (`MassAPI`).  `door_rl.usda` maps every door onto
+  the same canonical articulation (see [ISAAC_LAB.md](ISAAC_LAB.md)); `assets/usd_validation.json` is the static
+  validation report of both files for all doors.
 
 ## manifest.json
 
 `doors[]` entries carry the catalogue fields: id, family, context, use case, task, difficulty (1–5), mass, leaf dims,
 operator / latch / lock / closer / hinge ids, condition, swing/side, extras, tags, body/joint counts, QA sign-off,
-thumbnail paths, file paths and a physics summary.
+thumbnail paths, file paths, a physics summary and a `benchmark` summary
+(`{scenarios: [...], primary, time_budget_s, expected_transit_s, has_human}`).

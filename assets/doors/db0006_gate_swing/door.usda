@@ -1,174 +1,171 @@
 #usda 1.0
 (
-    defaultPrim = "World"
+    defaultPrim = "db0006_gate_swing"
     metersPerUnit = 1
     upAxis = "Z"
 )
 
-def Xform "World"
+def Xform "db0006_gate_swing"
 {
-    def Xform "db0006_gate_swing" (
-        prepend apiSchemas = ["PhysicsArticulationRootAPI"]
-    )
+    custom string doorbench:couplings = "[]"
+    custom string doorbench:door_id = "db0006_gate_swing"
+    custom string doorbench:meta = '{"door_id": "db0006_gate_swing", "family": "gate_swing", "task": "open_and_traverse", "wall_y": 0.0, "u": 1.0, "v": -1.0, "hinge_x": -2.406, "leaf_edge_x_local": 4.803, "handle_height": 1.0, "primary_joint": "leaf_hinge", "operator_joint": null, "mass_reconciled_kg": 76.75627506307211, "scene_extent": 4.109, "cam_target_z": 0.61, "cam_target_x": 0.0, "handle_cam_x": 2.294, "handle_cam_target": [2.359, -0.12000000000000001, 1.0], "handle_cam_pos": [2.539, -0.92, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0006_gate_swing/Articulation/Joints/leaf_hinge", "leaf_slide_bolt_slide": "/db0006_gate_swing/Articulation/Joints/leaf_slide_bolt_slide"}}'
+
+    def Scope "Looks"
     {
-        custom string doorbench:couplings = "[]"
-        custom string doorbench:meta = '{"door_id": "db0006_gate_swing", "family": "gate_swing", "task": "open_and_traverse", "wall_y": 0.0, "u": 1.0, "v": -1.0, "hinge_x": -2.406, "leaf_edge_x_local": 4.803, "handle_height": 1.0, "primary_joint": "leaf_hinge", "operator_joint": null, "mass_reconciled_kg": 76.77625785094462, "scene_extent": 4.109, "cam_target_z": 0.61, "cam_target_x": 0.0, "handle_cam_x": 2.294, "handle_cam_target": [2.217, -0.08249999999999999, 1.0], "handle_cam_pos": [2.3970000000000002, -0.8825000000000001, 1.28]}'
-        custom bool physxArticulation:enabledSelfCollisions = 1
-        custom int physxArticulation:solverPositionIterationCount = 32
-
-        def Scope "Looks"
+        def Material "mat_floor"
         {
-            def Material "mat_floor"
+            token outputs:surface.connect = </db0006_gate_swing/Looks/mat_floor/Shader.outputs:surface>
+
+            def Shader "Shader"
             {
-                token outputs:surface.connect = </World/db0006_gate_swing/Looks/mat_floor/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.35, 0.42, 0.25)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.85
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_wall"
-            {
-                token outputs:surface.connect = </World/db0006_gate_swing/Looks/mat_wall/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.78, 0.76, 0.7)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.9
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_leaf"
-            {
-                token outputs:surface.connect = </World/db0006_gate_swing/Looks/mat_leaf/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
-                    float inputs:metallic = 0.9
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.5
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_hinge"
-            {
-                token outputs:surface.connect = </World/db0006_gate_swing/Looks/mat_hinge/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
-                    float inputs:metallic = 0.9
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.5
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_op_steel_galvanized"
-            {
-                token outputs:surface.connect = </World/db0006_gate_swing/Looks/mat_op_steel_galvanized/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
-                    float inputs:metallic = 0.9
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.5
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_frame"
-            {
-                token outputs:surface.connect = </World/db0006_gate_swing/Looks/mat_frame/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
-                    float inputs:metallic = 0.9
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.5
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_fence"
-            {
-                token outputs:surface.connect = </World/db0006_gate_swing/Looks/mat_fence/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.7, 0.45, 0.32)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.6
-                    token outputs:surface
-                }
-            }
-
-            def Material "PhysMat_mat_floor" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.68
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.8
-            }
-
-            def Material "PhysMat_mat_frame" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
-            }
-
-            def Material "PhysMat_mat_fence" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
-            }
-
-            def Material "PhysMat_mat_leaf" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.357
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.42
-            }
-
-            def Material "PhysMat_mat_op_steel_galvanized" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.35, 0.42, 0.25)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.85
+                token outputs:surface
             }
         }
 
+        def Material "mat_wall"
+        {
+            token outputs:surface.connect = </db0006_gate_swing/Looks/mat_wall/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.78, 0.76, 0.7)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.9
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_leaf"
+        {
+            token outputs:surface.connect = </db0006_gate_swing/Looks/mat_leaf/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
+                float inputs:metallic = 0.9
+                float inputs:opacity = 1
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_hinge"
+        {
+            token outputs:surface.connect = </db0006_gate_swing/Looks/mat_hinge/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
+                float inputs:metallic = 0.9
+                float inputs:opacity = 1
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_op_steel_galvanized"
+        {
+            token outputs:surface.connect = </db0006_gate_swing/Looks/mat_op_steel_galvanized/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
+                float inputs:metallic = 0.9
+                float inputs:opacity = 1
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_frame"
+        {
+            token outputs:surface.connect = </db0006_gate_swing/Looks/mat_frame/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
+                float inputs:metallic = 0.9
+                float inputs:opacity = 1
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_fence"
+        {
+            token outputs:surface.connect = </db0006_gate_swing/Looks/mat_fence/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.7, 0.45, 0.32)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.6
+                token outputs:surface
+            }
+        }
+
+        def Material "PhysMat_mat_floor_0_800" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.68
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.8
+        }
+
+        def Material "PhysMat_mat_op_steel_galvanized_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_frame_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_fence_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_leaf_0_420" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.357
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.42
+        }
+    }
+
+    def Xform "Env"
+    {
         def Xform "world_env"
         {
             custom string doorbench:semantic = "wall"
@@ -177,13 +174,14 @@ def Xform "World"
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "floor" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Floor"
                 custom string doorbench:semantic = "floor"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_floor>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_floor> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_floor>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_floor_0_800> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -195,16 +193,92 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Cube "leaf_slide_bolt_keeper_leg_n" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Keeper loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_op_steel_galvanized_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.014, 0.005, 0.034)
+                double3 xformOp:translate = (2.426, -0.067, 0.9845)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_slide_bolt_keeper_leg_p" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Keeper loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_op_steel_galvanized_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.014, 0.005, 0.034)
+                double3 xformOp:translate = (2.426, -0.067, 1.0155)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_slide_bolt_keeper_bridge" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Keeper loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_op_steel_galvanized_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.014, 0.036, 0.005)
+                double3 xformOp:translate = (2.426, -0.0815, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_slide_bolt_keeper_base" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Keeper loop base"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                double size = 1
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.03, 0.048, 0.002)
+                double3 xformOp:translate = (2.426, -0.051000000000000004, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Cylinder "post_hinge" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Gate post"
                 custom string doorbench:semantic = "frame"
                 double height = 1.35
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_frame>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_frame>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -219,107 +293,33 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Post cap"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_frame>
+                rel material:binding = </db0006_gate_swing/Looks/mat_frame>
                 double radius = 0.05
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (-2.456, 0, 1.35)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
-            def Cube "post_1000_wall_n" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            def Cube "post_latch" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
-                custom string doorbench:label = "Strike pocket wall"
-                custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_frame>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_frame> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.1, 0.0805, 0.03)
-                double3 xformOp:translate = (2.456, 0.009750000000000003, 1)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "post_1000_wall_p" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
-            )
-            {
-                custom string doorbench:label = "Strike pocket wall"
-                custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_frame>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_frame> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.03, 0.006, 0.03)
-                double3 xformOp:translate = (2.4210000000000003, -0.057499999999999996, 1)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "post_1000_back" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
-            )
-            {
-                custom string doorbench:label = "Strike pocket back"
-                custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_frame>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_frame> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.045, 0.024, 0.03)
-                double3 xformOp:translate = (2.4835000000000003, -0.042499999999999996, 1)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "post_latch_0" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
-            )
-            {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Strike jamb"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_frame>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_frame>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.1, 0.1, 0.985)
-                double3 xformOp:translate = (2.456, 0, 0.4925)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "post_latch_1" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
-            )
-            {
-                custom string doorbench:label = "Strike jamb"
-                custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_frame>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_frame> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.1, 0.1, 0.335)
-                double3 xformOp:translate = (2.456, 0, 1.1825)
+                float3 xformOp:scale = (0.1, 0.1, 1.35)
+                double3 xformOp:translate = (2.456, 0, 0.675)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -327,9 +327,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Post cap"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_frame>
+                rel material:binding = </db0006_gate_swing/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.13, 0.13, 0.04)
@@ -338,13 +339,14 @@ def Xform "World"
             }
 
             def Cube "gate_stop" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Gate stop block"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_frame>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_frame>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -357,13 +359,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_l_0" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -376,13 +379,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_l_1" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -395,13 +399,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_l_2" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -414,13 +419,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_l_3" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -433,13 +439,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_l_4" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -452,13 +459,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_l_5" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -471,13 +479,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_l_6" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -490,13 +499,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_l_7" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -509,13 +519,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_l_8" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -528,13 +539,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_l_9" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -547,13 +559,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_l_10" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -566,13 +579,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_l_11" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -585,13 +599,14 @@ def Xform "World"
             }
 
             def Cube "fence_rail_l" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence rail"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -604,13 +619,14 @@ def Xform "World"
             }
 
             def Cube "fence_rail_b_l" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence rail"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -623,13 +639,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_r_0" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -642,13 +659,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_r_1" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -661,13 +679,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_r_2" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -680,13 +699,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_r_3" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -699,13 +719,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_r_4" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -718,13 +739,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_r_5" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -737,13 +759,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_r_6" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -756,13 +779,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_r_7" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -775,13 +799,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_r_8" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -794,13 +819,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_r_9" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -813,13 +839,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_r_10" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -832,13 +859,14 @@ def Xform "World"
             }
 
             def Cube "fence_picket_r_11" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence picket"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -851,13 +879,14 @@ def Xform "World"
             }
 
             def Cube "fence_rail_r" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence rail"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -870,13 +899,14 @@ def Xform "World"
             }
 
             def Cube "fence_rail_b_r" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Fence rail"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_fence>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_fence> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_fence>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_fence_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -912,31 +942,152 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
+    }
 
-        def Xform "leaf" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+    def Xform "Articulation" (
+        prepend apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI"]
+    )
+    {
+        custom bool physxArticulation:articulationEnabled = 1
+        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom float physxArticulation:sleepThreshold = 0
+        custom int physxArticulation:solverPositionIterationCount = 16
+        custom int physxArticulation:solverVelocityIterationCount = 4
+        custom float physxArticulation:stabilizationThreshold = 0
+
+        def Scope "Joints"
+        {
+            def PhysicsFixedJoint "base_fixed"
+            {
+                custom string doorbench:role = "base"
+                rel physics:body1 = </db0006_gate_swing/Articulation/base>
+                point3f physics:localPos0 = (0, 0, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+            }
+
+            def PhysicsRevoluteJoint "leaf_hinge" (
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+            )
+            {
+                custom float doorbench:damping_closing = 0
+                custom float doorbench:damping_opening = 0
+                custom float doorbench:damping_si = 115.093994
+                custom float doorbench:friction_effort = 11.4263
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
+                custom bool doorbench:limited = 1
+                custom bool doorbench:robot_interactive = 1
+                custom string doorbench:role = "primary"
+                custom string doorbench:source_joint = "leaf_hinge"
+                custom float doorbench:stiffness_si = 0
+                custom float doorbench:target_si = 0
+                custom float doorbench:zero_offset = 0
+                float drive:angular:physics:damping = 2.008769
+                float drive:angular:physics:maxForce = 1000000
+                float drive:angular:physics:stiffness = 0
+                float drive:angular:physics:targetPosition = 0
+                float drive:angular:physics:targetVelocity = 0
+                uniform token drive:angular:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </db0006_gate_swing/Articulation/base>
+                rel physics:body1 = </db0006_gate_swing/Articulation/leaf>
+                point3f physics:localPos0 = (-2.403, -0.0295, 0)
+                point3f physics:localPos1 = (0.003, -0.0295, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
+                quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 100
+                custom float physxJoint:armature = 0.02
+                custom float physxJoint:jointFriction = 0.004401116
+                custom float physxJointAxis:rotX:armature = 0.02
+                custom float physxJointAxis:rotX:dynamicFrictionEffort = 11.4263
+                custom float physxJointAxis:rotX:staticFrictionEffort = 11.4263
+                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+            }
+
+            def PhysicsPrismaticJoint "leaf_slide_bolt_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+            )
+            {
+                custom float doorbench:damping_si = 1
+                custom float doorbench:friction_effort = 3
+                custom float doorbench:initial = 0.08
+                custom string doorbench:label = "Slide bolt (0 = engaged, + = withdrawn)"
+                custom bool doorbench:limited = 1
+                custom bool doorbench:robot_interactive = 1
+                custom string doorbench:role = "lock"
+                custom string doorbench:source_joint = "leaf_slide_bolt_slide"
+                custom float doorbench:stiffness_si = 0
+                custom float doorbench:target_si = 0
+                custom float doorbench:zero_offset = 0.08
+                float drive:linear:physics:damping = 1
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 0
+                float drive:linear:physics:targetPosition = 0
+                float drive:linear:physics:targetVelocity = 0
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </db0006_gate_swing/Articulation/leaf>
+                rel physics:body1 = </db0006_gate_swing/Articulation/leaf_slide_bolt>
+                point3f physics:localPos0 = (4.803, -0.066, 1)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0, 0, 0, 1)
+                quatf physics:localRot1 = (0, 0, 0, 1)
+                float physics:lowerLimit = -0.08
+                float physics:upperLimit = 0
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 0.31037164
+                custom float physxJointAxis:transX:armature = 0.1
+                custom float physxJointAxis:transX:dynamicFrictionEffort = 3
+                custom float physxJointAxis:transX:staticFrictionEffort = 3
+                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+            }
+        }
+
+        def Xform "base" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
+            custom string doorbench:label = "Fixed base link"
+            custom string doorbench:semantic = "base"
+            point3f physics:centerOfMass = (0, 0, 0)
+            float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
+            float physics:mass = 1
+            quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+        }
+
+        def Xform "leaf" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:label = "Door leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (2.3888128, -0.0004442954, 0.70143354)
-            float3 physics:diagonalInertia = (9.283159, 151.61624, 160.87196)
-            float physics:mass = 76.77626
-            quatf physics:principalAxes = (0.7069703, 0.7072427, -0.0005617512, 0.0006607501)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
+            point3f physics:centerOfMass = (2.389607, -0.00048674457, 0.70164144)
+            float3 physics:diagonalInertia = (9.284734, 151.66478, 160.92134)
+            float physics:mass = 76.75627
+            quatf physics:principalAxes = (0.70692384, 0.707289, -0.0006669609, 0.0007319604)
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
             double3 xformOp:translate = (-2.406, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "leaf_slab_col" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Leaf (collision proxy)"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_leaf> (
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_leaf_0_420> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -953,9 +1104,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bottom rail"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (4.8, 0.045, 0.06)
@@ -967,9 +1119,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Top rail"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (4.8, 0.045, 0.06)
@@ -981,9 +1134,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Hinge stile"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.045, 1.2)
@@ -995,9 +1149,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Latch stile"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.045, 1.2)
@@ -1010,10 +1165,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (0.128, 0, 0.7)
@@ -1025,10 +1181,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (0.258, 0, 0.7)
@@ -1040,10 +1197,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (0.38799999999999996, 0, 0.7)
@@ -1055,10 +1213,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (0.5179999999999999, 0, 0.7)
@@ -1070,10 +1229,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (0.648, 0, 0.7)
@@ -1085,10 +1245,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (0.7779999999999999, 0, 0.7)
@@ -1100,10 +1261,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (0.908, 0, 0.7)
@@ -1115,10 +1277,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (1.0379999999999998, 0, 0.7)
@@ -1130,10 +1293,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (1.168, 0, 0.7)
@@ -1145,10 +1309,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (1.2979999999999998, 0, 0.7)
@@ -1160,10 +1325,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (1.428, 0, 0.7)
@@ -1175,10 +1341,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (1.5579999999999998, 0, 0.7)
@@ -1190,10 +1357,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (1.688, 0, 0.7)
@@ -1205,10 +1373,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (1.8179999999999998, 0, 0.7)
@@ -1220,10 +1389,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (1.948, 0, 0.7)
@@ -1235,10 +1405,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (2.078, 0, 0.7)
@@ -1250,10 +1421,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (2.208, 0, 0.7)
@@ -1265,10 +1437,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (2.338, 0, 0.7)
@@ -1280,10 +1453,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (2.468, 0, 0.7)
@@ -1295,10 +1469,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (2.598, 0, 0.7)
@@ -1310,10 +1485,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (2.728, 0, 0.7)
@@ -1325,10 +1501,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (2.858, 0, 0.7)
@@ -1340,10 +1517,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (2.988, 0, 0.7)
@@ -1355,10 +1533,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (3.118, 0, 0.7)
@@ -1370,10 +1549,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (3.248, 0, 0.7)
@@ -1385,10 +1565,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (3.3779999999999997, 0, 0.7)
@@ -1400,10 +1581,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (3.508, 0, 0.7)
@@ -1415,10 +1597,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (3.638, 0, 0.7)
@@ -1430,10 +1613,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (3.7680000000000002, 0, 0.7)
@@ -1445,10 +1629,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (3.898, 0, 0.7)
@@ -1460,10 +1645,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (4.028, 0, 0.7)
@@ -1475,10 +1661,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (4.1579999999999995, 0, 0.7)
@@ -1490,10 +1677,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (4.287999999999999, 0, 0.7)
@@ -1505,10 +1693,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (4.418, 0, 0.7)
@@ -1520,10 +1709,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (4.547999999999999, 0, 0.7)
@@ -1535,10 +1725,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Bar"
                 custom string doorbench:semantic = "leaf"
                 double height = 1.08
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (4.677999999999999, 0, 0.7)
@@ -1549,9 +1740,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Cross bar"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (4.68, 0.036, 0.04)
@@ -1563,9 +1755,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Cross bar"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_leaf>
+                rel material:binding = </db0006_gate_swing/Looks/mat_leaf>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (4.68, 0.036, 0.04)
@@ -1578,9 +1771,10 @@ def Xform "World"
                 prepend references = @../../hardware/strap_hinge_3c1a7c1a5f.usdc@</strap_hinge_3c1a7c1a5f>
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Strap hinge"
                 custom string doorbench:semantic = "hinge"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_hinge>
+                rel material:binding = </db0006_gate_swing/Looks/mat_hinge>
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (0.003, -0.0255, 0.25)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
@@ -1591,25 +1785,162 @@ def Xform "World"
                 prepend references = @../../hardware/strap_hinge_3c1a7c1a5f.usdc@</strap_hinge_3c1a7c1a5f>
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Strap hinge"
                 custom string doorbench:semantic = "hinge"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_hinge>
+                rel material:binding = </db0006_gate_swing/Looks/mat_hinge>
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (0.003, -0.0255, 1.1500000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
-            def Cube "leaf_slide_bolt_guide" (
+            def Cube "leaf_slide_bolt_plate" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
-                custom string doorbench:label = "Bolt guides"
-                custom string doorbench:semantic = "latch"
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Bolt mounting plate"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
                 double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.21, 0.02, 0.012)
-                double3 xformOp:translate = (4.623, -0.0325, 0.98)
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.343, 0.046, 0.002)
+                double3 xformOp:translate = (4.6235, -0.0235, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_slide_bolt_guide_0_leg_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                double size = 1
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.012, 0.004, 0.0605)
+                double3 xformOp:translate = (4.787, -0.052750000000000005, 0.985)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_slide_bolt_guide_0_leg_p" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                double size = 1
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.012, 0.004, 0.0605)
+                double3 xformOp:translate = (4.787, -0.052750000000000005, 1.015)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_slide_bolt_guide_0_bridge" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                double size = 1
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.012, 0.034, 0.004)
+                double3 xformOp:translate = (4.787, -0.08100000000000002, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_slide_bolt_guide_1_leg_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                double size = 1
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.012, 0.004, 0.0605)
+                double3 xformOp:translate = (4.462000000000001, -0.052750000000000005, 0.985)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_slide_bolt_guide_1_leg_p" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                double size = 1
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.012, 0.004, 0.0605)
+                double3 xformOp:translate = (4.462000000000001, -0.052750000000000005, 1.015)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_slide_bolt_guide_1_bridge" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                double size = 1
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.012, 0.034, 0.004)
+                double3 xformOp:translate = (4.462000000000001, -0.08100000000000002, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_slide_bolt_guide_2_leg_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                double size = 1
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.012, 0.004, 0.0605)
+                double3 xformOp:translate = (4.6245, -0.052750000000000005, 0.985)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_slide_bolt_guide_2_leg_p" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                double size = 1
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.012, 0.004, 0.0605)
+                double3 xformOp:translate = (4.6245, -0.052750000000000005, 1.015)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_slide_bolt_guide_2_bridge" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                double size = 1
+                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
+                float3 xformOp:scale = (0.012, 0.034, 0.004)
+                double3 xformOp:translate = (4.6245, -0.08100000000000002, 1)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1623,58 +1954,74 @@ def Xform "World"
         }
 
         def Xform "leaf_slide_bolt" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
-            custom string doorbench:semantic = "latch"
-            point3f physics:centerOfMass = (-0.018397322, -0.0010453298, 0)
-            float3 physics:diagonalInertia = (0.00006267264, 0.0065172934, 0.0065409173)
-            float physics:mass = 0.8153421
-            quatf physics:principalAxes = (-0.004067336, -5.4245363e-17, -1.33367176e-14, 0.9999917)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
+            custom string doorbench:label = "Slide bolt"
+            custom string doorbench:semantic = "lock"
+            point3f physics:centerOfMass = (-0.17948708, -0.0045893136, 0)
+            float3 physics:diagonalInertia = (0.00017079325, 0.0057117287, 0.0058426)
+            float physics:mass = 0.83532494
+            quatf physics:principalAxes = (0.99977326, 1.7543389e-16, -1.04938416e-16, -0.021294452)
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (2.217, -0.042499999999999996, 1)
+            double3 xformOp:translate = (2.397, -0.066, 1)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Capsule "leaf_slide_bolt_rod" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Bolt rod"
                 custom string doorbench:semantic = "latch"
-                double height = 0.3
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_op_steel_galvanized>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_op_steel_galvanized> (
+                double height = 0.27999999999999997
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_op_steel_galvanized_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
                 custom float physxCollision:restOffset = 0
                 double radius = 0.01
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
-                double3 xformOp:translate = (-0.015, 0, 0)
+                double3 xformOp:translate = (-0.18899999999999967, -0, -0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Capsule "leaf_slide_bolt_knob" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 uniform token axis = "Z"
-                custom string doorbench:label = "Bolt knob"
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Bolt handle"
                 custom string doorbench:semantic = "operator"
-                double height = 0.04
-                rel material:binding = </World/db0006_gate_swing/Looks/mat_op_steel_galvanized>
-                rel material:binding:physics = </World/db0006_gate_swing/Looks/PhysMat_mat_op_steel_galvanized> (
+                double height = 0.034
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                rel material:binding:physics = </db0006_gate_swing/Looks/PhysMat_mat_op_steel_galvanized_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
                 custom float physxCollision:restOffset = 0
-                double radius = 0.006
+                double radius = 0.008
                 quatf xformOp:orient = (0.70710677, 0.70710677, 0, -0)
-                double3 xformOp:translate = (-0.08, -0.02, 0)
+                double3 xformOp:translate = (-0.118, -0.025, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Sphere "leaf_slide_bolt_knob_end" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Handle knob"
+                custom string doorbench:semantic = "operator"
+                rel material:binding = </db0006_gate_swing/Looks/mat_op_steel_galvanized>
+                double radius = 0.0108
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.118, -0.05, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -1682,72 +2029,16 @@ def Xform "World"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0, -0.04, 0)
+                double3 xformOp:translate = (-0.118, -0.054000000000000006, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
-
-        def Scope "Joints"
-        {
-            def PhysicsRevoluteJoint "leaf_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular"]
-            )
-            {
-                custom float doorbench:damping_closing = 0
-                custom float doorbench:damping_opening = 0
-                custom float doorbench:initial = 0
-                custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
-                custom string doorbench:role = "primary"
-                custom float doorbench:zero_offset = 0
-                float drive:angular:physics:damping = 2.008769
-                float drive:angular:physics:maxForce = 1000000
-                float drive:angular:physics:stiffness = 0
-                float drive:angular:physics:targetPosition = 0
-                uniform token drive:angular:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body1 = </World/db0006_gate_swing/leaf>
-                point3f physics:localPos0 = (-2.403, -0.0295, 0)
-                point3f physics:localPos1 = (0.003, -0.0295, 0)
-                quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
-                quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
-                float physics:lowerLimit = 0
-                float physics:upperLimit = 100
-                custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 11.4263
-            }
-
-            def PhysicsPrismaticJoint "leaf_slide_bolt_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
-            )
-            {
-                custom float doorbench:initial = 0.08
-                custom string doorbench:label = "Slide bolt (0 = engaged, + = withdrawn)"
-                custom string doorbench:role = "lock"
-                custom float doorbench:zero_offset = 0.08
-                float drive:linear:physics:damping = 1
-                float drive:linear:physics:maxForce = 1000000
-                float drive:linear:physics:stiffness = 0
-                float drive:linear:physics:targetPosition = 0
-                uniform token drive:linear:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body0 = </World/db0006_gate_swing/leaf>
-                rel physics:body1 = </World/db0006_gate_swing/leaf_slide_bolt>
-                point3f physics:localPos0 = (4.623, -0.0425, 1)
-                point3f physics:localPos1 = (0, 0, 0)
-                quatf physics:localRot0 = (0, 0, 0, 1)
-                quatf physics:localRot1 = (0, 0, 0, 1)
-                float physics:lowerLimit = -0.08
-                float physics:upperLimit = 0
-                custom float physxJoint:armature = 0.1
-                custom float physxJoint:jointFriction = 3
-            }
-        }
     }
+}
 
-    def PhysicsScene "PhysicsScene"
-    {
-        vector3f physics:gravityDirection = (0, 0, -1)
-        float physics:gravityMagnitude = 9.81
-    }
+def PhysicsScene "PhysicsScene"
+{
+    vector3f physics:gravityDirection = (0, 0, -1)
+    float physics:gravityMagnitude = 9.81
 }
 

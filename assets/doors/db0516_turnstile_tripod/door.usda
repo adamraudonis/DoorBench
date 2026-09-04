@@ -1,111 +1,108 @@
 #usda 1.0
 (
-    defaultPrim = "World"
+    defaultPrim = "db0516_turnstile_tripod"
     metersPerUnit = 1
     upAxis = "Z"
 )
 
-def Xform "World"
+def Xform "db0516_turnstile_tripod"
 {
-    def Xform "db0516_turnstile_tripod" (
-        prepend apiSchemas = ["PhysicsArticulationRootAPI"]
-    )
+    custom string doorbench:couplings = "[]"
+    custom string doorbench:door_id = "db0516_turnstile_tripod"
+    custom string doorbench:meta = '{"door_id": "db0516_turnstile_tripod", "family": "turnstile_tripod", "task": "push_through", "wall_y": 0.0, "clearance_allow": [["hub_boss", "tripod_mesh", "rotor hub seats on the boss"]], "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 0.95, "ratchet_deg": 120, "one_way": true, "locked": true, "mass_reconciled_kg": 10.738226043740887, "scene_extent": 1.5, "cam_target_z": 0.525, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 0.95], "handle_cam_pos": [0.55, -1.1, 1.2999999999999998], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"rotor_hinge": "/db0516_turnstile_tripod/Articulation/Joints/rotor_hinge"}}'
+
+    def Scope "Looks"
     {
-        custom string doorbench:couplings = "[]"
-        custom string doorbench:meta = '{"door_id": "db0516_turnstile_tripod", "family": "turnstile_tripod", "task": "push_through", "wall_y": 0.0, "clearance_allow": [["hub_boss", "tripod_mesh", "rotor hub seats on the boss"]], "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 0.95, "ratchet_deg": 120, "one_way": true, "locked": true, "mass_reconciled_kg": 10.738226043740887, "scene_extent": 1.5, "cam_target_z": 0.525, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 0.95], "handle_cam_pos": [0.55, -1.1, 1.2999999999999998]}'
-        custom bool physxArticulation:enabledSelfCollisions = 1
-        custom int physxArticulation:solverPositionIterationCount = 32
-
-        def Scope "Looks"
+        def Material "mat_floor"
         {
-            def Material "mat_floor"
+            token outputs:surface.connect = </db0516_turnstile_tripod/Looks/mat_floor/Shader.outputs:surface>
+
+            def Shader "Shader"
             {
-                token outputs:surface.connect = </World/db0516_turnstile_tripod/Looks/mat_floor/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.35, 0.42, 0.25)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.85
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_wall"
-            {
-                token outputs:surface.connect = </World/db0516_turnstile_tripod/Looks/mat_wall/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.78, 0.76, 0.7)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.9
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_frame"
-            {
-                token outputs:surface.connect = </World/db0516_turnstile_tripod/Looks/mat_frame/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.75, 0.76, 0.77)
-                    float inputs:metallic = 1
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.35
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_op_stainless"
-            {
-                token outputs:surface.connect = </World/db0516_turnstile_tripod/Looks/mat_op_stainless/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.75, 0.76, 0.77)
-                    float inputs:metallic = 1
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.35
-                    token outputs:surface
-                }
-            }
-
-            def Material "PhysMat_mat_floor" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.68
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.8
-            }
-
-            def Material "PhysMat_mat_frame" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
-            }
-
-            def Material "PhysMat_mat_op_stainless" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.35, 0.42, 0.25)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.85
+                token outputs:surface
             }
         }
 
+        def Material "mat_wall"
+        {
+            token outputs:surface.connect = </db0516_turnstile_tripod/Looks/mat_wall/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.78, 0.76, 0.7)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.9
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_frame"
+        {
+            token outputs:surface.connect = </db0516_turnstile_tripod/Looks/mat_frame/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.75, 0.76, 0.77)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.35
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_op_stainless"
+        {
+            token outputs:surface.connect = </db0516_turnstile_tripod/Looks/mat_op_stainless/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.75, 0.76, 0.77)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.35
+                token outputs:surface
+            }
+        }
+
+        def Material "PhysMat_mat_floor_0_800" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.68
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.8
+        }
+
+        def Material "PhysMat_mat_frame_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_op_stainless_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+    }
+
+    def Xform "Env"
+    {
         def Xform "world_env"
         {
             custom string doorbench:semantic = "wall"
@@ -114,13 +111,14 @@ def Xform "World"
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "floor" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Floor"
                 custom string doorbench:semantic = "floor"
-                rel material:binding = </World/db0516_turnstile_tripod/Looks/mat_floor>
-                rel material:binding:physics = </World/db0516_turnstile_tripod/Looks/PhysMat_mat_floor> (
+                rel material:binding = </db0516_turnstile_tripod/Looks/mat_floor>
+                rel material:binding:physics = </db0516_turnstile_tripod/Looks/PhysMat_mat_floor_0_800> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -133,13 +131,14 @@ def Xform "World"
             }
 
             def Cube "cabinet" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Turnstile cabinet"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0516_turnstile_tripod/Looks/mat_frame>
-                rel material:binding:physics = </World/db0516_turnstile_tripod/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0516_turnstile_tripod/Looks/mat_frame>
+                rel material:binding:physics = </db0516_turnstile_tripod/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -152,13 +151,14 @@ def Xform "World"
             }
 
             def Cube "cabinet_end_n" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Housing end"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0516_turnstile_tripod/Looks/mat_frame>
-                rel material:binding:physics = </World/db0516_turnstile_tripod/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0516_turnstile_tripod/Looks/mat_frame>
+                rel material:binding:physics = </db0516_turnstile_tripod/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -171,13 +171,14 @@ def Xform "World"
             }
 
             def Cube "cabinet_end_p" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Housing end"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0516_turnstile_tripod/Looks/mat_frame>
-                rel material:binding:physics = </World/db0516_turnstile_tripod/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0516_turnstile_tripod/Looks/mat_frame>
+                rel material:binding:physics = </db0516_turnstile_tripod/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -190,13 +191,14 @@ def Xform "World"
             }
 
             def Cube "cabinet_back" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Housing back"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0516_turnstile_tripod/Looks/mat_frame>
-                rel material:binding:physics = </World/db0516_turnstile_tripod/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0516_turnstile_tripod/Looks/mat_frame>
+                rel material:binding:physics = </db0516_turnstile_tripod/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -209,13 +211,14 @@ def Xform "World"
             }
 
             def Cube "cabinet_top_n" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Cabinet top"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0516_turnstile_tripod/Looks/mat_frame>
-                rel material:binding:physics = </World/db0516_turnstile_tripod/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0516_turnstile_tripod/Looks/mat_frame>
+                rel material:binding:physics = </db0516_turnstile_tripod/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -228,13 +231,14 @@ def Xform "World"
             }
 
             def Cube "cabinet_top_p" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Cabinet top"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0516_turnstile_tripod/Looks/mat_frame>
-                rel material:binding:physics = </World/db0516_turnstile_tripod/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0516_turnstile_tripod/Looks/mat_frame>
+                rel material:binding:physics = </db0516_turnstile_tripod/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -247,13 +251,14 @@ def Xform "World"
             }
 
             def Cube "guide_rail_post" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Guide rail"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0516_turnstile_tripod/Looks/mat_frame>
-                rel material:binding:physics = </World/db0516_turnstile_tripod/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0516_turnstile_tripod/Looks/mat_frame>
+                rel material:binding:physics = </db0516_turnstile_tripod/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -289,19 +294,101 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
+    }
 
-        def Xform "rotor" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+    def Xform "Articulation" (
+        prepend apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI"]
+    )
+    {
+        custom bool physxArticulation:articulationEnabled = 1
+        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom float physxArticulation:sleepThreshold = 0
+        custom int physxArticulation:solverPositionIterationCount = 16
+        custom int physxArticulation:solverVelocityIterationCount = 4
+        custom float physxArticulation:stabilizationThreshold = 0
+
+        def Scope "Joints"
+        {
+            def PhysicsFixedJoint "base_fixed"
+            {
+                custom string doorbench:role = "base"
+                rel physics:body1 = </db0516_turnstile_tripod/Articulation/base>
+                point3f physics:localPos0 = (0, 0, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+            }
+
+            def PhysicsRevoluteJoint "rotor_hinge" (
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+            )
+            {
+                custom float doorbench:damping_si = 2
+                custom float doorbench:friction_effort = 3.0842447
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Tripod rotor (ratchets 120 deg; one-way enforced by env)"
+                custom bool doorbench:limited = 1
+                custom string doorbench:notes = "locked until credential (env releases: set range None)"
+                custom bool doorbench:ratchet_one_way = 1
+                custom bool doorbench:robot_interactive = 1
+                custom string doorbench:role = "primary"
+                custom string doorbench:source_joint = "rotor_hinge"
+                custom float doorbench:stiffness_si = 0
+                custom float doorbench:target_si = 0
+                custom float doorbench:zero_offset = 0
+                float drive:angular:physics:damping = 0.034906585
+                float drive:angular:physics:maxForce = 1000000
+                float drive:angular:physics:stiffness = 0
+                float drive:angular:physics:targetPosition = 0
+                float drive:angular:physics:targetVelocity = 0
+                uniform token drive:angular:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </db0516_turnstile_tripod/Articulation/base>
+                rel physics:body1 = </db0516_turnstile_tripod/Articulation/rotor>
+                point3f physics:localPos0 = (0.115, 0, 0.93)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, -0.5, 0.5)
+                quatf physics:localRot1 = (0.70710677, 0, -0.5, 0.5)
+                float physics:lowerLimit = -2.864789
+                float physics:upperLimit = 2.864789
+                custom float physxJoint:armature = 0.05
+                custom float physxJoint:jointFriction = 0.029113512
+                custom float physxJointAxis:rotX:armature = 0.05
+                custom float physxJointAxis:rotX:dynamicFrictionEffort = 3.0842447
+                custom float physxJointAxis:rotX:staticFrictionEffort = 3.0842447
+                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+            }
+        }
+
+        def Xform "base" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
+            custom string doorbench:label = "Fixed base link"
+            custom string doorbench:semantic = "base"
+            point3f physics:centerOfMass = (0, 0, 0)
+            float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
+            float physics:mass = 1
+            quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+        }
+
+        def Xform "rotor" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:label = "Tripod rotor"
             custom string doorbench:semantic = "leaf"
             point3f physics:centerOfMass = (-0.0056634876, 4.9110153e-17, -4.652541e-17)
             float3 physics:diagonalInertia = (0.5696514, 0.6937151, 1.2430601)
             float physics:mass = 10.738226
             quatf physics:principalAxes = (0.6532815, -0.27059805, -0.27059805, -0.6532815)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
             double3 xformOp:translate = (0.11499999999999998, 0, 0.9299999999999999)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
@@ -311,10 +398,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Hub shaft"
                 custom string doorbench:semantic = "leaf"
                 double height = 0.29000000000000004
-                rel material:binding = </World/db0516_turnstile_tripod/Looks/mat_frame>
+                rel material:binding = </db0516_turnstile_tripod/Looks/mat_frame>
                 double radius = 0.04
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (-0.14500000000000002, 0, 0)
@@ -326,24 +414,26 @@ def Xform "World"
                 prepend references = @../../hardware/tripod_ae832648e5.usdc@</tripod_ae832648e5>
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Tripod arms"
                 custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0516_turnstile_tripod/Looks/mat_op_stainless>
+                rel material:binding = </db0516_turnstile_tripod/Looks/mat_op_stainless>
                 quatf xformOp:orient = (0.9238795, -0.38268343, 0, 0)
                 double3 xformOp:translate = (0, 0, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Capsule "arm_0_col" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Arm 1"
                 custom string doorbench:semantic = "operator"
                 double height = 0.4
-                rel material:binding = </World/db0516_turnstile_tripod/Looks/mat_op_stainless>
-                rel material:binding:physics = </World/db0516_turnstile_tripod/Looks/PhysMat_mat_op_stainless> (
+                rel material:binding = </db0516_turnstile_tripod/Looks/mat_op_stainless>
+                rel material:binding:physics = </db0516_turnstile_tripod/Looks/PhysMat_mat_op_stainless_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -356,15 +446,16 @@ def Xform "World"
             }
 
             def Capsule "arm_1_col" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Arm 2"
                 custom string doorbench:semantic = "operator"
                 double height = 0.4
-                rel material:binding = </World/db0516_turnstile_tripod/Looks/mat_op_stainless>
-                rel material:binding:physics = </World/db0516_turnstile_tripod/Looks/PhysMat_mat_op_stainless> (
+                rel material:binding = </db0516_turnstile_tripod/Looks/mat_op_stainless>
+                rel material:binding:physics = </db0516_turnstile_tripod/Looks/PhysMat_mat_op_stainless_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -377,15 +468,16 @@ def Xform "World"
             }
 
             def Capsule "arm_2_col" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Arm 3"
                 custom string doorbench:semantic = "operator"
                 double height = 0.4
-                rel material:binding = </World/db0516_turnstile_tripod/Looks/mat_op_stainless>
-                rel material:binding:physics = </World/db0516_turnstile_tripod/Looks/PhysMat_mat_op_stainless> (
+                rel material:binding = </db0516_turnstile_tripod/Looks/mat_op_stainless>
+                rel material:binding:physics = </db0516_turnstile_tripod/Looks/PhysMat_mat_op_stainless_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -405,42 +497,12 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
-
-        def Scope "Joints"
-        {
-            def PhysicsRevoluteJoint "rotor_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular"]
-            )
-            {
-                custom float doorbench:initial = 0
-                custom string doorbench:label = "Tripod rotor (ratchets 120 deg; one-way enforced by env)"
-                custom string doorbench:notes = "locked until credential (env releases: set range None)"
-                custom bool doorbench:ratchet_one_way = 1
-                custom string doorbench:role = "primary"
-                custom float doorbench:zero_offset = 0
-                float drive:angular:physics:damping = 0.034906585
-                float drive:angular:physics:maxForce = 1000000
-                float drive:angular:physics:stiffness = 0
-                float drive:angular:physics:targetPosition = 0
-                uniform token drive:angular:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body1 = </World/db0516_turnstile_tripod/rotor>
-                point3f physics:localPos0 = (0.115, 0, 0.93)
-                point3f physics:localPos1 = (0, 0, 0)
-                quatf physics:localRot0 = (0.70710677, 0, -0.5, 0.5)
-                quatf physics:localRot1 = (0.70710677, 0, -0.5, 0.5)
-                float physics:lowerLimit = -2.864789
-                float physics:upperLimit = 2.864789
-                custom float physxJoint:armature = 0.05
-                custom float physxJoint:jointFriction = 3.0842447
-            }
-        }
     }
+}
 
-    def PhysicsScene "PhysicsScene"
-    {
-        vector3f physics:gravityDirection = (0, 0, -1)
-        float physics:gravityMagnitude = 9.81
-    }
+def PhysicsScene "PhysicsScene"
+{
+    vector3f physics:gravityDirection = (0, 0, -1)
+    float physics:gravityMagnitude = 9.81
 }
 

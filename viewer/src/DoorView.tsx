@@ -1,9 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import type { Manifest, ModelJ } from "./types";
+import type { BenchmarkJ, Manifest, ModelJ, ScenarioJ } from "./types";
 import { FAMILY_LABELS } from "./types";
 import { buildScene, type BuiltScene, type JointHandle } from "./scene";
+import { buildEvaluationOverlay, type EvalOverlay } from "./evaluation";
+import { GLOSSARY, REWARD_LABELS, type GlossaryEntry } from "./glossary";
+import { activeLeaf, isLocked, openClosePhases, sliderReaction, type Phase } from "./doorLogic";
 import { ASSETS } from "./App";
 
 function fmt(x: any, digits = 3): string {
@@ -12,12 +15,68 @@ function fmt(x: any, digits = 3): string {
   if (typeof x === "number") return Math.abs(x) >= 1000 ? x.toFixed(0) : Math.abs(x) >= 10 ? x.toFixed(1) : x.toFixed(digits);
   return String(x);
 }
+const deg = (rad: number | null | undefined, d = 1) => rad == null ? "–" : `${(rad * 180 / Math.PI).toFixed(d)}°`;
+const nice = (s: string | undefined | null) => (s ?? "–").replace(/_/g, " ");
 
-function KV({ rows }: { rows: [string, any][] }) {
-  return <div className="kv">{rows.map(([k, v]) => (<React.Fragment key={k}><span className="k">{k}</span><span className="v">{typeof v === "string" ? v : fmt(v)}</span></React.Fragment>))}</div>;
+let TIP_OPEN_KEY: string | null = null;   // deep link `tip=<row key>` opens that explanation on load
+
+/** Accessible info icon: tooltip on hover, focus and click / tap.  `entry` overrides the glossary lookup by key. */
+function Info({ k, entry, label }: { k?: string; entry?: GlossaryEntry; label: string }) {
+  const [open, setOpen] = useState(!!k && TIP_OPEN_KEY === k);
+  const ref = useRef<HTMLSpanElement>(null);
+  const e = entry ?? (k ? GLOSSARY[k] : undefined);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (ev: MouseEvent | TouchEvent) => { if (ref.current && !ref.current.contains(ev.target as Node)) setOpen(false); };
+    const onKey = (ev: KeyboardEvent) => { if (ev.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDoc); document.addEventListener("touchstart", onDoc); document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("touchstart", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+  const id = useMemo(() => "tip-" + Math.random().toString(36).slice(2, 8), []);
+  if (!e) return null;
+  return (
+    <span className={"info-wrap" + (open ? " open" : "")} ref={ref}>
+      <button type="button" className="info" aria-label={`About ${label}`} aria-describedby={id} aria-expanded={open} onClick={(ev) => { ev.preventDefault(); setOpen((v) => !v); }}>ⓘ</button>
+      <span className="tip" role="tooltip" id={id}>
+        <b>{label}</b>{e.unit ? <span className="u"> · {e.unit}</span> : null}
+        <span className="what">{e.what}</span>
+        {e.how ? <span className="how">{e.how}</span> : null}
+      </span>
+    </span>
+  );
 }
 
-export function DoorView({ manifest, id }: { manifest: Manifest; id: string }) {
+type Row = [string, any, string?, GlossaryEntry?];
+
+function KV({ rows }: { rows: Row[] }) {
+  return (
+    <div className="kv">
+      {rows.map(([k, v, key, entry]) => (
+        <React.Fragment key={k}>
+          <span className="k">{k}<Info k={key} entry={entry} label={k} /></span>
+          <span className="v">{typeof v === "string" || React.isValidElement(v) ? v : fmt(v)}</span>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+/** Door page.  URL query (after the id): `eval=1` shows the evaluation overlay, `scenario=<name>` selects it, `t=<s>` positions the person,
+ *  `tip=<row key>` opens one explanation (e.g. `tip=en_size`). */
+/** Scenario <option>s grouped by suite: the core suite (no person; the default benchmark) first, the opt-in human suite after. */
+function ScenarioOptions({ scenarios }: { scenarios: ScenarioJ[] }) {
+  const idx = scenarios.map((s, i) => [s, i] as const);
+  const core = idx.filter(([s]) => (s.suite ?? "core") === "core");
+  const human = idx.filter(([s]) => s.suite === "human");
+  return (
+    <>
+      <optgroup label="Core suite (default, no person)">{core.map(([s, i]) => <option key={s.name} value={i}>{nice(s.name)}</option>)}</optgroup>
+      {human.length > 0 && <optgroup label="Human suite (advanced, opt-in)">{human.map(([s, i]) => <option key={s.name} value={i}>{nice(s.name)}</option>)}</optgroup>}
+    </>
+  );
+}
+
+export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id: string; query?: string }) {
   const entry = manifest.doors.find((d) => d.id === id);
   const mountRef = useRef<HTMLDivElement>(null);
   const [model, setModel] = useState<ModelJ | null>(null);
@@ -28,18 +87,35 @@ export function DoorView({ manifest, id }: { manifest: Manifest; id: string }) {
   const [, force] = useState(0);
   const [showEnv, setShowEnv] = useState(true);
   const [showCol, setShowCol] = useState(false);
+  const [showEval, setShowEval] = useState(false);
+  const [scenIdx, setScenIdx] = useState(0);
+  const [humanT, setHumanT] = useState(0);
+  const [humanPlay, setHumanPlay] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
+  const hintTimer = useRef<number | null>(null);
   const built = useRef<BuiltScene | null>(null);
+  const overlay = useRef<EvalOverlay | null>(null);
   const three = useRef<{ scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; controls: OrbitControls; anim: number } | null>(null);
-  const animating = useRef<{ t0: number; from: number; to: number; joint: string } | null>(null);
+  const queue = useRef<Phase[]>([]);
+  const humanRef = useRef({ t: 0, play: false, dur: 0, last: 0 });
+  const scenarioRef = useRef<ScenarioJ | undefined>(undefined);
+  const showEvalRef = useRef(false);
+  showEvalRef.current = showEval;
 
   useEffect(() => {
-    setModel(null); setSpec(null); setQa(null); setErr(null);
+    setModel(null); setSpec(null); setQa(null); setErr(null); setScenIdx(0); setHumanT(0); setHumanPlay(false);
     Promise.all([
       fetch(`${ASSETS}/doors/${id}/model.json`).then((r) => r.json()),
       fetch(`${ASSETS}/doors/${id}/spec.json`).then((r) => r.json()),
       fetch(`${ASSETS}/doors/${id}/qa.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ]).then(([m, s, q]) => { setModel(m); setSpec(s); setQa(q); }).catch((e) => setErr(String(e)));
   }, [id]);
+
+  const toast = (text: string, ms = 2600) => {
+    setHint(text);
+    if (hintTimer.current) window.clearTimeout(hintTimer.current);
+    hintTimer.current = window.setTimeout(() => setHint(null), ms);
+  };
 
   // three.js setup
   useEffect(() => {
@@ -49,7 +125,7 @@ export function DoorView({ manifest, id }: { manifest: Manifest; id: string }) {
     scene.background = new THREE.Color(0x11151c);
     const camera = new THREE.PerspectiveCamera(50, 1, 0.02, 100);
     camera.up.set(0, 0, 1);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -85,14 +161,27 @@ export function DoorView({ manifest, id }: { manifest: Manifest; id: string }) {
     three.current = t;
     const loop = (now: number) => {
       t.anim = requestAnimationFrame(loop);
-      const a = animating.current, b = built.current;
-      if (a && b) {
-        const s = Math.min(1, (now - a.t0) / 1400);
+      const b = built.current;
+      const q = queue.current;
+      if (b && q.length) {
+        const ph = q[0];
+        if (ph.t0 === undefined) ph.t0 = now;
+        const s = Math.min(1, (now - ph.t0) / ph.dur);
         const e = s < 0.5 ? 2 * s * s : 1 - Math.pow(-2 * s + 2, 2) / 2;
-        b.setJoint(a.joint, a.from + (a.to - a.from) * e);
-        if (s >= 1) animating.current = null;
+        b.setJoint(ph.joint, ph.from + (ph.to - ph.from) * e);
+        for (const f of ph.followers ?? []) b.setJoint(f.joint, f.from + (f.to - f.from) * e);
+        if (s >= 1) q.shift();
         force((x) => x + 1);
       }
+      const hr = humanRef.current;
+      if (hr.play && overlay.current && hr.dur > 0) {
+        const dt = hr.last ? (now - hr.last) / 1000 : 0;
+        hr.t = (hr.t + dt) % (hr.dur + 1.0);
+        overlay.current.setHumanTime(hr.t);
+        setHumanT(hr.t);
+      }
+      hr.last = now;
+      overlay.current?.update();
       controls.update();
       renderer.render(scene, camera);
     };
@@ -106,6 +195,7 @@ export function DoorView({ manifest, id }: { manifest: Manifest; id: string }) {
     if (!t || !model) return;
     let cancelled = false;
     if (built.current) { t.scene.remove(built.current.root); built.current.dispose(); built.current = null; }
+    queue.current = [];
     buildScene(model, { showEnv, showCollision: showCol }).then((b) => {
       if (cancelled) { b.dispose(); return; }
       built.current = b;
@@ -121,68 +211,208 @@ export function DoorView({ manifest, id }: { manifest: Manifest; id: string }) {
       t.controls.target.copy(tgt);
       t.controls.update();
       setJoints(Array.from(b.joints.values()));
+      if (showEvalRef.current) frameEvaluation();
     }).catch((e) => setErr(String(e)));
     return () => { cancelled = true; };
   }, [model, showEnv, showCol]);
+
+  const bench: BenchmarkJ | undefined = spec?.benchmark;
+  const scenarios: ScenarioJ[] = bench?.scenarios ?? [];
+  const scenario: ScenarioJ | undefined = scenarios[Math.min(scenIdx, Math.max(0, scenarios.length - 1))];
+  scenarioRef.current = scenario;
+  TIP_OPEN_KEY = new URLSearchParams(query).get("tip");
+
+  // deep links: #/door/<id>?eval=1&scenario=hold_open_for_human&t=4
+  useEffect(() => {
+    if (!bench) return;
+    const p = new URLSearchParams(query);
+    const want = p.get("scenario");
+    if (want) { const i = scenarios.findIndex((s) => s.name === want); if (i >= 0) { setScenIdx(i); scenarioRef.current = scenarios[i]; } }
+    const t = parseFloat(p.get("t") ?? "");
+    if (!Number.isNaN(t)) { humanRef.current.t = t; setHumanT(t); }
+    if (p.get("eval") === "1") { setShowEval(true); setTimeout(frameEvaluation, 0); }
+  }, [bench]);
+
+  // evaluation overlay
+  useEffect(() => {
+    const t = three.current;
+    if (overlay.current) { t?.scene.remove(overlay.current.group); overlay.current.dispose(); overlay.current = null; }
+    humanRef.current.dur = 0;
+    if (!t || !showEval || !scenario || !model || !built.current) return;
+    const ov = buildEvaluationOverlay(scenario, model, built.current);
+    overlay.current = ov;
+    t.scene.add(ov.group);
+    humanRef.current.dur = ov.humanDuration;
+    const t0 = Math.min(humanRef.current.t, ov.humanDuration);
+    humanRef.current.t = t0;
+    ov.setHumanTime(t0);
+    setHumanT(t0);
+    return () => { t.scene.remove(ov.group); ov.dispose(); if (overlay.current === ov) overlay.current = null; };
+  }, [showEval, scenario, model, joints]);
+
+  useEffect(() => { humanRef.current.play = humanPlay; }, [humanPlay]);
+
+  function frameEvaluation() {
+    const t = three.current;
+    const scenario = scenarioRef.current;
+    if (!t || !scenario) return;
+    const pp = scenario.pass_plane.center, st = scenario.start.center, g = scenario.goal?.center ?? pp;
+    const tgt = new THREE.Vector3((st[0] + g[0]) / 2, (st[1] + g[1]) / 2 - 0.4, 0.8);
+    const span = Math.max(3.2, Math.hypot(st[0] - g[0], st[1] - g[1]) + 1.8);
+    t.camera.position.set(tgt.x + span * 0.7, tgt.y - span * 0.95, span * 0.7);
+    t.controls.target.copy(tgt);
+    t.controls.update();
+  }
 
   if (!entry) return <div className="err">Unknown door {id}</div>;
   if (err) return <div className="err">{err}</div>;
   const phys = spec?.physics ?? {};
   const primary = model?.meta?.primary_joint as string | undefined;
+  const secondary = model?.meta?.secondary_joint as string | undefined;
   const operator = model?.meta?.operator_joint as string | undefined;
+  const opJoint = model?.bodies.find((b) => b.joint?.name === operator)?.joint;
+  const opType = opJoint?.type;
+  const opLeaf = model ? activeLeaf(model) : undefined;
+  const primaryH = opLeaf ? built.current?.joints.get(opLeaf) : undefined;
+  const opH = operator ? built.current?.joints.get(operator) : undefined;
+
   const animate = (joint: string | undefined, to: number) => {
     const b = built.current;
     if (!b || !joint) return;
     const h = b.joints.get(joint);
     if (!h) return;
-    animating.current = { t0: performance.now(), from: h.q, to, joint };
+    queue.current = [{ joint, from: h.q, to, dur: 900 }];
   };
-  const primaryH = primary ? built.current?.joints.get(primary) : undefined;
-  const opH = operator ? built.current?.joints.get(operator) : undefined;
+
+  /** Physically honest open / close: work the operator (retract the bolt through its coupling), move the leaf, release. */
+  const openClose = () => {
+    const b = built.current;
+    if (!b || !model) return;
+    const { phases, note } = openClosePhases(model, b.joints);
+    queue.current = phases;
+    if (note) toast(note);
+  };
+
+  const onSlider = (h: JointHandle, q: number) => {
+    const b = built.current;
+    if (!b || !model) return;
+    queue.current = [];
+    b.setJoint(h.name, q);
+    const r = sliderReaction(model, b.joints, h.name, q);
+    if (r.operatorTo != null && operator) b.setJoint(operator, r.operatorTo);
+    if (r.mirror) b.setJoint(r.mirror.joint, r.mirror.q);
+    if (r.note) toast(r.note);
+    force((x) => x + 1);
+  };
+
   const dl = entry.files ?? {};
   const fileLink = (label: string, rel: string | undefined) => rel ? <a key={label} href={`${ASSETS}/doors/${rel}`} download>{label}</a> : null;
+  const rotary = opType !== "slide";
+  const travelStr = phys.latch ? (rotary ? `${deg(phys.latch.operator_travel)} (${fmt(phys.latch.operator_travel)} rad)` : `${fmt(phys.latch.operator_travel * 1000, 1)} mm`) : "–";
+  const springStr = phys.latch ? (rotary ? `${fmt(phys.latch.operator_spring_preload)} N·m + ${fmt(phys.latch.operator_spring_rate)} N·m/rad · q` : `${fmt(phys.latch.operator_spring_preload)} N + ${fmt(phys.latch.operator_spring_rate)} N/m · q`) : "–";
+  const yieldStr = phys.latch ? `${fmt(phys.latch.operator_yield)} ${rotary ? "N·m" : "N"}` : "–";
+  const backlashStr = (() => {
+    if (!phys.lock) return "–";
+    if (phys.lock.engaged && !phys.lock.robot_side_release && opJoint?.range) {
+      const span = opJoint.range[1] - opJoint.range[0];
+      return rotary ? `${deg(span)} (as built)` : `${fmt(span * 1000, 1)} mm (as built)`;
+    }
+    return rotary ? deg(phys.lock.handle_backlash_locked_rad ?? 0) : `${fmt((phys.lock.handle_backlash_locked_rad ?? 0) * 1000, 1)} mm`;
+  })();
+  const qaChecks: Record<string, boolean> = qa?.checks ?? {};
+  const qaRows: Row[] = Object.entries(qaChecks).map(([k, v]) => [nice(k), <span className={v ? "ok" : "bad"}>{v ? "pass" : "FAIL"}</span>, GLOSSARY["qa_" + k] ? "qa_" + k : "qa_generic"]);
+  if (qa && !("clearance" in qaChecks)) qaRows.splice(3, 0, ["clearance", "n/a (regenerate)", "qa_clearance"]);
+  if (qa?.metrics?.clearance_n_failures != null) qaRows.push(["clearance failures", `${qa.metrics.clearance_n_failures}${qa.metrics.clearance_failures?.length ? ": " + qa.metrics.clearance_failures.slice(0, 3).map((f: any) => `${(f.geoms ?? []).join(" ↔ ")} ${f.depth != null ? (f.depth * 1000).toFixed(1) + " mm" : ""}${f.joint ? ` @ ${f.joint}=${f.q}` : ""}`).join("; ") : ""}`, "qa_clearance"]);
+  const evEntry = (ev: string): GlossaryEntry | undefined => bench?.event_descriptions?.[ev] ? { what: bench.event_descriptions[ev], unit: "reward, once per episode" } : undefined;
 
   return (
     <div className="doorview">
       <div className="viewport" ref={mountRef}>
         <div className="hud">
-          {primaryH && <button className="primary" onClick={() => animate(primary, primaryH.range ? (primaryH.q > (primaryH.range[0] + primaryH.range[1]) / 2 ? primaryH.range[0] : primaryH.range[1]) : primaryH.q + 1.2)}>Open / close door</button>}
+          {primaryH && <button className="primary" onClick={openClose} title="Actuates the operator (retracts the latch), moves the leaf, releases the operator">Open / close door</button>}
           {opH && <button onClick={() => animate(operator, opH.range ? (opH.q > (opH.range[0] + opH.range[1]) / 2 ? opH.range[0] : opH.range[1]) : opH.q + 1)}>Actuate operator</button>}
-          <button onClick={() => { const b = built.current; if (b) for (const h of b.joints.values()) b.setJoint(h.name, h.modeledAt); force((x) => x + 1); }}>Reset</button>
+          <button onClick={() => { const b = built.current; queue.current = []; if (b) for (const h of b.joints.values()) b.setJoint(h.name, h.modeledAt); force((x) => x + 1); }}>Reset</button>
           <button onClick={() => setShowEnv((v) => !v)}>{showEnv ? "Hide" : "Show"} walls</button>
           <button onClick={() => setShowCol((v) => !v)}>{showCol ? "Hide" : "Show"} collision</button>
+          <button className={showEval ? "active" : ""} aria-pressed={showEval} disabled={!scenario} title={scenario ? "Draw the benchmark scenario: start zone, approach, handle targets, pass plane, goal, human path" : "no benchmark block in spec.json"} onClick={() => { const v = !showEval; setShowEval(v); if (v) setTimeout(frameEvaluation, 0); }}>{showEval ? "Hide" : "Show"} evaluation</button>
+          {showEval && scenarios.length > 1 && (
+            <select aria-label="Scenario" value={scenIdx} onChange={(e) => setScenIdx(parseInt(e.target.value))}><ScenarioOptions scenarios={scenarios} /></select>
+          )}
         </div>
+        {showEval && scenario?.human && (
+          <div className="timeline">
+            <button onClick={() => setHumanPlay((v) => !v)} aria-label={humanPlay ? "Pause" : "Play"}>{humanPlay ? "❚❚" : "▶"}</button>
+            <label>person t = {humanT.toFixed(1)} s
+              <input type="range" min={0} max={humanRef.current.dur || scenario.human.path[scenario.human.path.length - 1][0]} step={0.1} value={humanT}
+                onChange={(e) => { const v = parseFloat(e.target.value); humanRef.current.t = v; setHumanT(v); overlay.current?.setHumanTime(v); }} />
+            </label>
+          </div>
+        )}
+        {hint && <div className="toast" role="status">{hint}</div>}
         <div className="hint">drag to orbit · scroll to zoom · right-drag to pan</div>
         {!model && <div className="loading" style={{ position: "absolute", top: 50 }}>Loading model…</div>}
       </div>
       <div className="side">
         <h2>{entry.use_case || entry.id}</h2>
-        <div className="use">{entry.id} · <a href={`#/?family=${entry.family}`}>{FAMILY_LABELS[entry.family] ?? entry.family}</a> · {entry.context} · task: {entry.task.replace(/_/g, " ")} · difficulty {entry.difficulty}/5</div>
-        <div style={{ marginTop: 6 }}>
+        <div className="use">{entry.id} · <a href={`#/?family=${entry.family}`}>{FAMILY_LABELS[entry.family] ?? entry.family}</a> · {entry.context} · task: {nice(entry.task)} · difficulty {entry.difficulty}/5</div>
+        <div style={{ marginTop: 6 }} className="chips">
           <span className={"chip " + (entry.signed_off ? "ok" : "bad")}>{entry.signed_off ? "QA signed off" : "QA: " + (entry.qa_failed?.join(", ") || "needs review")}</span>
+          {scenarios.map((s, i) => <button key={s.name} className={"chip link" + (showEval && i === scenIdx ? " active" : "")} title={s.suite === "human" ? "human-interaction suite: advanced, opt-in (not part of the default core benchmark)" : "core suite: default benchmark, no person involved"} onClick={() => { setScenIdx(i); if (!showEval) { setShowEval(true); setTimeout(frameEvaluation, 0); } }}>{nice(s.name)}{s.suite === "human" ? <span className="suite-badge">human</span> : null}</button>)}
         </div>
         <h3>Joints</h3>
         {joints.map((h) => (
           <div className="joint" key={h.name}>
-            <div className="lbl"><span className="name" title={h.label}>{h.name}{h.name === primary ? " ★" : ""}{!h.interactive ? " (driven)" : ""}</span><span className="val">{h.type === "hinge" ? `${(h.q * 180 / Math.PI).toFixed(1)}°` : `${(h.q * 1000).toFixed(1)} mm`}</span></div>
-            <input type="range" min={h.range ? h.range[0] : -3.14} max={h.range ? h.range[1] : 3.14} step={0.001} value={h.q}
-              onChange={(e) => { built.current?.setJoint(h.name, parseFloat(e.target.value)); force((x) => x + 1); }} />
+            <div className="lbl"><span className="name" title={h.label}>{h.name}{h.name === primary ? " ★" : ""}{!h.interactive ? " (driven)" : ""}{isLocked(h) && h.role === "operator" ? " 🔒" : ""}</span><span className="val">{h.type === "hinge" ? `${(h.q * 180 / Math.PI).toFixed(1)}°` : `${(h.q * 1000).toFixed(1)} mm`}</span></div>
+            <input type="range" min={h.range ? h.range[0] : -3.14} max={h.range ? h.range[1] : 3.14} step={0.001} value={h.q} aria-label={h.label || h.name}
+              onChange={(e) => onSlider(h, parseFloat(e.target.value))} />
             <div style={{ fontSize: 11, color: "var(--muted)" }}>{h.label}</div>
           </div>
         ))}
+        <h3>Evaluation</h3>
+        {!bench && <p style={{ fontSize: 12, color: "var(--muted)" }}>No benchmark block in spec.json (regenerate the dataset).</p>}
+        {bench && scenario && (
+          <div className="eval">
+            <div className="kv" style={{ marginBottom: 6 }}>
+              <span className="k">scenario<Info k="scenario" label="scenario" /></span>
+              <span className="v">{scenarios.length > 1 ? <select value={scenIdx} onChange={(e) => setScenIdx(parseInt(e.target.value))}><ScenarioOptions scenarios={scenarios} /></select> : nice(scenario.name)}</span>
+            </div>
+            <p className="desc">{scenario.description}</p>
+            <KV rows={[
+              ["initial state", `${scenario.initial_state.door}${scenario.initial_state.lock_engaged ? ", locked" : ""}${scenario.initial_state.latched ? ", latched" : ""}`],
+              ["time budget", `${fmt(scenario.time_budget_s)} s`, "time_budget"],
+              ["expected transit", `${fmt(scenario.expected_transit_s)} s`, "expected_transit"],
+              ["· approach", `${fmt(scenario.expected_transit_terms?.approach_s)} s`, "transit_approach"],
+              ["· operate", `${fmt(scenario.expected_transit_terms?.operate_s)} s`, "transit_operate"],
+              ["· open", `${fmt(scenario.expected_transit_terms?.open_s)} s`, "transit_open"],
+              ["· pass", `${fmt(scenario.expected_transit_terms?.pass_s)} s`, "transit_pass"],
+              ["· scenario extra", `${fmt(scenario.expected_transit_terms?.scenario_extra_s)} s`, "transit_extra"],
+              ["start zone", `(${fmt(scenario.start.center[0], 2)}, ${fmt(scenario.start.center[1], 2)}) r ${fmt(scenario.start.radius, 2)} m · yaw ${deg(scenario.start.yaw, 0)} ± ${deg(scenario.start.randomize?.yaw_jitter_rad ?? 0, 0)}`, "start_zone"],
+              ["approach point", `(${scenario.approach_point.map((c) => fmt(c, 2)).join(", ")})`, "approach"],
+              ["handle targets", scenario.handle_targets.length ? scenario.handle_targets.join(", ") : "– (no operator: push through)", "handle_targets"],
+              ["pass plane", `${fmt(scenario.pass_plane.width, 2)} × ${fmt(scenario.pass_plane.height, 2)} m at (${scenario.pass_plane.center.map((c) => fmt(c, 2)).join(", ")})`, "pass_plane"],
+              ["goal zone", scenario.goal ? `(${scenario.goal.center.map((c) => fmt(c, 2)).join(", ")}) r ${fmt(scenario.goal.radius, 2)} m` : "– (none)", "goal_zone"],
+              ["suite", scenario.suite === "human" ? "human interaction (advanced, opt-in; not part of the default core benchmark)" : "core (default benchmark; no person involved)", "suite"] as Row,
+              ...(scenario.human ? [["person", `${scenario.human.direction === "same_as_robot" ? "follows the robot" : "comes through first"} · ${fmt(scenario.human.speed_m_s, 1)} m/s · starts at ${fmt(scenario.human.start_t_s, 1)} s · path ends ${fmt(scenario.human.path[scenario.human.path.length - 1][0], 1)} s${scenario.human.waits_at_closed_door ? " · waits at a closed door" : ""}`, "human"] as Row] : []),
+            ]} />
+            <h4>Reward table<Info k="rewards" label="reward table" /></h4>
+            <KV rows={Object.entries(scenario.rewards).map(([ev, v]) => [REWARD_LABELS[ev] ?? nice(ev), <span className={v > 0 ? "ok" : "bad"}>{v > 0 ? "+" : ""}{Number.isInteger(v) ? v : v.toFixed(2)}</span>, undefined, evEntry(ev)] as Row)} />
+            <h4>Success<Info k="success" label="success criteria" /></h4>
+            <div className="chips">{scenario.success.map((c) => <span key={c} className={"chip " + (c.startsWith("!") ? "bad" : "ok")}>{c.startsWith("!") ? "no " + (REWARD_LABELS[c.slice(1)] ?? nice(c.slice(1))) : (REWARD_LABELS[c] ?? nice(c))}</span>)}</div>
+          </div>
+        )}
         <h3>Leaf</h3>
-        <KV rows={[["mass (leaf + hardware)", `${fmt(phys.mass?.total_kg)} kg`], ["slab", `${fmt(phys.mass?.slab_kg)} kg (${spec?.leaf?.slab?.replace(/_/g, " ")})`], ["glass", `${fmt(phys.mass?.glass_kg)} kg`], ["hardware", `${fmt(phys.mass?.hardware_kg)} kg`], ["size W×H×t", spec ? `${spec.leaf.width}×${spec.leaf.height}×${spec.leaf.thickness} m` : "–"], ["panel style", spec?.leaf?.panel_style?.replace(/_/g, " ")], ["finish", spec ? `${spec.leaf.finish.kind} ${spec.leaf.finish.color}` : "–"], ["inertia about hinge", phys.inertia_about_hinge_kg_m2 != null ? `${fmt(phys.inertia_about_hinge_kg_m2)} kg·m²` : "–"], ["condition", spec?.condition]]} />
+        <KV rows={[["mass (leaf + hardware)", `${fmt(phys.mass?.total_kg)} kg`, "mass_total"], ["slab", `${fmt(phys.mass?.slab_kg)} kg (${nice(spec?.leaf?.slab)})`, "mass_slab"], ["glass", `${fmt(phys.mass?.glass_kg)} kg`, "mass_glass"], ["hardware", `${fmt(phys.mass?.hardware_kg)} kg`, "mass_hardware"], ["size W×H×t", spec ? `${spec.leaf.width}×${spec.leaf.height}×${spec.leaf.thickness} m` : "–", "size"], ["panel style", nice(spec?.leaf?.panel_style), "panel_style"], ["finish", spec ? `${spec.leaf.finish.kind} ${spec.leaf.finish.color}` : "–", "finish"], ["inertia about hinge", phys.inertia_about_hinge_kg_m2 != null ? `${fmt(phys.inertia_about_hinge_kg_m2)} kg·m²` : "–", "inertia"], ["condition", spec?.condition, "condition"]]} />
         <h3>Hinge / motion</h3>
-        <KV rows={[["hinge", spec?.hinge?.model?.replace(/_/g, " ")], ["count", spec?.hinge?.count], ["side / swing", spec ? `${spec.hinge.side} / ${spec.robot.is_push ? "push" : "pull"} (robot at −y)` : "–"], ["coulomb friction", phys.hinge ? `${fmt(phys.hinge.coulomb_torque_Nm)} N·m` : "–"], ["stiction (stuck)", phys.hinge ? `${fmt(phys.hinge.stick_torque_Nm)} N·m` : "–"], ["bearing μ", phys.hinge?.bearing_mu], ["damping", phys.hinge ? `${fmt(phys.hinge.total_damping_symmetric)} N·m·s/rad` : "–"], ["roller friction", phys.roller ? `${fmt(phys.roller.coulomb_force_N)} N (μ=${phys.roller.mu_rolling})` : "–"], ["max open", spec?.kinematics?.max_open_deg != null ? `${spec.kinematics.max_open_deg}°` : spec?.kinematics?.travel_m != null ? `${spec.kinematics.travel_m} m` : "–"], ["stop", spec?.kinematics?.stop]]} />
+        <KV rows={[["hinge", nice(spec?.hinge?.model), "hinge"], ["count", spec?.hinge?.count != null ? String(spec.hinge.count) : "–", "hinge_count"], ["side / swing", spec ? `${spec.hinge.side} / ${spec.robot.is_push ? "push" : "pull"} (robot at −y)` : "–", "side_swing"], ["coulomb friction", phys.hinge ? `${fmt(phys.hinge.coulomb_torque_Nm)} N·m` : "–", "coulomb"], ["stiction (stuck)", phys.hinge ? `${fmt(phys.hinge.stick_torque_Nm)} N·m` : "–", "stiction"], ["bearing μ", phys.hinge?.bearing_mu, "bearing_mu"], ["damping", phys.hinge ? `${fmt(phys.hinge.total_damping_symmetric)} N·m·s/rad` : "–", "damping"], ["roller friction", phys.roller ? `${fmt(phys.roller.coulomb_force_N)} N (μ=${phys.roller.mu_rolling})` : "–", "roller_friction"], ["max open", spec?.kinematics?.max_open_deg != null ? `${spec.kinematics.max_open_deg}°` : spec?.kinematics?.travel_m != null ? `${spec.kinematics.travel_m} m` : "–", "max_open"], ["stop", nice(spec?.kinematics?.stop), "stop"]]} />
         <h3>Closer</h3>
-        <KV rows={[["model", phys.closer?.model?.replace(/_/g, " ")], ["EN 1154 size", phys.closer?.en_size], ["spring preload", phys.closer ? `${fmt(phys.closer.spring_preload_Nm)} N·m` : "–"], ["spring rate", phys.closer ? `${fmt(phys.closer.spring_stiffness_Nm_per_rad)} N·m/rad` : "–"], ["damping close / open", phys.closer ? `${fmt(phys.closer.damping_closing)} / ${fmt(phys.closer.damping_opening)}` : "–"], ["closing time (est.)", phys.closer?.closing_time_est_s != null ? `${fmt(phys.closer.closing_time_est_s)} s` : "–"]]} />
+        <KV rows={[["model", nice(phys.closer?.model), "closer_model"], ["EN 1154 size", phys.closer?.en_size, "en_size"], ["spring preload", phys.closer ? `${fmt(phys.closer.spring_preload_Nm)} N·m` : "–", "preload"], ["spring rate", phys.closer ? `${fmt(phys.closer.spring_stiffness_Nm_per_rad)} N·m/rad` : "–", "spring_rate"], ["damping close / open", phys.closer ? `${fmt(phys.closer.damping_closing)} / ${fmt(phys.closer.damping_opening)} N·m·s/rad` : "–", "closer_damping"], ["closing time (est.)", phys.closer?.closing_time_est_s != null ? `${fmt(phys.closer.closing_time_est_s)} s` : "–", "closing_time"]]} />
         <h3>Operator · latch · lock</h3>
-        <KV rows={[["operator", spec?.operator?.model?.replace(/_/g, " ")], ["height", spec ? `${spec.operator.height} m` : "–"], ["travel", phys.latch ? `${fmt(phys.latch.operator_travel)} ${spec?.operator?.model?.includes("panic") ? "m" : "rad"}` : "–"], ["return spring", phys.latch ? `${fmt(phys.latch.operator_spring_preload)} + ${fmt(phys.latch.operator_spring_rate)}·q` : "–"], ["yield (damage)", phys.latch ? `${fmt(phys.latch.operator_yield)}` : "–"], ["latch", phys.latch?.model?.replace(/_/g, " ")], ["throw", phys.latch ? `${fmt((phys.latch.throw_m ?? 0) * 1000, 1)} mm` : "–"], ["bolt spring", phys.latch ? `${fmt(phys.latch.bolt_spring_preload_N)} N + ${fmt(phys.latch.bolt_spring_rate_N_per_m)} N/m` : "–"], ["lock", phys.lock?.model?.replace(/_/g, " ")], ["engaged", phys.lock?.engaged], ["robot-side release", phys.lock?.robot_side_release], ["locked backlash", phys.lock ? `${fmt((phys.lock.handle_backlash_locked_rad ?? 0) * 57.3, 1)}°` : "–"], ["deadbolt throw", phys.lock ? `${fmt((phys.lock.deadbolt_throw_m ?? 0) * 1000, 1)} mm` : "–"], ["code", phys.lock?.code ?? "–"]]} />
+        <KV rows={[["operator", `${nice(spec?.operator?.model)}${opType ? ` (${opType === "slide" ? "linear" : "rotary"})` : ""}`, "operator"], ["height", spec ? `${spec.operator.height} m` : "–", "op_height"], ["travel", travelStr, "op_travel"], ["return spring", springStr, "op_return_spring"], ["yield (damage)", yieldStr, "op_yield"], ["latch", nice(phys.latch?.model), "latch"], ["throw", phys.latch ? `${fmt((phys.latch.throw_m ?? 0) * 1000, 1)} mm` : "–", "throw"], ["bolt spring", phys.latch ? `${fmt(phys.latch.bolt_spring_preload_N)} N + ${fmt(phys.latch.bolt_spring_rate_N_per_m)} N/m` : "–", "bolt_spring"], ["lock", nice(phys.lock?.model), "lock"], ["engaged", phys.lock?.engaged, "lock_engaged"], ["robot-side release", phys.lock?.robot_side_release, "robot_side_release"], ["locked backlash", backlashStr, "backlash"], ["deadbolt throw", phys.lock ? `${fmt((phys.lock.deadbolt_throw_m ?? 0) * 1000, 1)} mm` : "–", "deadbolt_throw"], ["code", phys.lock?.code ?? "–", "code"]]} />
         <h3>Compliance (as simulated)</h3>
-        <KV rows={[["opening force (start)", phys.compliance?.opening_force_start_N != null ? `${fmt(phys.compliance.opening_force_start_N)} N` : "–"], ["opening force (90°)", phys.compliance?.opening_force_90deg_N != null ? `${fmt(phys.compliance.opening_force_90deg_N)} N` : "–"], ["operator force", phys.compliance?.operator_force_N != null ? `${fmt(phys.compliance.operator_force_N)} N` : "–"], ["ADA 5 lbf interior", phys.compliance?.ada_interior_5lbf_ok], ["IBC fire/exterior", phys.compliance?.ibc_fire_exterior_ok], ["hardware ≤ 5 lbf", phys.compliance?.hardware_operable_5lbf_ok], ["ADA clear width", phys.compliance?.clear_width_ada_ok]]} />
+        <KV rows={[["opening force (start)", phys.compliance?.opening_force_start_N != null ? `${fmt(phys.compliance.opening_force_start_N)} N` : "–", "force_start"], ["opening force (90°)", phys.compliance?.opening_force_90deg_N != null ? `${fmt(phys.compliance.opening_force_90deg_N)} N` : "–", "force_90"], ["operator force", phys.compliance?.operator_force_N != null ? `${fmt(phys.compliance.operator_force_N)} N` : "–", "operator_force"], ["ADA 5 lbf interior", phys.compliance?.ada_interior_5lbf_ok, "ada_5lbf"], ["IBC fire/exterior", phys.compliance?.ibc_fire_exterior_ok, "ibc_fire"], ["hardware ≤ 5 lbf", phys.compliance?.hardware_operable_5lbf_ok, "hardware_5lbf"], ["ADA clear width", phys.compliance?.clear_width_ada_ok, "clear_width"]]} />
         <h3>Damage thresholds</h3>
-        <KV rows={[["leaf dent", phys.damage ? `${fmt(phys.damage.leaf_dent_force_N)} N` : "–"], ["leaf puncture", phys.damage ? `${fmt(phys.damage.leaf_puncture_force_N)} N` : "–"], ["glass break", phys.damage?.glass_break_force_N != null ? `${fmt(phys.damage.glass_break_force_N)} N` : "–"], ["operator yield", phys.damage ? `${fmt(phys.damage.operator_yield_torque_Nm)} N·m` : "–"], ["latch shear", phys.damage ? `${fmt(phys.damage.latch_shear_yield_N)} N` : "–"], ["hinge tear-out", phys.damage ? `${fmt(phys.damage.hinge_tearout_force_N)} N` : "–"], ["slam velocity", phys.damage ? `${fmt(phys.damage.slam_velocity_rad_s)} rad/s` : "–"]]} />
-        {qa && (<><h3>QA sign-off</h3><KV rows={Object.entries(qa.checks ?? {}).map(([k, v]) => [k.replace(/_/g, " "), v ? "pass" : "FAIL"])} /></>)}
+        <KV rows={[["leaf dent", phys.damage ? `${fmt(phys.damage.leaf_dent_force_N)} N` : "–", "dent"], ["leaf puncture", phys.damage ? `${fmt(phys.damage.leaf_puncture_force_N)} N` : "–", "puncture"], ["glass break", phys.damage?.glass_break_force_N != null ? `${fmt(phys.damage.glass_break_force_N)} N` : "–", "glass_break"], ["operator yield", phys.damage ? `${fmt(phys.damage.operator_yield_torque_Nm)} ${rotary ? "N·m" : "N"}` : "–", "op_yield_dmg"], ["latch shear", phys.damage ? `${fmt(phys.damage.latch_shear_yield_N)} N` : "–", "latch_shear"], ["hinge tear-out", phys.damage ? `${fmt(phys.damage.hinge_tearout_force_N)} N` : "–", "hinge_tearout"], ["slam velocity", phys.damage ? `${fmt(phys.damage.slam_velocity_rad_s)} ${spec?.kinematics?.type?.startsWith("hinge") || spec?.kinematics?.type === "rotor" ? "rad/s" : "m/s"}` : "–", "slam_velocity"]]} />
+        {qa && (<><h3>QA sign-off</h3><KV rows={qaRows} /></>)}
         <h3>Files</h3>
         <div className="dl">
           {fileLink("MJCF (full)", dl.mjcf?.full)}{fileLink("MJCF (simple)", dl.mjcf?.simple)}{fileLink("MJCF (minimal)", dl.mjcf?.minimal)}

@@ -53,10 +53,49 @@
         <box size="1.204 0.115 0.52"/>
       </geometry>
     </collision>
-    <visual name="leaf_staple_vis">
-      <origin xyz="0.557 -0.0295 1.04" rpy="0 0 0"/>
+    <visual name="leaf_staple_leg_n_vis">
+      <origin xyz="0.565 -0.0505 1.0275" rpy="1.570796 0 0"/>
       <geometry>
-        <box size="0.04 0.016 0.024"/>
+        <box size="0.006 0.005 0.026"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+    <collision name="leaf_staple_leg_n_col">
+      <origin xyz="0.565 -0.0505 1.0275" rpy="1.570796 0 0"/>
+      <geometry>
+        <box size="0.006 0.005 0.026"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_staple_leg_p_vis">
+      <origin xyz="0.565 -0.0505 1.0525" rpy="1.570796 0 0"/>
+      <geometry>
+        <box size="0.006 0.005 0.026"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+    <collision name="leaf_staple_leg_p_col">
+      <origin xyz="0.565 -0.0505 1.0525" rpy="1.570796 0 0"/>
+      <geometry>
+        <box size="0.006 0.005 0.026"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_staple_bridge_vis">
+      <origin xyz="0.565 -0.061 1.04" rpy="1.570796 0 0"/>
+      <geometry>
+        <box size="0.006 0.03 0.005"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+    <collision name="leaf_staple_bridge_col">
+      <origin xyz="0.565 -0.061 1.04" rpy="1.570796 0 0"/>
+      <geometry>
+        <box size="0.006 0.03 0.005"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_staple_base_vis">
+      <origin xyz="0.565 -0.0385 1.04" rpy="1.570796 0 0"/>
+      <geometry>
+        <box size="0.032 0.042 0.002"/>
       </geometry>
       <material name="mat_op_steel_galvanized"/>
     </visual>
@@ -187,9 +226,9 @@
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="0.471102 0.009408 1.283193" rpy="0 0 0"/>
-      <mass value="59.140882"/>
-      <inertia ixx="27.139843805" ixy="-0.158667774" ixz="2.090333356" iyy="32.218569234" iyz="0.63229929" izz="5.198101456"/>
+      <origin xyz="0.472156 0.00935 1.282634" rpy="0 0 0"/>
+      <mass value="59.030137"/>
+      <inertia ixx="27.034882022" ixy="-0.156261742" ixz="2.096710783" iyy="32.119735417" iyz="0.628825305" izz="5.20388073"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="0.5335 0.0245 1.08" rpy="0 0 0"/>
@@ -225,10 +264,10 @@
       </geometry>
       <material name="mat_hinge"/>
     </visual>
-    <visual name="leaf_hasp_vis">
-      <origin xyz="1.037 0.003 1.04" rpy="0 0 0"/>
+    <visual name="leaf_hasp_plate_vis">
+      <origin xyz="0.992 -0.005 1.04" rpy="1.570796 0 0"/>
       <geometry>
-        <box size="0.12 0.006 0.04"/>
+        <box size="0.048 0.043 0.024"/>
       </geometry>
       <material name="mat_op_steel_galvanized"/>
     </visual>
@@ -258,6 +297,33 @@
         <box size="0.22 0.002 0.16"/>
       </geometry>
       <material name="mat_placard"/>
+    </visual>
+  </link>
+  <link name="leaf_hasp">
+    <inertial>
+      <origin xyz="-0.042059 -0.012847 0" rpy="0 0 0"/>
+      <mass value="0.110745"/>
+      <inertia ixx="0.000029863" ixy="-0.0000459" ixz="0" iyy="0.000135174" iyz="0" izz="0.000140194"/>
+    </inertial>
+    <visual name="leaf_hasp_strap_vis">
+      <origin xyz="-0.051854 -0.016844 0" rpy="1.570796 0 -2.8"/>
+      <geometry>
+        <box size="0.109 0.035 0.003"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
+    </visual>
+    <collision name="leaf_hasp_strap_col">
+      <origin xyz="-0.051854 -0.016844 0" rpy="1.570796 0 -2.8"/>
+      <geometry>
+        <box size="0.109 0.035 0.003"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_hasp_knuckle_vis">
+      <origin xyz="-0.00134 0.003769 0" rpy="3.141593 0 -2.8"/>
+      <geometry>
+        <cylinder radius="0.0045" length="0.043"/>
+      </geometry>
+      <material name="mat_op_steel_galvanized"/>
     </visual>
   </link>
   <link name="closer_arm_main">
@@ -297,6 +363,15 @@
     <dynamics damping="12.49954" friction="6.260494"/>
     <doorbench:spring stiffness="14.183889" springref="-2.144687" note="tau = -stiffness*(q - springref); not native URDF"/>
     <doorbench:closer damping_closing="63" damping_opening="12" backcheck_angle="1.22" backcheck_damping="60"/>
+  </joint>
+  <joint name="leaf_hasp_hinge" type="revolute">
+    <origin xyz="1.012 -0.017 1.04" rpy="0 0 0"/>
+    <parent link="leaf"/>
+    <child link="leaf_hasp"/>
+    <axis xyz="0 0 -1"/>
+    <doorbench:zero_offset value="2.8" note="URDF q=0 is the spec initial state; DoorBench q = urdf_q + value"/>
+    <limit lower="-2.8" upper="0.1" effort="2000" velocity="10"/>
+    <dynamics damping="0.02" friction="0.05"/>
   </joint>
   <joint name="closer_pinion" type="continuous">
     <origin xyz="0.297 -0.103 2.177" rpy="0 0 -2.234601"/>

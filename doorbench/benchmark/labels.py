@@ -59,6 +59,8 @@ class EpisodeLabels:
     success: bool = False
     task: str = ""
     notes: list = field(default_factory=list)
+    reward_events: list = field(default_factory=list)   # [{t, event, reward}] from the scenario reward table (DoorEnv)
+    episode_return: float = 0.0
 
     def to_dict(self):
         return asdict(self)
@@ -104,6 +106,11 @@ class LabelTracker:
         self.oj = self._jid(meta.get("operator_joint")) if meta.get("operator_joint") else -1
         self.op_joints = [j for j in (self._jid(n) for n in (operator_joints or [])) if j >= 0] or ([self.oj] if self.oj >= 0 else [])
         self.bj = self._jid("leaf_latch_bolt_slide")
+        if self.bj < 0:   # pairs / dutch doors name their bolt after the active leaf
+            for j in range(model.njnt):
+                if (mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j) or "").endswith("latch_bolt_slide"):
+                    self.bj = j
+                    break
         # latch parts (0 = extended, + = retracted); only those carried by the primary leaf, so the second leaf of a
         # pair or the upper leaf of a dutch door does not hold `latch_released` back
         lj = [j for j in (self._jid(n) for n in (latch_joints or [])) if j >= 0 and model.jnt_range[j][1] - model.jnt_range[j][0] > 1e-6]
@@ -121,7 +128,7 @@ class LabelTracker:
             b = model.geom_bodyid[g]
             bname = mujoco.mj_id2name(mujoco.mjtObj.mjOBJ_BODY, b) if False else mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, b)
             gname = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, g) or ""
-            if bname in self.robot_bodies:
+            if bname in self.robot_bodies or bname == "human":   # the simulated human (DoorEnv) is neither door nor robot
                 continue
             if b == 0:
                 self.frame_geoms.add(g)
@@ -154,6 +161,7 @@ class LabelTracker:
         self.code = spec.get("lock", {}).get("code")
         self._key_seq = []
         self._key_down = set()
+        self.step_leaf_force = 0.0
 
     def _jid(self, name):
         if not name:
@@ -212,18 +220,22 @@ class LabelTracker:
                     if fn > thr:
                         self._damage(d, "impact", mj.mj_id2name(m, mj.mjtObj.mjOBJ_GEOM, other), fn, thr)
         L.max_leaf_contact_force = max(L.max_leaf_contact_force, max_leaf_f)
+        self.step_leaf_force = max_leaf_f
         # ---- operator(s): any operator joint (both touch bars of a pair count) at >= 70 % of its travel
         for oj in self.op_joints:
             lo, hi = m.jnt_range[oj]
             qo = self.q(d, oj)
             if hi - lo > 1e-6 and (qo - lo) >= 0.7 * (hi - lo):
                 L.operator_actuated = True
-            tau = abs(float(d.qfrc_constraint[m.jnt_dofadr[oj]] + d.qfrc_applied[m.jnt_dofadr[oj]]))
+            dof = m.jnt_dofadr[oj]
+            tau_drive = abs(float(d.qfrc_applied[dof] + d.qfrc_actuator[dof]))
+            tau = abs(float(d.qfrc_constraint[dof] + d.qfrc_applied[dof]))
             L.max_operator_torque = max(L.max_operator_torque, tau)
             ythr = self.damage.get("operator_yield_torque_Nm") or 1e9
-            # yield is quasi-static: the load must be sustained (>= 10 ms), a single-step constraint impulse from the
-            # operator hitting its stop is not an overload
-            self._op_over[oj] = self._op_over.get(oj, 0) + 1 if tau > ythr else 0
+            # overload = driven beyond yield, or driven into the far end stop, sustained for >= 10 ms; a lever snapping
+            # back to its rest stop under its own return spring is not misuse (single-step constraint impulses ignored)
+            over = tau_drive > ythr or (tau > ythr and (qo - lo) > 0.5 * (hi - lo))
+            self._op_over[oj] = self._op_over.get(oj, 0) + 1 if over else 0
             if self._op_over[oj] * m.opt.timestep >= 0.01 - 1e-9:
                 self._damage(d, "operator_overload", mj.mj_id2name(m, mj.mjtObj.mjOBJ_JOINT, oj), tau, ythr)
                 L.hardware_misuse = True
