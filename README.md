@@ -21,7 +21,7 @@ auditable `spec.json` that lists every physical parameter, its formula and its s
 | Slab constructions | 72: hollow core, particleboard & SCL cores, solid hardwoods, fire-rated mineral cores, 14–24 ga hollow metal, storefront aluminium, frameless tempered glass, fiberglass, uPVC, shoji/fusuma, cold-storage panels, chain-link, wrought iron, PVC strips, vault composite … |
 | Closers | 17 (EN 1154 sized surface/concealed/floor-spring, spring hinges, pneumatic, gate, gas strut, hold-open, automatic operators) |
 | Conditions | new · normal · worn · old/dry · rusty · swollen · sagging · damaged · well oiled |
-| Formats | MJCF full/simple/minimal · URDF full/simple/minimal · USD |
+| Formats | MJCF full/simple/minimal · URDF full/simple/minimal · USD (full + canonical Isaac Lab articulation) |
 | Benchmark | 9 tasks, 20+ per-episode labels (touched, actuated, unlatched, unlocked, opened, passed through, closed, slammed, damaged, fell …), MuJoCo environment with lock/access-control logic |
 
 ## Quick start
@@ -144,11 +144,28 @@ exit-device rods through the head, coils in the curtain's path, escutcheons rota
 ## Data layout
 
 ```
-assets/doors/<id>/  spec.json  model.json  door.xml door_simple.xml door_minimal.xml scene.xml  door.urdf  door.usda  qa.json  thumb_*.jpg
+assets/doors/<id>/  spec.json  model.json  door.xml door_simple.xml door_minimal.xml scene.xml  door.urdf  door.usda  door_rl.usda  qa.json  thumb_*.jpg
 assets/hardware/    shared hardware meshes (obj + usdc)
-assets/manifest.json
+assets/manifest.json  assets/usd_validation.json
 ```
 See [docs/DATASET_FORMAT.md](docs/DATASET_FORMAT.md).
+
+## Isaac Lab (many doors, one policy)
+
+`isaaclab/` is an Isaac Lab extension that spawns a **different door in every environment** (`door_rl.usda`, a canonical
+articulation shared by all 1000 doors) with the benchmark events as rewards, for a 6-DoF gantry hand
+(`DoorBench-Open-Hand-v0`) or the Unitree G1 (`DoorBench-Open-G1-v0`). On a fresh Ubuntu GPU box:
+
+```bash
+bash isaaclab/cloud/setup.sh && source isaaclab/cloud/env.sh      # Isaac Sim 5.1 + Isaac Lab 2.3 + DoorBench
+bash isaaclab/cloud/validate.sh                                    # headless import of all 1000 door USDs
+bash isaaclab/cloud/train.sh --task DoorBench-Open-Hand-v0 --num_envs 1024 --max_iterations 300
+bash isaaclab/cloud/hero.sh                                         # 512 doors in one scene -> docs/media/isaaclab_hero.{png,mp4}
+bash isaaclab/cloud/eval.sh logs/rsl_rl/doorbench_hand/<run>/model_300.pt
+```
+The USDs are statically validated here (1000 / 1000, `assets/usd_validation.json`); the Isaac Lab code is written
+against v2.3.0 but has **not yet been run on a GPU** — status and caveats in [isaaclab/STATUS.md](isaaclab/STATUS.md),
+details in [docs/ISAAC_LAB.md](docs/ISAAC_LAB.md).
 
 ## Prior work
 

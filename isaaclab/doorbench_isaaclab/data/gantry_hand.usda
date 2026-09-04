@@ -1,0 +1,353 @@
+#usda 1.0
+(
+    defaultPrim = "gantry_hand"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "gantry_hand" (
+    prepend apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI"]
+)
+{
+    custom string doorbench:agent = "gantry_hand"
+    custom string doorbench:joints = "hand_x,hand_y,hand_z,hand_yaw,hand_pitch,hand_roll"
+    custom bool physxArticulation:enabledSelfCollisions = 0
+    custom float physxArticulation:sleepThreshold = 0
+    custom int physxArticulation:solverPositionIterationCount = 16
+    custom int physxArticulation:solverVelocityIterationCount = 4
+
+    def Scope "Looks"
+    {
+        def Material "hand"
+        {
+            token outputs:surface.connect = </gantry_hand/Looks/hand/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (1, 0.45, 0.1)
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "PhysMat_hand" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.9
+            float physics:restitution = 0
+            float physics:staticFriction = 1
+        }
+    }
+
+    def Scope "Joints"
+    {
+        def PhysicsFixedJoint "base_fixed"
+        {
+            rel physics:body1 = </gantry_hand/base>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+        }
+
+        def PhysicsPrismaticJoint "hand_x" (
+            prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI"]
+        )
+        {
+            float drive:linear:physics:damping = 400
+            float drive:linear:physics:maxForce = 400
+            float drive:linear:physics:stiffness = 4000
+            float drive:linear:physics:targetPosition = 0
+            uniform token drive:linear:physics:type = "force"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </gantry_hand/base>
+            rel physics:body1 = </gantry_hand/hand_x>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+            float physics:lowerLimit = -1.5
+            float physics:upperLimit = 1.5
+            custom float physxJoint:armature = 0.05
+            custom float physxJoint:jointFriction = 0
+            custom float physxJoint:maxJointVelocity = 3
+        }
+
+        def PhysicsPrismaticJoint "hand_y" (
+            prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI"]
+        )
+        {
+            float drive:linear:physics:damping = 400
+            float drive:linear:physics:maxForce = 400
+            float drive:linear:physics:stiffness = 4000
+            float drive:linear:physics:targetPosition = 0
+            uniform token drive:linear:physics:type = "force"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </gantry_hand/hand_x>
+            rel physics:body1 = </gantry_hand/hand_y>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (0.70710677, 0, 0, 0.70710677)
+            quatf physics:localRot1 = (0.70710677, 0, 0, 0.70710677)
+            float physics:lowerLimit = -1
+            float physics:upperLimit = 3.5
+            custom float physxJoint:armature = 0.05
+            custom float physxJoint:jointFriction = 0
+            custom float physxJoint:maxJointVelocity = 3
+        }
+
+        def PhysicsPrismaticJoint "hand_z" (
+            prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI"]
+        )
+        {
+            float drive:linear:physics:damping = 400
+            float drive:linear:physics:maxForce = 400
+            float drive:linear:physics:stiffness = 4000
+            float drive:linear:physics:targetPosition = 0
+            uniform token drive:linear:physics:type = "force"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </gantry_hand/hand_y>
+            rel physics:body1 = </gantry_hand/hand_z>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = 0.05
+            float physics:upperLimit = 2.2
+            custom float physxJoint:armature = 0.05
+            custom float physxJoint:jointFriction = 0
+            custom float physxJoint:maxJointVelocity = 3
+        }
+
+        def PhysicsRevoluteJoint "hand_yaw" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI"]
+        )
+        {
+            float drive:angular:physics:damping = 0.10471976
+            float drive:angular:physics:maxForce = 60
+            float drive:angular:physics:stiffness = 1.0471976
+            float drive:angular:physics:targetPosition = 0
+            uniform token drive:angular:physics:type = "force"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </gantry_hand/hand_z>
+            rel physics:body1 = </gantry_hand/hand_yaw>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+            quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+            custom float physxJoint:armature = 0.005
+            custom float physxJoint:jointFriction = 0
+            custom float physxJoint:maxJointVelocity = 720
+        }
+
+        def PhysicsRevoluteJoint "hand_pitch" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI"]
+        )
+        {
+            float drive:angular:physics:damping = 0.10471976
+            float drive:angular:physics:maxForce = 60
+            float drive:angular:physics:stiffness = 1.0471976
+            float drive:angular:physics:targetPosition = 0
+            uniform token drive:angular:physics:type = "force"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </gantry_hand/hand_yaw>
+            rel physics:body1 = </gantry_hand/hand_pitch>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (1, 0, 0, 0)
+            quatf physics:localRot1 = (1, 0, 0, 0)
+            float physics:lowerLimit = -90
+            float physics:upperLimit = 90
+            custom float physxJoint:armature = 0.005
+            custom float physxJoint:jointFriction = 0
+            custom float physxJoint:maxJointVelocity = 720
+        }
+
+        def PhysicsRevoluteJoint "hand_roll" (
+            prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI"]
+        )
+        {
+            float drive:angular:physics:damping = 0.05235988
+            float drive:angular:physics:maxForce = 30
+            float drive:angular:physics:stiffness = 0.5235988
+            float drive:angular:physics:targetPosition = 0
+            uniform token drive:angular:physics:type = "force"
+            uniform token physics:axis = "X"
+            rel physics:body0 = </gantry_hand/hand_pitch>
+            rel physics:body1 = </gantry_hand/palm>
+            point3f physics:localPos0 = (0, 0, 0)
+            point3f physics:localPos1 = (0, 0, 0)
+            quatf physics:localRot0 = (0.70710677, 0, 0, 0.70710677)
+            quatf physics:localRot1 = (0.70710677, 0, 0, 0.70710677)
+            float physics:lowerLimit = -180
+            float physics:upperLimit = 180
+            custom float physxJoint:armature = 0.005
+            custom float physxJoint:jointFriction = 0
+            custom float physxJoint:maxJointVelocity = 720
+        }
+    }
+
+    def Xform "base" (
+        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+    )
+    {
+        point3f physics:centerOfMass = (0, 0, 0)
+        float3 physics:diagonalInertia = (0.05, 0.05, 0.05)
+        float physics:mass = 5
+        quatf physics:principalAxes = (1, 0, 0, 0)
+        custom float physxRigidBody:maxDepenetrationVelocity = 3
+        custom float physxRigidBody:sleepThreshold = 0
+        quatf xformOp:orient = (1, 0, 0, 0)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+    }
+
+    def Xform "hand_x" (
+        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+    )
+    {
+        point3f physics:centerOfMass = (0, 0, 0)
+        float3 physics:diagonalInertia = (0.0005, 0.0005, 0.0005)
+        float physics:mass = 0.5
+        quatf physics:principalAxes = (1, 0, 0, 0)
+        custom float physxRigidBody:maxDepenetrationVelocity = 3
+        custom float physxRigidBody:sleepThreshold = 0
+        quatf xformOp:orient = (1, 0, 0, 0)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+    }
+
+    def Xform "hand_y" (
+        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+    )
+    {
+        point3f physics:centerOfMass = (0, 0, 0)
+        float3 physics:diagonalInertia = (0.0005, 0.0005, 0.0005)
+        float physics:mass = 0.5
+        quatf physics:principalAxes = (1, 0, 0, 0)
+        custom float physxRigidBody:maxDepenetrationVelocity = 3
+        custom float physxRigidBody:sleepThreshold = 0
+        quatf xformOp:orient = (1, 0, 0, 0)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+    }
+
+    def Xform "hand_z" (
+        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+    )
+    {
+        point3f physics:centerOfMass = (0, 0, 0)
+        float3 physics:diagonalInertia = (0.0005, 0.0005, 0.0005)
+        float physics:mass = 0.5
+        quatf physics:principalAxes = (1, 0, 0, 0)
+        custom float physxRigidBody:maxDepenetrationVelocity = 3
+        custom float physxRigidBody:sleepThreshold = 0
+        quatf xformOp:orient = (1, 0, 0, 0)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+    }
+
+    def Xform "hand_yaw" (
+        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+    )
+    {
+        point3f physics:centerOfMass = (0, 0, 0)
+        float3 physics:diagonalInertia = (0.0005, 0.0005, 0.0005)
+        float physics:mass = 0.3
+        quatf physics:principalAxes = (1, 0, 0, 0)
+        custom float physxRigidBody:maxDepenetrationVelocity = 3
+        custom float physxRigidBody:sleepThreshold = 0
+        quatf xformOp:orient = (1, 0, 0, 0)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+    }
+
+    def Xform "hand_pitch" (
+        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+    )
+    {
+        point3f physics:centerOfMass = (0, 0, 0)
+        float3 physics:diagonalInertia = (0.0005, 0.0005, 0.0005)
+        float physics:mass = 0.3
+        quatf physics:principalAxes = (1, 0, 0, 0)
+        custom float physxRigidBody:maxDepenetrationVelocity = 3
+        custom float physxRigidBody:sleepThreshold = 0
+        quatf xformOp:orient = (1, 0, 0, 0)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+    }
+
+    def Xform "palm" (
+        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+    )
+    {
+        point3f physics:centerOfMass = (0, 0, 0)
+        float3 physics:diagonalInertia = (0.002, 0.002, 0.002)
+        float physics:mass = 0.8
+        quatf physics:principalAxes = (1, 0, 0, 0)
+        custom float physxRigidBody:maxDepenetrationVelocity = 3
+        custom float physxRigidBody:sleepThreshold = 0
+        quatf xformOp:orient = (1, 0, 0, 0)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+        def Sphere "sphere" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "MaterialBindingAPI"]
+        )
+        {
+            rel material:binding = </gantry_hand/Looks/hand>
+            rel material:binding:physics = </gantry_hand/Looks/PhysMat_hand> (
+                bindMaterialAs = "weakerThanDescendants"
+            )
+            custom float physxCollision:contactOffset = 0.005
+            custom float physxCollision:restOffset = 0
+            double radius = 0.055
+        }
+
+        def Capsule "finger" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "MaterialBindingAPI"]
+        )
+        {
+            uniform token axis = "Y"
+            double height = 0.12
+            rel material:binding = </gantry_hand/Looks/hand>
+            rel material:binding:physics = </gantry_hand/Looks/PhysMat_hand> (
+                bindMaterialAs = "weakerThanDescendants"
+            )
+            custom float physxCollision:contactOffset = 0.005
+            custom float physxCollision:restOffset = 0
+            double radius = 0.018
+            double3 xformOp:translate = (0, 0.105, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Capsule "finger_tip" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysxCollisionAPI", "MaterialBindingAPI"]
+        )
+        {
+            uniform token axis = "Z"
+            double height = 0.06
+            rel material:binding = </gantry_hand/Looks/hand>
+            rel material:binding:physics = </gantry_hand/Looks/PhysMat_hand> (
+                bindMaterialAs = "weakerThanDescendants"
+            )
+            custom float physxCollision:contactOffset = 0.005
+            custom float physxCollision:restOffset = 0
+            double radius = 0.018
+            double3 xformOp:translate = (0, 0.16499999999999998, -0.03)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Xform "tip_site"
+        {
+            custom string doorbench:site_role = "tip"
+            double3 xformOp:translate = (0, 0.127, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+}
+

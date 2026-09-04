@@ -268,6 +268,18 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         except Exception as e:
             checks["usd_opens"] = False
             metrics["usd_error"] = str(e)[:300]
+    # ---- canonical RL USD opens with the fixed 7-DoF structure (Isaac Lab multi-door spawning)
+    if "usd_rl" in files and isinstance(files["usd_rl"], str) and files["usd_rl"].endswith(".usda"):
+        try:
+            from pxr import Usd, UsdPhysics
+            from .export.usd import RL_DOF_JOINTS
+            st = Usd.Stage.Open(files["usd_rl"])
+            names = {p.GetName() for p in st.Traverse() if p.IsA(UsdPhysics.RevoluteJoint) or p.IsA(UsdPhysics.PrismaticJoint)}
+            checks["usd_rl_opens"] = names == set(RL_DOF_JOINTS)
+            metrics["usd_rl_joints"] = sorted(names)
+        except Exception as e:
+            checks["usd_rl_opens"] = False
+            metrics["usd_rl_error"] = str(e)[:300]
     signed = all(v for k, v in checks.items())
     return {"checks": checks, "metrics": metrics, "signed_off": bool(signed), "time_s": time.time() - t0, "mujoco_version": mujoco.__version__}
 

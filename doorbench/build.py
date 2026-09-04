@@ -150,6 +150,11 @@ def export_door(spec: dict, out_root: str, hardware_dir: str, formats=("mjcf", "
             summary["files"]["usd"] = XS.write_usd(model, out_dir, hardware_dir=hardware_dir)
         except Exception as e:  # pragma: no cover
             summary["files"]["usd"] = f"ERROR: {e!r}"
+        try:
+            # canonical articulation for Isaac Lab multi-door training (same link/joint names for every door)
+            summary["files"]["usd_rl"] = XS.write_usd_rl(model, out_dir, hardware_dir=hardware_dir, spec={**spec, "physics": phys})
+        except Exception as e:  # pragma: no cover
+            summary["files"]["usd_rl"] = f"ERROR: {e!r}"
     if "json" in formats:
         with open(os.path.join(out_dir, "spec.json"), "w") as f:
             json.dump({**spec, "physics": phys}, f, indent=1, default=_json_default)
