@@ -118,3 +118,20 @@ export function sliderReaction(model: ModelJ, joints: Map<string, JointLike>, le
   if (primary && secondary && jb && jb.q < 0.01) out.mirror = { joint: leafJoint === primary ? secondary : primary, q };
   return out;
 }
+
+/** Deep link `q=<joint>:<value>[,<joint>:<value>...]` — value in rad / m, or with a `deg` / `mm` suffix (e.g. `q=leaf_hinge:45deg`). */
+export function parsePoseQuery(query: string): [string, number][] {
+  const raw = new URLSearchParams(query).get("q");
+  if (!raw) return [];
+  const out: [string, number][] = [];
+  for (const part of raw.split(",")) {
+    const m = /^\s*([\w.-]+)\s*[:=]\s*(-?[\d.]+(?:e-?\d+)?)\s*(deg|mm|rad|m)?\s*$/i.exec(part);
+    if (!m) continue;
+    let v = parseFloat(m[2]);
+    if (!Number.isFinite(v)) continue;
+    const unit = (m[3] ?? "").toLowerCase();
+    if (unit === "deg") v *= Math.PI / 180; else if (unit === "mm") v /= 1000;
+    out.push([m[1], v]);
+  }
+  return out;
+}

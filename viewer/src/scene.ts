@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import type { BodyJ, GeomJ, ModelJ } from "./types";
+import { LoopSolver, hasLoops, type LoopResult } from "./kinematics";
 
 const ASSETS = "./assets";
 const objCache = new Map<string, Promise<THREE.BufferGeometry>>();
@@ -53,6 +54,7 @@ export interface JointHandle {
   label: string;
   role: string;
   interactive: boolean;
+  loopSolved: boolean;       // value is computed by the closed-loop solver (closer arms, struts); not user-driven
 }
 
 export interface BuiltScene {
@@ -61,6 +63,10 @@ export interface BuiltScene {
   bodies: Map<string, THREE.Object3D>;
   bounds: THREE.Box3;
   setJoint: (name: string, q: number, propagate?: boolean) => void;
+  /** Re-solve every closed loop (connect equalities) for the current driver joints; no-op when nothing moved. */
+  solveLoops: () => { changed: boolean; results: LoopResult[] };
+  loopResults: LoopResult[];
+  loopWarnings: string[];
   dispose: () => void;
 }
 
@@ -132,7 +138,7 @@ export async function buildScene(model: ModelJ, opts: { showCollision?: boolean;
       container = inner;
       joints.set(j.name, {
         name: j.name, body: b.name, type: j.type, axis: new THREE.Vector3(...j.axis).normalize(), pos: new THREE.Vector3(...j.pos),
-        range: j.range, node: pivot, q: j.modeled_at ?? 0, modeledAt: j.modeled_at ?? 0, label: j.label, role: j.role, interactive: j.robot_interactive,
+        range: j.range, node: pivot, q: j.modeled_at ?? 0, modeledAt: j.modeled_at ?? 0, label: j.label, role: j.role, interactive: j.robot_interactive, loopSolved: false,
       });
     }
     (node as any).userData = { container, semantic: b.semantic, label: b.label, static: b.static, mass: b.mass };
@@ -188,12 +194,50 @@ export async function buildScene(model: ModelJ, opts: { showCollision?: boolean;
     }
   }
 
+  // closed kinematic loops (closer arm linkages, struts): solved after the driver joints move
+  let solver: LoopSolver | null = null;
+  try { solver = hasLoops(model) ? new LoopSolver(model) : null; } catch (e) { console.warn(`[linkage] ${model.name}: loop solver disabled:`, e); }
+  for (const name of solver?.owned ?? []) { const h = joints.get(name); if (h) h.loopSolved = true; }
+  for (const w of solver?.warnings ?? []) console.warn(`[linkage] ${model.name}: ${w}`);
+  if (solver?.loops.length) console.info(`[linkage] ${model.name}: ${solver.loops.map((l) => `${l.name} (${l.type}, ${l.source}: ${l.joints.map((j) => j.joint.name).join(" + ")})`).join("; ")}`);
+  let loopsDirty = true;
+  const built: Partial<BuiltScene> = { loopResults: [], loopWarnings: solver?.warnings.slice() ?? [] };
+  const reported = new Map<string, boolean>();      // loop name -> last reported "ok" state (console noise control)
+
+  function solveLoops(): { changed: boolean; results: LoopResult[] } {
+    if (!solver || !loopsDirty) return { changed: false, results: built.loopResults! };
+    loopsDirty = false;
+    for (const h of joints.values()) if (!h.loopSolved) solver.setQ(h.name, h.q);
+    const results = solver.solve();
+    let changed = false;
+    for (const name of solver.owned) {
+      const h = joints.get(name);
+      if (!h) continue;
+      const q = solver.getQ(name);
+      if (Math.abs(q - h.q) > 1e-9) { h.q = q; applyJoint(h); changed = true; }
+    }
+    const prev = built.loopResults!;
+    if (results.length !== prev.length || results.some((r, i) => r.ok !== prev[i].ok || r.stretched !== prev[i].stretched || Math.abs(r.separation - prev[i].separation) > 1e-5)) changed = true;
+    built.loopResults = results;
+    // dev console: report a loop that cannot be closed (reach limit / geometry bug) once per state change
+    for (const r of results) {
+      const was = reported.get(r.name);
+      if (was === r.ok) continue;
+      reported.set(r.name, r.ok);
+      const pose = [...joints.values()].filter((h) => !h.loopSolved && h.role !== "mechanism").map((h) => `${h.name}=${h.type === "hinge" ? (h.q * 180 / Math.PI).toFixed(1) + "°" : (h.q * 1000).toFixed(1) + " mm"}`).join(", ");
+      if (!r.ok) console.warn(`[linkage] ${model.name}: ${r.name} (${r.equality}) cannot close: tip is ${(r.separation * 1000).toFixed(1)} mm from its anchor${r.stretched ? " (reach limit)" : ""} at ${pose}`);
+      else if (was === false) console.info(`[linkage] ${model.name}: ${r.name} closes again at ${pose}`);
+    }
+    return { changed, results };
+  }
+
   function setJoint(name: string, q: number, propagate = true) {
     const h = joints.get(name);
     if (!h) return;
     if (h.range) q = Math.min(Math.max(q, h.range[0]), h.range[1]);
     h.q = q;
     applyJoint(h);
+    loopsDirty = true;
     if (!propagate) return;
     for (const c of couplings) {
       if (c.b === name) {
@@ -211,9 +255,13 @@ export async function buildScene(model: ModelJ, opts: { showCollision?: boolean;
     }
   }
   for (const h of joints.values()) applyJoint(h);
+  solveLoops();
 
-  return {
-    root, joints, bodies, bounds, setJoint,
+  const out: BuiltScene = {
+    root, joints, bodies, bounds, setJoint, solveLoops,
+    get loopResults() { return built.loopResults!; },
+    get loopWarnings() { return built.loopWarnings!; },
     dispose: () => { root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); } }); for (const m of matCache.values()) m.dispose(); },
   };
+  return out;
 }
