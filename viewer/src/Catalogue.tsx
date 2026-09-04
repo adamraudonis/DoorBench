@@ -23,6 +23,7 @@ export function DoorCard({ d }: { d: ManifestDoor }) {
           {d.closer !== "none" && <span className="chip">closer</span>}
           <span className="chip">{d.condition}</span>
           <span className="chip">{d.task.replace(/_/g, " ")}</span>
+          {d.benchmark?.has_human && <span className="chip">human scenario</span>}
           <span className="chip">L{d.difficulty}</span>
           <span className={"chip " + (d.signed_off ? "ok" : "bad")}>{d.signed_off ? "signed off" : "needs review"}</span>
         </div>
@@ -39,6 +40,7 @@ export function Catalogue({ manifest, query }: { manifest: Manifest; query: stri
   const [closer, setCloser] = useState("");
   const [condition, setCondition] = useState("");
   const [task, setTask] = useState("");
+  const [scenario, setScenario] = useState("");
   const [signed, setSigned] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("index");
@@ -46,18 +48,19 @@ export function Catalogue({ manifest, query }: { manifest: Manifest; query: stri
   const opts = useMemo(() => ({
     operator: uniq(doors.map((d) => d.operator)), lock: uniq(doors.map((d) => d.lock)), closer: uniq(doors.map((d) => d.closer)),
     condition: uniq(doors.map((d) => d.condition)), task: uniq(doors.map((d) => d.task)),
+    scenario: uniq(doors.flatMap((d) => d.benchmark?.scenarios ?? [])),
   }), [doors]);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let xs = doors.filter((d) =>
       (!family || d.family === family) && (!operator || d.operator === operator) && (!lock || d.lock === lock) && (!closer || (closer === "any" ? d.closer !== "none" : d.closer === closer)) &&
-      (!condition || d.condition === condition) && (!task || d.task === task) && (!signed || (signed === "yes") === d.signed_off) &&
+      (!condition || d.condition === condition) && (!task || d.task === task) && (!scenario || (d.benchmark?.scenarios ?? []).includes(scenario)) && (!signed || (signed === "yes") === d.signed_off) &&
       (!q || [d.id, d.use_case, d.family, d.context, d.leaf.slab, d.leaf.panel_style, d.operator, d.lock, d.hinge, ...d.tags, ...d.extras].join(" ").toLowerCase().includes(q)));
     const key: Record<string, (d: ManifestDoor) => number | string> = { index: (d) => d.index, mass: (d) => d.mass_kg, difficulty: (d) => d.difficulty, width: (d) => d.leaf.width, family: (d) => d.family };
     const f = key[sort] ?? key.index;
     xs = [...xs].sort((a, b) => (f(a) < f(b) ? -1 : f(a) > f(b) ? 1 : 0));
     return xs;
-  }, [doors, family, operator, lock, closer, condition, task, signed, search, sort]);
+  }, [doors, family, operator, lock, closer, condition, task, scenario, signed, search, sort]);
   const sel = (v: string, set: (s: string) => void, list: string[], label: string) => (
     <select value={v} onChange={(e) => set(e.target.value)}><option value="">{label}</option>{list.map((x) => <option key={x} value={x}>{x.replace(/_/g, " ")}</option>)}</select>
   );
@@ -71,6 +74,7 @@ export function Catalogue({ manifest, query }: { manifest: Manifest; query: stri
         <select value={closer} onChange={(e) => setCloser(e.target.value)}><option value="">Any closer</option><option value="any">Has closer</option>{opts.closer.map((x) => <option key={x} value={x}>{x.replace(/_/g, " ")}</option>)}</select>
         {sel(condition, setCondition, opts.condition, "Any condition")}
         {sel(task, setTask, opts.task, "Any task")}
+        {opts.scenario.length > 0 && sel(scenario, setScenario, opts.scenario, "Any scenario")}
         <select value={signed} onChange={(e) => setSigned(e.target.value)}><option value="">QA: all</option><option value="yes">signed off</option><option value="no">needs review</option></select>
         <select value={sort} onChange={(e) => setSort(e.target.value)}><option value="index">Sort: id</option><option value="family">Sort: type</option><option value="mass">Sort: mass</option><option value="difficulty">Sort: difficulty</option><option value="width">Sort: width</option></select>
         <span className="count">{filtered.length} / {doors.length}</span>

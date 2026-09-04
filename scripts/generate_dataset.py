@@ -48,7 +48,7 @@ def one(args):
             "operator": spec["operator"]["model"], "latch": spec["latch"]["model"], "lock": spec["lock"]["model"], "lock_engaged": spec["lock"].get("engaged", False),
             "robot_side_release": spec["lock"].get("robot_side_release", True), "closer": spec["closer"]["model"], "hinge": spec["hinge"]["model"], "condition": spec["condition"],
             "swing": "push" if spec["robot"].get("is_push") else "pull", "hinge_side": spec["hinge"]["side"], "extras": spec.get("extras", []), "tags": spec.get("tags", []),
-            "n_bodies": summ["n_bodies"], "n_joints": summ["n_joints"], "signed_off": qa["signed_off"], "qa_failed": [k for k, v in qa["checks"].items() if not v],
+            "n_bodies": summ["n_bodies"], "n_joints": summ["n_joints"], "benchmark": summ.get("benchmark"), "signed_off": qa["signed_off"], "qa_failed": [k for k, v in qa["checks"].items() if not v],
             "thumbs": [os.path.relpath(t, out_root) for t in thumbs], "files": {k: ({kk: os.path.relpath(vv, out_root) for kk, vv in v.items()} if isinstance(v, dict) else (os.path.relpath(v, out_root) if isinstance(v, str) and os.path.exists(v) else v)) for k, v in summ["files"].items()},
             "physics_summary": {
                 "hinge_friction_Nm": phys.get("hinge", {}).get("coulomb_torque_Nm"), "damping": phys.get("hinge", {}).get("total_damping_symmetric"),

@@ -26,7 +26,7 @@ export function App() {
   }, []);
   const route = useMemo(() => {
     const h = hash.replace(/^#/, "");
-    if (h.startsWith("/door/")) return { page: "door", id: h.slice(6).split("?")[0] };
+    if (h.startsWith("/door/")) return { page: "door", id: h.slice(6).split("?")[0], query: h.includes("?") ? h.split("?")[1] : "" };
     if (h.startsWith("/families")) return { page: "families" };
     if (h.startsWith("/about")) return { page: "about" };
     return { page: "catalogue", query: h.includes("?") ? h.split("?")[1] : "" };
@@ -49,7 +49,7 @@ export function App() {
         {!manifest && !err && <div className="loading">Loading manifest…</div>}
         {manifest && route.page === "catalogue" && <Catalogue manifest={manifest} query={route.query ?? ""} />}
         {manifest && route.page === "families" && <Families manifest={manifest} />}
-        {manifest && route.page === "door" && <DoorView manifest={manifest} id={route.id!} />}
+        {manifest && route.page === "door" && <DoorView manifest={manifest} id={route.id!} query={route.query ?? ""} />}
         {manifest && route.page === "about" && <About manifest={manifest} />}
       </div>
     </div>

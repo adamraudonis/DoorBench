@@ -201,5 +201,153 @@
    "notes": "ADA 2010 \u00a7404.2.9 (5 lbf interior), IBC \u00a71010.1.3 (30 lbf set in motion / 15 lbf full open), \u00a71010.1.10 (panic 15 lbf)"
   },
   "gravity": 9.80665
+ },
+ "benchmark": {
+  "schema_version": "1.0",
+  "robot": {
+   "walk_speed_m_s": 0.7,
+   "body_radius_m": 0.3,
+   "height_m": 1.7,
+   "push_force_N": 40.0,
+   "lift_force_N": 120.0,
+   "note": "nominal humanoid used for the expected-transit-time formula and the start-zone clearance"
+  },
+  "human": {
+   "radius_m": 0.22,
+   "height_m": 1.75,
+   "speed_m_s": 1.1
+  },
+  "primary_scenario": "locked_recognize",
+  "scenarios": [
+   {
+    "name": "locked_recognize",
+    "description": "The door is locked with no release on the robot's side: probe, recognise the lock, declare it (env.declare_locked()) and stop without damage.",
+    "initial_state": {
+     "door": "closed",
+     "lock_engaged": true,
+     "latched": true
+    },
+    "start": {
+     "center": [
+      0.0,
+      -1.7,
+      0.0
+     ],
+     "radius": 0.3,
+     "yaw": 1.5708,
+     "yaw_range": [
+      1.2208,
+      1.9208
+     ],
+     "randomize": {
+      "position": "uniform_disc",
+      "radius": 0.3,
+      "yaw_jitter_rad": 0.35,
+      "seed_base": 17985,
+      "formula": "r = R*sqrt(u1), phi = 2*pi*u2, yaw = yaw0 + (2*u3 - 1)*yaw_jitter; u ~ U(0,1) from random.Random(seed_base + seed)"
+     }
+    },
+    "approach_point": [
+     0.0,
+     -1.5,
+     0.0
+    ],
+    "handle_targets": [
+     "leaf_handle_grip_n",
+     "leaf_handle_grip_p"
+    ],
+    "pass_plane": {
+     "center": [
+      0.0,
+      0.0,
+      1.0225
+     ],
+     "normal": [
+      0.0,
+      1.0,
+      0.0
+     ],
+     "width": 0.872,
+     "height": 2.045,
+     "traverse_direction": [
+      0.0,
+      1.0,
+      0.0
+     ]
+    },
+    "goal": null,
+    "human": null,
+    "thresholds": {
+     "open_rad": 0.5235987755982988,
+     "open_m": null,
+     "clear_rad": 1.0471975511965976,
+     "clear_m": null
+    },
+    "rewards": {
+     "touch_handle": 1.0,
+     "recognized_locked": 5.0,
+     "damage": -10.0,
+     "hardware_misuse": -5.0,
+     "time_penalty_per_s": -0.05
+    },
+    "success": [
+     "!opened",
+     "!damage",
+     "!hardware_misuse"
+    ],
+    "time_budget_s": 35.0,
+    "expected_transit_s": 7.36,
+    "expected_transit_terms": {
+     "approach_s": 1.6,
+     "operate_s": 1.0,
+     "open_s": 0.76,
+     "pass_s": 0.0,
+     "scenario_extra_s": 4.0,
+     "total_s": 7.36
+    }
+   }
+  ],
+  "reward_values": {
+   "touch_handle": 1.0,
+   "unlatch": 2.0,
+   "unlock": 3.0,
+   "opened": 3.0,
+   "traversed": 10.0,
+   "closed_behind": 3.0,
+   "latched_behind": 1.0,
+   "closed": 5.0,
+   "latched": 2.0,
+   "held_for_human": 5.0,
+   "yielded_to_human": 5.0,
+   "recognized_locked": 5.0,
+   "knocked": 2.0,
+   "waited": 3.0,
+   "collision_with_human": -20.0,
+   "damage": -10.0,
+   "slam": -2.0,
+   "hardware_misuse": -5.0,
+   "time_penalty_per_s": -0.05
+  },
+  "event_descriptions": {
+   "touch_handle": "robot contacts the operator (handle / bar / pull) or moves the operator joint by >10 % of its travel",
+   "unlatch": "latch bolt retracted >= 80 % of its throw (label latch_released)",
+   "unlock": "engaged lock released from the robot side (label lock_released)",
+   "opened": "primary joint past the open threshold (30 deg hinged / rotor, min(0.3 m, half travel) sliding)",
+   "traversed": "robot base crossed the pass plane inside the opening (label robot_passed_through)",
+   "closed_behind": "door back within the closed threshold after the robot passed",
+   "latched_behind": "latch bolt re-extended (< 20 % throw) with the door closed after the robot passed",
+   "closed": "door (which started open) brought within the closed threshold",
+   "latched": "latch bolt extended with the door closed",
+   "held_for_human": "the human crossed the pass plane while the opening was clear (door_open_clear) and without contact",
+   "yielded_to_human": "the human finished its path with no contact and the robot did not cross the plane before the human",
+   "recognized_locked": "env.declare_locked() called while the door is closed and undamaged",
+   "knocked": "robot leaf contact between 5 N and the dent threshold while the door is closed",
+   "waited": "door not opened for at least 3 s after the knock",
+   "collision_with_human": "contact between a robot geom and the human capsule, or base within (r_robot + r_human) of the human",
+   "damage": "any damage event (dent, puncture, glass, operator yield, latch shear, hinge tear-out, forced maglock)",
+   "slam": "closing speed at the stop above the slam threshold",
+   "hardware_misuse": "operator torque / force beyond its yield (label hardware_misuse)",
+   "time_penalty_per_s": "applied every step as value * dt"
+  }
  }
 }

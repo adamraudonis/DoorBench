@@ -151,10 +151,14 @@ def export_door(spec: dict, out_root: str, hardware_dir: str, formats=("mjcf", "
         except Exception as e:  # pragma: no cover
             summary["files"]["usd"] = f"ERROR: {e!r}"
     if "json" in formats:
+        from .benchmark.scenarios import build_benchmark, benchmark_summary
+        model_dict = json.loads(json.dumps(model.to_dict("full"), default=_json_default))
+        bench = build_benchmark(spec, phys, model_dict)      # scenarios + rewards (docs/BENCHMARK.md)
+        summary["benchmark"] = benchmark_summary(bench)
         with open(os.path.join(out_dir, "spec.json"), "w") as f:
-            json.dump({**spec, "physics": phys}, f, indent=1, default=_json_default)
+            json.dump({**spec, "physics": phys, "benchmark": bench}, f, indent=1, default=_json_default)
         with open(os.path.join(out_dir, "model.json"), "w") as f:
-            json.dump(model.to_dict("full"), f, default=_json_default)
+            json.dump(model_dict, f)
     summary["build_time_s"] = time.time() - t0
     return summary
 

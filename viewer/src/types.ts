@@ -100,6 +100,53 @@ export interface ModelJ {
   meta: Record<string, any>;
 }
 
+export interface HumanJ {
+  radius_m: number;
+  height_m: number;
+  speed_m_s: number;
+  start_t_s: number;
+  direction: "same_as_robot" | "opposite_to_robot";
+  path: [number, number, number][];   // (t, x, y)
+  waits_at_closed_door: boolean;
+  note?: string;
+}
+
+export interface ScenarioJ {
+  name: string;
+  description: string;
+  initial_state: { door: "closed" | "open"; lock_engaged: boolean; latched: boolean };
+  start: { center: Vec3; radius: number; yaw: number; yaw_range: [number, number]; randomize: { position: string; radius: number; yaw_jitter_rad: number; seed_base: number; formula: string } };
+  approach_point: Vec3;
+  handle_targets: string[];
+  pass_plane: { center: Vec3; normal: Vec3; width: number; height: number; traverse_direction: Vec3 };
+  goal: { center: Vec3; radius: number } | null;
+  human: HumanJ | null;
+  thresholds: { open_rad: number | null; open_m: number | null; clear_rad: number | null; clear_m: number | null };
+  rewards: Record<string, number>;
+  success: string[];
+  time_budget_s: number;
+  expected_transit_s: number;
+  expected_transit_terms: Record<string, number>;
+}
+
+export interface BenchmarkJ {
+  schema_version: string;
+  robot: Record<string, number | string>;
+  human: Record<string, number>;
+  primary_scenario: string;
+  scenarios: ScenarioJ[];
+  reward_values: Record<string, number>;
+  event_descriptions: Record<string, string>;
+}
+
+export interface BenchmarkSummary {
+  scenarios: string[];
+  primary: string;
+  time_budget_s: number;
+  expected_transit_s: number;
+  has_human: boolean;
+}
+
 export interface ManifestDoor {
   id: string;
   index: number;
@@ -129,6 +176,7 @@ export interface ManifestDoor {
   thumbs: string[];
   files: Record<string, any>;
   physics_summary: Record<string, number | boolean | null>;
+  benchmark?: BenchmarkSummary | null;
   error?: string;
 }
 
