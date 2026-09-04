@@ -5,9 +5,10 @@ Features
   * optional robot MJCF merged into the scene (e.g. MuJoCo Menagerie humanoids) via `robot_xml`
   * asymmetric closer damping + backcheck, ratchet (one-way) rotors, maglock breakaway, keypad/REX/badge
     release logic implemented in a passive-force callback and per-step hooks
-  * benchmark scenarios (spec.json["benchmark"], see scenarios.py): start-zone sampling, a kinematic simulated
-    human for the `hold_open_for_human` / `wait_for_human` scenarios, per-step reward from the scenario's reward
-    table, scenario success criteria, time budget
+  * benchmark scenarios (spec.json["benchmark"], see scenarios.py): start-zone sampling, per-step reward from the
+    scenario's reward table, scenario success criteria, time budget.  Human-interaction scenarios are a segregated,
+    opt-in `human` suite: the default / primary scenario is always from the `core` suite and never spawns a person;
+    the kinematic simulated human is only compiled into the scene when a `human`-suite scenario is reset.
   * label tracking (see labels.py), gymnasium-style API (reset/step/labels)
   * "programmatic hand": apply wrenches at grip sites to unit-test doors without a robot
 
@@ -29,7 +30,7 @@ import os
 import numpy as np
 
 from .labels import LabelTracker
-from .scenarios import SCENARIO_TYPES, build_benchmark, make_scenario, sample_start, human_pose
+from .scenarios import SCENARIO_TYPES, SCENARIO_SUITE, build_benchmark, make_scenario, sample_start, human_pose, scenarios_in_suite
 
 TASK_DESCRIPTIONS = {
     "open_and_traverse": "Approach from -y, operate hardware, open, pass through to +y",
@@ -78,6 +79,9 @@ class DoorEnv:
         self.rng = np.random.default_rng(seed)
         self.benchmark = self.spec.get("benchmark") or build_benchmark(self.spec, self.spec.get("physics", {}), self.model_json)
         self.scenario_names = [s["name"] for s in self.benchmark["scenarios"]]
+        # suites: `core` (no human; the default, and always the primary scenario) vs `human` (advanced, opt-in)
+        self.core_scenarios = scenarios_in_suite(self.scenario_names, "core")
+        self.human_scenarios = scenarios_in_suite(self.scenario_names, "human")
         self._human_enabled = False
         self._human = None
         self.m, self.d = self._build(with_human=False)

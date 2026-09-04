@@ -272,3 +272,34 @@ def test_make_scenario_any_type_any_door(specs):
             assert sc["time_budget_s"] >= 3 * sc["expected_transit_s"]
             if n in ("hold_open_for_human", "wait_for_human"):
                 assert sc["human"] and len(sc["human"]["path"]) >= 3
+
+
+def test_suites_segregate_human_interaction(specs):
+    """The core suite (default) never involves a person; the primary scenario of every door is a core scenario."""
+    from doorbench.benchmark.scenarios import CORE_SCENARIOS, HUMAN_SCENARIOS, SCENARIO_SUITE, SCENARIO_TYPES, assign_scenarios, scenarios_in_suite
+    assert set(CORE_SCENARIOS) | set(HUMAN_SCENARIOS) == set(SCENARIO_TYPES)
+    assert not set(CORE_SCENARIOS) & set(HUMAN_SCENARIOS)
+    for spec in specs:
+        names = assign_scenarios(spec)
+        assert SCENARIO_SUITE[names[0]] == "core"
+        assert scenarios_in_suite(names, "core") + scenarios_in_suite(names, "human") == sorted(names, key=lambda n: SCENARIO_SUITE[n] == "human")
+        assert scenarios_in_suite(names, "all") == list(names)
+
+
+def test_dataset_suites_segregated():
+    import glob
+    import json
+    from pathlib import Path
+    from doorbench.benchmark.scenarios import SCENARIO_SUITE
+    files = sorted(glob.glob(str(Path(__file__).resolve().parents[1] / "assets" / "doors" / "*" / "spec.json")))
+    assert files, "dataset not generated"
+    for f in files:
+        b = json.load(open(f)).get("benchmark")
+        assert b, f
+        assert SCENARIO_SUITE[b["primary_scenario"]] == "core", f
+        assert set(b["suites"]) == {"core", "human"} and b["suites"]["core"][0] == b["primary_scenario"], f
+        for s in b["scenarios"]:
+            assert s["suite"] == SCENARIO_SUITE[s["name"]], f
+            assert s["requires_human"] == (s.get("human") is not None), f
+            if s["suite"] == "core":
+                assert s.get("human") is None, f

@@ -6,7 +6,7 @@ Replicable one-command flow (see docs/RUNPOD.md):
     export RUNPOD_API_KEY=rpa_...                 # Settings -> API Keys (Read & Write), never commit it
     python scripts/runpod_pod.py create           # L40S / RTX 6000 Ada / A40 / 4090, CUDA 12.8+, 150 GB volume
     python scripts/runpod_pod.py wait             # blocks until SSH is reachable, prints the ssh command
-    python scripts/runpod_pod.py bootstrap        # copies isaaclab/cloud/pod_bootstrap.sh and runs it in tmux
+    python scripts/runpod_pod.py bootstrap        # copies scripts/pod_bootstrap.sh and runs it in tmux (~25 min)
     python scripts/runpod_pod.py ssh              # interactive shell
     python scripts/runpod_pod.py status           # GPU, cost/h, uptime, spend so far
     python scripts/runpod_pod.py terminate        # stops billing (volume is deleted too)
@@ -31,7 +31,7 @@ HERE = Path(__file__).resolve().parent.parent
 
 DEFAULT_POD = {
     "name": "doorbench-isaaclab",
-    # Ubuntu 22.04 + CUDA 12.8 + sshd; Python 3.11 for Isaac Sim is created by the bootstrap (Miniforge)
+    # Ubuntu 22.04 + CUDA 12.8 + sshd; the bootstrap creates a Python 3.11 uv venv for Isaac Sim 5.1 / Isaac Lab v2.3.2
     "imageName": "runpod/pytorch:1.2.0-rc.162-cu1281-torch271-ubuntu2204",
     "computeType": "GPU",
     "cloudType": "SECURE",
@@ -134,9 +134,7 @@ def cmd_ssh(a):
 
 def cmd_bootstrap(a):
     st = _state()
-    script = HERE / "isaaclab" / "cloud" / "pod_bootstrap.sh"
-    if not script.exists():
-        script = HERE / "scripts" / "pod_bootstrap.sh"
+    script = HERE / "scripts" / "pod_bootstrap.sh"
     subprocess.run(["scp", "-i", str(KEY_FILE), "-o", "StrictHostKeyChecking=accept-new", "-P", str(st["port"]), str(script), f"root@{st['ip']}:/workspace/pod_bootstrap.sh"], check=True)
     subprocess.run(_ssh_args() + ["(command -v tmux >/dev/null || (apt-get update -qq && apt-get install -y -qq tmux >/dev/null)); "
                                    "tmux new-session -d -s boot 'bash /workspace/pod_bootstrap.sh > /workspace/bootstrap.log 2>&1'; "

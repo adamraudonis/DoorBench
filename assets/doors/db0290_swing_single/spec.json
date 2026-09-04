@@ -218,7 +218,7 @@
   "gravity": 9.80665
  },
  "benchmark": {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "robot": {
    "walk_speed_m_s": 0.7,
    "body_radius_m": 0.3,
@@ -233,9 +233,19 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "open_and_traverse",
+  "suites": {
+   "core": [
+    "open_and_traverse"
+   ],
+   "human": [
+    "hold_open_for_human"
+   ]
+  },
   "scenarios": [
    {
     "name": "open_and_traverse",
+    "suite": "core",
+    "requires_human": false,
     "description": "Start in the start zone, reach the handle, unlatch, open and walk through the door plane to the goal zone.",
     "initial_state": {
      "door": "closed",
@@ -332,6 +342,8 @@
    },
    {
     "name": "hold_open_for_human",
+    "suite": "human",
+    "requires_human": true,
     "description": "A person walks up behind the robot: open the door, hold it open until the person has walked through, release it, then walk through yourself.",
     "initial_state": {
      "door": "closed",

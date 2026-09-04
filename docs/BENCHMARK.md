@@ -25,6 +25,21 @@ scenario; `manifest.json` carries a summary per door).  The viewer's **Show eval
 Any scenario type can be run on any door: `env.reset(scenario="wait_for_human")` builds it on the fly when the
 door does not list it (`doorbench.benchmark.make_scenario`).
 
+### Suites: `core` (default) and `human` (advanced, opt-in)
+
+Human interaction is segregated from the rest of the benchmark so that **everything can be run without any
+simulated person**:
+
+| suite | scenarios | needs | default? |
+|---|---|---|---|
+| `core` | `open_and_traverse`, `open_then_close`, `close_only`, `unlock_and_traverse`, `locked_recognize` | the door and the robot only | **yes** - `doorbench benchmark run` evaluates the core suite over all 1000 doors; every door's *primary* scenario is a core scenario; `DoorEnv.reset()` with no scenario never spawns a human; the headline "N / 1000 doors" number is core-only |
+| `human` | `hold_open_for_human`, `wait_for_human`, `knock_and_wait` | a kinematic simulated person (hold / wait) or social etiquette that presumes one (knock) | no - opt in with `--suite human` (or `--suite all`); results are reported in their own table and never mixed into the core number |
+
+Each scenario carries `suite` and `requires_human` (true only when a person is actually simulated);
+`spec.json["benchmark"]["suites"]` lists the door's scenario names per suite, `manifest.json` carries `core` /
+`human` lists, and `DoorEnv.core_scenarios` / `DoorEnv.human_scenarios` expose them
+(`doorbench.benchmark.scenarios.scenarios_in_suite(names, "core" | "human" | "all")`).
+
 ### Scenario assignment (seeded)
 
 `assign_scenarios(spec)` uses `random.Random(spec.seed · 1000003 + 17)`:

@@ -19,6 +19,25 @@ import random
 SCENARIO_TYPES = ("open_and_traverse", "open_then_close", "close_only", "unlock_and_traverse", "locked_recognize",
                   "hold_open_for_human", "wait_for_human", "knock_and_wait")
 
+# ---- suites.  Human-interaction scenarios are segregated: the `core` suite needs nothing but the door and the robot
+# and is the default everywhere (runner, DoorEnv, viewer, result tables).  The `human` suite adds a kinematic simulated
+# person (hold_open / wait) or social etiquette that presumes one (knock) and is an advanced, opt-in tier.
+CORE_SCENARIOS = ("open_and_traverse", "open_then_close", "close_only", "unlock_and_traverse", "locked_recognize")
+HUMAN_SCENARIOS = ("hold_open_for_human", "wait_for_human", "knock_and_wait")
+SUITES = ("core", "human")
+SCENARIO_SUITE = {**{n: "core" for n in CORE_SCENARIOS}, **{n: "human" for n in HUMAN_SCENARIOS}}
+assert set(SCENARIO_SUITE) == set(SCENARIO_TYPES)
+
+
+def suite_of(name: str) -> str:
+    """'core' (no human involved, default suite) or 'human' (advanced, opt-in)."""
+    return SCENARIO_SUITE[name]
+
+
+def scenarios_in_suite(names, suite: str) -> list:
+    """Filter scenario names: suite in {'core', 'human', 'all'}."""
+    return list(names) if suite == "all" else [n for n in names if SCENARIO_SUITE[n] == suite]
+
 SCENARIO_DESCRIPTIONS = {
     "open_and_traverse": "Start in the start zone, reach the handle, unlatch, open and walk through the door plane to the goal zone.",
     "open_then_close": "Open, walk through, then close the door behind you (latched if the door has a latch).",
@@ -401,7 +420,8 @@ def make_scenario(name: str, spec: dict, phys: dict, model: dict) -> dict:
     tt = expected_transit_time(name, spec, phys, start_c, targets_xy, (plane[0], plane[1]), (goal[0], goal[1]), clear, human, model)
     budget = 5 * math.ceil((3.0 * tt["total_s"] + 10.0) / 5.0)
     return {
-        "name": name, "description": SCENARIO_DESCRIPTIONS[name], "initial_state": initial, "start": start,
+        "name": name, "suite": SCENARIO_SUITE[name], "requires_human": human is not None,
+        "description": SCENARIO_DESCRIPTIONS[name], "initial_state": initial, "start": start,
         "approach_point": [round(float(c), 4) for c in appr], "handle_targets": targets, "pass_plane": plane_d,
         "goal": goal_d if name not in ("close_only", "locked_recognize") else None, "human": human,
         "thresholds": thr, "rewards": rewards, "success": success,
@@ -441,15 +461,19 @@ def assign_scenarios(spec: dict) -> list:
 
 def build_benchmark(spec: dict, phys: dict, model: dict) -> dict:
     names = assign_scenarios(spec)
+    assert SCENARIO_SUITE[names[0]] == "core", names          # the primary (default) scenario never needs a person
     scen = [make_scenario(n, spec, phys, model) for n in names]
-    return {"schema_version": "1.0", "robot": ROBOT, "human": HUMAN, "primary_scenario": names[0], "scenarios": scen,
+    return {"schema_version": "1.1", "robot": ROBOT, "human": HUMAN, "primary_scenario": names[0],
+            "suites": {s: scenarios_in_suite(names, s) for s in SUITES}, "scenarios": scen,
             "reward_values": R, "event_descriptions": EVENT_DESCRIPTIONS}
 
 
 def benchmark_summary(bench: dict) -> dict:
     """Compact form for manifest.json."""
     p = bench["scenarios"][0]
-    return {"scenarios": [s["name"] for s in bench["scenarios"]], "primary": bench["primary_scenario"], "time_budget_s": p["time_budget_s"],
+    names = [s["name"] for s in bench["scenarios"]]
+    return {"scenarios": names, "primary": bench["primary_scenario"], "core": scenarios_in_suite(names, "core"),
+            "human": scenarios_in_suite(names, "human"), "time_budget_s": p["time_budget_s"],
             "expected_transit_s": p["expected_transit_s"], "has_human": any(s.get("human") for s in bench["scenarios"])}
 
 

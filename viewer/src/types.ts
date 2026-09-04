@@ -113,6 +113,8 @@ export interface HumanJ {
 
 export interface ScenarioJ {
   name: string;
+  suite?: "core" | "human";        // core = default benchmark (no person); human = advanced opt-in suite
+  requires_human?: boolean;
   description: string;
   initial_state: { door: "closed" | "open"; lock_engaged: boolean; latched: boolean };
   start: { center: Vec3; radius: number; yaw: number; yaw_range: [number, number]; randomize: { position: string; radius: number; yaw_jitter_rad: number; seed_base: number; formula: string } };

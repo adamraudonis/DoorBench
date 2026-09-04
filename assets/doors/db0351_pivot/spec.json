@@ -194,7 +194,7 @@
   "gravity": 9.80665
  },
  "benchmark": {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "robot": {
    "walk_speed_m_s": 0.7,
    "body_radius_m": 0.3,
@@ -209,9 +209,19 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "open_and_traverse",
+  "suites": {
+   "core": [
+    "open_and_traverse"
+   ],
+   "human": [
+    "wait_for_human"
+   ]
+  },
   "scenarios": [
    {
     "name": "open_and_traverse",
+    "suite": "core",
+    "requires_human": false,
     "description": "Start in the start zone, reach the handle, unlatch, open and walk through the door plane to the goal zone.",
     "initial_state": {
      "door": "closed",
@@ -307,6 +317,8 @@
    },
    {
     "name": "wait_for_human",
+    "suite": "human",
+    "requires_human": true,
     "description": "A person comes through the door from the other side first: yield (no contact, stay out of the doorway), then open and walk through.",
     "initial_state": {
      "door": "closed",

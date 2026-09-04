@@ -185,7 +185,7 @@
   "gravity": 9.80665
  },
  "benchmark": {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "robot": {
    "walk_speed_m_s": 0.7,
    "body_radius_m": 0.3,
@@ -200,9 +200,19 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "unlock_and_traverse",
+  "suites": {
+   "core": [
+    "unlock_and_traverse",
+    "open_then_close",
+    "close_only"
+   ],
+   "human": []
+  },
   "scenarios": [
    {
     "name": "unlock_and_traverse",
+    "suite": "core",
+    "requires_human": false,
     "description": "The door is locked but releasable from the robot's side (thumbturn, keypad code, slide bolt, badge, REX ...): release the lock, open and walk through.",
     "initial_state": {
      "door": "closed",
@@ -296,6 +306,8 @@
    },
    {
     "name": "open_then_close",
+    "suite": "core",
+    "requires_human": false,
     "description": "Open, walk through, then close the door behind you (latched if the door has a latch).",
     "initial_state": {
      "door": "closed",
@@ -390,6 +402,8 @@
    },
    {
     "name": "close_only",
+    "suite": "core",
+    "requires_human": false,
     "description": "The door starts open; close it (and latch it) without slamming.",
     "initial_state": {
      "door": "open",

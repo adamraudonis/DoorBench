@@ -63,6 +63,19 @@ function KV({ rows }: { rows: Row[] }) {
 
 /** Door page.  URL query (after the id): `eval=1` shows the evaluation overlay, `scenario=<name>` selects it, `t=<s>` positions the person,
  *  `tip=<row key>` opens one explanation (e.g. `tip=en_size`). */
+/** Scenario <option>s grouped by suite: the core suite (no person; the default benchmark) first, the opt-in human suite after. */
+function ScenarioOptions({ scenarios }: { scenarios: ScenarioJ[] }) {
+  const idx = scenarios.map((s, i) => [s, i] as const);
+  const core = idx.filter(([s]) => (s.suite ?? "core") === "core");
+  const human = idx.filter(([s]) => s.suite === "human");
+  return (
+    <>
+      <optgroup label="Core suite (default, no person)">{core.map(([s, i]) => <option key={s.name} value={i}>{nice(s.name)}</option>)}</optgroup>
+      {human.length > 0 && <optgroup label="Human suite (advanced, opt-in)">{human.map(([s, i]) => <option key={s.name} value={i}>{nice(s.name)}</option>)}</optgroup>}
+    </>
+  );
+}
+
 export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id: string; query?: string }) {
   const entry = manifest.doors.find((d) => d.id === id);
   const mountRef = useRef<HTMLDivElement>(null);
@@ -323,7 +336,7 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
           <button onClick={() => setShowCol((v) => !v)}>{showCol ? "Hide" : "Show"} collision</button>
           <button className={showEval ? "active" : ""} aria-pressed={showEval} disabled={!scenario} title={scenario ? "Draw the benchmark scenario: start zone, approach, handle targets, pass plane, goal, human path" : "no benchmark block in spec.json"} onClick={() => { const v = !showEval; setShowEval(v); if (v) setTimeout(frameEvaluation, 0); }}>{showEval ? "Hide" : "Show"} evaluation</button>
           {showEval && scenarios.length > 1 && (
-            <select aria-label="Scenario" value={scenIdx} onChange={(e) => setScenIdx(parseInt(e.target.value))}>{scenarios.map((s, i) => <option key={s.name} value={i}>{nice(s.name)}</option>)}</select>
+            <select aria-label="Scenario" value={scenIdx} onChange={(e) => setScenIdx(parseInt(e.target.value))}><ScenarioOptions scenarios={scenarios} /></select>
           )}
         </div>
         {showEval && scenario?.human && (
@@ -344,7 +357,7 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
         <div className="use">{entry.id} · <a href={`#/?family=${entry.family}`}>{FAMILY_LABELS[entry.family] ?? entry.family}</a> · {entry.context} · task: {nice(entry.task)} · difficulty {entry.difficulty}/5</div>
         <div style={{ marginTop: 6 }} className="chips">
           <span className={"chip " + (entry.signed_off ? "ok" : "bad")}>{entry.signed_off ? "QA signed off" : "QA: " + (entry.qa_failed?.join(", ") || "needs review")}</span>
-          {scenarios.map((s, i) => <button key={s.name} className={"chip link" + (showEval && i === scenIdx ? " active" : "")} onClick={() => { setScenIdx(i); if (!showEval) { setShowEval(true); setTimeout(frameEvaluation, 0); } }}>{nice(s.name)}</button>)}
+          {scenarios.map((s, i) => <button key={s.name} className={"chip link" + (showEval && i === scenIdx ? " active" : "")} title={s.suite === "human" ? "human-interaction suite: advanced, opt-in (not part of the default core benchmark)" : "core suite: default benchmark, no person involved"} onClick={() => { setScenIdx(i); if (!showEval) { setShowEval(true); setTimeout(frameEvaluation, 0); } }}>{nice(s.name)}{s.suite === "human" ? <span className="suite-badge">human</span> : null}</button>)}
         </div>
         <h3>Joints</h3>
         {joints.map((h) => (
@@ -361,7 +374,7 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
           <div className="eval">
             <div className="kv" style={{ marginBottom: 6 }}>
               <span className="k">scenario<Info k="scenario" label="scenario" /></span>
-              <span className="v">{scenarios.length > 1 ? <select value={scenIdx} onChange={(e) => setScenIdx(parseInt(e.target.value))}>{scenarios.map((s, i) => <option key={s.name} value={i}>{nice(s.name)}</option>)}</select> : nice(scenario.name)}</span>
+              <span className="v">{scenarios.length > 1 ? <select value={scenIdx} onChange={(e) => setScenIdx(parseInt(e.target.value))}><ScenarioOptions scenarios={scenarios} /></select> : nice(scenario.name)}</span>
             </div>
             <p className="desc">{scenario.description}</p>
             <KV rows={[
@@ -378,6 +391,7 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
               ["handle targets", scenario.handle_targets.length ? scenario.handle_targets.join(", ") : "– (no operator: push through)", "handle_targets"],
               ["pass plane", `${fmt(scenario.pass_plane.width, 2)} × ${fmt(scenario.pass_plane.height, 2)} m at (${scenario.pass_plane.center.map((c) => fmt(c, 2)).join(", ")})`, "pass_plane"],
               ["goal zone", scenario.goal ? `(${scenario.goal.center.map((c) => fmt(c, 2)).join(", ")}) r ${fmt(scenario.goal.radius, 2)} m` : "– (none)", "goal_zone"],
+              ["suite", scenario.suite === "human" ? "human interaction (advanced, opt-in; not part of the default core benchmark)" : "core (default benchmark; no person involved)", "suite"] as Row,
               ...(scenario.human ? [["person", `${scenario.human.direction === "same_as_robot" ? "follows the robot" : "comes through first"} · ${fmt(scenario.human.speed_m_s, 1)} m/s · starts at ${fmt(scenario.human.start_t_s, 1)} s · path ends ${fmt(scenario.human.path[scenario.human.path.length - 1][0], 1)} s${scenario.human.waits_at_closed_door ? " · waits at a closed door" : ""}`, "human"] as Row] : []),
             ]} />
             <h4>Reward table<Info k="rewards" label="reward table" /></h4>
