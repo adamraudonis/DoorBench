@@ -497,10 +497,21 @@ def run_episode(job: Job) -> dict:
         def base_pos():
             return d.xpos[base_bid] if robot else base.pos
 
+        tr = env.tracker
+        prange_hi = float(m.jnt_range[env.pj][1]) if env.pj >= 0 and m.jnt_limited[env.pj] else None
+
         def clear_now():
-            """Is the opening clear right now (the scenario's clearance threshold)?  The label `door_open_clear` is
-            sticky; a door that closed again behind a person or under its closer must be re-opened."""
-            return bool(env._door_clear_now())
+            """Is the opening clear *right now*?  The reference rule of the labels (`LabelTracker.door_open_clear`:
+            hinge >= 60 deg, slide >= 0.55 m or 95 % of the travel, overhead >= 1.9 m) evaluated instantaneously - the
+            label itself is sticky and a door that closed again behind a person or under its closer must be
+            re-opened - or the scenario's own clearance threshold."""
+            if env._door_clear_now():
+                return True
+            q = abs(float(d.qpos[pq])) if pq >= 0 else 0.0
+            if is_hinge:
+                return q >= tr.clear_angle
+            lim = min(tr.clear_travel, 0.95 * prange_hi) if prange_hi is not None else tr.clear_travel
+            return q >= max(lim, tr.open_thr)      # a lock-limited 2 mm range is not an opening
 
         def damaged_by_policy():
             """Damage after the policy first touched the door (a flap that slams on its own at reset, or the person of

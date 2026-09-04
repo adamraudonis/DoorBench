@@ -98,6 +98,9 @@ class ScriptedHandPolicy(Policy):
         elif kin.startswith("slide"):
             self.mode = "slide"
             self.target = self.hi + 0.05      # against the end stop
+        elif kin == "hinge_horizontal":
+            self.mode = "swing"
+            self.target = self.hi + 0.05      # a hatch lid / tilt-up panel rests against its stop or strut
         else:
             self.mode = "swing"
             self.target = min(DEG(80), max(0.85 * self.hi, min(0.97 * self.hi, DEG(62))))
