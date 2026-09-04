@@ -121,46 +121,69 @@ files, the JSON schema and the validator are in [`results/`](results/README.md);
 catalogue card carries the per-door outcome of each baseline.
 
 <!-- baseline-results:start -->
-| policy | what it is | doors solved (all seeds) | episode success | damage | median time-to-traverse | wall time |
+**Core suite** (the default: every door, every core scenario it lists, no simulated person):
+
+| policy | what it is | doors solved (every scenario, every seed) | episode success | damage | median time-to-traverse | wall time |
 |---|---|---|---|---|---|---|
-| `scripted_hand` | the per-family oracle heuristic of `scripts/demo_mujoco.py` (reads joint names, lock parts and keypad codes from the spec; DoorEnv hand + synthetic base) | **860 / 1000** | 86.6 % | 0.3 % | 3.1 s | 1.3 min |
-| `g1_locomotion` | Unitree G1 (MuJoCo Menagerie) + pretrained unitree_rl_gym locomotion policy, walks toward the goal, arms parked | **155 / 1000** | 16.8 % | 3.2 % | 5.5 s | 15.7 min |
-| `random` | uniform random torques within the hand limits on every reachable joint + a random-walk base | **55 / 1000** | 8.1 % | 55.4 % | 19.0 s | 1.2 min |
+| `scripted_hand` | the per-family oracle heuristic of `scripts/demo_mujoco.py` (reads joint names, lock parts and keypad codes from the spec; DoorEnv hand + synthetic base) | **849 / 1000** | 88.2 % | 0.7 % | 3.4 s | 8.8 min |
+| `random` | uniform random torques within the hand limits on every reachable joint + a random-walk base | **42 / 1000** | 4.7 % | 56.3 % | 32.3 s | 12.5 min |
 
-Doors solved per family (of the family's door count):
+Doors solved per family (core suite; of the family's door count):
 
-| family | doors | `scripted_hand` | `g1_locomotion` | `random` |
-|---|---|---|---|---|
-| swing_single | 440 | 397 | 58 | 16 |
-| sliding_single | 100 | 91 | 12 | 13 |
-| swing_double | 76 | 62 | 8 | 3 |
-| gate_swing | 40 | 39 | 7 | 4 |
-| sliding_bypass | 35 | 35 | 0 | 2 |
-| bifold | 30 | 24 | 0 | 0 |
-| pivot | 20 | 19 | 3 | 4 |
-| garage_sectional | 18 | 16 | 5 | 1 |
-| automatic_sliding | 15 | 12 | 10 | 3 |
-| cold_storage | 15 | 15 | 2 | 3 |
-| pet_door | 15 | 0 | 0 | 0 |
-| revolving | 15 | 5 | 0 | 0 |
-| rollup | 15 | 15 | 9 | 1 |
-| stall | 15 | 15 | 9 | 2 |
-| accordion | 12 | 3 | 2 | 0 |
-| dutch | 12 | 11 | 0 | 0 |
-| saloon | 12 | 9 | 8 | 0 |
-| automatic_swing | 10 | 6 | 3 | 2 |
-| baby_gate | 10 | 10 | 0 | 0 |
-| gate_sliding | 10 | 9 | 0 | 0 |
-| hatch_floor | 10 | 9 | 3 | 0 |
-| ship_watertight | 10 | 10 | 0 | 0 |
-| turnstile_fullheight | 10 | 4 | 3 | 0 |
-| turnstile_tripod | 10 | 1 | 0 | 0 |
-| elevator | 8 | 8 | 0 | 0 |
-| hatch_ceiling | 8 | 8 | 7 | 0 |
-| strip_curtain | 8 | 6 | 5 | 0 |
-| vault | 8 | 8 | 0 | 0 |
-| garage_tiltup | 7 | 7 | 1 | 1 |
-| blast | 6 | 6 | 0 | 0 |
+| family | doors | `scripted_hand` | `random` |
+|---|---|---|---|
+| swing_single | 440 | 387 | 13 |
+| sliding_single | 100 | 96 | 6 |
+| swing_double | 76 | 60 | 1 |
+| gate_swing | 40 | 34 | 2 |
+| sliding_bypass | 35 | 35 | 0 |
+| bifold | 30 | 12 | 0 |
+| pivot | 20 | 19 | 1 |
+| garage_sectional | 18 | 15 | 1 |
+| automatic_sliding | 15 | 12 | 0 |
+| cold_storage | 15 | 15 | 0 |
+| pet_door | 15 | 0 | 0 |
+| revolving | 15 | 10 | 0 |
+| rollup | 15 | 15 | 1 |
+| stall | 15 | 15 | 1 |
+| accordion | 12 | 0 | 0 |
+| dutch | 12 | 10 | 0 |
+| saloon | 12 | 11 | 0 |
+| automatic_swing | 10 | 9 | 2 |
+| baby_gate | 10 | 10 | 0 |
+| gate_sliding | 10 | 9 | 0 |
+| hatch_floor | 10 | 10 | 0 |
+| ship_watertight | 10 | 10 | 0 |
+| turnstile_fullheight | 10 | 10 | 6 |
+| turnstile_tripod | 10 | 10 | 7 |
+| elevator | 8 | 0 | 0 |
+| hatch_ceiling | 8 | 8 | 0 |
+| strip_curtain | 8 | 6 | 0 |
+| vault | 8 | 8 | 0 |
+| garage_tiltup | 7 | 7 | 1 |
+| blast | 6 | 6 | 0 |
+
+Per core scenario (doors solved on every seed / doors listing it; episode success in brackets):
+
+| scenario | doors | `scripted_hand` | `random` |
+|---|---|---|---|
+| open_and_traverse | 761 | 681 (89.9 %) | 0 (0.3 %) |
+| open_then_close | 294 | 251 (87.4 %) | 0 (0.2 %) |
+| close_only | 115 | 106 (92.8 %) | 12 (18.6 %) |
+| unlock_and_traverse | 141 | 107 (76.1 %) | 0 (0.0 %) |
+| locked_recognize | 98 | 87 (88.8 %) | 42 (43.2 %) |
+
+**Human suite** (advanced, opt-in `--suite human`: a simulated person; 79 doors list `hold_open_for_human`, `wait_for_human` or `knock_and_wait`; reported separately, never part of the core number):
+
+| policy | doors | doors solved | episode success | human collisions | damage |
+|---|---|---|---|---|---|
+| `scripted_hand` | 79 | **67 / 79** | 88.1 % | 0.0 % | 0.0 % |
+
+| scenario | doors | `scripted_hand` |
+|---|---|---|
+| hold_open_for_human | 42 | 37 (91.3 %) |
+| wait_for_human | 29 | 22 (79.3 %) |
+| knock_and_wait | 10 | 10 (100.0 %) |
 
 <!-- baseline-results:end -->
 

@@ -285,9 +285,10 @@ def semantic_errors(doc: dict, manifest: dict | None, submission: bool, path: st
         if isinstance(run.get("time_budget_s"), (int, float)):
             errs.append("submission must use each scenario's own time budget (no --budget override)")
         base = os.path.basename(path)
-        if not re.match(r"^[a-z0-9]+_[a-z0-9_.-]+\.json$", base):
-            errs.append(f"submission file name should be results/<team>_<policy>.json (got {base})")
         pname = doc.get("policy", {}).get("name", "")
+        bare = base in (f"{pname}.json", f"{pname}_human.json")          # the shipped baselines use the bare policy name
+        if not bare and not re.match(r"^[a-z0-9]+_[a-z0-9_.-]+\.json$", base):
+            errs.append(f"submission file name should be results/<team>_<policy>.json (got {base})")
         if pname and pname not in base:
             errs.append(f"policy.name {pname!r} should appear in the file name {base}")
         if core is None and human is not None and not base.endswith("_human.json"):
