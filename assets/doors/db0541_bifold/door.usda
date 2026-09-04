@@ -1,291 +1,288 @@
 #usda 1.0
 (
-    defaultPrim = "World"
+    defaultPrim = "db0541_bifold"
     metersPerUnit = 1
     upAxis = "Z"
 )
 
-def Xform "World"
+def Xform "db0541_bifold"
 {
-    def Xform "db0541_bifold" (
-        prepend apiSchemas = ["PhysicsArticulationRootAPI"]
-    )
+    custom string doorbench:couplings = '[{"type": "mimic", "driven": "panel_0_1_hinge", "driver": "panel_0_0_hinge", "coeff": [0, -2.0, 0, 0, 0], "gearing": 2.0, "offset": -0.0, "label": "q = -2 * q_pivot (track-guided fold)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "mimic", "driven": "panel_1_1_hinge", "driver": "panel_1_0_hinge", "coeff": [0, -2.0, 0, 0, 0], "gearing": 2.0, "offset": -0.0, "label": "q = -2 * q_pivot (track-guided fold)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}]'
+    custom string doorbench:door_id = "db0541_bifold"
+    custom string doorbench:meta = '{"door_id": "db0541_bifold", "family": "bifold", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "panel_0_0_hinge", "secondary_joint": "panel_1_0_hinge", "operator_joint": null, "handle_height": 1.0, "mass_reconciled_kg": 3.6528160000000014, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.066, -0.0775, 1.0], "handle_cam_pos": [0.11399999999999999, -0.8775000000000001, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"panel_0_0_hinge": "/db0541_bifold/Articulation/Joints/panel_0_0_hinge", "panel_0_1_hinge": "/db0541_bifold/Articulation/Joints/panel_0_1_hinge", "panel_1_0_hinge": "/db0541_bifold/Articulation/Joints/panel_1_0_hinge", "panel_1_1_hinge": "/db0541_bifold/Articulation/Joints/panel_1_1_hinge"}}'
+
+    def Scope "Looks"
     {
-        custom string doorbench:couplings = '[{"type": "polynomial", "driven": "panel_0_1_hinge", "driver": "panel_0_0_hinge", "coeff": [0, -2.0, 0, 0, 0], "label": "q = -2 * q_pivot (track-guided fold)"}, {"type": "polynomial", "driven": "panel_1_1_hinge", "driver": "panel_1_0_hinge", "coeff": [0, -2.0, 0, 0, 0], "label": "q = -2 * q_pivot (track-guided fold)"}]'
-        custom string doorbench:meta = '{"door_id": "db0541_bifold", "family": "bifold", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "panel_0_0_hinge", "secondary_joint": "panel_1_0_hinge", "operator_joint": null, "handle_height": 1.0, "mass_reconciled_kg": 3.6528160000000014, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.066, -0.0775, 1.0], "handle_cam_pos": [0.11399999999999999, -0.8775000000000001, 1.28]}'
-        custom bool physxArticulation:enabledSelfCollisions = 1
-        custom int physxArticulation:solverPositionIterationCount = 32
-
-        def Scope "Looks"
+        def Material "mat_floor"
         {
-            def Material "mat_floor"
+            token outputs:surface.connect = </db0541_bifold/Looks/mat_floor/Shader.outputs:surface>
+
+            def Shader "Shader"
             {
-                token outputs:surface.connect = </World/db0541_bifold/Looks/mat_floor/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.55, 0.53, 0.5)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.85
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_wall"
-            {
-                token outputs:surface.connect = </World/db0541_bifold/Looks/mat_wall/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.78, 0.76, 0.7)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.9
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_frame"
-            {
-                token outputs:surface.connect = </World/db0541_bifold/Looks/mat_frame/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.82, 0.7, 0.5)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.55
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_track"
-            {
-                token outputs:surface.connect = </World/db0541_bifold/Looks/mat_track/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.8, 0.81, 0.83)
-                    float inputs:metallic = 1
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.4
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_panel_0_0"
-            {
-                token outputs:surface.connect = </World/db0541_bifold/Looks/mat_panel_0_0/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.93, 0.93, 0.91)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.47
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_panel_0_0_louver"
-            {
-                token outputs:surface.connect = </World/db0541_bifold/Looks/mat_panel_0_0_louver/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.7905, 0.7905, 0.7735)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.6
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_panel_0_1"
-            {
-                token outputs:surface.connect = </World/db0541_bifold/Looks/mat_panel_0_1/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.93, 0.93, 0.91)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.47
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_panel_0_1_louver"
-            {
-                token outputs:surface.connect = </World/db0541_bifold/Looks/mat_panel_0_1_louver/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.7905, 0.7905, 0.7735)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.6
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_op_stainless"
-            {
-                token outputs:surface.connect = </World/db0541_bifold/Looks/mat_op_stainless/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.75, 0.76, 0.77)
-                    float inputs:metallic = 1
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.35
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_panel_1_0"
-            {
-                token outputs:surface.connect = </World/db0541_bifold/Looks/mat_panel_1_0/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.93, 0.93, 0.91)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.47
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_panel_1_0_louver"
-            {
-                token outputs:surface.connect = </World/db0541_bifold/Looks/mat_panel_1_0_louver/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.7905, 0.7905, 0.7735)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.6
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_panel_1_1"
-            {
-                token outputs:surface.connect = </World/db0541_bifold/Looks/mat_panel_1_1/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.93, 0.93, 0.91)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.47
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_panel_1_1_louver"
-            {
-                token outputs:surface.connect = </World/db0541_bifold/Looks/mat_panel_1_1_louver/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.7905, 0.7905, 0.7735)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.6
-                    token outputs:surface
-                }
-            }
-
-            def Material "PhysMat_mat_floor" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.68
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.8
-            }
-
-            def Material "PhysMat_mat_wall" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
-            }
-
-            def Material "PhysMat_mat_frame" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
-            }
-
-            def Material "PhysMat_mat_panel_0_0" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.2975
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.35
-            }
-
-            def Material "PhysMat_mat_panel_0_1" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.2975
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.35
-            }
-
-            def Material "PhysMat_mat_op_stainless" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.595
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.7
-            }
-
-            def Material "PhysMat_mat_panel_1_0" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.2975
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.35
-            }
-
-            def Material "PhysMat_mat_panel_1_1" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.2975
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.35
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.55, 0.53, 0.5)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.85
+                token outputs:surface
             }
         }
 
+        def Material "mat_wall"
+        {
+            token outputs:surface.connect = </db0541_bifold/Looks/mat_wall/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.78, 0.76, 0.7)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.9
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_frame"
+        {
+            token outputs:surface.connect = </db0541_bifold/Looks/mat_frame/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.82, 0.7, 0.5)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.55
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_track"
+        {
+            token outputs:surface.connect = </db0541_bifold/Looks/mat_track/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.8, 0.81, 0.83)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.4
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_panel_0_0"
+        {
+            token outputs:surface.connect = </db0541_bifold/Looks/mat_panel_0_0/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.93, 0.93, 0.91)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.47
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_panel_0_0_louver"
+        {
+            token outputs:surface.connect = </db0541_bifold/Looks/mat_panel_0_0_louver/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.7905, 0.7905, 0.7735)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.6
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_panel_0_1"
+        {
+            token outputs:surface.connect = </db0541_bifold/Looks/mat_panel_0_1/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.93, 0.93, 0.91)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.47
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_panel_0_1_louver"
+        {
+            token outputs:surface.connect = </db0541_bifold/Looks/mat_panel_0_1_louver/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.7905, 0.7905, 0.7735)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.6
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_op_stainless"
+        {
+            token outputs:surface.connect = </db0541_bifold/Looks/mat_op_stainless/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.75, 0.76, 0.77)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.35
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_panel_1_0"
+        {
+            token outputs:surface.connect = </db0541_bifold/Looks/mat_panel_1_0/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.93, 0.93, 0.91)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.47
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_panel_1_0_louver"
+        {
+            token outputs:surface.connect = </db0541_bifold/Looks/mat_panel_1_0_louver/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.7905, 0.7905, 0.7735)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.6
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_panel_1_1"
+        {
+            token outputs:surface.connect = </db0541_bifold/Looks/mat_panel_1_1/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.93, 0.93, 0.91)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.47
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_panel_1_1_louver"
+        {
+            token outputs:surface.connect = </db0541_bifold/Looks/mat_panel_1_1_louver/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.7905, 0.7905, 0.7735)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.6
+                token outputs:surface
+            }
+        }
+
+        def Material "PhysMat_mat_floor_0_800" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.68
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.8
+        }
+
+        def Material "PhysMat_mat_wall_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_frame_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_panel_0_0_0_350" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.2975
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.35
+        }
+
+        def Material "PhysMat_mat_panel_0_1_0_350" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.2975
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.35
+        }
+
+        def Material "PhysMat_mat_op_stainless_0_700" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.595
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.7
+        }
+
+        def Material "PhysMat_mat_panel_1_0_0_350" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.2975
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.35
+        }
+
+        def Material "PhysMat_mat_panel_1_1_0_350" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.2975
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.35
+        }
+    }
+
+    def Xform "Env"
+    {
         def Xform "world_env"
         {
             custom string doorbench:semantic = "wall"
@@ -294,13 +291,14 @@ def Xform "World"
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "floor" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Floor"
                 custom string doorbench:semantic = "floor"
-                rel material:binding = </World/db0541_bifold/Looks/mat_floor>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_floor> (
+                rel material:binding = </db0541_bifold/Looks/mat_floor>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_floor_0_800> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -313,13 +311,14 @@ def Xform "World"
             }
 
             def Cube "wall_left" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Wall"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0541_bifold/Looks/mat_wall>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_wall> (
+                rel material:binding = </db0541_bifold/Looks/mat_wall>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_wall_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -332,13 +331,14 @@ def Xform "World"
             }
 
             def Cube "wall_right" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Wall"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0541_bifold/Looks/mat_wall>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_wall> (
+                rel material:binding = </db0541_bifold/Looks/mat_wall>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_wall_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -351,13 +351,14 @@ def Xform "World"
             }
 
             def Cube "wall_header" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Wall header"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0541_bifold/Looks/mat_wall>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_wall> (
+                rel material:binding = </db0541_bifold/Looks/mat_wall>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_wall_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -370,13 +371,14 @@ def Xform "World"
             }
 
             def Cube "jamb_hinge" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Hinge jamb"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0541_bifold/Looks/mat_frame>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0541_bifold/Looks/mat_frame>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -389,13 +391,14 @@ def Xform "World"
             }
 
             def Cube "jamb_strike" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Strike jamb"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0541_bifold/Looks/mat_frame>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0541_bifold/Looks/mat_frame>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -408,13 +411,14 @@ def Xform "World"
             }
 
             def Cube "stud_strike" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Stud"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0541_bifold/Looks/mat_wall>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_wall> (
+                rel material:binding = </db0541_bifold/Looks/mat_wall>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_wall_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -427,13 +431,14 @@ def Xform "World"
             }
 
             def Cube "jamb_head" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Head jamb"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0541_bifold/Looks/mat_frame>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0541_bifold/Looks/mat_frame>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -446,13 +451,14 @@ def Xform "World"
             }
 
             def Cube "head_stud" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Head stud"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0541_bifold/Looks/mat_wall>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_wall> (
+                rel material:binding = </db0541_bifold/Looks/mat_wall>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_wall_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -468,9 +474,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Casing"
                 custom string doorbench:semantic = "decor"
-                rel material:binding = </World/db0541_bifold/Looks/mat_frame>
+                rel material:binding = </db0541_bifold/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.07, 0.016, 2.071)
@@ -482,9 +489,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Casing"
                 custom string doorbench:semantic = "decor"
-                rel material:binding = </World/db0541_bifold/Looks/mat_frame>
+                rel material:binding = </db0541_bifold/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.07, 0.016, 2.071)
@@ -496,9 +504,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Casing"
                 custom string doorbench:semantic = "decor"
-                rel material:binding = </World/db0541_bifold/Looks/mat_frame>
+                rel material:binding = </db0541_bifold/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.94, 0.016, 0.07)
@@ -510,9 +519,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Casing"
                 custom string doorbench:semantic = "decor"
-                rel material:binding = </World/db0541_bifold/Looks/mat_frame>
+                rel material:binding = </db0541_bifold/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.07, 0.016, 2.071)
@@ -524,9 +534,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Casing"
                 custom string doorbench:semantic = "decor"
-                rel material:binding = </World/db0541_bifold/Looks/mat_frame>
+                rel material:binding = </db0541_bifold/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.07, 0.016, 2.071)
@@ -538,9 +549,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Casing"
                 custom string doorbench:semantic = "decor"
-                rel material:binding = </World/db0541_bifold/Looks/mat_frame>
+                rel material:binding = </db0541_bifold/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.94, 0.016, 0.07)
@@ -552,9 +564,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Top track"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0541_bifold/Looks/mat_track>
+                rel material:binding = </db0541_bifold/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.772, 0.04, 0.03)
@@ -586,31 +599,236 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
+    }
 
-        def Xform "panel_0_0" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+    def Xform "Articulation" (
+        prepend apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI"]
+    )
+    {
+        custom bool physxArticulation:articulationEnabled = 1
+        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom float physxArticulation:sleepThreshold = 0
+        custom int physxArticulation:solverPositionIterationCount = 16
+        custom int physxArticulation:solverVelocityIterationCount = 4
+        custom float physxArticulation:stabilizationThreshold = 0
+
+        def Scope "Joints"
+        {
+            def PhysicsFixedJoint "base_fixed"
+            {
+                custom string doorbench:role = "base"
+                rel physics:body1 = </db0541_bifold/Articulation/base>
+                point3f physics:localPos0 = (0, 0, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+            }
+
+            def PhysicsRevoluteJoint "panel_0_0_hinge" (
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+            )
+            {
+                custom float doorbench:damping_si = 0.63652813
+                custom float doorbench:friction_effort = 0.744794
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Pivot panel (0 = closed, + = folding open)"
+                custom bool doorbench:limited = 1
+                custom bool doorbench:robot_interactive = 1
+                custom string doorbench:role = "primary"
+                custom string doorbench:source_joint = "panel_0_0_hinge"
+                custom float doorbench:stiffness_si = 0
+                custom float doorbench:target_si = 0
+                custom float doorbench:zero_offset = 0
+                float drive:angular:physics:damping = 0.011109512
+                float drive:angular:physics:maxForce = 1000000
+                float drive:angular:physics:stiffness = 0
+                float drive:angular:physics:targetPosition = 0
+                float drive:angular:physics:targetVelocity = 0
+                uniform token drive:angular:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </db0541_bifold/Articulation/base>
+                rel physics:body1 = </db0541_bifold/Articulation/panel_0_0>
+                point3f physics:localPos0 = (-0.351, 0, 0)
+                point3f physics:localPos1 = (0.035, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
+                quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 90
+                custom float physxJoint:armature = 0.02
+                custom float physxJoint:jointFriction = 0.035281435
+                custom float physxJointAxis:rotX:armature = 0.02
+                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.744794
+                custom float physxJointAxis:rotX:staticFrictionEffort = 0.744794
+                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+            }
+
+            def PhysicsRevoluteJoint "panel_0_1_hinge" (
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX", "PhysxMimicJointAPI:rotX"]
+            )
+            {
+                custom float doorbench:damping_si = 0.2
+                custom float doorbench:friction_effort = 0.1
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Panel-to-panel hinge (driven)"
+                custom bool doorbench:limited = 1
+                custom string doorbench:mimic_label = "q = -2 * q_pivot (track-guided fold)"
+                custom bool doorbench:robot_interactive = 0
+                custom string doorbench:role = "secondary"
+                custom string doorbench:source_joint = "panel_0_1_hinge"
+                custom float doorbench:stiffness_si = 0
+                custom float doorbench:target_si = 0
+                custom float doorbench:zero_offset = 0
+                float drive:angular:physics:damping = 0.0034906585
+                float drive:angular:physics:maxForce = 1000000
+                float drive:angular:physics:stiffness = 0
+                float drive:angular:physics:targetPosition = 0
+                float drive:angular:physics:targetVelocity = 0
+                uniform token drive:angular:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </db0541_bifold/Articulation/panel_0_0>
+                rel physics:body1 = </db0541_bifold/Articulation/panel_0_1>
+                point3f physics:localPos0 = (0.19, 0, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
+                quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
+                float physics:lowerLimit = -180
+                float physics:upperLimit = 0
+                custom float physxJoint:armature = 0.005
+                custom float physxJoint:jointFriction = 0.009698938
+                custom float physxJointAxis:rotX:armature = 0.005
+                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.1
+                custom float physxJointAxis:rotX:staticFrictionEffort = 0.1
+                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxMimicJoint:rotX:gearing = 2
+                custom float physxMimicJoint:rotX:offset = -0
+                custom rel physxMimicJoint:rotX:referenceJoint = </db0541_bifold/Articulation/Joints/panel_0_0_hinge>
+                custom token physxMimicJoint:rotX:referenceJointAxis = "rotX"
+            }
+
+            def PhysicsRevoluteJoint "panel_1_0_hinge" (
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+            )
+            {
+                custom float doorbench:damping_si = 0.63652813
+                custom float doorbench:friction_effort = 0.744794
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Pivot panel (0 = closed, + = folding open)"
+                custom bool doorbench:limited = 1
+                custom bool doorbench:robot_interactive = 1
+                custom string doorbench:role = "primary"
+                custom string doorbench:source_joint = "panel_1_0_hinge"
+                custom float doorbench:stiffness_si = 0
+                custom float doorbench:target_si = 0
+                custom float doorbench:zero_offset = 0
+                float drive:angular:physics:damping = 0.011109512
+                float drive:angular:physics:maxForce = 1000000
+                float drive:angular:physics:stiffness = 0
+                float drive:angular:physics:targetPosition = 0
+                float drive:angular:physics:targetVelocity = 0
+                uniform token drive:angular:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </db0541_bifold/Articulation/base>
+                rel physics:body1 = </db0541_bifold/Articulation/panel_1_0>
+                point3f physics:localPos0 = (0.351, 0, 0)
+                point3f physics:localPos1 = (-0.035, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+                quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 90
+                custom float physxJoint:armature = 0.02
+                custom float physxJoint:jointFriction = 0.035281435
+                custom float physxJointAxis:rotX:armature = 0.02
+                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.744794
+                custom float physxJointAxis:rotX:staticFrictionEffort = 0.744794
+                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+            }
+
+            def PhysicsRevoluteJoint "panel_1_1_hinge" (
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX", "PhysxMimicJointAPI:rotX"]
+            )
+            {
+                custom float doorbench:damping_si = 0.2
+                custom float doorbench:friction_effort = 0.1
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Panel-to-panel hinge (driven)"
+                custom bool doorbench:limited = 1
+                custom string doorbench:mimic_label = "q = -2 * q_pivot (track-guided fold)"
+                custom bool doorbench:robot_interactive = 0
+                custom string doorbench:role = "secondary"
+                custom string doorbench:source_joint = "panel_1_1_hinge"
+                custom float doorbench:stiffness_si = 0
+                custom float doorbench:target_si = 0
+                custom float doorbench:zero_offset = 0
+                float drive:angular:physics:damping = 0.0034906585
+                float drive:angular:physics:maxForce = 1000000
+                float drive:angular:physics:stiffness = 0
+                float drive:angular:physics:targetPosition = 0
+                float drive:angular:physics:targetVelocity = 0
+                uniform token drive:angular:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </db0541_bifold/Articulation/panel_1_0>
+                rel physics:body1 = </db0541_bifold/Articulation/panel_1_1>
+                point3f physics:localPos0 = (-0.19, 0, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+                quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+                float physics:lowerLimit = -180
+                float physics:upperLimit = 0
+                custom float physxJoint:armature = 0.005
+                custom float physxJoint:jointFriction = 0.009698938
+                custom float physxJointAxis:rotX:armature = 0.005
+                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.1
+                custom float physxJointAxis:rotX:staticFrictionEffort = 0.1
+                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxMimicJoint:rotX:gearing = 2
+                custom float physxMimicJoint:rotX:offset = -0
+                custom rel physxMimicJoint:rotX:referenceJoint = </db0541_bifold/Articulation/Joints/panel_1_0_hinge>
+                custom token physxMimicJoint:rotX:referenceJointAxis = "rotX"
+            }
+        }
+
+        def Xform "base" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
+            custom string doorbench:label = "Fixed base link"
+            custom string doorbench:semantic = "base"
+            point3f physics:centerOfMass = (0, 0, 0)
+            float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
+            float physics:mass = 1
+            quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+        }
+
+        def Xform "panel_0_0" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:label = "Fold panel"
             custom string doorbench:semantic = "leaf"
             point3f physics:centerOfMass = (0.1, 0, 1.0360123)
             float3 physics:diagonalInertia = (0.0028249922, 0.31263515, 0.3152747)
             float physics:mass = 0.9083802
             quatf physics:principalAxes = (0.5, -0.49999997, -0.49999997, -0.5)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
             double3 xformOp:translate = (-0.386, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "panel_0_0_slab" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Leaf slab"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_panel_0_0> (
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_panel_0_0_0_350> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -626,9 +844,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -640,9 +859,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -654,9 +874,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -668,9 +889,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -682,9 +904,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -696,9 +919,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -710,9 +934,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -724,9 +949,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -738,9 +964,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -752,9 +979,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -766,9 +994,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -780,9 +1009,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -794,9 +1024,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -808,9 +1039,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -822,9 +1054,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -836,9 +1069,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -850,9 +1084,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -864,9 +1099,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -878,9 +1114,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -892,9 +1129,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -906,9 +1144,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -920,9 +1159,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -934,9 +1174,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -948,9 +1189,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -962,9 +1204,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -976,9 +1219,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -990,9 +1234,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1004,9 +1249,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1018,9 +1264,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1032,9 +1279,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1046,9 +1294,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1060,9 +1309,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1074,9 +1324,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1088,9 +1339,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1100,29 +1352,30 @@ def Xform "World"
         }
 
         def Xform "panel_0_1" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
+            custom string doorbench:label = "Fold panel"
             custom string doorbench:semantic = "leaf"
             point3f physics:centerOfMass = (0.12908709, -0.06572579, 1.0011742)
             float3 physics:diagonalInertia = (0.0006157141, 0.012380419, 0.012752785)
             float physics:mass = 0.9180278
             quatf physics:principalAxes = (0.70436245, 0.05066825, -0.7058864, 0.055051025)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
             double3 xformOp:translate = (-0.196, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "panel_0_1_slab" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Leaf slab"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_panel_0_1> (
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_panel_0_1_0_350> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -1138,9 +1391,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1152,9 +1406,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1166,9 +1421,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1180,9 +1436,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1194,9 +1451,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1208,9 +1466,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1222,9 +1481,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1236,9 +1496,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1250,9 +1511,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1264,9 +1526,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1278,9 +1541,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1292,9 +1556,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1306,9 +1571,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1320,9 +1586,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1334,9 +1601,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1348,9 +1616,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1362,9 +1631,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1376,9 +1646,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1390,9 +1661,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1404,9 +1676,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1418,9 +1691,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1432,9 +1706,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1446,9 +1721,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1460,9 +1736,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1474,9 +1751,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1488,9 +1766,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1502,9 +1781,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1516,9 +1796,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1530,9 +1811,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1544,9 +1826,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1558,9 +1841,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1572,9 +1856,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1586,9 +1871,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1600,9 +1886,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_0_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1615,24 +1902,26 @@ def Xform "World"
                 prepend references = @../../hardware/pull_1e5d69a91a.usdc@</pull_1e5d69a91a>
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "D-pull handle 200 mm"
                 custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0541_bifold/Looks/mat_op_stainless>
+                rel material:binding = </db0541_bifold/Looks/mat_op_stainless>
                 quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
                 double3 xformOp:translate = (0.13, -0.0175, 1)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Capsule "panel_0_1_pull_col_n" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Pull grip"
                 custom string doorbench:semantic = "operator"
                 double height = 0.16
-                rel material:binding = </World/db0541_bifold/Looks/mat_op_stainless>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_op_stainless> (
+                rel material:binding = </db0541_bifold/Looks/mat_op_stainless>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_op_stainless_0_700> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -1654,29 +1943,30 @@ def Xform "World"
         }
 
         def Xform "panel_1_0" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
+            custom string doorbench:label = "Fold panel"
             custom string doorbench:semantic = "leaf"
             point3f physics:centerOfMass = (-0.1, 0, 1.0360123)
             float3 physics:diagonalInertia = (0.0028249922, 0.31263515, 0.3152747)
             float physics:mass = 0.9083802
             quatf physics:principalAxes = (0.49999997, 0.5, 0.5, -0.49999997)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
             double3 xformOp:translate = (0.386, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "panel_1_0_slab" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Leaf slab"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_panel_1_0> (
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_panel_1_0_0_350> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -1692,9 +1982,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1706,9 +1997,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1720,9 +2012,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1734,9 +2027,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1748,9 +2042,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1762,9 +2057,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1776,9 +2072,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1790,9 +2087,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1804,9 +2102,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1818,9 +2117,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1832,9 +2132,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1846,9 +2147,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1860,9 +2162,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1874,9 +2177,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1888,9 +2192,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1902,9 +2207,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1916,9 +2222,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1930,9 +2237,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1944,9 +2252,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1958,9 +2267,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1972,9 +2282,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -1986,9 +2297,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2000,9 +2312,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2014,9 +2327,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2028,9 +2342,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2042,9 +2357,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2056,9 +2372,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2070,9 +2387,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2084,9 +2402,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2098,9 +2417,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2112,9 +2432,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2126,9 +2447,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2140,9 +2462,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2154,9 +2477,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_0_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2166,29 +2490,30 @@ def Xform "World"
         }
 
         def Xform "panel_1_1" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
+            custom string doorbench:label = "Fold panel"
             custom string doorbench:semantic = "leaf"
             point3f physics:centerOfMass = (-0.12908709, -0.06572579, 1.0011742)
             float3 physics:diagonalInertia = (0.0006157141, 0.012380419, 0.012752785)
             float physics:mass = 0.9180278
             quatf physics:principalAxes = (0.7058864, -0.055051025, -0.70436245, -0.05066825)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
             double3 xformOp:translate = (0.196, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "panel_1_1_slab" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Leaf slab"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_panel_1_1> (
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_panel_1_1_0_350> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -2204,9 +2529,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2218,9 +2544,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2232,9 +2559,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2246,9 +2574,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2260,9 +2589,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2274,9 +2604,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2288,9 +2619,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2302,9 +2634,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2316,9 +2649,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2330,9 +2664,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2344,9 +2679,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2358,9 +2694,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2372,9 +2709,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2386,9 +2724,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2400,9 +2739,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2414,9 +2754,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2428,9 +2769,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2442,9 +2784,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2456,9 +2799,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2470,9 +2814,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2484,9 +2829,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2498,9 +2844,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2512,9 +2859,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2526,9 +2874,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2540,9 +2889,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2554,9 +2904,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2568,9 +2919,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2582,9 +2934,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2596,9 +2949,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2610,9 +2964,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2624,9 +2979,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2638,9 +2994,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2652,9 +3009,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2666,9 +3024,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0541_bifold/Looks/mat_panel_1_1_louver>
+                rel material:binding = </db0541_bifold/Looks/mat_panel_1_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.0836, 0.004, 0.05271247)
@@ -2681,24 +3040,26 @@ def Xform "World"
                 prepend references = @../../hardware/pull_1e5d69a91a.usdc@</pull_1e5d69a91a>
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "D-pull handle 200 mm"
                 custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0541_bifold/Looks/mat_op_stainless>
+                rel material:binding = </db0541_bifold/Looks/mat_op_stainless>
                 quatf xformOp:orient = (4.3297803e-17, 4.3297803e-17, -0.70710677, 0.70710677)
                 double3 xformOp:translate = (-0.13, -0.0175, 1)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Capsule "panel_1_1_pull_col_n" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Pull grip"
                 custom string doorbench:semantic = "operator"
                 double height = 0.16
-                rel material:binding = </World/db0541_bifold/Looks/mat_op_stainless>
-                rel material:binding:physics = </World/db0541_bifold/Looks/PhysMat_mat_op_stainless> (
+                rel material:binding = </db0541_bifold/Looks/mat_op_stainless>
+                rel material:binding:physics = </db0541_bifold/Looks/PhysMat_mat_op_stainless_0_700> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -2718,123 +3079,12 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
-
-        def Scope "Joints"
-        {
-            def PhysicsRevoluteJoint "panel_0_0_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular"]
-            )
-            {
-                custom float doorbench:initial = 0
-                custom string doorbench:label = "Pivot panel (0 = closed, + = folding open)"
-                custom string doorbench:role = "primary"
-                custom float doorbench:zero_offset = 0
-                float drive:angular:physics:damping = 0.011109512
-                float drive:angular:physics:maxForce = 1000000
-                float drive:angular:physics:stiffness = 0
-                float drive:angular:physics:targetPosition = 0
-                uniform token drive:angular:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body1 = </World/db0541_bifold/panel_0_0>
-                point3f physics:localPos0 = (-0.351, 0, 0)
-                point3f physics:localPos1 = (0.035, 0, 0)
-                quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
-                quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
-                float physics:lowerLimit = 0
-                float physics:upperLimit = 90
-                custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 0.744794
-            }
-
-            def PhysicsRevoluteJoint "panel_0_1_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular"]
-            )
-            {
-                custom float doorbench:initial = 0
-                custom string doorbench:label = "Panel-to-panel hinge (driven)"
-                custom string doorbench:role = "secondary"
-                custom float doorbench:zero_offset = 0
-                float drive:angular:physics:damping = 0.0034906585
-                float drive:angular:physics:maxForce = 1000000
-                float drive:angular:physics:stiffness = 0
-                float drive:angular:physics:targetPosition = 0
-                uniform token drive:angular:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body0 = </World/db0541_bifold/panel_0_0>
-                rel physics:body1 = </World/db0541_bifold/panel_0_1>
-                point3f physics:localPos0 = (0.19, 0, 0)
-                point3f physics:localPos1 = (0, 0, 0)
-                quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
-                quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
-                float physics:lowerLimit = -180
-                float physics:upperLimit = 0
-                custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.1
-                custom float physxMimicJoint:rotX:gearing = 2
-                custom float physxMimicJoint:rotX:offset = 0
-                custom string physxMimicJoint:rotX:referenceJoint = "/World/db0541_bifold/Joints/panel_0_0_hinge"
-            }
-
-            def PhysicsRevoluteJoint "panel_1_0_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular"]
-            )
-            {
-                custom float doorbench:initial = 0
-                custom string doorbench:label = "Pivot panel (0 = closed, + = folding open)"
-                custom string doorbench:role = "primary"
-                custom float doorbench:zero_offset = 0
-                float drive:angular:physics:damping = 0.011109512
-                float drive:angular:physics:maxForce = 1000000
-                float drive:angular:physics:stiffness = 0
-                float drive:angular:physics:targetPosition = 0
-                uniform token drive:angular:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body1 = </World/db0541_bifold/panel_1_0>
-                point3f physics:localPos0 = (0.351, 0, 0)
-                point3f physics:localPos1 = (-0.035, 0, 0)
-                quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
-                quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
-                float physics:lowerLimit = 0
-                float physics:upperLimit = 90
-                custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 0.744794
-            }
-
-            def PhysicsRevoluteJoint "panel_1_1_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular"]
-            )
-            {
-                custom float doorbench:initial = 0
-                custom string doorbench:label = "Panel-to-panel hinge (driven)"
-                custom string doorbench:role = "secondary"
-                custom float doorbench:zero_offset = 0
-                float drive:angular:physics:damping = 0.0034906585
-                float drive:angular:physics:maxForce = 1000000
-                float drive:angular:physics:stiffness = 0
-                float drive:angular:physics:targetPosition = 0
-                uniform token drive:angular:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body0 = </World/db0541_bifold/panel_1_0>
-                rel physics:body1 = </World/db0541_bifold/panel_1_1>
-                point3f physics:localPos0 = (-0.19, 0, 0)
-                point3f physics:localPos1 = (0, 0, 0)
-                quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
-                quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
-                float physics:lowerLimit = -180
-                float physics:upperLimit = 0
-                custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.1
-                custom float physxMimicJoint:rotX:gearing = 2
-                custom float physxMimicJoint:rotX:offset = 0
-                custom string physxMimicJoint:rotX:referenceJoint = "/World/db0541_bifold/Joints/panel_1_0_hinge"
-            }
-        }
     }
+}
 
-    def PhysicsScene "PhysicsScene"
-    {
-        vector3f physics:gravityDirection = (0, 0, -1)
-        float physics:gravityMagnitude = 9.81
-    }
+def PhysicsScene "PhysicsScene"
+{
+    vector3f physics:gravityDirection = (0, 0, -1)
+    float physics:gravityMagnitude = 9.81
 }
 

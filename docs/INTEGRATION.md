@@ -20,16 +20,23 @@ m = mujoco.MjModel.from_xml_path("assets/doors/db0002_swing_single/door.xml")   
 
 ## Isaac Sim / Isaac Lab (USD)
 
-* `door.usda` defines `/World/<door_id>` with `UsdPhysics.ArticulationRootAPI`, rigid bodies with explicit mass
-  properties, collision shapes (boxes/capsules/spheres + convex-hull meshes referenced from `assets/hardware/*.usdc`),
-  revolute/prismatic joints with limits, joint friction (`physxJoint:jointFriction`), armature and drives carrying
-  closer springs (`stiffness`, `damping`, `targetPosition`).
-* Couplings (thumbturn → deadbolt, wheel → bolts, bifold panels) are exported as `physxMimicJoint:*` attributes and
-  as JSON in `doorbench:couplings` on the root prim; static environment prims carry `CollisionAPI` only.
-* One-sided latch coupling and maglock breakaway are environment logic; port `DoorEnv._lock_logic` or use the
-  `simple` tier for RL.
-* Import as an `ArticulationCfg` in Isaac Lab with `spawn=UsdFileCfg(usd_path=...)`; set `actuators` on the door
-  joints if you want to drive automatic doors.
+* `door.usda` (full fidelity): default prim `/<door_id>` with `Env` (static colliders + sites) and `Articulation`
+  (`UsdPhysics.ArticulationRootAPI`, fixed `base` link joined to the world, one tree). Rigid bodies carry explicit
+  mass properties; collision shapes are boxes/capsules/spheres + convex-hull meshes referenced from
+  `assets/hardware/*.usdc`; revolute/prismatic joints have limits, force drives carrying closer / latch / return
+  springs (`stiffness`, `damping`, `targetPosition`), armature and Coulomb friction as
+  `physxJointAxis:<axis>:staticFrictionEffort` (N·m / N; legacy `physxJoint:jointFriction` coefficient for old PhysX).
+* `door_rl.usda` (canonical): the same 8 links / 7 joints for every door (`door_slide`, `door_hinge`,
+  `operator_hinge`, `operator_slide`, `latch_slide`, `leaf2_slide`, `leaf2_hinge`; unused slots locked) so Isaac Lab's
+  `MultiUsdFileCfg` can put a different door in every environment; `doorbench:rl` on the root describes the live
+  slots, thresholds, grip points and sites.
+* Couplings (thumbturn → deadbolt, wheel → bolts, riser ← hinge) are `PhysxMimicJointAPI` on the driven joint and JSON
+  in `doorbench:couplings`; the one-sided latch coupling, closer asymmetry and maglock breakaway are environment logic
+  (`doorbench_isaaclab.mdp.DoorMechanismAction` / `DoorEnv._lock_logic`).
+* Ready-made Isaac Lab tasks, training / evaluation / hero-shot scripts and a one-command GPU-box setup:
+  [docs/ISAAC_LAB.md](ISAAC_LAB.md), [isaaclab/README.md](../isaaclab/README.md). Static validation of every USD:
+  `python scripts/isaaclab/validate_usd_static.py` (1000/1000 pass); Isaac Sim import validation:
+  `bash isaaclab/cloud/validate.sh` (GPU).
 
 ## URDF (Genesis, PyBullet, Gazebo, Drake …)
 

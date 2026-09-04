@@ -1,243 +1,240 @@
 #usda 1.0
 (
-    defaultPrim = "World"
+    defaultPrim = "db0377_sliding_bypass"
     metersPerUnit = 1
     upAxis = "Z"
 )
 
-def Xform "World"
+def Xform "db0377_sliding_bypass"
 {
-    def Xform "db0377_sliding_bypass" (
-        prepend apiSchemas = ["PhysicsArticulationRootAPI"]
-    )
+    custom string doorbench:couplings = "[]"
+    custom string doorbench:door_id = "db0377_sliding_bypass"
+    custom string doorbench:meta = '{"door_id": "db0377_sliding_bypass", "family": "sliding_bypass", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "leaf_0_slide", "secondary_joint": "leaf_1_slide", "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 9.594304000000003, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.51, -0.060000000000000005, 1.0], "handle_cam_pos": [-0.33, -0.8600000000000001, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_0_slide": "/db0377_sliding_bypass/Articulation/Joints/leaf_0_slide", "leaf_1_slide": "/db0377_sliding_bypass/Articulation/Joints/leaf_1_slide"}}'
+
+    def Scope "Looks"
     {
-        custom string doorbench:couplings = "[]"
-        custom string doorbench:meta = '{"door_id": "db0377_sliding_bypass", "family": "sliding_bypass", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "leaf_0_slide", "secondary_joint": "leaf_1_slide", "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 9.594304000000003, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.51, -0.060000000000000005, 1.0], "handle_cam_pos": [-0.33, -0.8600000000000001, 1.28]}'
-        custom bool physxArticulation:enabledSelfCollisions = 1
-        custom int physxArticulation:solverPositionIterationCount = 32
-
-        def Scope "Looks"
+        def Material "mat_floor"
         {
-            def Material "mat_floor"
+            token outputs:surface.connect = </db0377_sliding_bypass/Looks/mat_floor/Shader.outputs:surface>
+
+            def Shader "Shader"
             {
-                token outputs:surface.connect = </World/db0377_sliding_bypass/Looks/mat_floor/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.55, 0.53, 0.5)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.85
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_wall"
-            {
-                token outputs:surface.connect = </World/db0377_sliding_bypass/Looks/mat_wall/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.78, 0.76, 0.7)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.9
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_frame"
-            {
-                token outputs:surface.connect = </World/db0377_sliding_bypass/Looks/mat_frame/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.82, 0.7, 0.5)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.55
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_track"
-            {
-                token outputs:surface.connect = </World/db0377_sliding_bypass/Looks/mat_track/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.8, 0.81, 0.83)
-                    float inputs:metallic = 1
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.4
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_leaf_0"
-            {
-                token outputs:surface.connect = </World/db0377_sliding_bypass/Looks/mat_leaf_0/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.55, 0.62, 0.5)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.5
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_leaf_0_louver"
-            {
-                token outputs:surface.connect = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.4675, 0.527, 0.425)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.6
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_roller"
-            {
-                token outputs:surface.connect = </World/db0377_sliding_bypass/Looks/mat_roller/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
-                    float inputs:metallic = 0.9
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.5
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_op_nickel_satin"
-            {
-                token outputs:surface.connect = </World/db0377_sliding_bypass/Looks/mat_op_nickel_satin/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.72, 0.7, 0.66)
-                    float inputs:metallic = 1
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.35
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_leaf_1"
-            {
-                token outputs:surface.connect = </World/db0377_sliding_bypass/Looks/mat_leaf_1/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.55, 0.62, 0.5)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.5
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_leaf_1_louver"
-            {
-                token outputs:surface.connect = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.4675, 0.527, 0.425)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.6
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_hook"
-            {
-                token outputs:surface.connect = </World/db0377_sliding_bypass/Looks/mat_hook/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.75, 0.76, 0.77)
-                    float inputs:metallic = 1
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.35
-                    token outputs:surface
-                }
-            }
-
-            def Material "PhysMat_mat_floor" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.68
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.8
-            }
-
-            def Material "PhysMat_mat_wall" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
-            }
-
-            def Material "PhysMat_mat_frame" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
-            }
-
-            def Material "PhysMat_mat_track" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
-            }
-
-            def Material "PhysMat_mat_leaf_0" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.2975
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.35
-            }
-
-            def Material "PhysMat_mat_leaf_1" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.2975
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.35
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.55, 0.53, 0.5)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.85
+                token outputs:surface
             }
         }
 
+        def Material "mat_wall"
+        {
+            token outputs:surface.connect = </db0377_sliding_bypass/Looks/mat_wall/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.78, 0.76, 0.7)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.9
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_frame"
+        {
+            token outputs:surface.connect = </db0377_sliding_bypass/Looks/mat_frame/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.82, 0.7, 0.5)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.55
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_track"
+        {
+            token outputs:surface.connect = </db0377_sliding_bypass/Looks/mat_track/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.8, 0.81, 0.83)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.4
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_leaf_0"
+        {
+            token outputs:surface.connect = </db0377_sliding_bypass/Looks/mat_leaf_0/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.55, 0.62, 0.5)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_leaf_0_louver"
+        {
+            token outputs:surface.connect = </db0377_sliding_bypass/Looks/mat_leaf_0_louver/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.4675, 0.527, 0.425)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.6
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_roller"
+        {
+            token outputs:surface.connect = </db0377_sliding_bypass/Looks/mat_roller/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
+                float inputs:metallic = 0.9
+                float inputs:opacity = 1
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_op_nickel_satin"
+        {
+            token outputs:surface.connect = </db0377_sliding_bypass/Looks/mat_op_nickel_satin/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.72, 0.7, 0.66)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.35
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_leaf_1"
+        {
+            token outputs:surface.connect = </db0377_sliding_bypass/Looks/mat_leaf_1/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.55, 0.62, 0.5)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_leaf_1_louver"
+        {
+            token outputs:surface.connect = </db0377_sliding_bypass/Looks/mat_leaf_1_louver/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.4675, 0.527, 0.425)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.6
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_hook"
+        {
+            token outputs:surface.connect = </db0377_sliding_bypass/Looks/mat_hook/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.75, 0.76, 0.77)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.35
+                token outputs:surface
+            }
+        }
+
+        def Material "PhysMat_mat_floor_0_800" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.68
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.8
+        }
+
+        def Material "PhysMat_mat_wall_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_frame_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_track_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_leaf_0_0_350" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.2975
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.35
+        }
+
+        def Material "PhysMat_mat_leaf_1_0_350" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.2975
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.35
+        }
+    }
+
+    def Xform "Env"
+    {
         def Xform "world_env"
         {
             custom string doorbench:semantic = "wall"
@@ -246,13 +243,14 @@ def Xform "World"
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "floor" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Floor"
                 custom string doorbench:semantic = "floor"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_floor>
-                rel material:binding:physics = </World/db0377_sliding_bypass/Looks/PhysMat_mat_floor> (
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_floor>
+                rel material:binding:physics = </db0377_sliding_bypass/Looks/PhysMat_mat_floor_0_800> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -265,13 +263,14 @@ def Xform "World"
             }
 
             def Cube "wall_left" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Wall"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_wall>
-                rel material:binding:physics = </World/db0377_sliding_bypass/Looks/PhysMat_mat_wall> (
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_wall>
+                rel material:binding:physics = </db0377_sliding_bypass/Looks/PhysMat_mat_wall_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -284,13 +283,14 @@ def Xform "World"
             }
 
             def Cube "wall_right" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Wall"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_wall>
-                rel material:binding:physics = </World/db0377_sliding_bypass/Looks/PhysMat_mat_wall> (
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_wall>
+                rel material:binding:physics = </db0377_sliding_bypass/Looks/PhysMat_mat_wall_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -303,13 +303,14 @@ def Xform "World"
             }
 
             def Cube "wall_header" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Wall header"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_wall>
-                rel material:binding:physics = </World/db0377_sliding_bypass/Looks/PhysMat_mat_wall> (
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_wall>
+                rel material:binding:physics = </db0377_sliding_bypass/Looks/PhysMat_mat_wall_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -322,13 +323,14 @@ def Xform "World"
             }
 
             def Cube "jamb_l" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Jamb"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_frame>
-                rel material:binding:physics = </World/db0377_sliding_bypass/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_frame>
+                rel material:binding:physics = </db0377_sliding_bypass/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -341,13 +343,14 @@ def Xform "World"
             }
 
             def Cube "jamb_head" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Head"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_frame>
-                rel material:binding:physics = </World/db0377_sliding_bypass/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_frame>
+                rel material:binding:physics = </db0377_sliding_bypass/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -360,13 +363,14 @@ def Xform "World"
             }
 
             def Cube "track_header" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Track header"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_track>
-                rel material:binding:physics = </World/db0377_sliding_bypass/Looks/PhysMat_mat_track> (
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_track>
+                rel material:binding:physics = </db0377_sliding_bypass/Looks/PhysMat_mat_track_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -379,13 +383,14 @@ def Xform "World"
             }
 
             def Cube "jamb_latch_0" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Latch jamb"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_frame>
-                rel material:binding:physics = </World/db0377_sliding_bypass/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_frame>
+                rel material:binding:physics = </db0377_sliding_bypass/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -421,31 +426,150 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
+    }
 
-        def Xform "leaf_0" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+    def Xform "Articulation" (
+        prepend apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI"]
+    )
+    {
+        custom bool physxArticulation:articulationEnabled = 1
+        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom float physxArticulation:sleepThreshold = 0
+        custom int physxArticulation:solverPositionIterationCount = 16
+        custom int physxArticulation:solverVelocityIterationCount = 4
+        custom float physxArticulation:stabilizationThreshold = 0
+
+        def Scope "Joints"
+        {
+            def PhysicsFixedJoint "base_fixed"
+            {
+                custom string doorbench:role = "base"
+                rel physics:body1 = </db0377_sliding_bypass/Articulation/base>
+                point3f physics:localPos0 = (0, 0, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+            }
+
+            def PhysicsPrismaticJoint "leaf_0_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+            )
+            {
+                custom float doorbench:damping_si = 2.479715
+                custom float doorbench:friction_effort = 7.3388624
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Slide (0 = closed, + = open)"
+                custom bool doorbench:limited = 1
+                custom bool doorbench:robot_interactive = 1
+                custom string doorbench:role = "primary"
+                custom string doorbench:source_joint = "leaf_0_slide"
+                custom float doorbench:stiffness_si = 0
+                custom float doorbench:target_si = 0
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 2.479715
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 0
+                float drive:linear:physics:targetPosition = 0
+                float drive:linear:physics:targetVelocity = 0
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </db0377_sliding_bypass/Articulation/base>
+                rel physics:body1 = </db0377_sliding_bypass/Articulation/leaf_0>
+                point3f physics:localPos0 = (-0.295, -0.0425, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.58
+                custom float physxJoint:armature = 0.5
+                custom float physxJoint:jointFriction = 0.15593608
+                custom float physxJointAxis:transX:armature = 0.5
+                custom float physxJointAxis:transX:dynamicFrictionEffort = 7.3388624
+                custom float physxJointAxis:transX:staticFrictionEffort = 7.3388624
+                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+            }
+
+            def PhysicsPrismaticJoint "leaf_1_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+            )
+            {
+                custom float doorbench:damping_si = 2.479715
+                custom float doorbench:friction_effort = 7.3388624
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Slide (0 = closed, + = open)"
+                custom bool doorbench:limited = 1
+                custom bool doorbench:robot_interactive = 1
+                custom string doorbench:role = "primary"
+                custom string doorbench:source_joint = "leaf_1_slide"
+                custom float doorbench:stiffness_si = 0
+                custom float doorbench:target_si = 0
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 2.479715
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 0
+                float drive:linear:physics:targetPosition = 0
+                float drive:linear:physics:targetVelocity = 0
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </db0377_sliding_bypass/Articulation/base>
+                rel physics:body1 = </db0377_sliding_bypass/Articulation/leaf_1>
+                point3f physics:localPos0 = (0.285, 0.0425, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0, 0, 0, 1)
+                quatf physics:localRot1 = (0, 0, 0, 1)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 0.58
+                custom float physxJoint:armature = 0.5
+                custom float physxJoint:jointFriction = 0.15593608
+                custom float physxJointAxis:transX:armature = 0.5
+                custom float physxJointAxis:transX:dynamicFrictionEffort = 7.3388624
+                custom float physxJointAxis:transX:staticFrictionEffort = 7.3388624
+                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+            }
+        }
+
+        def Xform "base" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
+            custom string doorbench:label = "Fixed base link"
+            custom string doorbench:semantic = "base"
+            point3f physics:centerOfMass = (0, 0, 0)
+            float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
+            float physics:mass = 1
+            quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+        }
+
+        def Xform "leaf_0" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:label = "Sliding leaf"
             custom string doorbench:semantic = "leaf"
             point3f physics:centerOfMass = (-0.00006809916, -0.000005701325, 1.0280108)
             float3 physics:diagonalInertia = (0.14924102, 1.6504472, 1.7987082)
             float physics:mass = 4.797152
             quatf physics:principalAxes = (0.49999171, 0.5000113, -0.49998847, 0.50000846)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
             double3 xformOp:translate = (-0.295, -0.0425, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "leaf_0_slab" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Leaf slab"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0>
-                rel material:binding:physics = </World/db0377_sliding_bypass/Looks/PhysMat_mat_leaf_0> (
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0>
+                rel material:binding:physics = </db0377_sliding_bypass/Looks/PhysMat_mat_leaf_0_0_350> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -461,9 +585,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -475,9 +600,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -489,9 +615,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -503,9 +630,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -517,9 +645,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -531,9 +660,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -545,9 +675,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -559,9 +690,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -573,9 +705,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -587,9 +720,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -601,9 +735,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -615,9 +750,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -629,9 +765,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -643,9 +780,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -657,9 +795,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -671,9 +810,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -685,9 +825,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -699,9 +840,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -713,9 +855,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -727,9 +870,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -741,9 +885,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -755,9 +900,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -769,9 +915,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -783,9 +930,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -797,9 +945,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -811,9 +960,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -825,9 +975,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -839,9 +990,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -853,9 +1005,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -867,9 +1020,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -881,9 +1035,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -895,9 +1050,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -909,9 +1065,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -923,9 +1080,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_0_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -937,9 +1095,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Flush pull"
                 custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_op_nickel_satin>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_op_nickel_satin>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.055, 0.001, 0.055)
@@ -965,29 +1124,30 @@ def Xform "World"
         }
 
         def Xform "leaf_1" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
+            custom string doorbench:label = "Sliding leaf"
             custom string doorbench:semantic = "leaf"
             point3f physics:centerOfMass = (0.00006809916, -0.000005701325, 1.0280108)
             float3 physics:diagonalInertia = (0.14924102, 1.6504472, 1.7987082)
             float physics:mass = 4.797152
             quatf physics:principalAxes = (0.50000846, 0.49998847, -0.5000113, 0.49999171)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
             double3 xformOp:translate = (0.285, 0.0425, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "leaf_1_slab" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Leaf slab"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1>
-                rel material:binding:physics = </World/db0377_sliding_bypass/Looks/PhysMat_mat_leaf_1> (
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1>
+                rel material:binding:physics = </db0377_sliding_bypass/Looks/PhysMat_mat_leaf_1_0_350> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -1003,9 +1163,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1017,9 +1178,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1031,9 +1193,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1045,9 +1208,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1059,9 +1223,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1073,9 +1238,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1087,9 +1253,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1101,9 +1268,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1115,9 +1283,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1129,9 +1298,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1143,9 +1313,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1157,9 +1328,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1171,9 +1343,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1185,9 +1358,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1199,9 +1373,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1213,9 +1388,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1227,9 +1403,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1241,9 +1418,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1255,9 +1433,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1269,9 +1448,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1283,9 +1463,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1297,9 +1478,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1311,9 +1493,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1325,9 +1508,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1339,9 +1523,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1353,9 +1538,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1367,9 +1553,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1381,9 +1568,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1395,9 +1583,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1409,9 +1598,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1423,9 +1613,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1437,9 +1628,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1451,9 +1643,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1465,9 +1658,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Louver slat"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_leaf_1_louver>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_leaf_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
                 float3 xformOp:scale = (0.43, 0.004, 0.05271247)
@@ -1479,9 +1673,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Flush pull"
                 custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0377_sliding_bypass/Looks/mat_op_nickel_satin>
+                rel material:binding = </db0377_sliding_bypass/Looks/mat_op_nickel_satin>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.055, 0.001, 0.055)
@@ -1505,65 +1700,12 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
-
-        def Scope "Joints"
-        {
-            def PhysicsPrismaticJoint "leaf_0_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
-            )
-            {
-                custom float doorbench:initial = 0
-                custom string doorbench:label = "Slide (0 = closed, + = open)"
-                custom string doorbench:role = "primary"
-                custom float doorbench:zero_offset = 0
-                float drive:linear:physics:damping = 2.479715
-                float drive:linear:physics:maxForce = 1000000
-                float drive:linear:physics:stiffness = 0
-                float drive:linear:physics:targetPosition = 0
-                uniform token drive:linear:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body1 = </World/db0377_sliding_bypass/leaf_0>
-                point3f physics:localPos0 = (-0.295, -0.0425, 0)
-                point3f physics:localPos1 = (0, 0, 0)
-                quatf physics:localRot0 = (1, 0, 0, 0)
-                quatf physics:localRot1 = (1, 0, 0, 0)
-                float physics:lowerLimit = 0
-                float physics:upperLimit = 0.58
-                custom float physxJoint:armature = 0.5
-                custom float physxJoint:jointFriction = 7.3388624
-            }
-
-            def PhysicsPrismaticJoint "leaf_1_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
-            )
-            {
-                custom float doorbench:initial = 0
-                custom string doorbench:label = "Slide (0 = closed, + = open)"
-                custom string doorbench:role = "primary"
-                custom float doorbench:zero_offset = 0
-                float drive:linear:physics:damping = 2.479715
-                float drive:linear:physics:maxForce = 1000000
-                float drive:linear:physics:stiffness = 0
-                float drive:linear:physics:targetPosition = 0
-                uniform token drive:linear:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body1 = </World/db0377_sliding_bypass/leaf_1>
-                point3f physics:localPos0 = (0.285, 0.0425, 0)
-                point3f physics:localPos1 = (0, 0, 0)
-                quatf physics:localRot0 = (0, 0, 0, 1)
-                quatf physics:localRot1 = (0, 0, 0, 1)
-                float physics:lowerLimit = 0
-                float physics:upperLimit = 0.58
-                custom float physxJoint:armature = 0.5
-                custom float physxJoint:jointFriction = 7.3388624
-            }
-        }
     }
+}
 
-    def PhysicsScene "PhysicsScene"
-    {
-        vector3f physics:gravityDirection = (0, 0, -1)
-        float physics:gravityMagnitude = 9.81
-    }
+def PhysicsScene "PhysicsScene"
+{
+    vector3f physics:gravityDirection = (0, 0, -1)
+    float physics:gravityMagnitude = 9.81
 }
 

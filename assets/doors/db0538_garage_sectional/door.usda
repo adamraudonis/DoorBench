@@ -1,300 +1,297 @@
 #usda 1.0
 (
-    defaultPrim = "World"
+    defaultPrim = "db0538_garage_sectional"
     metersPerUnit = 1
     upAxis = "Z"
 )
 
-def Xform "World"
+def Xform "db0538_garage_sectional"
 {
-    def Xform "db0538_garage_sectional" (
-        prepend apiSchemas = ["PhysicsArticulationRootAPI"]
-    )
+    custom string doorbench:couplings = '[{"type": "mimic", "driven": "lock_bar_l_slide", "driver": "t_handle_hinge", "coeff": [0, 0.019098548510313215, 0, 0, 0], "gearing": -0.019098548510313215, "offset": -0.0, "label": "lock bar = T-handle * 0.03/travel", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "mimic", "driven": "lock_bar_r_slide", "driver": "t_handle_hinge", "coeff": [0, 0.019098548510313215, 0, 0, 0], "gearing": -0.019098548510313215, "offset": -0.0, "label": "lock bar = T-handle * 0.03/travel", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}]'
+    custom string doorbench:door_id = "db0538_garage_sectional"
+    custom string doorbench:meta = '{"door_id": "db0538_garage_sectional", "family": "garage_sectional", "task": "open_and_traverse", "wall_y": 0.0, "operator_joint": "t_handle_hinge", "primary_joint": "door_slide", "handle_height": 0.9, "counterbalance_fraction": 0.85, "mass_reconciled_kg": 119.3856943475015, "scene_extent": 4.655, "cam_target_z": 1.025, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.0385, -0.0625, 0.9], "handle_cam_pos": [0.2115, -1.1625, 1.25], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"door_slide": "/db0538_garage_sectional/Articulation/Joints/door_slide", "t_handle_hinge": "/db0538_garage_sectional/Articulation/Joints/t_handle_hinge", "lock_bar_l_slide": "/db0538_garage_sectional/Articulation/Joints/lock_bar_l_slide", "lock_bar_r_slide": "/db0538_garage_sectional/Articulation/Joints/lock_bar_r_slide"}}'
+
+    def Scope "Looks"
     {
-        custom string doorbench:couplings = '[{"type": "polynomial", "driven": "lock_bar_l_slide", "driver": "t_handle_hinge", "coeff": [0, 0.019098548510313215, 0, 0, 0], "label": "lock bar = T-handle * 0.03/travel"}, {"type": "polynomial", "driven": "lock_bar_r_slide", "driver": "t_handle_hinge", "coeff": [0, 0.019098548510313215, 0, 0, 0], "label": "lock bar = T-handle * 0.03/travel"}]'
-        custom string doorbench:meta = '{"door_id": "db0538_garage_sectional", "family": "garage_sectional", "task": "open_and_traverse", "wall_y": 0.0, "operator_joint": "t_handle_hinge", "primary_joint": "door_slide", "handle_height": 0.9, "counterbalance_fraction": 0.85, "mass_reconciled_kg": 119.3856943475015, "scene_extent": 4.655, "cam_target_z": 1.025, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.0385, -0.0625, 0.9], "handle_cam_pos": [0.2115, -1.1625, 1.25]}'
-        custom bool physxArticulation:enabledSelfCollisions = 1
-        custom int physxArticulation:solverPositionIterationCount = 32
-
-        def Scope "Looks"
+        def Material "mat_floor"
         {
-            def Material "mat_floor"
+            token outputs:surface.connect = </db0538_garage_sectional/Looks/mat_floor/Shader.outputs:surface>
+
+            def Shader "Shader"
             {
-                token outputs:surface.connect = </World/db0538_garage_sectional/Looks/mat_floor/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.55, 0.53, 0.5)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.85
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_wall"
-            {
-                token outputs:surface.connect = </World/db0538_garage_sectional/Looks/mat_wall/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.78, 0.76, 0.7)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.9
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_frame"
-            {
-                token outputs:surface.connect = </World/db0538_garage_sectional/Looks/mat_frame/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.82, 0.7, 0.5)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.55
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_track"
-            {
-                token outputs:surface.connect = </World/db0538_garage_sectional/Looks/mat_track/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
-                    float inputs:metallic = 0.9
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.5
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_section_0"
-            {
-                token outputs:surface.connect = </World/db0538_garage_sectional/Looks/mat_section_0/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.82, 0.75, 0.62)
-                    float inputs:metallic = 0.05
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.62
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_section_1"
-            {
-                token outputs:surface.connect = </World/db0538_garage_sectional/Looks/mat_section_1/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.82, 0.75, 0.62)
-                    float inputs:metallic = 0.05
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.62
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_hinge_line"
-            {
-                token outputs:surface.connect = </World/db0538_garage_sectional/Looks/mat_hinge_line/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.2, 0.2, 0.2)
-                    float inputs:metallic = 0
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.7
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_section_2"
-            {
-                token outputs:surface.connect = </World/db0538_garage_sectional/Looks/mat_section_2/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.82, 0.75, 0.62)
-                    float inputs:metallic = 0.05
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.62
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_section_3"
-            {
-                token outputs:surface.connect = </World/db0538_garage_sectional/Looks/mat_section_3/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.82, 0.75, 0.62)
-                    float inputs:metallic = 0.05
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.62
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_spring"
-            {
-                token outputs:surface.connect = </World/db0538_garage_sectional/Looks/mat_spring/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.55, 0.56, 0.58)
-                    float inputs:metallic = 1
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.45
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_op_black_matte_metal"
-            {
-                token outputs:surface.connect = </World/db0538_garage_sectional/Looks/mat_op_black_matte_metal/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.05, 0.05, 0.05)
-                    float inputs:metallic = 0.3
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.7
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_trim"
-            {
-                token outputs:surface.connect = </World/db0538_garage_sectional/Looks/mat_trim/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.85, 0.66, 0.3)
-                    float inputs:metallic = 1
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.25
-                    token outputs:surface
-                }
-            }
-
-            def Material "mat_lockbar"
-            {
-                token outputs:surface.connect = </World/db0538_garage_sectional/Looks/mat_lockbar/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
-                    float inputs:metallic = 0.9
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.5
-                    token outputs:surface
-                }
-            }
-
-            def Material "PhysMat_mat_floor" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.68
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.8
-            }
-
-            def Material "PhysMat_mat_wall" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
-            }
-
-            def Material "PhysMat_mat_frame" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
-            }
-
-            def Material "PhysMat_mat_track" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
-            }
-
-            def Material "PhysMat_mat_section_0" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.34
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.4
-            }
-
-            def Material "PhysMat_mat_section_1" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.34
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.4
-            }
-
-            def Material "PhysMat_mat_section_2" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.34
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.4
-            }
-
-            def Material "PhysMat_mat_section_3" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.34
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.4
-            }
-
-            def Material "PhysMat_mat_op_black_matte_metal" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.55, 0.53, 0.5)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.85
+                token outputs:surface
             }
         }
 
+        def Material "mat_wall"
+        {
+            token outputs:surface.connect = </db0538_garage_sectional/Looks/mat_wall/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.78, 0.76, 0.7)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.9
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_frame"
+        {
+            token outputs:surface.connect = </db0538_garage_sectional/Looks/mat_frame/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.82, 0.7, 0.5)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.55
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_track"
+        {
+            token outputs:surface.connect = </db0538_garage_sectional/Looks/mat_track/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
+                float inputs:metallic = 0.9
+                float inputs:opacity = 1
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_section_0"
+        {
+            token outputs:surface.connect = </db0538_garage_sectional/Looks/mat_section_0/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.82, 0.75, 0.62)
+                float inputs:metallic = 0.05
+                float inputs:opacity = 1
+                float inputs:roughness = 0.62
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_section_1"
+        {
+            token outputs:surface.connect = </db0538_garage_sectional/Looks/mat_section_1/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.82, 0.75, 0.62)
+                float inputs:metallic = 0.05
+                float inputs:opacity = 1
+                float inputs:roughness = 0.62
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_hinge_line"
+        {
+            token outputs:surface.connect = </db0538_garage_sectional/Looks/mat_hinge_line/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.2, 0.2, 0.2)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.7
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_section_2"
+        {
+            token outputs:surface.connect = </db0538_garage_sectional/Looks/mat_section_2/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.82, 0.75, 0.62)
+                float inputs:metallic = 0.05
+                float inputs:opacity = 1
+                float inputs:roughness = 0.62
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_section_3"
+        {
+            token outputs:surface.connect = </db0538_garage_sectional/Looks/mat_section_3/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.82, 0.75, 0.62)
+                float inputs:metallic = 0.05
+                float inputs:opacity = 1
+                float inputs:roughness = 0.62
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_spring"
+        {
+            token outputs:surface.connect = </db0538_garage_sectional/Looks/mat_spring/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.55, 0.56, 0.58)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.45
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_op_black_matte_metal"
+        {
+            token outputs:surface.connect = </db0538_garage_sectional/Looks/mat_op_black_matte_metal/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.05, 0.05, 0.05)
+                float inputs:metallic = 0.3
+                float inputs:opacity = 1
+                float inputs:roughness = 0.7
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_trim"
+        {
+            token outputs:surface.connect = </db0538_garage_sectional/Looks/mat_trim/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.85, 0.66, 0.3)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.25
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_lockbar"
+        {
+            token outputs:surface.connect = </db0538_garage_sectional/Looks/mat_lockbar/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
+                float inputs:metallic = 0.9
+                float inputs:opacity = 1
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "PhysMat_mat_floor_0_800" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.68
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.8
+        }
+
+        def Material "PhysMat_mat_wall_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_frame_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_track_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_section_0_0_400" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.34
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.4
+        }
+
+        def Material "PhysMat_mat_section_1_0_400" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.34
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.4
+        }
+
+        def Material "PhysMat_mat_section_2_0_400" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.34
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.4
+        }
+
+        def Material "PhysMat_mat_section_3_0_400" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.34
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.4
+        }
+
+        def Material "PhysMat_mat_op_black_matte_metal_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+    }
+
+    def Xform "Env"
+    {
         def Xform "world_env"
         {
             custom string doorbench:semantic = "wall"
@@ -303,13 +300,14 @@ def Xform "World"
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "floor" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Floor"
                 custom string doorbench:semantic = "floor"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_floor>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_floor> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_floor>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_floor_0_800> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -322,13 +320,14 @@ def Xform "World"
             }
 
             def Cube "wall_left" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Wall"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_wall>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_wall> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_wall>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_wall_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -341,13 +340,14 @@ def Xform "World"
             }
 
             def Cube "wall_right" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Wall"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_wall>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_wall> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_wall>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_wall_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -360,13 +360,14 @@ def Xform "World"
             }
 
             def Cube "wall_header" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Wall header"
                 custom string doorbench:semantic = "wall"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_wall>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_wall> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_wall>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_wall_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -379,13 +380,14 @@ def Xform "World"
             }
 
             def Cube "garage_jamb_l" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Garage jamb"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_frame>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_frame>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -398,13 +400,14 @@ def Xform "World"
             }
 
             def Cube "garage_jamb_r" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Garage jamb"
                 custom string doorbench:semantic = "frame"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_frame>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_frame> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_frame>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_frame_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -417,13 +420,14 @@ def Xform "World"
             }
 
             def Cube "track_l" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Vertical track web"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_track> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_track_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -436,13 +440,14 @@ def Xform "World"
             }
 
             def Cube "track_l_flange_n" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Track flange"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_track> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_track_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -455,13 +460,14 @@ def Xform "World"
             }
 
             def Cube "track_l_flange_p" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Track flange"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_track> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_track_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -474,13 +480,14 @@ def Xform "World"
             }
 
             def Cube "track_r" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Vertical track web"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_track> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_track_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -493,13 +500,14 @@ def Xform "World"
             }
 
             def Cube "track_r_flange_n" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Track flange"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_track> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_track_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -512,13 +520,14 @@ def Xform "World"
             }
 
             def Cube "track_r_flange_p" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Track flange"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_track> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_track_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -531,15 +540,16 @@ def Xform "World"
             }
 
             def Cylinder "torsion_shaft" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Torsion spring shaft"
                 custom string doorbench:semantic = "mechanism"
                 double height = 5.890000000000001
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_track> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_track_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -555,10 +565,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Torsion spring"
                 custom string doorbench:semantic = "mechanism"
                 double height = 0.7
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_spring>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_spring>
                 double radius = 0.03
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (0, 0.17, 2.3)
@@ -589,31 +600,237 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
+    }
 
-        def Xform "door" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+    def Xform "Articulation" (
+        prepend apiSchemas = ["PhysicsArticulationRootAPI", "PhysxArticulationAPI"]
+    )
+    {
+        custom bool physxArticulation:articulationEnabled = 1
+        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom float physxArticulation:sleepThreshold = 0
+        custom int physxArticulation:solverPositionIterationCount = 16
+        custom int physxArticulation:solverVelocityIterationCount = 4
+        custom float physxArticulation:stabilizationThreshold = 0
+
+        def Scope "Joints"
+        {
+            def PhysicsFixedJoint "base_fixed"
+            {
+                custom string doorbench:role = "base"
+                rel physics:body1 = </db0538_garage_sectional/Articulation/base>
+                point3f physics:localPos0 = (0, 0, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+            }
+
+            def PhysicsPrismaticJoint "door_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+            )
+            {
+                custom float doorbench:damping_si = 7.99415
+                custom float doorbench:friction_effort = 141.07808
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "Vertical lift (0 = closed, + = raised)"
+                custom bool doorbench:limited = 1
+                custom string doorbench:notes = "counterbalance spring ~85% of weight counterbalance ~85% of 120 kg"
+                custom bool doorbench:robot_interactive = 1
+                custom string doorbench:role = "primary"
+                custom string doorbench:source_joint = "door_slide"
+                custom float doorbench:stiffness_si = 153.79144
+                custom float doorbench:target_si = 6.5
+                custom float doorbench:zero_offset = 0
+                float drive:linear:physics:damping = 7.99415
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 153.79144
+                float drive:linear:physics:targetPosition = 6.5
+                float drive:linear:physics:targetVelocity = 0
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </db0538_garage_sectional/Articulation/base>
+                rel physics:body1 = </db0538_garage_sectional/Articulation/door>
+                point3f physics:localPos0 = (0, 0, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
+                quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 1.95
+                custom float physxJoint:armature = 0.5
+                custom float physxJoint:jointFriction = 0.11927347
+                custom float physxJointAxis:transX:armature = 0.5
+                custom float physxJointAxis:transX:dynamicFrictionEffort = 141.07808
+                custom float physxJointAxis:transX:staticFrictionEffort = 141.07808
+                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+            }
+
+            def PhysicsRevoluteJoint "t_handle_hinge" (
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+            )
+            {
+                custom float doorbench:damping_si = 0.02
+                custom float doorbench:friction_effort = 0.028
+                custom float doorbench:initial = 0
+                custom string doorbench:label = "T-handle w/ lock (garage / tilt-up) (0 = rest, + = actuated)"
+                custom bool doorbench:limited = 1
+                custom bool doorbench:robot_interactive = 1
+                custom string doorbench:role = "operator"
+                custom string doorbench:source_joint = "t_handle_hinge"
+                custom float doorbench:stiffness_si = 0.4
+                custom float doorbench:target_si = -0.75
+                custom float doorbench:zero_offset = 0
+                float drive:angular:physics:damping = 0.00034906584
+                float drive:angular:physics:maxForce = 1000000
+                float drive:angular:physics:stiffness = 0.006981317
+                float drive:angular:physics:targetPosition = -42.971836
+                float drive:angular:physics:targetVelocity = 0
+                uniform token drive:angular:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </db0538_garage_sectional/Articulation/door>
+                rel physics:body1 = </db0538_garage_sectional/Articulation/t_handle>
+                point3f physics:localPos0 = (0, 0, 0.9)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 90.00021
+                custom float physxJoint:armature = 0.01
+                custom float physxJoint:jointFriction = 0.008930442
+                custom float physxJointAxis:rotX:armature = 0.01
+                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.028
+                custom float physxJointAxis:rotX:staticFrictionEffort = 0.028
+                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+            }
+
+            def PhysicsPrismaticJoint "lock_bar_l_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX", "PhysxMimicJointAPI:transX"]
+            )
+            {
+                custom float doorbench:damping_si = 2
+                custom float doorbench:friction_effort = 1
+                custom float doorbench:initial = 0.03
+                custom string doorbench:label = "Lock bar"
+                custom bool doorbench:limited = 1
+                custom string doorbench:mimic_label = "lock bar = T-handle * 0.03/travel"
+                custom bool doorbench:robot_interactive = 0
+                custom string doorbench:role = "lock"
+                custom string doorbench:source_joint = "lock_bar_l_slide"
+                custom float doorbench:stiffness_si = 0
+                custom float doorbench:target_si = 0
+                custom float doorbench:zero_offset = 0.03
+                float drive:linear:physics:damping = 2
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 0
+                float drive:linear:physics:targetPosition = 0
+                float drive:linear:physics:targetVelocity = 0
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </db0538_garage_sectional/Articulation/door>
+                rel physics:body1 = </db0538_garage_sectional/Articulation/lock_bar_l>
+                point3f physics:localPos0 = (-2.695, 0.03, 0.9)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+                float physics:lowerLimit = -0.03
+                float physics:upperLimit = 0
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 1
+                custom float physxJointAxis:transX:armature = 0.1
+                custom float physxJointAxis:transX:dynamicFrictionEffort = 1
+                custom float physxJointAxis:transX:staticFrictionEffort = 1
+                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxMimicJoint:transX:gearing = -0.019098548
+                custom float physxMimicJoint:transX:offset = -0
+                custom rel physxMimicJoint:transX:referenceJoint = </db0538_garage_sectional/Articulation/Joints/t_handle_hinge>
+                custom token physxMimicJoint:transX:referenceJointAxis = "rotX"
+            }
+
+            def PhysicsPrismaticJoint "lock_bar_r_slide" (
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX", "PhysxMimicJointAPI:transX"]
+            )
+            {
+                custom float doorbench:damping_si = 2
+                custom float doorbench:friction_effort = 1
+                custom float doorbench:initial = 0.03
+                custom string doorbench:label = "Lock bar"
+                custom bool doorbench:limited = 1
+                custom string doorbench:mimic_label = "lock bar = T-handle * 0.03/travel"
+                custom bool doorbench:robot_interactive = 0
+                custom string doorbench:role = "lock"
+                custom string doorbench:source_joint = "lock_bar_r_slide"
+                custom float doorbench:stiffness_si = 0
+                custom float doorbench:target_si = 0
+                custom float doorbench:zero_offset = 0.03
+                float drive:linear:physics:damping = 2
+                float drive:linear:physics:maxForce = 1000000
+                float drive:linear:physics:stiffness = 0
+                float drive:linear:physics:targetPosition = 0
+                float drive:linear:physics:targetVelocity = 0
+                uniform token drive:linear:physics:type = "force"
+                uniform token physics:axis = "X"
+                rel physics:body0 = </db0538_garage_sectional/Articulation/door>
+                rel physics:body1 = </db0538_garage_sectional/Articulation/lock_bar_r>
+                point3f physics:localPos0 = (2.695, 0.03, 0.9)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (0, 0, 0, 1)
+                quatf physics:localRot1 = (0, 0, 0, 1)
+                float physics:lowerLimit = -0.03
+                float physics:upperLimit = 0
+                custom float physxJoint:armature = 0.1
+                custom float physxJoint:jointFriction = 1
+                custom float physxJointAxis:transX:armature = 0.1
+                custom float physxJointAxis:transX:dynamicFrictionEffort = 1
+                custom float physxJointAxis:transX:staticFrictionEffort = 1
+                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxMimicJoint:transX:gearing = -0.019098548
+                custom float physxMimicJoint:transX:offset = -0
+                custom rel physxMimicJoint:transX:referenceJoint = </db0538_garage_sectional/Articulation/Joints/t_handle_hinge>
+                custom token physxMimicJoint:transX:referenceJointAxis = "rotX"
+            }
+        }
+
+        def Xform "base" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
+            custom string doorbench:label = "Fixed base link"
+            custom string doorbench:semantic = "base"
+            point3f physics:centerOfMass = (0, 0, 0)
+            float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
+            float physics:mass = 1
+            quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
+            quatf xformOp:orient = (1, 0, 0, 0)
+            double3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+        }
+
+        def Xform "door" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+        )
+        {
+            custom string doorbench:label = "Vertical lift door"
             custom string doorbench:semantic = "leaf"
             point3f physics:centerOfMass = (1.8598929e-18, 0.0058413497, 1.0095676)
             float3 physics:diagonalInertia = (38.990627, 349.61133, 388.49805)
             float physics:mass = 119.3857
             quatf physics:principalAxes = (0.70713305, -0.7070805, 0, 0)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
             double3 xformOp:translate = (0, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "section_0_slab" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Leaf slab"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_section_0>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_section_0> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_section_0>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_section_0_0_400> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -626,13 +843,14 @@ def Xform "World"
             }
 
             def Cube "section_1_slab" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Leaf slab"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_section_1>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_section_1> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_section_1>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_section_1_0_400> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -648,9 +866,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Section joint"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_hinge_line>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_hinge_line>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (5.45, 0.002, 0.008)
@@ -662,9 +881,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Section hinge"
                 custom string doorbench:semantic = "hinge"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.08, 0.02, 0.1)
@@ -676,9 +896,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Section hinge"
                 custom string doorbench:semantic = "hinge"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.08, 0.02, 0.1)
@@ -690,9 +911,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Section hinge"
                 custom string doorbench:semantic = "hinge"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.08, 0.02, 0.1)
@@ -701,13 +923,14 @@ def Xform "World"
             }
 
             def Cube "section_2_slab" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Leaf slab"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_section_2>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_section_2> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_section_2>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_section_2_0_400> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -723,9 +946,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Section joint"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_hinge_line>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_hinge_line>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (5.45, 0.002, 0.008)
@@ -737,9 +961,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Section hinge"
                 custom string doorbench:semantic = "hinge"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.08, 0.02, 0.1)
@@ -751,9 +976,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Section hinge"
                 custom string doorbench:semantic = "hinge"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.08, 0.02, 0.1)
@@ -765,9 +991,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Section hinge"
                 custom string doorbench:semantic = "hinge"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.08, 0.02, 0.1)
@@ -776,13 +1003,14 @@ def Xform "World"
             }
 
             def Cube "section_3_slab" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "Leaf slab"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_section_3>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_section_3> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_section_3>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_section_3_0_400> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -798,9 +1026,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Section joint"
                 custom string doorbench:semantic = "leaf"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_hinge_line>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_hinge_line>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (5.45, 0.002, 0.008)
@@ -812,9 +1041,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Section hinge"
                 custom string doorbench:semantic = "hinge"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.08, 0.02, 0.1)
@@ -826,9 +1056,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Section hinge"
                 custom string doorbench:semantic = "hinge"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.08, 0.02, 0.1)
@@ -840,9 +1071,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Section hinge"
                 custom string doorbench:semantic = "hinge"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.08, 0.02, 0.1)
@@ -855,10 +1087,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Track roller"
                 custom string doorbench:semantic = "track"
                 double height = 0.02
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (-2.775, 0.08249999999999999, 0.04)
@@ -869,9 +1102,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Roller hinge arm"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.06, 0.012)
@@ -884,10 +1118,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Track roller"
                 custom string doorbench:semantic = "track"
                 double height = 0.02
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (-2.775, 0.08249999999999999, 0.51)
@@ -898,9 +1133,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Roller hinge arm"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.06, 0.012)
@@ -913,10 +1149,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Track roller"
                 custom string doorbench:semantic = "track"
                 double height = 0.02
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (-2.775, 0.08249999999999999, 1.01)
@@ -927,9 +1164,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Roller hinge arm"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.06, 0.012)
@@ -942,10 +1180,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Track roller"
                 custom string doorbench:semantic = "track"
                 double height = 0.02
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (-2.775, 0.08249999999999999, 1.51)
@@ -956,9 +1195,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Roller hinge arm"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.06, 0.012)
@@ -971,10 +1211,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Track roller"
                 custom string doorbench:semantic = "track"
                 double height = 0.02
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (-2.775, 0.08249999999999999, 1.95)
@@ -985,9 +1226,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Roller hinge arm"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.06, 0.012)
@@ -1000,10 +1242,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Track roller"
                 custom string doorbench:semantic = "track"
                 double height = 0.02
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (2.775, 0.08249999999999999, 0.04)
@@ -1014,9 +1257,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Roller hinge arm"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.06, 0.012)
@@ -1029,10 +1273,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Track roller"
                 custom string doorbench:semantic = "track"
                 double height = 0.02
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (2.775, 0.08249999999999999, 0.51)
@@ -1043,9 +1288,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Roller hinge arm"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.06, 0.012)
@@ -1058,10 +1304,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Track roller"
                 custom string doorbench:semantic = "track"
                 double height = 0.02
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (2.775, 0.08249999999999999, 1.01)
@@ -1072,9 +1319,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Roller hinge arm"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.06, 0.012)
@@ -1087,10 +1335,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Track roller"
                 custom string doorbench:semantic = "track"
                 double height = 0.02
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (2.775, 0.08249999999999999, 1.51)
@@ -1101,9 +1350,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Roller hinge arm"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.06, 0.012)
@@ -1116,10 +1366,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Track roller"
                 custom string doorbench:semantic = "track"
                 double height = 0.02
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (2.775, 0.08249999999999999, 1.95)
@@ -1130,9 +1381,10 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Roller hinge arm"
                 custom string doorbench:semantic = "track"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_track>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.06, 0.012)
@@ -1142,17 +1394,17 @@ def Xform "World"
         }
 
         def Xform "t_handle" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
+            custom string doorbench:label = "T-handle w/ lock (garage / tilt-up)"
             custom string doorbench:semantic = "operator"
             point3f physics:centerOfMass = (1.732668e-19, -0.046046816, 3.0204785e-18)
             float3 physics:diagonalInertia = (0.00017994113, 0.00020840477, 0.00036101002)
             float physics:mass = 0.30553782
             quatf physics:principalAxes = (1, -1.8701594e-17, 0, 0)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
             double3 xformOp:translate = (0, 0, 0.9)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
@@ -1162,10 +1414,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Spindle"
                 custom string doorbench:semantic = "mechanism"
                 double height = 0.043
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_op_black_matte_metal>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_op_black_matte_metal>
                 double radius = 0.006
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
                 double3 xformOp:translate = (0, 0, 0)
@@ -1177,22 +1430,24 @@ def Xform "World"
                 prepend references = @../../hardware/lever_01c630149d.usdc@</lever_01c630149d>
             )
             {
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "T-handle"
                 custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_op_black_matte_metal>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_op_black_matte_metal>
                 quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
                 double3 xformOp:translate = (0, -0.0225, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Cube "t_handle_t_col_n" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
+                custom bool doorbench:collision = 1
                 custom string doorbench:label = "T grip"
                 custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_op_black_matte_metal>
-                rel material:binding:physics = </World/db0538_garage_sectional/Looks/PhysMat_mat_op_black_matte_metal> (
+                rel material:binding = </db0538_garage_sectional/Looks/mat_op_black_matte_metal>
+                rel material:binding:physics = </db0538_garage_sectional/Looks/PhysMat_mat_op_black_matte_metal_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
@@ -1210,10 +1465,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Key cylinder"
                 custom string doorbench:semantic = "lock"
                 double height = 0.008
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_trim>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_trim>
                 double radius = 0.0085
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
                 double3 xformOp:translate = (0, -0.07250000000000001, 0)
@@ -1230,17 +1486,17 @@ def Xform "World"
         }
 
         def Xform "lock_bar_l" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
+            custom string doorbench:label = "Lock bar"
             custom string doorbench:semantic = "lock"
             point3f physics:centerOfMass = (-0.01, 0, 0)
             float3 physics:diagonalInertia = (0.0000017003415, 0.00009424016, 0.00009424016)
             float physics:mass = 0.09588392
             quatf physics:principalAxes = (7.850462e-17, -7.850462e-17, 0.70710677, 0.70710677)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
             double3 xformOp:translate = (-2.6950000000000003, 0.03, 0.9)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
@@ -1250,10 +1506,11 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Lock bar (visual; engaged state locks the door joint)"
                 custom string doorbench:semantic = "lock"
                 double height = 0.1
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_lockbar>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_lockbar>
                 double radius = 0.006
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (-0.010000000000000002, 0, 0)
@@ -1262,17 +1519,17 @@ def Xform "World"
         }
 
         def Xform "lock_bar_r" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
         )
         {
+            custom string doorbench:label = "Lock bar"
             custom string doorbench:semantic = "lock"
             point3f physics:centerOfMass = (0.01, 0, 0)
             float3 physics:diagonalInertia = (0.0000017003415, 0.00009424016, 0.00009424016)
             float physics:mass = 0.09588392
             quatf physics:principalAxes = (7.850462e-17, -7.850462e-17, 0.70710677, 0.70710677)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
+            custom float physxRigidBody:maxDepenetrationVelocity = 5
+            custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
             double3 xformOp:translate = (2.6950000000000003, 0.03, 0.9)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
@@ -1282,135 +1539,23 @@ def Xform "World"
             )
             {
                 uniform token axis = "Z"
+                custom bool doorbench:collision = 0
                 custom string doorbench:label = "Lock bar (visual; engaged state locks the door joint)"
                 custom string doorbench:semantic = "lock"
                 double height = 0.1
-                rel material:binding = </World/db0538_garage_sectional/Looks/mat_lockbar>
+                rel material:binding = </db0538_garage_sectional/Looks/mat_lockbar>
                 double radius = 0.006
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (0.010000000000000002, 0, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
-
-        def Scope "Joints"
-        {
-            def PhysicsPrismaticJoint "door_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
-            )
-            {
-                custom float doorbench:initial = 0
-                custom string doorbench:label = "Vertical lift (0 = closed, + = raised)"
-                custom string doorbench:notes = "counterbalance spring ~85% of weight counterbalance ~85% of 120 kg"
-                custom string doorbench:role = "primary"
-                custom float doorbench:zero_offset = 0
-                float drive:linear:physics:damping = 7.99415
-                float drive:linear:physics:maxForce = 1000000
-                float drive:linear:physics:stiffness = 153.79144
-                float drive:linear:physics:targetPosition = 6.5
-                uniform token drive:linear:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body1 = </World/db0538_garage_sectional/door>
-                point3f physics:localPos0 = (0, 0, 0)
-                point3f physics:localPos1 = (0, 0, 0)
-                quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
-                quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
-                float physics:lowerLimit = 0
-                float physics:upperLimit = 1.95
-                custom float physxJoint:armature = 0.5
-                custom float physxJoint:jointFriction = 141.07808
-            }
-
-            def PhysicsRevoluteJoint "t_handle_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular"]
-            )
-            {
-                custom float doorbench:initial = 0
-                custom string doorbench:label = "T-handle w/ lock (garage / tilt-up) (0 = rest, + = actuated)"
-                custom string doorbench:role = "operator"
-                custom float doorbench:zero_offset = 0
-                float drive:angular:physics:damping = 0.00034906584
-                float drive:angular:physics:maxForce = 1000000
-                float drive:angular:physics:stiffness = 0.006981317
-                float drive:angular:physics:targetPosition = -42.971836
-                uniform token drive:angular:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body0 = </World/db0538_garage_sectional/door>
-                rel physics:body1 = </World/db0538_garage_sectional/t_handle>
-                point3f physics:localPos0 = (0, 0, 0.9)
-                point3f physics:localPos1 = (0, 0, 0)
-                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
-                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
-                float physics:lowerLimit = 0
-                float physics:upperLimit = 90.00021
-                custom float physxJoint:armature = 0.01
-                custom float physxJoint:jointFriction = 0.028
-            }
-
-            def PhysicsPrismaticJoint "lock_bar_l_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
-            )
-            {
-                custom float doorbench:initial = 0.03
-                custom string doorbench:label = "Lock bar"
-                custom string doorbench:role = "lock"
-                custom float doorbench:zero_offset = 0.03
-                float drive:linear:physics:damping = 2
-                float drive:linear:physics:maxForce = 1000000
-                float drive:linear:physics:stiffness = 0
-                float drive:linear:physics:targetPosition = 0
-                uniform token drive:linear:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body0 = </World/db0538_garage_sectional/door>
-                rel physics:body1 = </World/db0538_garage_sectional/lock_bar_l>
-                point3f physics:localPos0 = (-2.695, 0.03, 0.9)
-                point3f physics:localPos1 = (0, 0, 0)
-                quatf physics:localRot0 = (1, 0, 0, 0)
-                quatf physics:localRot1 = (1, 0, 0, 0)
-                float physics:lowerLimit = -0.03
-                float physics:upperLimit = 0
-                custom float physxJoint:armature = 0.1
-                custom float physxJoint:jointFriction = 1
-                custom float physxMimicJoint:rotX:gearing = -0.019098548
-                custom float physxMimicJoint:rotX:offset = 0
-                custom string physxMimicJoint:rotX:referenceJoint = "/World/db0538_garage_sectional/Joints/t_handle_hinge"
-            }
-
-            def PhysicsPrismaticJoint "lock_bar_r_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear"]
-            )
-            {
-                custom float doorbench:initial = 0.03
-                custom string doorbench:label = "Lock bar"
-                custom string doorbench:role = "lock"
-                custom float doorbench:zero_offset = 0.03
-                float drive:linear:physics:damping = 2
-                float drive:linear:physics:maxForce = 1000000
-                float drive:linear:physics:stiffness = 0
-                float drive:linear:physics:targetPosition = 0
-                uniform token drive:linear:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body0 = </World/db0538_garage_sectional/door>
-                rel physics:body1 = </World/db0538_garage_sectional/lock_bar_r>
-                point3f physics:localPos0 = (2.695, 0.03, 0.9)
-                point3f physics:localPos1 = (0, 0, 0)
-                quatf physics:localRot0 = (0, 0, 0, 1)
-                quatf physics:localRot1 = (0, 0, 0, 1)
-                float physics:lowerLimit = -0.03
-                float physics:upperLimit = 0
-                custom float physxJoint:armature = 0.1
-                custom float physxJoint:jointFriction = 1
-                custom float physxMimicJoint:rotX:gearing = -0.019098548
-                custom float physxMimicJoint:rotX:offset = 0
-                custom string physxMimicJoint:rotX:referenceJoint = "/World/db0538_garage_sectional/Joints/t_handle_hinge"
-            }
-        }
     }
+}
 
-    def PhysicsScene "PhysicsScene"
-    {
-        vector3f physics:gravityDirection = (0, 0, -1)
-        float physics:gravityMagnitude = 9.81
-    }
+def PhysicsScene "PhysicsScene"
+{
+    vector3f physics:gravityDirection = (0, 0, -1)
+    float physics:gravityMagnitude = 9.81
 }
 
