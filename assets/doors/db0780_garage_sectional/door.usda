@@ -12,7 +12,7 @@ def Xform "World"
     )
     {
         custom string doorbench:couplings = '[{"type": "polynomial", "driven": "lock_bar_l_slide", "driver": "t_handle_hinge", "coeff": [0, 0.019098548510313215, 0, 0, 0], "label": "lock bar = T-handle * 0.03/travel"}, {"type": "polynomial", "driven": "lock_bar_r_slide", "driver": "t_handle_hinge", "coeff": [0, 0.019098548510313215, 0, 0, 0], "label": "lock bar = T-handle * 0.03/travel"}]'
-        custom string doorbench:meta = '{"door_id": "db0780_garage_sectional", "family": "garage_sectional", "task": "open_only", "wall_y": 0.0, "operator_joint": "t_handle_hinge", "primary_joint": "door_slide", "handle_height": 0.9, "counterbalance_fraction": 0.95, "mass_reconciled_kg": 67.2736230042725, "scene_extent": 2.3675, "cam_target_z": 1.09, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.077, -0.065, 0.9], "handle_cam_pos": [0.173, -1.165, 1.25]}'
+        custom string doorbench:meta = '{"door_id": "db0780_garage_sectional", "family": "garage_sectional", "task": "open_only", "wall_y": 0.0, "operator_joint": "t_handle_hinge", "primary_joint": "door_slide", "handle_height": 0.9, "counterbalance_fraction": 0.95, "mass_reconciled_kg": 67.26124335708195, "scene_extent": 2.3675, "cam_target_z": 1.09, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.0385, -0.065, 0.9], "handle_cam_pos": [0.2115, -1.165, 1.25]}'
         custom bool physxArticulation:enabledSelfCollisions = 1
         custom int physxArticulation:solverPositionIterationCount = 32
 
@@ -194,6 +194,21 @@ def Xform "World"
                     float inputs:metallic = 0.3
                     float inputs:opacity = 1
                     float inputs:roughness = 0.7
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_trim"
+            {
+                token outputs:surface.connect = </World/db0780_garage_sectional/Looks/mat_trim/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.85, 0.66, 0.3)
+                    float inputs:metallic = 1
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.25
                     token outputs:surface
                 }
             }
@@ -595,10 +610,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (3.3006192e-18, 0.010190419, 1.0743759)
-            float3 physics:diagonalInertia = (24.582527, 41.816006, 66.31212)
-            float physics:mass = 67.27362
-            quatf physics:principalAxes = (0.7071453, -0.7070683, 0, 0)
+            point3f physics:centerOfMass = (-8.2530663e-19, 0.010190419, 1.0743759)
+            float3 physics:diagonalInertia = (24.578005, 41.80831, 66.29991)
+            float physics:mass = 67.261246
+            quatf physics:principalAxes = (0.7070683, 0.7071453, 0, 0)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -1370,10 +1385,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "operator"
-            point3f physics:centerOfMass = (-0.029639982, -0.046384323, 3.0719046e-18)
-            float3 physics:diagonalInertia = (0.00010805564, 0.00051541755, 0.0005964915)
-            float physics:mass = 0.29759723
-            quatf physics:principalAxes = (-0.23227823, 6.5334857e-18, 2.735853e-17, 0.9726494)
+            point3f physics:centerOfMass = (1.7078551e-19, -0.0475437, 2.9772234e-18)
+            float3 physics:diagonalInertia = (0.00020145896, 0.00020848468, 0.00038252785)
+            float physics:mass = 0.30997688
+            quatf physics:principalAxes = (1, -2.1185045e-17, 0, 0)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -1398,7 +1413,7 @@ def Xform "World"
 
             def Xform "t_handle_t_n" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/lever_84834db174.usdc@</lever_84834db174>
+                prepend references = @../../hardware/lever_01c630149d.usdc@</lever_01c630149d>
             )
             {
                 custom string doorbench:label = "T-handle"
@@ -1425,15 +1440,30 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.11, 0.016, 0.016)
-                double3 xformOp:translate = (-0.055, -0.065, 0)
+                double3 xformOp:translate = (0, -0.065, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "t_handle_cylinder_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Key cylinder"
+                custom string doorbench:semantic = "lock"
+                double height = 0.008
+                rel material:binding = </World/db0780_garage_sectional/Looks/mat_trim>
+                double radius = 0.0085
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (0, -0.07500000000000001, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Xform "t_handle_grip_n"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (-0.077, -0.065, 0)
+                double3 xformOp:translate = (-0.0385, -0.065, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }

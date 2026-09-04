@@ -12,7 +12,7 @@ def Xform "World"
     )
     {
         custom string doorbench:couplings = '[{"type": "loop_closure_point", "body1": "closer_arm_fore", "body2": "world", "anchor": [0.26, 0, 0], "label": "Closer forearm pinned to frame bracket"}, {"type": "one_sided_tendon", "terms": [["leaf_latch_bolt_slide", 1.0], ["leaf_handle_hinge", -0.023456790123456788]], "range": [0.0, 10.0], "label": "bolt_q >= scale*handle_q (one-sided)"}]'
-        custom string doorbench:meta = '{"door_id": "db0481_swing_single", "family": "swing_single", "task": "unlock_open_traverse", "wall_y": -0.108, "u": 1.0, "v": 1.0, "hinge_x": -0.436, "leaf_edge_x_local": 0.867, "handle_height": 1.04, "primary_joint": "leaf_hinge", "operator_joint": "leaf_handle_hinge", "mass_reconciled_kg": 55.17372779691136, "scene_extent": 2.03375, "cam_target_z": 1.0225, "cam_target_x": 0.0, "handle_cam_x": 0.328, "handle_cam_target": [0.2649999999999999, -0.077, 1.04], "handle_cam_pos": [0.4449999999999999, -0.877, 1.32]}'
+        custom string doorbench:meta = '{"door_id": "db0481_swing_single", "family": "swing_single", "task": "unlock_open_traverse", "wall_y": -0.108, "clearance_allow": [["leaf_chain_*", "leaf_chain_track", "chain end in its track"], ["leaf_chain_*", "jamb_*", "slack chain vs jamb"], ["leaf_chain_*", "stop_*", "slack chain vs stop"], ["leaf_chain_*", "seal_*", "slack chain vs seal"], ["leaf_chain_*", "casing_*", "slack chain vs casing"], ["leaf_chain_*", "stud_*", "slack chain vs stud"]], "u": 1.0, "v": 1.0, "hinge_x": -0.436, "leaf_edge_x_local": 0.867, "handle_height": 1.04, "primary_joint": "leaf_hinge", "operator_joint": "leaf_handle_hinge", "mass_reconciled_kg": 55.17372779691136, "scene_extent": 2.03375, "cam_target_z": 1.0225, "cam_target_x": 0.0, "handle_cam_x": 0.328, "handle_cam_target": [0.2649999999999999, -0.077, 1.04], "handle_cam_pos": [0.4449999999999999, -0.877, 1.32]}'
         custom bool physxArticulation:enabledSelfCollisions = 1
         custom int physxArticulation:solverPositionIterationCount = 32
 
@@ -104,6 +104,21 @@ def Xform "World"
                     float inputs:metallic = 1
                     float inputs:opacity = 1
                     float inputs:roughness = 0.1
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_trim"
+            {
+                token outputs:surface.connect = </World/db0481_swing_single/Looks/mat_trim/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.85, 0.66, 0.3)
+                    float inputs:metallic = 1
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.25
                     token outputs:surface
                 }
             }
@@ -412,13 +427,13 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
-                custom string doorbench:label = "Chain track"
+                custom string doorbench:label = "Chain track (slotted)"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </World/db0481_swing_single/Looks/mat_chain>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.05, 0.008, 0.024)
-                double3 xformOp:translate = (0.46099999999999997, 0.034, 1.34)
+                float3 xformOp:scale = (0.07, 0.01, 0.02)
+                double3 xformOp:translate = (0.46599999999999997, -0.263, 1.34)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -713,10 +728,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.41894448, 0.008198149, 1.1535764)
-            float3 physics:diagonalInertia = (3.2869606, 21.41081, 24.633896)
+            point3f physics:centerOfMass = (0.41914225, 0.008923322, 1.1535813)
+            float3 physics:diagonalInertia = (3.2904413, 21.402653, 24.628782)
             float physics:mass = 55.17373
-            quatf physics:principalAxes = (-0.48102745, 0.4978037, 0.51032406, 0.510268)
+            quatf physics:principalAxes = (-0.4821804, 0.49669418, 0.5115118, 0.50907034)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -846,86 +861,126 @@ def Xform "World"
                 custom string doorbench:label = "Card reader"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </World/db0481_swing_single/Looks/mat_reader>
-                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
-                double3 xformOp:translate = (0.7969999999999999, -0.022, 1.2)
+                quatf xformOp:orient = (0, 0, 0.70710677, 0.70710677)
+                double3 xformOp:translate = (0.7969999999999999, 0.022, 1.2)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
-            def Sphere "leaf_chain_0" (
+            def Cube "leaf_latch_bolt_faceplate" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
-                custom string doorbench:label = "Door chain"
+                custom string doorbench:label = "Latch faceplate (flush in the edge)"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0481_swing_single/Looks/mat_bolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.0012, 0.028, 0.056)
+                double3 xformOp:translate = (0.8664, 0, 1.04)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_chain_plate" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Chain anchor plate"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </World/db0481_swing_single/Looks/mat_chain>
-                double radius = 0.006
+                double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.847, 0.032, 1.34)
+                float3 xformOp:scale = (0.024, 0.004, 0.04)
+                double3 xformOp:translate = (0.817, -0.024, 1.34)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Capsule "leaf_chain_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Chain link"
+                custom string doorbench:semantic = "lock"
+                double height = 0.012
+                rel material:binding = </World/db0481_swing_single/Looks/mat_chain>
+                double radius = 0.003
+                quatf xformOp:orient = (0.6893081, 0.70010626, 0.18629436, -0)
+                double3 xformOp:translate = (0.8221666666666666, -0.049416666666666664, 1.339)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
-            def Sphere "leaf_chain_1" (
+            def Capsule "leaf_chain_1" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
-                custom string doorbench:label = "Door chain"
+                uniform token axis = "Z"
+                custom string doorbench:label = "Chain link"
                 custom string doorbench:semantic = "lock"
+                double height = 0.012
                 rel material:binding = </World/db0481_swing_single/Looks/mat_chain>
-                double radius = 0.006
-                quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.832, 0.032, 1.336)
+                double radius = 0.003
+                quatf xformOp:orient = (0.6893081, 0.70010626, 0.18629436, -0)
+                double3 xformOp:translate = (0.8325, -0.08825, 1.3370000000000002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
-            def Sphere "leaf_chain_2" (
+            def Capsule "leaf_chain_2" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
-                custom string doorbench:label = "Door chain"
+                uniform token axis = "Z"
+                custom string doorbench:label = "Chain link"
                 custom string doorbench:semantic = "lock"
+                double height = 0.012
                 rel material:binding = </World/db0481_swing_single/Looks/mat_chain>
-                double radius = 0.006
-                quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.817, 0.032, 1.332)
+                double radius = 0.003
+                quatf xformOp:orient = (0.6893081, 0.70010626, 0.18629436, -0)
+                double3 xformOp:translate = (0.8428333333333333, -0.12708333333333333, 1.335)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
-            def Sphere "leaf_chain_3" (
+            def Capsule "leaf_chain_3" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
-                custom string doorbench:label = "Door chain"
+                uniform token axis = "Z"
+                custom string doorbench:label = "Chain link"
                 custom string doorbench:semantic = "lock"
+                double height = 0.012
                 rel material:binding = </World/db0481_swing_single/Looks/mat_chain>
-                double radius = 0.006
-                quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.802, 0.032, 1.328)
+                double radius = 0.003
+                quatf xformOp:orient = (0.6893081, 0.70010626, 0.18629436, -0)
+                double3 xformOp:translate = (0.8531666666666666, -0.16591666666666666, 1.3330000000000002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
-            def Sphere "leaf_chain_4" (
+            def Capsule "leaf_chain_4" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
-                custom string doorbench:label = "Door chain"
+                uniform token axis = "Z"
+                custom string doorbench:label = "Chain link"
                 custom string doorbench:semantic = "lock"
+                double height = 0.012
                 rel material:binding = </World/db0481_swing_single/Looks/mat_chain>
-                double radius = 0.006
-                quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.787, 0.032, 1.324)
+                double radius = 0.003
+                quatf xformOp:orient = (0.6893081, 0.70010626, 0.18629436, -0)
+                double3 xformOp:translate = (0.8634999999999999, -0.20475, 1.331)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
-            def Sphere "leaf_chain_5" (
+            def Capsule "leaf_chain_5" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
-                custom string doorbench:label = "Door chain"
+                uniform token axis = "Z"
+                custom string doorbench:label = "Chain link"
                 custom string doorbench:semantic = "lock"
+                double height = 0.012
                 rel material:binding = </World/db0481_swing_single/Looks/mat_chain>
-                double radius = 0.006
-                quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.772, 0.032, 1.32)
+                double radius = 0.003
+                quatf xformOp:orient = (0.6893081, 0.70010626, 0.18629436, -0)
+                double3 xformOp:translate = (0.8738333333333334, -0.24358333333333335, 1.3290000000000002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 

@@ -12,7 +12,7 @@ def Xform "World"
     )
     {
         custom string doorbench:couplings = "[]"
-        custom string doorbench:meta = '{"door_id": "db0196_rollup", "family": "rollup", "task": "close", "wall_y": 0.0, "primary_joint": "curtain_slide", "handle_height": 0.9, "counterbalance_fraction": 0.9, "operator_joint": null, "mass_reconciled_kg": 47.757632360616405, "scene_extent": 2.825, "cam_target_z": 1.245, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, 0.1346, 0.16], "handle_cam_pos": [0.25, -0.9654, 0.51]}'
+        custom string doorbench:meta = '{"door_id": "db0196_rollup", "family": "rollup", "task": "close", "wall_y": 0.0, "clearance_allow": [["coil_drum", "garage_slide_lock*", "curtain coils into the drum (translation approximation)"]], "primary_joint": "curtain_slide", "handle_height": 0.9, "counterbalance_fraction": 0.9, "operator_joint": null, "mass_reconciled_kg": 47.68846352573573, "scene_extent": 2.825, "cam_target_z": 1.245, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, 0.1346, 0.16], "handle_cam_pos": [0.25, -0.9654, 0.51]}'
         custom bool physxArticulation:enabledSelfCollisions = 1
         custom int physxArticulation:solverPositionIterationCount = 32
 
@@ -290,8 +290,8 @@ def Xform "World"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.06, 0.05, 0.985)
-                double3 xformOp:translate = (-1.5599999999999998, 0.185, 0.4925)
+                float3 xformOp:scale = (0.06, 0.05, 0.285)
+                double3 xformOp:translate = (-1.5599999999999998, 0.185, 0.1425)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -309,8 +309,8 @@ def Xform "World"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.06, 0.05, 1.475)
-                double3 xformOp:translate = (-1.5599999999999998, 0.185, 1.7525)
+                float3 xformOp:scale = (0.06, 0.05, 2.175)
+                double3 xformOp:translate = (-1.5599999999999998, 0.185, 1.4025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -420,10 +420,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0, 0.18462932, 1.0257244)
-            float3 physics:diagonalInertia = (29.296162, 36.694675, 65.987976)
-            float physics:mass = 47.757633
-            quatf physics:principalAxes = (0, 0, -0.7069218, 0.7072917)
+            point3f physics:centerOfMass = (-0.0036303713, 0.18464705, 1.0238985)
+            float3 physics:diagonalInertia = (29.241112, 36.800938, 66.03917)
+            float physics:mass = 47.688465
+            quatf physics:principalAxes = (0.7069051, -0.7072598, -0.0058513265, -0.005873001)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -936,6 +936,104 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Cube "garage_slide_lock_plate" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt mounting plate"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0196_rollup/Looks/mat_slidelock>
+                double size = 1
+                quatf xformOp:orient = (0, 0, 0.70710677, 0.70710677)
+                float3 xformOp:scale = (0.149, 0.038, 0.002)
+                double3 xformOp:translate = (-1.4425, 0.1864, 0.3)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "garage_slide_lock_guide_0_leg_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0196_rollup/Looks/mat_slidelock>
+                double size = 1
+                quatf xformOp:orient = (0, 0, 0.70710677, 0.70710677)
+                float3 xformOp:scale = (0.012, 0.004, 0.023)
+                double3 xformOp:translate = (-1.509, 0.19690000000000002, 0.289)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "garage_slide_lock_guide_0_leg_p" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0196_rollup/Looks/mat_slidelock>
+                double size = 1
+                quatf xformOp:orient = (0, 0, 0.70710677, 0.70710677)
+                float3 xformOp:scale = (0.012, 0.004, 0.023)
+                double3 xformOp:translate = (-1.509, 0.19690000000000002, 0.311)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "garage_slide_lock_guide_0_bridge" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0196_rollup/Looks/mat_slidelock>
+                double size = 1
+                quatf xformOp:orient = (0, 0, 0.70710677, 0.70710677)
+                float3 xformOp:scale = (0.012, 0.026, 0.004)
+                double3 xformOp:translate = (-1.509, 0.2064, 0.3)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "garage_slide_lock_guide_1_leg_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0196_rollup/Looks/mat_slidelock>
+                double size = 1
+                quatf xformOp:orient = (0, 0, 0.70710677, 0.70710677)
+                float3 xformOp:scale = (0.012, 0.004, 0.023)
+                double3 xformOp:translate = (-1.378, 0.19690000000000002, 0.289)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "garage_slide_lock_guide_1_leg_p" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0196_rollup/Looks/mat_slidelock>
+                double size = 1
+                quatf xformOp:orient = (0, 0, 0.70710677, 0.70710677)
+                float3 xformOp:scale = (0.012, 0.004, 0.023)
+                double3 xformOp:translate = (-1.378, 0.19690000000000002, 0.311)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "garage_slide_lock_guide_1_bridge" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0196_rollup/Looks/mat_slidelock>
+                double size = 1
+                quatf xformOp:orient = (0, 0, 0.70710677, 0.70710677)
+                float3 xformOp:scale = (0.012, 0.026, 0.004)
+                double3 xformOp:translate = (-1.378, 0.2064, 0.3)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "lift_handle_grip_n"
             {
                 custom string doorbench:site_role = "grip"
@@ -950,25 +1048,25 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "lock"
-            point3f physics:centerOfMass = (-0.01, 0, 0)
-            float3 physics:diagonalInertia = (0.0000013807285, 0.000051264044, 0.000051264044)
-            float physics:mass = 0.07812764
-            quatf physics:principalAxes = (7.850462e-17, -7.850462e-17, 0.70710677, 0.70710677)
+            point3f physics:centerOfMass = (0.076802745, 0.0037339504, 0)
+            float3 physics:diagonalInertia = (0.000014057957, 0.00019009097, 0.00020162159)
+            float physics:mass = 0.14729647
+            quatf physics:principalAxes = (0.9999179, 5.2948476e-17, 1.1030324e-16, 0.012811016)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (-1.4649999999999999, 0.1954, 1)
+            double3 xformOp:translate = (-1.525, 0.19540000000000002, 0.3)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
-            def Capsule "garage_slide_lock_geom" (
+            def Capsule "garage_slide_lock_rod" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
             )
             {
                 uniform token axis = "Z"
-                custom string doorbench:label = "Slide lock bar"
+                custom string doorbench:label = "Bolt rod"
                 custom string doorbench:semantic = "lock"
-                double height = 0.08
+                double height = 0.128
                 rel material:binding = </World/db0196_rollup/Looks/mat_slidelock>
                 rel material:binding:physics = </World/db0196_rollup/Looks/PhysMat_mat_slidelock> (
                     bindMaterialAs = "weakerThanDescendants"
@@ -976,8 +1074,41 @@ def Xform "World"
                 custom float physxCollision:contactOffset = 0.005
                 custom float physxCollision:restOffset = 0
                 double radius = 0.006
-                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
-                double3 xformOp:translate = (-0.009999999999999995, 0, 0)
+                quatf xformOp:orient = (0.70710677, 0, -0.70710677, 0)
+                double3 xformOp:translate = (0.07500000000000001, -0, -0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "garage_slide_lock_knob" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Bolt handle"
+                custom string doorbench:semantic = "operator"
+                double height = 0.019999999999999997
+                rel material:binding = </World/db0196_rollup/Looks/mat_slidelock>
+                rel material:binding:physics = </World/db0196_rollup/Looks/PhysMat_mat_slidelock> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.005
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (0.08499999999999999, 0.015, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Sphere "garage_slide_lock_knob_end" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Handle knob"
+                custom string doorbench:semantic = "operator"
+                rel material:binding = </World/db0196_rollup/Looks/mat_slidelock>
+                double radius = 0.006750000000000001
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.08499999999999999, 0.03, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -985,7 +1116,7 @@ def Xform "World"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0, 0.02, 0)
+                double3 xformOp:translate = (0.08499999999999999, 0.034, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
@@ -1034,7 +1165,7 @@ def Xform "World"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </World/db0196_rollup/curtain>
                 rel physics:body1 = </World/db0196_rollup/garage_slide_lock>
-                point3f physics:localPos0 = (-1.465, 0.1954, 1)
+                point3f physics:localPos0 = (-1.525, 0.1954, 0.3)
                 point3f physics:localPos1 = (0, 0, 0)
                 quatf physics:localRot0 = (1, 0, 0, 0)
                 quatf physics:localRot1 = (1, 0, 0, 0)

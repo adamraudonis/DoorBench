@@ -12,7 +12,7 @@ def Xform "World"
     )
     {
         custom string doorbench:couplings = "[]"
-        custom string doorbench:meta = '{"door_id": "db0241_hatch_floor", "family": "hatch_floor", "task": "unlock_open_traverse", "wall_y": 0.0, "operator_joint": "ring_hinge", "primary_joint": "hatch_hinge", "handle_height": 0.0, "horizontal": true, "mass_reconciled_kg": 27.737551378324245, "scene_extent": 1.5, "cam_target_z": 0.455, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, -0.18749999999999997, 0.062], "handle_cam_pos": [0.35, -0.7375, 0.9119999999999999]}'
+        custom string doorbench:meta = '{"door_id": "db0241_hatch_floor", "family": "hatch_floor", "task": "unlock_open_traverse", "wall_y": 0.0, "operator_joint": "ring_hinge", "primary_joint": "hatch_hinge", "handle_height": 0.0, "horizontal": true, "mass_reconciled_kg": 27.721651388477838, "scene_extent": 1.5, "cam_target_z": 0.455, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, -0.18749999999999997, 0.062], "handle_cam_pos": [0.35, -0.7375, 0.9119999999999999]}'
         custom bool physxArticulation:enabledSelfCollisions = 1
         custom int physxArticulation:solverPositionIterationCount = 32
 
@@ -367,11 +367,11 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "hatch_bolt_keeper_b" (
+            def Cube "hatch_bolt_keeper_leg_n" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
             )
             {
-                custom string doorbench:label = "Keeper"
+                custom string doorbench:label = "Keeper loop"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
                 rel material:binding:physics = </World/db0241_hatch_floor/Looks/PhysMat_mat_bolt> (
@@ -381,16 +381,16 @@ def Xform "World"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.05, 0.028, 0.008)
-                double3 xformOp:translate = (0.635, 0, 0.053000000000000005)
+                float3 xformOp:scale = (0.014, 0.005, 0.04)
+                double3 xformOp:translate = (0.633, -0.011500000000000002, 0.06)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "hatch_bolt_keeper_t" (
+            def Cube "hatch_bolt_keeper_leg_p" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
             )
             {
-                custom string doorbench:label = "Keeper"
+                custom string doorbench:label = "Keeper loop"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
                 rel material:binding:physics = </World/db0241_hatch_floor/Looks/PhysMat_mat_bolt> (
@@ -400,8 +400,41 @@ def Xform "World"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.05, 0.028, 0.008)
-                double3 xformOp:translate = (0.635, 0, 0.075)
+                float3 xformOp:scale = (0.014, 0.005, 0.04)
+                double3 xformOp:translate = (0.633, 0.011500000000000002, 0.06)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hatch_bolt_keeper_bridge" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Keeper loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
+                rel material:binding:physics = </World/db0241_hatch_floor/Looks/PhysMat_mat_bolt> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.014, 0.028, 0.005)
+                double3 xformOp:translate = (0.633, 0, 0.07750000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hatch_bolt_keeper_base" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Keeper loop base"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.03, 0.04, 0.002)
+                double3 xformOp:translate = (0.633, 0, 0.041)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -435,10 +468,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.020171192, -0.4529737, -0.005403261)
-            float3 physics:diagonalInertia = (1.8520905, 3.518234, 5.3083787)
-            float physics:mass = 27.73755
-            quatf physics:principalAxes = (0.99980265, -0.005275459, 0.011714905, 0.015151048)
+            point3f physics:centerOfMass = (0.022596544, -0.45298335, -0.005268739)
+            float3 physics:diagonalInertia = (1.842469, 3.533792, 5.3142114)
+            float physics:mass = 27.721651
+            quatf physics:principalAxes = (0.99981225, -0.005299669, 0.0113272965, 0.01480028)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -493,6 +526,104 @@ def Xform "World"
                 double3 xformOp:translate = (0.5499999999999999, -0.36400000000000005, -0.15)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
+
+            def Cube "hatch_bolt_plate" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt mounting plate"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.128, 0.038, 0.002)
+                double3 xformOp:translate = (0.528, -0.455, 0.017)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hatch_bolt_guide_0_leg_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.012, 0.004, 0.023)
+                double3 xformOp:translate = (0.584, -0.466, 0.0275)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hatch_bolt_guide_0_leg_p" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.012, 0.004, 0.023)
+                double3 xformOp:translate = (0.584, -0.444, 0.0275)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hatch_bolt_guide_0_bridge" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.012, 0.026, 0.004)
+                double3 xformOp:translate = (0.584, -0.455, 0.037)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hatch_bolt_guide_1_leg_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.012, 0.004, 0.023)
+                double3 xformOp:translate = (0.474, -0.466, 0.0275)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hatch_bolt_guide_1_leg_p" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.012, 0.004, 0.023)
+                double3 xformOp:translate = (0.474, -0.444, 0.0275)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hatch_bolt_guide_1_bridge" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Bolt guide loop"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.012, 0.026, 0.004)
+                double3 xformOp:translate = (0.474, -0.455, 0.037)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
         }
 
         def Xform "ring" (
@@ -545,25 +676,25 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "lock"
-            point3f physics:centerOfMass = (0.08, 0, 0)
-            float3 physics:diagonalInertia = (0.0000020199545, 0.00015639307, 0.00015639307)
-            float physics:mass = 0.113640204
-            quatf physics:principalAxes = (7.850462e-17, -7.850462e-17, 0.70710677, 0.70710677)
+            point3f physics:centerOfMass = (-0.026254833, 0, 0.004245769)
+            float3 physics:diagonalInertia = (0.000013354512, 0.00011975305, 0.00013089983)
+            float physics:mass = 0.12954019
+            quatf physics:principalAxes = (0.7069257, 0.7069257, 0.016003124, -0.016003124)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (0.5, 0, 0.064)
+            double3 xformOp:translate = (0.6, 0, 0.066)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
-            def Capsule "hatch_bolt_geom" (
+            def Capsule "hatch_bolt_rod" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
             )
             {
                 uniform token axis = "Z"
-                custom string doorbench:label = "Bolt"
+                custom string doorbench:label = "Bolt rod"
                 custom string doorbench:semantic = "lock"
-                double height = 0.12
+                double height = 0.108
                 rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
                 rel material:binding:physics = </World/db0241_hatch_floor/Looks/PhysMat_mat_bolt> (
                     bindMaterialAs = "weakerThanDescendants"
@@ -572,7 +703,40 @@ def Xform "World"
                 custom float physxCollision:restOffset = 0
                 double radius = 0.006
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
-                double3 xformOp:translate = (0.08, 0, 0)
+                double3 xformOp:translate = (-0.024, -0, -0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Capsule "hatch_bolt_knob" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Bolt handle"
+                custom string doorbench:semantic = "operator"
+                double height = 0.019999999999999997
+                rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
+                rel material:binding:physics = </World/db0241_hatch_floor/Looks/PhysMat_mat_bolt> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.005
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.034999999999999996, 0, 0.015)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Sphere "hatch_bolt_knob_end" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Handle knob"
+                custom string doorbench:semantic = "operator"
+                rel material:binding = </World/db0241_hatch_floor/Looks/mat_bolt>
+                double radius = 0.006750000000000001
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.034999999999999996, 0, 0.03)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -580,7 +744,7 @@ def Xform "World"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0, 0, 0.02)
+                double3 xformOp:translate = (-0.034999999999999996, 0, 0.034)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
@@ -617,7 +781,7 @@ def Xform "World"
             )
             {
                 custom float doorbench:initial = 0
-                custom string doorbench:label = "Ring pull (flip up)"
+                custom string doorbench:label = "Ring pull (flip out)"
                 custom string doorbench:role = "operator"
                 custom float doorbench:zero_offset = 0
                 float drive:angular:physics:damping = 0.00017453292
@@ -654,7 +818,7 @@ def Xform "World"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </World/db0241_hatch_floor/hatch>
                 rel physics:body1 = </World/db0241_hatch_floor/hatch_bolt>
-                point3f physics:localPos0 = (0.5, -0.455, 0.024)
+                point3f physics:localPos0 = (0.6, -0.455, 0.026)
                 point3f physics:localPos1 = (0, 0, 0)
                 quatf physics:localRot0 = (0, 0, 0, 1)
                 quatf physics:localRot1 = (0, 0, 0, 1)

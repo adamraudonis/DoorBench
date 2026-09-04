@@ -12,7 +12,7 @@ def Xform "World"
     )
     {
         custom string doorbench:couplings = "[]"
-        custom string doorbench:meta = '{"door_id": "db0284_garage_tiltup", "family": "garage_tiltup", "task": "open_and_traverse", "wall_y": 0.0, "operator_joint": "t_handle_hinge", "primary_joint": "door_hinge", "handle_height": 0.9, "counterbalance_fraction": 0.7, "mass_reconciled_kg": 54.254841836815395, "scene_extent": 2.3675, "cam_target_z": 1.025, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.077, -0.0625, 0.9], "handle_cam_pos": [0.173, -1.1625, 1.25]}'
+        custom string doorbench:meta = '{"door_id": "db0284_garage_tiltup", "family": "garage_tiltup", "task": "open_and_traverse", "wall_y": 0.0, "operator_joint": "t_handle_hinge", "primary_joint": "door_hinge", "handle_height": 0.9, "counterbalance_fraction": 0.7, "mass_reconciled_kg": 54.24246218962486, "scene_extent": 2.3675, "cam_target_z": 1.025, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.0385, -0.0625, 0.9], "handle_cam_pos": [0.2115, -1.1625, 1.25]}'
         custom bool physxArticulation:enabledSelfCollisions = 1
         custom int physxArticulation:solverPositionIterationCount = 32
 
@@ -119,6 +119,21 @@ def Xform "World"
                     float inputs:metallic = 0.3
                     float inputs:opacity = 1
                     float inputs:roughness = 0.7
+                    token outputs:surface
+                }
+            }
+
+            def Material "mat_trim"
+            {
+                token outputs:surface.connect = </World/db0284_garage_tiltup/Looks/mat_trim/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.85, 0.66, 0.3)
+                    float inputs:metallic = 1
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.25
                     token outputs:surface
                 }
             }
@@ -348,9 +363,9 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (6.394723e-20, 0, 0.01)
-            float3 physics:diagonalInertia = (18.092197, 26.924835, 44.998684)
-            float physics:mass = 54.25484
+            point3f physics:centerOfMass = (0, 0, 0.01)
+            float3 physics:diagonalInertia = (18.08807, 26.918692, 44.988415)
+            float physics:mass = 54.242462
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
@@ -608,10 +623,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "operator"
-            point3f physics:centerOfMass = (-0.030088797, -0.04491224, 3.11842e-18)
-            float3 physics:diagonalInertia = (0.0000976103, 0.00050100865, 0.00057171716)
-            float physics:mass = 0.29315817
-            quatf physics:principalAxes = (-0.21762353, 6.1912587e-18, 2.7767547e-17, 0.9760328)
+            point3f physics:centerOfMass = (1.732668e-19, -0.046046816, 3.0204785e-18)
+            float3 physics:diagonalInertia = (0.00017994113, 0.00020840477, 0.00036101002)
+            float physics:mass = 0.30553782
+            quatf physics:principalAxes = (1, -1.8701594e-17, 0, 0)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -636,7 +651,7 @@ def Xform "World"
 
             def Xform "t_handle_t_n" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/lever_84834db174.usdc@</lever_84834db174>
+                prepend references = @../../hardware/lever_01c630149d.usdc@</lever_01c630149d>
             )
             {
                 custom string doorbench:label = "T-handle"
@@ -663,15 +678,30 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.11, 0.016, 0.016)
-                double3 xformOp:translate = (-0.055, -0.0625, 0)
+                double3 xformOp:translate = (0, -0.0625, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "t_handle_cylinder_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Key cylinder"
+                custom string doorbench:semantic = "lock"
+                double height = 0.008
+                rel material:binding = </World/db0284_garage_tiltup/Looks/mat_trim>
+                double radius = 0.0085
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (0, -0.07250000000000001, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Xform "t_handle_grip_n"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (-0.077, -0.0625, 0)
+                double3 xformOp:translate = (-0.0385, -0.0625, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }

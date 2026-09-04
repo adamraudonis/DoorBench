@@ -12,7 +12,7 @@ def Xform "World"
     )
     {
         custom string doorbench:couplings = "[]"
-        custom string doorbench:meta = '{"door_id": "db0014_gate_swing", "family": "gate_swing", "task": "hold_and_pass", "wall_y": 0.0, "clearance_allow": [["leaf_pin_geom", "leaf_pin_housing", "pin slides inside its housing"]], "u": -1.0, "v": -1.0, "hinge_x": 0.456, "leaf_edge_x_local": -0.903, "handle_height": 1.0, "primary_joint": "leaf_hinge", "operator_joint": "leaf_pin_slide", "mass_reconciled_kg": 5.955183414212251, "scene_extent": 1.5, "cam_target_z": 0.61, "cam_target_x": 0.0, "handle_cam_x": -0.34400000000000003, "handle_cam_target": [-0.40700000000000003, 0.03515, 1.065], "handle_cam_pos": [-0.22700000000000004, -0.76485, 1.345]}'
+        custom string doorbench:meta = '{"door_id": "db0014_gate_swing", "family": "gate_swing", "task": "hold_and_pass", "wall_y": 0.0, "clearance_allow": [["leaf_pin_geom", "leaf_pin_housing", "pin slides inside its housing"], ["leaf_pin_knob", "leaf_pin_housing", "knob seats on the housing"], ["leaf_pin_geom", "leaf_pin_bracket*", "pin passes the bracket"]], "u": -1.0, "v": -1.0, "hinge_x": 0.456, "leaf_edge_x_local": -0.903, "handle_height": 1.0, "primary_joint": "leaf_hinge", "operator_joint": "leaf_pin_slide", "mass_reconciled_kg": 5.955183414212251, "scene_extent": 1.5, "cam_target_z": 0.61, "cam_target_x": 0.0, "handle_cam_x": -0.34400000000000003, "handle_cam_target": [-0.40700000000000003, 0.03515, 1.065], "handle_cam_pos": [-0.22700000000000004, -0.76485, 1.345]}'
         custom bool physxArticulation:enabledSelfCollisions = 1
         custom int physxArticulation:solverPositionIterationCount = 32
 
@@ -243,45 +243,60 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "leaf_pin_bracket" (
-                prepend apiSchemas = ["MaterialBindingAPI"]
-            )
-            {
-                custom string doorbench:label = "Pin bracket"
-                custom string doorbench:semantic = "latch"
-                rel material:binding = </World/db0014_gate_swing/Looks/mat_op_black_matte_metal>
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.073, 0.024, 0.012)
-                double3 xformOp:translate = (-0.4315, 0.03515, 1.02)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
             def Cube "leaf_pin_housing" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
-                custom string doorbench:label = "Pin housing"
+                custom string doorbench:label = "Latch housing"
                 custom string doorbench:semantic = "latch"
                 rel material:binding = </World/db0014_gate_swing/Looks/mat_op_black_matte_metal>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.03, 0.03, 0.04)
-                double3 xformOp:translate = (-0.40700000000000003, 0.03515, 1.02)
+                float3 xformOp:scale = (0.044, 0.04, 0.06)
+                double3 xformOp:translate = (-0.40700000000000003, 0.03515, 1.015)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Xform "leaf_magnalatch_body" (
+            def Cube "leaf_pin_bracket" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/magnalatch_d6380d9fbc.usdc@</magnalatch_d6380d9fbc>
             )
             {
-                custom string doorbench:label = "MagnaLatch body"
+                custom string doorbench:label = "Housing bracket to the post"
                 custom string doorbench:semantic = "latch"
                 rel material:binding = </World/db0014_gate_swing/Looks/mat_op_black_matte_metal>
-                quatf xformOp:orient = (4.3297803e-17, 4.3297803e-17, -0.70710677, 0.70710677)
-                double3 xformOp:translate = (-0.486, -0.03, 0.9)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.033, 0.04, 0.02)
+                double3 xformOp:translate = (-0.4455, 0.03515, 1.024)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_pin_bracket_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Housing bracket to the post"
+                custom string doorbench:semantic = "latch"
+                rel material:binding = </World/db0014_gate_swing/Looks/mat_op_black_matte_metal>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.033, 0.04, 0.012)
+                double3 xformOp:translate = (-0.4455, 0.03515, 0.994)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_pin_post_plate" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Post mounting plate"
+                custom string doorbench:semantic = "latch"
+                rel material:binding = </World/db0014_gate_swing/Looks/mat_op_black_matte_metal>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.006, 0.052, 0.1)
+                double3 xformOp:translate = (-0.459, 0.03515, 1.01)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
             def Cylinder "post_hinge" (

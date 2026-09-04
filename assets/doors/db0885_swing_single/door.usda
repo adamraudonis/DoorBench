@@ -108,6 +108,21 @@ def Xform "World"
                 }
             }
 
+            def Material "mat_trim"
+            {
+                token outputs:surface.connect = </World/db0885_swing_single/Looks/mat_trim/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.85, 0.66, 0.3)
+                    float inputs:metallic = 1
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.25
+                    token outputs:surface
+                }
+            }
+
             def Material "mat_bolt"
             {
                 token outputs:surface.connect = </World/db0885_swing_single/Looks/mat_bolt/Shader.outputs:surface>
@@ -753,10 +768,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.3751666, -0.00053538056, 0.9170712)
-            float3 physics:diagonalInertia = (1.186805, 9.74663, 10.92525)
+            point3f physics:centerOfMass = (0.3755356, -0.000534873, 0.917165)
+            float3 physics:diagonalInertia = (1.1894184, 9.737632, 10.91887)
             float physics:mass = 25.998312
-            quatf physics:principalAxes = (0.5002612, -0.49797377, -0.5019314, -0.49982575)
+            quatf physics:principalAxes = (0.50190175, 0.49980077, 0.5002863, -0.4980035)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -1075,6 +1090,20 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cube "leaf_latch_bolt_faceplate" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Latch faceplate (flush in the edge)"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0885_swing_single/Looks/mat_bolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.0012, 0.0247, 0.0534)
+                double3 xformOp:translate = (0.7644, 0, 1.016)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Cube "pet_frame_top" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
@@ -1321,8 +1350,8 @@ def Xform "World"
         {
             custom string doorbench:semantic = "leaf"
             point3f physics:centerOfMass = (0, 0, -0.125)
-            float3 physics:diagonalInertia = (0.00011332453, 0.00022427537, 0.0003374774)
-            float physics:mass = 0.045942377
+            float3 physics:diagonalInertia = (0.00011332263, 0.00022427161, 0.00033747172)
+            float physics:mass = 0.045941606
             quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16

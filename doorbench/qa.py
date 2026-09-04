@@ -226,8 +226,11 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
             metrics["locked_displacement"] = _q(m, d, pj)
             thr_l = thr + (math.asin(min(0.99, lk.chain_slack / max(W - 0.1, 0.2))) if lk.chain_slack else 0.0)
             checks["locked_holds"] = bool(_q(m, d, pj) < thr_l)
-        # closer returns from 60 deg
-        if is_hinge and spec["closer"]["model"] not in ("none", "gas_strut") and phys["closer"].get("spring_preload_Nm", 0) > 0 and not spec["kinematics"].get("both_ways") and not env_release_only and not (spec["lock"]["engaged"] and lk.kind in ("chain", "swing_bar_guard", "padlock")):
+        # closer returns from 60 deg (not applicable to gates with a gravity fork latch: the fork is not self-latching
+        # and must be lifted to close the gate, so a closer cannot bring the gate home on its own)
+        if lt.id == "fork_gravity":
+            metrics["closer_note"] = "fork latch: gate closes only with the fork lifted; closer return not applicable"
+        elif is_hinge and spec["closer"]["model"] not in ("none", "gas_strut") and phys["closer"].get("spring_preload_Nm", 0) > 0 and not spec["kinematics"].get("both_ways") and not env_release_only and not (spec["lock"]["engaged"] and lk.kind in ("chain", "swing_bar_guard", "padlock")):
             mujoco.mj_resetData(m, d)
             qa = m.jnt_qposadr[pj]
             d.qpos[qa] = math.radians(min(60.0, (spec["kinematics"].get("max_open_deg") or 90) * 0.8))

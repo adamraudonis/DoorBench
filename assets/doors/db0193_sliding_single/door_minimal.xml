@@ -26,6 +26,9 @@
     <material name="mat_glass" rgba="0.85 0.92 0.95 0.25" specular="0.2" shininess="0.95" reflectance="0.1"/>
     <material name="mat_roller" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
     <material name="mat_op_stainless" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <material name="mat_op_steel_galvanized" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_padlock" rgba="0.85 0.66 0.3 1" specular="0.8" shininess="0.75" reflectance="0.4"/>
+    <material name="mat_hook" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
   </asset>
   <worldbody>
@@ -41,12 +44,16 @@
     <geom name="wall_header" type="box" size="0.6185 0.0725 0.2775" pos="0.03 0 2.7805" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
     <geom name="jamb_l" type="box" size="0.0225 0.0725 1.229" pos="-0.566 0 1.229" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="jamb_head" type="box" size="0.5885 0.0725 0.0225" pos="0 0 2.4805" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
+    <geom name="leaf_staple_leg_n" type="box" size="0.003 0.0025 0.046" pos="0.5735 -0.1185 1.2375" quat="0.707107 0.707107 0 0" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
+    <geom name="leaf_staple_leg_p" type="box" size="0.003 0.0025 0.046" pos="0.5735 -0.1185 1.2625" quat="0.707107 0.707107 0 0" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
+    <geom name="leaf_staple_bridge" type="box" size="0.003 0.015 0.0025" pos="0.5735 -0.162 1.25" quat="0.707107 0.707107 0 0" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
+    <geom name="leaf_staple_base" type="box" size="0.016 0.021 0.001" pos="0.5735 -0.0735 1.25" quat="0.707107 0.707107 0 0" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
     <geom name="jamb_latch_0" type="box" size="0.0525 0.0725 1.229" pos="0.596 0 1.229" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <site name="door_plane_center" pos="0 0 1.229" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="leaf" pos="0 -0.1145 0">
-      <inertial pos="0.004974 -0.000971 1.229009" mass="107.791803" quat="0.499541 0.501586 0.498235 -0.500632" diaginertia="10.37303585 52.866527369 63.186194885"/>
+      <inertial pos="0.004974 -0.000971 1.229009" mass="107.670411" quat="0.499541 0.501586 0.498235 -0.500632" diaginertia="10.361354038 52.806990618 63.115036424"/>
       <joint name="leaf_slide" type="slide" axis="-1 0 0" limited="true" range="0 1.067" damping="7.38959" frictionloss="73.995354" armature="0.5"/>
       <geom name="leaf_slab" type="box" size="0.5335 0.022 1.219" pos="0 0 1.231" material="mat_leaf" group="0" contype="1" conaffinity="1" friction="0.45 0.005 0.0001" density="1"/>
       <geom name="leaf_glass_0" type="box" size="0.125 0.0228 0.3657" pos="0 0 1.7186" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
@@ -54,10 +61,18 @@
       <geom name="leaf_pull_col_n" type="capsule" size="0.0125 0.13" pos="0.4435 -0.097 1.05" material="mat_op_stainless" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
       <site name="leaf_pull_grip_n" pos="0.4435 -0.097 1.05" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
       <site name="leaf_edge_mid" pos="0.5335 0 1.231" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <body name="leaf_hasp" pos="0.4735 -0.028 1.25">
+        <inertial pos="-0.057978 -0.019021 0" mass="0.099918" quat="0.696818 -0.696818 -0.120185 0.120185" diaginertia="0.000010275 0.000124007 0.000134132"/>
+        <joint name="leaf_hasp_hinge" type="hinge" axis="0 0 -1" limited="true" range="0 2.9" damping="0.02" frictionloss="0.05" armature="0.005" ref="2.8"/>
+        <geom name="leaf_hasp_strap" type="box" size="0.061 0.0175 0.0015" pos="-0.057978 -0.019021 0" quat="0.120185 0.120185 -0.696818 -0.696818" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
+        <site name="leaf_hasp_grip" pos="-0.099457 -0.024747 0" size="0.01" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      </body>
     </body>
   </worldbody>
   <sensor>
     <jointpos name="leaf_slide_pos" joint="leaf_slide"/>
     <jointvel name="leaf_slide_vel" joint="leaf_slide"/>
+    <jointpos name="leaf_hasp_hinge_pos" joint="leaf_hasp_hinge"/>
+    <jointvel name="leaf_hasp_hinge_vel" joint="leaf_hasp_hinge"/>
   </sensor>
 </mujoco>

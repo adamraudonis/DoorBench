@@ -23,6 +23,7 @@
     <material name="mat_mesh_infill" rgba="0.6 0.62 0.64 0.55" specular="0.68" shininess="0.3" reflectance="0.1"/>
     <material name="mat_hinge" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
     <material name="mat_op_steel_galvanized" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_padlock" rgba="0.85 0.66 0.3 1" specular="0.8" shininess="0.75" reflectance="0.4"/>
     <material name="mat_frame" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
     <material name="mat_fence_mesh" rgba="0.6 0.62 0.64 0.5" specular="0.68" shininess="0.3" reflectance="0.1"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
@@ -33,7 +34,7 @@
     <camera name="robot_view" pos="0 -2.33125 1.56275" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
     <camera name="far_view" pos="0 2.33125 1.56275" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
     <camera name="iso" pos="1.77175 -1.95825 1.93575" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
-    <camera name="detail_handle" pos="0.657 -0.8 2.22" xyaxes="0.97561 0.219512 0 -0.070934 0.315262 0.94635" fovy="38"/>
+    <camera name="detail_handle" pos="0.766 -0.81215 1.385" xyaxes="0.97561 0.219512 0 -0.070934 0.315262 0.94635" fovy="38"/>
     <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
     <geom name="post_hinge" type="cylinder" size="0.05 0.975" pos="-0.656 0 0.975" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
     <geom name="post_latch" type="box" size="0.05 0.05 0.975" pos="0.656 0 0.975" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
@@ -42,7 +43,7 @@
     <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <site name="door_plane_center" pos="0 0 0.91" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="leaf" pos="-0.606 0 0">
-      <inertial pos="0.603 0 1" mass="6.134652" quat="-0.5 0.5 0.5 0.5" diaginertia="0.73605196 1.656195036 2.392246894"/>
+      <inertial pos="0.603 0 1" mass="6.574207" quat="-0.5 0.5 0.5 0.5" diaginertia="0.788790889 1.774863226 2.563654006"/>
       <joint name="leaf_hinge" type="hinge" axis="0 0 1" pos="0.003 0.00715 0" limited="true" range="0 0.0015" damping="1.674086" frictionloss="2.850172" stiffness="5" springref="-0.8" armature="0.02"/>
       <geom name="leaf_slab_col" type="box" size="0.6 0.00015 0.9" pos="0.603 0 1" material="mat_leaf" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.45 0.005 0.0001" density="1"/>
       <geom name="leaf_rail_b" type="box" size="0.6 0.00015 0.0225" pos="0.603 0 0.1225" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
@@ -51,15 +52,20 @@
       <geom name="leaf_stile_l" type="box" size="0.0225 0.00015 0.9" pos="1.1805 0 1" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
       <geom name="leaf_mesh" type="box" size="0.555 0.0015 0.855" pos="0.603 0 1" material="mat_mesh_infill" group="1" contype="0" conaffinity="0" density="1"/>
       <site name="leaf_edge_mid" pos="1.203 0 0.9" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    </body>
-    <body name="leaf_fork" pos="0.577 0 1.94">
-      <inertial pos="-0.055335 0 -0.031126" mass="0.902148" quat="0.173192 0.173192 -0.685569 0.685569" diaginertia="0.0006865 0.001044901 0.001600756"/>
-      <joint name="leaf_fork_hinge" type="hinge" axis="0 1 0" limited="true" range="0 1.2" damping="0.02" frictionloss="0.02" armature="0.005"/>
-      <geom name="leaf_fork_tine_n" type="box" size="0.05 0.003 0.03" pos="-0.05 -0.00615 -0.05" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
-      <geom name="leaf_fork_tine_p" type="box" size="0.05 0.003 0.03" pos="-0.05 0.00615 -0.05" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
-      <geom name="leaf_fork_bridge" type="box" size="0.005 0.00915 0.01" pos="0 0 0" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
-      <geom name="leaf_fork_handle" type="box" size="0.05 0.02 0.005" pos="-0.07 0 0" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
-      <site name="leaf_fork_grip" pos="-0.1 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <body name="leaf_fork" pos="1.063 0 1">
+        <inertial pos="0.085635 -0.008577 0.001337" mass="0.4472" quat="0.943538 -0.040308 -0.327089 0.033514" diaginertia="0.000580347 0.002114115 0.002272295"/>
+        <joint name="leaf_fork_hinge" type="hinge" axis="0 -1 0" limited="true" range="0 0.001" damping="0.02" frictionloss="0.02" armature="0.01"/>
+        <geom name="leaf_fork_arm" type="box" size="0.069176 0.004 0.012" pos="0.0645 -0.01215 0.025" quat="0.982958 0 -0.183833 0" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+        <geom name="leaf_fork_tine_n" type="box" size="0.05 0.003 0.012" pos="0.179 -0.059 0.05" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+        <geom name="leaf_fork_tine_p" type="box" size="0.05 0.003 0.012" pos="0.179 0.059 0.05" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+        <geom name="leaf_fork_bridge" type="box" size="0.004 0.062 0.012" pos="0.129 0 0.05" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
+        <geom name="leaf_fork_handle" type="capsule" size="0.006 0.018" pos="0.129 -0.01215 0.08" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.7 0.01 0.0001" density="2500"/>
+        <geom name="leaf_fork_padlock_shackle" type="capsule" size="0.004 0.016" pos="0.05 -0.01215 0" quat="0.707107 -0.707107 0 0" material="mat_padlock" group="1" contype="0" conaffinity="0" density="7850"/>
+        <geom name="leaf_fork_padlock_leg_a" type="capsule" size="0.004 0.012" pos="0.05 -0.02815 -0.012" quat="0 1 0 0" material="mat_padlock" group="1" contype="0" conaffinity="0" density="7850"/>
+        <geom name="leaf_fork_padlock_leg_b" type="capsule" size="0.004 0.012" pos="0.05 0.00385 -0.012" quat="0 1 0 0" material="mat_padlock" group="1" contype="0" conaffinity="0" density="7850"/>
+        <geom name="leaf_fork_padlock_body" type="box" size="0.022 0.018 0.008" pos="0.05 -0.01215 -0.042" quat="0.5 -0.5 -0.5 0.5" material="mat_padlock" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+        <site name="leaf_fork_grip" pos="0.129 -0.01215 0.105" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      </body>
     </body>
   </worldbody>
   <sensor>

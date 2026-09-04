@@ -440,8 +440,8 @@ def Xform "World"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.08, 0.062, 0.04)
-                double3 xformOp:translate = (-0.5005000000000001, -0.042, 1.016)
+                float3 xformOp:scale = (0.08, 0.018, 0.04)
+                double3 xformOp:translate = (-0.5005000000000001, -0.064, 1.016)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -460,7 +460,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.08, 0.016, 0.04)
-                double3 xformOp:translate = (-0.5005000000000001, 0.019, 1.016)
+                double3 xformOp:translate = (-0.5005000000000001, -0.025, 1.016)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -477,9 +477,9 @@ def Xform "World"
                 custom float physxCollision:contactOffset = 0.005
                 custom float physxCollision:restOffset = 0
                 double size = 1
-                quatf xformOp:orient = (0.9664996, 0, 0, 0.25666794)
-                float3 xformOp:scale = (0.08, 0.040311288, 0.04)
-                double3 xformOp:translate = (-0.5052297256849784, 0.024654442465726647, 1.016)
+                quatf xformOp:orient = (0.99232465, 0, 0, 0.12366007)
+                float3 xformOp:scale = (0.08, 0.081492335, 0.04)
+                double3 xformOp:translate = (-0.5092766549813214, 0.012683125321184478, 1.016)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -498,7 +498,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.057, 0.022, 0.04)
-                double3 xformOp:translate = (-0.512, 0, 1.016)
+                double3 xformOp:translate = (-0.512, -0.044, 1.016)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -611,8 +611,27 @@ def Xform "World"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.011, 0.032, 2.451)
-                double3 xformOp:translate = (-0.455, -0.0385, 1.2255)
+                float3 xformOp:scale = (0.011, 0.032, 0.9685)
+                double3 xformOp:translate = (-0.455, -0.0385, 0.48425)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "stop_strike_1" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Stop (strike side)"
+                custom string doorbench:semantic = "frame"
+                rel material:binding = </World/db0618_swing_single/Looks/mat_frame>
+                rel material:binding:physics = </World/db0618_swing_single/Looks/PhysMat_mat_frame> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.011, 0.032, 1.3875)
+                double3 xformOp:translate = (-0.455, -0.0385, 1.75725)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -658,8 +677,22 @@ def Xform "World"
                 rel material:binding = </World/db0618_swing_single/Looks/mat_seal>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.008, 0.005, 2.451)
-                double3 xformOp:translate = (-0.4575, -0.024499999999999997, 1.2255)
+                float3 xformOp:scale = (0.008, 0.005, 0.9685)
+                double3 xformOp:translate = (-0.4575, -0.024499999999999997, 0.48425)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "seal_strike_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Weatherstrip (visual)"
+                custom string doorbench:semantic = "seal"
+                rel material:binding = </World/db0618_swing_single/Looks/mat_seal>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.008, 0.005, 1.3875)
+                double3 xformOp:translate = (-0.4575, -0.024499999999999997, 1.75725)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -752,10 +785,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-0.42919132, 0.0140511375, 1.4502072)
-            float3 physics:diagonalInertia = (3.7175224, 34.9128, 38.522247)
+            point3f physics:centerOfMass = (-0.430965, 0.013784496, 1.4485575)
+            float3 physics:diagonalInertia = (3.7473798, 34.828815, 38.467262)
             float physics:mass = 58.969135
-            quatf physics:principalAxes = (0.51472414, -0.51497185, -0.4957979, -0.47333658)
+            quatf physics:principalAxes = (0.51538146, -0.51502305, -0.49577722, -0.4725867)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -1031,8 +1064,8 @@ def Xform "World"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.05, 0.06825, 0.075)
-                double3 xformOp:translate = (-0.8620000000000001, -0.056125, 1.016)
+                float3 xformOp:scale = (0.068, 0.06825, 0.075)
+                double3 xformOp:translate = (-0.871, -0.056125, 1.016)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1206,7 +1239,7 @@ def Xform "World"
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (-0.4565, 0, 1.016)
+            double3 xformOp:translate = (-0.4565, -0.044, 1.016)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Capsule "leaf_latch_bolt_capsule" (
@@ -1363,7 +1396,7 @@ def Xform "World"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </World/db0618_swing_single/leaf>
                 rel physics:body1 = </World/db0618_swing_single/leaf_latch_bolt>
-                point3f physics:localPos0 = (-0.917, 0, 1.016)
+                point3f physics:localPos0 = (-0.917, -0.044, 1.016)
                 point3f physics:localPos1 = (0, 0, 0)
                 quatf physics:localRot0 = (1, 0, 0, 0)
                 quatf physics:localRot1 = (1, 0, 0, 0)

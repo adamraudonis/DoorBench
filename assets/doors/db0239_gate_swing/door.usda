@@ -12,7 +12,7 @@ def Xform "World"
     )
     {
         custom string doorbench:couplings = "[]"
-        custom string doorbench:meta = '{"door_id": "db0239_gate_swing", "family": "gate_swing", "task": "open_and_traverse", "wall_y": 0.0, "clearance_allow": [["leaf_fork_bridge", "leaf_fork_bracket", "fork pivots on its bracket"]], "u": -1.0, "v": 1.0, "hinge_x": 1.806, "leaf_edge_x_local": -3.603, "handle_height": 0.9, "primary_joint": "leaf_hinge", "operator_joint": null, "mass_reconciled_kg": 71.25462, "scene_extent": 3.209, "cam_target_z": 0.76, "cam_target_x": 0.0, "handle_cam_x": -1.694, "handle_cam_target": [-1.677, 0.0, 1.6400000000000001], "handle_cam_pos": [-1.497, -0.8, 1.9200000000000002]}'
+        custom string doorbench:meta = '{"door_id": "db0239_gate_swing", "family": "gate_swing", "task": "open_and_traverse", "wall_y": 0.0, "clearance_allow": [["leaf_fork_eye", "leaf_fork_pin", "pivot pin through the fork eye"], ["leaf_fork_arm", "leaf_fork_pin", "pivot pin through the arm"]], "u": -1.0, "v": 1.0, "hinge_x": 1.806, "leaf_edge_x_local": -3.603, "handle_height": 0.9, "primary_joint": "leaf_hinge", "operator_joint": "leaf_fork_hinge", "mass_reconciled_kg": 72.03433700770316, "scene_extent": 3.209, "cam_target_z": 0.76, "cam_target_x": 0.0, "handle_cam_x": -1.694, "handle_cam_target": [-1.786, -0.0345, 1.0050000000000001], "handle_cam_pos": [-1.606, -0.8345, 1.2850000000000001]}'
         custom bool physxArticulation:enabledSelfCollisions = 1
         custom int physxArticulation:solverPositionIterationCount = 32
 
@@ -192,20 +192,6 @@ def Xform "World"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (12, 12, 0.1)
                 double3 xformOp:translate = (0, 0, -0.05)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "leaf_fork_bracket" (
-                prepend apiSchemas = ["MaterialBindingAPI"]
-            )
-            {
-                custom string doorbench:label = "Fork pivot bracket"
-                custom string doorbench:semantic = "latch"
-                rel material:binding = </World/db0239_gate_swing/Looks/mat_op_steel_galvanized>
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.037, 0.012, 0.012)
-                double3 xformOp:translate = (-1.7915, 0, 1.6400000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -856,10 +842,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-1.7626879, 0.000624848, 0.84999895)
-            float3 physics:diagonalInertia = (13.679544, 79.7229, 93.37683)
-            float physics:mass = 71.25462
-            quatf physics:principalAxes = (0.7071067, -0.7071067, -0.000316991, 0.00031695914)
+            point3f physics:centerOfMass = (-1.7671764, 0.00061854994, 0.850131)
+            float3 physics:diagonalInertia = (13.793352, 80.93096, 94.69827)
+            float physics:mass = 72.03434
+            quatf physics:principalAxes = (0.7071069, -0.70710653, -0.00023329516, 0.00040308345)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -1402,6 +1388,49 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cube "leaf_fork_strap_n" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Fork strap"
+                custom string doorbench:semantic = "latch"
+                rel material:binding = </World/db0239_gate_swing/Looks/mat_op_steel_galvanized>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.04, 0.004, 0.06)
+                double3 xformOp:translate = (-3.463, -0.0245, 0.9)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_fork_strap_p" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Fork strap"
+                custom string doorbench:semantic = "latch"
+                rel material:binding = </World/db0239_gate_swing/Looks/mat_op_steel_galvanized>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.04, 0.004, 0.06)
+                double3 xformOp:translate = (-3.463, 0.0245, 0.9)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "leaf_fork_pin" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Pivot pin"
+                custom string doorbench:semantic = "latch"
+                double height = 0.069
+                rel material:binding = </World/db0239_gate_swing/Looks/mat_op_steel_galvanized>
+                double radius = 0.005
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (-3.463, -0.008000000000000002, 0.9)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
             def Xform "leaf_edge_mid"
             {
                 custom string doorbench:site_role = "leaf_edge"
@@ -1416,22 +1445,56 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "latch"
-            point3f physics:centerOfMass = (0.051364366, 0, -0.028892456)
-            float3 physics:diagonalInertia = (0.0012946229, 0.0016338439, 0.0018645657)
-            float physics:mass = 0.97188
-            quatf physics:principalAxes = (0.040255893, -0.040255893, 0.70596, 0.70596)
+            point3f physics:centerOfMass = (-0.10836571, -0.016919924, 0.039297204)
+            float3 physics:diagonalInertia = (0.00016131856, 0.0007986006, 0.0008992786)
+            float physics:mass = 0.19216299
+            quatf physics:principalAxes = (0.97902226, -0.06630031, 0.15371878, -0.11614757)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (-1.7770000000000001, 0, 1.6400000000000001)
+            double3 xformOp:translate = (-1.657, 0, 0.9)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+
+            def Cube "leaf_fork_arm" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Fork arm"
+                custom string doorbench:semantic = "latch"
+                rel material:binding = </World/db0239_gate_swing/Looks/mat_op_steel_galvanized>
+                rel material:binding:physics = </World/db0239_gate_swing/Looks/PhysMat_mat_op_steel_galvanized> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (0.98295754, 0, 0.18383278, 0)
+                float3 xformOp:scale = (0.13835101, 0.008, 0.024)
+                double3 xformOp:translate = (-0.06450000000000003, -0.0345, 0.025)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "leaf_fork_eye" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Pivot eye"
+                custom string doorbench:semantic = "latch"
+                double height = 0.01
+                rel material:binding = </World/db0239_gate_swing/Looks/mat_op_steel_galvanized>
+                double radius = 0.014
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (0, -0.0345, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
 
             def Cube "leaf_fork_tine_n" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
             )
             {
-                custom string doorbench:label = "Fork tine"
+                custom string doorbench:label = "Fork prong"
                 custom string doorbench:semantic = "latch"
                 rel material:binding = </World/db0239_gate_swing/Looks/mat_op_steel_galvanized>
                 rel material:binding:physics = </World/db0239_gate_swing/Looks/PhysMat_mat_op_steel_galvanized> (
@@ -1441,8 +1504,8 @@ def Xform "World"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.1, 0.006, 0.06)
-                double3 xformOp:translate = (0.05, -0.028499999999999998, -0.05)
+                float3 xformOp:scale = (0.08, 0.006, 0.024)
+                double3 xformOp:translate = (-0.16900000000000004, -0.039, 0.05)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1450,7 +1513,7 @@ def Xform "World"
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
             )
             {
-                custom string doorbench:label = "Fork tine"
+                custom string doorbench:label = "Fork prong"
                 custom string doorbench:semantic = "latch"
                 rel material:binding = </World/db0239_gate_swing/Looks/mat_op_steel_galvanized>
                 rel material:binding:physics = </World/db0239_gate_swing/Looks/PhysMat_mat_op_steel_galvanized> (
@@ -1460,8 +1523,8 @@ def Xform "World"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.1, 0.006, 0.06)
-                double3 xformOp:translate = (0.05, 0.028499999999999998, -0.05)
+                float3 xformOp:scale = (0.08, 0.006, 0.024)
+                double3 xformOp:translate = (-0.16900000000000004, 0.039, 0.05)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1479,35 +1542,36 @@ def Xform "World"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.01, 0.063, 0.02)
-                double3 xformOp:translate = (0, 0, 0)
+                float3 xformOp:scale = (0.008, 0.084, 0.024)
+                double3 xformOp:translate = (-0.12900000000000006, 0, 0.05)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "leaf_fork_handle" (
+            def Capsule "leaf_fork_handle" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
             )
             {
-                custom string doorbench:label = "Fork lift tab"
+                uniform token axis = "Z"
+                custom string doorbench:label = "Fork lift handle"
                 custom string doorbench:semantic = "operator"
+                double height = 0.036
                 rel material:binding = </World/db0239_gate_swing/Looks/mat_op_steel_galvanized>
                 rel material:binding:physics = </World/db0239_gate_swing/Looks/PhysMat_mat_op_steel_galvanized> (
                     bindMaterialAs = "weakerThanDescendants"
                 )
                 custom float physxCollision:contactOffset = 0.005
                 custom float physxCollision:restOffset = 0
-                double size = 1
+                double radius = 0.006
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.1, 0.04, 0.01)
-                double3 xformOp:translate = (0.07, 0, 0)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+                double3 xformOp:translate = (-0.12900000000000006, -0.0345, 0.08)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Xform "leaf_fork_grip"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.1, 0, 0)
+                double3 xformOp:translate = (-0.12900000000000006, -0.0345, 0.10500000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
@@ -1546,8 +1610,8 @@ def Xform "World"
             )
             {
                 custom float doorbench:initial = 0
-                custom string doorbench:label = "Fork latch (0 = dropped over the top rail, + = lifted)"
-                custom string doorbench:role = "latch"
+                custom string doorbench:label = "Fork latch (0 = dropped over the post, + = lifted; lift to open AND to close)"
+                custom string doorbench:role = "operator"
                 custom float doorbench:zero_offset = 0
                 float drive:angular:physics:damping = 0.00034906584
                 float drive:angular:physics:maxForce = 1000000
@@ -1555,14 +1619,15 @@ def Xform "World"
                 float drive:angular:physics:targetPosition = 0
                 uniform token drive:angular:physics:type = "force"
                 uniform token physics:axis = "X"
+                rel physics:body0 = </World/db0239_gate_swing/leaf>
                 rel physics:body1 = </World/db0239_gate_swing/leaf_fork>
-                point3f physics:localPos0 = (-1.777, 0, 1.64)
+                point3f physics:localPos0 = (-3.463, 0, 0.9)
                 point3f physics:localPos1 = (0, 0, 0)
-                quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
-                quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
+                quatf physics:localRot0 = (0.70710677, 0, 0, 0.70710677)
+                quatf physics:localRot1 = (0.70710677, 0, 0, 0.70710677)
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 68.75494
-                custom float physxJoint:armature = 0.005
+                custom float physxJoint:armature = 0.01
                 custom float physxJoint:jointFriction = 0.02
             }
         }

@@ -26,6 +26,8 @@
     <material name="mat_glass_leaf" rgba="0.85 0.92 0.95 0.25" specular="0.2" shininess="0.95" reflectance="0.1"/>
     <material name="mat_patch" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <material name="mat_roller" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_ebolt" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <material name="mat_hook" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <material name="mat_sign" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <material name="mat_wallreader" rgba="0.05 0.05 0.05 1" specular="0.38" shininess="0.3" reflectance="0.12"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
@@ -46,6 +48,7 @@
     <geom name="track_header" type="box" size="1.87 0.09 0.09" pos="0 0 2.469" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
     <geom name="fixed_panel_glass" type="box" size="0.59 0.003 1.142" pos="-0.61 0.04 1.192" material="mat_fixed_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
     <geom name="fixed_panel_stile" type="box" size="0.03 0.012 1.192" pos="-0.03 0.0475 1.192" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1400"/>
+    <geom name="leaf_electric_bolt_housing" type="box" size="0.022 0.014 0.045" pos="1.13 -0.0405 2.176" material="mat_ebolt" group="1" contype="0" conaffinity="0" density="7900"/>
     <geom name="jamb_latch_0" type="box" size="0.0525 0.1 1.192" pos="1.2725 0 1.192" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="wave_sensor_n" type="box" size="0.05 0.012 0.05" pos="1.47 -0.112 1.05" material="mat_wallreader" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1000"/>
     <geom name="wave_sensor_p" type="box" size="0.05 0.012 0.05" pos="1.47 0.112 1.05" material="mat_wallreader" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1000"/>
@@ -53,10 +56,18 @@
     <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <site name="door_plane_center" pos="0 0 1.192" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="leaf" pos="0.61 0 0">
-      <inertial pos="0 0 1.079" mass="89.5976" quat="-0.5 0.5 0.5 0.5" diaginertia="10.766831595 34.01708027 44.753672675"/>
+      <inertial pos="0.002927 -0.000182 1.084442" mass="89.447232" quat="0.502602 -0.502758 -0.497 -0.497611" diaginertia="10.821634988 34.240305942 45.030827816"/>
       <joint name="leaf_slide" type="slide" axis="-1 0 0" limited="true" range="0 1.18" damping="6.47988" frictionloss="21.087655" armature="0.5"/>
       <geom name="leaf_glass" type="box" size="0.6 0.0225 1.067" pos="0 0 1.079" material="mat_glass_leaf" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
+      <geom name="leaf_ebolt_keeper_n" type="box" size="0.006 0.014 0.02" pos="0.502 -0.0365 2.046" material="mat_ebolt" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
+      <geom name="leaf_ebolt_keeper_p" type="box" size="0.006 0.014 0.02" pos="0.538 -0.0365 2.046" material="mat_ebolt" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
+      <geom name="leaf_ebolt_keeper_base" type="box" size="0.03 0.002 0.03" pos="0.52 -0.0245 2.046" material="mat_ebolt" group="1" contype="0" conaffinity="0" density="7900"/>
       <site name="leaf_edge_mid" pos="0.6 0 1.079" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    </body>
+    <body name="leaf_electric_bolt" pos="1.13 -0.0365 2.081">
+      <inertial pos="0 0 0.04" mass="0.150368" quat="0.707107 0 0.707107 0" diaginertia="0.000004703 0.000115179 0.000115179"/>
+      <joint name="leaf_electric_bolt_slide" type="slide" axis="0 0 1" limited="true" range="0 0.04" damping="5" frictionloss="2" armature="0.1" ref="0.04"/>
+      <geom name="leaf_electric_bolt_geom" type="capsule" size="0.008 0.042" pos="0 0 0.04" material="mat_ebolt" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="7900"/>
     </body>
   </worldbody>
   <actuator>
@@ -65,5 +76,7 @@
   <sensor>
     <jointpos name="leaf_slide_pos" joint="leaf_slide"/>
     <jointvel name="leaf_slide_vel" joint="leaf_slide"/>
+    <jointpos name="leaf_electric_bolt_slide_pos" joint="leaf_electric_bolt_slide"/>
+    <jointvel name="leaf_electric_bolt_slide_vel" joint="leaf_electric_bolt_slide"/>
   </sensor>
 </mujoco>

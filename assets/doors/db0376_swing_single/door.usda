@@ -93,6 +93,21 @@ def Xform "World"
                 }
             }
 
+            def Material "mat_trim"
+            {
+                token outputs:surface.connect = </World/db0376_swing_single/Looks/mat_trim/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.85, 0.66, 0.3)
+                    float inputs:metallic = 1
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.25
+                    token outputs:surface
+                }
+            }
+
             def Material "mat_bolt"
             {
                 token outputs:surface.connect = </World/db0376_swing_single/Looks/mat_bolt/Shader.outputs:surface>
@@ -744,10 +759,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-0.35423413, 0.00030791014, 1.0720352)
-            float3 physics:diagonalInertia = (2.1937463, 19.1489, 21.325415)
+            point3f physics:centerOfMass = (-0.35432935, 0.00030782854, 1.0720203)
+            float3 physics:diagonalInertia = (2.1948998, 19.14387, 21.321543)
             float physics:mass = 50.737846
-            quatf physics:principalAxes = (0.49961707, 0.50052357, -0.49940407, 0.5004543)
+            quatf physics:principalAxes = (0.4996213, 0.5005273, -0.4994003, 0.5004501)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -813,6 +828,20 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cube "leaf_latch_bolt_faceplate" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Latch faceplate (flush in the edge)"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0376_swing_single/Looks/mat_bolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.0012, 0.0247, 0.0534)
+                double3 xformOp:translate = (-0.7133999999999999, 0, 1.016)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "coat_hook" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
                 prepend references = @../../hardware/coat_hook_d622d37ad0.usdc@</coat_hook_d622d37ad0>
@@ -840,7 +869,7 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "operator"
-            point3f physics:centerOfMass = (1.8596963e-19, 0.0002278709, 4.2782915e-18)
+            point3f physics:centerOfMass = (1.8596963e-19, -0.0002278709, 4.464261e-18)
             float3 physics:diagonalInertia = (0.00031225866, 0.0042788847, 0.0042788847)
             float physics:mass = 1.138671
             quatf physics:principalAxes = (0.5, 0.5, 0.5, 0.5)
@@ -868,7 +897,7 @@ def Xform "World"
 
             def Xform "leaf_handle_knob_n" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/knob_d1888f6f03.usdc@</knob_d1888f6f03>
+                prepend references = @../../hardware/knob_248d825e64.usdc@</knob_248d825e64>
             )
             {
                 custom string doorbench:label = "Knob"
@@ -920,7 +949,7 @@ def Xform "World"
 
             def Xform "leaf_handle_knob_p" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/knob_248d825e64.usdc@</knob_248d825e64>
+                prepend references = @../../hardware/knob_d1888f6f03.usdc@</knob_d1888f6f03>
             )
             {
                 custom string doorbench:label = "Knob"

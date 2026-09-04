@@ -108,6 +108,21 @@ def Xform "World"
                 }
             }
 
+            def Material "mat_trim"
+            {
+                token outputs:surface.connect = </World/db0733_swing_double/Looks/mat_trim/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.85, 0.66, 0.3)
+                    float inputs:metallic = 1
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.25
+                    token outputs:surface
+                }
+            }
+
             def Material "mat_bolt"
             {
                 token outputs:surface.connect = </World/db0733_swing_double/Looks/mat_bolt/Shader.outputs:surface>
@@ -663,10 +678,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.29419625, 0.00084949285, 1.2308464)
-            float3 physics:diagonalInertia = (0.5261264, 7.358376, 7.8788433)
-            float physics:mass = 15.0532465
-            quatf physics:principalAxes = (0.4983069, 0.5032368, 0.49669522, -0.50173384)
+            point3f physics:centerOfMass = (0.29471552, 0.0008481066, 1.2305291)
+            float3 physics:diagonalInertia = (0.52775097, 7.347547, 7.869645)
+            float physics:mass = 15.053481
+            quatf physics:principalAxes = (0.4983713, 0.50328386, 0.4966482, -0.5016692)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -854,6 +869,34 @@ def Xform "World"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.04, 0.003, 0.22)
                 double3 xformOp:translate = (0.5430000000000001, 0.0235, 0.965)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_a_latch_bolt_faceplate" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Latch faceplate (flush in the edge)"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0733_swing_double/Looks/mat_bolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.0012, 0.0247, 0.0534)
+                double3 xformOp:translate = (0.6124, 0, 0.965)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_a_deadbolt_faceplate" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Deadbolt faceplate (flush in the edge)"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0733_swing_double/Looks/mat_deadbolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.0012, 0.028, 0.049)
+                double3 xformOp:translate = (0.6124, 0, 1.105)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1116,8 +1159,8 @@ def Xform "World"
         {
             custom string doorbench:semantic = "leaf"
             point3f physics:centerOfMass = (-0.33320254, -0.0051780217, 1.2311327)
-            float3 physics:diagonalInertia = (0.6200434, 7.129848, 7.7437377)
-            float physics:mass = 14.473669
+            float3 physics:diagonalInertia = (0.6200333, 7.1297326, 7.743612)
+            float physics:mass = 14.473434
             quatf physics:principalAxes = (0.48891774, 0.51223856, -0.4874098, 0.51088434)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16

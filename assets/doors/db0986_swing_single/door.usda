@@ -108,6 +108,21 @@ def Xform "World"
                 }
             }
 
+            def Material "mat_trim"
+            {
+                token outputs:surface.connect = </World/db0986_swing_single/Looks/mat_trim/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.85, 0.66, 0.3)
+                    float inputs:metallic = 1
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.25
+                    token outputs:surface
+                }
+            }
+
             def Material "mat_bolt"
             {
                 token outputs:surface.connect = </World/db0986_swing_single/Looks/mat_bolt/Shader.outputs:surface>
@@ -644,10 +659,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-0.4015617, 0.00028595497, 1.0257299)
-            float3 physics:diagonalInertia = (0.85345304, 5.2157927, 6.0660434)
+            point3f physics:centerOfMass = (-0.40195817, 0.00028568105, 1.0257206)
+            float3 physics:diagonalInertia = (0.85507894, 5.2108016, 6.06268)
             float physics:mass = 14.903995
-            quatf physics:principalAxes = (0.5002737, 0.49926096, 0.50072473, -0.4997394)
+            quatf physics:principalAxes = (0.50026935, 0.49925846, 0.50072724, -0.49974376)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -756,6 +771,20 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cube "leaf_latch_bolt_faceplate" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Latch faceplate (flush in the edge)"
+                custom string doorbench:semantic = "leaf"
+                rel material:binding = </World/db0986_swing_single/Looks/mat_bolt>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.0012, 0.0247, 0.0534)
+                double3 xformOp:translate = (-0.8153999999999999, 0, 1.016)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "leaf_edge_mid"
             {
                 custom string doorbench:site_role = "leaf_edge"
@@ -770,10 +799,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "operator"
-            point3f physics:centerOfMass = (1.8728385e-19, 0.00021873548, 4.3085253e-18)
+            point3f physics:centerOfMass = (1.8728385e-19, -0.00021873548, 4.4958093e-18)
             float3 physics:diagonalInertia = (0.00031211483, 0.003721642, 0.003721642)
             float physics:mass = 1.1306808
-            quatf physics:principalAxes = (0.5, 0.5, 0.5, 0.5)
+            quatf physics:principalAxes = (0.70710677, 5.1157357e-19, 5.1157357e-19, -0.70710677)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -798,7 +827,7 @@ def Xform "World"
 
             def Xform "leaf_handle_knob_n" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/knob_d1888f6f03.usdc@</knob_d1888f6f03>
+                prepend references = @../../hardware/knob_248d825e64.usdc@</knob_248d825e64>
             )
             {
                 custom string doorbench:label = "Knob"
@@ -850,7 +879,7 @@ def Xform "World"
 
             def Xform "leaf_handle_knob_p" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/knob_248d825e64.usdc@</knob_248d825e64>
+                prepend references = @../../hardware/knob_d1888f6f03.usdc@</knob_d1888f6f03>
             )
             {
                 custom string doorbench:label = "Knob"

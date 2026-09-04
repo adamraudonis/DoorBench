@@ -244,6 +244,15 @@ def Xform "World"
                 float physics:staticFriction = 0.42
             }
 
+            def Material "PhysMat_mat_op_brass" (
+                prepend apiSchemas = ["PhysicsMaterialAPI"]
+            )
+            {
+                float physics:dynamicFriction = 0.51
+                float physics:restitution = 0.05
+                float physics:staticFriction = 0.6
+            }
+
             def Material "PhysMat_mat_op_stainless" (
                 prepend apiSchemas = ["PhysicsMaterialAPI"]
             )
@@ -260,15 +269,6 @@ def Xform "World"
                 float physics:dynamicFriction = 0.51
                 float physics:restitution = 0.05
                 float physics:staticFriction = 0.6
-            }
-
-            def Material "PhysMat_mat_op_brass" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.595
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.7
             }
 
             def Material "PhysMat_mat_bolt" (
@@ -762,10 +762,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.41900545, -0.017360235, 1.3019054)
-            float3 physics:diagonalInertia = (3.427616, 25.587011, 28.912432)
+            point3f physics:centerOfMass = (0.4215257, -0.015908925, 1.2965606)
+            float3 physics:diagonalInertia = (3.550126, 25.153788, 28.594383)
             float physics:mass = 56.09476
-            quatf physics:principalAxes = (-0.49385265, 0.47135124, 0.514738, 0.51863503)
+            quatf physics:principalAxes = (-0.4938274, 0.47029874, 0.5153851, 0.51897186)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -842,6 +842,44 @@ def Xform "World"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (0.003, -0.028999999999999998, 1.963)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "leaf_exit_device_case" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Crossbar latch case"
+                custom string doorbench:semantic = "latch"
+                rel material:binding = </World/db0837_swing_single/Looks/mat_op_brass>
+                rel material:binding:physics = </World/db0837_swing_single/Looks/PhysMat_mat_op_brass> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.044, 0.066, 0.09)
+                double3 xformOp:translate = (0.8720000000000001, 0.055, 1.04)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_exit_device_end_case" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+            )
+            {
+                custom string doorbench:label = "Crossbar end case"
+                custom string doorbench:semantic = "operator"
+                rel material:binding = </World/db0837_swing_single/Looks/mat_op_brass>
+                rel material:binding:physics = </World/db0837_swing_single/Looks/PhysMat_mat_op_brass> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.044, 0.06, 0.07)
+                double3 xformOp:translate = (0.07650000000000001, 0.052, 1.04)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
             def Xform "leaf_far_pull_n" (
