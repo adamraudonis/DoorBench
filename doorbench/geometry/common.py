@@ -526,9 +526,9 @@ def add_leaf_geoms(model: Model, leaf_body: Body, spec: dict, leaf: dict, u: flo
             if style in ("plank_z_brace", "plank_x_brace"):
                 L = math.hypot(W - 0.1, Hh - 0.35)
                 ang = math.atan2(Hh - 0.35, (W - 0.1))
-                leaf_body.geoms.append(box(f"{name_prefix}_brace_z", (xc, y_center - (t / 2 + bt / 2), zc), (L / 2, bt / 2, 0.045), bm, 1.0, False, True, FULL_SIMPLE, "leaf", "Diagonal brace", quat=quat_from_axis_angle([0, 1, 0], -u * ang)))
+                leaf_body.geoms.append(box(f"{name_prefix}_brace_z", (xc, y_center - (t / 2 + bt / 2), zc), ((L - 0.12) / 2, bt / 2, 0.045), bm, 1.0, False, True, FULL_SIMPLE, "leaf", "Diagonal brace", quat=quat_from_axis_angle([0, 1, 0], -u * ang)))
                 if style == "plank_x_brace":
-                    leaf_body.geoms.append(box(f"{name_prefix}_brace_x", (xc, y_center - (t / 2 + bt / 2), zc), (L / 2, bt / 2, 0.045), bm, 1.0, False, True, FULL_SIMPLE, "leaf", "Diagonal brace", quat=quat_from_axis_angle([0, 1, 0], u * ang)))
+                    leaf_body.geoms.append(box(f"{name_prefix}_brace_x", (xc, y_center - (t / 2 + bt / 2), zc), ((L - 0.12) / 2, bt / 2, 0.045), bm, 1.0, False, True, FULL_SIMPLE, "leaf", "Diagonal brace", quat=quat_from_axis_angle([0, 1, 0], u * ang)))
     if style in ("riveted_steel",):
         rm = mat_from_material(model, "steel", "mat_rivet")
         n = 6

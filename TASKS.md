@@ -9,7 +9,7 @@ Fable subagent working in its own git worktree (merged by main).
 | # | Task | Status | Owner | Notes |
 |---|------|--------|-------|-------|
 | G1 | Force-driven QA sign-off (load all tiers, settle, hold, actuate, latch return, relatch, closer return, URDF/USD) | done | main | 1000/1000 pass; `doorbench/qa.py` |
-| G2 | Deterministic kinematic clearance gate: sweep every joint of every door with all geometry collidable, flag any interpenetration > 2 mm | doing | main | `doorbench/clearance.py`, `scripts/clearance_report.py`; 934/1000 clean, remaining tail being fixed; to be wired into `qa.json` + manifest + viewer badge |
+| G2 | Deterministic kinematic clearance gate: sweep every joint of every door with all geometry collidable, flag any interpenetration > 2 mm | done | main | `doorbench/clearance.py`, `scripts/clearance_report.py`; 1000/1000 clean; wired into `qa.json` (`checks.clearance`) and the manifest; viewer shows it in the QA section |
 | G3 | Lock/latch mechanism realism inspection (every operator/latch/lock type rendered close-up and reviewed; missing barrels, guides, keepers, strikes, housings) | todo | agent:locks | first finding: db0006 heavy slide bolt has no barrel/guides/keeper (user report) |
 | G4 | pytest: MuJoCo import of every family + QA smoke test | todo | agent:mujoco | `tests/test_mujoco_import.py` |
 
@@ -38,10 +38,11 @@ Fable subagent working in its own git worktree (merged by main).
 | V1 | Catalogue with thumbnails + filters, families page, 3D view with joint sliders + physics panel | done | main | live at https://adamraudonis.github.io/DoorBench/ |
 | V2 | "Open / close" must actuate the operator first (latch retracts) and open joined leaves together (dutch joining bolt); slider on a latched leaf auto-unlatches; clearance badge in the panel | todo | agent:bench | |
 | V3 | Fix resize feedback loop, HUD stacking, camera framing | done | main | |
+| V4 | Info icon (ⓘ) with a plain-language explanation on every physics-panel row; fix units (slide operators in mm, translational springs in N) | todo | agent:bench | user request |
 
 ## Process
 
 | # | Task | Status | Owner | Notes |
 |---|------|--------|-------|-------|
-| P1 | Reflection on why the interpenetrations were not caught earlier (QA was force-driven and only saw collision geometry; never swept joint ranges; visual-only parts never checked; sign-off from distant thumbnails) | doing | main | written into README "Quality gates" + final report |
+| P1 | Reflection on why the interpenetrations were not caught earlier (QA was force-driven and only saw collision geometry; never swept joint ranges; visual-only parts never checked; sign-off from distant thumbnails) | done | main | README "Why gate 1 exists" |
 | P2 | Keep this file current; merge agent worktrees; final regeneration + push | doing | main | |

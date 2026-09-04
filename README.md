@@ -64,10 +64,27 @@ cd viewer && bun install && bun run dev      # http://localhost:5173
 3. **Geometry** (`geometry/`): procedural primitives + a shared library of procedural hardware meshes; every
    mechanism is a real body with a joint (bolts, thumbturns, pads, keys, dogs, closer arms with loop closure).
 4. **Export** (`export/`): MJCF, URDF, USD from one simulator-agnostic IR (`ir.py`).
-5. **Sign-off** (`qa.py`): each door is loaded in MuJoCo (all tiers), settled, pushed while latched (must hold),
+5. **Sign-off, gate 1 - kinematic clearance** (`clearance.py`): every joint of every door is swept through its full
+   range with *all* geometry made collidable (visual-only parts included, because that is what a viewer shows) and
+   MuJoCo's parent-child contact filter disabled. Any interpenetration deeper than 2 mm fails the door
+   (hinge knuckles are allowed 12 mm where they are mortised; parts that live inside their own housing are
+   allow-listed explicitly). `scripts/clearance_report.py` prints a dataset-wide grouped report; the result is
+   `checks.clearance` in every `qa.json`.
+6. **Sign-off, gate 2 - physics** (`qa.py`): each door is loaded in MuJoCo (all tiers), settled, pushed while latched (must hold),
    its operator actuated (must open; chained doors open only to the slack limit; locked doors must not open),
    released (latch must re-extend), slammed (must re-latch), its closer tested (must return), and its URDF/USD
    checked. `qa.json` records every metric; the catalogue shows the result. Current build: 1000 / 1000 signed off.
+
+### Why gate 1 exists (a post-mortem)
+
+The first release passed gate 2 for all 1000 doors and still shipped doors whose parts passed through each other
+when opened in the viewer. The physics QA only ever saw *collision* geometry, only visited the configurations its test
+forces happened to reach (doors opened 20-50 degrees, mechanisms driven once), and treated "the simulation did not
+complain" as sign-off. Visual-only parts (hinge plates, rods, closer arms, brackets) were never checked, joint ranges
+were never swept to their limits, and thumbnails were judged from three metres away. Gate 1 is the deterministic,
+exhaustive check that should have existed from the start; it found problems in 83% of the doors, all fixed
+(see the commit history for the categories: hinge plates swinging with the leaf, closer shoes in the door's path,
+exit-device rods through the head, coils in the curtain's path, escutcheons rotating with levers, ...).
 
 ## Data layout
 
