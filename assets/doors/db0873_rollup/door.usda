@@ -12,7 +12,7 @@ def Xform "World"
     )
     {
         custom string doorbench:couplings = "[]"
-        custom string doorbench:meta = '{"door_id": "db0873_rollup", "family": "rollup", "task": "peek", "wall_y": 0.0, "primary_joint": "curtain_slide", "handle_height": 0.9, "counterbalance_fraction": 0.75, "operator_joint": null, "scene_extent": 2.825, "cam_target_z": 1.09, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, 0.0796, 0.16], "handle_cam_pos": [0.25, -1.0204, 0.51]}'
+        custom string doorbench:meta = '{"door_id": "db0873_rollup", "family": "rollup", "task": "peek", "wall_y": 0.0, "primary_joint": "curtain_slide", "handle_height": 0.9, "counterbalance_fraction": 0.75, "operator_joint": null, "scene_extent": 2.825, "cam_target_z": 1.09, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, 0.1346, 0.16], "handle_cam_pos": [0.25, -0.9654, 0.51]}'
         custom bool physxArticulation:enabledSelfCollisions = 1
         custom int physxArticulation:solverPositionIterationCount = 32
 
@@ -267,7 +267,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.05, 2.18)
-                double3 xformOp:translate = (-1.5599999999999998, 0.13, 1.09)
+                double3 xformOp:translate = (-1.5599999999999998, 0.185, 1.09)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -286,7 +286,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.05, 2.18)
-                double3 xformOp:translate = (1.5599999999999998, 0.13, 1.09)
+                double3 xformOp:translate = (1.5599999999999998, 0.185, 1.09)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -301,45 +301,49 @@ def Xform "World"
                 rel material:binding = </World/db0873_rollup/Looks/mat_frame>
                 double radius = 0.25
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
-                double3 xformOp:translate = (0, 0.13, 2.48)
+                double3 xformOp:translate = (0, 0.463, 2.48)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
-            def Cube "hood" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
-            )
-            {
-                custom string doorbench:label = "Hood"
-                custom string doorbench:semantic = "mechanism"
-                rel material:binding = </World/db0873_rollup/Looks/mat_track>
-                rel material:binding:physics = </World/db0873_rollup/Looks/PhysMat_mat_track> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (3.29, 0.6, 0.04)
-                double3 xformOp:translate = (0, 0.13, 2.76)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
             def Cube "hood_front" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
+                prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
                 custom string doorbench:label = "Hood front"
                 custom string doorbench:semantic = "mechanism"
                 rel material:binding = </World/db0873_rollup/Looks/mat_track>
-                rel material:binding:physics = </World/db0873_rollup/Looks/PhysMat_mat_track> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (3.29, 0.04, 0.56)
-                double3 xformOp:translate = (0, 0.43, 2.5)
+                float3 xformOp:scale = (3.29, 0.04, 0.6)
+                double3 xformOp:translate = (0, 0.7250000000000001, 2.48)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hood_end_l" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Hood end plate"
+                custom string doorbench:semantic = "mechanism"
+                rel material:binding = </World/db0873_rollup/Looks/mat_track>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.04, 0.58, 0.6)
+                double3 xformOp:translate = (-1.645, 0.455, 2.48)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hood_end_r" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom string doorbench:label = "Hood end plate"
+                custom string doorbench:semantic = "mechanism"
+                rel material:binding = </World/db0873_rollup/Looks/mat_track>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.04, 0.58, 0.6)
+                double3 xformOp:translate = (1.645, 0.455, 2.48)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -373,7 +377,7 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0, 0.1295857, 0.8763417)
+            point3f physics:centerOfMass = (0, 0.18458569, 0.8763417)
             float3 physics:diagonalInertia = (23.852394, 38.72496, 62.57398)
             float physics:mass = 50.453007
             quatf physics:principalAxes = (0, 0, -0.7068848, 0.70732874)
@@ -399,7 +403,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.0008, 2.13)
-                double3 xformOp:translate = (0, 0.13, 1.075)
+                double3 xformOp:translate = (0, 0.185, 1.075)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -413,7 +417,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 0.08607142857142856)
+                double3 xformOp:translate = (0, 0.18359999999999999, 0.08607142857142856)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -427,7 +431,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 0.16214285714285714)
+                double3 xformOp:translate = (0, 0.18359999999999999, 0.16214285714285714)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -441,7 +445,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 0.2382142857142857)
+                double3 xformOp:translate = (0, 0.18359999999999999, 0.2382142857142857)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -455,7 +459,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 0.3142857142857143)
+                double3 xformOp:translate = (0, 0.18359999999999999, 0.3142857142857143)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -469,7 +473,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 0.3903571428571428)
+                double3 xformOp:translate = (0, 0.18359999999999999, 0.3903571428571428)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -483,7 +487,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 0.4664285714285714)
+                double3 xformOp:translate = (0, 0.18359999999999999, 0.4664285714285714)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -497,7 +501,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 0.5425)
+                double3 xformOp:translate = (0, 0.18359999999999999, 0.5425)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -511,7 +515,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 0.6185714285714285)
+                double3 xformOp:translate = (0, 0.18359999999999999, 0.6185714285714285)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -525,7 +529,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 0.6946428571428571)
+                double3 xformOp:translate = (0, 0.18359999999999999, 0.6946428571428571)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -539,7 +543,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 0.7707142857142856)
+                double3 xformOp:translate = (0, 0.18359999999999999, 0.7707142857142856)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -553,7 +557,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 0.8467857142857143)
+                double3 xformOp:translate = (0, 0.18359999999999999, 0.8467857142857143)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -567,7 +571,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 0.9228571428571428)
+                double3 xformOp:translate = (0, 0.18359999999999999, 0.9228571428571428)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -581,7 +585,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 0.9989285714285714)
+                double3 xformOp:translate = (0, 0.18359999999999999, 0.9989285714285714)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -595,7 +599,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 1.075)
+                double3 xformOp:translate = (0, 0.18359999999999999, 1.075)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -609,7 +613,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 1.1510714285714285)
+                double3 xformOp:translate = (0, 0.18359999999999999, 1.1510714285714285)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -623,7 +627,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 1.227142857142857)
+                double3 xformOp:translate = (0, 0.18359999999999999, 1.227142857142857)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -637,7 +641,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 1.3032142857142857)
+                double3 xformOp:translate = (0, 0.18359999999999999, 1.3032142857142857)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -651,7 +655,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 1.3792857142857142)
+                double3 xformOp:translate = (0, 0.18359999999999999, 1.3792857142857142)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -665,7 +669,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 1.4553571428571428)
+                double3 xformOp:translate = (0, 0.18359999999999999, 1.4553571428571428)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -679,7 +683,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 1.5314285714285711)
+                double3 xformOp:translate = (0, 0.18359999999999999, 1.5314285714285711)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -693,7 +697,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 1.6075)
+                double3 xformOp:translate = (0, 0.18359999999999999, 1.6075)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -707,7 +711,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 1.6835714285714285)
+                double3 xformOp:translate = (0, 0.18359999999999999, 1.6835714285714285)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -721,7 +725,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 1.759642857142857)
+                double3 xformOp:translate = (0, 0.18359999999999999, 1.759642857142857)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -735,7 +739,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 1.8357142857142856)
+                double3 xformOp:translate = (0, 0.18359999999999999, 1.8357142857142856)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -749,7 +753,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 1.9117857142857142)
+                double3 xformOp:translate = (0, 0.18359999999999999, 1.9117857142857142)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -763,7 +767,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 1.9878571428571428)
+                double3 xformOp:translate = (0, 0.18359999999999999, 1.9878571428571428)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -777,7 +781,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.002, 0.006)
-                double3 xformOp:translate = (0, 0.1286, 2.0639285714285713)
+                double3 xformOp:translate = (0, 0.18359999999999999, 2.0639285714285713)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -796,7 +800,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (3.05, 0.0308, 0.06)
-                double3 xformOp:translate = (0, 0.13, 0.03)
+                double3 xformOp:translate = (0, 0.185, 0.03)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -809,7 +813,7 @@ def Xform "World"
                 custom string doorbench:semantic = "operator"
                 rel material:binding = </World/db0873_rollup/Looks/mat_op_black_matte_metal>
                 quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
-                double3 xformOp:translate = (0, 0.1296, 0.16)
+                double3 xformOp:translate = (0, 0.1846, 0.16)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -829,7 +833,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.2, 0.012, 0.03)
-                double3 xformOp:translate = (0, 0.0796, 0.16)
+                double3 xformOp:translate = (0, 0.1346, 0.16)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -837,7 +841,7 @@ def Xform "World"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0, 0.0796, 0.16)
+                double3 xformOp:translate = (0, 0.1346, 0.16)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }

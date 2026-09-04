@@ -12,7 +12,7 @@ def Xform "World"
     )
     {
         custom string doorbench:couplings = '[{"type": "loop_closure_point", "body1": "closer_arm_fore", "body2": "world", "anchor": [0.26, 0, 0], "label": "Closer forearm pinned to frame bracket"}]'
-        custom string doorbench:meta = '{"door_id": "db0307_swing_single", "family": "swing_single", "task": "open_only", "wall_y": 0.05800000000000001, "u": -1.0, "v": -1.0, "hinge_x": 0.613, "leaf_edge_x_local": -1.222, "handle_height": 1.04, "primary_joint": "leaf_hinge", "operator_joint": null, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": -0.506, "handle_cam_target": [-0.5189999999999999, -0.08199999999999999, 1.04], "handle_cam_pos": [-0.3389999999999999, -0.882, 1.32]}'
+        custom string doorbench:meta = '{"door_id": "db0307_swing_single", "family": "swing_single", "task": "open_only", "wall_y": 0.05800000000000001, "u": -1.0, "v": -1.0, "hinge_x": 0.613, "leaf_edge_x_local": -1.222, "handle_height": 1.04, "primary_joint": "leaf_hinge", "operator_joint": null, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": -0.506, "handle_cam_target": [-0.504, -0.08199999999999999, 1.04], "handle_cam_pos": [-0.324, -0.882, 1.32]}'
         custom bool physxArticulation:enabledSelfCollisions = 1
         custom int physxArticulation:solverPositionIterationCount = 32
 
@@ -354,6 +354,45 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Xform "hinge_0_jamb" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+                prepend references = @../../hardware/hinge_jamb_e1d088f8dc.usdc@</hinge_jamb_e1d088f8dc>
+            )
+            {
+                custom string doorbench:label = "Hinge 1 jamb plate"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </World/db0307_swing_single/Looks/mat_hinge>
+                quatf xformOp:orient = (0, 0, 1, 0)
+                double3 xformOp:translate = (0.61, -0.028999999999999998, 0.2589999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Xform "hinge_1_jamb" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+                prepend references = @../../hardware/hinge_jamb_e1d088f8dc.usdc@</hinge_jamb_e1d088f8dc>
+            )
+            {
+                custom string doorbench:label = "Hinge 2 jamb plate"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </World/db0307_swing_single/Looks/mat_hinge>
+                quatf xformOp:orient = (0, 0, 1, 0)
+                double3 xformOp:translate = (0.61, -0.028999999999999998, 1.0759999999999998)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Xform "hinge_2_jamb" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+                prepend references = @../../hardware/hinge_jamb_e1d088f8dc.usdc@</hinge_jamb_e1d088f8dc>
+            )
+            {
+                custom string doorbench:label = "Hinge 3 jamb plate"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </World/db0307_swing_single/Looks/mat_hinge>
+                quatf xformOp:orient = (0, 0, 1, 0)
+                double3 xformOp:translate = (0.61, -0.028999999999999998, 1.9629999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
             def Cube "jamb_hinge" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
             )
@@ -515,8 +554,8 @@ def Xform "World"
                 rel material:binding = </World/db0307_swing_single/Looks/mat_seal>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.016, 0.006, 2.147)
-                double3 xformOp:translate = (0.601, 0.024999999999999998, 1.0735)
+                float3 xformOp:scale = (0.008, 0.006, 2.147)
+                double3 xformOp:translate = (0.61, 0.024999999999999998, 1.0735)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -529,8 +568,8 @@ def Xform "World"
                 rel material:binding = </World/db0307_swing_single/Looks/mat_seal>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.016, 0.006, 2.147)
-                double3 xformOp:translate = (-0.601, 0.024999999999999998, 1.0735)
+                float3 xformOp:scale = (0.008, 0.006, 2.147)
+                double3 xformOp:translate = (-0.61, 0.024999999999999998, 1.0735)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -577,7 +616,7 @@ def Xform "World"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.04, 0.024)
-                double3 xformOp:translate = (0.513, -0.22, 2.104)
+                double3 xformOp:translate = (0.513, -0.132, 2.1769999999999996)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -595,7 +634,7 @@ def Xform "World"
                 custom float physxCollision:restOffset = 0
                 double radius = 0.025
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.08730642284798609, -1.0322071364277623, 0)
+                double3 xformOp:translate = (0.720230316809821, -1.059464021572809, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -629,10 +668,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-0.5547228, -0.012054868, 1.2054597)
-            float3 physics:diagonalInertia = (9.915262, 41.372494, 51.15269)
-            float physics:mass = 84.70134
-            quatf physics:principalAxes = (0.4569904, 0.478381, 0.5312136, -0.52926695)
+            point3f physics:centerOfMass = (-0.55799466, -0.011824908, 1.2068487)
+            float3 physics:diagonalInertia = (9.714081, 41.17679, 50.755894)
+            float physics:mass = 84.23815
+            quatf physics:principalAxes = (0.4568225, 0.47777164, 0.5319814, -0.52919114)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -661,39 +700,39 @@ def Xform "World"
 
             def Xform "hinge_0" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/hinge_dcb8da44bf.usdc@</hinge_dcb8da44bf>
+                prepend references = @../../hardware/hinge_e22b26c0c1.usdc@</hinge_e22b26c0c1>
             )
             {
                 custom string doorbench:label = "Hinge 1"
                 custom string doorbench:semantic = "hinge"
                 rel material:binding = </World/db0307_swing_single/Looks/mat_hinge>
-                quatf xformOp:orient = (-0.70710677, 0, 0, 0.70710677)
+                quatf xformOp:orient = (0, 0, 1, 0)
                 double3 xformOp:translate = (-0.003, -0.028999999999999998, 0.2589999999999999)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Xform "hinge_1" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/hinge_dcb8da44bf.usdc@</hinge_dcb8da44bf>
+                prepend references = @../../hardware/hinge_e22b26c0c1.usdc@</hinge_e22b26c0c1>
             )
             {
                 custom string doorbench:label = "Hinge 2"
                 custom string doorbench:semantic = "hinge"
                 rel material:binding = </World/db0307_swing_single/Looks/mat_hinge>
-                quatf xformOp:orient = (-0.70710677, 0, 0, 0.70710677)
+                quatf xformOp:orient = (0, 0, 1, 0)
                 double3 xformOp:translate = (-0.003, -0.028999999999999998, 1.0759999999999998)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Xform "hinge_2" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/hinge_dcb8da44bf.usdc@</hinge_dcb8da44bf>
+                prepend references = @../../hardware/hinge_e22b26c0c1.usdc@</hinge_e22b26c0c1>
             )
             {
                 custom string doorbench:label = "Hinge 3"
                 custom string doorbench:semantic = "hinge"
                 rel material:binding = </World/db0307_swing_single/Looks/mat_hinge>
-                quatf xformOp:orient = (-0.70710677, 0, 0, 0.70710677)
+                quatf xformOp:orient = (0, 0, 1, 0)
                 double3 xformOp:translate = (-0.003, -0.028999999999999998, 1.9629999999999999)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
@@ -707,7 +746,7 @@ def Xform "World"
                 custom string doorbench:semantic = "operator"
                 rel material:binding = </World/db0307_swing_single/Looks/mat_op_stainless>
                 quatf xformOp:orient = (4.3297803e-17, 4.3297803e-17, -0.70710677, 0.70710677)
-                double3 xformOp:translate = (-1.132, -0.022, 1.04)
+                double3 xformOp:translate = (-1.117, -0.022, 1.04)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -728,7 +767,7 @@ def Xform "World"
                 uniform token purpose = "guide"
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (-1.132, -0.08199999999999999, 1.04)
+                double3 xformOp:translate = (-1.117, -0.08199999999999999, 1.04)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -741,7 +780,7 @@ def Xform "World"
                 custom string doorbench:semantic = "operator"
                 rel material:binding = </World/db0307_swing_single/Looks/mat_op_stainless>
                 quatf xformOp:orient = (0, 0, 0.70710677, 0.70710677)
-                double3 xformOp:translate = (-1.132, 0.022, 1.04)
+                double3 xformOp:translate = (-1.117, 0.022, 1.04)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -762,7 +801,7 @@ def Xform "World"
                 uniform token purpose = "guide"
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (-1.132, 0.08199999999999999, 1.04)
+                double3 xformOp:translate = (-1.117, 0.08199999999999999, 1.04)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -799,6 +838,21 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Cylinder "closer_pinion_shaft" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom string doorbench:label = "Pinion shaft"
+                custom string doorbench:semantic = "closer"
+                double height = 0.12299999999999978
+                rel material:binding = </World/db0307_swing_single/Looks/mat_closer>
+                double radius = 0.008
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.3, -0.135, 2.1155)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
             def Cube "kick_plate_p" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
@@ -831,7 +885,7 @@ def Xform "World"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (-1.132, -0.08199999999999999, 1.04)
+                double3 xformOp:translate = (-1.117, -0.08199999999999999, 1.04)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -839,7 +893,7 @@ def Xform "World"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (-1.132, 0.08199999999999999, 1.04)
+                double3 xformOp:translate = (-1.117, 0.08199999999999999, 1.04)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -864,8 +918,8 @@ def Xform "World"
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
-            quatf xformOp:orient = (0.7363015, 0, 0, -0.6766536)
-            double3 xformOp:translate = (0.313, -0.132, 2.104)
+            quatf xformOp:orient = (0.8564217, 0, 0, -0.5162769)
+            double3 xformOp:translate = (0.313, -0.135, 2.1769999999999996)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "closer_arm_main_geom" (
@@ -888,15 +942,15 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "closer"
-            point3f physics:centerOfMass = (0.13, 0, 0)
-            float3 physics:diagonalInertia = (0.00000170352, 0.00044333452, 0.0004441994)
-            float physics:mass = 0.078624
+            point3f physics:centerOfMass = (0.1125, 0, 0)
+            float3 physics:diagonalInertia = (0.0000014742, 0.00028740664, 0.00028815508)
+            float physics:mass = 0.06804
             quatf physics:principalAxes = (1, 0, 0, 0)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
-            quatf xformOp:orient = (0.91609716, 0, 0, 0.4009564)
-            double3 xformOp:translate = (0.3365983292275451, -0.4110037972101247, 2.104)
+            quatf xformOp:orient = (0.795738, 0, 0, 0.60564107)
+            double3 xformOp:translate = (0.4437365663429311, -0.3826044228620733, 2.1769999999999996)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "closer_arm_fore_geom" (
@@ -908,8 +962,8 @@ def Xform "World"
                 rel material:binding = </World/db0307_swing_single/Looks/mat_closer>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.26, 0.014, 0.008)
-                double3 xformOp:translate = (0.13, 0, 0)
+                float3 xformOp:scale = (0.225, 0.014, 0.008)
+                double3 xformOp:translate = (0.1125, 0, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
         }
@@ -959,9 +1013,9 @@ def Xform "World"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </World/db0307_swing_single/leaf>
                 rel physics:body1 = </World/db0307_swing_single/closer_arm_main>
-                point3f physics:localPos0 = (-0.3, -0.132, 2.104)
+                point3f physics:localPos0 = (-0.3, -0.135, 2.177)
                 point3f physics:localPos1 = (0, 0, 0)
-                quatf physics:localRot0 = (0.5206438, -0.47846636, -0.5206438, -0.47846636)
+                quatf physics:localRot0 = (0.6055816, -0.3650629, -0.6055816, -0.3650629)
                 quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
                 custom float physxJoint:armature = 0.002
                 custom float physxJoint:jointFriction = 0
@@ -985,7 +1039,7 @@ def Xform "World"
                 rel physics:body1 = </World/db0307_swing_single/closer_arm_fore>
                 point3f physics:localPos0 = (0.28, 0, 0)
                 point3f physics:localPos1 = (0, 0, 0)
-                quatf physics:localRot0 = (0.28511614, 0.64707714, -0.28511614, 0.64707714)
+                quatf physics:localRot0 = (0.2607872, 0.65725946, -0.2607872, 0.65725946)
                 quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
                 custom float physxJoint:armature = 0.002
                 custom float physxJoint:jointFriction = 0

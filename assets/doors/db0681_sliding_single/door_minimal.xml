@@ -29,6 +29,7 @@
     <material name="mat_patch" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <material name="mat_roller" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
     <material name="mat_op_stainless" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <material name="mat_op_nickel_satin" rgba="0.72 0.7 0.66 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <material name="mat_hook" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
   </asset>
@@ -47,7 +48,7 @@
     <geom name="jamb_head" type="box" size="1.555 0.0725 0.0225" pos="0 0 2.0995" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="bottom_rail" type="box" size="1.555 0.02 0.012" pos="0 0 0.012" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
     <geom name="fixed_panel_glass" type="box" size="0.735 0.003 0.9885" pos="-0.755 0.04 1.0385" material="mat_fixed_glass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2500"/>
-    <geom name="leaf_hook_keeper" type="box" size="0.008 0.015 0.008" pos="1.523 0 1.08" material="mat_hook" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
+    <geom name="leaf_hook_keeper" type="box" size="0.008 0.015 0.006" pos="1.523 0 1.08" material="mat_hook" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
     <geom name="jamb_latch_pwall_1080_n" type="box" size="0.0525 0.022 0.06" pos="1.5625 -0.0505 1.08" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="jamb_latch_pwall_1080_p" type="box" size="0.0525 0.022 0.06" pos="1.5625 0.0505 1.08" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="jamb_latch_pback_1080" type="box" size="0.004 0.0285 0.06" pos="1.611 0 1.08" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
@@ -57,28 +58,27 @@
     <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <site name="door_plane_center" pos="0 0 1.0385" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="leaf" pos="0.755 0 0">
-      <inertial pos="0.004982 0 1.045653" mass="119.131203" quat="0.500374 0.500374 0.499626 -0.499626" diaginertia="22.582318672 40.711627164 63.243788224"/>
+      <inertial pos="0.002528 -0.000275 1.045824" mass="118.686561" quat="0.500061 0.499563 -0.500418 0.499957" diaginertia="22.388280144 40.706705625 63.050009224"/>
       <joint name="leaf_slide" type="slide" axis="-1 0 0" limited="true" range="0 1.38" damping="12.694589" frictionloss="163.609819" armature="0.5"/>
       <geom name="leaf_glass" type="box" size="0.75 0.0225 1.016" pos="0 0 1.046" material="mat_glass_leaf" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
       <geom name="leaf_pull_n" type="mesh" mesh="pull_1e5d69a91a" pos="0.66 -0.0225 1" quat="0.707107 0.707107 0 0" material="mat_op_stainless" group="1" contype="0" conaffinity="0" density="3000"/>
       <geom name="leaf_pull_col_n" type="capsule" size="0.0095 0.08" pos="0.66 -0.0825 1" material="mat_op_stainless" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
-      <geom name="leaf_pull_p" type="mesh" mesh="pull_1e5d69a91a" pos="0.66 0.0225 1" quat="-0.707107 0.707107 0 0" material="mat_op_stainless" group="1" contype="0" conaffinity="0" density="3000"/>
-      <geom name="leaf_pull_col_p" type="capsule" size="0.0095 0.08" pos="0.66 0.0825 1" material="mat_op_stainless" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
+      <geom name="leaf_ext_pull_p" type="box" size="0.025 0.0005 0.05" pos="0.66 0.023 1" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="1000"/>
       <site name="leaf_pull_grip_n" pos="0.66 -0.0825 1" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
-      <site name="leaf_pull_grip_p" pos="0.66 0.0825 1" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_ext_pull_grip_p" pos="0.66 0.0225 1" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
       <site name="leaf_edge_mid" pos="0.75 0 1.046" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
-      <body name="leaf_hook_thumbturn" pos="0.69 0.0225 1.08">
-        <inertial pos="0 0.012928 0" mass="0.178946" quat="-0.5 0.5 -0.5 0.5" diaginertia="0.000026045 0.000026215 0.000032438"/>
-        <joint name="leaf_hook_thumbturn_hinge" type="hinge" axis="0 -1 0" limited="true" range="0 0.05" damping="0.05" frictionloss="0.25" armature="0.005"/>
-        <geom name="leaf_hook_tt_mesh" type="mesh" mesh="thumbturn_eb5c9899a3" pos="0 0 0" quat="-0.707107 0.707107 0 0" material="mat_hook" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7100"/>
-        <geom name="leaf_hook_tt_col" type="box" size="0.006 0.012 0.016" pos="0 0.02 0" material="mat_hook" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="7100"/>
-        <site name="leaf_hook_tt_grip" pos="0 0.03 0" size="0.01" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <body name="leaf_hook_thumbturn" pos="0.69 -0.0225 1.22">
+        <inertial pos="0 -0.012928 0" mass="0.178946" quat="0.5 0.5 0.5 0.5" diaginertia="0.000026045 0.000026215 0.000032438"/>
+        <joint name="leaf_hook_thumbturn_hinge" type="hinge" axis="0 1 0" limited="true" range="0 0.05" damping="0.05" frictionloss="0.25" armature="0.005"/>
+        <geom name="leaf_hook_tt_mesh" type="mesh" mesh="thumbturn_eb5c9899a3" pos="0 0 0" quat="0.707107 0.707107 0 0" material="mat_hook" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7100"/>
+        <geom name="leaf_hook_tt_col" type="box" size="0.006 0.012 0.016" pos="0 -0.02 0" material="mat_hook" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="7100"/>
+        <site name="leaf_hook_tt_grip" pos="0 -0.03 0" size="0.01" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
       <body name="leaf_hook" pos="0.75 0 1.08">
-        <inertial pos="0.0272 0 -0.0088" mass="0.07584" quat="0.221209 -0.221209 0.671615 0.671615" diaginertia="0.000006073 0.000016127 0.000020936"/>
+        <inertial pos="0.026737 0 -0.009263" mass="0.072048" quat="0.200817 -0.200817 0.677991 0.677991" diaginertia="0.000005266 0.00001511 0.000019175"/>
         <joint name="leaf_hook_hinge" type="hinge" axis="0 1 0" limited="true" range="0 1" damping="0.05" frictionloss="0.1" armature="0.005"/>
         <geom name="leaf_hook_arm" type="box" size="0.022 0.005 0.006" pos="0.02 0 -0.016" material="mat_hook" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
-        <geom name="leaf_hook_tip" type="box" size="0.006 0.005 0.018" pos="0.036 0 0" material="mat_hook" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
+        <geom name="leaf_hook_tip" type="box" size="0.006 0.005 0.016" pos="0.036 0 0" material="mat_hook" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
       </body>
     </body>
   </worldbody>

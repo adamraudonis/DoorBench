@@ -53,6 +53,20 @@
         <box size="0.888 0.115 0.653"/>
       </geometry>
     </collision>
+    <visual name="hinge_0_jamb_vis">
+      <origin xyz="-0.407 -0.0245 0.259" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="../../hardware/hinge_jamb_7fd4ca52b2.obj"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
+    <visual name="hinge_1_jamb_vis">
+      <origin xyz="-0.407 -0.0245 1.814" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="../../hardware/hinge_jamb_7fd4ca52b2.obj"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
     <visual name="jamb_hinge_vis">
       <origin xyz="-0.4195 0.02 0.999" rpy="0 0 0"/>
       <geometry>
@@ -212,32 +226,64 @@
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="0.386132 0.022892 0.794824" rpy="0 0 0"/>
-      <mass value="9.55057"/>
-      <inertia ixx="3.303383607" ixy="-0.00581952" ixz="0.047011216" iyy="3.742009135" iyz="0.003712464" izz="0.442072057"/>
+      <origin xyz="0.394565 0.02407 0.814307" rpy="0 0 0"/>
+      <mass value="9.332188"/>
+      <inertia ixx="3.185771392" ixy="-0.001583399" ixz="0.024747636" iyy="3.612493696" iyz="0.000891466" izz="0.429264966"/>
     </inertial>
-    <visual name="leaf_slab_vis">
-      <origin xyz="0.4065 0.0245 1.0015" rpy="0 0 0"/>
+    <visual name="leaf_slab_below_vis">
+      <origin xyz="0.4065 0.0245 0.0335" rpy="0 0 0"/>
       <geometry>
-        <box size="0.813 0.035 1.985"/>
+        <box size="0.813 0.035 0.049"/>
       </geometry>
       <material name="mat_leaf"/>
     </visual>
-    <collision name="leaf_slab_col">
-      <origin xyz="0.4065 0.0245 1.0015" rpy="0 0 0"/>
+    <collision name="leaf_slab_below_col">
+      <origin xyz="0.4065 0.0245 0.0335" rpy="0 0 0"/>
       <geometry>
-        <box size="0.813 0.035 1.985"/>
+        <box size="0.813 0.035 0.049"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_slab_above_vis">
+      <origin xyz="0.4065 0.0245 1.252" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.813 0.035 1.484"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <collision name="leaf_slab_above_col">
+      <origin xyz="0.4065 0.0245 1.252" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.813 0.035 1.484"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_slab_left_vis">
+      <origin xyz="0.15775 0.0245 0.284" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.3155 0.035 0.452"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <collision name="leaf_slab_left_col">
+      <origin xyz="0.15775 0.0245 0.284" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.3155 0.035 0.452"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_slab_right_vis">
+      <origin xyz="0.65525 0.0245 0.284" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.3155 0.035 0.452"/>
+      </geometry>
+      <material name="mat_leaf"/>
+    </visual>
+    <collision name="leaf_slab_right_col">
+      <origin xyz="0.65525 0.0245 0.284" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.3155 0.035 0.452"/>
       </geometry>
     </collision>
     <visual name="leaf_glass_0_vis">
       <origin xyz="0.1855 0.0245 0.38209" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.191 0.0366 0.30948"/>
-      </geometry>
-      <material name="mat_glass"/>
-    </visual>
-    <visual name="leaf_glass_1_vis">
-      <origin xyz="0.4065 0.0245 0.38209" rpy="0 0 0"/>
       <geometry>
         <box size="0.191 0.0366 0.30948"/>
       </geometry>
@@ -335,16 +381,16 @@
       <material name="mat_glass"/>
     </visual>
     <visual name="hinge_0_vis">
-      <origin xyz="0 0 0.259" rpy="0 0 -1.570796"/>
+      <origin xyz="0 0 0.259" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="../../hardware/hinge_7a316c6d01.obj"/>
+        <mesh filename="../../hardware/hinge_96510cf394.obj"/>
       </geometry>
       <material name="mat_hinge"/>
     </visual>
     <visual name="hinge_1_vis">
-      <origin xyz="0 0 1.814" rpy="0 0 -1.570796"/>
+      <origin xyz="0 0 1.814" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="../../hardware/hinge_7a316c6d01.obj"/>
+        <mesh filename="../../hardware/hinge_96510cf394.obj"/>
       </geometry>
       <material name="mat_hinge"/>
     </visual>
@@ -474,7 +520,7 @@
     <parent link="world_env"/>
     <child link="leaf"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="3.054326" effort="2000" velocity="10"/>
+    <limit lower="0" upper="2.356194" effort="2000" velocity="10"/>
     <dynamics damping="0.206618" friction="0.212387"/>
     <doorbench:closer damping_closing="0" damping_opening="0" backcheck_angle="0" backcheck_damping="0"/>
   </joint>
@@ -503,7 +549,7 @@
     <parent link="leaf"/>
     <child link="pet_flap"/>
     <axis xyz="1 0 0"/>
-    <limit lower="-1.6" upper="1.6" effort="2000" velocity="10"/>
+    <limit lower="-1.45" upper="1.45" effort="2000" velocity="10"/>
     <dynamics damping="0.02" friction="0.02"/>
   </joint>
   <material name="mat_bolt">

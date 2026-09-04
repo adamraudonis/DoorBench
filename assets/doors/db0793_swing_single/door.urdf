@@ -210,16 +210,16 @@
       </geometry>
     </collision>
     <visual name="seal_hinge_vis">
-      <origin xyz="-0.3985 0.024 1.0225" rpy="0 0 0"/>
+      <origin xyz="-0.4075 0.024 1.0225" rpy="0 0 0"/>
       <geometry>
-        <box size="0.016 0.004 2.045"/>
+        <box size="0.008 0.004 2.045"/>
       </geometry>
       <material name="mat_seal"/>
     </visual>
     <visual name="seal_strike_vis">
-      <origin xyz="0.3985 0.024 1.0225" rpy="0 0 0"/>
+      <origin xyz="0.4075 0.024 1.0225" rpy="0 0 0"/>
       <geometry>
-        <box size="0.016 0.004 2.045"/>
+        <box size="0.008 0.004 2.045"/>
       </geometry>
       <material name="mat_seal"/>
     </visual>
@@ -233,9 +233,9 @@
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="0.389798 0.030605 1.025" rpy="0 0 0"/>
-      <mass value="31.094776"/>
-      <inertia ixx="11.521556744" ixy="0.012150144" ixz="0" iyy="13.262169324" iyz="0" izz="1.752557649"/>
+      <origin xyz="0.392006 0.02755 1.025" rpy="0 0 0"/>
+      <mass value="30.864064"/>
+      <inertia ixx="11.348276131" ixy="-0.010535303" ixz="0" iyy="13.066961675" iyz="0" izz="1.730255793"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="0.4065 0.029 1.025" rpy="0 0 0"/>
@@ -307,14 +307,14 @@
       <material name="mat_leaf_brace"/>
     </visual>
     <visual name="hinge_strap_0_vis">
-      <origin xyz="0 0.054 0.159" rpy="0 0 0"/>
+      <origin xyz="0 0.004 0.159" rpy="0 0 0"/>
       <geometry>
         <mesh filename="../../hardware/strap_hinge_78d1bbb966.obj"/>
       </geometry>
       <material name="mat_hinge"/>
     </visual>
     <visual name="hinge_strap_1_vis">
-      <origin xyz="0 0.054 1.891" rpy="0 0 0"/>
+      <origin xyz="0 0.004 1.891" rpy="0 0 0"/>
       <geometry>
         <mesh filename="../../hardware/strap_hinge_78d1bbb966.obj"/>
       </geometry>
@@ -324,13 +324,13 @@
   <link name="leaf_handle">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <mass value="0.961145"/>
-      <inertia ixx="0.003448797" ixy="0" ixz="0" iyy="0.000215124" iyz="0" izz="0.003448797"/>
+      <mass value="0.955818"/>
+      <inertia ixx="0.003446048" ixy="0" ixz="0" iyy="0.000215028" iyz="0" izz="0.003446048"/>
     </inertial>
     <visual name="leaf_handle_spindle_vis">
       <origin xyz="0 0 0" rpy="-1.570796 0 0"/>
       <geometry>
-        <cylinder radius="0.006" length="0.048"/>
+        <cylinder radius="0.006" length="0.042"/>
       </geometry>
       <material name="mat_op_glass_clear"/>
     </visual>
@@ -407,32 +407,12 @@
       </geometry>
     </collision>
   </link>
-  <link name="knocker">
-    <inertial>
-      <origin xyz="0 -0.010216 -0.058429" rpy="0 0 0"/>
-      <mass value="0.814961"/>
-      <inertia ixx="0.001107704" ixy="0" ixz="0" iyy="0.001525978" iyz="-0.000041317" izz="0.000611659"/>
-    </inertial>
-    <visual name="knocker_mesh_vis">
-      <origin xyz="0 0 -0.055" rpy="1.570796 0 0"/>
-      <geometry>
-        <mesh filename="../../hardware/knocker_a8f2ce0ad7.obj"/>
-      </geometry>
-      <material name="mat_knocker"/>
-    </visual>
-    <collision name="knocker_col_col">
-      <origin xyz="0 -0.025 -0.065" rpy="0 1.570796 0"/>
-      <geometry>
-        <cylinder radius="0.007" length="0.06"/>
-      </geometry>
-    </collision>
-  </link>
   <joint name="leaf_hinge" type="revolute">
     <origin xyz="-0.4075 -0.029 0" rpy="0 0 0"/>
     <parent link="world_env"/>
     <child link="leaf"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.919862" effort="2000" velocity="10"/>
+    <limit lower="0" upper="1.396263" effort="2000" velocity="10"/>
     <dynamics damping="0.210326" friction="4.195365"/>
     <doorbench:closer damping_closing="0" damping_opening="0" backcheck_angle="0" backcheck_damping="0"/>
     <doorbench:note text="Stuck/swollen door: high breakaway friction"/>
@@ -457,14 +437,6 @@
     <mimic joint="leaf_handle_hinge" multiplier="0.021538" offset="0"/>
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
   </joint>
-  <joint name="knocker_hinge" type="revolute">
-    <origin xyz="0.4065 0.007 1.514" rpy="0 0 0"/>
-    <parent link="leaf"/>
-    <child link="knocker"/>
-    <axis xyz="1 0 0"/>
-    <limit lower="0" upper="0.6" effort="2000" velocity="10"/>
-    <dynamics damping="0.005" friction="0"/>
-  </joint>
   <material name="mat_bolt">
     <color rgba="0.75 0.76 0.77 1"/>
   </material>
@@ -476,9 +448,6 @@
   </material>
   <material name="mat_hinge">
     <color rgba="0.65 0.66 0.68 1"/>
-  </material>
-  <material name="mat_knocker">
-    <color rgba="0.55 0.42 0.22 1"/>
   </material>
   <material name="mat_leaf">
     <color rgba="0.82 0.7 0.5 1"/>

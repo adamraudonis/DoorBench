@@ -12,7 +12,7 @@ def Xform "World"
     )
     {
         custom string doorbench:couplings = "[]"
-        custom string doorbench:meta = '{"door_id": "db0630_sliding_single", "family": "sliding_single", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.367, -0.0775, 1.0], "handle_cam_pos": [0.5469999999999999, -0.8775000000000001, 1.28]}'
+        custom string doorbench:meta = '{"door_id": "db0630_sliding_single", "family": "sliding_single", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.367, -0.0175, 1.0], "handle_cam_pos": [0.5469999999999999, -0.8175, 1.28]}'
         custom bool physxArticulation:enabledSelfCollisions = 1
         custom int physxArticulation:solverPositionIterationCount = 32
 
@@ -108,14 +108,14 @@ def Xform "World"
                 }
             }
 
-            def Material "mat_op_stainless"
+            def Material "mat_op_nickel_satin"
             {
-                token outputs:surface.connect = </World/db0630_sliding_single/Looks/mat_op_stainless/Shader.outputs:surface>
+                token outputs:surface.connect = </World/db0630_sliding_single/Looks/mat_op_nickel_satin/Shader.outputs:surface>
 
                 def Shader "Shader"
                 {
                     uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.75, 0.76, 0.77)
+                    color3f inputs:diffuseColor = (0.72, 0.7, 0.66)
                     float inputs:metallic = 1
                     float inputs:opacity = 1
                     float inputs:roughness = 0.35
@@ -157,15 +157,6 @@ def Xform "World"
                 float physics:dynamicFriction = 0.2975
                 float physics:restitution = 0.05
                 float physics:staticFriction = 0.35
-            }
-
-            def Material "PhysMat_mat_op_stainless" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.595
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.7
             }
         }
 
@@ -358,10 +349,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.023119923, 1.215218e-19, 1.026236)
-            float3 physics:diagonalInertia = (1.0505255, 4.611679, 5.6504836)
-            float physics:mass = 14.274998
-            quatf physics:principalAxes = (0.49939176, 0.49939176, -0.5006075, 0.5006075)
+            point3f physics:centerOfMass = (0.0002741729, 0, 1.0279791)
+            float3 physics:diagonalInertia = (0.93388486, 4.603772, 5.5349193)
+            float physics:mass = 13.385715
+            quatf physics:principalAxes = (0.499993, 0.499993, -0.500007, 0.500007)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -388,79 +379,39 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Xform "leaf_pull_n" (
+            def Cube "leaf_pull_n" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/pull_1e5d69a91a.usdc@</pull_1e5d69a91a>
             )
             {
-                custom string doorbench:label = "D-pull handle 200 mm"
+                custom string doorbench:label = "Flush pull"
                 custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0630_sliding_single/Looks/mat_op_stainless>
-                quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
-                double3 xformOp:translate = (0.367, -0.0175, 1)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
-            }
-
-            def Capsule "leaf_pull_col_n" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
-            )
-            {
-                uniform token axis = "Z"
-                custom string doorbench:label = "Pull grip"
-                custom string doorbench:semantic = "operator"
-                double height = 0.16
-                rel material:binding = </World/db0630_sliding_single/Looks/mat_op_stainless>
-                rel material:binding:physics = </World/db0630_sliding_single/Looks/PhysMat_mat_op_stainless> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
-                uniform token purpose = "guide"
-                double radius = 0.0095
+                rel material:binding = </World/db0630_sliding_single/Looks/mat_op_nickel_satin>
+                double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.367, -0.0775, 1)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+                float3 xformOp:scale = (0.05, 0.001, 0.1)
+                double3 xformOp:translate = (0.367, -0.018000000000000002, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Xform "leaf_pull_p" (
+            def Cube "leaf_pull_p" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/pull_1e5d69a91a.usdc@</pull_1e5d69a91a>
             )
             {
-                custom string doorbench:label = "D-pull handle 200 mm"
+                custom string doorbench:label = "Flush pull"
                 custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0630_sliding_single/Looks/mat_op_stainless>
-                quatf xformOp:orient = (-0.70710677, 0.70710677, 4.3297803e-17, 4.3297803e-17)
-                double3 xformOp:translate = (0.367, 0.0175, 1)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
-            }
-
-            def Capsule "leaf_pull_col_p" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
-            )
-            {
-                uniform token axis = "Z"
-                custom string doorbench:label = "Pull grip"
-                custom string doorbench:semantic = "operator"
-                double height = 0.16
-                rel material:binding = </World/db0630_sliding_single/Looks/mat_op_stainless>
-                rel material:binding:physics = </World/db0630_sliding_single/Looks/PhysMat_mat_op_stainless> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
-                uniform token purpose = "guide"
-                double radius = 0.0095
+                rel material:binding = </World/db0630_sliding_single/Looks/mat_op_nickel_satin>
+                double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.367, 0.0775, 1)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+                float3 xformOp:scale = (0.05, 0.001, 0.1)
+                double3 xformOp:translate = (0.367, 0.018000000000000002, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
             def Xform "leaf_pull_grip_n"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.367, -0.0775, 1)
+                double3 xformOp:translate = (0.367, -0.0175, 1)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -468,7 +419,7 @@ def Xform "World"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.367, 0.0775, 1)
+                double3 xformOp:translate = (0.367, 0.0175, 1)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -491,7 +442,7 @@ def Xform "World"
                 custom string doorbench:label = "Slide (0 = closed, + = open)"
                 custom string doorbench:role = "primary"
                 custom float doorbench:zero_offset = 0
-                float drive:linear:physics:damping = 2.6937857
+                float drive:linear:physics:damping = 2.6787858
                 float drive:linear:physics:maxForce = 1000000
                 float drive:linear:physics:stiffness = 0
                 float drive:linear:physics:targetPosition = 0
@@ -505,7 +456,7 @@ def Xform "World"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 0.868
                 custom float physxJoint:armature = 0.5
-                custom float physxJoint:jointFriction = 4.082228
+                custom float physxJoint:jointFriction = 3.9939685
             }
         }
     }

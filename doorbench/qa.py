@@ -61,6 +61,16 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
             metrics[f"load_{tier}_error"] = str(e)[:300]
     if "full" not in models:
         return {"checks": checks, "metrics": metrics, "signed_off": False, "time_s": time.time() - t0}
+    # ---- deterministic kinematic clearance gate (all geometry collidable, every joint swept)
+    try:
+        from .clearance import run_clearance
+        cl = run_clearance(door_dir, "full")
+        checks["clearance"] = bool(cl["ok"])
+        metrics["clearance_n_failures"] = cl["n_failures"]
+        metrics["clearance_failures"] = cl["failures"][:10]
+    except Exception as e:
+        checks["clearance"] = False
+        metrics["clearance_error"] = str(e)[:200]
     m = models["full"]
     d = mujoco.MjData(m)
     pj = _jid(m, model_meta.get("primary_joint") or "")

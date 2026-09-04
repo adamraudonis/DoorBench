@@ -68,6 +68,20 @@ def mesh_geom(name, key, mesh, center, quat, material, density=7100.0, collision
     return Geom(name, "mesh", (1, 1, 1), tuple(float(c) for c in center), tuple(float(q) for q in quat), material, collision, True, density, mass, (0.6, 0.005, 0.0001), mesh, key, True, None, None, 0.0, tiers, semantic, label)
 
 
+def body_world_pos(model: Model, body: Body):
+    """World position of a body (parent chain; body quats are identity in this IR)."""
+    p = [float(body.pos[0]), float(body.pos[1]), float(body.pos[2])]
+    parent, seen = body.parent, 0
+    while parent and seen < 12:
+        try:
+            b = model.body(parent)
+        except Exception:
+            break
+        p = [p[i] + float(b.pos[i]) for i in range(3)]
+        parent, seen = b.parent, seen + 1
+    return p
+
+
 def q_face(v_dir_y: float, u: float = 1.0):
     """Quaternion taking mesh local +z (away from face) to world ±y (door normal) and
     mesh -x (reach direction) to the hinge-ward direction (-u x).
@@ -212,7 +226,7 @@ def _strike_column(geoms, prefix, sx, u, v, jamb_t, ya, yb, z_top, pockets, mat,
         else:
             yp0, yp1 = sorted((yc + v * pw / 2, y_edge_p))
             wt_ = jamb_t
-            if yp1 - yp0 < 0.004:
+            if v * (y_edge_p - yc) < pw / 2 + 0.004:
                 # pocket reaches the member's edge: add a keeper lip beyond the edge so the bolt is still captured
                 yp0, yp1 = sorted((yc + v * pw / 2, yc + v * (pw / 2 + 0.006)))
                 wt_ = min(jamb_t, 0.03)
@@ -279,7 +293,8 @@ def add_frame(model: Model, spec: dict, v: float, world: Body, with_stop=True, s
         # latch-side stop block (gate closes against it)
         if with_stop:
             t_leaf = spec["leaf"]["thickness"]
-            world.geoms.append(box("gate_stop", (sx - u * 0.02, -v * (t_leaf / 2 + 0.012), gc + min(0.25, spec["leaf"]["height"] * 0.3)), (0.02, 0.012, 0.06), mat, dens_p, True, True, ALL_TIERS, "frame", "Gate stop block"))
+            brace_proud = 0.022 if spec["leaf"]["panel_style"] in ("plank_z_brace", "plank_x_brace", "board_batten") else 0.0
+            world.geoms.append(box("gate_stop", (sx - u * 0.02, -v * (t_leaf / 2 + 0.012 + brace_proud), gc + min(0.25, spec["leaf"]["height"] * 0.3)), (0.02, 0.012, 0.06), mat, dens_p, True, True, ALL_TIERS, "frame", "Gate stop block"))
         return {"jamb_t": ps, "depth": ps, "hx": hx, "sx": sx, "mat": mat}
     dens = M.MATERIALS[fr["material"]].density if M.MATERIALS[fr["material"]].family != "metal" else 300.0
     depth = wt if fr["kind"] != "aluminum_storefront" else max(0.114, wt)
@@ -299,7 +314,7 @@ def add_frame(model: Model, spec: dict, v: float, world: Body, with_stop=True, s
     add_head(geoms, "jamb_head", -u * (Wo / 2 + jamb_vis_t), u * (Wo / 2 + jamb_vis_t + STUD_POCKET), yw, depth, Ho, jamb_vis_t, mat, dens, head_pockets)
     add_head(geoms, "head_stud", -u * (Wo / 2 + jamb_vis_t), u * (Wo / 2 + jamb_vis_t + STUD_POCKET), yw, depth, Ho + jamb_vis_t, STUD_POCKET, "mat_wall" if "mat_wall" in model.materials else mat, 500, [dict(p, depth=max(p["depth"] - jamb_vis_t, 0.0)) for p in (head_pockets or []) if p["depth"] > jamb_vis_t], label="Head stud")
     # stop: door closes against the stop on the non-swing side (y = -v side of the leaf)
-    if with_stop and fr.get("stop_depth", 0) > 0:
+    if with_stop and fr.get("stop_depth", 0) > 0 and spec["leaf"].get("panel_style") != "glass_frameless":
         # stop moulding: ~11 mm proud of the jamb face (laps the leaf edge by ~7 mm), 32 mm wide along the jamb depth
         sw = 0.011
         sd = 0.032
@@ -307,7 +322,7 @@ def add_frame(model: Model, spec: dict, v: float, world: Body, with_stop=True, s
         seal = H.SEALS[spec["seal"]]
         soft = None   # hard stop; gasket compliance is modelled by the leaf joint's soft limit (a soft stop lets slammed leaves tunnel through)
         geoms.append(box("stop_hinge", (hx + u * sw / 2, ys, Ho / 2), (sw / 2, sd / 2, Ho / 2), mat, dens, semantic="frame", label="Stop (hinge side)", solref=soft))
-        cuts = sorted([(p["z"] - p["h"] / 2 - 0.004, p["z"] + p["h"] / 2 + 0.004) for p in (strike_pockets or []) if -v * p.get("y", 0.0) + p["w"] / 2 > t_leaf / 2 - 0.002])
+        cuts = sorted([(p["z"] - p["h"] / 2 - 0.012, p["z"] + p["h"] / 2 + 0.012) for p in (strike_pockets or []) if -v * p.get("y", 0.0) + p["w"] / 2 > t_leaf / 2 - 0.002])
         zs_, prev_ = [], 0.0
         for a_, b_ in cuts:
             zs_.append((prev_, a_))
@@ -326,8 +341,10 @@ def add_frame(model: Model, spec: dict, v: float, world: Body, with_stop=True, s
             # (the leaf cannot translate there) and produces spurious kN-scale forces.  Seal compliance is modelled by
             # the door joint's soft limit (limit_solref) and its closing resistance by the hinge friction term.
             y_seal = -v * (t_leaf / 2 + cm / 2)
-            geoms.append(box("seal_hinge", (hx + u * 0.012, y_seal, Ho / 2), (0.008, cm / 2, Ho / 2), smat, 1100, False, True, FULL_SIMPLE, "seal", "Weatherstrip (visual)"))
-            geoms.append(box("seal_strike", (sx - u * 0.012, y_seal, Ho / 2), (0.008, cm / 2, Ho / 2), smat, 1100, False, True, FULL_SIMPLE, "seal", "Weatherstrip (visual)"))
+            geoms.append(box("seal_hinge", (hx + u * 0.003, y_seal, Ho / 2), (0.004, cm / 2, Ho / 2), smat, 1100, False, True, FULL_SIMPLE, "seal", "Weatherstrip (visual)"))
+            for k_, (a_, b_) in enumerate(zs_ if cuts else [(0.0, Ho)]):
+                if b_ - a_ > 1e-4:
+                    geoms.append(box("seal_strike" if k_ == 0 else f"seal_strike_{k_}", (sx - u * 0.003, y_seal, (a_ + b_) / 2), (0.004, cm / 2, (b_ - a_) / 2), smat, 1100, False, True, FULL_SIMPLE, "seal", "Weatherstrip (visual)"))
             geoms.append(box("seal_head", (0, y_seal, Ho - 0.012), (Wo / 2 - 0.02, cm / 2, 0.008), smat, 1100, False, True, FULL_SIMPLE, "seal", "Weatherstrip (visual)"))
     jamb_t = jamb_vis_t
     # casing (visual trim) both sides
@@ -358,7 +375,31 @@ def add_frame(model: Model, spec: dict, v: float, world: Body, with_stop=True, s
 # ---------------------------------------------------------------------------
 # Leaf slab with panels, glazing, louvers, plates
 # ---------------------------------------------------------------------------
-def add_leaf_geoms(model: Model, leaf_body: Body, spec: dict, leaf: dict, u: float, x0: float, z0: float, phys: dict, name_prefix="leaf", collision_tiers=ALL_TIERS, y_center=0.0, W=None, Hh=None, edge_pockets=None, v_edge=1.0):
+def _hits_hole(hole, cx, cz, hw, hh):
+    hx, hz, w, h = hole
+    return abs(cx - hx) < hw + w / 2 and abs(cz - hz) < hh + h / 2
+
+
+def _slab_boxes(leaf_body, name_prefix, xc, y_center, zc, W, t, Hh, lm, collision_tiers, slab_fric, mass, hole):
+    """Leaf slab as one box, or as four boxes around a rectangular hole (pet flap) so nothing passes through solid geometry."""
+    if not hole:
+        leaf_body.geoms.append(box(f"{name_prefix}_slab", (xc, y_center, zc), (W / 2, t / 2, Hh / 2), lm, 1.0, True, True, collision_tiers, "leaf", "Leaf slab", slab_fric, mass=mass))
+        return
+    hx, hz, w, h = hole
+    x_lo, x_hi, z_lo, z_hi = xc - W / 2, xc + W / 2, zc - Hh / 2, zc + Hh / 2
+    parts = [
+        ("slab_below", (xc, (z_lo + hz - h / 2) / 2), (W / 2, (hz - h / 2 - z_lo) / 2)),
+        ("slab_above", (xc, (hz + h / 2 + z_hi) / 2), (W / 2, (z_hi - hz - h / 2) / 2)),
+        ("slab_left", ((x_lo + hx - w / 2) / 2, hz), ((hx - w / 2 - x_lo) / 2, h / 2)),
+        ("slab_right", ((hx + w / 2 + x_hi) / 2, hz), ((x_hi - hx - w / 2) / 2, h / 2)),
+    ]
+    area = W * Hh - w * h
+    for nm, (px, pz), (hw, hh) in parts:
+        if hw > 0.003 and hh > 0.003:
+            leaf_body.geoms.append(box(f"{name_prefix}_{nm}", (px, y_center, pz), (hw, t / 2, hh), lm, 1.0, True, True, collision_tiers, "leaf", "Leaf slab", slab_fric, mass=(mass * (4 * hw * hh) / area) if mass else None))
+
+
+def add_leaf_geoms(model: Model, leaf_body: Body, spec: dict, leaf: dict, u: float, x0: float, z0: float, phys: dict, name_prefix="leaf", collision_tiers=ALL_TIERS, y_center=0.0, W=None, Hh=None, edge_pockets=None, v_edge=1.0, hole=None):
     """Leaf slab geometry in the leaf body frame.  Leaf spans x from x0 to x0+u*W, z from z0 to z0+H, centered at y_center.
     Slab collision = one box (all tiers); panels/glazing/louvers are visual (+glass collision in full)."""
     W = W or leaf["width"]
@@ -415,7 +456,7 @@ def add_leaf_geoms(model: Model, leaf_body: Body, spec: dict, leaf: dict, u: flo
         leaf_body.geoms.append(box(f"{name_prefix}_glass", (xc, y_center, zc), (W / 2, t / 2, Hh / 2), gmat, 1.0, True, True, collision_tiers, "glass", "Frameless glass leaf", (0.4, 0.005, 0.0001), mass=mass))
         # patch fittings top & bottom
         pm = mat_from_material(model, "stainless", "mat_patch")
-        for zz, nm in ((z0 + 0.06, "bot"), (z0 + Hh - 0.06, "top")):
+        for zz, nm in (((z0 + 0.06, "bot"), (z0 + Hh - 0.06, "top")) if style == "glass_frameless" else ()):
             leaf_body.geoms.append(box(f"{name_prefix}_patch_{nm}", (x0 + u * 0.08, y_center, zz), (0.08, t / 2 + 0.008, 0.05), pm, 1.0, False, True, FULL_SIMPLE, "leaf", "Patch fitting"))
         return
     # latch-edge column with pockets (the leaf is a strike for another leaf's bolts)
@@ -436,23 +477,27 @@ def add_leaf_geoms(model: Model, leaf_body: Body, spec: dict, leaf: dict, u: flo
         gt = glazing.get("thickness", 0.006)
         # slab as one collision box; visual: frame pieces around the glass are approximated by drawing the slab
         # slightly thinner than glass so glass shows through? Simpler: draw slab box + glass panes protruding 0.5mm.
-        leaf_body.geoms.append(box(f"{name_prefix}_slab", (xc, y_center, zc), (W / 2, t / 2, Hh / 2), lm, 1.0, True, True, collision_tiers, "leaf", "Leaf slab", slab_fric, mass=mass))
+        _slab_boxes(leaf_body, name_prefix, xc, y_center, zc, W, t, Hh, lm, collision_tiers, slab_fric, mass, hole)
         for k, (rx, rz, rw, rh) in enumerate(rects):
             if rw < 0.02 or rh < 0.02:
                 continue
             cx = x0 + u * (rx + rw / 2)
             cz = z0 + rz + rh / 2
+            if hole and _hits_hole(hole, cx, cz, rw / 2, rh / 2):
+                continue
             leaf_body.geoms.append(box(f"{name_prefix}_glass_{k}", (cx, y_center, cz), (rw / 2, t / 2 + 0.0008, rh / 2), gmat, 1.0, False, True, ALL_TIERS, "glass", "Glazing"))
             if glazing["panel_style"] in ("glass_15_lite", "glass_10_lite", "glass_6_lite", "glass_9_lite"):
                 pass
         return
     # solid slab (+ raised panels, louvers)
-    leaf_body.geoms.append(box(f"{name_prefix}_slab", (xc, y_center, zc), (W / 2, t / 2, Hh / 2), lm, 1.0, True, True, collision_tiers, "leaf", "Leaf slab", slab_fric, mass=mass))
+    _slab_boxes(leaf_body, name_prefix, xc, y_center, zc, W, t, Hh, lm, collision_tiers, slab_fric, mass, hole)
     panels = raised_panel_layout(style, W, Hh)
     if panels:
         recess = 0.006
         dm = mat_rgba(model, f"mat_{name_prefix}_panel", tuple(min(1, c * 0.92) for c in fin["rgba"][:3]) + (1.0,), fin.get("roughness", 0.6), fin.get("metallic", 0.0), texture=fin.get("texture"))
         for k, (rx, rz, rw, rh) in enumerate(panels):
+            if hole and _hits_hole(hole, x0 + u * (rx + rw / 2), z0 + rz + rh / 2, rw / 2, rh / 2):
+                continue
             if rw / 2 - 0.02 < 0.006 or rh / 2 - 0.02 < 0.006:
                 continue
             cx = x0 + u * (rx + rw / 2)
@@ -465,6 +510,8 @@ def add_leaf_geoms(model: Model, leaf_body: Body, spec: dict, leaf: dict, u: flo
         sm = mat_rgba(model, f"mat_{name_prefix}_louver", tuple(min(1, c * 0.85) for c in fin["rgba"][:3]) + (1.0,), 0.6)
         for i in range(n):
             cz = z0 + rz + (i + 0.5) * rh / n
+            if hole and _hits_hole(hole, x0 + u * (rx + rw / 2), cz, rw / 2, rh / n / 2):
+                continue
             g = box(f"{name_prefix}_louver_{i}", (x0 + u * (rx + rw / 2), y_center, cz), (rw / 2, 0.002, rh / n / 2 * 1.05), sm, 1.0, False, True, FULL_ONLY, "leaf", "Louver slat", quat=quat_from_axis_angle([1, 0, 0], math.radians(35)))
             leaf_body.geoms.append(g)
     if style in ("plank_z_brace", "plank_x_brace", "board_batten", "plank_vertical", "planks_diagonal", "arched_top"):
@@ -515,10 +562,10 @@ def add_hinge_visuals(model: Model, world: Body, leaf_body: Body, spec: dict, hi
     if n <= 0 or hg.kind in ("rotor", "none", "flap_pin"):
         return
     hm = mat_from_material(model, "steel_galvanized" if hg.bearing != "rusty" else "steel_rusty", "mat_hinge")
-    if hg.kind in ("pivot_offset", "pivot_center", "pivot_center_heavy", "gravity_pivot"):
+    if hg.kind in ("pivot_offset", "pivot_center", "pivot_center_heavy", "gravity_pivot") or spec["kinematics"].get("both_ways"):
         # floor & top pivots
         for zz, nm in ((z0 - 0.005, "bottom"), (z0 + Hh + 0.01, "top")):
-            leaf_body.geoms.append(cyl(f"pivot_{nm}", (hinge_pos_xy[0], hinge_pos_xy[1], zz), 0.02, 0.006, hm, (0, 0, 1), 7850, False, True, FULL_ONLY, "hinge", "Pivot"))
+            leaf_body.geoms.append(cyl(f"pivot_{nm}", (hinge_pos_xy[0], hinge_pos_xy[1], zz if nm == "bottom" else z0 + Hh + 0.004), 0.014, 0.004, hm, (0, 0, 1), 7850, False, True, FULL_ONLY, "hinge", "Pivot"))
         return
     if hg.kind == "continuous":
         leaf_body.geoms.append(cyl("hinge_continuous", (hinge_pos_xy[0], hinge_pos_xy[1], z0 + Hh / 2), hg.pin_radius * 1.6, Hh / 2 - 0.01, hm, (0, 0, 1), 2700, False, True, FULL_SIMPLE, "hinge", "Continuous hinge"))
@@ -528,7 +575,7 @@ def add_hinge_visuals(model: Model, world: Body, leaf_body: Body, spec: dict, hi
         zs = [z0 + 0.15, z0 + Hh - 0.15] if n == 2 else [z0 + 0.15, z0 + Hh / 2, z0 + Hh - 0.15]
         for k, zz in enumerate(zs):
             q = q_axis_x_to((u, 0, 0))
-            leaf_body.geoms.append(mesh_geom(f"hinge_strap_{k}", key, mesh, (hinge_pos_xy[0], -v * (spec["leaf"]["thickness"] / 2 + 0.003), zz), q, hm, 7850, False, FULL_SIMPLE, "hinge", "Strap hinge"))
+            leaf_body.geoms.append(mesh_geom(f"hinge_strap_{k}", key, mesh, (hinge_pos_xy[0], v * (spec["leaf"]["thickness"] / 2 + 0.003), zz), q, hm, 7850, False, FULL_SIMPLE, "hinge", "Strap hinge"))
         return
     hh = hg.size[0]
     if n == 2:
@@ -537,13 +584,17 @@ def add_hinge_visuals(model: Model, world: Body, leaf_body: Body, spec: dict, hi
         zs = [z0 + 0.25, z0 + Hh / 2, z0 + Hh - 0.18]
     else:
         zs = [z0 + 0.25 + i * (Hh - 0.43) / (n - 1) for i in range(n)]
-    key, mesh = MESH.hinge_mesh(height=hh, radius=hg.pin_radius * 1.5, leaf_w=hg.size[1] * 0.45, leaf_t=0.003)
+    leaf_w_ = min(hg.size[1] * 0.45, spec["leaf"]["thickness"] - 0.004)
+    key, mesh = MESH.hinge_mesh(height=hh, radius=hg.pin_radius * 1.5, leaf_w=leaf_w_, leaf_t=0.003)
+    from ..ir import mat_to_quat
+    # hinge local frame -> world: +x -> +u (into the door), +y -> -v (across the thickness), z -> -u*v (right-handed)
+    q = mat_to_quat(np.array([[u, 0.0, 0.0], [0.0, -v, 0.0], [0.0, 0.0, -u * v]]))
     for k, zz in enumerate(zs):
-        # knuckle axis along z at hinge pos, leaves toward the door (+u x) and jamb
-        q = quat_from_axis_angle([0, 0, 1], 0.0 if u > 0 else math.pi)
-        if v < 0:
-            q = quat_mul(q, quat_from_axis_angle([0, 0, 1], -math.pi / 2 * u))
         leaf_body.geoms.append(mesh_geom(f"hinge_{k}", key, mesh, (hinge_pos_xy[0], hinge_pos_xy[1], zz), q, hm, 7850, False, FULL_SIMPLE, "hinge", f"Hinge {k + 1}"))
+        # the frame-side plate is static (screwed to the jamb): it must not swing with the leaf
+        keyj, meshj = MESH.hinge_jamb_mesh(height=hh, radius=hg.pin_radius * 1.5, leaf_w=leaf_w_, leaf_t=0.003)
+        wp = body_world_pos(model, leaf_body)
+        world.geoms.append(mesh_geom(f"hinge_{k}_jamb", keyj, meshj, (wp[0] + hinge_pos_xy[0], wp[1] + hinge_pos_xy[1], wp[2] + zz), q, hm, 7850, False, FULL_SIMPLE, "hinge", f"Hinge {k + 1} jamb plate"))
 
 
 # ---------------------------------------------------------------------------
@@ -561,7 +612,7 @@ def add_spring_latch(model: Model, leaf_body: Body, spec: dict, phys: dict, u: f
     One-sided coupling: bolt_q >= scale * handle_q via a limited fixed tendon (MJCF); mimic in URDF/USD."""
     throw = latch.throw
     bw, bh = latch.bolt_size
-    inside = 0.03
+    inside = min(0.03, max(0.010, (latch.backset or 0.06) - throw - 0.009))   # retracted bolt stops short of the spindle
     bm = mat_from_material(model, "brass" if latch.kind in ("tubular_latch", "deadlatch") else "stainless", "mat_bolt")
     body = Body(name, leaf_body.name, (x_edge, 0.0, z), QUAT_ID, None, [], [], tiers, "latch", "Latch bolt")
     body.joint = Joint(f"{name}_slide", "slide", (-u, 0, 0), (0, 0, 0), (0.0, throw), damping=2.0, frictionloss=0.3,
@@ -583,7 +634,7 @@ def add_spring_latch(model: Model, leaf_body: Body, spec: dict, phys: dict, u: f
 def add_deadbolt(model: Model, leaf_body: Body, spec: dict, u: float, v: float, x_edge: float, z: float, t: float, throw: float, engaged: bool, thumbturn_side: float | None, thumbturn_travel: float, thumbturn_torque: float, name="deadbolt", tiers=FULL_SIMPLE, keyed_side: float | None = None):
     """Deadbolt: slide body (axis -u, + = retracted); thumbturn body on the given face drives it (bilateral equality)."""
     bw, bh = 0.016, 0.025
-    inside = 0.04
+    inside = 0.030
     bm = mat_from_material(model, "brass", "mat_deadbolt")
     body = Body(name, leaf_body.name, (x_edge, 0.0, z), QUAT_ID, None, [], [], tiers, "lock", "Deadbolt")
     q0 = 0.0 if engaged else throw
@@ -596,7 +647,7 @@ def add_deadbolt(model: Model, leaf_body: Body, spec: dict, u: float, v: float, 
     model.add_body(body)
     eqs = []
     if thumbturn_side is not None:
-        tt = Body(f"{name}_thumbturn", leaf_body.name, (x_edge - u * 0.070, thumbturn_side * t / 2, z), QUAT_ID, None, [], [], tiers, "lock", "Thumbturn")
+        tt = Body(f"{name}_thumbturn", leaf_body.name, (x_edge - u * 0.065, thumbturn_side * t / 2, z), QUAT_ID, None, [], [], tiers, "lock", "Thumbturn")
         tt.joint = Joint(f"{name}_thumbturn_hinge", "hinge", (0, -thumbturn_side, 0), (0, 0, 0), (0.0, thumbturn_travel), damping=0.05, frictionloss=thumbturn_torque, armature=1e-5, role="lock", label="Thumbturn (rotate to retract deadbolt)", initial=0.0 if engaged else thumbturn_travel)
         key, mesh = MESH.thumbturn_mesh()
         tt.geoms.append(mesh_geom(f"{name}_thumbturn_mesh", key, mesh, (0, 0, 0), q_face(thumbturn_side, u), bm, 7100, True, tiers, "lock", "Thumbturn"))
@@ -605,7 +656,7 @@ def add_deadbolt(model: Model, leaf_body: Body, spec: dict, u: float, v: float, 
         eqs.append(Equality("joint", f"{name}_couple", f"{name}_slide", f"{name}_thumbturn_hinge", (0.0, throw / thumbturn_travel, 0, 0, 0), tiers=tiers, label="deadbolt = throw/travel * thumbturn"))
     if keyed_side is not None:
         key, mesh = MESH.cylinder_face_mesh()
-        leaf_body.geoms.append(mesh_geom(f"{name}_cylinder_face", key, mesh, (x_edge - u * 0.070, keyed_side * t / 2, z), q_face(keyed_side, u), bm, 7100, False, FULL_ONLY, "lock", "Key cylinder"))
+        leaf_body.geoms.append(mesh_geom(f"{name}_cylinder_face", key, mesh, (x_edge - u * 0.065, keyed_side * t / 2, z), q_face(keyed_side, u), bm, 7100, False, FULL_ONLY, "lock", "Key cylinder"))
     pocket = {"z": z, "h": bh + 0.006, "w": bw + 0.003, "depth": throw + 0.004, "ramp": False}
     return body, [pocket], eqs
 
@@ -628,7 +679,7 @@ def operator_faces(spec: dict, v: float):
     return [], None
 
 
-def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, op: H.OperatorModel, u: float, v: float, x_spindle: float, z: float, t: float, faces: list, locked_backlash: float | None, name="handle", tiers=ALL_TIERS):
+def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, op: H.OperatorModel, u: float, v: float, x_spindle: float, z: float, t: float, faces: list, locked_backlash: float | None, name="handle", tiers=ALL_TIERS, keypad_face: float = -1.0):
     """Lever/knob/paddle/thumbturn-type operator rotating about the door normal.  One body through the door
     (spindle) carrying operator meshes on the requested faces.  Positive q = actuating (press down)."""
     mat = mat_from_material(model, op.material, f"mat_op_{op.material}")
@@ -638,18 +689,23 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
     if locked_backlash is not None:
         rng = (0.0, max(locked_backlash, 0.01))
     axis = (0.0, -u, 0.0)   # pressing lever (reaching -u) down = positive
+    preload_ = max(op.spring_torque_preload, 1.5) if op.kind == "paddle" else op.spring_torque_preload
     body.joint = Joint(f"{name}_hinge", "hinge", axis, (0, 0, 0), rng, damping=0.02, frictionloss=0.02 + 0.02 * op.mass,
-                       stiffness=op.spring_rate, springref=(-op.spring_torque_preload / op.spring_rate) if op.spring_rate > 0 else 0.0, armature=2e-5,
+                       stiffness=op.spring_rate, springref=(-preload_ / op.spring_rate) if op.spring_rate > 0 else 0.0, armature=2e-5,
                        role="operator", label=f"{op.name} (0 = rest, + = actuated)", notes="locked: range limited to backlash" if locked_backlash is not None else "")
     # spindle through door
-    body.geoms.append(cyl(f"{name}_spindle", (0, 0, 0), 0.006, t / 2 + 0.002, mat, (0, 1, 0), 7850, False, True, FULL_ONLY, "mechanism", "Spindle"))
+    body.geoms.append(cyl(f"{name}_spindle", (0, 0, 0), 0.006, max(t / 2 - 0.001, 0.004), mat, (0, 1, 0), 7850, False, True, FULL_ONLY, "mechanism", "Spindle"))
     sp = op.style_params
     grip_sites = []
     for f in faces:
         q = q_face(f, u)
         if op.kind in ("lever", "keypad_lever", "card_lever", "dog"):
-            key, mesh = MESH.lever_mesh(shape=sp.get("shape", "straight"), length=sp.get("length", 0.12), diameter=sp.get("diameter", 0.019), rose_diameter=sp.get("rose_diameter", 0.07), standoff=0.055, square=sp.get("square", False), ret=sp.get("return", False), escutcheon=tuple(sp["escutcheon"]) if sp.get("escutcheon") else None)
+            key, mesh = MESH.lever_mesh(shape=sp.get("shape", "straight"), length=sp.get("length", 0.12), diameter=sp.get("diameter", 0.019), rose_diameter=sp.get("rose_diameter", 0.07), standoff=0.055, square=sp.get("square", False), ret=sp.get("return", False), escutcheon=None)
             body.geoms.append(mesh_geom(f"{name}_lever_{'p' if f > 0 else 'n'}", key, mesh, (0, f * t / 2, 0), q, mat, 3000, False, ALL_TIERS, "operator", "Lever"))
+            if sp.get("escutcheon"):
+                # the escutcheon plate is screwed to the leaf: it must not rotate with the lever
+                eh, ew = sp["escutcheon"]
+                leaf_body.geoms.append(box(f"{name}_escutcheon_{'p' if f > 0 else 'n'}", (x_spindle, f * (t / 2 + 0.0015), z), (ew / 2, 0.0015, eh / 2), mat, 3000, False, True, FULL_SIMPLE, "operator", "Escutcheon plate"))
             L, d = sp.get("length", 0.12), sp.get("diameter", 0.019)
             # collision capsule for the lever arm (all tiers), reach toward -u
             body.geoms.append(Geom(f"{name}_lever_col_{'p' if f > 0 else 'n'}", "capsule", (d / 2, L / 2 - d / 2), (-u * L / 2, f * (t / 2 + 0.055), 0), tuple(quat_z_to((-u, 0, 0))), mat, True, False, 3000, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Lever grip"))
@@ -665,9 +721,13 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
             grip_sites.append(Site(f"{name}_grip_{'p' if f > 0 else 'n'}", (0, f * (t / 2 + dep - D / 2 * 0.5), 0), QUAT_ID, 0.012, "grip"))
         elif op.kind in ("paddle",):
             key, mesh = MESH.paddle_mesh(size=tuple(sp.get("size", (0.1, 0.18))), standoff=sp.get("standoff", 0.045))
-            body.geoms.append(mesh_geom(f"{name}_paddle_{'p' if f > 0 else 'n'}", key, mesh, (0, f * t / 2, 0), q, mat, 3000, False, ALL_TIERS, "operator", "Paddle"))
+            w_p = sp.get("size", (0.1, 0.18))[0]
+            cx_m = -u * max(0.012, min(w_p / 2, 0.032) + 0.08 - (H.LATCHES[spec["latch"]["model"]].backset or 0.06))
+            body.geoms.append(mesh_geom(f"{name}_paddle_{'p' if f > 0 else 'n'}", key, mesh, (cx_m, f * t / 2, 0), q, mat, 3000, False, ALL_TIERS, "operator", "Paddle"))
             w, h = sp.get("size", (0.1, 0.18))
-            body.geoms.append(box(f"{name}_paddle_col_{'p' if f > 0 else 'n'}", (-u * 0.012, f * (t / 2 + sp.get("standoff", 0.045)), 0), (min(w / 2, 0.032), 0.006, h * 0.35), mat, 3000, True, False, ALL_TIERS, "operator", "Paddle grip"))
+            backset_p = H.LATCHES[spec["latch"]["model"]].backset or 0.06
+            cx_p = -u * max(0.012, min(w / 2, 0.032) + 0.08 - backset_p)
+            body.geoms.append(box(f"{name}_paddle_col_{'p' if f > 0 else 'n'}", (cx_p, f * (t / 2 + sp.get("standoff", 0.045)), 0), (min(w / 2, 0.032), 0.006, h * 0.35), mat, 3000, True, False, ALL_TIERS, "operator", "Paddle grip"))
             grip_sites.append(Site(f"{name}_grip_{'p' if f > 0 else 'n'}", (0, f * (t / 2 + sp.get("standoff", 0.045)), 0), QUAT_ID, 0.012, "push"))
         elif op.kind == "wheel":
             key, mesh = MESH.wheel_mesh(diameter=sp.get("diameter", 0.4), spokes=sp.get("spokes", 5), bar_diameter=sp.get("bar_diameter", 0.022), hub_len=0.08)
@@ -696,11 +756,11 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
         # keypad on the robot's face (-1) is added to the leaf body (fixed) above the handle; buttons are separate bodies (full tier)
         backset_ = H.LATCHES[spec["latch"]["model"]].backset or 0.06
         x_k = x_spindle - u * max(0.0, kw / 2 + 0.015 - backset_)
-        leaf_body.geoms.append(mesh_geom(f"{name}_keypad_body", key, mesh, (x_k, -1.0 * t / 2, z + 0.12), q_face(-1.0, u), km, 2000, True, FULL_SIMPLE, "lock", "Keypad body"))
+        leaf_body.geoms.append(mesh_geom(f"{name}_keypad_body", key, mesh, (x_k, keypad_face * t / 2, z + 0.12), q_face(keypad_face, u), km, 2000, True, FULL_SIMPLE, "lock", "Keypad body"))
     if sp.get("reader"):
         rm = mat_from_material(model, "black_matte_metal", "mat_reader")
         key, mesh = MESH.card_reader_mesh(w=sp["escutcheon"][1] if sp.get("escutcheon") else 0.075, h=sp["escutcheon"][0] if sp.get("escutcheon") else 0.26)
-        leaf_body.geoms.append(mesh_geom(f"{name}_reader", key, mesh, (x_spindle, -1.0 * t / 2, z), q_face(-1.0, u), rm, 2000, False, FULL_SIMPLE, "lock", "Card reader"))
+        leaf_body.geoms.append(mesh_geom(f"{name}_reader", key, mesh, (x_spindle, -1.0 * t / 2, z + 0.16), q_face(-1.0, u), rm, 2000, False, FULL_SIMPLE, "lock", "Card reader"))
     model.add_body(body)
     return body
 
@@ -761,7 +821,7 @@ def add_pull(model: Model, leaf_body: Body, op: H.OperatorModel, u: float, x: fl
         leaf_body.sites.append(Site(f"{name}_grip_{'p' if face > 0 else 'n'}", (x, face * (t / 2 + 0.06), z - 0.06), QUAT_ID, 0.012, "grip"))
 
 
-def add_touchbar(model: Model, leaf_body: Body, spec: dict, op: H.OperatorModel, u: float, v: float, x_edge: float, x_hinge_edge: float, z: float, t: float, W: float, face: float, name="exit_device", tiers=ALL_TIERS):
+def add_touchbar(model: Model, leaf_body: Body, spec: dict, op: H.OperatorModel, u: float, v: float, x_edge: float, x_hinge_edge: float, z: float, t: float, W: float, face: float, name="exit_device", tiers=ALL_TIERS, z_top: float | None = None, z_bot: float | None = None):
     """Exit device on the push face: fixed rail + moving pad (slide along door normal, + = pressed)."""
     sp = op.style_params
     mat = mat_from_material(model, op.material, f"mat_op_{op.material}")
@@ -779,19 +839,29 @@ def add_touchbar(model: Model, leaf_body: Body, spec: dict, op: H.OperatorModel,
         model.add_body(body)
         return body, f"{name}_hinge"
     # rail fixed to leaf
-    key, mesh = MESH.touchbar_rail_mesh(length=L, height=bh, depth=bd, rim_case=bool(sp.get("rim_case", True)), case_len=0.16)
-    leaf_body.geoms.append(mesh_geom(f"{name}_rail", key, mesh, (xc, face * t / 2, z), q_face(face, u), mat, 3000, False, FULL_SIMPLE, "operator", "Exit device rail"))
-    leaf_body.geoms.append(box(f"{name}_rail_col", (xc, face * (t / 2 + bd * 0.3), z), (L / 2 + 0.02, bd * 0.3, bh / 2), mat, 3000, True, False, tiers, "operator", "Rail"))
+    # housing = channel built from convex primitives (a channel-shaped mesh would collide as its convex hull)
+    leaf_body.geoms.append(box(f"{name}_rail", (xc, face * (t / 2 + 0.006), z), (L / 2 + 0.02, 0.006, bh / 2), mat, 3000, True, True, tiers, "operator", "Exit device rail (back plate)"))
+    for sx in (-1, 1):
+        leaf_body.geoms.append(box(f"{name}_rail_end_{'p' if sx > 0 else 'n'}", (xc + sx * (L / 2 + 0.01), face * (t / 2 + bd / 2), z), (0.01, bd / 2, bh / 2), mat, 3000, True, True, tiers, "operator", "Rail end block"))
+    if sp.get("rim_case", True):
+        case_len = 0.05
+        leaf_body.geoms.append(box(f"{name}_case", (xc + u * (L / 2 + 0.02 + case_len / 2), face * (t / 2 + bd * 0.525), z), (case_len / 2, bd * 0.525, bh * 0.75), mat, 3000, True, True, tiers, "latch", "Rim device case"))
     if sp.get("vertical_rods"):
         rm = mat_from_material(model, op.material, f"mat_op_{op.material}")
-        leaf_body.geoms.append(cyl(f"{name}_rod_top", (x_edge - u * 0.06, face * (t / 2 + 0.03), z + (spec["leaf"]["height"] - 0.02 + z) / 2 - z / 2), 0.008, (spec["leaf"]["height"] - z) / 2 - 0.05, rm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "latch", "Vertical rod (top)"))
-        leaf_body.geoms.append(cyl(f"{name}_rod_bot", (x_edge - u * 0.06, face * (t / 2 + 0.03), z / 2), 0.008, z / 2 - 0.05, rm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "latch", "Vertical rod (bottom)"))
+        zt = (z_top if z_top is not None else spec["leaf"]["height"]) - 0.03
+        zb_ = (z_bot if z_bot is not None else 0.0) + 0.03
+        a, b = z + bh / 2 + 0.02, zt
+        if b - a > 0.02:
+            leaf_body.geoms.append(cyl(f"{name}_rod_top", (x_edge - u * 0.06, face * (t / 2 + 0.03), (a + b) / 2), 0.008, (b - a) / 2, rm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "latch", "Vertical rod (top)"))
+        a2, b2 = zb_, z - bh / 2 - 0.02
+        if b2 - a2 > 0.02:
+            leaf_body.geoms.append(cyl(f"{name}_rod_bot", (x_edge - u * 0.06, face * (t / 2 + 0.03), (a2 + b2) / 2), 0.008, (b2 - a2) / 2, rm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "latch", "Vertical rod (bottom)"))
     # pad body
     pad = Body(name, leaf_body.name, (xc, face * (t / 2), z), QUAT_ID, None, [], [], tiers, "operator", op.name)
     pad.joint = Joint(f"{name}_slide", "slide", (0, -face, 0), (0, 0, 0), (0.0, op.travel), damping=8.0, frictionloss=0.5, stiffness=op.spring_rate, springref=-op.spring_torque_preload / max(op.spring_rate, 1e-6), armature=1e-4, role="operator", label="Touch bar pad (+ = pressed)")
     key, mesh = MESH.touchbar_pad_mesh(length=L, height=bh, depth=bd)
     pad.geoms.append(mesh_geom(f"{name}_pad", key, mesh, (0, 0, 0), q_face(face, u), mat, 3000, False, FULL_SIMPLE, "operator", "Touch pad"))
-    pad.geoms.append(box(f"{name}_pad_col", (0, face * (bd - 0.014), 0), (L / 2, 0.014, bh * 0.45), mat, 3000, True, False, tiers, "operator", "Touch pad", friction=(0.8, 0.01, 0.0001)))
+    pad.geoms.append(box(f"{name}_pad_col", (0, face * (bd - 0.015), 0), ((L - 0.006) / 2, 0.015, bh * 0.45), mat, 3000, True, False, tiers, "operator", "Touch pad", friction=(0.8, 0.01, 0.0001)))
     pad.sites.append(Site(f"{name}_push", (0, face * bd, 0), QUAT_ID, 0.015, "push"))
     model.add_body(pad)
     return pad, f"{name}_slide"
@@ -813,7 +883,7 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
         world.geoms.append(box("floor_spring_cover", (x_hinge_axis + u * 0.12, 0, 0.002), (0.17, 0.06, 0.002), m, 7900, False, True, FULL_SIMPLE, "closer", "Floor spring cover plate"))
         return
     if cl.kind == "concealed_overhead":
-        world.geoms.append(box("closer_concealed_slot", (x_hinge_axis + u * 0.3, v * (t / 2 + 0.01), Hh + 0.005), (0.25, 0.008, 0.004), m, 2700, False, True, FULL_ONLY, "closer", "Concealed closer track"))
+        world.geoms.append(box("closer_concealed_slot", (x_hinge_axis + u * 0.3, v * (t / 2 + 0.01), float(spec["opening"]["height"]) + 0.005), (0.25, 0.008, 0.004), m, 2700, False, True, FULL_ONLY, "closer", "Concealed closer track"))
         return
     if cl.kind in ("auto_operator_low_energy", "auto_operator_full"):
         # header-mounted operator box on the push face side of the frame
@@ -833,10 +903,13 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
     # arm kinematic loop (full tier)
     if not tier_full_arms:
         return
-    pin_y = v * (t / 2 + h + 0.01)
-    pin_z = zc + w / 2 + 0.015
-    # bracket on head/soffit at x_b from hinge, y_b out from door plane
-    x_b_rel, y_b = u * 0.10, v * 0.22
+    wt_ = float(spec["opening"]["wall_thickness"])
+    Ho_ = float(spec["opening"]["height"])
+    pin_y = v * max(t / 2 + h + 0.01, wt_ / 2 + 0.035)       # pinion clear of the head/casing face
+    pin_z = Ho_ + 0.03                                       # arm plane above the head: the leaf swings under it
+    leaf_body.geoms.append(cyl("closer_pinion_shaft", (x_p, pin_y, (zc + pin_z) / 2), 0.008, (pin_z - zc) / 2, m, (0, 0, 1), 2700, False, True, FULL_ONLY, "closer", "Pinion shaft"))
+    # shoe on the frame casing face above the opening, 10 cm from the hinge line
+    x_b_rel, y_b = u * 0.10, v * (wt_ / 2 + 0.012 + 0.02)
     L1, L2 = 0.28, 0.26
     pfx = "" if leaf_body.name == "leaf" else leaf_body.name + "_"
     arm1 = Body(pfx + "closer_arm_main", leaf_body.name, (x_p, pin_y, pin_z), QUAT_ID, None, [], [], FULL_ONLY, "closer", "Closer main arm")
@@ -861,7 +934,7 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
     arm2.joint = Joint(pfx + "closer_elbow", "hinge", (0, 0, 1), (0, 0, 0), None, damping=0.01, role="mechanism", label="Closer elbow", robot_interactive=False)
     th2 = math.atan2(by - ey, bx - ex) - th1
     arm2.quat = tuple(quat_from_axis_angle([0, 0, 1], th2))
-    arm2.geoms.append(box("closer_arm_fore_geom", (L2 / 2, 0, 0), (L2 / 2, 0.007, 0.004), m, 2700, False, True, FULL_ONLY, "closer", "Forearm"))
+    arm2.geoms.append(box("closer_arm_fore_geom", ((L2 - 0.035) / 2, 0, 0), ((L2 - 0.035) / 2, 0.007, 0.004), m, 2700, False, True, FULL_ONLY, "closer", "Forearm"))
     model.add_body(arm2)
     # bracket on frame (world), and connect constraint between forearm tip and bracket
     world.geoms.append(box("closer_bracket", (x_hinge_axis + bx, by, pin_z + 0.0), (0.03, 0.02, 0.012), m, 2700, False, True, FULL_ONLY, "closer", "Closer soffit bracket"))
@@ -874,7 +947,7 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
 # ---------------------------------------------------------------------------
 def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float, v: float, x0: float, z0: float, W: float, Hh: float, t: float, Wo: float, Ho: float):
     ex = set(spec.get("extras", []))
-    if "kick_plate" in ex:
+    if "kick_plate" in ex and not spec["leaf"].get("pet_flap"):
         for f in (-1, 1) if spec["family"] in ("swing_double", "hospital") else (-v,):
             add_kick_plate(model, leaf_body, u, x0, z0, W, t, f, name=f"kick_plate_{'p' if f > 0 else 'n'}")
     if "armor_plate" in ex:
@@ -882,7 +955,7 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
     if "bumper_rail" in ex:
         rm = mat_from_material(model, "pvc", "mat_bumper")
         for f in (-1, 1):
-            leaf_body.geoms.append(box(f"bumper_rail_{'p' if f > 0 else 'n'}", (x0 + u * W / 2, f * (t / 2 + 0.01), z0 + 0.85), (W / 2 - 0.05, 0.01, 0.04), rm, 1200, True, True, FULL_SIMPLE, "decor", "Bumper rail"))
+            leaf_body.geoms.append(box(f"bumper_rail_{'p' if f > 0 else 'n'}", (x0 + u * (W / 2 + 0.035), f * (t / 2 + 0.01), z0 + 0.65), (W / 2 - 0.085, 0.01, 0.04), rm, 1200, True, True, FULL_SIMPLE, "decor", "Bumper rail"))
     if "peephole" in ex or "door_viewer_camera" in ex:
         key, mesh = MESH.peephole_mesh()
         pm = mat_from_material(model, "brass", "mat_peephole")
@@ -890,16 +963,16 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
     if "mail_slot" in ex:
         mm = mat_from_material(model, "brass", "mat_mailslot")
         pfx = "" if leaf_body.name == "leaf" else leaf_body.name + "_"
-        flap = Body(pfx + "mail_slot_flap", leaf_body.name, (x0 + u * W / 2, -1.0 * (t / 2 + 0.002), z0 + 0.95 + 0.035), QUAT_ID, None, [], [], FULL_ONLY, "decor", "Mail slot flap")
+        flap = Body(pfx + "mail_slot_flap", leaf_body.name, (x0 + u * W / 2, -1.0 * (t / 2 + 0.0085), z0 + 0.95 + 0.035), QUAT_ID, None, [], [], FULL_ONLY, "decor", "Mail slot flap")
         flap.joint = Joint(pfx + "mail_slot_hinge", "hinge", (u, 0, 0), (0, 0, 0), (0.0, 1.2), damping=0.01, stiffness=0.3, springref=-0.3, role="decor", label="Mail slot flap", robot_interactive=False)
         flap.geoms.append(box("mail_slot_flap_geom", (0, 0, -0.035), (0.15, 0.002, 0.035), mm, 8500, True, True, FULL_ONLY, "decor", "Mail flap"))
         model.add_body(flap)
         leaf_body.geoms.append(box("mail_slot_frame", (x0 + u * W / 2, -1.0 * (t / 2 + 0.003), z0 + 0.95), (0.17, 0.003, 0.055), mm, 8500, False, True, FULL_ONLY, "decor", "Mail slot plate"))
-    if "knocker" in ex:
+    if "knocker" in ex and spec["leaf"].get("panel_style") not in ("plank_z_brace", "plank_x_brace", "board_batten"):
         key, mesh = MESH.knocker_mesh()
         km = mat_from_material(model, "brass_antique", "mat_knocker")
         pfx = "" if leaf_body.name == "leaf" else leaf_body.name + "_"
-        kb = Body(pfx + "knocker", leaf_body.name, (x0 + u * W / 2, -1.0 * t / 2, z0 + 1.45), QUAT_ID, None, [], [], FULL_ONLY, "decor", "Door knocker")
+        kb = Body(pfx + "knocker", leaf_body.name, (x0 + u * W / 2, -1.0 * t / 2, z0 + 1.28), QUAT_ID, None, [], [], FULL_ONLY, "decor", "Door knocker")
         kb.joint = Joint(pfx + "knocker_hinge", "hinge", (u, 0, 0), (0, 0, 0.055), (0.0, 0.6), damping=0.005, role="decor", label="Knocker ring", robot_interactive=True)
         kb.geoms.append(mesh_geom("knocker_mesh", key, mesh, (0, 0, 0), q_face(-1.0, u), km, 8500, False, FULL_ONLY, "decor", "Knocker"))
         kb.geoms.append(Geom("knocker_col", "capsule", (0.007, 0.03), (0, -0.025, -0.01), tuple(quat_z_to((1, 0, 0))), km, True, False, 8500, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_ONLY, "decor", "Knocker ring"))
@@ -911,7 +984,7 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
     if "wreath" in ex:
         key, mesh = MESH.wreath_mesh(r=min(0.2, W * 0.25))
         wm = mat_rgba(model, "mat_wreath", (0.12, 0.30, 0.12, 1), 0.95)
-        leaf_body.geoms.append(mesh_geom("wreath", key, mesh, (x0 + u * W / 2, -1.0 * t / 2, z0 + Hh * 0.68), q_face(-1.0, u), wm, 200, False, FULL_ONLY, "decor", "Wreath"))
+        leaf_body.geoms.append(mesh_geom("wreath", key, mesh, (x0 + u * W / 2, -1.0 * t / 2, z0 + Hh * 0.78), q_face(-1.0, u), wm, 200, False, FULL_ONLY, "decor", "Wreath"))
     if "coat_hook" in ex:
         key, mesh = MESH.coat_hook_mesh()
         hm = mat_from_material(model, "chrome", "mat_hook")
@@ -962,7 +1035,14 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
         # dome on the swing side floor at the max-open sweep position of the leaf's far edge
         ang = math.radians(spec["kinematics"].get("max_open_deg", 90) or 90)
         r = W * 0.85
-        world.geoms.append(Geom("floor_stop_dome", "sphere", (0.025,), (x0 + u * r * math.cos(ang) - u * 0.0, v * r * math.sin(ang), 0.0), (1, 0, 0, 0), sm, True, True, 7000, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "frame", "Floor dome stop"))
+        jp = leaf_body.joint.pos if leaf_body.joint is not None else (u * GAP, v * (t / 2 + 0.007), 0.0)
+        wp = body_world_pos(model, leaf_body)
+        rel = (x0 + u * r - jp[0], v * t / 2 - jp[1])
+        phi = u * v * ang
+        c_, s_ = math.cos(phi), math.sin(phi)
+        fx, fy = wp[0] + jp[0] + c_ * rel[0] - s_ * rel[1], wp[1] + jp[1] + s_ * rel[0] + c_ * rel[1]
+        nx, ny = -s_ * v, c_ * v
+        world.geoms.append(Geom("floor_stop_dome", "sphere", (0.025,), (fx + nx * 0.027, fy + ny * 0.027, 0.0), (1, 0, 0, 0), sm, True, True, 7000, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "frame", "Floor dome stop"))
 
 
 def add_pet_flap(model: Model, leaf_body: Body, spec: dict, u: float, x0: float, z0: float, W: float, t: float):
@@ -980,7 +1060,7 @@ def add_pet_flap(model: Model, leaf_body: Body, spec: dict, u: float, x0: float,
         leaf_body.geoms.append(box(f"pet_frame_{'l' if sgn < 0 else 'r'}", (xc + sgn * (fw / 2 + 0.02), 0, zc), (0.02, t / 2 + 0.006, fh / 2 + 0.04), fm, 1200, False, True, FULL_SIMPLE, "decor", "Pet door frame"))
     pfx = "" if leaf_body.name == "leaf" else leaf_body.name + "_"
     flap = Body(pfx + "pet_flap", leaf_body.name, (xc, 0, zc + fh / 2), QUAT_ID, None, [], [], FULL_SIMPLE, "leaf", "Pet flap")
-    flap.joint = Joint(pfx + "pet_flap_hinge", "hinge", (u, 0, 0), (0, 0, 0), (-1.6, 1.6), damping=0.02, frictionloss=0.02, role="secondary", label="Pet flap (swings both ways)")
+    flap.joint = Joint(pfx + "pet_flap_hinge", "hinge", (u, 0, 0), (0, 0, 0), (-1.45, 1.45), damping=0.02, frictionloss=0.02, role="secondary", label="Pet flap (swings both ways)")
     ft = slab.typical_thickness[0]
     flap.geoms.append(box("pet_flap_geom", (0, 0, -fh / 2), (fw / 2 - 0.004, ft / 2, fh / 2 - 0.004), gm, M.MATERIALS[slab.core_material].density, True, True, FULL_SIMPLE, "leaf", "Pet flap"))
     model.add_body(flap)

@@ -702,9 +702,10 @@ def gen_saloon(i, ctx, B, rng):
     zb = _round(B.pick("sa:zb", {0.35: 2, 0.20: 1, 0.60: 1, 0.0: 1})) if Hh < 1.9 else 0.0
     panel = "louver_full" if slab == "louver_wood" else B.pick("sa:panel", {"flush": 2, "shaker_1": 1, "glass_vision": 1, "hpl_flat": 1})
     s["use_case"] = B.pick("sa:use", ["saloon bar doors", "cafe kitchen pass doors", "restaurant kitchen swing door", "hospital utility double-acting door", "supermarket stockroom doors"])
-    s["leaf"] = {"width": W, "height": Hh, "thickness": B.pick("sa:t", {0.035: 2, 0.044: 1}), "slab": slab, "panel_style": panel, "finish": finish_for(slab, "default", B, rng), "count": 2 if pair else 1,
+    t_sal = B.pick("sa:t", {0.035: 2, 0.044: 1})   # double-acting pivots: hinge-edge gap >= t/2 + 6 mm so the corners clear the jamb
+    s["leaf"] = {"width": W, "height": Hh, "thickness": t_sal, "slab": slab, "panel_style": panel, "finish": finish_for(slab, "default", B, rng), "count": 2 if pair else 1,
                  "glazing": glazing_for(panel, W, Hh, "glass_clear", 0.006, rng), "bottom_clearance": zb}
-    s["opening"] = {"width": _round((2 * W if pair else W) + 0.02), "height": _round(2.05 if Hh < 1.9 else Hh + 0.013), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
+    s["opening"] = {"width": _round((2 * W if pair else W) + t_sal + 0.024), "height": _round(2.05 if Hh < 1.9 else Hh + 0.013), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
     s["hinge"] = hinge_block("spring_double", 2, "left", "push")
     s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": B.pick("sa:mo", {90: 2, 110: 1, 100: 1}), "stop": "none", "both_ways": True, "pair": pair}
     s["operator"] = {"model": B.pick("sa:op", {"none": 3, "push_plate": 1, "kick_plate_only": 0.001}), "height": 1.0, "sides": "both"}
@@ -1431,10 +1432,48 @@ def generate_all(seed: int = 20260903) -> list[dict]:
         # thick hinged leaves need extra latch-edge clearance: the non-swing corner sweeps out by ~(t+7mm)^2/(2W)
         if s["kinematics"]["type"] == "hinge_vertical" and s["leaf"].get("count", 1) == 1 and s["family"] not in ("stall", "baby_gate", "gate_swing", "saloon", "pivot"):
             W_, t_ = s["leaf"]["width"], s["leaf"]["thickness"]
-            pin_off = 0.05 if s["family"] in ("vault", "blast") else 0.007
+            pin_off = 0.065 if s["family"] in ("vault", "blast") else 0.007
             inset = 0.006 if (s["family"] in ("vault", "blast") or H.HINGES[s["hinge"]["model"]].kind.startswith("pivot")) else 0.003
             gap_needed = (t_ + pin_off) ** 2 / (2 * W_) + 0.003
             s["opening"]["width"] = _round(max(s["opening"]["width"], W_ + inset + max(0.003, gap_needed)))
+        if s["kinematics"].get("type") == "hinge_vertical" and s["family"] not in ("saloon", "stall", "pet_door", "hatch_floor", "hatch_ceiling"):
+            mo = s["kinematics"].get("max_open_deg") or 90
+            cap = 140
+            if s["opening"]["frame"].get("casing"):
+                cap = 135                       # casing trim stops the leaf well short of flat
+            if H.HINGES[s["hinge"]["model"]].kind == "strap":
+                cap = min(cap, 120)             # strap hinges hit the post
+            if H.CLOSERS[s["closer"]["model"]].kind in ("surface_overhead",):
+                cap = min(cap, 100)             # surface closer arms/body reach the wall
+            if s["family"] in ("vault", "blast", "dutch"):
+                cap = min(cap, 100)
+            if s["leaf"]["panel_style"] in ("plank_z_brace", "plank_x_brace", "board_batten"):
+                cap = min(cap, 80)              # face braces reach the jamb beyond this
+            if s["family"] == "gate_swing":
+                cap = min(cap, 110)             # 100 mm posts
+            if s["family"] == "stall":
+                cap = min(cap, 110)             # adjacent pilaster
+            if s["family"] == "baby_gate":
+                cap = min(cap, 90)
+            if H.HINGES[s["hinge"]["model"]].kind == "strap":
+                cap = min(cap, 100)
+            if s["leaf"]["panel_style"] == "glass_frameless":
+                cap = min(cap, 100)             # corner patch fittings reach the jamb beyond this
+            s["kinematics"]["max_open_deg"] = min(mo, cap)
+        if s["family"] == "pet_door":
+            s["kinematics"]["max_open_deg"] = min(s["kinematics"].get("max_open_deg") or 75, 75)
+        if s["kinematics"].get("both_ways") and s["family"] in ("baby_gate",):
+            s["opening"]["width"] = _round(max(s["opening"]["width"], s["leaf"]["width"] + s["leaf"]["thickness"] + 0.024))
+        if s["kinematics"].get("double_egress"):
+            s["opening"]["wall_thickness"] = 0.10      # double-egress pairs sit in a thin partition (each leaf swings its own way)
+            s["opening"]["frame"]["jamb_depth"] = 0.10
+        if (s["family"] == "sliding_bypass" or s["kinematics"].get("track") == "top_hung_pocket") and H.OPERATORS[s["operator"]["model"]].kind in ("pull", "ring_pull"):
+            s["operator"]["model"] = "pull_flush_recessed"    # leaves that pass each other / enter a pocket need flush pulls
+            s.setdefault("tags", []).append("flush_pull_required")
+        if s["family"] == "saloon":
+            s["kinematics"]["max_open_deg"] = min(s["kinematics"].get("max_open_deg") or 90, 90)
+        if s["family"] == "stall":
+            s["kinematics"]["max_open_deg"] = min(s["kinematics"].get("max_open_deg") or 110, 110)
         if s["family"] == "stall" and s["lock"].get("engaged"):
             s["kinematics"]["rest_angle_deg"] = 0     # occupied stall: latched shut (rest angle applies only when vacant)
             s["lock"]["robot_side_release"] = not s["robot"]["is_push"]   # slide latch sits on the swing-side face

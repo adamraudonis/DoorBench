@@ -225,9 +225,9 @@
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="0.496747 0.024496 1.039795" rpy="0 0 0"/>
-      <mass value="36.741255"/>
-      <inertia ixx="14.356065307" ixy="0.027687214" ixz="-0.019977752" iyy="17.701398569" iyz="0.036688924" izz="3.371074013"/>
+      <origin xyz="0.50279 0.019216 1.047534" rpy="0 0 0"/>
+      <mass value="36.566515"/>
+      <inertia ixx="14.352772264" ixy="-0.018993492" ixz="-0.014978657" iyy="17.702183045" iyz="0.052720904" izz="3.372663166"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="0.5335 0.0245 1.025" rpy="0 0 0"/>
@@ -306,21 +306,35 @@
       <material name="mat_leaf_brace"/>
     </visual>
     <visual name="hinge_strap_0_vis">
-      <origin xyz="0 0.045 0.159" rpy="0 0 0"/>
+      <origin xyz="0 0.004 0.159" rpy="0 0 0"/>
       <geometry>
         <mesh filename="../../hardware/strap_hinge_118b895b75.obj"/>
       </geometry>
       <material name="mat_hinge"/>
     </visual>
     <visual name="hinge_strap_1_vis">
-      <origin xyz="0 0.045 1.891" rpy="0 0 0"/>
+      <origin xyz="0 0.004 1.891" rpy="0 0 0"/>
       <geometry>
         <mesh filename="../../hardware/strap_hinge_118b895b75.obj"/>
       </geometry>
       <material name="mat_hinge"/>
     </visual>
+    <visual name="leaf_handle_escutcheon_n_vis">
+      <origin xyz="1.012 0.0055 0.914" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.045 0.003 0.24"/>
+      </geometry>
+      <material name="mat_op_brass"/>
+    </visual>
+    <visual name="leaf_handle_escutcheon_p_vis">
+      <origin xyz="1.012 0.0435 0.914" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.045 0.003 0.24"/>
+      </geometry>
+      <material name="mat_op_brass"/>
+    </visual>
     <visual name="wreath_vis">
-      <origin xyz="0.5335 0.007 1.39076" rpy="1.570796 0 0"/>
+      <origin xyz="0.5335 0.007 1.59396" rpy="1.570796 0 0"/>
       <geometry>
         <mesh filename="../../hardware/wreath_86a3f1bf8b.obj"/>
       </geometry>
@@ -329,21 +343,21 @@
   </link>
   <link name="leaf_handle">
     <inertial>
-      <origin xyz="-0.027911 0 0" rpy="0 0 0"/>
-      <mass value="1.199751"/>
-      <inertia ixx="0.00536525" ixy="0" ixz="0" iyy="0.004025765" iyz="0" izz="0.005612857"/>
+      <origin xyz="-0.041566 0 0" rpy="0 0 0"/>
+      <mass value="0.805624"/>
+      <inertia ixx="0.003332672" ixy="0" ixz="0" iyy="0.001636571" iyz="0" izz="0.004923662"/>
     </inertial>
     <visual name="leaf_handle_spindle_vis">
       <origin xyz="0 0 0" rpy="-1.570796 0 0"/>
       <geometry>
-        <cylinder radius="0.006" length="0.039"/>
+        <cylinder radius="0.006" length="0.033"/>
       </geometry>
       <material name="mat_op_brass"/>
     </visual>
     <visual name="leaf_handle_lever_n_vis">
       <origin xyz="0 -0.0175 0" rpy="1.570796 0 0"/>
       <geometry>
-        <mesh filename="../../hardware/lever_df73c87c69.obj"/>
+        <mesh filename="../../hardware/lever_6fbb1e9593.obj"/>
       </geometry>
       <material name="mat_op_brass"/>
     </visual>
@@ -362,7 +376,7 @@
     <visual name="leaf_handle_lever_p_vis">
       <origin xyz="0 0.0175 0" rpy="-1.570796 0 0"/>
       <geometry>
-        <mesh filename="../../hardware/lever_df73c87c69.obj"/>
+        <mesh filename="../../hardware/lever_6fbb1e9593.obj"/>
       </geometry>
       <material name="mat_op_brass"/>
     </visual>
@@ -399,32 +413,12 @@
       </geometry>
     </collision>
   </link>
-  <link name="knocker">
-    <inertial>
-      <origin xyz="0 -0.010216 -0.058429" rpy="0 0 0"/>
-      <mass value="0.814961"/>
-      <inertia ixx="0.001107704" ixy="0" ixz="0" iyy="0.001525978" iyz="-0.000041317" izz="0.000611659"/>
-    </inertial>
-    <visual name="knocker_mesh_vis">
-      <origin xyz="0 0 -0.055" rpy="1.570796 0 0"/>
-      <geometry>
-        <mesh filename="../../hardware/knocker_a8f2ce0ad7.obj"/>
-      </geometry>
-      <material name="mat_knocker"/>
-    </visual>
-    <collision name="knocker_col_col">
-      <origin xyz="0 -0.025 -0.065" rpy="0 1.570796 0"/>
-      <geometry>
-        <cylinder radius="0.007" length="0.06"/>
-      </geometry>
-    </collision>
-  </link>
   <joint name="leaf_hinge" type="revolute">
     <origin xyz="-0.534 -0.0245 0" rpy="0 0 0"/>
     <parent link="world_env"/>
     <child link="leaf"/>
     <axis xyz="0 0 -1"/>
-    <limit lower="0" upper="1.919862" effort="2000" velocity="10"/>
+    <limit lower="0" upper="1.396263" effort="2000" velocity="10"/>
     <dynamics damping="0.525663" friction="5.562158"/>
     <doorbench:closer damping_closing="0" damping_opening="0" backcheck_angle="0" backcheck_damping="0"/>
   </joint>
@@ -448,14 +442,6 @@
     <mimic joint="leaf_handle_hinge" multiplier="0.021212" offset="0"/>
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
   </joint>
-  <joint name="knocker_hinge" type="revolute">
-    <origin xyz="0.5335 0.007 1.514" rpy="0 0 0"/>
-    <parent link="leaf"/>
-    <child link="knocker"/>
-    <axis xyz="1 0 0"/>
-    <limit lower="0" upper="0.6" effort="2000" velocity="10"/>
-    <dynamics damping="0.005" friction="0"/>
-  </joint>
   <material name="mat_bolt">
     <color rgba="0.75 0.76 0.77 1"/>
   </material>
@@ -467,9 +453,6 @@
   </material>
   <material name="mat_hinge">
     <color rgba="0.65 0.66 0.68 1"/>
-  </material>
-  <material name="mat_knocker">
-    <color rgba="0.55 0.42 0.22 1"/>
   </material>
   <material name="mat_leaf">
     <color rgba="0.82 0.7 0.5 1"/>

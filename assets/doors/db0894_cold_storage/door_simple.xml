@@ -18,6 +18,7 @@
   </visual>
   <asset>
     <mesh name="hinge_05d9a38dfa" file="hinge_05d9a38dfa.obj"/>
+    <mesh name="hinge_jamb_953fb56768" file="hinge_jamb_953fb56768.obj"/>
     <mesh name="lever_40740b93f7" file="lever_40740b93f7.obj"/>
     <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
     <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
@@ -43,6 +44,8 @@
     <geom name="wall_left" type="box" size="0.995 0.075 1.375" pos="-1.505 0 1.375" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
     <geom name="wall_right" type="box" size="0.98 0.075 1.375" pos="1.52 0 1.375" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
     <geom name="wall_header" type="box" size="0.525 0.075 0.2625" pos="0.015 0 2.4875" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="hinge_0_jamb" type="mesh" mesh="hinge_jamb_953fb56768" pos="-0.462 -0.082 0.262" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
+    <geom name="hinge_1_jamb" type="mesh" mesh="hinge_jamb_953fb56768" pos="-0.462 -0.082 1.9464" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
     <geom name="jamb_hinge" type="box" size="0.0225 0.075 1.075" pos="-0.4875 0 1.075" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="strike_1000_wall_n" type="box" size="0.0375 0.03375 0.019" pos="0.5025 0.04125 1" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="strike_1000_wall_p" type="box" size="0.0375 0.008 0.019" pos="0.5025 -0.0155 1" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
@@ -56,10 +59,10 @@
     <geom name="stop_hinge" type="box" size="0.0055 0.016 1.075" pos="-0.4595 0.0915 1.075" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="stop_strike" type="box" size="0.0055 0.016 1.075" pos="0.4595 0.0915 1.075" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="stop_head" type="box" size="0.465 0.016 0.0055" pos="0 0.0915 2.1445" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
-    <geom name="seal_hinge" type="box" size="0.008 0.005 1.075" pos="-0.453 0.08 1.075" material="mat_seal" group="1" contype="0" conaffinity="0" density="1100"/>
-    <geom name="seal_strike" type="box" size="0.008 0.005 1.075" pos="0.453 0.08 1.075" material="mat_seal" group="1" contype="0" conaffinity="0" density="1100"/>
+    <geom name="seal_hinge" type="box" size="0.004 0.005 1.075" pos="-0.462 0.08 1.075" material="mat_seal" group="1" contype="0" conaffinity="0" density="1100"/>
+    <geom name="seal_strike" type="box" size="0.004 0.005 1.075" pos="0.462 0.08 1.075" material="mat_seal" group="1" contype="0" conaffinity="0" density="1100"/>
     <geom name="seal_head" type="box" size="0.445 0.005 0.008" pos="0 0.08 2.138" material="mat_seal" group="1" contype="0" conaffinity="0" density="1100"/>
-    <geom name="wall_bumper_stop" type="cylinder" size="0.025 0.02" pos="-0.465 -0.849 0.75" quat="0.707107 0.707107 0 0" material="mat_bumper_stop" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1100"/>
+    <geom name="wall_bumper_stop" type="cylinder" size="0.025 0.02" pos="-0.489 -0.8555 0.35" quat="0.707107 0 -0.707107 0" material="mat_bumper_stop" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1100"/>
     <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <site name="door_plane_center" pos="0 0 1.075" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
@@ -67,11 +70,11 @@
       <inertial pos="0 0 0" mass="0.01" quat="1 0 0 0" diaginertia="0.000001 0.000001 0.000001"/>
       <joint name="leaf_rise" type="slide" axis="0 0 1" limited="true" range="0 0.0264" damping="1" armature="0.5"/>
       <body name="leaf" pos="0 0 0">
-        <inertial pos="0.44028 0.000195 1.026689" mass="56.430334" quat="0.491457 0.506353 -0.497809 0.504245" diaginertia="4.274286048 23.108576758 27.131613508"/>
+        <inertial pos="0.443567 0.001244 1.026055" mass="55.972522" quat="0.499066 -0.502638 0.493126 0.505088" diaginertia="4.193351438 22.773446258 26.727036291"/>
         <joint name="leaf_hinge" type="hinge" axis="0 0 -1" pos="0.003 -0.082 0" limited="true" range="0 1.570796" solreflimit="0.02 1" damping="0.313793" frictionloss="6.014489" armature="0.02"/>
         <geom name="leaf_slab" type="box" size="0.455 0.075 1.0572" pos="0.458 0 1.0692" material="mat_leaf" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
-        <geom name="hinge_0" type="mesh" mesh="hinge_05d9a38dfa" pos="0.003 -0.082 0.262" quat="0.707107 0 0 -0.707107" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
-        <geom name="hinge_1" type="mesh" mesh="hinge_05d9a38dfa" pos="0.003 -0.082 1.9464" quat="0.707107 0 0 -0.707107" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
+        <geom name="hinge_0" type="mesh" mesh="hinge_05d9a38dfa" pos="0.003 -0.082 0.262" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
+        <geom name="hinge_1" type="mesh" mesh="hinge_05d9a38dfa" pos="0.003 -0.082 1.9464" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
         <geom name="kick_plate_p" type="box" size="0.425 0.0008 0.125" pos="0.458 0.0758 0.147" material="mat_kick" group="2" contype="0" conaffinity="0" density="7900"/>
         <site name="leaf_edge_mid" pos="0.913 0 1.0572" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
         <body name="leaf_handle" pos="0.848 0 1">

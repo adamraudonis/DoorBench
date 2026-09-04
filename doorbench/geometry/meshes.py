@@ -317,8 +317,8 @@ def wheel_mesh(**p):
 def _touchbar(length=0.6, height=0.05, depth=0.065, rim_case=True):
     """Exit device: rail (fixed) + pad (moving) are separate meshes; this returns the *pad*.
     Frame: x along the bar, y up, z away from door face."""
-    pad = creation.box(extents=[length, height * 0.9, 0.028])
-    pad.apply_translation([0, 0, depth - 0.014])
+    pad = creation.box(extents=[length - 0.006, height * 0.9, 0.03])
+    pad.apply_translation([0, 0, depth - 0.015])
     return pad
 
 
@@ -326,11 +326,16 @@ def touchbar_pad_mesh(**p):
     return _cached("touchbar_pad", _touchbar, **p)
 
 
-def _touchbar_rail(length=0.6, height=0.05, depth=0.065, rim_case=True, case_len=0.16):
+def _touchbar_rail(length=0.6, height=0.05, depth=0.065, rim_case=True, case_len=0.07):
+    """Exit-device housing as a CHANNEL: thin back plate + end blocks; the pad slides between the blocks."""
     parts = []
-    rail = creation.box(extents=[length + 0.04, height, depth * 0.6])
-    rail.apply_translation([0, 0, depth * 0.3])
-    parts.append(rail)
+    back = creation.box(extents=[length + 0.04, height, 0.012])
+    back.apply_translation([0, 0, 0.006])
+    parts.append(back)
+    for sx in (-1, 1):
+        blk = creation.box(extents=[0.02, height, depth])
+        blk.apply_translation([sx * (length / 2 + 0.01), 0, depth / 2])
+        parts.append(blk)
     if rim_case:
         case = creation.box(extents=[case_len, height * 1.5, depth * 1.05])
         case.apply_translation([length / 2 + 0.02 + case_len / 2, 0, depth * 0.525])
@@ -383,9 +388,7 @@ def _thumb_latch(handle_length=0.2, bar_length=0.18):
     parts.append(plate)
     bow = tube_along_path([(0, -handle_length / 2, 0.004), (0, -handle_length / 2 + 0.02, 0.035), (0, handle_length / 2 - 0.02, 0.035), (0, handle_length / 2, 0.004)], 0.007, 12)
     parts.append(bow)
-    thumb = creation.box(extents=[0.03, 0.05, 0.004])
-    thumb.apply_translation([0, handle_length / 2 + 0.02, 0.012])
-    parts.append(thumb)
+    # (the thumb press is a separate articulated body, not part of this mesh)
     return trimesh.util.concatenate(parts)
 
 
@@ -393,19 +396,31 @@ def thumb_latch_mesh(**p):
     return _cached("thumb_latch", _thumb_latch, **p)
 
 
+# Butt hinge local frame: z along the pin, +x toward the door interior, +y across the door thickness
+# (from the pin, which sits 7 mm proud of the swing face, into the leaf).  Both plates lie in the door-edge /
+# jamb-face plane (x ~ const), like a real mortised butt hinge; the door edge is at x = -3 mm (frame gap 3 mm).
 def _hinge_knuckle(height=0.114, radius=0.0075, leaf_w=0.05, leaf_t=0.003, knuckles=5):
+    """Door-side half: knuckle barrel + the plate mortised into the door edge."""
     parts = [_cyl(radius, height, 16)]
-    # two leaves
-    l1 = creation.box(extents=[leaf_w, leaf_t, height])
-    l1.apply_translation([leaf_w / 2 + radius * 0.6, radius * 0.6, 0])
-    l2 = creation.box(extents=[leaf_t, leaf_w, height])
-    l2.apply_translation([-radius * 0.6, leaf_w / 2 + radius * 0.6, 0])
-    parts += [l1, l2]
+    l1 = creation.box(extents=[leaf_t, leaf_w, height * 0.92])
+    l1.apply_translation([-0.003 + leaf_t / 2, 0.007 + leaf_w / 2, 0])
+    parts.append(l1)
     return trimesh.util.concatenate(parts)
+
+
+def _hinge_jamb_plate(height=0.114, radius=0.0075, leaf_w=0.05, leaf_t=0.003, knuckles=5):
+    """Frame-side plate (static: mortised into the jamb face, 6 mm from the pin)."""
+    l2 = creation.box(extents=[leaf_t, leaf_w, height * 0.92])
+    l2.apply_translation([-0.006 - leaf_t / 2, 0.007 + leaf_w / 2, 0])
+    return l2
 
 
 def hinge_mesh(**p):
     return _cached("hinge", _hinge_knuckle, **p)
+
+
+def hinge_jamb_mesh(**p):
+    return _cached("hinge_jamb", _hinge_jamb_plate, **p)
 
 
 def _strap_hinge(length=0.3, width=0.05, thickness=0.006):
@@ -414,7 +429,7 @@ def _strap_hinge(length=0.3, width=0.05, thickness=0.006):
     tip = creation.cylinder(radius=width / 2, height=thickness, sections=16)
     tip.apply_transform(_R([1, 0, 0], math.pi / 2))
     tip.apply_translation([length, 0, 0])
-    barrel = _cyl(0.012, width * 1.2, 16)
+    barrel = _cyl(0.008, width * 1.2, 16)
     return trimesh.util.concatenate([strap, tip, barrel])
 
 

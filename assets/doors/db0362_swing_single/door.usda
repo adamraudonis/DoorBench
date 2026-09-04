@@ -138,21 +138,6 @@ def Xform "World"
                 }
             }
 
-            def Material "mat_knocker"
-            {
-                token outputs:surface.connect = </World/db0362_swing_single/Looks/mat_knocker/Shader.outputs:surface>
-
-                def Shader "Shader"
-                {
-                    uniform token info:id = "UsdPreviewSurface"
-                    color3f inputs:diffuseColor = (0.55, 0.42, 0.22)
-                    float inputs:metallic = 0.9
-                    float inputs:opacity = 1
-                    float inputs:roughness = 0.55
-                    token outputs:surface
-                }
-            }
-
             def Material "mat_stop"
             {
                 token outputs:surface.connect = </World/db0362_swing_single/Looks/mat_stop/Shader.outputs:surface>
@@ -229,15 +214,6 @@ def Xform "World"
                 float physics:dynamicFriction = 0.17
                 float physics:restitution = 0.05
                 float physics:staticFriction = 0.2
-            }
-
-            def Material "PhysMat_mat_knocker" (
-                prepend apiSchemas = ["PhysicsMaterialAPI"]
-            )
-            {
-                float physics:dynamicFriction = 0.51
-                float physics:restitution = 0.05
-                float physics:staticFriction = 0.6
             }
         }
 
@@ -566,7 +542,7 @@ def Xform "World"
                 custom float physxCollision:restOffset = 0
                 double radius = 0.025
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.049672573129547246, -0.6020502657917464, 0)
+                double3 xformOp:translate = (0.27125187888723473, -0.6276415290862665, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -600,10 +576,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-0.34933344, 0.0011015343, 1.0015)
-            float3 physics:diagonalInertia = (1.941416, 15.709956, 17.634848)
-            float physics:mass = 45.482605
-            quatf physics:principalAxes = (0.49870422, 0.5012924, -0.49870422, 0.5012924)
+            point3f physics:centerOfMass = (-0.3506178, -0.0009846623, 1.0015)
+            float3 physics:diagonalInertia = (1.9246743, 15.545948, 17.454454)
+            float physics:mass = 45.251892
+            quatf physics:principalAxes = (0.5011208, -0.49887666, 0.5011208, 0.49887666)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -737,7 +713,7 @@ def Xform "World"
                 custom string doorbench:semantic = "hinge"
                 rel material:binding = </World/db0362_swing_single/Looks/mat_hinge>
                 quatf xformOp:orient = (6.123234e-17, 0, 0, 1)
-                double3 xformOp:translate = (-0.003, 0.024999999999999998, 0.1589999999999999)
+                double3 xformOp:translate = (-0.003, -0.024999999999999998, 0.1589999999999999)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -750,7 +726,7 @@ def Xform "World"
                 custom string doorbench:semantic = "hinge"
                 rel material:binding = </World/db0362_swing_single/Looks/mat_hinge>
                 quatf xformOp:orient = (6.123234e-17, 0, 0, 1)
-                double3 xformOp:translate = (-0.003, 0.024999999999999998, 1.844)
+                double3 xformOp:translate = (-0.003, -0.024999999999999998, 1.844)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -768,10 +744,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "operator"
-            point3f physics:centerOfMass = (4.635335e-19, -3.7972665e-18, 4.455292e-18)
-            float3 physics:diagonalInertia = (0.0001910525, 0.0034667563, 0.0034667563)
-            float physics:mass = 0.9136695
-            quatf physics:principalAxes = (0.5, 0.5, 0.5, 0.5)
+            point3f physics:centerOfMass = (4.662519e-19, -3.8195354e-18, 4.4814193e-18)
+            float3 physics:diagonalInertia = (0.00019095662, 0.0034640078, 0.0034640078)
+            float physics:mass = 0.90834266
+            quatf physics:principalAxes = (0.70710677, -2.4622742e-17, 0, -0.70710677)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -786,7 +762,7 @@ def Xform "World"
                 uniform token axis = "Z"
                 custom string doorbench:label = "Spindle"
                 custom string doorbench:semantic = "mechanism"
-                double height = 0.048
+                double height = 0.041999999999999996
                 rel material:binding = </World/db0362_swing_single/Looks/mat_op_cast_iron>
                 double radius = 0.006
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
@@ -952,57 +928,6 @@ def Xform "World"
             }
         }
 
-        def Xform "knocker" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
-        )
-        {
-            custom string doorbench:semantic = "decor"
-            point3f physics:centerOfMass = (3.044406e-18, -0.010215542, 0.0012027444)
-            float3 physics:diagonalInertia = (0.00061143126, 0.001116108, 0.0015346094)
-            float physics:mass = 0.81496054
-            quatf physics:principalAxes = (0.49605963, 0.5039096, 0.5039096, -0.49605963)
-            custom bool physxRigidBody:enableCCD = 1
-            custom int physxRigidBody:solverPositionIterationCount = 16
-            custom int physxRigidBody:solverVelocityIterationCount = 4
-            quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (0.0010000000000000009, -0.022, 1.4589999999999999)
-            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
-
-            def Xform "knocker_mesh" (
-                prepend apiSchemas = ["MaterialBindingAPI"]
-                prepend references = @../../hardware/knocker_a8f2ce0ad7.usdc@</knocker_a8f2ce0ad7>
-            )
-            {
-                custom string doorbench:label = "Knocker"
-                custom string doorbench:semantic = "decor"
-                rel material:binding = </World/db0362_swing_single/Looks/mat_knocker>
-                quatf xformOp:orient = (4.3297803e-17, 4.3297803e-17, -0.70710677, 0.70710677)
-                double3 xformOp:translate = (0, 0, 0)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
-            }
-
-            def Capsule "knocker_col" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI"]
-            )
-            {
-                uniform token axis = "Z"
-                custom string doorbench:label = "Knocker ring"
-                custom string doorbench:semantic = "decor"
-                double height = 0.06
-                rel material:binding = </World/db0362_swing_single/Looks/mat_knocker>
-                rel material:binding:physics = </World/db0362_swing_single/Looks/PhysMat_mat_knocker> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
-                uniform token purpose = "guide"
-                double radius = 0.007
-                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
-                double3 xformOp:translate = (0, -0.025, -0.01)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
-            }
-        }
-
         def Scope "Joints"
         {
             def PhysicsRevoluteJoint "leaf_hinge" (
@@ -1027,7 +952,7 @@ def Xform "World"
                 quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
                 quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
                 float physics:lowerLimit = 0
-                float physics:upperLimit = 95
+                float physics:upperLimit = 80
                 custom float physxJoint:armature = 0.02
                 custom float physxJoint:jointFriction = 2.4594114
             }
@@ -1082,32 +1007,6 @@ def Xform "World"
                 float physics:upperLimit = 0.0127
                 custom float physxJoint:armature = 0.1
                 custom float physxJoint:jointFriction = 0.3
-            }
-
-            def PhysicsRevoluteJoint "knocker_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular"]
-            )
-            {
-                custom float doorbench:initial = 0
-                custom string doorbench:label = "Knocker ring"
-                custom string doorbench:role = "decor"
-                custom float doorbench:zero_offset = 0
-                float drive:angular:physics:damping = 0.00008726646
-                float drive:angular:physics:maxForce = 1000000
-                float drive:angular:physics:stiffness = 0
-                float drive:angular:physics:targetPosition = 0
-                uniform token drive:angular:physics:type = "force"
-                uniform token physics:axis = "X"
-                rel physics:body0 = </World/db0362_swing_single/leaf>
-                rel physics:body1 = </World/db0362_swing_single/knocker>
-                point3f physics:localPos0 = (-0.3585, -0.022, 1.514)
-                point3f physics:localPos1 = (0, 0, 0.055)
-                quatf physics:localRot0 = (0, 0, 0, 1)
-                quatf physics:localRot1 = (0, 0, 0, 1)
-                float physics:lowerLimit = 0
-                float physics:upperLimit = 34.37747
-                custom float physxJoint:armature = 0.002
-                custom float physxJoint:jointFriction = 0
             }
         }
     }

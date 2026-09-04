@@ -183,6 +183,21 @@ def Xform "World"
                 }
             }
 
+            def Material "mat_op_nickel_satin"
+            {
+                token outputs:surface.connect = </World/db0431_sliding_single/Looks/mat_op_nickel_satin/Shader.outputs:surface>
+
+                def Shader "Shader"
+                {
+                    uniform token info:id = "UsdPreviewSurface"
+                    color3f inputs:diffuseColor = (0.72, 0.7, 0.66)
+                    float inputs:metallic = 1
+                    float inputs:opacity = 1
+                    float inputs:roughness = 0.35
+                    token outputs:surface
+                }
+            }
+
             def Material "PhysMat_mat_floor" (
                 prepend apiSchemas = ["PhysicsMaterialAPI"]
             )
@@ -484,10 +499,10 @@ def Xform "World"
         )
         {
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.00022690835, 0, 0.9070271)
-            float3 physics:diagonalInertia = (0.5147936, 1.9648627, 2.478512)
-            float physics:mass = 7.6154094
-            quatf physics:principalAxes = (0.49998719, -0.49998719, 0.5000128, 0.5000128)
+            point3f physics:centerOfMass = (0.00034969766, 0.000005290096, 0.9070418)
+            float3 physics:diagonalInertia = (0.5151315, 1.964871, 2.478857)
+            float physics:mass = 7.618009
+            quatf physics:principalAxes = (0.5000266, -0.50001293, -0.49998754, -0.499973)
             custom bool physxRigidBody:enableCCD = 1
             custom int physxRigidBody:solverPositionIterationCount = 16
             custom int physxRigidBody:solverVelocityIterationCount = 4
@@ -752,16 +767,16 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "leaf_pull_p" (
+            def Cube "leaf_ext_pull_p" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
             {
                 custom string doorbench:label = "Flush pull"
                 custom string doorbench:semantic = "operator"
-                rel material:binding = </World/db0431_sliding_single/Looks/mat_op_hinoki>
+                rel material:binding = </World/db0431_sliding_single/Looks/mat_op_nickel_satin>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.03, 0.001, 0.08)
+                float3 xformOp:scale = (0.05, 0.001, 0.1)
                 double3 xformOp:translate = (0.36, 0.0155, 0.95)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
@@ -774,7 +789,7 @@ def Xform "World"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
-            def Xform "leaf_pull_grip_p"
+            def Xform "leaf_ext_pull_grip_p"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
