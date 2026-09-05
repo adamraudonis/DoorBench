@@ -227,7 +227,7 @@ def _worst_phase(v: dict) -> str | None:
 
 
 def _group_stats(verdicts: list[dict]) -> dict:
-    g: dict[str, Any] = {"n": len(verdicts), "tested": 0, "ok": 0, "fail": 0, "untested": 0}
+    g: dict[str, Any] = {"n": len(verdicts), "tested": 0, "ok": 0, "fail": 0, "untested": 0, "stale": 0}
     for k in R.KINDS:
         g[k] = {gr: 0 for gr in GRADES} | {"tested": 0, "untested": 0}
     cls: Counter = Counter()   # doors per class (a class counts once per door, whichever kinds show it)
@@ -236,6 +236,8 @@ def _group_stats(verdicts: list[dict]) -> dict:
         g[st] += 1
         if st != "untested":
             g["tested"] += 1
+        if v.get("status") == "stale":
+            g["stale"] += 1      # counted in `untested`: withheld, not a verdict
         for k in R.KINDS:
             kv = v["kinds"][k]
             if kv["status"] == "untested":
@@ -603,10 +605,10 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
     # ---- family
     L.append("## By family")
     L.append("")
-    L.append("| family | doors | tested | ok | fail | full A / A+B | rl A / A+B | most frequent classes |")
-    L.append("|---|---|---|---|---|---|---|---|")
+    L.append("| family | doors | compared | stale | ok | fail | full A / A+B | rl A / A+B | most frequent classes |")
+    L.append("|---|---|---|---|---|---|---|---|---|")
     for fam, g in summary["by_family"].items():
-        L.append(f"| {fam} | {g['n_family']} | {g['tested']} | {g['ok']} | {g['fail']} | {g['full']['A']} / {g['full']['A'] + g['full']['B']} | {g['rl']['A']} / {g['rl']['A'] + g['rl']['B']} | {', '.join(g['top_classes']) or '-'} |")
+        L.append(f"| {fam} | {g['n_family']} | {g['tested']} | {g['stale']} | {g['ok']} | {g['fail']} | {g['full']['A']} / {g['full']['A'] + g['full']['B']} | {g['rl']['A']} / {g['rl']['A'] + g['rl']['B']} | {', '.join(g['top_classes']) or '-'} |")
     L.append("")
     # ---- hardware
     L.append("## By hardware")
@@ -614,18 +616,18 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
     for ax in HARDWARE_AXES:
         L.append(f"### {ax} kind")
         L.append("")
-        L.append("| kind | tested | ok | fail | full A / A+B | rl A / A+B | most frequent classes |")
-        L.append("|---|---|---|---|---|---|---|")
+        L.append("| kind | compared | stale | ok | fail | full A / A+B | rl A / A+B | most frequent classes |")
+        L.append("|---|---|---|---|---|---|---|---|")
         for kind, g in summary["by_hardware"].get(ax, {}).items():
-            L.append(f"| {kind} | {g['tested']} | {g['ok']} | {g['fail']} | {g['full']['A']} / {g['full']['A'] + g['full']['B']} | {g['rl']['A']} / {g['rl']['A'] + g['rl']['B']} | {', '.join(g['top_classes']) or '-'} |")
+            L.append(f"| {kind} | {g['tested']} | {g['stale']} | {g['ok']} | {g['fail']} | {g['full']['A']} / {g['full']['A'] + g['full']['B']} | {g['rl']['A']} / {g['rl']['A'] + g['rl']['B']} | {', '.join(g['top_classes']) or '-'} |")
         L.append("")
     # ---- kinematics
     L.append("## By kinematics")
     L.append("")
-    L.append("| kinematics | tested | ok | fail | full A / A+B | rl A / A+B | most frequent classes |")
-    L.append("|---|---|---|---|---|---|---|")
+    L.append("| kinematics | compared | stale | ok | fail | full A / A+B | rl A / A+B | most frequent classes |")
+    L.append("|---|---|---|---|---|---|---|---|")
     for kin, g in summary["by_kinematics"].items():
-        L.append(f"| {kin} | {g['tested']} | {g['ok']} | {g['fail']} | {g['full']['A']} / {g['full']['A'] + g['full']['B']} | {g['rl']['A']} / {g['rl']['A'] + g['rl']['B']} | {', '.join(g['top_classes']) or '-'} |")
+        L.append(f"| {kin} | {g['tested']} | {g['stale']} | {g['ok']} | {g['fail']} | {g['full']['A']} / {g['full']['A'] + g['full']['B']} | {g['rl']['A']} / {g['rl']['A'] + g['rl']['B']} | {', '.join(g['top_classes']) or '-'} |")
     L.append("")
     # ---- metric deltas
     ms = summary.get("metric_stats") or {}
