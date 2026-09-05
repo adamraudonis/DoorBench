@@ -41,6 +41,9 @@ def test_assignment_rule(specs):
         names = assign_scenarios(s)
         assert names == assign_scenarios(s)                      # seeded -> deterministic
         assert len(names) == len(set(names))
+        if s["family"] == "pet_door":
+            assert names == []
+            continue
         lock = s["lock"]
         if lock["engaged"] and lock["robot_side_release"]:
             assert names[0] == "unlock_and_traverse"
@@ -51,7 +54,7 @@ def test_assignment_rule(specs):
         for n in names:
             assert n in SCENARIO_TYPES
             counts[n] = counts.get(n, 0) + 1
-    assert counts["open_and_traverse"] + counts["unlock_and_traverse"] + counts["locked_recognize"] == 1000
+    assert counts["open_and_traverse"] + counts["unlock_and_traverse"] + counts["locked_recognize"] == 985
     assert counts["hold_open_for_human"] + counts["wait_for_human"] > 30
     assert counts["open_then_close"] > 100
 
@@ -266,6 +269,9 @@ def test_make_scenario_any_type_any_door(specs):
         phys = P.derive(s)
         model = _json.loads(_json.dumps(build_model(s, phys).to_dict("full"), default=_json_default))
         b = build_benchmark(s, phys, model)
+        if s["family"] == "pet_door":
+            assert b["scenarios"] == []
+            continue
         assert b["scenarios"] and b["scenarios"][0]["name"] == b["primary_scenario"]
         for n in SCENARIO_TYPES:
             sc = make_scenario(n, s, phys, model)
@@ -281,6 +287,9 @@ def test_suites_segregate_human_interaction(specs):
     assert not set(CORE_SCENARIOS) & set(HUMAN_SCENARIOS)
     for spec in specs:
         names = assign_scenarios(spec)
+        if spec["family"] == "pet_door":
+            assert names == []
+            continue
         assert SCENARIO_SUITE[names[0]] == "core"
         assert scenarios_in_suite(names, "core") + scenarios_in_suite(names, "human") == sorted(names, key=lambda n: SCENARIO_SUITE[n] == "human")
         assert scenarios_in_suite(names, "all") == list(names)
@@ -294,7 +303,13 @@ def test_dataset_suites_segregated():
     files = sorted(glob.glob(str(Path(__file__).resolve().parents[1] / "assets" / "doors" / "*" / "spec.json")))
     assert files, "dataset not generated"
     for f in files:
-        b = json.load(open(f)).get("benchmark")
+        spec = json.load(open(f))
+        b = spec.get("benchmark")
+        if spec["family"] == "pet_door":
+            # Older downloaded metadata may retain historical scenarios; runtime guards own exclusion.
+            if b.get("benchmark_eligibility"):
+                assert b["scenarios"] == [] and b["primary_scenario"] is None
+            continue
         assert b, f
         assert SCENARIO_SUITE[b["primary_scenario"]] == "core", f
         assert set(b["suites"]) == {"core", "human"} and b["suites"]["core"][0] == b["primary_scenario"], f

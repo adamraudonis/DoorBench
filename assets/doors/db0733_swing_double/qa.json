@@ -69,5 +69,217 @@
  },
  "signed_off": true,
  "time_s": 0.35756778717041016,
- "mujoco_version": "3.12.0"
+ "mujoco_version": "3.12.0",
+ "isaac_parity": {
+  "version": "1",
+  "date": "2026-09-05",
+  "commit": "3b3acd3f2",
+  "engines": {
+   "mujoco": {
+    "mujoco": "3.12.0"
+   },
+   "isaac_full": {
+    "isaac_sim": "5.1.0.0",
+    "isaac_lab": "0.54.2",
+    "python": "3.11.15",
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.35",
+    "torch": "2.7.0+cu128",
+    "physx_dt": 0.008333333333333333,
+    "solver_iterations": [
+     16,
+     4
+    ]
+   },
+   "isaac_rl": {
+    "isaac_sim": "5.1.0.0",
+    "isaac_lab": "0.54.2",
+    "python": "3.11.15",
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.35",
+    "torch": "2.7.0+cu128",
+    "physx_dt": 0.008333333333333333,
+    "solver_iterations": [
+     16,
+     4
+    ]
+   }
+  },
+  "ok": false,
+  "grade": "C",
+  "status": "compared",
+  "kinds": {
+   "full": {
+    "status": "compared",
+    "grade": "C",
+    "ok": false,
+    "phases": {
+     "settle": "agree",
+     "hold": "disagree",
+     "operate_open": "na",
+     "release": "na",
+     "relatch": "na",
+     "closer_return": "na",
+     "locked_holds": "disagree"
+    },
+    "classes": [
+     "EXPORT_WELD",
+     "EXPORT_WELD"
+    ],
+    "details": [
+     "hold: engaged deadbolt_single holds in MuJoCo, not in PhysX (lock constraint not exported)",
+     "locked_holds: locked door moved 1.571 in PhysX vs 0.003324"
+    ],
+    "metrics": {
+     "settle.finite": [
+      true,
+      true,
+      true
+     ],
+     "settle.informational": [
+      false,
+      false,
+      true
+     ],
+     "settle.settle_drift": [
+      1.3298989080648546e-10,
+      4.104250272973786e-09,
+      true
+     ],
+     "hold.finite": [
+      true,
+      true,
+      true
+     ],
+     "hold.hold_displacement": [
+      0.003324246479908633,
+      1.5707963705062866,
+      false
+     ],
+     "hold.informational": [
+      false,
+      false,
+      true
+     ],
+     "hold.q_at_1s": [
+      0.003324246479908633,
+      1.5707963705062866,
+      false
+     ],
+     "hold.secondary_drift": [
+      0.0010340095407183442,
+      -2.335397592575583e-22,
+      true
+     ],
+     "locked_holds.finite": [
+      true,
+      true,
+      true
+     ],
+     "locked_holds.informational": [
+      false,
+      false,
+      true
+     ],
+     "locked_holds.locked_displacement": [
+      0.0033242554095725798,
+      1.5707964897155762,
+      false
+     ],
+     "locked_holds.operator_travel_reached": [
+      0.650348522219246,
+      0.6499999761581421,
+      true
+     ]
+    }
+   },
+   "rl": {
+    "status": "compared",
+    "grade": "C",
+    "ok": false,
+    "phases": {
+     "settle": "agree",
+     "hold": "disagree",
+     "operate_open": "na",
+     "release": "na",
+     "relatch": "na",
+     "closer_return": "na",
+     "locked_holds": "disagree"
+    },
+    "classes": [
+     "EXPORT_WELD",
+     "EXPORT_WELD"
+    ],
+    "details": [
+     "hold: engaged deadbolt_single holds in MuJoCo, not in PhysX (lock constraint not exported)",
+     "locked_holds: locked door moved 1.571 in PhysX vs 0.003324"
+    ],
+    "metrics": {
+     "settle.finite": [
+      true,
+      true,
+      true
+     ],
+     "settle.informational": [
+      false,
+      false,
+      true
+     ],
+     "settle.settle_drift": [
+      1.3298989080648546e-10,
+      2.3602322873905734e-10,
+      true
+     ],
+     "hold.finite": [
+      true,
+      true,
+      true
+     ],
+     "hold.hold_displacement": [
+      0.003324246479908633,
+      1.5707964897155762,
+      false
+     ],
+     "hold.informational": [
+      false,
+      false,
+      true
+     ],
+     "hold.q_at_1s": [
+      0.003324246479908633,
+      1.5707964897155762,
+      false
+     ],
+     "hold.secondary_drift": [
+      0.0010340095407183442,
+      -5.314660477253778e-21,
+      true
+     ],
+     "locked_holds.finite": [
+      true,
+      true,
+      true
+     ],
+     "locked_holds.informational": [
+      false,
+      false,
+      true
+     ],
+     "locked_holds.locked_displacement": [
+      0.0033242554095725798,
+      1.5707963705062866,
+      false
+     ],
+     "locked_holds.operator_travel_reached": [
+      0.650348522219246,
+      0.6500000357627869,
+      true
+     ]
+    }
+   }
+  },
+  "classes": [
+   "EXPORT_WELD"
+  ],
+  "primary_class": "EXPORT_WELD",
+  "likely_root_cause": "H5 (FIXED in the export): weld-type lock equalities (mag_lock / delayed_egress / electric_bolt / interlock leaf -> world) used to be exported only as doorbench:couplings JSON. Both USD kinds now carry a breakable UsdPhysics.FixedJoint base -> leaf with physics:excludeFromArticulation, breakForce == breakTorque == holding_force_N and physics:jointEnabled (doorbench:env_release). A remaining occurrence means the joint is absent (stale assets) or PhysX did not parse the loop joint"
+ }
 }

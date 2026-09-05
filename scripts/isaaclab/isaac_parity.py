@@ -820,7 +820,8 @@ def select_ids(spec: str) -> list[str]:
         for d in D.manifest()["doors"]:
             reps.setdefault(d["family"], d["id"])
         return sorted(reps.values())
-    return D.select_ids(spec)
+    # Physical export parity remains available for supplementary asset downloads.
+    return D.select_ids(spec, benchmark_only=False)
 
 
 def main():

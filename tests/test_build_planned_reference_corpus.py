@@ -13,7 +13,7 @@ from scripts import build_planned_reference_corpus as corpus
 def scene(tmp_path):
     assets = tmp_path/'assets'; recordings = tmp_path/'recordings'; out = tmp_path/'candidates'
     root = tmp_path/'generator'
-    for name in ('doorbench/reference/solve.py', 'doorbench/reference/gait.py',
+    for name in ('doorbench/benchmark_eligibility.py', 'doorbench/reference/solve.py', 'doorbench/reference/gait.py',
                  'scripts/validate_planned_reference.py', 'scripts/build_planned_reference_corpus.py', 'pyproject.toml'):
         path = root/name; path.parent.mkdir(parents=True, exist_ok=True); path.write_text('# source\n')
     rows = []
@@ -417,3 +417,25 @@ def test_parent_interrupt_cancels_queue_and_writes_final_snapshot(scene, monkeyp
     assert report['status_counts']['accepted_kinematic'] == 0
     assert report['status_counts']['unresolved'] == 2
     assert 'run' not in report['action_counts']
+
+
+def test_supplementary_pet_is_not_scheduled_even_with_legacy_recordings(scene):
+    manifest = corpus.read_json(scene['assets']/'manifest.json')
+    manifest['doors'][1]['family'] = 'pet_door'
+    corpus.atomic_json(scene['assets']/'manifest.json', manifest)
+    refresh_native_index(scene)
+    result = plan(scene)
+    assert result['selected_ids'] == ['one']
+    assert result['n_assets_total'] == 2 and result['n_doors_eligible'] == 1 and result['n_doors_supplementary'] == 1
+    with pytest.raises(ValueError, match='excluded'):
+        plan(scene, doors='two')
+
+
+def test_direct_old_job_cannot_evaluate_pet_source(scene):
+    job = plan(scene, doors='one')['rows'][0]['job']
+    # Even an otherwise rebound stale plan fails family eligibility before work.
+    path = scene['assets']/'doors/one/spec.json'
+    corpus.atomic_json(path, {'family': 'pet_door'})
+    job['inputs'][str(path)] = corpus.sha(path)
+    with pytest.raises(ValueError, match='excluded'):
+        corpus.verify_job(job)

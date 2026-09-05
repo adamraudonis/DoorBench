@@ -29,6 +29,9 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SCHEMA = os.path.join(ROOT, "results", "schema.json")
 MANIFEST = os.path.join(ROOT, "assets", "manifest.json")
 RESERVED = {"schema.json", "index.json"}
+sys.path.insert(0, ROOT)
+from doorbench.benchmark_eligibility import is_benchmark_eligible, POLICY_VERSION
+
 SUBMISSION_MIN_SEEDS = 3
 # mirrors doorbench.benchmark.scenarios.SCENARIO_SUITE (kept inline so CI can validate without the package's dependencies)
 CORE_SCENARIOS = ("open_and_traverse", "open_then_close", "close_only", "unlock_and_traverse", "locked_recognize")
@@ -133,12 +136,14 @@ def schema_errors(doc: dict, schema: dict) -> list[str]:
 
 
 # ----------------------------------------------------------------------------------------------- semantic checks
-def manifest_scenarios(manifest: dict | None) -> dict[str, list[str]] | None:
+def manifest_scenarios(manifest: dict | None, *, eligible_only: bool = True) -> dict[str, list[str]] | None:
     """door id -> the scenarios it lists (manifest benchmark summary), or None without a manifest."""
     if not manifest:
         return None
     out = {}
     for d in manifest["doors"]:
+        if eligible_only and not is_benchmark_eligible(d):
+            continue
         b = d.get("benchmark") or {}
         out[d["id"]] = list(b.get("scenarios") or [b.get("primary") or "open_and_traverse"])
     return out
@@ -191,7 +196,14 @@ def semantic_errors(doc: dict, manifest: dict | None, submission: bool, path: st
     run = doc.get("run", {})
     ids = {d["id"] for d in manifest["doors"]} if manifest else None
     fam = {d["id"]: d["family"] for d in manifest["doors"]} if manifest else None
-    listed = manifest_scenarios(manifest)
+    current_policy = doc.get("benchmark", {}).get("eligibility_policy")
+    enforce_eligibility = submission or current_policy is not None
+    eligible_ids = {d["id"] for d in manifest["doors"] if is_benchmark_eligible(d)} if manifest else None
+    listed = manifest_scenarios(manifest, eligible_only=enforce_eligibility)
+    if current_policy is not None and current_policy != POLICY_VERSION:
+        errs.append(f"unknown benchmark eligibility policy {current_policy!r}")
+    if current_policy is not None and eligible_ids is not None and doc.get("benchmark", {}).get("n_doors_total") != len(eligible_ids):
+        errs.append(f"benchmark.n_doors_total must count {len(eligible_ids)} eligible doors")
     run_suite = run.get("suite")
     run_scen = {s.get("name") for s in run.get("scenarios", [])}
     for s in run.get("scenarios", []):
@@ -203,6 +215,8 @@ def semantic_errors(doc: dict, manifest: dict | None, submission: bool, path: st
     per_suite = {s: [] for s in SUITES}
     pairs = {}
     for i, e in enumerate(eps):
+        if enforce_eligibility and (not is_benchmark_eligible(e) or (ids is not None and e.get("door_id") in ids - eligible_ids)):
+            errs.append(f"episodes[{i}]: supplementary pet door excluded from benchmark evaluation")
         key = (e.get("door_id"), e.get("scenario"), e.get("seed"))
         if key in seen:
             errs.append(f"episodes[{i}]: duplicate door/scenario/seed {key}")
@@ -219,7 +233,8 @@ def semantic_errors(doc: dict, manifest: dict | None, submission: bool, path: st
             errs.append(f"episodes[{i}]: unknown door id {e.get('door_id')}")
         if fam is not None and e.get("door_id") in fam and e.get("family") != fam[e["door_id"]]:
             errs.append(f"episodes[{i}]: family {e.get('family')} does not match the manifest ({fam[e['door_id']]})")
-        if listed is not None and e.get("door_id") in listed and e.get("scenario") not in listed[e["door_id"]]:
+        historical_pet = not enforce_eligibility and (e.get("family") == "pet_door" or (fam is not None and fam.get(e.get("door_id")) == "pet_door"))
+        if not historical_pet and listed is not None and e.get("door_id") in listed and e.get("scenario") not in listed[e["door_id"]]:
             errs.append(f"episodes[{i}]: {e.get('door_id')} does not list the scenario {e.get('scenario')} (it lists {listed[e['door_id']]})")
         if e.get("success") and e.get("outcome") != "success":
             errs.append(f"episodes[{i}]: success=true but outcome={e.get('outcome')}")
@@ -253,15 +268,15 @@ def semantic_errors(doc: dict, manifest: dict | None, submission: bool, path: st
         if k not in SUITES:
             errs.append(f"aggregate.{k}: tables are keyed by suite (core | human) only; no mixed / 'all' table")
     if submission:
-        total = doc.get("benchmark", {}).get("n_doors_total") or (len(manifest["doors"]) if manifest else 1000)
+        total = len(eligible_ids) if eligible_ids is not None else (doc.get("benchmark", {}).get("n_doors_total") or 985)
         core = agg.get("core")
         human = agg.get("human")
         if core is None and human is None:
             errs.append("submission has no core or human table")
         if core is not None:
             core_doors = {e.get("door_id") for e in per_suite["core"]}
-            if ids is not None and core_doors != ids:
-                errs.append(f"core suite submission must cover all {len(ids)} doors (has {len(core_doors)})")
+            if eligible_ids is not None and core_doors != eligible_ids:
+                errs.append(f"core suite submission must cover all {len(eligible_ids)} benchmark-eligible doors (has {len(core_doors)})")
             elif len(core_doors) < total:
                 errs.append(f"core suite submission must cover all {total} doors (has {len(core_doors)})")
             if listed is not None:

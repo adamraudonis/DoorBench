@@ -40,7 +40,7 @@ def main(argv=None):
     r.add_argument("--policy", required=True, help="random | scripted_hand | g1_locomotion | module.path:Class | path/to/file.py:Class")
     r.add_argument("--doors", default="all", help="all | family:<f,..> | difficulty:<n,..> | scenario:<s,..> | lock:locked|unlocked | first:<n> | every:<n>[:<offset>] | sample:<n>[:<seed>] | ids:<a,b> | <a,b> | @file")
     r.add_argument("--seeds", default="3", help="number of seeds (0..n-1) or an explicit list 0,1,2; seed 0 = nominal door, >= 1 randomised")
-    r.add_argument("--suite", default="core", choices=list(R.SUITE_CHOICES), help="core (default: no simulated person, all 1000 doors) | human (advanced, opt-in: the 79 doors with a human scenario) | all (both, kept in separate tables)")
+    r.add_argument("--suite", default="core", choices=list(R.SUITE_CHOICES), help="core (default: no simulated person, all 985 standard doors; supplementary pet doors excluded) | human (advanced, opt-in: the 79 doors with a human scenario) | all (both, kept in separate tables)")
     r.add_argument("--scenarios", default=None, help="narrow to these scenario types (comma list; must belong to --suite), 'primary' = each door's primary scenario only; default: every scenario the door lists in the suite")
     r.add_argument("--workers", type=int, default=max(1, min(8, os.cpu_count() or 1)))
     r.add_argument("--tier", default="full", choices=["full", "simple", "minimal"])

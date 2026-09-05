@@ -61,12 +61,14 @@ def load_manifest(assets_root: str) -> dict:
 
 class DoorEnv:
     def __init__(self, door_dir: str, tier: str = "full", robot_xml: str | None = None, robot_body_prefix: str = "", robot_base_body: str | None = None, timestep: float | None = None, seed: int = 0):
-        import mujoco
-        self.mj = mujoco
         self.door_dir = door_dir
         self.tier = tier
         with open(os.path.join(door_dir, "spec.json")) as f:
             self.spec = json.load(f)
+        from ..benchmark_eligibility import require_benchmark_eligible
+        require_benchmark_eligible(self.spec, operation="DoorEnv evaluation")
+        import mujoco
+        self.mj = mujoco
         with open(os.path.join(door_dir, "model.json")) as f:
             self.model_json = json.load(f)
         self.meta = self.model_json["meta"]

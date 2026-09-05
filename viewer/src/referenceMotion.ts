@@ -1,3 +1,4 @@
+import { isPetDoorId, PET_COLLECTION_REASON } from "./collections";
 import * as THREE from 'three';
 import type { BuiltScene } from './scene';
 
@@ -31,6 +32,7 @@ export function validateClip(c: ReferenceClip,id:string) {
   return c;
 }
 export async function fetchReference(id:string,signal?:AbortSignal): Promise<ReferenceClip> {
+  if (isPetDoorId(id)) throw new Error(PET_COLLECTION_REASON);
   const r=await fetch(`./reference-motions/clips/${id}.json.gz`,{signal});
   if(!r.ok) throw Error('Reference recording unavailable for this release');
   const stream=new Blob([await r.arrayBuffer()]).stream().pipeThrough(new DecompressionStream('gzip'));
