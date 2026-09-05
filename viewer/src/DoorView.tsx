@@ -10,6 +10,8 @@ import { activeLeaf, isLocked, openClosePhases, parsePoseQuery, sliderReaction, 
 import { ASSETS } from "./App";
 import { BaselineBadges } from "./ResultBadges";
 import { AppearancePanel } from "./Appearance";
+import { fetchReference, buildReferencePlayer, type ReferenceClip, type ReferencePlayer } from "./referenceMotion";
+import "./referenceMotion.css";
 
 function fmt(x: any, digits = 3): string {
   if (x === null || x === undefined) return "–";
@@ -80,7 +82,7 @@ function ScenarioOptions({ scenarios }: { scenarios: ScenarioJ[] }) {
   );
 }
 
-export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id: string; query?: string }) {
+export function DoorView({ manifest, id, query = "", embedded = false, initialDiagnostic = false }: { manifest: Manifest; id: string; query?: string; embedded?: boolean; initialDiagnostic?: boolean }) {
   const entry = manifest.doors.find((d) => d.id === id);
   const mountRef = useRef<HTMLDivElement>(null);
   const [model, setModel] = useState<ModelJ | null>(null);
@@ -89,6 +91,17 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
   const [err, setErr] = useState<string | null>(null);
   const [joints, setJoints] = useState<JointHandle[]>([]);
   const [, force] = useState(0);
+  const [diagnostic, setDiagnostic] = useState(initialDiagnostic || new URLSearchParams(query).get("contrast") === "1");
+  const diagnosticRef = useRef(diagnostic); diagnosticRef.current = diagnostic;
+  const [reference, setReference] = useState<ReferenceClip | null>(null);
+  const [referenceError, setReferenceError] = useState<string | null>(null);
+  const [referenceVisible, setReferenceVisible] = useState(false);
+  const [referenceTime, setReferenceTime] = useState(0);
+  const [referencePlaying, setReferencePlaying] = useState(false);
+  const [referencePhase, setReferencePhase] = useState("approach");
+  const [referenceReach, setReferenceReach] = useState(0);
+  const referencePlayer = useRef<ReferencePlayer | null>(null);
+  const referenceState = useRef({time:0,playing:false,visible:false,last:0,speed:1,clip:null as ReferenceClip|null});
   const [showEnv, setShowEnv] = useState(true);
   const [showCol, setShowCol] = useState(false);
   const [showEval, setShowEval] = useState(false);
@@ -109,12 +122,57 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
 
   useEffect(() => {
     setModel(null); setSpec(null); setQa(null); setErr(null); setScenIdx(0); setHumanT(0); setHumanPlay(false);
+    let cancelled = false;
     Promise.all([
       fetch(`${ASSETS}/doors/${id}/model.json`).then((r) => r.json()),
       fetch(`${ASSETS}/doors/${id}/spec.json`).then((r) => r.json()),
       fetch(`${ASSETS}/doors/${id}/qa.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-    ]).then(([m, s, q]) => { setModel(m); setSpec(s); setQa(q); }).catch((e) => setErr(String(e)));
+    ]).then(([m, s, q]) => { if (!cancelled) { setModel(m); setSpec(s); setQa(q); } }).catch((e) => { if (!cancelled) setErr(String(e)); });
+    return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    const abort = new AbortController();
+    setReference(null); setReferenceError(null); setReferenceTime(0); setReferencePlaying(false); setReferenceVisible(false);
+    referenceState.current = {time:0,playing:false,visible:false,last:0,speed:1,clip:null};
+    fetchReference(id, abort.signal).then(c => {
+      if (abort.signal.aborted) return;
+      setReference(c); referenceState.current.clip = c;
+    }).catch(e => { if (!abort.signal.aborted) setReferenceError(String(e.message || e)); });
+    return () => abort.abort();
+  }, [id]);
+  useEffect(() => { built.current?.setDiagnostic(diagnostic); }, [diagnostic, joints]);
+  useEffect(() => {
+    const t = three.current;
+    if (!t || !reference) return;
+    const player = buildReferencePlayer(reference);
+    referencePlayer.current = player; player.group.visible = referenceState.current.visible;
+    t.scene.add(player.group);
+    return () => { t.scene.remove(player.group); player.dispose(); if(referencePlayer.current===player) referencePlayer.current=null; };
+  }, [reference]);
+  const pauseReference = () => {
+    referenceState.current.playing = false; referenceState.current.visible = false;
+    setReferencePlaying(false); setReferenceVisible(false);
+    if (referencePlayer.current) referencePlayer.current.group.visible = false;
+  };
+  const seekReference = (time:number) => {
+    const state=referenceState.current; state.time=time; state.visible=true;
+    setReferenceTime(time); setReferenceVisible(true);
+    queue.current=[];
+    if(referencePlayer.current && built.current) {
+      referencePlayer.current.group.visible=true;
+      const info=referencePlayer.current.setTime(time,built.current);
+      setReferencePhase(info.phase);setReferenceReach(info.error);force(x=>x+1);
+    }
+  };
+
+  const appliedReference = useRef<string | null>(null);
+  useEffect(() => {
+    if (!reference || reference.door_id!==id || !model || builtModel.current!==model || !built.current || new URLSearchParams(query).get("reference") !== "1" || appliedReference.current === `${id}|${query}`) return;
+    appliedReference.current = `${id}|${query}`;
+    const requested=Number(new URLSearchParams(query).get("rt") || 0);
+    seekReference(Number.isFinite(requested) ? Math.max(0,Math.min(reference.duration,requested)) : 0); frameReference();
+  }, [reference, joints, query, id]);
 
   const toast = (text: string, ms = 2600) => {
     setHint(text);
@@ -180,6 +238,17 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
         if (s >= 1) q.shift();
         force((x) => x + 1);
       }
+      const ref = referenceState.current;
+      if (ref.visible && ref.clip && referencePlayer.current && b) {
+        const dt = ref.last ? Math.min(.1, (now-ref.last)/1000) : 0;
+        if(ref.playing) {
+          ref.time = Math.min(ref.clip.duration, ref.time+dt*ref.speed);
+          if(ref.time>=ref.clip.duration){ref.playing=false;setReferencePlaying(false);}
+        }
+        const state=referencePlayer.current.setTime(ref.time,b);
+        setReferenceTime(ref.time);setReferencePhase(state.phase);setReferenceReach(state.error);
+      }
+      ref.last=now;
       // closed kinematic loops (closer arms, struts) follow the driver joints; no-op unless a joint moved this frame
       if (b && b.solveLoops().changed) force((x) => x + 1);
       const hr = humanRef.current;
@@ -213,6 +282,7 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
       builtModel.current = model;
       for (const [name, q] of keep) if (b.joints.get(name)?.loopSolved === false) b.setJoint(name, q);
       b.solveLoops();
+      b.setDiagnostic(diagnosticRef.current);
       t.scene.add(b.root);
       const c = b.bounds.getCenter(new THREE.Vector3());
       const size = b.bounds.getSize(new THREE.Vector3()).length() || 3;
@@ -281,6 +351,19 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
 
   useEffect(() => { humanRef.current.play = humanPlay; }, [humanPlay]);
 
+  function frameReference() {
+    const t=three.current, b=built.current, clip=referenceState.current.clip;
+    if(!t || !b || !clip) return;
+    const box=b.bounds.clone();
+    for(let i=0;i<clip.avatar.length;i+=5) for(let j=0;j<clip.avatar[i].length;j+=3) box.expandByPoint(new THREE.Vector3(clip.avatar[i][j],clip.avatar[i][j+1],clip.avatar[i][j+2]));
+    const center=box.getCenter(new THREE.Vector3()), radius=box.getSize(new THREE.Vector3()).length()/2;
+    const halfFov=Math.atan(Math.tan(THREE.MathUtils.degToRad(t.camera.fov/2))*Math.min(1,t.camera.aspect));
+    const distance=Math.max(3.2,radius/Math.sin(halfFov)*1.08);
+    t.camera.position.copy(center).addScaledVector(new THREE.Vector3(.65,-1,.55).normalize(),distance);
+    if(entry?.family === "hatch_ceiling") t.camera.position.z = 1.45;
+    t.controls.target.copy(center); t.controls.update();
+  }
+
   function frameEvaluation() {
     const t = three.current;
     const scenario = scenarioRef.current;
@@ -310,6 +393,7 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
     if (!b || !joint) return;
     const h = b.joints.get(joint);
     if (!h) return;
+    pauseReference();
     queue.current = [{ joint, from: h.q, to, dur: 900 }];
   };
 
@@ -317,6 +401,7 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
   const openClose = () => {
     const b = built.current;
     if (!b || !model) return;
+    pauseReference();
     const { phases, note } = openClosePhases(model, b.joints);
     queue.current = phases;
     if (note) toast(note);
@@ -325,6 +410,7 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
   const onSlider = (h: JointHandle, q: number) => {
     const b = built.current;
     if (!b || !model) return;
+    pauseReference();
     queue.current = [];
     b.setJoint(h.name, q);
     const r = sliderReaction(model, b.joints, h.name, q);
@@ -357,18 +443,44 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
   const evEntry = (ev: string): GlossaryEntry | undefined => bench?.event_descriptions?.[ev] ? { what: bench.event_descriptions[ev], unit: "reward, once per episode" } : undefined;
 
   return (
-    <div className="doorview">
-      <div className="viewport" ref={mountRef}>
+    <div className={"doorview" + (embedded ? " embedded" : "")}>
+      <div className="viewport">
+        <div className="scene-mount" ref={mountRef} />
         <div className="hud">
           {primaryH && <button className="primary" onClick={openClose} title="Actuates the operator (retracts the latch), moves the leaf, releases the operator">Open / close door</button>}
           {opH && <button onClick={() => animate(operator, opH.range ? (opH.q > (opH.range[0] + opH.range[1]) / 2 ? opH.range[0] : opH.range[1]) : opH.q + 1)}>Actuate operator</button>}
-          <button onClick={() => { const b = built.current; queue.current = []; if (b) { for (const h of b.joints.values()) b.setJoint(h.name, h.modeledAt); b.solveLoops(); } force((x) => x + 1); }}>Reset</button>
+          <button onClick={() => { pauseReference(); const b = built.current; queue.current = []; if (b) { for (const h of b.joints.values()) b.setJoint(h.name, h.modeledAt); b.solveLoops(); } force((x) => x + 1); }}>Reset</button>
+          <button className={diagnostic ? "active" : ""} aria-pressed={diagnostic} title="Brown door, gold mechanisms, neutral surroundings; glass remains transparent" onClick={() => setDiagnostic(v=>!v)}>Mechanism contrast</button>
           <button onClick={() => setShowEnv((v) => !v)}>{showEnv ? "Hide" : "Show"} walls</button>
           <button onClick={() => setShowCol((v) => !v)}>{showCol ? "Hide" : "Show"} collision</button>
           <button className={showEval ? "active" : ""} aria-pressed={showEval} disabled={!scenario} title={scenario ? "Draw the benchmark scenario: start zone, approach, handle targets, pass plane, goal, human path" : "no benchmark block in spec.json"} onClick={() => { const v = !showEval; setShowEval(v); if (v) setTimeout(frameEvaluation, 0); }}>{showEval ? "Hide" : "Show"} evaluation</button>
           {showEval && scenarios.length > 1 && (
             <select aria-label="Scenario" value={scenIdx} onChange={(e) => setScenIdx(parseInt(e.target.value))}><ScenarioOptions scenarios={scenarios} /></select>
           )}
+        </div>
+        <div className="reference-player" data-review-shortcuts="off">
+          <div className="reference-heading"><strong>Humanoid reference</strong><span>Recorded MuJoCo door · kinematic figure</span></div>
+          {reference ? <>
+            <div className="reference-controls">
+              <button className="primary" disabled={!model || builtModel.current!==model} onClick={() => {
+                const state=referenceState.current;
+                if(!state.visible || state.time>=reference.duration) {seekReference(0);frameReference();}
+                state.playing=!state.playing;setReferencePlaying(state.playing);
+              }}>{referencePlaying ? "Pause reference" : "Play reference"}</button>
+              <input aria-label="Reference motion time" type="range" min={0} max={reference.duration} step={.025} value={referenceTime}
+                onChange={e=>{referenceState.current.playing=false;setReferencePlaying(false);seekReference(Number(e.target.value));}} />
+              <output>{referenceTime.toFixed(1)} / {reference.duration.toFixed(1)} s</output>
+              <select aria-label="Reference playback speed" defaultValue="1" onChange={e=>referenceState.current.speed=Number(e.target.value)}><option value=".25">¼×</option><option value=".5">½×</option><option value="1">1×</option><option value="2">2×</option></select>
+              {referenceVisible && <button onClick={pauseReference}>Hide figure</button>}
+            </div>
+            <div className="reference-status"><span className={reference.outcome.success ? "ok" : "bad"}>Door task: {nice(reference.outcome.outcome)}</span><span>{nice(reference.scenario)} · {nice(referencePhase)}</span>
+              {referenceVisible && referenceReach>.08 && <span className="bad">Hand target out of reach: {(referenceReach*100).toFixed(0)} cm</span>}
+              <a href={`#/door/${id}?reference=1&rt=${referenceTime.toFixed(2)}&contrast=${diagnostic?1:0}`}>Link to this moment</a>
+              <a href={`./reference-motions/clips/${id}.json.gz`} download>Download clip</a>
+              <a href="https://huggingface.co/datasets/adamraudonis/DoorBench" target="_blank" rel="noreferrer">Native trajectories ↗</a>
+            </div>
+          </> : <p>{referenceError || "Loading reference recording…"}</p>}
+          <p className="reference-note">Motion reference for retargeting and review. Generalized forces move the door; humanoid hand contact and balance have not been validated. Failed attempts are retained.</p>
         </div>
         {showEval && scenario?.human && (
           <div className="timeline">

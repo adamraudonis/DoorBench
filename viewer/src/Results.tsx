@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { FAMILY_LABELS, type Manifest } from "./types";
+import { DOCS, Icon, PageIntro } from "./SiteUI";
 import { RESULTS, outcomeClass, useResultsIndex, type ResultEntry, type Suite, type SuiteBlock } from "./ResultBadges";
 
 const pct = (x: number | null | undefined, d = 1) => (x === null || x === undefined ? "–" : `${(100 * x).toFixed(d)} %`);
@@ -50,37 +51,18 @@ export function Results({ manifest }: { manifest: Manifest }) {
   const fams = families.map(([f]) => f);
   const locks = ["unlocked", "locked_releasable", "locked_no_release"].filter((k) => rows.some((r) => r.suites[suite]?.by_lock_state[k]));
   const g = (r: ResultEntry) => r.suites[suite]!;
-  const suiteTabs = (
-    <div className="rtabs" style={{ marginTop: 10 }}>
-      <button className={suite === "core" ? "primary" : ""} onClick={() => { setSuite("core"); setSel(""); }}>Core suite (default)</button>
-      <button className={suite === "human" ? "primary" : ""} onClick={() => { setSuite("human"); setSel(""); }}>Human suite (advanced)</button>
-      <span className="legend" style={{ marginLeft: 12 }}>
-        {suite === "core"
-          ? "open & traverse · open then close · close only · unlock & traverse · locked-recognise — no simulated person; every door; the headline number"
-          : `hold open for a person · wait for a person · knock & wait — a simulated person is in the scene; opt-in (--suite human); ${idx.n_doors_human} doors list one of these; never mixed into the core number`}
-      </span>
-    </div>
-  );
+  const suiteTabs = <div className="suite-selector"><div className="category-tabs" aria-label="Benchmark suite"><button aria-pressed={suite === "core"} onClick={() => { setSuite("core"); setSel(""); }}>Core suite <span>Default</span></button><button aria-pressed={suite === "human"} onClick={() => { setSuite("human"); setSel(""); }}>Human suite <span>Opt-in</span></button></div><p>{suite === "core" ? "Door-and-robot tasks across the full collection. No simulated person." : `Shared-passage tasks with a simulated person, across ${idx.n_doors_human} eligible doors. Reported separately from core results.`}</p></div>;
+
   return (
-    <div className="results">
-      <div className="about" style={{ paddingBottom: 0 }}>
-        <h1 style={{ margin: "8px 0" }}>Benchmark results</h1>
-        <p className="sub">Existing baseline scores were recorded before the current geometry repairs and Blender appearance update. See each run's commit and JSON for provenance.</p>
-        <p style={{ color: "var(--muted)", marginTop: 0 }}>
-          Every row is one run of a policy over the DoorBench doors, written by <code>doorbench benchmark run</code>, validated against <code>results/schema.json</code> and committed under <code>results/</code>.
-          A door counts as <b>solved</b> when the policy succeeded on <b>every</b> scenario the door lists in the suite, on <b>every</b> seed, by the scenario's own criterion (e.g. opened ∧ traversed ∧ ¬damage) without damaging it.
-          Seed 0 is the nominal door; seeds ≥ 1 randomise friction, damping, closer stiffness and masses and the start pose. Submit your own run: <a href="https://github.com/adamraudonis/DoorBench/blob/main/docs/SUBMITTING.md" target="_blank" rel="noreferrer">docs/SUBMITTING.md</a>.
-        </p>
-        {suiteTabs}
-        <div className="stat-row">
-          {rows.filter((r) => g(r).complete).map((r) => (
-            <div className="stat" key={r.file}><div className="n">{g(r).doors_solved} <span style={{ fontSize: 14, color: "var(--muted)" }}>/ {total}</span></div><div className="l">{r.policy.replace(/_/g, " ")}{suite === "human" ? " · human suite" : ""}</div></div>
-          ))}
-        </div>
-      </div>
+    <div className="results page-shell">
+      <PageIntro eyebrow="Evaluation / recorded baselines" title="Measure the whole interaction." aside={<a className="button" href={`${DOCS}/SUBMITTING.md`} target="_blank" rel="noreferrer">Submit a run <Icon name="external" size={15} /></a>}><p>Compare policies across mechanisms, scenarios, and physical variation. A solved door means every assigned scenario, on every evaluation seed.</p></PageIntro>
+      <aside className="historical-notice"><span className="notice-mark">i</span><div><strong>Historical results · earlier dataset revision</strong><p>These runs predate the current geometry repairs and Blender appearance update. Scores describe the original run commit, not the latest door assets. Each row links to its recorded metadata.</p></div></aside>
+      {suiteTabs}
+      <div className="result-summary">{rows.filter((r) => g(r).complete).map((r, i) => <button className={`result-stat ${r.file === current?.file ? "selected" : ""}`} key={r.file} onClick={() => setSel(r.file)}><span className="result-policy"><span className="rank">0{i + 1}</span>{r.policy.replace(/_/g, " ")}</span><strong>{g(r).doors_solved}<small> / {total}</small></strong><div className="summary-progress"><span style={{ width: `${total ? 100 * g(r).doors_solved / total : 0}%` }} /></div><span className="result-stat-footer">Doors solved <b>{pct(total ? g(r).doors_solved / total : 0)}</b></span></button>)}</div>
+      <details className="evaluation-method"><summary>How to read these results</summary><p>A door counts as solved when the policy succeeds on every scenario assigned to that door in the chosen suite, on every seed, without damage. Seed 0 uses nominal parameters; later seeds randomize friction, damping, closer stiffness, mass, and start pose. A row marked “subset” did not evaluate the complete suite.</p><p>Episode success measures individual scenario-and-seed trials. It can be higher than the fraction of fully solved doors. Core and human suites use different task sets and are not combined.</p></details>
 
       <div className="rsection">
-        <h2>Leaderboard <span className="sub">{suite === "core" ? "core suite" : "human suite (advanced, opt-in)"}</span></h2>
+        <h2>Recorded runs <span className="sub">{suite === "core" ? "core suite" : "human suite (advanced, opt-in)"}</span></h2>
         {rows.length === 0 && <p className="muted">No {suite}-suite run yet.</p>}
         {rows.length > 0 && (
           <div className="tablewrap">
@@ -89,7 +71,7 @@ export function Results({ manifest }: { manifest: Manifest }) {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.file} className={r.file === current?.file ? "sel" : ""} onClick={() => setSel(r.file)}>
-                    <td><b>{r.policy}</b>{!g(r).complete && <span className="chip" style={{ marginLeft: 6 }} title={`door selection: ${r.door_selection ?? ""}`}>subset</span>}<div className="desc">{r.description}</div></td>
+                    <td><button className="table-policy" aria-pressed={r.file === current?.file} onClick={() => setSel(r.file)}>{r.policy.replace(/_/g, " ")}</button>{!g(r).complete && <span className="chip" style={{ marginLeft: 6 }} title={`door selection: ${r.door_selection ?? ""}`}>subset</span>}<div className="desc">{r.description}</div></td>
                     <td>{r.embodiment.replace(/_/g, " + ")}</td>
                     <td>{r.simulator} {r.simulator_version ?? ""}</td>
                     <td>{r.tier}</td>
@@ -183,7 +165,7 @@ export function Results({ manifest }: { manifest: Manifest }) {
             {doors.map((d) => {
               const s = cur.doors[d.id];
               const scen = suite === "core" ? d.benchmark?.core ?? [] : d.benchmark?.human ?? [];
-              return <a key={d.id} href={`#/door/${d.id}`} className={`cell ${outcomeClass(s)}`} title={`${d.id} · ${FAMILY_LABELS[d.family] ?? d.family} · ${scen.join(", ")} · L${d.difficulty}${d.lock_engaged ? " · locked" : ""}\n${s ? `${s[0]} / ${s[1]} episodes successful` : "not evaluated"}`} />;
+              return <a key={d.id} href={`#/door/${d.id}`} className={`cell ${outcomeClass(s)}`} aria-label={`${d.id}: ${s ? `${s[0]} of ${s[1]} episodes successful` : "not evaluated"}`} title={`${d.id} · ${FAMILY_LABELS[d.family] ?? d.family} · ${scen.join(", ")} · L${d.difficulty}${d.lock_engaged ? " · locked" : ""}\n${s ? `${s[0]} / ${s[1]} episodes successful` : "not evaluated"}`} />;
             })}
           </div>
           <div className="rmeta">

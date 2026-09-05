@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import gzip
+import hashlib
 import json
 from pathlib import Path
 import tarfile
@@ -215,3 +217,190 @@ def test_default_coverage_and_index_metadata_contract_rejected(site, damage):
     _json(site.render / "render.json", site.metadata)
     with pytest.raises(ValueError):
         site_assets.verified_files(site.assets, site.appearance)
+
+
+def _write_reference(reference, *, rehash=True):
+    payload = json.dumps(reference.clip, allow_nan=True).encode()
+    reference.path.write_bytes(gzip.compress(payload, mtime=0))
+    if rehash:
+        reference.row["web_clip_sha256"] = site_assets.digest(reference.path)
+        reference.row["clip_sha256"] = hashlib.sha256(payload).hexdigest()
+    _json(reference.root / "index.json", reference.index)
+
+
+@pytest.fixture
+def reference(site, tmp_path):
+    model = site_assets.read(site.door / "model.json")
+    model["bodies"][0]["joint"] = {"name": "leaf_hinge"}
+    _json(site.door / "model.json", model)
+    source = {name: site_assets.digest(site.door / name) for name in ("spec.json", "model.json", "door.xml")}
+    site.metadata["source_sha256"] = source
+    site.row["source_sha256"] = source
+    _json(site.render / "render.json", site.metadata)
+    _json(site.appearance / "index.json", site.index)
+    root = tmp_path / "reference-motions"
+    (root / "clips").mkdir(parents=True)
+    (root / "trajectories").mkdir()
+    clip = {
+        "schema": site_assets.REFERENCE_SCHEMA, "door_id": "door_one", "scenario": "open_and_traverse",
+        "source_sha256": dict(source), "duration": 1.0, "lead_in_s": 0.0, "fps": 20, "units": "metres/radians/seconds", "up_axis": "Z",
+        "joint_names": ["leaf_hinge"], "avatar_joint_names": site_assets.REFERENCE_AVATAR_JOINTS,
+        "avatar_bones": [[0, 1], [1, 2]], "times": [0.0, 1.0], "door_q": [[0.0], [1.0]],
+        "avatar": [[0.0] * 48, [1.0] * 48], "targets": [[0.0] * 3, [1.0] * 3],
+        "hand_active": [0, 1], "hand_error_m": [0.0, 0.1], "phases": ["approach", "open"],
+        "native": {"joint_names": ["leaf_hinge"], "qpos_addresses": [0], "qvel_addresses": [0], "dt": .002},
+        "outcome": {"door_id": "door_one", "scenario": "open_and_traverse", "success": True, "outcome": "success"},
+    }
+    row = {"door_id": "door_one", "scenario": "open_and_traverse", "duration": 1.0, "frames": 2,
+           "success": True, "outcome": "success", "source_sha256": source, "web_clip": "clips/door_one.json.gz",
+           "clip": "clips/door_one.json", "trajectory": "trajectories/door_one.npz", "trajectory_sha256": "1" * 64}
+    index = {"schema": site_assets.REFERENCE_SCHEMA, "manifest_sha256": site_assets.digest(site.assets / "manifest.json"),
+             "counts": {"success": 1}, "clips": [row]}
+    reference = SimpleNamespace(root=root, path=root / "clips/door_one.json.gz", clip=clip, row=row, index=index)
+    _write_reference(reference)
+    (root / "clips/door_one.json").write_text("excluded full clip")
+    (root / "trajectories/door_one.npz").write_bytes(b"excluded native trajectory")
+    return reference
+
+
+def test_reference_web_payload_round_trip_excludes_native_files_and_preserves_usdc(site, reference, tmp_path):
+    (site.hardware / "handle.usdc").write_bytes(b"binary USD fixture")
+    args = SimpleNamespace(assets=site.assets, appearance=site.appearance, reference=reference.root,
+                           archive=tmp_path / "reference-release.tar.gz", manifest=tmp_path / "reference-release.json",
+                           release_url="https://example.test/release", source_commit="b" * 40)
+    site_assets.pack(args)
+    manifest = site_assets.read(args.manifest)
+    assert manifest["reference_count"] == 1
+    assert manifest["reference_index_sha256"] == site_assets.digest(reference.root / "index.json")
+    with tarfile.open(args.archive) as archive:
+        names = set(archive.getnames())
+    assert {n for n in names if n.startswith("reference-motions/")} == {
+        "reference-motions/index.json", "reference-motions/clips/door_one.json.gz"}
+    assert "assets/hardware/handle.usdc" in names
+    out = tmp_path / "reference-restored"
+    site_assets.unpack_verified(args.archive, manifest, out)
+    assert (out / "reference-motions/clips/door_one.json.gz").read_bytes() == reference.path.read_bytes()
+    assert not (out / "reference-motions/trajectories").exists()
+    assert not (out / "reference-motions/clips/door_one.json").exists()
+
+
+@pytest.mark.parametrize("damage", ["missing", "duplicate", "unknown", "schema", "manifest", "counts", "source", "incomplete_source", "unsafe_path"])
+def test_reference_index_coverage_source_and_metadata_rejected(site, reference, damage):
+    if damage == "missing":
+        reference.index["clips"] = []
+    elif damage == "duplicate":
+        reference.index["clips"].append(dict(reference.row))
+    elif damage == "unknown":
+        reference.row["door_id"] = "door_unknown"
+    elif damage == "schema":
+        reference.index["schema"] = "unsupported"
+    elif damage == "manifest":
+        reference.index["manifest_sha256"] = "1" * 64
+    elif damage == "counts":
+        reference.index["counts"] = {"success": 2}
+    elif damage == "source":
+        reference.row["source_sha256"]["door.xml"] = "1" * 64
+    elif damage == "incomplete_source":
+        reference.row["source_sha256"] = {}
+    else:
+        reference.row["web_clip"] = "../outside.json.gz"
+    _json(reference.root / "index.json", reference.index)
+    with pytest.raises(ValueError):
+        site_assets.verified_reference_files(site.assets, reference.root)
+
+
+@pytest.mark.parametrize("damage", ["missing", "tampered", "bad_gzip", "decoded_digest"])
+def test_missing_or_tampered_reference_clip_rejected(site, reference, damage):
+    if damage == "missing":
+        reference.path.unlink()
+    elif damage == "tampered":
+        reference.path.write_bytes(reference.path.read_bytes() + b"changed")
+    elif damage == "bad_gzip":
+        reference.path.write_bytes(b"not gzip")
+        reference.row["web_clip_sha256"] = site_assets.digest(reference.path)
+    else:
+        reference.row["clip_sha256"] = "0" * 64
+    _json(reference.root / "index.json", reference.index)
+    with pytest.raises(ValueError, match="Missing|checksum|compressed"):
+        site_assets.verified_reference_files(site.assets, reference.root)
+
+
+@pytest.mark.parametrize("damage", ["schema", "door_id", "source", "unknown_joint", "duplicate_joint", "avatar_order", "skeleton",
+                                    "door_q", "avatar", "targets", "nan", "timeline", "duration", "phases", "hand_active", "native", "outcome"])
+def test_reference_clip_semantics_rejected_even_with_recomputed_artifact_hashes(site, reference, damage):
+    clip = reference.clip
+    if damage in ("schema", "door_id"):
+        clip[damage] = "wrong"
+    elif damage == "source":
+        clip["source_sha256"] = {}
+    elif damage == "unknown_joint":
+        clip["joint_names"] = ["unknown"]
+    elif damage == "duplicate_joint":
+        clip["joint_names"] = ["leaf_hinge", "leaf_hinge"]
+    elif damage == "avatar_order":
+        clip["avatar_joint_names"] = list(reversed(clip["avatar_joint_names"]))
+    elif damage == "skeleton":
+        clip["avatar_bones"] = [[0, 16]]
+    elif damage in ("door_q", "avatar", "targets"):
+        clip[damage][0] = []
+    elif damage == "nan":
+        clip["door_q"][0][0] = float("nan")
+    elif damage == "timeline":
+        clip["times"] = [0, 0]
+    elif damage == "duration":
+        clip["duration"] = 3
+    elif damage == "phases":
+        clip["phases"] = ["open"]
+    elif damage == "hand_active":
+        clip["hand_active"] = [0, "yes"]
+    elif damage == "native":
+        clip["native"]["qpos_addresses"] = [-1]
+    else:
+        clip["outcome"]["success"] = False
+    _write_reference(reference)
+    with pytest.raises(ValueError):
+        site_assets.verified_reference_files(site.assets, reference.root)
+
+
+def test_reference_root_requires_explicit_deployment_manifest(tmp_path):
+    archive, manifest = _archive(tmp_path, [("reference-motions/index.json", b"{}", tarfile.REGTYPE)])
+    with pytest.raises(ValueError, match="Unsafe release archive entry"):
+        site_assets.unpack_verified(archive, manifest, tmp_path / "restored")
+    assert not (tmp_path / "restored").exists()
+
+
+@pytest.mark.parametrize("entry", ["reference-motions/clips/door_one.json", "reference-motions/trajectories/door_one.npz"])
+def test_native_reference_files_rejected_before_extraction_even_when_reference_enabled(tmp_path, entry):
+    archive, manifest = _archive(tmp_path, [(entry, b"native file", tarfile.REGTYPE)])
+    manifest.update(reference_count=1, reference_index_sha256="1" * 64)
+    with pytest.raises(ValueError, match="Unsafe release archive entry"):
+        site_assets.unpack_verified(archive, manifest, tmp_path / "restored")
+    assert not (tmp_path / "restored").exists()
+
+
+@pytest.mark.parametrize("fields", [{"reference_count": 1}, {"reference_index_sha256": "1" * 64},
+                                   {"reference_count": 0, "reference_index_sha256": "1" * 64}])
+def test_reference_manifest_must_be_complete_before_any_output(tmp_path, fields):
+    archive, manifest = _archive(tmp_path, [("assets/good", b"good", tarfile.REGTYPE)])
+    manifest.update(fields)
+    with pytest.raises(ValueError, match="Incomplete reference"):
+        site_assets.unpack_verified(archive, manifest, tmp_path / "restored")
+    assert not (tmp_path / "restored").exists()
+
+
+def test_restored_reference_inventory_rejects_unindexed_extra_clip(site, reference, tmp_path):
+    files, info = site_assets.verified_files(site.assets, site.appearance, reference.root)
+    entries = [(name, path.read_bytes(), tarfile.REGTYPE) for name, path in files.items()]
+    entries.append(("reference-motions/clips/unindexed.json.gz", reference.path.read_bytes(), tarfile.REGTYPE))
+    archive, manifest = _archive(tmp_path, entries)
+    manifest.update(info)
+    with pytest.raises(ValueError, match="file inventory mismatch"):
+        site_assets.unpack_verified(archive, manifest, tmp_path / "restored")
+
+
+def test_restored_reference_index_digest_is_pinned(site, reference, tmp_path):
+    files, info = site_assets.verified_files(site.assets, site.appearance, reference.root)
+    archive, manifest = _archive(tmp_path, [(name, path.read_bytes(), tarfile.REGTYPE) for name, path in files.items()])
+    manifest.update(info, reference_index_sha256="0" * 64)
+    with pytest.raises(ValueError, match="reference_index_sha256"):
+        site_assets.unpack_verified(archive, manifest, tmp_path / "restored")

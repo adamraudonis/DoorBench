@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { FAMILY_LABELS, type Manifest } from "./types";
 import { thumbUrl } from "./Catalogue";
+import { AppearanceThumb, useAppearance, type AppearanceRender } from "./Appearance";
+import { formatMass, Icon, PageIntro } from "./SiteUI";
 
 const DESC: Record<string, string> = {
   swing_single: "Single hinged leaf: residential, commercial, fire/egress, institutional, industrial, detention, storefront glass, heritage.",
@@ -23,7 +25,7 @@ const DESC: Record<string, string> = {
   hatch_ceiling: "Attic/roof hatches pushed up through a curb.",
   ship_watertight: "Marine doors on a coaming with dogging levers or a central wheel.",
   vault: "Very heavy leaves with lever-driven bolt-work and crane hinges.",
-  blast: "Blast-rated steel leaves with lever bolts.",
+  blast: "Heavy protective steel leaves with lever-operated bolts. Geometry does not imply a certified blast rating.",
   gate_swing: "Picket, chain-link, wrought iron, pool-safety and ranch gates with gravity latches, slide bolts, hasps.",
   gate_sliding: "Cantilever and track sliding gates.",
   baby_gate: "Pressure-mounted child gates with lift-pin latches.",
@@ -35,35 +37,38 @@ const DESC: Record<string, string> = {
   elevator: "Center- and side-opening landing doors with interlock and call button.",
 };
 
+const GROUPS: Record<string, string[]> = {
+  "Swing & pivot": ["swing_single", "swing_double", "dutch", "saloon", "pivot", "automatic_swing"],
+  "Slide & fold": ["sliding_single", "sliding_bypass", "bifold", "accordion", "automatic_sliding", "elevator"],
+  "Rotate & lift": ["revolving", "turnstile_tripod", "turnstile_fullheight", "garage_sectional", "garage_tiltup", "rollup"],
+  "Specialized access": ["pet_door", "hatch_floor", "hatch_ceiling", "ship_watertight", "vault", "blast", "gate_swing", "gate_sliding", "baby_gate", "stall", "strip_curtain", "cold_storage"],
+};
+
 export function Families({ manifest }: { manifest: Manifest }) {
-  const byFam = new Map<string, typeof manifest.doors>();
-  for (const d of manifest.doors) { if (d.error) continue; if (!byFam.has(d.family)) byFam.set(d.family, []); byFam.get(d.family)!.push(d); }
-  const fams = manifest.families.filter((f) => byFam.has(f)).sort((a, b) => byFam.get(b)!.length - byFam.get(a)!.length);
-  return (
-    <div>
-      <div className="about" style={{ paddingBottom: 0 }}>
-        <h1 style={{ margin: "8px 0" }}>Door types</h1>
-        <p style={{ color: "var(--muted)", marginTop: 0 }}>{fams.length} kinematic families covering every human- or animal-passable door we could enumerate. Click a family to filter the catalogue; every door opens in the 3D viewer.</p>
-      </div>
-      <div className="families">
-        {fams.map((f) => {
-          const ds = byFam.get(f)!;
-          const rep = ds.find((d) => d.signed_off && d.thumbs.length) ?? ds[0];
-          const ops = new Set(ds.map((d) => d.operator)).size;
-          const locks = new Set(ds.map((d) => d.lock)).size;
-          const masses = ds.map((d) => d.mass_kg);
-          return (
-            <a className="famcard" key={f} href={`#/?family=${f}`}>
-              <img src={thumbUrl(rep)} loading="lazy" alt={f} />
-              <div className="body">
-                <h3>{FAMILY_LABELS[f] ?? f} <span style={{ color: "var(--muted)", fontWeight: 400 }}>· {ds.length}</span></h3>
-                <p>{DESC[f]}</p>
-                <p>{ops} operator types · {locks} lock types · {Math.min(...masses).toFixed(0)}–{Math.max(...masses).toFixed(0)} kg · {ds.filter((d) => d.signed_off).length}/{ds.length} automated QA passed</p>
-              </div>
-            </a>
-          );
-        })}
-      </div>
-    </div>
-  );
+  const appearance = useAppearance();
+  const [group, setGroup] = useState("All families");
+  const photos = useMemo(() => {
+    const result = new Map<string, AppearanceRender>();
+    for (const r of appearance?.renders ?? []) if (r.image && (!result.has(r.door_id) || r.quality === "photo")) result.set(r.door_id, r);
+    return result;
+  }, [appearance]);
+  const byFam = useMemo(() => {
+    const result = new Map<string, typeof manifest.doors>();
+    for (const d of manifest.doors) if (!d.error) result.set(d.family, [...(result.get(d.family) ?? []), d]);
+    return result;
+  }, [manifest]);
+  const fams = manifest.families.filter((f) => byFam.has(f) && (group === "All families" || GROUPS[group].includes(f))).sort((a, b) => byFam.get(b)!.length - byFam.get(a)!.length);
+  return <div className="page-shell families-page">
+    <PageIntro eyebrow="The mechanics of access" title="One collection. Many ways in." aside={<a href="#/" className="button">View all doors <Icon name="arrow" /></a>}><p>Explore {manifest.families.length} motion families, from everyday hinges and sliding tracks to marine hatches, folding partitions, and revolving entrances.</p></PageIntro>
+    <div className="family-navigation"><div className="category-tabs" aria-label="Motion categories">{["All families", ...Object.keys(GROUPS)].map((g) => <button key={g} aria-pressed={group === g} onClick={() => setGroup(g)}>{g}</button>)}</div><span>{fams.length} families</span></div>
+    <div className="families">{fams.map((f) => {
+      const ds = byFam.get(f)!;
+      const rep = ds.find((d) => photos.get(d.id)?.quality === "photo") ?? ds.find((d) => photos.has(d.id)) ?? ds[0];
+      const ops = new Set(ds.map((d) => d.operator)).size;
+      const locks = new Set(ds.map((d) => d.lock)).size;
+      const masses = ds.map((d) => d.mass_kg);
+      return <a className="famcard" key={f} href={`#/?family=${f}`}><div className="family-image"><AppearanceThumb render={photos.get(rep.id)} fallback={thumbUrl(rep)} alt={`${FAMILY_LABELS[f] ?? f}: ${rep.use_case}`} /><span className="family-count">{ds.length} doors</span></div><div className="body"><div className="family-title"><h2>{FAMILY_LABELS[f] ?? f}</h2><Icon name="arrow" /></div><p>{DESC[f]}</p><div className="family-facts"><span><b>{ops}</b> {ops === 1 ? "operator" : "operators"}</span><span><b>{locks}</b> {locks === 1 ? "lock type" : "lock types"}</span><span><b>{formatMass(Math.min(...masses))}–{formatMass(Math.max(...masses))}</b> kg</span></div></div></a>;
+    })}</div>
+    <aside className="catalogue-note"><Icon name="door" /><p>Each family contains different materials, dimensions, hardware, and conditions. These are simulation models with documented approximations.</p><a href="#/about">Read the methodology <Icon name="arrow" size={16} /></a></aside>
+  </div>;
 }
