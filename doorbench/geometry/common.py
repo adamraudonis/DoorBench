@@ -865,11 +865,112 @@ def operator_faces(spec: dict, v: float):
     return [], None
 
 
+def add_paddle_operator(model: Model, leaf_body: Body, spec: dict, op: H.OperatorModel,
+                        u: float, v: float, x_spindle: float, z: float, t: float,
+                        faces: list, locked_backlash: float | None, name="handle", tiers=ALL_TIERS):
+    """Vertical push/pull paddles on horizontal, face-mounted pivots.
+
+    HL6-9000 installation instructions, p. 2, show fixed base plates, separate
+    paddle pivots and cams.  This is a generic rocker representation, not an
+    exact HL6 mechanism: opposite paddles use an explicit ideal 1:1 cam
+    coupling.  The existing primary joint continues to drive the latch.
+    See docs/research/paddle-mechanics.md for dimensions and limitations.
+    """
+    if not faces or any(f not in (-1.0, 1.0) for f in faces) or len(set(faces)) != len(faces):
+        raise ValueError("Paddles require distinct door faces, each -1 or +1")
+    mat = mat_from_material(model, op.material, f"mat_op_{op.material}")
+    w, h = op.style_params.get("size", (0.10, 0.18))
+    half_width, half_height = min(w / 2, 0.032), h * 0.35
+    arm = op.grip_offset
+    if arm <= half_height or not 0 < op.travel < math.pi / 4:
+        raise ValueError("Paddle requires a grip below its pivot and a short throw")
+    backset = H.LATCHES[spec["latch"]["model"]].backset or 0.06
+    cx = x_spindle - u * max(0.012, half_width + 0.08 - backset)
+    # Start tipped away from the leaf.  At full push travel the plate is
+    # upright and remains 12 mm clear of the leaf; an axis-only change to the
+    # former flat plate would drive its lower edge through the door.
+    lean = op.travel
+    pin_standoff = max(0.018, op.style_params.get("standoff", 0.045) - arm * math.sin(lean))
+    pivot_z = z + arm * math.cos(lean)
+    axis = (v, 0.0, 0.0)
+    rng = (0.0, max(locked_backlash, 0.01)) if locked_backlash is not None else (0.0, op.travel)
+    preload = max(op.spring_torque_preload, 1.5)  # retained native return-spring floor
+    primary = None
+    description = {"primary_joint": f"{name}_hinge", "faces": [],
+                   "coupling": "ideal 1:1 paddle cam; internal cam contact and lost motion not modeled",
+                   "source": "https://commercial.schlage.com/content/dam/allegion-us-2/web-documents-2/InstallInstructions/Glynn-Johnson_HL6-9000_Push_Pull_Mortise_Latch_Installation_Instructions_107563.pdf",
+                   "source_page": 2, "rest_lean_rad": lean, "grip_moment_arm_m": arm}
+    for i, f in enumerate(faces):
+        tag = "p" if f > 0 else "n"
+        body_name = name if i == 0 else f"{name}_paddle_follower_{tag}"
+        pivot = (cx, f * (t / 2 + pin_standoff), pivot_z)
+        body = Body(body_name, leaf_body.name, pivot, QUAT_ID, None, [], [], tiers, "operator", op.name)
+        body.joint = Joint(f"{name}_hinge" if i == 0 else f"{body_name}_hinge", "hinge", axis,
+                           range=rng, damping=0.02 if i == 0 else 0.0,
+                           frictionloss=(0.02 + 0.02 * op.mass) if i == 0 else 0.0,
+                           stiffness=op.spring_rate if i == 0 else 0.0,
+                           springref=-preload / op.spring_rate if i == 0 and op.spring_rate > 0 else 0.0,
+                           armature=2e-5, role="operator" if i == 0 else "mechanism",
+                           robot_interactive=i == 0,
+                           label=f"{op.name} (0 = rest, + = actuated)",
+                           notes="Face-mounted rocker; ideal cam drives latch" +
+                           ("; locked: range limited to backlash" if locked_backlash is not None else ""))
+        q = quat_from_axis_angle((1, 0, 0), f * lean)
+        center = quat_rotate(q, (0, 0, -arm))
+        geom_name = f"{name}_paddle_col_{tag}"
+        body.geoms.append(box(geom_name, tuple(center), (half_width, 0.006, half_height), mat,
+                              3000, True, True, tiers, "operator", "Paddle grip plate", quat=tuple(q)))
+        neck_length = arm - half_height + 0.015
+        body.geoms.append(box(f"{name}_paddle_neck_{tag}",
+                              tuple(quat_rotate(q, (0, 0, -neck_length / 2))),
+                              (0.012, 0.004, neck_length / 2), mat, 3000, True, True, tiers,
+                              "operator", "Paddle neck", quat=tuple(q)))
+        body.geoms.append(cyl(f"{name}_paddle_hub_{tag}", (0, 0, 0), 0.008, 0.016,
+                              mat, (1, 0, 0), 3000, False, True, tiers, "mechanism", "Paddle pivot hub"))
+        # A contact force INTO this face produces +arm N*m per newton.  It is
+        # the outer face on the push side, and the finger-accessible inner
+        # face on the pull side.  Site local +Z is the outward surface normal.
+        site_name = f"{name}_grip_{tag}"
+        site_q = quat_mul(q, quat_z_to((0, -v, 0)))
+        body.sites.append(Site(site_name, tuple(quat_rotate(q, (0, -v * 0.006, -arm))),
+                               tuple(site_q), 0.012, "push" if f == -v else "grip", tiers))
+        # Door-fixed mounting plate, bearing ears and pivot pin.  No rocking
+        # spindle passes through the slab and no mounting plate rides the joint.
+        leaf_body.geoms.append(box(f"{name}_paddle_backplate_{tag}",
+                                    (cx, f * (t / 2 + 0.003), pivot_z - h * 0.35),
+                                    (half_width + 0.012, 0.003, h * 0.5), mat, 3000,
+                                    True, True, tiers, "operator", "Fixed paddle backplate"))
+        for side in (-1, 1):
+            leaf_body.geoms.append(box(f"{name}_paddle_bearing_{tag}_{side}",
+                                        (cx + side * (half_width + 0.006),
+                                         f * (t / 2 + (pin_standoff + 0.006) / 2), pivot_z),
+                                        (0.005, (pin_standoff - 0.006) / 2, 0.009), mat,
+                                        3000, True, True, tiers, "mechanism", "Fixed paddle pivot support"))
+        leaf_body.geoms.append(cyl(f"{name}_paddle_pin_{tag}", pivot, 0.004, half_width + 0.011,
+                                   mat, (1, 0, 0), 7850, False, True, tiers, "mechanism", "Fixed paddle pivot pin"))
+        model.add_body(body)
+        if primary is None:
+            primary = body
+        else:
+            model.equalities.append(Equality("joint", f"{name}_paddle_cam_{tag}", body.joint.name,
+                                             primary.joint.name, (0, 1, 0, 0, 0), tiers=tiers,
+                                             label="Ideal paddle cam: follower q = primary q"))
+        description["faces"].append({"face": f, "body": body.name, "joint": body.joint.name,
+                                      "site": site_name, "geom": geom_name,
+                                      "action": "push" if f == -v else "pull",
+                                      "contact_face": "outer" if f == -v else "inner"})
+    model.meta.setdefault("paddle_mechanisms", []).append(description)
+    return primary
+
+
 def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, op: H.OperatorModel, u: float, v: float, x_spindle: float, z: float, t: float, faces: list, locked_backlash: float | None, name="handle", tiers=ALL_TIERS, keypad_face: float = -1.0, cylinder_face: float | None = None, button_face: float | None = None, rim_case_face: float | None = None):
-    """Lever/knob/paddle/thumbturn-type operator rotating about the door normal.  One body through the door
+    """Lever/knob/thumbturn-type operator rotating about the door normal.  One body through the door
     (spindle) carrying operator meshes on the requested faces.  Positive q = actuating (press down).
     cylinder_face / button_face: face carrying a key cylinder (keyed lever / knob) or a privacy turn button;
     rim_case_face: face carrying a surface-mounted rim lock case that the knob spindle passes through."""
+    if op.kind == "paddle":
+        return add_paddle_operator(model, leaf_body, spec, op, u, v, x_spindle, z, t,
+                                   faces, locked_backlash, name, tiers)
     mat = mat_from_material(model, op.material, f"mat_op_{op.material}")
     body = Body(name, leaf_body.name, (x_spindle, 0.0, z), QUAT_ID, None, [], [], tiers, "operator", op.name)
     outside = 1.0 if not spec["robot"].get("robot_outside") else -1.0
@@ -887,7 +988,7 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
     if locked_backlash is not None:
         rng = (0.0, max(locked_backlash, 0.01))
     axis = (0.0, -u, 0.0)   # pressing lever (reaching -u) down = positive
-    preload_ = max(op.spring_torque_preload, 1.5) if op.kind == "paddle" else op.spring_torque_preload
+    preload_ = op.spring_torque_preload
     body.joint = Joint(f"{name}_hinge", "hinge", axis, (0, 0, 0), rng, damping=0.02, frictionloss=0.02 + 0.02 * op.mass,
                        stiffness=op.spring_rate, springref=(-preload_ / op.spring_rate) if op.spring_rate > 0 else 0.0, armature=2e-5,
                        role="operator", label=f"{op.name} (0 = rest, + = actuated)", notes="locked: range limited to backlash" if locked_backlash is not None else "")
@@ -933,16 +1034,6 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
                 body.geoms.append(box(f"{name}_keyway_{'p' if f > 0 else 'n'}", (0, f * (y_face_k + 0.0025), 0), (0.0012, 0.0008, 0.006), mat_rgba(model, "mat_keyway", (0.05, 0.05, 0.05, 1), 0.5), 7100, False, True, FULL_ONLY, "lock", "Keyway"))
             if button_face is not None and f == button_face and not sp.get("privacy_button") and not sp.get("childproof_cover"):
                 body.geoms.append(cyl(f"{name}_turn_button_{'p' if f > 0 else 'n'}", (0, f * (y_face_k + 0.004), 0), 0.005, 0.005, trim_m, (0, 1, 0), 7100, False, True, FULL_ONLY, "lock", "Privacy button"))
-        elif op.kind in ("paddle",):
-            key, mesh = MESH.paddle_mesh(size=tuple(sp.get("size", (0.1, 0.18))), standoff=sp.get("standoff", 0.045))
-            w_p = sp.get("size", (0.1, 0.18))[0]
-            cx_m = -u * max(0.012, min(w_p / 2, 0.032) + 0.08 - (H.LATCHES[spec["latch"]["model"]].backset or 0.06))
-            body.geoms.append(mesh_geom(f"{name}_paddle_{'p' if f > 0 else 'n'}", key, mesh, (cx_m, f * t / 2, 0), q, mat, 3000, False, ALL_TIERS, "operator", "Paddle"))
-            w, h = sp.get("size", (0.1, 0.18))
-            backset_p = H.LATCHES[spec["latch"]["model"]].backset or 0.06
-            cx_p = -u * max(0.012, min(w / 2, 0.032) + 0.08 - backset_p)
-            body.geoms.append(box(f"{name}_paddle_col_{'p' if f > 0 else 'n'}", (cx_p, f * (t / 2 + sp.get("standoff", 0.045)), 0), (min(w / 2, 0.032), 0.006, h * 0.35), mat, 3000, True, False, ALL_TIERS, "operator", "Paddle grip"))
-            grip_sites.append(Site(f"{name}_grip_{'p' if f > 0 else 'n'}", (0, f * (t / 2 + sp.get("standoff", 0.045)), 0), QUAT_ID, 0.012, "push"))
         elif op.kind == "wheel":
             key, mesh = MESH.wheel_mesh(diameter=sp.get("diameter", 0.4), spokes=sp.get("spokes", 5), bar_diameter=sp.get("bar_diameter", 0.022), hub_len=0.08)
             body.geoms.append(mesh_geom(f"{name}_wheel_{'p' if f > 0 else 'n'}", key, mesh, (0, f * t / 2, 0), q, mat, 3000, False, ALL_TIERS, "operator", "Handwheel"))

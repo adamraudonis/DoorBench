@@ -229,3 +229,79 @@ def test_invalid_state_rejected(door):
     with pytest.raises(ValueError,match='native_qpos'):s.set_door_state([float('nan')])
     with pytest.raises(ValueError,match='previous_q'):s.solve({},.05,previous_q=[0])
     with pytest.raises(ValueError,match='dt'):s.solve({},0.)
+
+
+@pytest.fixture
+def swept_hand_obstacle(door):
+    # Both shoulder poses clear a small sphere, while the joint geodesic carries
+    # the hand directly through it. This catches endpoint-only acceptance.
+    original=DoorHumanoidIK(door);point=original.joint_positions()[9]
+    xml=door/'door.xml'
+    xml.write_text(xml.read_text().replace('</worldbody>',
+        '<geom name="swept_obstacle" type="sphere" size=".01" pos="'+
+        ' '.join(map(str,point))+'"/></worldbody>'))
+    solver=DoorHumanoidIK(door,max_iterations=1)
+    address=int(solver.model.joint('actor_shoulder_r_pitch').qposadr[0])
+    start=solver.qpos.copy();end=start.copy();start[address]=-.3;end[address]=.3
+    assert solver.diagnostics(start)['min_noncontact_distance_m']>=solver.clearance
+    assert solver.diagnostics(end)['min_noncontact_distance_m']>=solver.clearance
+    return solver,start,end
+
+
+def test_geodesic_edge_rejects_real_collision_between_clear_endpoints(swept_hand_obstacle):
+    solver,start,end=swept_hand_obstacle
+    clear,samples=solver._edge_clear(start,end,.05)
+    assert not clear and samples>0
+    displacement=np.zeros(solver.model.nv)
+    mujoco.mj_differentiatePos(solver.model,displacement,1.,start,end)
+    halfway=start.copy();mujoco.mj_integratePos(solver.model,halfway,displacement,.5)
+    data=solver._fresh_data(halfway)
+    distance=mujoco.mj_geomDistance(solver.model,data,int(solver.model.geom('actor_geom_hand_r').id),
+                                  int(solver.model.geom('swept_obstacle').id),.1,None)
+    assert distance<-.04
+    assert solver._edge_clear(start,start,.05)==(True,1)
+
+
+def test_candidate_line_search_checks_whole_input_to_output_edge(swept_hand_obstacle,monkeypatch):
+    solver,start,end=swept_hand_obstacle;dt=.5
+    velocity=np.empty(solver.model.nv)
+    mujoco.mj_differentiatePos(solver.model,velocity,dt,start,end)
+    monkeypatch.setattr('doorbench.reference.ik.mink.solve_ik',lambda *args,**kwargs:velocity.copy())
+    result=solver.solve({},dt,previous_q=start)
+    assert result.diagnostics['edge_clearance_scope']=='held_native_without_grip'
+    assert result.diagnostics['edge_clearance_rejections']>=1
+    assert result.diagnostics['edge_clearance_samples']>0
+    assert not np.allclose(result.qpos,end)
+    assert solver._edge_clear(start,result.qpos,dt)[0]
+    assert result.diagnostics['min_noncontact_distance_m']>=solver.clearance-1e-5
+    assert result.diagnostics['max_velocity_limit_ratio']<=1.0001
+
+
+def test_native_history_and_grip_transitions_do_not_claim_held_edge_coverage(door):
+    solver=DoorHumanoidIK(door)
+    solver.solve(stance(solver),.05)
+    solver.set_door_state([.2])
+    # qpos already contains the NEW native pose; the preserved history must
+    # still detect that the interval's original native pose was different.
+    assert solver.qpos[solver.native_qpos_indices].tolist()==[.2]
+    moved=solver.solve(stance(solver),.05)
+    assert moved.diagnostics['edge_clearance_scope']=='skipped_moving_native_or_grip'
+    assert moved.diagnostics['edge_clearance_samples']==0
+    held=solver.solve(stance(solver),.05)
+    assert held.diagnostics['edge_clearance_scope']=='held_native_without_grip'
+    assert held.diagnostics['edge_clearance_samples']>0
+    targets=stance(solver);targets['right_hand']={'pos':solver.joint_positions()[9], 'grip_geoms':['handle']}
+    active=solver.solve(targets,.05)
+    released=solver.solve(stance(solver),.05)
+    assert active.diagnostics['edge_clearance_scope']==released.diagnostics['edge_clearance_scope']=='skipped_moving_native_or_grip'
+    assert solver.solve(stance(solver),.05).diagnostics['edge_clearance_scope']=='held_native_without_grip'
+
+
+def test_edge_subdivision_uses_free_root_translation_norm_and_dt(door):
+    solver=DoorHumanoidIK(door);start=solver.qpos.copy();end=start.copy()
+    address=int(solver.model.joint('actor_root').qposadr[0]);end[address:address+2]+=.017
+    # Diagonal displacement needs three segments; either coordinate needs two.
+    assert solver._edge_clear(start,end,.001)==(True,2)
+    assert solver._edge_clear(start,start,.101)==(True,4)
+    end=start.copy();end[address]+=.048
+    assert solver._edge_clear(start,end,.001)==(True,4)

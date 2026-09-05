@@ -41,6 +41,10 @@ slow; passing those checks does not establish natural timing.
 
 ## What is checked
 
+The next generator revision adds three conservative improvements. Eligible powered sources wait and traverse with both hands inactive; their source poses remain prescribed and sensor causality is unverified. Eligible already-unlocked sliding hasps use exact joint/body/site/geometry roles, with a held native pose during withdrawal, repositioning and re-reach. The solver also checks joint-space interpolation during intervals with an unchanged native pose and no active grip at either endpoint. Moving-door and grip intervals remain subject to the independent validator.
+
+These additions do not alter the published first baseline. Every new candidate must pass a fresh independent report; neither successful pilot status nor a stronger generation check is copied into acceptance.
+
 | Check | Evidence |
 |---|---|
 | Fixed original rig | 38 position coordinates, 37 degrees of freedom; unchanged link geometry and joint ranges |
@@ -54,6 +58,16 @@ slow; passing those checks does not establish natural timing.
 The validator's report records all numeric thresholds and the interpolation sampling resolution. Its result is independent of solver success flags. `accepted_kinematic` means these declared checks passed; personal visual review is separate. The [all-door audit of the earlier overlay](research/reference-feasibility-baseline.md) explains why that distinction matters.
 
 The standard rig has a neutral head top of 1.68 m, a rigid 20 cm head, finite feet and spherical hand proxies. It has no fingers. Some apertures are intrinsically too small for that head; other cases need crawling, climbing, access equipment or a better planner. Full dataset coverage includes honest unresolved cases rather than silently changing the actor or the requested task.
+
+Compare complete revisions with matching native inputs, original rig and independent gates:
+
+```sh
+.venv/bin/python scripts/compare_planned_reference_corpora.py \
+  --before out/reference-planned-corpus-v1 --after out/reference-planned-corpus-v2 \
+  --out out/reference-comparison/v1-v2.json
+```
+
+The comparison verifies complete artifact inventories and bound acceptance reports, lists both new acceptances and regressions, and separates source-task counts from durations. It rejects pending runs, changed native inputs, and changed validation thresholds. It does not infer visual or dynamic success.
 
 ## Read the arrays
 

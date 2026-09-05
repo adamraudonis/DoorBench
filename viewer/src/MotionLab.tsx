@@ -6,6 +6,7 @@ import { FAMILY_LABELS } from './types';
 import { artifactURL,buildPlannedPlayer,buildVerifiedDoor,fetchPlannedClip,motionTaskDetail,motionTaskLabel,SOURCE_SCENARIOS,validateMotionIndex,type MotionEntry,type MotionIndex } from './plannedReferenceMotion';
 import type { BuiltScene } from './scene';
 import {MotionVisualReviewPanel} from './MotionVisualReview';
+import {fetchReadOnly} from './readOnlyFetch';
 import './MotionLab.css';
 
 const labels:Record<string,string>={accepted_kinematic:'Accepted',rejected:'Rejected',unresolved:'Unresolved'};
@@ -22,7 +23,7 @@ export function MotionLab({manifest}:{manifest:Manifest}) {
   const queueElement=useRef<HTMLElement>(null);
   const [selected,setSelected]=useState(()=>new URLSearchParams(window.location.hash.split('?')[1]??'').get('door')??'');
   useEffect(()=>{const controller=new AbortController();setError('');
-    fetch(indexURL,{signal:controller.signal,cache:'no-cache'}).then(r=>{if(!r.ok)throw Error(`Motion index unavailable (${r.status})`);return r.json();}).then(value=>{
+    fetchReadOnly(indexURL,{signal:controller.signal,cache:'no-cache'}).then(r=>{if(!r.ok)throw Error(`Motion index unavailable (${r.status})`);return r.json();}).then(value=>{
       const next=validateMotionIndex(value);setIndex(next);setSelected(old=>next.doors.some(d=>d.door_id===old)?old:next.doors.find(d=>d.clip)?.door_id??next.doors[0]?.door_id??'');
     }).catch(e=>{if(!controller.signal.aborted)setError(String(e));});return()=>controller.abort();
   },[indexURL,revision]);
@@ -59,8 +60,11 @@ export function MotionLab({manifest}:{manifest:Manifest}) {
 function MotionViewport({entry,indexURL}:{entry:MotionEntry;indexURL:string}) {
   const mount=useRef<HTMLDivElement>(null),engine=useRef<{built:BuiltScene;player:ReturnType<typeof buildPlannedPlayer>;frame:()=>void}|null>(null);
   const clock=useRef({time:0,playing:false,speed:1,last:0});
+  const [revision,setRevision]=useState(0);
   const [ready,setReady]=useState(false),[error,setError]=useState(''),[time,setTime]=useState(0),[playing,setPlaying]=useState(false),[speed,setSpeed]=useState(1),[phase,setPhase]=useState(''),[diagnostic,setDiagnostic]=useState(false);
   useEffect(()=>{const controller=new AbortController(),element=mount.current!;let animation=0,renderer:THREE.WebGLRenderer|undefined,controls:OrbitControls|undefined,observer:ResizeObserver|undefined,built:BuiltScene|undefined,player:ReturnType<typeof buildPlannedPlayer>|undefined;
+    setReady(false);setError('');setTime(0);setPlaying(false);setPhase('');setDiagnostic(false);setSpeed(1);
+    clock.current={time:0,playing:false,speed:1,last:0};
     void(async()=>{
       const loaded=await fetchPlannedClip(entry,indexURL,controller.signal);if(controller.signal.aborted)return;
       built=await buildVerifiedDoor(loaded.model,loaded.files);if(controller.signal.aborted){built.dispose();return;}
@@ -79,9 +83,9 @@ function MotionViewport({entry,indexURL}:{entry:MotionEntry;indexURL:string}) {
       };animation=requestAnimationFrame(loop);
     })().catch(e=>{if(!controller.signal.aborted)setError(String(e));});
     return()=>{controller.abort();cancelAnimationFrame(animation);observer?.disconnect();controls?.dispose();player?.dispose();built?.dispose();renderer?.dispose();renderer?.domElement.remove();engine.current=null;clock.current.playing=false;if(import.meta.env.DEV)delete(window as any).__motionLab;};
-  },[entry.door_id,entry.clip?.sha256,indexURL]);
+  },[entry.door_id,entry.clip?.sha256,indexURL,revision]);
   function toggle(){const state=clock.current;if(state.time>=entry.clip!.duration)state.time=0;state.playing=!state.playing;setPlaying(state.playing);}
-  return <div className="motion-player"><div className="motion-canvas" ref={mount} aria-label="Articulated motion viewport"/>{!ready&&!error&&<div className="motion-overlay">Verifying motion and source assets…</div>}{error&&<div className="motion-overlay motion-error" role="alert">Playback blocked: {error}</div>}
+  return <div className="motion-player"><div className="motion-canvas" ref={mount} aria-label="Articulated motion viewport"/>{!ready&&!error&&<div className="motion-overlay">Verifying motion and source assets…</div>}{error&&<div className="motion-overlay motion-error" role="alert"><p>Playback blocked: {error}</p><button onClick={()=>setRevision(r=>r+1)}>Try again</button></div>}
     <div className="motion-view-tools"><button disabled={!ready} aria-pressed={diagnostic} onClick={()=>{engine.current?.built.setDiagnostic(!diagnostic);setDiagnostic(v=>!v);}}>Brown / gold</button><button disabled={!ready} onClick={()=>engine.current?.frame()}>Frame motion</button></div>
     <div className="motion-playback"><div><button className="primary" disabled={!ready} onClick={toggle}>{playing?'Pause':'Play'}</button><button disabled={!ready} onClick={()=>{clock.current.time=0;clock.current.playing=false;setPlaying(false);setTime(0);}}>Reset</button><strong>{human(phase||'Loading')}</strong><label>Speed<select value={speed} onChange={e=>{const value=Number(e.target.value);clock.current.speed=value;setSpeed(value);}}>{[.25,.5,1,2].map(v=><option value={v} key={v}>{v}×</option>)}</select></label></div><label className="motion-scrub"><span>{time.toFixed(1)} s <span>/ {entry.clip!.duration.toFixed(1)} s</span></span><input aria-label="Motion time" type="range" min={0} max={entry.clip!.duration} step="any" value={time} disabled={!ready} onChange={e=>{clock.current.time=Number(e.target.value);setTime(Number(e.target.value));}}/></label><small>Original articulated geometry · recorded body transforms · interpolation is illustrative</small></div>
   </div>;

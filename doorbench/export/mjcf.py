@@ -208,7 +208,7 @@ def build_mjcf(model: Model, tier: str = "full", mesh_dir_rel: str = "../../hard
                     _geom_xml(parent_elem, g, tier, mesh_dir_rel, mats)
             for s in b.sites:
                 if tier in s.tiers:
-                    se = ET.SubElement(parent_elem, "site", name=s.name, pos=_f(s.pos), size=_f(s.size), rgba="0.2 0.9 0.2 0.5", group="4")
+                    se = ET.SubElement(parent_elem, "site", name=s.name, pos=_f(s.pos), quat=_f(s.quat), size=_f(s.size), rgba="0.2 0.9 0.2 0.5", group="4")
             xml_bodies[b.name] = parent_elem
             return parent_elem
         e = ET.SubElement(parent_elem, "body", name=b.name, pos=_f(b.pos))
@@ -222,7 +222,7 @@ def build_mjcf(model: Model, tier: str = "full", mesh_dir_rel: str = "../../hard
                 _geom_xml(e, g, tier, mesh_dir_rel, mats)
         for s in b.sites:
             if tier in s.tiers:
-                ET.SubElement(e, "site", name=s.name, pos=_f(s.pos), size=_f(s.size), rgba="0.2 0.9 0.2 0.5", group="4")
+                ET.SubElement(e, "site", name=s.name, pos=_f(s.pos), quat=_f(s.quat), size=_f(s.size), rgba="0.2 0.9 0.2 0.5", group="4")
         xml_bodies[b.name] = e
         return e
 

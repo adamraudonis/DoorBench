@@ -265,9 +265,9 @@ _o(OperatorModel("panic_crossbar", "Crossbar exit device (Von Duprin 88 class)",
                  {"shape": "crossbar", "bar_length_frac": 0.75, "bar_diameter": 0.025, "arm_length": 0.06}, "brass", "Von Duprin 88 crossbar; 20 deg arc"))
 _o(OperatorModel("panic_touchbar_alarm", "Exit device w/ alarm & delayed egress (15 s)", "panic_touchbar", "push_in", 0.016, 0.002, 18.0, 1200.0, 66.7, 0.0, 800.0, 6.5, False,
                  {"shape": "touchbar", "bar_length_frac": 0.65, "bar_height": 0.05, "bar_depth": 0.065, "rim_case": True, "alarm": True}, "stainless", "Von Duprin Chexit delayed egress"))
-_o(OperatorModel("paddle_push_pull", "Push/pull paddle (hospital latch)", "paddle", "rotate_normal", 0.40, 0.03, 0.6, 1.5, 22.2, 0.09, 30.0, 1.8, True,
+_o(OperatorModel("paddle_push_pull", "Push/pull paddle (hospital latch)", "paddle", "rotate_horizontal", 0.40, 0.03, 0.6, 1.5, 22.2, 0.09, 30.0, 1.8, True,
                  {"shape": "paddle", "size": (0.10, 0.18), "standoff": 0.045}, "stainless", "Glynn-Johnson HL6 hospital push/pull latch"))
-_o(OperatorModel("paddle_hospital_arm", "Hospital arm-pull paddle (elbow operated)", "paddle", "rotate_normal", 0.40, 0.03, 0.5, 1.2, 22.2, 0.12, 30.0, 2.0, True,
+_o(OperatorModel("paddle_hospital_arm", "Hospital arm-pull paddle (elbow operated)", "paddle", "rotate_horizontal", 0.40, 0.03, 0.5, 1.2, 22.2, 0.12, 30.0, 2.0, True,
                  {"shape": "paddle_arm", "size": (0.12, 0.22), "standoff": 0.06}, "stainless", "Rixson / Glynn-Johnson arm pull"))
 
 # Gate & rustic latches

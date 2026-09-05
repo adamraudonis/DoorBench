@@ -136,6 +136,21 @@ def make_guide(door_dir,recording_dir,*,fps=30,gait_profile='smooth'):
     with np.load(recording_dir/'trajectories'/f'{door_id}.npz',allow_pickle=False) as f:
         source={k:f[k].astype(float) for k in ['time','qpos','target','base','tau']}
     spec=json.loads((door_dir/'spec.json').read_text())
+    from .powered import powered_eligibility, make_powered_guide
+    if not powered_eligibility(clip,spec,source):
+        # The selected builder authenticates its inputs before planning. Do not
+        # catch integrity or route errors and invent a manual fallback for it.
+        return make_powered_guide(door_dir,recording_dir,fps=fps,gait_profile=gait_profile)
+    if spec.get('family')=='sliding_single' and spec.get('lock',{}).get('model')=='padlock':
+        from .manual_contacts import plan_manual_contacts,build_manual_guide,UnsupportedManualContact
+        model_ir=json.loads((door_dir/'model.json').read_text())
+        try:
+            plan_manual_contacts(spec,model_ir,clip,source)
+        except UnsupportedManualContact:
+            pass  # Unsupported schedules retain the baseline's explicit limits.
+        else:
+            # Source-integrity and route errors from a selected builder surface.
+            return build_manual_guide(door_dir,recording_dir,fps=fps,gait_profile=gait_profile).guide
     scenario=next(s for s in spec['benchmark']['scenarios'] if s['name']==clip['scenario'])
     nav=SceneNavigator(door_dir)
     start=source['base'][0,:2]

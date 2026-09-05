@@ -228,7 +228,12 @@ def compliance(spec: dict, phys: dict) -> dict:
     F_start = tau_static / arm
     F_90 = tau_90 / arm
     op_force = 0.0
-    if op.motion == "rotate_normal" and op.grip_offset > 0:
+    if op.kind == "paddle" and op.motion == "rotate_horizontal" and op.grip_offset > 0:
+        # Face-normal force about the horizontal rocker pin.  Match the
+        # generator's retained return-spring floor; this is a spring estimate,
+        # excluding latch/cam friction and gravity, not a certification.
+        op_force = (max(op.spring_torque_preload, 1.5) + op.spring_rate * op.travel) / op.grip_offset
+    elif op.motion == "rotate_normal" and op.grip_offset > 0:
         op_force = (op.spring_torque_preload + op.spring_rate * op.travel) / op.grip_offset
     elif op.motion == "push_in":
         op_force = op.spring_torque_preload + op.spring_rate * op.travel

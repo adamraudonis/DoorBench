@@ -23,8 +23,8 @@ def write_json(path,value):
 
 class ContactResolver:
     """Put the hand sphere on a grasp surface, rather than inside a handle."""
-    def __init__(self,solver,model_ir,source):
-        self.solver=solver;self.source=source;self.ids=[]
+    def __init__(self,solver,model_ir,source,*,roles=None):
+        self.solver=solver;self.source=source;self.ids=[];self.roles=None
         for b in model_ir['bodies']:
             for g in b['geoms']:
                 if not g.get('collision'):continue
@@ -33,13 +33,37 @@ class ContactResolver:
                     except KeyError:continue
                     if i in solver.scene_geom_ids and i not in solver.floor_geom_ids:self.ids.append(i)
 
-    def resolve(self,native_time,pelvis):
-        point=np.array([np.interp(native_time,self.source['time'],self.source['target'][:,i]) for i in range(3)])
+        if roles is not None:
+            self.roles={}
+            for role in roles:
+                name=role['id']
+                if name in self.roles:raise ValueError('Duplicate manual contact role')
+                model=solver.model
+                site=model.site(role['site_name']);geom=model.geom(role['geom_name'])
+                body=int(model.body(role['body_name']).id)
+                if (int(site.bodyid[0])!=body or int(geom.bodyid[0])!=body or
+                    int(model.joint(role['joint_name']).bodyid[0])!=body or int(geom.id) not in self.ids):
+                    raise ValueError('Manual role must bind one native joint body, grip site and eligible collision geometry')
+                if int(geom.type[0])==int(mujoco.mjtGeom.mjGEOM_MESH):
+                    raise ValueError('Manual role requires a supported collision primitive')
+                self.roles[name]=(int(site.id),int(geom.id))
+            if not self.roles:raise ValueError('Manual contact schedule has no roles')
+
+    def resolve(self,native_time,pelvis,*,role_id=None):
+        if self.roles is not None:
+            if role_id is None:return np.zeros(3),np.zeros(3),None
+            if role_id not in self.roles:raise ValueError('Unknown manual contact role')
+            site,geom=self.roles[role_id]
+            point=self.solver.data.site_xpos[site].copy();ids=[geom]
+        else:
+            if role_id is not None:raise ValueError('Contact role supplied without a bound schedule')
+            point=np.array([np.interp(native_time,self.source['time'],self.source['target'][:,i]) for i in range(3)])
+            ids=self.ids
         direction=np.r_[np.asarray(pelvis)[:2]-point[:2],0.]
         direction/=max(np.linalg.norm(direction),1e-8)
         data=self.solver.data;model=self.solver.model
         candidates=[]
-        for i in self.ids:
+        for i in ids:
             center=data.geom_xpos[i]
             if np.linalg.norm(center-point)>float(model.geom_rbound[i])+.09:continue
             typ=int(model.geom_type[i])
@@ -76,7 +100,14 @@ def solve_door(door_dir,recording_dir,out,*,fps=60,max_frames=None,gait_profile=
     solver=DoorHumanoidIK(directory,native_qpos=guide.native_qpos[0],root_pos=guide.pelvis[0],root_yaw=float(guide.yaw[0]),clearance=.004)
     with np.load(Path(recording_dir)/'trajectories'/f'{directory.name}.npz',allow_pickle=False) as data:
         source={k:data[k].copy() for k in ['time','target']}
-    ir=json.loads((directory/'model.json').read_text());resolver=ContactResolver(solver,ir,source)
+    ir=json.loads((directory/'model.json').read_text())
+    schedule=guide.metadata.get('manual_contact_schedule')
+    role_ids=schedule['contact_role_ids'] if schedule else None
+    if schedule and (len(role_ids)!=len(guide.time) or any(
+        role is None and (guide.hand_weight[i].max()>1e-8 or guide.hand_contact[i].any())
+        for i,role in enumerate(role_ids))):
+        raise ValueError('Manual contact role timeline does not cover every active or blended hand target')
+    resolver=ContactResolver(solver,ir,source,roles=schedule['roles'] if schedule else None)
     native_body_names=[solver.rig.native_model.body(i).name for i in range(solver.rig.native_model.nbody)]
     native_body_ids=[int(solver.model.body(name).id) for name in native_body_names]
     actor_body_ids=[i for i in range(solver.model.nbody) if solver.model.body(i).name.startswith('actor_')]
@@ -104,12 +135,16 @@ def solve_door(door_dir,recording_dir,out,*,fps=60,max_frames=None,gait_profile=
                 'contact':bool(guide.foot_contact[i,k]),'position_cost':8.,'orientation_cost':2.,
                 'position_tolerance_m':.005,'orientation_tolerance_rad':.015}
         desired_hands=guide.hands[i].copy()
-        anchor,contact_target,geom=resolver.resolve(guide.native_time[i],guide.pelvis[i])
+        anchor,contact_target,geom=resolver.resolve(guide.native_time[i],guide.pelvis[i],
+                                                  role_id=role_ids[i] if role_ids is not None else None)
         for k,name in enumerate(['left_hand','right_hand']):
             weight=guide.hand_weight[i,k]
             desired_hands[k]+=(contact_target-anchor)*weight
             contact=bool(guide.hand_contact[i,k])
-            targets[name]={'pos':desired_hands[k],'position_cost':.18+(4.-.18)*weight,
+            # Explicit role schedules keep the finite proxy inside the same
+            # independently checked 5 mm surface-gap limit during regrasp.
+            active_cost=16. if schedule else 4.
+            targets[name]={'pos':desired_hands[k],'position_cost':.18+(active_cost-.18)*weight,
                 'position_tolerance_m':.01 if contact else .09,
                 'grip_geoms':[geom] if geom and contact else []}
             if weight>1e-8:
