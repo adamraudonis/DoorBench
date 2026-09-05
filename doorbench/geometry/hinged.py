@@ -252,6 +252,8 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
     # lock trims on the operator: key cylinder outside (keyed lever / knob), turn button inside (privacy / keyed)
     cyl_face = outside_face if lk.kind == "keyed_cylinder" else None
     btn_face = -outside_face if lk.kind in ("privacy_button", "keyed_cylinder") else None
+    drive_op = opm      # the operator model of the joint the latch tendon is scaled to (a handleset drives it with
+    #                     its interior knob, whose travel is not the thumb piece's)
     if opm.kind in ("lever", "knob", "keypad_lever", "card_lever", "keypad_deadbolt", "paddle", "t_handle", "cremone", "wheel") and faces:
         hb = C.add_rotary_operator(model, leaf_body, spec, phys, opm, u, v, x_spindle, hz, t, faces, locked_backlash, name=f"{leaf_name}_handle", cylinder_face=cyl_face, button_face=btn_face, rim_case_face=(-outside_face if opm.style_params.get("rim_box") else None))
         handle_joint = hb.joint.name
@@ -304,10 +306,13 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
             knob = H.OPERATORS["knob_round"]
             hb = C.add_rotary_operator(model, leaf_body, spec, phys, knob, u, v, x_spindle, hz, t, [1.0], locked_backlash, name=f"{leaf_name}_handle")
             handle_joint = hb.joint.name
+            # the interior knob turns 50 deg where the thumb piece swings 20: the bolt coupling below has to be scaled
+            # to the joint it actually drives, or the shared one-sided tendon stops the knob a third of the way round
+            drive_op = knob
             # thumb piece (robot side) drives the same latch: small body with hinge about x on the -1 face, sitting at
             # the top of the grip plate (the deadbolt cylinder is above it, as on a Kwikset / Schlage handleset)
             tp = Body(f"{leaf_name}_thumbpiece", leaf_body.name, (x_edge - u * 0.105, -1.0 * (t / 2 + 0.018), hz + 0.112), QUAT_ID, None, [], [], FULL_SIMPLE, "operator", "Thumb latch")
-            tp.joint = Joint(f"{leaf_name}_thumbpiece_hinge", "hinge", (-1, 0, 0), (0, 0, 0.02), (0.0, opm.travel), damping=0.02, frictionloss=0.02, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Thumb piece (press in)")
+            tp.joint = Joint(f"{leaf_name}_thumbpiece_hinge", "hinge", (-1, 0, 0), (0, 0, 0.02), (0.0, opm.travel), damping=0.02, frictionloss=0.02, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Thumb piece (press in; spring return)", return_kind=opm.return_kind, operator_model=opm.id)
             tm = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
             tp.geoms.append(C.box(f"{leaf_name}_thumbpiece_geom", (0, 0, 0), (0.018, 0.004, 0.02), tm, 3000, True, True, FULL_SIMPLE, "operator", "Thumb piece"))
             tp.geoms.append(C.box(f"{leaf_name}_thumbpiece_boss", (0, 0.012, 0), (0.010, 0.012, 0.006), tm, 3000, False, True, FULL_SIMPLE, "operator", "Thumb piece pivot boss"))
@@ -336,7 +341,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         # thumb piece: a horizontal pad standing off the plate top, pivoting on a pin along x at the door face; pressing
         # the pad DOWN (+q) rotates its tang, which passes through the door at pivot level, UP under the latch bar
         thumb = Body(f"{leaf_name}_thumb", leaf_body.name, (x_edge - u * 0.08, -1.0 * t / 2, hz + 0.095), QUAT_ID, None, [], [], ALL_TIERS, "operator", "Thumb press")
-        thumb.joint = Joint(f"{leaf_name}_thumb_hinge", "hinge", (1, 0, 0), (0, 0, 0), (0.0, opm.travel), damping=0.02, frictionloss=0.05, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Thumb press (+ = pad pressed down)")
+        thumb.joint = Joint(f"{leaf_name}_thumb_hinge", "hinge", (1, 0, 0), (0, 0, 0), (0.0, opm.travel), damping=0.02, frictionloss=0.05, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Thumb press (+ = pad pressed down; spring return)", return_kind=opm.return_kind, operator_model=opm.id)
         thumb.geoms.append(C.box(f"{leaf_name}_thumb_geom", (0, -0.020, 0.0), (0.015, 0.014, 0.003), mat, 7000, True, True, ALL_TIERS, "operator", "Thumb pad"))
         thumb.geoms.append(C.box(f"{leaf_name}_thumb_boss", (0, -0.004, -0.005), (0.012, 0.008, 0.013), mat, 7000, False, True, FULL_SIMPLE, "operator", "Pivot boss"))
         thumb.geoms.append(C.box(f"{leaf_name}_thumb_lifter", (0, (0.002 + t + 0.010) / 2, -0.017), (0.004, (t + 0.008) / 2, 0.004), mat, 7000, False, True, FULL_SIMPLE, "operator", "Lifter tang (through the door, under the latch bar)"))
@@ -374,7 +379,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         h_f = 0.05                                        # the arm rises slightly to the fork (prongs above the pivot)
         dens = 2500.0                                     # pressed-steel fork, ~0.25 kg
         fork = Body(f"{leaf_name}_fork", leaf_body.name, (x_piv, 0.0, hz), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Fork latch")
-        fork.joint = Joint(f"{leaf_name}_fork_hinge", "hinge", (0, -u, 0), (0, 0, 0), (0.0, 1.2), damping=0.02, frictionloss=0.02, role="operator", label="Fork latch (0 = dropped over the post, + = lifted; lift to open AND to close)")
+        fork.joint = Joint(f"{leaf_name}_fork_hinge", "hinge", (0, -u, 0), (0, 0, 0), (0.0, 1.2), damping=0.02, frictionloss=0.02, role="operator", label="Fork latch (0 = dropped over the post, + = lifted; gravity return, no spring)", return_kind="gravity", operator_model=opm.id)
         x_root = A - ps_ / 2 - 0.020                      # prong root / bridge, 20 mm short of the post face
         L_pr = A + 0.03 - x_root                          # prongs reach 30 mm past the post centre
         # sloping arm from the pivot eye up to the prong root
@@ -415,7 +420,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         sx_w = u * (Wo / 2)
         gap_edge = abs(sx_w - (hx + x_edge))
         protrusion = min(opm.travel - 0.004, max(0.036, gap_edge + 0.032))
-        sb, info = C.add_barrel_bolt(model, leaf_body, f"{leaf_name}_slide_bolt", (x_edge, face * t / 2, hz), (u, 0, 0), (0, face, 0), L, d, opm.travel, engaged, mat, protrusion=protrusion, standoff=standoff, role="lock", label="Slide bolt (0 = engaged, + = withdrawn)", frictionloss=opm.spring_torque_preload, joint_name=f"{leaf_name}_slide_bolt_slide", grip_site=f"{leaf_name}_grip_n")
+        sb, info = C.add_barrel_bolt(model, leaf_body, f"{leaf_name}_slide_bolt", (x_edge, face * t / 2, hz), (u, 0, 0), (0, face, 0), L, d, opm.travel, engaged, mat, protrusion=protrusion, standoff=standoff, role="lock", label="Slide bolt (0 = engaged, + = withdrawn)", frictionloss=opm.hold_friction, joint_name=f"{leaf_name}_slide_bolt_slide", grip_site=f"{leaf_name}_grip_n")
         y_rod = face * (t / 2 + standoff)
         if is_gate:
             x_keep = sx_w + u * min(0.020, max(0.012, protrusion - gap_edge - 0.012))
@@ -442,7 +447,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         x_pin_w = hx + x_edge - u * 0.04         # world x, 40 mm inside the gate's latch edge (striker clears the post while swinging)
         sx_w = u * (Wo / 2)
         pin = Body(f"{leaf_name}_pin", None, (x_pin_w, y_pin, hz), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Lift pin")
-        pin.joint = Joint(f"{leaf_name}_pin_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, opm.travel + 0.03), damping=1.0, frictionloss=0.2, stiffness=60.0, springref=-1.0 / 60.0, role="operator", label="Lift pin (+ = lifted; weak return spring, magnet-assisted drop)")
+        pin.joint = Joint(f"{leaf_name}_pin_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, opm.travel + 0.03), damping=1.0, frictionloss=0.2, stiffness=60.0, springref=-1.0 / 60.0, role="operator", label="Lift pin (+ = lifted; weak return spring, magnet-assisted drop)", return_kind=opm.return_kind, operator_model=opm.id)
         # one rod: the shaft runs from the striker cup all the way up into the knob (it used to stop 27 mm short)
         pin.geoms.append(Geom(f"{leaf_name}_pin_geom", "capsule", (0.006, 0.0525), (0, 0, 0.0025), (1, 0, 0, 0), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "latch", "Latch pin"))
         pin.geoms.append(Geom(f"{leaf_name}_pin_knob", "capsule", (0.012, 0.01), (0, 0, 0.065), (1, 0, 0, 0), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Lift knob"))
@@ -477,7 +482,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         # push-button latch: small button on the robot face (slide), lever-ish; couples to a small latch bolt
         mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
         btn = Body(f"{leaf_name}_pushbutton", leaf_body.name, (x_spindle, -1.0 * (t / 2 + 0.01), hz), QUAT_ID, None, [], [], ALL_TIERS, "operator", "Push button")
-        btn.joint = Joint(f"{leaf_name}_pushbutton_slide", "slide", (0, 1, 0), (0, 0, 0), (0.0, opm.travel), damping=1.0, frictionloss=0.2, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Push button (+ = pressed)")
+        btn.joint = Joint(f"{leaf_name}_pushbutton_slide", "slide", (0, 1, 0), (0, 0, 0), (0.0, opm.travel), damping=1.0, frictionloss=0.2, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Push button (+ = pressed; spring return)", return_kind=opm.return_kind, operator_model=opm.id)
         btn.geoms.append(C.cyl(f"{leaf_name}_pushbutton_geom", (0, -0.006, 0), 0.01, 0.006, mat, (0, 1, 0), 2700, True, True, ALL_TIERS, "operator", "Button"))
         btn.sites.append(Site(f"{leaf_name}_push", (0, -0.012, 0), QUAT_ID, 0.01, "push"))
         model.add_body(btn)
@@ -487,7 +492,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         leaf_body.geoms.append(C.box(f"{leaf_name}_pushbutton_housing", (x_spindle, -1.0 * (t / 2 + 0.006), hz), (0.02, 0.006, 0.045), mat, 2700, False, True, FULL_SIMPLE, "operator", "Latch housing"))
     # --- latches
     if lt.throw > 0 and lt.kind in ("tubular_latch", "deadlatch", "mortise_latch", "rim_latch", "roller", "ball_catch", "hook") and fam not in ("stall",) and opm.kind not in ("lift_latch", "slide_bolt_handle", "gate_latch_fork", "thumb_latch", "hasp"):
-        scale_eff = scale if handle_joint else 0.0
+        scale_eff = (lt.throw / max(drive_op.travel - drive_op.dead_travel, 1e-6)) if handle_joint else 0.0
         # rim exit device: the Pullman latch bolt lives in the surface case on the push face (not in the slab) and
         # shoots into a pocket + lip strike at that offset in the jamb (Von Duprin 299 strike)
         y_bolt = -v * (t / 2 + 0.022) if (lt.kind == "rim_latch" and opm.kind == "panic_touchbar" and not pair) else 0.0
@@ -542,7 +547,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         fo = H.OPERATORS[far_op]
         for td in model.tendons:
             if td.name.startswith(f"{leaf_name}_") and any(jn == handle_joint for jn, _ in td.sites):
-                sc = next(abs(c) for jn, c in td.sites if jn == handle_joint) * max(opm.travel - opm.dead_travel, 1e-6) / max(fo.travel - fo.dead_travel, 1e-6)
+                sc = next(abs(c) for jn, c in td.sites if jn == handle_joint) * max(drive_op.travel - drive_op.dead_travel, 1e-6) / max(fo.travel - fo.dead_travel, 1e-6)
                 td.sites.append((far_j, -sc))
     # --- locks
     eqs = []

@@ -298,9 +298,16 @@ class Joint:
     backcheck_angle: Optional[float] = None
     backcheck_damping: Optional[float] = None
     ratchet_one_way: bool = False
+    # operator release behaviour (hardware.OperatorModel.return_kind): spring | gravity | detent | "" (not an operator)
+    return_kind: str = ""
+    return_time_s: Optional[float] = None   # s, expected time to come home after release (physics.operator_return_time)
+    return_rest: Optional[float] = None     # rad/m the operator settles at after release (rest stop, or gravity rest)
+    operator_model: str = ""                # hardware.OPERATORS id this operator joint was built from
 
     def to_dict(self):
         return {
+            "return_kind": self.return_kind, "return_time_s": self.return_time_s, "return_rest": self.return_rest,
+            "operator_model": self.operator_model,
             "name": self.name, "type": self.type, "axis": [float(a) for a in self.axis],
             "pos": [float(p) for p in self.pos], "range": None if self.range is None else [float(r) for r in self.range],
             "damping": self.damping, "frictionloss": self.frictionloss, "stiffness": self.stiffness,

@@ -956,6 +956,9 @@ def add_hasp_assembly(model: Model, leaf_body: Body, world: Body, name: str, hin
 # ---------------------------------------------------------------------------
 # Operators
 # ---------------------------------------------------------------------------
+RETURN_LABEL = {"spring": "; spring return", "gravity": "; gravity return", "detent": "; stays where put", "none": ""}
+
+
 def operator_faces(spec: dict, v: float):
     """Return list of face signs (in y) where the primary operator is present, and far-side operator id.
     Robot is at -y.  'push_side' = the face the door swings away from = -v side."""
@@ -1018,7 +1021,8 @@ def add_paddle_operator(model: Model, leaf_body: Body, spec: dict, op: H.Operato
                            springref=-preload / op.spring_rate if i == 0 and op.spring_rate > 0 else 0.0,
                            armature=2e-5, role="operator" if i == 0 else "mechanism",
                            robot_interactive=i == 0,
-                           label=f"{op.name} (0 = rest, + = actuated)",
+                           return_kind=op.return_kind if i == 0 else "", operator_model=op.id if i == 0 else "",
+                           label=f"{op.name} (0 = rest, + = actuated{RETURN_LABEL.get(op.return_kind, '') if i == 0 else ''})",
                            notes="Face-mounted rocker; ideal cam drives latch" +
                            ("; locked: range limited to backlash" if locked_backlash is not None else ""))
         q = quat_from_axis_angle((1, 0, 0), f * lean)
@@ -1101,8 +1105,11 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
     axis = (0.0, -u, 0.0)   # pressing lever (reaching -u) down = positive
     preload_ = op.spring_torque_preload
     body.joint = Joint(f"{name}_hinge", "hinge", axis, (0, 0, 0), rng, damping=0.02, frictionloss=0.02 + 0.02 * op.mass,
-                       stiffness=op.spring_rate, springref=(-preload_ / op.spring_rate) if op.spring_rate > 0 else 0.0, armature=2e-5,
-                       role="operator", label=f"{op.name} (0 = rest, + = actuated)", notes="locked: range limited to backlash" if locked_backlash is not None else "")
+                       stiffness=op.spring_rate if op.return_kind == "spring" else 0.0,
+                       springref=(-preload_ / op.spring_rate) if (op.return_kind == "spring" and op.spring_rate > 0) else 0.0, armature=2e-5,
+                       role="operator", label=f"{op.name} (0 = rest, + = actuated{RETURN_LABEL.get(op.return_kind, '')})",
+                       return_kind=op.return_kind, operator_model=op.id,
+                       notes="locked: range limited to backlash" if locked_backlash is not None else "")
     # spindle through door - sized after the trim is built, so it actually reaches INTO the hub on each face
     # (a spindle that stops at the door faces leaves each lever floating as its own island)
     spindle_i = len(body.geoms)
@@ -1292,7 +1299,7 @@ def add_touchbar(model: Model, leaf_body: Body, spec: dict, op: H.OperatorModel,
     if sp.get("shape") == "crossbar":
         # crossbar rotates about horizontal pivots at both ends (hinge along x)
         body = Body(name, leaf_body.name, (xc, face * (t / 2), z), QUAT_ID, None, [], [], tiers, "operator", op.name)
-        body.joint = Joint(f"{name}_hinge", "hinge", (u, 0, 0), (0, 0, 0), (0.0, op.travel), damping=0.5, frictionloss=0.3, stiffness=op.spring_rate, springref=-op.spring_torque_preload / max(op.spring_rate, 1e-6), armature=1e-4, role="operator", label="Crossbar (+ = pushed in)")
+        body.joint = Joint(f"{name}_hinge", "hinge", (u, 0, 0), (0, 0, 0), (0.0, op.travel), damping=0.5, frictionloss=0.3, stiffness=op.spring_rate, springref=-op.spring_torque_preload / max(op.spring_rate, 1e-6), armature=1e-4, role="operator", label="Crossbar (+ = pushed in; spring return)", return_kind=op.return_kind, operator_model=op.id)
         key, mesh = MESH.crossbar_mesh(length=L, bar_diameter=sp.get("bar_diameter", 0.025), arm_length=sp.get("arm_length", 0.06))
         body.geoms.append(mesh_geom(f"{name}_mesh", key, mesh, (0, 0, 0), q_face(face, u), mat, 3000, False, ALL_TIERS, "operator", "Crossbar"))
         body.geoms.append(Geom(f"{name}_col", "capsule", (sp.get("bar_diameter", 0.025) / 2, L / 2), (0, face * sp.get("arm_length", 0.06), 0), tuple(quat_z_to((1, 0, 0))), mat, True, False, 3000, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, tiers, "operator", "Crossbar grip"))
@@ -1337,7 +1344,7 @@ def add_touchbar(model: Model, leaf_body: Body, spec: dict, op: H.OperatorModel,
             leaf_body.geoms.append(cyl(f"{name}_rod_bot", (x_rod, face * (t / 2 + 0.03), (a2 + b2) / 2), 0.008, (b2 - a2) / 2, rm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "latch", "Vertical rod (bottom)"))
     # pad body
     pad = Body(name, leaf_body.name, (xc, face * (t / 2), z), QUAT_ID, None, [], [], tiers, "operator", op.name)
-    pad.joint = Joint(f"{name}_slide", "slide", (0, -face, 0), (0, 0, 0), (0.0, op.travel), damping=8.0, frictionloss=0.5, stiffness=op.spring_rate, springref=-op.spring_torque_preload / max(op.spring_rate, 1e-6), armature=1e-4, role="operator", label="Touch bar pad (+ = pressed)")
+    pad.joint = Joint(f"{name}_slide", "slide", (0, -face, 0), (0, 0, 0), (0.0, op.travel), damping=8.0, frictionloss=0.5, stiffness=op.spring_rate, springref=-op.spring_torque_preload / max(op.spring_rate, 1e-6), armature=1e-4, role="operator", label="Touch bar pad (+ = pressed; spring return)", return_kind=op.return_kind, operator_model=op.id)
     key, mesh = MESH.touchbar_pad_mesh(length=L, height=bh, depth=bd)
     pad.geoms.append(mesh_geom(f"{name}_pad", key, mesh, (0, 0, 0), q_face(face, u), mat, 3000, False, FULL_SIMPLE, "operator", "Touch pad"))
     pad.geoms.append(box(f"{name}_pad_col", (0, face * (bd - 0.015), 0), ((L - 0.006) / 2, 0.015, bh * 0.45), mat, 3000, True, False, tiers, "operator", "Touch pad", friction=(0.8, 0.01, 0.0001)))

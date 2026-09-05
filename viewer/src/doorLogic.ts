@@ -84,7 +84,85 @@ export function boltJointsFor(model: ModelJ, operator: string | undefined): stri
 // Honest open / close sequencing (pure; used by DoorView and unit-tested in doorLogic.test.ts)
 // ---------------------------------------------------------------------------
 export interface JointLike { name: string; q: number; range: [number, number] | null; modeledAt: number }
-export interface Phase { joint: string; from: number; to: number; dur: number; followers?: { joint: string; from: number; to: number }[]; t0?: number }
+export type Ease = "inout" | "spring" | "gravity";
+export interface Phase { joint: string; from: number; to: number; dur: number; followers?: { joint: string; from: number; to: number }[]; t0?: number; ease?: Ease; shape?: number }
+
+// ---------------------------------------------------------------------------
+// Operator snap-back: the same damped-spring release the physics derives (docs/PHYSICS.md "Operator return")
+// ---------------------------------------------------------------------------
+
+/** Critically damped release, normalised.  The handle is let go at q0 and the spring pulls it toward its own
+ *  equilibrium q_eq = springref, which sits BELOW the rest stop at 0 - so the handle arrives with speed and stops
+ *  dead against the stop, which is what a lever sounds like.  `shape` = q0 / (q0 - q_eq) is how much of that pull is
+ *  used up before the stop: 1 means the equilibrium is exactly the stop (a slow asymptotic settle), small values mean
+ *  a strong spring that slams it home.  Returns progress 0 -> 1 along the excursion. */
+const SETTLED = 0.02;      // "home" = within 2 % of the excursion; the exponential tail beyond that is invisible
+const _uT = new Map<number, number>();
+export function springEase(s: number, shape = 1): number {
+  const a = Math.min(1, Math.max(0.02, shape));
+  const key = Math.round(a * 1000);
+  let uT = _uT.get(key);
+  if (uT === undefined) {
+    const g = (u: number) => (1 + u) * Math.exp(-u);
+    const target = (1 - a) + SETTLED * a;
+    let lo = 0, hi = 80;
+    for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (g(mid) > target) lo = mid; else hi = mid; }
+    uT = (lo + hi) / 2;
+    _uT.set(key, uT);
+  }
+  const u = uT * Math.min(1, Math.max(0, s));
+  const rem = (((1 + u) * Math.exp(-u) - (1 - a)) / a - SETTLED) / (1 - SETTLED);
+  return 1 - Math.min(1, Math.max(0, rem));
+}
+
+/** An unsprung part (ring pull, fork latch, teardrop) falls under its own weight: distance goes as t^2. */
+export function gravityEase(s: number): number {
+  const x = Math.min(1, Math.max(0, s));
+  return x * x;
+}
+
+export function easeFor(ph: Phase, s: number): number {
+  if (ph.ease === "spring") return springEase(s, ph.shape);
+  if (ph.ease === "gravity") return gravityEase(s);
+  return s < 0.5 ? 2 * s * s : 1 - Math.pow(-2 * s + 2, 2) / 2;
+}
+
+/** The release phase of an operator that comes back on its own, straight from model.json: where it settles, how long
+ *  the derived spring takes, and the profile to animate.  Null for `detent` operators (they stay where they are put)
+ *  and for anything that is not a returning operator. */
+export function operatorReturnPhase(model: ModelJ, joints: Map<string, JointLike>, jointName: string | undefined): Phase | null {
+  if (!jointName) return null;
+  const j = model.bodies.find((b) => b.joint?.name === jointName)?.joint;
+  const h = joints.get(jointName);
+  if (!j || !h || (j.return_kind !== "spring" && j.return_kind !== "gravity")) return null;
+  const rest = j.return_rest ?? h.range?.[0] ?? 0;
+  if (Math.abs(h.q - rest) < 1e-4) return null;
+  const dur = Math.max(120, Math.min(2500, (j.return_time_s ?? 0.3) * 1000));
+  const span = Math.abs(h.q - rest);
+  const shape = j.return_kind === "spring" && j.stiffness > 0 ? span / Math.max(span + Math.abs(rest - j.springref), 1e-6) : 1;
+  return { joint: jointName, from: h.q, to: rest, dur, ease: j.return_kind === "spring" ? "spring" : "gravity", shape };
+}
+
+/** What happens when the viewer lets go of this operator (toasted on release, and the button's tooltip). */
+export function returnLabel(model: ModelJ, jointName: string | undefined): string | null {
+  if (!jointName) return null;
+  const j = model.bodies.find((b) => b.joint?.name === jointName)?.joint;
+  if (!j) return null;
+  if (j.return_kind === "spring") return `spring return (${(j.return_time_s ?? 0.3).toFixed(2)} s)`;
+  if (j.return_kind === "gravity") return `gravity return (${(j.return_time_s ?? 0.5).toFixed(2)} s)`;
+  if (j.return_kind === "detent") return "stays where put (no return spring)";
+  return null;
+}
+
+/** The same thing under a slider whose label already names the return kind, so only what the label does NOT say:
+ *  how long it takes to come home.  A detent operator has nothing to add - it does not come home. */
+export function returnChip(model: ModelJ, jointName: string | undefined): string | null {
+  if (!jointName) return null;
+  const j = model.bodies.find((b) => b.joint?.name === jointName)?.joint;
+  if (!j) return null;
+  if (j.return_kind === "spring" || j.return_kind === "gravity") return `${(j.return_time_s ?? 0.3).toFixed(2)} s back to rest`;
+  return null;
+}
 
 function thrown(joints: Map<string, JointLike>, bolts: string[]): boolean {
   for (const name of bolts) {
@@ -220,8 +298,22 @@ export function openClosePhases(model: ModelJ, joints: Map<string, JointLike>): 
   const secondary: string | undefined = meta.secondary_joint ?? undefined;
   if (secondary && jb && jb.q < 0.01) { const s = joints.get(secondary); if (s) followers.push({ joint: secondary, from: s.q, to: target }); }
   phases.push({ joint: leaf.name, from: leaf.q, to: target, dur: 1400, followers });
-  // re-engage in the reverse order: the last one released is the first one thrown again
-  if (needsOp) for (const h of [...workable].reverse()) phases.push({ joint: h.name, from: h.range![1], to: h.modeledAt ?? h.range![0], dur: Math.round(beat * 0.9) });
+  // re-engage in the reverse order: the last one released is the first one thrown again.  A sprung / gravity
+  // operator is not slid back linearly - it snaps back on the same damped profile the physics derives.
+  if (needsOp) for (const h of [...workable].reverse()) {
+    const opJ = model.bodies.find((b) => b.joint?.name === h.name)?.joint;
+    const rest = opJ?.return_rest ?? h.modeledAt ?? h.range![0];
+    const kind = opJ?.return_kind;
+    if (kind === "spring" || kind === "gravity") {
+      const dur = Math.max(120, Math.min(2500, (opJ?.return_time_s ?? 0.4) * 1000));
+      const span = Math.abs(h.range![1] - rest);
+      const shape = kind === "spring" && (opJ?.stiffness ?? 0) > 0 ? span / Math.max(span + Math.abs(rest - (opJ!.springref ?? 0)), 1e-6) : 1;
+      phases.push({ joint: h.name, from: h.range![1], to: rest, dur, ease: kind === "spring" ? "spring" : "gravity", shape });
+    } else {
+      // a detent operator (a dog lever, a barrel bolt) stays where it is put: the robot throws it back by hand
+      phases.push({ joint: h.name, from: h.range![1], to: rest, dur: Math.round(beat * 0.9) });
+    }
+  }
   if (!note) {
     if (needsOp && individual) note = `${workable.length} latches released one by one → leaf ${isClosed ? "opens" : "closes"} → all ${workable.length} re-engaged`;
     else if (needsOp) note = isClosed ? "operator actuated → bolt retracted → leaf opens → operator released" : "operator actuated → bolt retracted → leaf closes → bolt re-extends";

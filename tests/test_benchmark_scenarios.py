@@ -86,14 +86,19 @@ def test_sample_start_is_seeded_and_in_zone(door):
         assert sc["start"]["yaw_range"][0] - 1e-9 <= p["yaw"] <= sc["start"]["yaw_range"][1] + 1e-9
 
 
-def _press_operator(env, frac=0.9, tau_max=2.0):
-    """A hand on the lever: a soft position servo toward `frac` of the travel (a constant torque would slam the lever
-    into its stop and trip the operator-overload damage label)."""
+def _press_operator(env, frac=0.9, tau_max=2.0, kp=30.0):
+    """A hand on the lever: a saturating position servo toward `frac` of the travel (a constant torque would slam the
+    lever into its stop and trip the operator-overload damage label).
+
+    `kp` has to be stiff enough that the steady-state error against the lever's return spring is a few percent of the
+    travel: a Grade 1 lever needs ~1.6 N*m at 90 % of its throw, so at kp = 6 the hand stalled 15 deg short and the
+    latch bolt came out only 73 % - right on the edge of clearing its strike.  The saturation (2 N*m on a 115 mm
+    lever = 17 N at the grip) is what keeps this a human-sized hand, not the gain."""
     if env.oj < 0:
         return
     m, d = env.m, env.d
     q, dq = d.qpos[m.jnt_qposadr[env.oj]], d.qvel[m.jnt_dofadr[env.oj]]
-    tau = max(-tau_max, min(tau_max, 6.0 * (frac * m.jnt_range[env.oj][1] - q) - 0.2 * dq))
+    tau = max(-tau_max, min(tau_max, kp * (frac * m.jnt_range[env.oj][1] - q) - 0.2 * dq))
     env.apply_joint_torque(env.meta["operator_joint"], tau)
 
 

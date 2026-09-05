@@ -7,7 +7,7 @@ import { FAMILY_LABELS } from "./types";
 import { buildScene, type BuiltScene, type JointHandle } from "./scene";
 import { buildEvaluationOverlay, type EvalOverlay } from "./evaluation";
 import { GLOSSARY, REWARD_LABELS, type GlossaryEntry } from "./glossary";
-import { activeLeaf, isLocked, isSwingPair, openClosePhases, operatorJoints, operatorsAreIndividual, parsePoseQuery, sliderReaction, type Phase } from "./doorLogic";
+import { activeLeaf, easeFor, isLocked, isSwingPair, openClosePhases, operatorJoints, operatorReturnPhase, operatorsAreIndividual, parsePoseQuery, returnChip, returnLabel, sliderReaction, type Phase } from "./doorLogic";
 import { ASSETS } from "./App";
 import { BaselineBadges } from "./ResultBadges";
 import { AppearancePanel } from "./Appearance";
@@ -236,7 +236,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
         const ph = q[0];
         if (ph.t0 === undefined) ph.t0 = now;
         const s = Math.min(1, (now - ph.t0) / ph.dur);
-        const e = s < 0.5 ? 2 * s * s : 1 - Math.pow(-2 * s + 2, 2) / 2;
+        const e = easeFor(ph, s);   // a released operator follows its own damped-spring / gravity profile
         b.setJoint(ph.joint, ph.from + (ph.to - ph.from) * e);
         for (const f of ph.followers ?? []) b.setJoint(f.joint, f.from + (f.to - f.from) * e);
         if (s >= 1) q.shift();
@@ -441,6 +441,17 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
     b.solveLoops();
     force((x) => x + 1);
   };
+
+  /** Let go of a sprung operator: it snaps back on its own, with the damped-spring profile the physics derives.
+   *  A `detent` operator (handwheel, dog, cremone knob, slide bolt) stays exactly where it was left. */
+  const onSliderRelease = (h: JointHandle) => {
+    const b = built.current;
+    if (!b || !model || h.role !== "operator") return;
+    const ph = operatorReturnPhase(model, b.joints, h.name);
+    if (!ph) return;
+    queue.current = [ph];
+    toast(returnLabel(model, h.name) ?? "released");
+  };
   const loopResults = built.current?.loopResults ?? [];
 
   const dl = entry.files ?? {};
@@ -449,6 +460,17 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
   const travelStr = phys.latch ? (rotary ? `${deg(phys.latch.operator_travel)} (${fmt(phys.latch.operator_travel)} rad)` : `${fmt(phys.latch.operator_travel * 1000, 1)} mm`) : "–";
   const springStr = phys.latch ? (rotary ? `${fmt(phys.latch.operator_spring_preload)} N·m + ${fmt(phys.latch.operator_spring_rate)} N·m/rad · q` : `${fmt(phys.latch.operator_spring_preload)} N + ${fmt(phys.latch.operator_spring_rate)} N/m · q`) : "–";
   const yieldStr = phys.latch ? `${fmt(phys.latch.operator_yield)} ${rotary ? "N·m" : "N"}` : "–";
+  // what the operator does when you let go of it (spec.json physics.operator; docs/PHYSICS.md "Operator return")
+  const opDyn: any = phys.operator ?? null;
+  const opDynJ: any = opDyn?.joints ? (opDyn.joints[operator ?? ""] ?? Object.values(opDyn.joints)[0] ?? null) : null;
+  const RETURN_WORDS: Record<string, string> = { spring: "spring return", gravity: "gravity return (no spring)", detent: "stays where put (no return spring)", none: "no moving part" };
+  const returnStr = opDyn ? RETURN_WORDS[opDyn.return_kind] ?? opDyn.return_kind : "–";
+  const uPre = rotary ? "N·m" : "N", uRate = rotary ? "N·m/rad" : "N/m", uDamp = rotary ? "N·m·s/rad" : "N·s/m";
+  const returnSpringStr = opDynJ && opDynJ.return_kind === "spring"
+    ? `${fmt(opDynJ.spring_preload)} ${uPre} + ${fmt(opDynJ.spring_rate)} ${uRate} · q · damping ${fmt(opDynJ.damping, 3)} ${uDamp} (ζ ${fmt(opDynJ.damping_ratio, 2)})`
+    : opDynJ && opDynJ.return_kind === "detent" ? `none · held by ${fmt(opDynJ.detent_friction)} ${uPre} of friction`
+    : opDynJ && opDynJ.return_kind === "gravity" ? `none · its own weight (${fmt(opDynJ.gravity_moment_at_rest, 3)} ${uPre} at rest)` : "–";
+  const returnTimeStr = opDynJ?.expected_return_time_s != null ? `${fmt(opDynJ.expected_return_time_s, 2)} s` : (opDynJ ? "–" : "–");
   const backlashStr = (() => {
     if (!phys.lock) return "–";
     if (phys.lock.engaged && !phys.lock.robot_side_release && opJoint?.range) {
@@ -488,7 +510,15 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
         <div className="scene-mount" ref={mountRef} />
         <div className="hud">
           {primaryH && <button className="primary" onClick={openClose} title={individualOps ? `Releases all ${opNames.length} latches one by one (the leaf is held while any one of them is engaged), moves the leaf, re-engages them` : "Kinematic mechanism preview: retracts each leaf's latch, moves the free leaves, and releases the operators. Secured leaves stay locked."}>{model && isSwingPair(model) ? "Open / close pair" : "Open / close door"}</button>}
-          {opH && <button onClick={actuateOperators} title={individualOps ? opNames.join(", ") : operator}>{individualOps ? `Actuate all ${opNames.length} operators` : "Actuate operator"}</button>}
+          {opH && <button title={individualOps ? opNames.join(", ") : (model ? (returnLabel(model, operator) ?? undefined) : undefined)}
+            onClick={() => {
+              const b = built.current;
+              if (individualOps) { actuateOperators(); return; }
+              if (!b || !model || !opH.range) { animate(operator, opH.q + 1); return; }
+              const atRest = opH.q <= (opH.range[0] + opH.range[1]) / 2;
+              if (!atRest) { const back = operatorReturnPhase(model, b.joints, operator); if (back) { pauseReference(); queue.current = [back]; toast(returnLabel(model, operator) ?? "released"); return; } }
+              animate(operator, atRest ? opH.range[1] : opH.range[0]);
+            }}>{individualOps ? `Actuate all ${opNames.length} operators` : "Actuate operator"}</button>}
           <button onClick={() => { pauseReference(); const b = built.current; queue.current = []; if (b) { for (const h of b.joints.values()) b.setJoint(h.name, h.modeledAt); b.solveLoops(); } force((x) => x + 1); }}>Reset</button>
           <button className={diagnostic ? "active" : ""} aria-pressed={diagnostic} title="Brown door, gold mechanisms, neutral surroundings; glass remains transparent" onClick={() => setDiagnostic(v=>!v)}>Mechanism contrast</button>
           <button onClick={() => setShowEnv((v) => !v)}>{showEnv ? "Hide" : "Show"} walls</button>
@@ -559,9 +589,12 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
         {joints.map((h) => (
           <div className="joint" key={h.name}>
             <div className="lbl"><span className="name" title={h.loopSolved ? "solved by the closed-loop linkage: follows the door, not user-driven" : opSet.has(h.name) && individualOps ? `operator ${opNames.indexOf(h.name) + 1} of ${opNames.length}: the leaf is held until every one of them is released — ${h.label}` : h.label}>{h.name}{h.name === primary ? " ★" : ""}{opSet.has(h.name) && opNames.length > 1 ? ` ⚙${opNames.indexOf(h.name) + 1}` : ""}{h.loopSolved ? " (linkage)" : !h.interactive ? " (driven)" : ""}{isLocked(h) && h.role === "operator" ? " 🔒" : ""}</span><span className="val">{h.type === "hinge" ? `${(h.q * 180 / Math.PI).toFixed(1)}°` : `${(h.q * 1000).toFixed(1)} mm`}</span></div>
-            <input type="range" min={h.range ? h.range[0] : -3.14} max={h.range ? h.range[1] : 3.14} step="any" value={h.q} aria-label={h.label || h.name} disabled={h.loopSolved}
-              onChange={(e) => onSlider(h, parseFloat(e.target.value))} />
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>{h.label}</div>
+            <input type="range" min={h.range ? h.range[0] : -3.14} max={h.range ? h.range[1] : 3.14} step={0.001} value={h.q} aria-label={h.label || h.name} disabled={h.loopSolved}
+              onChange={(e) => onSlider(h, parseFloat(e.target.value))}
+              onPointerUp={() => onSliderRelease(h)} onPointerCancel={() => onSliderRelease(h)}
+              onKeyUp={(e) => { if (e.key.startsWith("Arrow") || e.key === "Home" || e.key === "End") onSliderRelease(h); }}
+              onBlur={() => onSliderRelease(h)} />
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>{h.label}{model && returnChip(model, h.name) ? <> · <span className="spring-return" title="what this operator does when you let go of it - see the operator section below">{returnChip(model, h.name)}</span></> : null}</div>
           </div>
         ))}
         {loopResults.length > 0 && (
@@ -616,7 +649,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
         <h3>Closer</h3>
         <KV rows={[["model", nice(phys.closer?.model), "closer_model"], ["EN 1154 size", phys.closer?.en_size, "en_size"], ["spring preload", phys.closer ? `${fmt(phys.closer.spring_preload_Nm)} N·m` : "–", "preload"], ["spring rate", phys.closer ? `${fmt(phys.closer.spring_stiffness_Nm_per_rad)} N·m/rad` : "–", "spring_rate"], ["damping close / open", phys.closer ? `${fmt(phys.closer.damping_closing)} / ${fmt(phys.closer.damping_opening)} N·m·s/rad` : "–", "closer_damping"], ["closing time (est.)", phys.closer?.closing_time_est_s != null ? `${fmt(phys.closer.closing_time_est_s)} s` : "–", "closing_time"]]} />
         <h3>Operator · latch · lock</h3>
-        <KV rows={[["operator", `${nice(spec?.operator?.model)}${opType ? ` (${opType === "slide" ? "linear" : "rotary"})` : ""}`, "operator"], ["height", spec ? `${spec.operator.height} m` : "–", "op_height"], ["travel", travelStr, "op_travel"], ["return spring", springStr, "op_return_spring"], ["yield (damage)", yieldStr, "op_yield"], ["latch", nice(phys.latch?.model), "latch"], ["throw", phys.latch ? `${fmt((phys.latch.throw_m ?? 0) * 1000, 1)} mm` : "–", "throw"], ["bolt spring", phys.latch ? `${fmt(phys.latch.bolt_spring_preload_N)} N + ${fmt(phys.latch.bolt_spring_rate_N_per_m)} N/m` : "–", "bolt_spring"], ["lock", nice(phys.lock?.model), "lock"], ["engaged", phys.lock?.engaged, "lock_engaged"], ["robot-side release", phys.lock?.robot_side_release, "robot_side_release"], ["locked backlash", backlashStr, "backlash"], ["deadbolt throw", phys.lock ? `${fmt((phys.lock.deadbolt_throw_m ?? 0) * 1000, 1)} mm` : "–", "deadbolt_throw"], ["code", phys.lock?.code ?? "–", "code"]]} />
+        <KV rows={[["operator", `${nice(spec?.operator?.model)}${opType ? ` (${opType === "slide" ? "linear" : "rotary"})` : ""}`, "operator"], ["height", spec ? `${spec.operator.height} m` : "–", "op_height"], ["travel", travelStr, "op_travel"], ["catalogue spring", springStr, "op_return_spring"], ["on release", returnStr, "op_return_kind"], ["return spring (as built)", returnSpringStr, "op_return_dynamics"], ["return time", returnTimeStr, "op_return_time"], ["yield (damage)", yieldStr, "op_yield"], ["latch", nice(phys.latch?.model), "latch"], ["throw", phys.latch ? `${fmt((phys.latch.throw_m ?? 0) * 1000, 1)} mm` : "–", "throw"], ["bolt spring", phys.latch ? `${fmt(phys.latch.bolt_spring_preload_N)} N + ${fmt(phys.latch.bolt_spring_rate_N_per_m)} N/m` : "–", "bolt_spring"], ["lock", nice(phys.lock?.model), "lock"], ["engaged", phys.lock?.engaged, "lock_engaged"], ["robot-side release", phys.lock?.robot_side_release, "robot_side_release"], ["locked backlash", backlashStr, "backlash"], ["deadbolt throw", phys.lock ? `${fmt((phys.lock.deadbolt_throw_m ?? 0) * 1000, 1)} mm` : "–", "deadbolt_throw"], ["code", phys.lock?.code ?? "–", "code"]]} />
         <h3>Compliance (as simulated)</h3>
         <KV rows={[["opening force (start)", phys.compliance?.opening_force_start_N != null ? `${fmt(phys.compliance.opening_force_start_N)} N` : "–", "force_start"], ["opening force (90°)", phys.compliance?.opening_force_90deg_N != null ? `${fmt(phys.compliance.opening_force_90deg_N)} N` : "–", "force_90"], ["operator force", phys.compliance?.operator_force_N != null ? `${fmt(phys.compliance.operator_force_N)} N` : "–", "operator_force"], ["ADA 5 lbf interior", phys.compliance?.ada_interior_5lbf_ok, "ada_5lbf"], ["IBC fire/exterior", phys.compliance?.ibc_fire_exterior_ok, "ibc_fire"], ["hardware ≤ 5 lbf", phys.compliance?.hardware_operable_5lbf_ok, "hardware_5lbf"], ["ADA clear width", phys.compliance?.clear_width_ada_ok, "clear_width"]]} />
         <h3>Damage thresholds</h3>

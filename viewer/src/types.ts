@@ -36,6 +36,14 @@ export interface JointJ {
   damping_closing?: number | null;
   damping_opening?: number | null;
   ratchet_one_way?: boolean;
+  /** What this operator does when it is released: "spring" (a return spring), "gravity" (its own weight), "detent"
+   *  (stays where it is put), "" (not an operator).  See docs/PHYSICS.md "Operator return". */
+  return_kind?: string;
+  /** seconds the derived spring/weight takes to bring it home (physics.operator_return_time) */
+  return_time_s?: number | null;
+  /** the value it settles at: the rest stop for a spring, the gravity equilibrium for an unsprung part */
+  return_rest?: number | null;
+  operator_model?: string;
 }
 
 export interface SiteJ {
