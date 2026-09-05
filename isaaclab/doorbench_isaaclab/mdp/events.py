@@ -13,7 +13,8 @@ from .door_state import get_door_state
 
 def reset_door(env, env_ids: torch.Tensor, asset_name: str = "door"):
     """Door joints to the spec's initial state (closed / open for traverse_open & close tasks), zero velocity, and
-    reset the benchmark labels of those envs."""
+    reset the benchmark labels of those envs.  Environment-released locks (mag lock, delayed egress, electric bolt,
+    interlock) are re-engaged: their breakable FixedJoint gets ``physics:jointEnabled`` back."""
     st = get_door_state(env, door_name=asset_name)
     door: Articulation = st.door
     q = st.door_reset_joint_pos(env_ids)
@@ -21,7 +22,20 @@ def reset_door(env, env_ids: torch.Tensor, asset_name: str = "door"):
     door.write_joint_state_to_sim(q, v, env_ids=env_ids)
     door.set_joint_position_target(st.spring_target[env_ids], env_ids=env_ids)
     door.set_joint_velocity_target(v, env_ids=env_ids)
+    st.set_env_lock(env_ids, enabled=True)
     st.reset(env_ids)
+
+
+def release_env_lock(env, env_ids: torch.Tensor, asset_name: str = "door"):
+    """Release the environment-released lock of those envs: badge presented / REX button pressed / delayed-egress
+    timer expired / interlock satisfied.
+
+    This clears ``physics:jointEnabled`` on the breakable FixedJoint the USD exporter authored base -> leaf, the
+    PhysX counterpart of ``DoorEnv._lock_logic`` setting ``d.eq_active[eid] = 0``.  Doors without such a lock are
+    untouched.  Use it as an event term (``mode="interval"`` for a timer, or call it from a task's own logic);
+    ``reset_door`` re-engages the lock at the start of the next episode."""
+    st = get_door_state(env, door_name=asset_name)
+    st.set_env_lock(env_ids, enabled=False)
 
 
 def reset_hand_at_approach(env, env_ids: torch.Tensor, asset_name: str = "hand", xy_noise: float = 0.15, z_range=(0.8, 1.3), yaw_noise: float = 0.3):

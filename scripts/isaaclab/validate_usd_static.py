@@ -445,8 +445,10 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
             dtg = [str(t) for t in drel.GetTargets()] if drel and drel.IsValid() else []
             if len(dtg) != 1 or not stage.GetPrimAtPath(dtg[0]).IsValid():
                 R.err(f"{jname}: doorbench:coupling_driver_joint {dtg} missing")
-            if str(cm.Get()) == "emulated" and any(sc.startswith("PhysxMimicJointAPI:") for sc in applied):
-                R.err(f"{jname}: coupling_mode 'emulated' but a PhysxMimicJointAPI is applied")
+            if str(cm.Get()) not in ("mimic", "emulated", "servo"):
+                R.err(f"{jname}: unknown doorbench:coupling_mode {cm.Get()!r}")
+            if str(cm.Get()) != "mimic" and any(sc.startswith("PhysxMimicJointAPI:") for sc in applied):
+                R.err(f"{jname}: coupling_mode {cm.Get()!r} but a PhysxMimicJointAPI is applied")
             ri = p.GetAttribute("doorbench:coupling_reflected_inertia").Get()
             c1 = p.GetAttribute("doorbench:coupling_c1").Get()
             di = p.GetAttribute("doorbench:coupling_driven_inertia").Get()
@@ -643,15 +645,17 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
                     continue
                 dp = joints[e["a"]]
                 rot = mj_joints.get(e["a"], {}).get("type") == "hinge" and mj_joints.get(e["b"], {}).get("type") == "hinge"
+                servoed = all(bool(joints[j].GetAttribute("doorbench:servo_in_drive").Get()) for j in (e["a"], e["b"]))
                 mode = dp.GetAttribute("doorbench:coupling_mode").Get()
-                if mode != ("mimic" if rot else "emulated"):
-                    R.err(f"{e['a']}: coupling mode {mode!r} (driven {mj_joints.get(e['a'], {}).get('type')} <- driver {mj_joints.get(e['b'], {}).get('type')})")
+                want_mode = "mimic" if rot else ("servo" if servoed else "emulated")
+                if mode != want_mode:
+                    R.err(f"{e['a']}: coupling mode {mode!r} != {want_mode!r} (driven {mj_joints.get(e['a'], {}).get('type')} <- driver {mj_joints.get(e['b'], {}).get('type')}, servo {servoed})")
                 if dp.GetAttribute("doorbench:coupling_driver").Get() != e["b"]:
                     R.err(f"{e['a']}: coupling driver {dp.GetAttribute('doorbench:coupling_driver').Get()!r} != {e['b']!r}")
                 c1 = dp.GetAttribute("doorbench:coupling_c1").Get()
                 if c1 is None or abs(float(c1) - float(e["polycoeff"][1])) > 1e-5 * max(1.0, abs(float(e["polycoeff"][1]))):
                     R.err(f"{e['a']}: coupling c1 {c1} != IR {e['polycoeff'][1]}")
-                if not rot:
+                if want_mode == "emulated":
                     ra = joints[e["b"]].GetAttribute("doorbench:coupling_reflected_armature").Get()
                     if ra is None or float(ra) <= 0:
                         R.err(f"{e['b']}: doorbench:coupling_reflected_armature {ra} missing on the driver of an emulated coupling")

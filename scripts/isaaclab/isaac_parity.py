@@ -38,9 +38,19 @@ Isaac-side mechanics (see the module docstring of protocol.py and isaaclab/STATU
     (round 1 ran at 100 deg/s = 1.75 rad/s and clamped every leaf)
   * rising / helical hinges (cold_storage, stall): door_rl.usda locks the riser, so the runner applies the gravity
     closing torque -m g dz/dq from ``doorbench:rl["rise_coupling"]`` on the door joint (emulation ``rise_gravity_torque``)
-  * env-released welds (maglocks, delayed egress) are NOT exported to USD: by default the door is left free and the
-    verdict classifies the hold-phase disagreement as EXPORT_WELD_MISSING; --emulate-weld pins the primary joint
-    during ``hold`` instead
+  * env-released locks (maglocks, delayed egress, electric bolts, interlocks) ARE exported: a breakable
+    ``UsdPhysics.FixedJoint`` base -> leaf with ``physics:excludeFromArticulation`` (PhysX loop joint) whose
+    ``physics:jointEnabled`` the environment clears on release.  The runner only checks it is there and enabled
+    (emulation ``env_release_joint``); ``--emulate-weld`` stays as the fallback for a file exported before that
+    (it pins the primary joint during ``hold``) and is a no-op when the joint exists
+  * bilateral couplings PhysX cannot represent (``doorbench:coupling_mode = "emulated"``: hinge -> slide and
+    slide -> slide equalities - thumbturn -> deadbolt, dogs -> bolts, cremone, helical riser - because PhysX
+    articulation mimic joints support rotational axes only) are applied as a first-class bilateral constraint
+    (emulation ``coupling_bilateral``): the driven joint tracks ``q_a = c0 + c1 q_b`` kinematically AND the driver
+    carries the reaction ``c1 * tau_a_ext`` (spring, damping, Coulomb friction, gravity bias, all authored on the
+    driven joint prim) plus the reflected inertia ``c1^2 I_a`` written into its armature.  A pure kinematic write
+    applies no reaction: the driver loses the coupled part's weight and sags (16 doors of SETTLE_DRIFT, all of them
+    helical risers whose mimic PhysX had dropped).
 Writes results/parity/isaac_full.json / isaac_rl.json ({"meta", "doors": {door_id: record}}), partial results after
 every batch, resumable (doors already present are skipped unless --force).  One door failing never kills a batch.
 
@@ -108,6 +118,9 @@ if abs(SAMPLE_EVERY * DT * P.SAMPLE_HZ - 1.0) > 1e-6:
 POS_ITERS, VEL_ITERS = (int(x) for x in args_cli.iters.split(","))
 X_SPACING, Y_SPACING = (float(x) for x in args_cli.spacing.split(","))
 LATCH_TARGET = args_cli.latch_mode == "clamp+target"
+# smoothing velocity of the Coulomb term in an emulated coupling's reaction (rad/s or m/s); the exporter writes the
+# same number into doorbench:couplings["friction_vel_eps"]
+COUPLING_VEL_EPS = 1e-3
 ENGINE = {"isaac_sim": None, "isaac_lab": None, "physx_dt": DT, "solver_iterations": [POS_ITERS, VEL_ITERS]}
 try:
     import isaaclab
@@ -213,6 +226,7 @@ class DoorHandle:
         prim_info = {}
         self.link_max_ang_vel = {}
         self.rl_meta = None
+        self.env_release_prims = []
         for prim in Usd.PrimRange(root):
             if prim.IsA(UsdPhysics.RevoluteJoint) or prim.IsA(UsdPhysics.PrismaticJoint):
                 g = lambda a, d=None: (prim.GetAttribute(a).Get() if prim.HasAttribute(a) else d)
@@ -220,7 +234,20 @@ class DoorHandle:
                                              "source": g("doorbench:source_joint", None), "friction": g("doorbench:friction_effort", None),
                                              "armature": g("doorbench:armature_si", None), "servo_in_drive": bool(g("doorbench:servo_in_drive", False)),
                                              "servo_kp": float(g("doorbench:servo_kp_si", 0.0) or 0.0), "servo_kv": float(g("doorbench:servo_kv_si", 0.0) or 0.0),
-                                             "servo_ctrl": float(g("doorbench:servo_ctrl", 0.0) or 0.0)}
+                                             "servo_ctrl": float(g("doorbench:servo_ctrl", 0.0) or 0.0),
+                                             "revolute": bool(prim.IsA(UsdPhysics.RevoluteJoint)),
+                                             "stiffness": float(g("doorbench:stiffness_si", 0.0) or 0.0), "damping": float(g("doorbench:damping_si", 0.0) or 0.0),
+                                             "coupling_mode": g("doorbench:coupling_mode", None), "coupling_driver": g("doorbench:coupling_driver", None),
+                                             "coupling_c0": float(g("doorbench:coupling_c0", 0.0) or 0.0), "coupling_c1": float(g("doorbench:coupling_c1", 0.0) or 0.0),
+                                             "coupling_gravity_bias": float(g("doorbench:coupling_gravity_bias", 0.0) or 0.0),
+                                             "coupling_chain_order": int(g("doorbench:coupling_chain_order", 0) or 0),
+                                             "reflected_armature": float(g("doorbench:coupling_reflected_armature", 0.0) or 0.0)}
+            elif prim.IsA(UsdPhysics.FixedJoint) and prim.HasAttribute("doorbench:role") and prim.GetAttribute("doorbench:role").Get() == "env_release":
+                self.env_release_prims.append({"joint": prim.GetName(), "path": str(prim.GetPath()),
+                                               "enabled": bool(prim.GetAttribute("physics:jointEnabled").Get()) if prim.HasAttribute("physics:jointEnabled") else None,
+                                               "holding_force_N": float(prim.GetAttribute("doorbench:holding_force_N").Get() or 0.0) if prim.HasAttribute("doorbench:holding_force_N") else None,
+                                               "excluded": bool(prim.GetAttribute("physics:excludeFromArticulation").Get()) if prim.HasAttribute("physics:excludeFromArticulation") else False,
+                                               "body": prim.GetAttribute("doorbench:weld_body").Get() if prim.HasAttribute("doorbench:weld_body") else None})
             elif prim.HasAPI(UsdPhysics.RigidBodyAPI):
                 a = prim.GetAttribute("physxRigidBody:maxAngularVelocity")
                 self.link_max_ang_vel[prim.GetName()] = float(a.Get()) if (a and a.IsValid() and a.Get() is not None) else None
@@ -285,13 +312,24 @@ class DoorHandle:
         if rc and rc.get("gravity_torque_Nm") is not None and math.isfinite(float(rc["gravity_torque_Nm"])):
             self.rise_torque = float(rc["gravity_torque_Nm"])
             self.emulations.append("rise_gravity_torque")
-        self.weld = bool(args_cli.emulate_weld and inputs["flags"]["env_release_only"] and inputs["flags"]["has_weld"])
+        self.errors = []
+        self.coupling_armature = {}
+        # environment-released locks: exported as a breakable loop FixedJoint, so PhysX holds the leaf on its own.
+        # --emulate-weld stays as the fallback for files exported before the joint existed.
+        self.env_release = [e for e in self.env_release_prims if e.get("enabled") is not False]
+        if self.env_release:
+            self.emulations.append("env_release_joint")
+        self.weld = bool(args_cli.emulate_weld and inputs["flags"]["env_release_only"] and inputs["flags"]["has_weld"] and not self.env_release)
         if self.weld:
             self.emulations.append("weld_pinned_hold")
+        # bilateral couplings PhysX drops (mimic joints are rotational-only): tracked + reaction on the driver
+        self.couplings = self._build_couplings()
+        if self.couplings:
+            self.emulations.append("coupling_bilateral")
+            self._write_coupling_armature()
         self.phases = {}
         self.ctx = {}
         self.q_hold = None
-        self.errors = []
         self.structure = self.check_structure()
         self.pose0 = self.check_pose0(pose0_ref) if (pose0_ref and kind == "full") else None
         self.cur = None
@@ -348,9 +386,23 @@ class DoorHandle:
             self.armature_readback = {n: float(arm[0, i]) for n, i in self.map.items()} if arm is not None else None
             if self.armature_readback:
                 for n, i in self.map.items():
-                    want = float(self.inputs["joints"][n]["armature"])
+                    # a driver of an emulated coupling carries the reflected inertia c1^2 * I_driven on top of the IR
+                    # armature (MuJoCo's equality gives it that inertia through the constraint)
+                    want = float(self.inputs["joints"][n]["armature"]) + float(self.coupling_armature.get(self.jn[i], 0.0))
                     if abs(self.armature_readback[n] - want) > 1e-2 * max(1e-3, want):
-                        warnings.append(f"{n}: armature {self.armature_readback[n]:.4g} != IR {want:.4g}")
+                        warnings.append(f"{n}: armature {self.armature_readback[n]:.4g} != IR{'+reflected' if self.jn[i] in self.coupling_armature else ''} {want:.4g}")
+            # env-released locks must exist as a real (enabled, breakable) joint in the USD
+            if self.inputs["flags"].get("env_release_only") and self.inputs["flags"].get("has_weld") and not self.env_release:
+                errors.append("env-released lock: no doorbench:role=env_release FixedJoint in the USD (regenerate the dataset; --emulate-weld pins the leaf instead)")
+            for e in self.env_release:
+                if not e.get("excluded"):
+                    errors.append(f"{e['joint']}: env-release joint without physics:excludeFromArticulation (it would become a second parent of the leaf)")
+                if not e.get("holding_force_N"):
+                    errors.append(f"{e['joint']}: env-release joint without a holding force (breakForce)")
+            # every equality the exporter marked "emulated" must have been resolved to two articulation joints
+            n_emulated = sum(1 for n, i in self.prim_info.items() if i.get("coupling_mode") == "emulated" and n in self.jn)
+            if n_emulated and len(self.couplings) != n_emulated:
+                errors.append(f"{len(self.couplings)} of {n_emulated} emulated couplings resolved")
             # PhysX angular velocity cap on the links (deg/s); Isaac Lab writes the cfg value onto the prims at spawn
             low = {n: v for n, v in self.link_max_ang_vel.items() if v is not None and v < 1000.0}
             if low:
@@ -360,7 +412,87 @@ class DoorHandle:
         return {"status": "fail" if errors else "pass", "errors": errors, "warnings": warnings, "mapped_joints": sorted(self.map),
                 "friction_coeff_readback": self.friction_readback, "friction_effort_authored": {n: self.prim_info.get(self.jn[i], {}).get("friction") for n, i in self.map.items()},
                 "armature_readback": getattr(self, "armature_readback", None), "servo_in_drive": sorted(self.servo_in_drive), "rise_gravity_torque_Nm": self.rise_torque,
-                "link_max_angular_velocity_deg_s": self.link_max_ang_vel}
+                "link_max_angular_velocity_deg_s": self.link_max_ang_vel,
+                "env_release": self.env_release_prims,
+                "couplings_emulated": [{k: c[k] for k in ("driven", "driver", "c0", "c1", "bias", "order")} for c in self.couplings],
+                "coupling_reflected_armature": self.coupling_armature}
+
+    def _build_couplings(self):
+        """Couplings the exporter marked ``emulated`` (hinge -> slide, slide -> slide), resolved to joint indices.
+
+        ``q_driven = c0 + c1 * q_driver`` in DoorBench coordinates.  The driven joint is tracked kinematically and
+        the driver carries the reaction ``c1 * tau_driven_ext`` (``_coupling_effort``) plus the reflected inertia
+        (written into its armature by ``_write_coupling_armature``)."""
+        out = []
+        for jname, info in self.prim_info.items():
+            if info.get("coupling_mode") != "emulated" or jname not in self.jn:
+                continue
+            driver = info.get("coupling_driver")
+            dj = next((n for n in self.jn if n == driver or self.prim_info.get(n, {}).get("source") == driver), None)
+            if dj is None:
+                self.errors.append(f"coupling {jname} <- {driver}: driver joint not in the articulation")
+                continue
+            ia, ib = self.jn.index(jname), self.jn.index(dj)
+            lim = None
+            try:
+                pl = self.art.data.joint_pos_limits[0].cpu().numpy() if hasattr(self.art.data, "joint_pos_limits") else self.art.data.soft_joint_pos_limits[0].cpu().numpy()
+                lim = (float(pl[ia][0]), float(pl[ia][1]))
+            except Exception:
+                pass
+            out.append({"driven": jname, "driver": dj, "ia": ia, "ib": ib, "c0": info["coupling_c0"], "c1": info["coupling_c1"],
+                        "off_a": self.offset[ia], "off_b": self.offset[ib], "limits": lim,
+                        "k": info["stiffness"], "d": info["damping"], "target": info["target_si"],
+                        "friction": float(info.get("friction") or 0.0), "bias": info["coupling_gravity_bias"],
+                        "order": info["coupling_chain_order"]})
+        out.sort(key=lambda c: c["order"])
+        return out
+
+    def _write_coupling_armature(self):
+        """Driver joints carry the inertia of everything they drive through an emulated coupling (c1^2 * I_driven).
+
+        MuJoCo's equality gives the driver that inertia for free; PhysX drops the mimic, so it is written into the
+        driver's armature - the exact equivalent of the constraint's inertial term ``-c1 * I_a * qdd_a``."""
+        extra = {}
+        for jname, info in self.prim_info.items():
+            if info.get("reflected_armature") and jname in self.jn:
+                extra[self.jn.index(jname)] = float(info["reflected_armature"])
+        if not extra:
+            return
+        fn = getattr(self.art, "write_joint_armature_to_sim", None)
+        arm = getattr(self.art.data, "joint_armature", None)
+        if arm is None:
+            arm = getattr(self.art.data, "default_joint_armature", None)
+        if fn is None or arm is None:
+            self.errors.append("coupling reflected inertia cannot be written (no write_joint_armature_to_sim)")
+            return
+        want = arm[0].clone().unsqueeze(0)
+        for i, v in extra.items():
+            want[0, i] = float(want[0, i]) + v
+        fn(want)
+        self.coupling_armature = {self.jn[i]: v for i, v in extra.items()}
+
+    def _coupling_effort(self, q_db, v):
+        """Reaction the emulated couplings put on their drivers: ``c1 * tau_driven_ext`` (N*m / N by joint type).
+
+        ``tau_driven_ext`` is everything PhysX / MuJoCo apply to the driven DOF: its drive spring and damping, the
+        Coulomb friction bound (smoothed over ``COUPLING_VEL_EPS``) and the constant gravity bias the exporter
+        measured at the authored pose.  Returns {driver index: effort} and the tracked driven positions."""
+        eff, track = {}, []
+        q_target = {}
+        for c in self.couplings:
+            qb = float(q_db[c["ib"]]) if c["ib"] not in q_target else q_target[c["ib"]]
+            qa = c["c0"] + c["c1"] * qb
+            q_target[c["ia"]] = qa
+            q_usd = qa - c["off_a"]
+            if c["limits"] is not None:
+                q_usd = min(max(q_usd, c["limits"][0]), c["limits"][1])
+            va = c["c1"] * float(v[c["ib"]])
+            tau = c["k"] * (c["target"] - q_usd) - c["d"] * va + c["bias"]
+            if c["friction"]:
+                tau -= c["friction"] * max(-1.0, min(1.0, va / COUPLING_VEL_EPS))
+            eff[c["ib"]] = eff.get(c["ib"], 0.0) + c["c1"] * tau
+            track.append((c["ia"], q_usd, va))
+        return eff, track
 
     def _read_friction(self):
         fr = getattr(self.art.data, "joint_friction_coeff", None)
@@ -476,6 +608,14 @@ class DoorHandle:
         if self.rise_torque:
             # helical hinge: the canonical file locks the riser; MuJoCo's rise coupling costs m g dz per rad of opening
             effort[0, self.pj] += float(self.rise_torque)
+        # bilateral couplings PhysX drops (mimic joints are rotational-only): the driven joint tracks its driver and
+        # the driver carries the reaction, so it feels the coupled part's weight, spring and friction
+        if self.couplings:
+            ceff, ctrack = self._coupling_effort(q, v)
+            for i, f in ceff.items():
+                effort[0, i] += float(f)
+            for i, q_usd, va in ctrack:
+                self._write_joint(i, q_usd, vel=va)
         # one-sided tendons (latch bolt >= scale * operator).  MuJoCo enforces them as a stiff constraint; here the
         # joint state is clamped to the tendon minimum every step and (clamp+target) the latch drive target follows
         # that minimum while the tendon pulls (q_min above the joint's lower range end), otherwise the 300 N/m latch
@@ -511,11 +651,12 @@ class DoorHandle:
         art.set_joint_effort_target(effort)
         art.write_data_to_sim()
 
-    def _write_joint(self, i: int, q_usd: float):
-        """Kinematic write of one joint (position, zero velocity); the other joints keep the values of the last read."""
+    def _write_joint(self, i: int, q_usd: float, vel: float = 0.0):
+        """Kinematic write of one joint (position + velocity); the other joints keep the values of the last read."""
         ids = torch.tensor([i], device=self.dev)
         pos = torch.tensor([[q_usd]], dtype=torch.float32, device=self.dev)
-        self.art.write_joint_state_to_sim(pos, torch.zeros_like(pos), joint_ids=ids)
+        vt = torch.tensor([[vel]], dtype=torch.float32, device=self.dev)
+        self.art.write_joint_state_to_sim(pos, vt, joint_ids=ids)
         self._cache = None
 
     def post_step(self, k: int, t: float):

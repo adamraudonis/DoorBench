@@ -820,11 +820,14 @@ def env_release_welds(model: Model, tier: str):
     return out
 
 
-def joint_couplings(model: Model, tier: str, joint_types: dict, wt: dict, body_of_joint):
+def joint_couplings(model: Model, tier: str, joint_types: dict, wt: dict, body_of_joint, servo_joints=()):
     """Bilateral polynomial joint equalities with everything a consumer needs to reproduce them.
 
     ``mode``: ``mimic`` when PhysX honours a ``PhysxMimicJointAPI`` (rotational driven axis AND rotational reference
-    axis - the only case PhysX articulations support), else ``emulated``.  For every coupling the entry carries the
+    axis - the only case PhysX articulations support); ``servo`` when BOTH joints carry their own MJCF position
+    servo in their PhysX drive (the two leaves of an automatic bi-parting slider / elevator: each leaf has its own
+    operator in the MJCF too, so the drives already move them together and there is nothing to reflect);
+    else ``emulated``.  For every coupling the entry carries the
     driven DOF's effective inertia, its passive law and its constant gravity bias, plus ``reflected_inertia``
     (``c1^2 * I_driven``, accumulated through coupling chains) that a consumer adds to the DRIVER's armature so the
     driver carries the coupled part's inertia the way MuJoCo's constraint does."""
@@ -846,9 +849,11 @@ def joint_couplings(model: Model, tier: str, joint_types: dict, wt: dict, body_o
         I_a = _subtree_axis_inertia(model, ba.name, tier, wt, axis_w, anchor_w, ja.type)
         bias = _gravity_bias(model, ba.name, tier, wt, axis_w, anchor_w, ja.type)
         rotational = ta in ("hinge", "revolute") and tb in ("hinge", "revolute")
+        servoed = q.a in set(servo_joints) and q.b in set(servo_joints)
+        mode = "mimic" if rotational else ("servo" if servoed else "emulated")
         out.append({
             "driven": q.a, "driver": q.b, "driven_type": ta, "driver_type": tb,
-            "mode": "mimic" if rotational else "emulated",
+            "mode": mode,
             "coeff": [c0, c1], "gearing": -c1, "offset": -c0, "label": q.label,
             "driven_inertia": I_a, "reflected_inertia": c1 * c1 * I_a,
             "driven_gravity_bias": bias,
@@ -857,7 +862,10 @@ def joint_couplings(model: Model, tier: str, joint_types: dict, wt: dict, body_o
             "driven_friction": float(ja.frictionloss),
             "driven_range": None if ja.range is None else [float(ja.range[0] - ja.modeled_at), float(ja.range[1] - ja.modeled_at)],
             "friction_vel_eps": COUPLING_FRICTION_VEL_EPS,
-            "reason": None if rotational else "PhysX articulation mimic joints support rotational axes only: a mimic on a prismatic axis is dropped",
+            "reason": (None if rotational else
+                       ("both joints carry their own MJCF position servo in their PhysX drive: the drives move them together"
+                        if servoed else
+                        "PhysX articulation mimic joints support rotational axes only: a mimic on a prismatic axis is dropped")),
             "note": "q_driven = c0 + c1*q_driver; the driver carries the reaction c1 * tau_driven_ext and the reflected inertia c1^2 * I_driven",
         })
     # coupling chains (multipoint bolt <- deadbolt <- thumbturn): reflect the inertia of the whole driven chain onto
@@ -996,7 +1004,7 @@ def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full",
         return None
 
     couplings = []
-    coupling_specs = joint_couplings(model, tier, joint_types, wt, _body_of_joint)
+    coupling_specs = joint_couplings(model, tier, joint_types, wt, _body_of_joint, servo_joints=set(servo_joints))
     reflected = {}
     for c in sorted(coupling_specs, key=lambda c: c["chain_order"]):
         dpath, rpath = joint_paths[c["driven"]], joint_paths[c["driver"]]
@@ -1059,6 +1067,7 @@ def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full",
     meta["n_filtered_pairs"] = int(n_filtered)
     meta["env_release"] = env_release
     meta["couplings_emulated"] = [c for c in coupling_specs if c["mode"] == "emulated"]
+    meta["couplings_servo"] = [c["driven"] for c in coupling_specs if c["mode"] == "servo"]
     meta["coupling_reflected_armature"] = reflected
     # physics mapping notes for runners (docs/ISAAC_LAB.md): servos folded into drives, rising-hinge gravity torque
     meta["servo_in_drive"] = servo_joints
@@ -1537,6 +1546,36 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
             if q.kind == "joint" and {q.a, q.b} == {secondary.joint.name, pj.name}:
                 driven_is_secondary = q.a == secondary.joint.name
                 secondary_coupling = {"driven": "secondary" if driven_is_secondary else "primary", "coeff": [float(c) for c in q.polycoeff[:2]], "label": q.label}
+    # ---------------------------------------------------------------- couplings between canonical slots
+    # Almost every mechanism coupling is welded away in this file; what survives is a bilateral equality between two
+    # ACTIVE slots (bi-parting sliders / elevators: leaf2 = c1 * leaf).  It is authored the same way as in
+    # door.usda - PhysxMimicJointAPI when both canonical joints are revolute (PhysX honours rotational mimics only),
+    # otherwise the doorbench:coupling_* emulation data that DoorMechanismAction applies with the reaction on the
+    # driver.  The helical riser's coupling is the other survivor and keeps its own ``rise_coupling`` entry (the same
+    # reaction, c1 * gravity_bias, precomputed because the riser has no slot at all).
+    slot_of = {info["source"]: name for name, info in joint_meta.items() if info.get("active") and info.get("source")}
+    slot_type = {name: ("hinge" if name.endswith("hinge") else "slide") for name in RL_DOF_JOINTS}
+
+    def _rl_body_of_joint(jn):
+        return body_of_joint(jn)
+
+    rl_couplings = []
+    reflected_rl = {}
+    for c in sorted(joint_couplings(model, tier, {b.joint.name: b.joint.type for b in bodies if b.joint is not None}, wt, _rl_body_of_joint,
+                                    servo_joints=set(servo_slots)), key=lambda c: c["chain_order"]):
+        sa, sb = slot_of.get(c["driven"]), slot_of.get(c["driver"])
+        if sa is None or sb is None:
+            continue
+        rot = slot_type[sa] == "hinge" and slot_type[sb] == "hinge"
+        mode = "mimic" if rot else c["mode"]
+        entry = dict(c, mode=mode, driven_slot=sa, driver_slot=sb)
+        dpath, rpath = joints_path.AppendChild(sa), joints_path.AppendChild(sb)
+        if rot:
+            W.add_mimic(dpath, "hinge", rpath, "hinge", gearing=entry["gearing"], offset=entry["offset"], label=entry["label"])
+        W.add_coupling(dict(entry, driver=sb), dpath, rpath, reflected_rl)
+        rl_couplings.append(entry)
+    for slot, val in reflected_rl.items():
+        W.set_reflected_inertia(joints_path.AppendChild(slot), val)
     # ---------------------------------------------------------------- collision filtering (link level)
     # every IR body lives in exactly one canonical link; PhysX skips joint-adjacent links, so a link pair that is not
     # adjacent must be filtered whenever MuJoCo suppressed any of the body pairs it merges (leaf <-> operator: the
@@ -1617,6 +1656,8 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
         "released_holding": [w for w in weld_record if w["released"] and w["holding"] and w["was_engaged"]],
         "welded_engaged": [w for w in weld_record if not w["released"] and w["holding"] and w["was_engaged"]],
         "operator_driven_joints": sorted(op_driven),
+        "couplings": rl_couplings,
+        "coupling_reflected_armature": reflected_rl,
         "self_collisions": True,
         "filtered_pairs": [list(x) for x in sorted(link_pairs)],
         "n_filtered_pairs": int(n_filtered),
