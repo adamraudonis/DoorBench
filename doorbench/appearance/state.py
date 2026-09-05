@@ -15,6 +15,8 @@ from pathlib import Path
 
 SCHEMA_VERSION = 1
 CAMERA_CONVENTION = "right_handed_x_right_y_up_z_backward"
+# Blender 5.2.1 RNA hard limits, checked without importing bpy at runtime.
+_BLENDER_FLOAT_MAX = float.fromhex("0x1.fffffep+127")
 
 
 def _number(value, label):
@@ -95,6 +97,8 @@ def _resolution(value):
     values = _vector(value, 2, "camera resolution")
     if any(v <= 0 or v != int(v) for v in values):
         raise ValueError("Camera resolution must contain two positive integer pixel counts")
+    if any(not 4 <= v <= 65536 for v in values):
+        raise ValueError("Camera resolution must be between 4 and 65536 pixels per axis for Blender")
     return [int(v) for v in values]
 
 
@@ -122,6 +126,19 @@ def validate_camera(camera: Mapping) -> dict:
     k = _matrix(camera.get("intrinsics", []), "camera intrinsics")
     if k[0][0] <= 0 or k[1][1] <= 0 or abs(k[0][1]) > 1e-12 or abs(k[1][0]) > 1e-12 or any(abs(a - b) > 1e-12 for a, b in zip(k[2], (0, 0, 1))):
         raise ValueError("Intrinsics need positive focal lengths, zero skew, and pinhole last row [0,0,1]")
+    width, height = resolution
+    fx, fy, cx, cy = k[0][0], k[1][1], k[0][2], k[1][2]
+    # Match explicit_camera's 36mm horizontal sensor and aspect mapping exactly.
+    # RNA assignments silently clamp these values, changing the requested K.
+    lens = fx * 36 / width
+    if not 1 <= lens <= _BLENDER_FLOAT_MAX:
+        raise ValueError("Camera focal length fx requires a Blender lens outside [1, float32_max] mm; fx must be at least width/36")
+    ratio = fx / fy
+    if not 1 / 200 <= ratio <= 200:
+        raise ValueError("Camera focal-length ratio fx/fy must be between 1/200 and 200 for Blender pixel aspect")
+    shifts = ((width / 2 - cx) / width, (cy - height / 2) * ratio / width)
+    if any(not -_BLENDER_FLOAT_MAX <= shift <= _BLENDER_FLOAT_MAX for shift in shifts):
+        raise ValueError("Camera principal point requires a Blender shift outside the finite float32 range")
     result = {**pose, "intrinsics": k, "resolution": resolution,
               "convention": CAMERA_CONVENTION, "pixel_origin": "top_left_boundary",
               "projection": "perspective"}

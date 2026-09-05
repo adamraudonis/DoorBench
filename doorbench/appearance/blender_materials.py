@@ -603,7 +603,7 @@ def material_for_geom(geom, source_material, spec, recipe):
     # A diagonal barn brace is a separate piece of lumber. Map in its own
     # local frame so its grain follows the cut member, not the overall leaf.
     member = str(geom.get("name", "")).lower()
-    if surface_preset(preset_id)["kind"] in ("wood", "wood_floor") and any(token in member for token in ("brace", "batten", "rail", "stile", "kumiko", "mullion", "transom", "plank")):
+    if surface_preset(preset_id)["kind"] in ("wood", "wood_floor") and any(token in member for token in ("brace", "batten", "rail", "stile", "kumiko", "mullion", "transom", "plank", "jamb", "casing", "head_stud", "stop_head")):
         if source.get("part_coordinate_object") is not None:
             source["coordinate_object"] = source["part_coordinate_object"]
             dimensions = source.get("part_dimensions") or geom.get("size", [1, 1, 1])

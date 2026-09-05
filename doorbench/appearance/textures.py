@@ -30,11 +30,14 @@ USER_AGENT = "DoorBench-Appearance/1.0 (local CC0 texture library)"
 CURATED_ASSETS = (
     "walnut_veneer", "oak_veneer_01", "wood_floor",
     "white_plaster_02", "brick_wall_001", "concrete_floor",
-    "stone_tiles_02", "long_white_tiles", "floor_tiles_06",
+    "stone_tiles_02", "long_white_tiles", "floor_tiles_06", "rough_wood",
 )
 PRESET_ASSETS = {
     "wood_source": "oak_veneer_01", "wood_oak": "oak_veneer_01",
     "wood_walnut": "walnut_veneer", "floor_oak": "wood_floor",
+    # Continuous weathered timber: no baked board seams/nail rows to
+    # contradict the source door's separate plank geometry.
+    "wood_weathered": "rough_wood",
     "wall_white_plaster": "white_plaster_02", "wall_limewash": "white_plaster_02",
     "wall_red_brick": "brick_wall_001", "wall_subway_tile": "long_white_tiles",
     "wall_concrete": "concrete_floor", "floor_concrete": "concrete_floor",
@@ -109,7 +112,7 @@ def _file_digest(path):
 
 
 def fetch_library(out, resolution="2k"):
-    """Fetch nine curated raster PBR sets; return ``out/manifest.json`` Path.
+    """Fetch ten curated raster PBR sets; return ``out/manifest.json`` Path.
 
     Existing verified maps are reused. Downloads and manifest replacement are
     atomic, so a failed request leaves a prior complete library usable. Calls

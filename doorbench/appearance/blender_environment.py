@@ -250,6 +250,31 @@ def _fit_room_light(obj, target, minimum, maximum):
     _aim(obj, target)
 
 
+def _outdoor_illumination(scene, recipe, lighting_name):
+    """Expose an open yard against visible sky rather than an enclosed room.
+
+    Room presets rely on reflected light from walls and ceiling. An outdoor
+    gate has neither: provide sky radiance on both sides and an outdoor camera
+    exposure, with separate warm/cool area lights preserving each preset.
+    """
+    if "exposure" not in recipe:
+        scene.view_settings.exposure = -1.0
+    background = next(n for n in scene.world.node_tree.nodes if n.type == "BACKGROUND")
+    if lighting_name == "daylight":
+        # The physical sky shader has a different radiance scale from a flat
+        # overcast world; compensate explicitly for the outdoor exposure.
+        background.inputs["Strength"].default_value = 0.08
+    else:
+        color, strength = {
+            "overcast": ((0.80, 0.86, 0.94), 1.10),
+            "warm_interior": ((0.67, 0.75, 0.88), 0.80),
+            "warehouse": ((0.73, 0.81, 0.91), 1.00),
+        }.get(lighting_name, ((0.80, 0.86, 0.94), 1.10))
+        background.inputs["Color"].default_value = (*color, 1)
+        background.inputs["Strength"].default_value = strength
+    scene["doorbench_exposure_context"] = "outdoor"
+
+
 def build_environment(model, spec, recipe, objects):
     """Add room/yard surfaces beyond the unchanged source-door workspace.
 
@@ -271,6 +296,8 @@ def build_environment(model, spec, recipe, objects):
     horizontal = family in ("hatch_floor", "hatch_ceiling")
     outdoor = bool(spec.get("opening", {}).get("outdoor")) or family.startswith("gate_")
     lighting_name, lighting = _lighting(recipe)
+    if outdoor:
+        _outdoor_illumination(bpy.context.scene, recipe, lighting_name)
     seed = int(recipe.get("seed", 0))
     env = _collection("DoorBench Appearance Environment", clear=True)
     wall = _material("DB context plaster", recipe.get("wall"), "wall", seed, (0.57, 0.55, 0.51))
@@ -282,8 +309,12 @@ def build_environment(model, spec, recipe, objects):
     wall_y = float(model.get("meta", {}).get("wall_y", 0.0))
     if not horizontal:
         # A 1 mm lower continuation avoids z-fighting with the source floor.
+        # Outdoor ground reaches the visual horizon: a short room-sized slab
+        # otherwise exposes the sky shader's dark lower hemisphere behind gates.
+        ground_width = max(500.0 if outdoor else 0.0, half_width * 2 + 4)
+        ground_depth = max(500.0 if outdoor else 0.0, depth * 2 + 4)
         _box(env, "DB ground continuation", (center.x, wall_y, -0.016),
-             (half_width * 2 + 4, depth * 2 + 4, 0.03), floor)
+             (ground_width, ground_depth, 0.03), floor)
     if not outdoor:
         for side in (-1, 1):
             _box(env, f"DB return wall {side}", (center.x + side * half_width, wall_y, ceiling_z / 2),
@@ -325,12 +356,15 @@ def build_environment(model, spec, recipe, objects):
         if obj is None:
             continue
         obj.data.size = size * min(scale, 1.8)
-        obj.data.size_y = min(obj.data.size * 0.7, max(1.0, ceiling_z * 0.45))
+        obj.data.size_y = obj.data.size * 0.7 if outdoor else min(obj.data.size * 0.7, max(1.0, ceiling_z * 0.45))
         z = position[2] * scale
-        if not outdoor:
+        if outdoor:
+            # Width must not lift a wide gate's key to 15–25 m above its leaf.
+            z = center.z + max(2.5, span.z * 1.2)
+        else:
             z = min(z, ceiling_z - obj.data.size_y * 0.55 - 0.12)
         obj.location = (center.x + position[0] * min(scale, 1.6), wall_y + position[1] * min(scale, 1.6), z)
-        obj.data.energy *= scale ** 1.25
+        obj.data.energy *= scale ** 1.25 * (0.18 if outdoor else 1.0)
         target = center.copy()
         if name == "DB rear room bounce":
             target.y = wall_y + min(4.0, depth * 0.6)

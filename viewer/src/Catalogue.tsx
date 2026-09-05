@@ -40,7 +40,10 @@ export function Catalogue({ manifest, query }: { manifest: Manifest; query: stri
   const [imageMode, setImageMode] = useState("blender");
   const photoById = useMemo(() => {
     const result = new Map<string, AppearanceRender>();
-    for (const r of appearance?.renders ?? []) if (r.image && !result.has(r.door_id)) result.set(r.door_id, r);
+    for (const r of appearance?.renders ?? []) {
+      const current = result.get(r.door_id);
+      if (r.image && (!current || (r.quality === "photo" && current.quality !== "photo"))) result.set(r.door_id, r);
+    }
     return result;
   }, [appearance]);
   const params = new URLSearchParams(query);

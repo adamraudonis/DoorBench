@@ -137,3 +137,59 @@ def test_changing_door_pose_keeps_the_reference_room_lights_and_camera_fixed(tmp
                              capture_output=True, text=True, timeout=60)
     assert process.returncode == 0, process.stdout + process.stderr
     assert 'FIXED_REFERENCE_REGRESSION_PASS' in process.stdout
+
+
+def test_outdoor_presets_expose_a_neutral_surface_in_open_air(tmp_path):
+    blender = shutil.which('blender')
+    if not blender:
+        path = Path('/Applications/Blender.app/Contents/MacOS/Blender')
+        blender = str(path) if path.is_file() else None
+    if not blender:
+        pytest.skip('Blender is an optional appearance dependency')
+    image_module = pytest.importorskip('PIL.Image')
+    root = Path(__file__).resolve().parents[1]
+    script = tmp_path / 'check_outdoor.py'
+    script.write_text(textwrap.dedent(f'''
+        import sys
+        sys.path.insert(0, {str(root)!r})
+        import bpy
+        from doorbench.appearance.blender_environment import configure_scene,build_environment,frame_camera
+        for mode in ('daylight','overcast','warm_interior','warehouse'):
+            bpy.ops.object.select_all(action='SELECT')
+            bpy.ops.object.delete(use_global=False)
+            scene = configure_scene({{'lighting':mode,'render_device':'CPU'}},'preview',64,64,42)
+            scene.cycles.samples = 8
+            bpy.ops.mesh.primitive_cube_add(size=1,location=(0,0,1))
+            card = bpy.context.object
+            card.name = 'neutral_card'
+            card.dimensions = (1.5,.05,1.5)
+            bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+            material = bpy.data.materials.new('18 percent neutral reference')
+            material.use_nodes = True
+            shader = material.node_tree.nodes.get('Principled BSDF')
+            shader.inputs['Base Color'].default_value = (.18,.18,.18,1)
+            shader.inputs['Roughness'].default_value = .8
+            card.data.materials.append(material)
+            objects = {{'neutral_card':card}}
+            model = {{'bodies':[{{'geoms':[{{'name':'neutral_card','semantic':'leaf'}}]}}]}}
+            spec = {{'family':'gate_swing'}}
+            environment = build_environment(model,spec,{{'lighting':mode}},objects)
+            frame_camera(objects,spec,width=64,height=64)
+            assert scene.view_settings.exposure == -1.0
+            assert all(o.location.z < 6 for o in scene.objects if o.type == 'LIGHT')
+            assert environment['DB ground continuation'].dimensions.x >= 500
+            scene.render.filepath = {str(tmp_path)!r}+'/'+mode+'.png'
+            bpy.ops.render.render(write_still=True)
+        # Explicit exposure remains an intentional caller control.
+        scene = configure_scene({{'lighting':'overcast','render_device':'CPU','exposure':-2}},'preview',64,64)
+        build_environment(model,spec,{{'lighting':'overcast','exposure':-2}},objects)
+        assert scene.view_settings.exposure == -2
+    '''))
+    process = subprocess.run([blender,'--background','--factory-startup','--python-exit-code','1','--python',str(script)],
+                             capture_output=True,text=True,timeout=60)
+    assert process.returncode == 0, process.stdout + process.stderr
+    for mode in ('daylight','overcast','warm_interior','warehouse'):
+        image = image_module.open(tmp_path / (mode+'.png')).convert('RGB')
+        pixels = [image.getpixel((x,y)) for y in range(28,36) for x in range(28,36)]
+        luminance = sum((.2126*r+.7152*g+.0722*b)/255 for r,g,b in pixels)/len(pixels)
+        assert .25 < luminance < .85, (mode,luminance)

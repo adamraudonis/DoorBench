@@ -34,19 +34,20 @@ export function AppearanceThumb({ render, fallback, alt }: { render?: Appearance
 const nice = (s: string) => s.replace(/^(wall|floor)_/, "").replace(/_/g, " ");
 export function AppearancePanel({ id }: { id: string }) {
   const index = useAppearance();
-  const renders = index?.renders.filter((r) => r.door_id === id && r.image) ?? [];
+  const renders = (index?.renders.filter((r) => r.door_id === id && r.image) ?? [])
+    .sort((a, b) => Number(b.quality === "photo") - Number(a.quality === "photo") || a.variant - b.variant);
   const [selected, setSelected] = useState(0);
   useEffect(() => setSelected(0), [id]);
   if (!renders.length) return null;
   const r = renders[Math.min(selected, renders.length-1)];
   return <section style={{ marginTop: 18 }}>
     <h3>Blender appearance</h3>
-    {renders.length > 1 && <select aria-label="Rendered appearance" value={selected} onChange={(e) => setSelected(Number(e.target.value))}>
+    {renders.length > 1 && <select aria-label="Rendered appearance" style={{ width: "100%", minWidth: 0 }} value={selected} onChange={(e) => setSelected(Number(e.target.value))}>
       {renders.map((x,i) => <option key={`${x.variant}-${i}`} value={i}>{nice(x.recipe.wall)} · {nice(x.recipe.floor)} · {nice(x.recipe.door_finish)} · {nice(x.recipe.lighting)}</option>)}
     </select>}
     <a href={`${APPEARANCE}/${r.image}`} target="_blank" rel="noreferrer"><img src={`${APPEARANCE}/${r.image}`} alt={`${id} with ${nice(r.recipe.wall)} and ${nice(r.recipe.floor)}`} style={{ width: "100%", borderRadius: 8, marginTop: 8 }} /></a>
     <p className="sub">{nice(r.recipe.wall)} · {nice(r.recipe.floor)} · {nice(r.recipe.door_finish)} · {nice(r.recipe.lighting)}</p>
-    <p className="sub">Saved pose. The interactive view above controls the simulation model.</p>
+    <p className="sub">Saved pose. The interactive view controls the simulation model.</p>
     <a href={`${APPEARANCE}/${r.metadata}`} target="_blank" rel="noreferrer">Appearance recipe</a>
     {r.blend && <> · <a href={`${APPEARANCE}/${r.blend}`} download>Blender scene</a></>}
   </section>;

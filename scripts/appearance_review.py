@@ -19,12 +19,33 @@ def main():
     ap.add_argument('--renders', default='out/appearance')
     ap.add_argument('--assets', default='assets')
     ap.add_argument('--out', default='docs/review/blender/atlas')
+    ap.add_argument('--variant', type=int, help='Review one variant index, e.g. 0 for catalogue coverage')
+    ap.add_argument('--live', action='store_true', help='Read completed per-image metadata while a batch is running')
     a = ap.parse_args()
     source, out = Path(a.renders).resolve(), Path(a.out).resolve()
-    index = json.loads((source/'index.json').read_text())
+    if a.live:
+        jobs = json.loads((source/'jobs.json').read_text())['jobs']
+        expected = {(j['door_id'], j['variant']): j['job_sha256'] for j in jobs}
+        entries = []
+        for path in sorted(source.glob('*/variant_*/render.json')):
+            try:
+                m = json.loads(path.read_text())
+                if not m.get('rendered') or 'variant' not in m:
+                    continue
+                if m.get('job_sha256') != expected.get((m['door_id'], m['variant'])):
+                    continue
+                relative = path.parent.relative_to(source)
+                entries.append({k:m[k] for k in ('door_id','variant','recipe','quality','source_sha256')} |
+                               {'image':str(relative/'rgb.png'), 'metadata':str(relative/'render.json'),
+                                'blend':str(relative/'scene.blend') if m.get('blend') else None})
+            except (ValueError, OSError):
+                continue
+    else:
+        index = json.loads((source/'index.json').read_text())
+        entries = [r for r in index['renders'] if r['image']]
     manifest = json.loads((Path(a.assets)/'manifest.json').read_text())
     doors = {d['id']:d for d in manifest['doors']}
-    entries = [r for r in index['renders'] if r['image']]
+    entries = [r for r in entries if a.variant is None or r['variant'] == a.variant]
     out.mkdir(parents=True, exist_ok=True)
     font_path = '/System/Library/Fonts/Supplemental/Arial.ttf'
     font = ImageFont.truetype(font_path, 13) if Path(font_path).is_file() else ImageFont.load_default()

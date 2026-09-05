@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from doorbench.appearance.state import validate_snapshot
+from doorbench.appearance.state import validate_camera, validate_snapshot
 
 
 @pytest.fixture
@@ -111,4 +111,35 @@ def test_coordinate_and_pixel_origin_conventions_cannot_silently_change(snapshot
     snapshot['coordinate_system'] = 'right_handed_z_up_meters'
     snapshot['camera']['pixel_origin'] = 'pixel_center'
     with pytest.raises(ValueError, match='pixel_origin'):
+        validate_snapshot(snapshot)
+
+
+@pytest.mark.parametrize('width,height,fx,fy', [
+    (720, 480, 20, 20),                 # Exactly 1mm on the 36mm sensor.
+    (720, 480, 20, 4000),               # Pixel aspect 200 on X.
+    (720, 480, 4000, 20),               # Pixel aspect 200 on Y.
+    (4, 65536, 500, 500),               # Both native resolution boundaries.
+    (36, 36, float.fromhex('0x1.fffffep+127'), float.fromhex('0x1.fffffep+127')),
+])
+def test_blender_camera_hard_limit_boundaries_are_accepted(snapshot, width, height, fx, fy):
+    camera = snapshot['camera']
+    camera['resolution'] = [width, height]
+    camera['intrinsics'] = [[fx, 0, width / 2], [0, fy, height / 2], [0, 0, 1]]
+    assert validate_camera(camera)['intrinsics'] == camera['intrinsics']
+
+
+@pytest.mark.parametrize('width,height,fx,fy,cx,cy,error', [
+    (720, 480, 19.999999, 20, 360, 240, 'lens'),
+    (720, 480, 20, 4000.0001, 360, 240, 'ratio'),
+    (720, 480, 4000.0001, 20, 360, 240, 'ratio'),
+    (3, 480, 500, 500, 1.5, 240, 'resolution'),
+    (720, 65537, 500, 500, 360, 240, 'resolution'),
+    (36, 36, 1e39, 1e39, 18, 18, 'lens'),
+    (720, 480, 500, 500, 1e42, 240, 'principal point'),
+    (720, 480, 500, 500, 360, -1e42, 'principal point'),
+])
+def test_blender_camera_silent_clamps_are_rejected(snapshot, width, height, fx, fy, cx, cy, error):
+    snapshot['camera']['resolution'] = [width, height]
+    snapshot['camera']['intrinsics'] = [[fx, 0, cx], [0, fy, cy], [0, 0, 1]]
+    with pytest.raises(ValueError, match=f'Invalid snapshot camera:.*{error}'):
         validate_snapshot(snapshot)
