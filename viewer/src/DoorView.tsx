@@ -354,6 +354,25 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
   if (qa && !("clearance" in qaChecks)) qaRows.splice(3, 0, ["clearance", "n/a (regenerate)", "qa_clearance"]);
   if (qa?.metrics?.clearance_n_failures != null) qaRows.push(["clearance failures", `${qa.metrics.clearance_n_failures}${qa.metrics.clearance_failures?.length ? ": " + qa.metrics.clearance_failures.slice(0, 3).map((f: any) => `${(f.geoms ?? []).join(" ↔ ")} ${f.depth != null ? (f.depth * 1000).toFixed(1) + " mm" : ""}${f.joint ? ` @ ${f.joint}=${f.q}` : ""}`).join("; ") : ""}`, "qa_clearance"]);
   const evEntry = (ev: string): GlossaryEntry | undefined => bench?.event_descriptions?.[ev] ? { what: bench.event_descriptions[ev], unit: "reward, once per episode" } : undefined;
+  // ---- Isaac parity gate (qa.json.isaac_parity written by scripts/merge_isaac_results.py; the manifest carries the badge value)
+  const ip = qa?.isaac_parity;
+  const parityStatus: string | undefined = ip ? (ip.status === "untested" || ip.ok == null ? "untested" : ip.ok ? "ok" : "fail") : entry.isaac_parity;
+  const parityGrade: string | null | undefined = ip?.grade ?? entry.isaac_parity_grade;
+  const parityKindRow = (kind: "full" | "rl"): string => {
+    const k = ip?.kinds?.[kind];
+    if (!k || k.status === "untested") return "untested";
+    const phases = Object.entries((k.phases ?? {}) as Record<string, string>).map(([p, st]) => `${p.replace(/_/g, " ")} ${st}`).join(" · ");
+    return `grade ${k.grade ?? "?"}${phases ? ` · ${phases}` : ""}${k.errors?.length ? ` · ${k.errors[0]}` : ""}`;
+  };
+  const parityRows: Row[] = ip ? [
+    ["verdict", <span className={parityStatus === "ok" ? "ok" : parityStatus === "fail" ? "bad" : undefined}>{parityStatus === "ok" ? `parity (grade ${parityGrade})` : parityStatus === "fail" ? `MISMATCH (grade ${parityGrade ?? "X"})` : "untested"}</span>, "isaac_parity"],
+    ["full USD (door.usda)", parityKindRow("full"), "isaac_parity_full"],
+    ["RL USD (door_rl.usda)", parityKindRow("rl"), "isaac_parity_rl"],
+    ...(ip.classes?.length ? [["classes", <span className="chips">{ip.classes.map((c: string) => <span key={c} className="chip bad">{c}</span>)}</span>, "isaac_parity_classes"] as Row] : []),
+    ...(ip.likely_root_cause && ip.likely_root_cause !== "-" ? [["likely root cause", ip.likely_root_cause, "isaac_parity_root_cause"] as Row] : []),
+    ...((ip.kinds?.full?.details?.length || ip.kinds?.rl?.details?.length) ? [["details", [...(ip.kinds.full?.details ?? []), ...(ip.kinds.rl?.details ?? [])].slice(0, 4).join(" — "), "isaac_parity_classes"] as Row] : []),
+    ["run", `${ip.date ?? "–"}${ip.commit ? ` · commit ${ip.commit}` : ""}${ip.engines ? " · " + Object.entries(ip.engines).filter(([, v]) => v).map(([k, v]) => `${k}: ${typeof v === "object" ? Object.values(v as Record<string, string>).join(" ") : String(v)}`).join(" · ") : ""}`, "isaac_parity_run"],
+  ] : [];
 
   return (
     <div className="doorview">
@@ -387,6 +406,11 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
         <div className="use">{entry.id} · <a href={`#/?family=${entry.family}`}>{FAMILY_LABELS[entry.family] ?? entry.family}</a> · {entry.context} · task: {nice(entry.task)} · difficulty {entry.difficulty}/5</div>
         <div style={{ marginTop: 6 }} className="chips">
           <span className={"chip " + (entry.signed_off ? "ok" : "bad")}>{entry.signed_off ? "QA signed off" : "QA: " + (entry.qa_failed?.join(", ") || "needs review")}</span>
+          {parityStatus && parityStatus !== "untested" && (
+            <span className={"chip res " + (parityStatus === "ok" ? "ok" : "bad")} title={parityStatus === "ok" ? `Isaac parity gate: behaves the same in Isaac Sim / PhysX as in MuJoCo (grade ${parityGrade}); details in the Isaac parity section` : `Isaac parity gate: behaves differently in Isaac Sim / PhysX than in MuJoCo (grade ${parityGrade ?? "X"}${ip?.classes?.length ? ": " + ip.classes.join(", ") : ""}); details in the Isaac parity section`}>
+              Isaac {parityStatus === "ok" ? "parity" : "mismatch"}{parityGrade ? ` ${parityGrade}` : ""}
+            </span>
+          )}
           {scenarios.map((s, i) => <button key={s.name} className={"chip link" + (showEval && i === scenIdx ? " active" : "")} title={s.suite === "human" ? "human-interaction suite: advanced, opt-in (not part of the default core benchmark)" : "core suite: default benchmark, no person involved"} onClick={() => { setScenIdx(i); if (!showEval) { setShowEval(true); setTimeout(frameEvaluation, 0); } }}>{nice(s.name)}{s.suite === "human" ? <span className="suite-badge">human</span> : null}</button>)}
         </div>
         <div style={{ marginTop: 4 }} className="chips" title="baseline results on this door: successful episodes / episodes (core suite; human suite where the door lists one) - see the Results page">
@@ -458,6 +482,12 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
         <h3>Damage thresholds</h3>
         <KV rows={[["leaf dent", phys.damage ? `${fmt(phys.damage.leaf_dent_force_N)} N` : "–", "dent"], ["leaf puncture", phys.damage ? `${fmt(phys.damage.leaf_puncture_force_N)} N` : "–", "puncture"], ["glass break", phys.damage?.glass_break_force_N != null ? `${fmt(phys.damage.glass_break_force_N)} N` : "–", "glass_break"], ["operator yield", phys.damage ? `${fmt(phys.damage.operator_yield_torque_Nm)} ${rotary ? "N·m" : "N"}` : "–", "op_yield_dmg"], ["latch shear", phys.damage ? `${fmt(phys.damage.latch_shear_yield_N)} N` : "–", "latch_shear"], ["hinge tear-out", phys.damage ? `${fmt(phys.damage.hinge_tearout_force_N)} N` : "–", "hinge_tearout"], ["slam velocity", phys.damage ? `${fmt(phys.damage.slam_velocity_rad_s)} ${spec?.kinematics?.type?.startsWith("hinge") || spec?.kinematics?.type === "rotor" ? "rad/s" : "m/s"}` : "–", "slam_velocity"]]} />
         {qa && (<><h3>QA sign-off</h3><KV rows={qaRows} /></>)}
+        {(ip || manifest.isaac_parity) && (
+          <>
+            <h3>Isaac parity<Info k="isaac_parity" label="Isaac parity" /></h3>
+            {ip ? <KV rows={parityRows} /> : <p style={{ fontSize: 12, color: "var(--muted)" }}>Not yet run in Isaac Sim for this door (gate of {manifest.isaac_parity?.date}: {manifest.isaac_parity?.n_ok} ok, {manifest.isaac_parity?.n_fail} mismatch, {manifest.isaac_parity?.n_untested} untested).</p>}
+          </>
+        )}
         <h3>Files</h3>
         <div className="dl">
           {fileLink("MJCF (full)", dl.mjcf?.full)}{fileLink("MJCF (simple)", dl.mjcf?.simple)}{fileLink("MJCF (minimal)", dl.mjcf?.minimal)}
