@@ -108,14 +108,24 @@ export function operatorReturnPhase(model: ModelJ, joints: Map<string, JointLike
   return { joint: jointName, from: h.q, to: rest, dur, ease: j.return_kind === "spring" ? "spring" : "gravity", shape };
 }
 
-/** Label for the operator control: what happens when the viewer lets go of it. */
+/** What happens when the viewer lets go of this operator (toasted on release, and the button's tooltip). */
 export function returnLabel(model: ModelJ, jointName: string | undefined): string | null {
   if (!jointName) return null;
   const j = model.bodies.find((b) => b.joint?.name === jointName)?.joint;
   if (!j) return null;
-  if (j.return_kind === "spring") return `spring return (${((j.return_time_s ?? 0.3)).toFixed(2)} s)`;
-  if (j.return_kind === "gravity") return `gravity return (${((j.return_time_s ?? 0.5)).toFixed(2)} s)`;
+  if (j.return_kind === "spring") return `spring return (${(j.return_time_s ?? 0.3).toFixed(2)} s)`;
+  if (j.return_kind === "gravity") return `gravity return (${(j.return_time_s ?? 0.5).toFixed(2)} s)`;
   if (j.return_kind === "detent") return "stays where put (no return spring)";
+  return null;
+}
+
+/** The same thing under a slider whose label already names the return kind, so only what the label does NOT say:
+ *  how long it takes to come home.  A detent operator has nothing to add - it does not come home. */
+export function returnChip(model: ModelJ, jointName: string | undefined): string | null {
+  if (!jointName) return null;
+  const j = model.bodies.find((b) => b.joint?.name === jointName)?.joint;
+  if (!j) return null;
+  if (j.return_kind === "spring" || j.return_kind === "gravity") return `${(j.return_time_s ?? 0.3).toFixed(2)} s back to rest`;
   return null;
 }
 

@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import type { ModelJ } from "./types";
-import { activeLeaf, boltJointsFor, easeFor, gravityEase, openClosePhases, operatorReturnPhase, returnLabel, sliderReaction, springEase, type JointLike } from "./doorLogic";
+import { activeLeaf, boltJointsFor, easeFor, gravityEase, openClosePhases, operatorReturnPhase, returnChip, returnLabel, sliderReaction, springEase, type JointLike } from "./doorLogic";
 
 const ASSETS = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "assets", "doors");
 
@@ -183,5 +183,23 @@ describe.skipIf(!have)("operator snap-back against real doors", () => {
     const ph = operatorReturnPhase(d.model, d.joints, "ring_hinge")!;
     expect(ph.ease).toBe("gravity");
     expect(returnLabel(d.model, "ring_hinge")).toContain("gravity return");
+  });
+});
+
+describe.skipIf(!have)("operator control labels", () => {
+  test("the slider caption adds the number, not a second copy of the return kind", () => {
+    const d = load("db0002_swing_single")!;
+    const label = d.model.bodies.find((b) => b.joint?.name === "leaf_handle_hinge")!.joint!.label;
+    expect(label).toContain("spring return");                        // the joint label already says it
+    expect(returnChip(d.model, "leaf_handle_hinge")).toMatch(/^\d+\.\d\d s back to rest$/);
+    expect(returnChip(d.model, "leaf_handle_hinge")).not.toContain("spring return");
+  });
+
+  test("a detent operator adds no caption: its own label already says it stays put", () => {
+    const d = load("db0179_vault");
+    if (!d) return;
+    expect(d.model.bodies.find((b) => b.joint?.name === "wheel_hinge")!.joint!.label).toContain("stays where put");
+    expect(returnChip(d.model, "wheel_hinge")).toBeNull();
+    expect(returnLabel(d.model, "wheel_hinge")).toContain("stays where put");
   });
 });

@@ -6,7 +6,7 @@ import { FAMILY_LABELS } from "./types";
 import { buildScene, type BuiltScene, type JointHandle } from "./scene";
 import { buildEvaluationOverlay, type EvalOverlay } from "./evaluation";
 import { GLOSSARY, REWARD_LABELS, type GlossaryEntry } from "./glossary";
-import { activeLeaf, easeFor, isLocked, openClosePhases, operatorReturnPhase, parsePoseQuery, returnLabel, sliderReaction, type Phase } from "./doorLogic";
+import { activeLeaf, easeFor, isLocked, openClosePhases, operatorReturnPhase, parsePoseQuery, returnChip, returnLabel, sliderReaction, type Phase } from "./doorLogic";
 import { ASSETS } from "./App";
 import { BaselineBadges } from "./ResultBadges";
 import { AppearancePanel } from "./Appearance";
@@ -569,7 +569,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
               onPointerUp={() => onSliderRelease(h)} onPointerCancel={() => onSliderRelease(h)}
               onKeyUp={(e) => { if (e.key.startsWith("Arrow") || e.key === "Home" || e.key === "End") onSliderRelease(h); }}
               onBlur={() => onSliderRelease(h)} />
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>{h.label}{model && returnLabel(model, h.name) ? <> · <span className="spring-return" title="what this operator does when you let go of it - see the operator section below">{returnLabel(model, h.name)}</span></> : null}</div>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>{h.label}{model && returnChip(model, h.name) ? <> · <span className="spring-return" title="what this operator does when you let go of it - see the operator section below">{returnChip(model, h.name)}</span></> : null}</div>
           </div>
         ))}
         {loopResults.length > 0 && (
