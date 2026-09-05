@@ -118,6 +118,30 @@ coupling-consistent ranges, 85 deg stack stop) and header clearance for revolvin
 (free-swing push for every free-swing family, a coupling-vs-range check in the clearance sweep, a jam check on
 contact force). Regenerated: 1000/1000 signed off under the new gates.
 
+**Parity round 2 and what the gate actually found (2026-09-05).** Re-run on the regenerated dataset: full USD
+904/1000 same verdicts as MuJoCo (was 881), canonical rl 954/1000 (was 933), 110 doors flagged, per-door badges
+published in `qa.json.isaac_parity` and the viewer. A triage of the classes then turned most of the remaining
+disagreement into concrete bugs, several of them one-liners with dataset-wide reach:
+
+* `physxRigidBody:maxAngularVelocity` was authored as 100 assuming rad/s; PhysX reads deg/s, so every door was
+  capped at 1.75 rad/s. That single value is why only ~30 of 1000 doors reached strict metric agreement.
+* `PhysxJointAxisAPI` friction efforts were written with D6 tokens (`rotX`/`transX`) that the USD parser ignores on
+  single-axis joints, so the authored Coulomb friction was silently dropped on all 1000 doors and the deprecated
+  load-dependent coefficient acted instead. Fixed to `angular`/`linear`.
+* Env-released welds (mag-locks, delayed egress) and every translational mimic coupling exist only as metadata:
+  PhysX articulation mimic joints are rotational-only, so thumbturn-to-deadbolt and dog-to-bolt couplings were
+  dropped. Self-collision is disabled on the articulation root, so latches that hold one moving leaf against
+  another pass through in PhysX.
+* Zero-clearance geometry is a defect class of its own: parts authored exactly touching (0.000 m) pass a
+  penetration-based clearance gate but jam or explode in PhysX, and are wrong anyway because real doors have
+  running clearance. Turnstile rotor columns and folding-panel tops were the worst cases.
+* Several "disagreements" were protocol artefacts: a rebound metric read after the leaf hits its limit (MuJoCo's
+  soft limit bounces, PhysX's does not), a 30 Hz sampling artefact in the latch arrival speed, the latched-door
+  tolerance applied to doors expected to swing free, and a 60 N*m QA push applied to a 0.14 kg pet flap.
+
+Lesson: a second engine is a measuring instrument. Most of what it flags is the instrument or the adapter, so
+triage before fixing; but the residue is real, and nothing else had found it.
+
 **Working with agents.** Seven parallel Fable agents in git worktrees is productive until the account's usage
 limit hits, which kills all of them at once and twice cost partial work. Rules that now hold: commit early and
 often on the agent branch; the main session owns `TASKS.md`, `README.md`, credentials and merges; agents write
