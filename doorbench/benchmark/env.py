@@ -3,8 +3,10 @@
 Features
   * loads door.xml / door_simple.xml / door_minimal.xml by tier (through MjSpec so bodies can be added)
   * optional robot MJCF merged into the scene (e.g. MuJoCo Menagerie humanoids) via `robot_xml`
-  * asymmetric closer damping + backcheck, ratchet (one-way) rotors, maglock breakaway, keypad/REX/badge
-    release logic implemented in a passive-force callback and per-step hooks
+  * asymmetric closer damping + backcheck, ratchet (one-way) rotors, maglock breakaway, REX/badge release logic
+    implemented in a passive-force callback and per-step hooks
+  * code locks: the keypad's buttons are real bodies and `doorbench.keypad` reads them - the lock is released by
+    physically pressing the code (env.enter_code() is a convenience wrapper around that same path)
   * benchmark scenarios (spec.json["benchmark"], see scenarios.py): start-zone sampling, per-step reward from the
     scenario's reward table, scenario success criteria, time budget.  Human-interaction scenarios are a segregated,
     opt-in `human` suite: the default / primary scenario is always from the `core` suite and never spawns a person;
@@ -29,6 +31,7 @@ import os
 
 import numpy as np
 
+from ..keypad import keypad_for
 from .labels import LabelTracker
 from .scenarios import SCENARIO_TYPES, SCENARIO_SUITE, build_benchmark, make_scenario, sample_start, human_pose, scenarios_in_suite
 
@@ -142,6 +145,7 @@ class DoorEnv:
         self.lock_joints = [j["name"] for b in self.model_json["bodies"] if (j := b.get("joint")) and j.get("role") == "lock" and self._jid(j["name"]) >= 0]
         self.latch_joints = [j["name"] for b in self.model_json["bodies"] if (j := b.get("joint")) and j.get("role") == "latch" and self._jid(j["name"]) >= 0]
         self._breakable = {w["name"]: w for w in self.meta.get("breakable_welds", [])}
+        self.keypad = keypad_for(mujoco, m, self.meta, self.spec)
         hid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "human")
         self._human_mocap = int(m.body_mocapid[hid]) if hid >= 0 else -1
         self._human_geoms = {g for g in range(m.ngeom) if m.geom_bodyid[g] == hid} if hid >= 0 else set()
@@ -281,6 +285,8 @@ class DoorEnv:
             self.d.mocap_pos[self._human_mocap] = [x, y, h["height_m"] / 2]
         elif self._human_mocap >= 0:
             self.d.mocap_pos[self._human_mocap] = [0.0, -50.0, 1.0]
+        if self.keypad is not None:
+            self.keypad.reset(self.d)      # forget the entry, put the clutch back in its locked state
         self._with_passive(lambda: mujoco.mj_forward(self.m, self.d))
         self.tracker = LabelTracker(self.m, self.spec, self.meta, self.robot_bodies, self.robot_base, operator_joints=self.operator_joints, lock_joints=self.lock_joints, latch_joints=self.latch_joints)
         self.tracker.L.task = self.task
@@ -345,6 +351,9 @@ class DoorEnv:
             bid = self.mj.mj_name2id(self.m, self.mj.mjtObj.mjOBJ_BODY, self.robot_base)
             robot_base_pos = self.d.xpos[bid].copy() if bid >= 0 else None
         self._robot_base_pos = None if robot_base_pos is None else np.asarray(robot_base_pos, float)
+        if self.keypad is not None and self.keypad.step(self.d) and self.tracker is not None:
+            self.tracker.L.lock_released = True
+            self.tracker.L.notes.append(f"keypad code entered at t={self.d.time:.2f}")
         self.tracker.step(self.d, robot_base_pos)
         self._last_reward = 0.0
         if self._human is not None:
@@ -591,7 +600,14 @@ class DoorEnv:
                             L.door_damaged = True
                             L.damage_events.append({"t": float(d.time), "kind": "maglock_forced", "part": name, "value": float(abs(d.efc_force[i])), "threshold": w["holding_force_N"]})
                         break
-        # keypad / card / electric strike: restore operator range when released
+        # code lock: the keypad's own state machine holds the release (clutch range / bolt motor).  An explicit
+        # credential (env.badge(), a scenario that hands the robot the door) counts as the code being accepted.
+        if self.keypad is not None:
+            if self.unlocked_by_env and not self.keypad.lock.unlocked:
+                self.keypad.lock.unlocked = True
+                self.keypad.lock.events.append({"t": round(float(d.time), 4), "event": "released_by_env"})
+            self.keypad.apply(d)
+        # card / electric strike / keyed trim: restore operator range when released
         if L is not None and (L.lock_released or self.unlocked_by_env) and self.oj >= 0 and lock.get("engaged") and lock.get("model") in ("keypad_code_4", "keypad_code_6", "keypad_mechanical", "card_reader", "electric_strike", "electric_bolt", "privacy_button", "keyed_cylinder"):
             for b in self.model_json["bodies"]:
                 j = b.get("joint")
@@ -607,6 +623,37 @@ class DoorEnv:
         from .. import hardware as H
         op = H.OPERATORS.get(self.spec["operator"]["model"])
         return op.travel if op else None
+
+    def enter_code(self, code: str | None = None, hold_s: float = 0.08, gap_s: float = 0.06):
+        """Convenience wrapper around the PHYSICAL path: press the buttons of `code` (default: the door's own
+        code) one by one with a fingertip force, and on a mechanical pushbutton lock turn the outside lever
+        afterwards.  Every press goes through the button joints, the debounce and the same state machine a robot
+        finger would, so a wrong code is refused, the entry times out and the keypad locks out exactly as it
+        does for a policy.  Advances the simulation (each press is real time); returns True if the lock released.
+        """
+        if self.keypad is None:
+            raise RuntimeError(f"{self.spec['id']}: this door has no keypad")
+
+        # pressed through DoorEnv.step so rewards, labels and the human stay in sync
+        dt = float(self.m.opt.timestep)
+        seq = list(code if code is not None else (self.keypad.cfg.get("code") or ""))
+        for label in seq:
+            for _ in range(max(1, int(round(hold_s / dt)))):
+                self.keypad.hold(self.d, label)
+                self.step()
+            for _ in range(max(1, int(round(gap_s / dt)))):
+                self.step()
+        if self.keypad.lock.code_kind == "set" and self.keypad.clutch >= 0:
+            for _ in range(max(1, int(round(0.25 / dt)))):
+                self.d.qfrc_applied[self.m.jnt_dofadr[self.keypad.clutch]] += 4.0
+                self.step()
+            for _ in range(max(1, int(round(gap_s / dt)))):
+                self.step()
+        return self.keypad.lock.unlocked
+
+    def keypad_state(self) -> dict | None:
+        """What the keypad has seen this episode (entry, wrong attempts, lockout, events)."""
+        return None if self.keypad is None else self.keypad.state()
 
     def badge(self):
         """Present a valid credential (card reader / turnstile / maglock)."""
@@ -651,6 +698,9 @@ class DoorEnv:
         if self._scenario is not None and self._legacy_task is None:
             L.success = self.success
         L.notes = list(L.notes)
+        if self.keypad is not None:
+            L.code_entered = bool(self.keypad.lock.code_entered)
+            L.wrong_code_attempts = int(self.keypad.lock.wrong_attempts)
         L.reward_events = list(self.events)
         L.episode_return = float(self.episode_return)
         return L

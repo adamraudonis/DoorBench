@@ -170,4 +170,5 @@ def run_keypad_qa(m, spec: dict, meta: dict, phys: dict, push: float, oj: int, p
             checks[k] = True
 
     metrics["events"] = kp.lock.events[-12:]
+    kp.reset(d)          # the gate mutates the clutch's joint range: hand the model back locked, as it was built
     return {"ok": all(checks.values()), "checks": checks, "metrics": metrics}

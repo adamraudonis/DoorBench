@@ -1118,7 +1118,8 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
 
 
 def keypad_button_layout(kp: H.KeypadModel):
-    """[(label, dx, dz)] button centres relative to the keypad centre (dx along the leaf, +u; dz up)."""
+    """[(label, dx, dz)] button centres relative to the keypad centre: dx to the RIGHT of somebody standing in
+    front of the keypad (so the keys read left-to-right, top-to-bottom, like the real unit), dz up."""
     out = []
     n = len(kp.labels)
     if kp.layout == "2x5":                       # Schlage FE595 / BE365: 10 keys, five rows of two
@@ -1178,7 +1179,8 @@ def add_keypad_buttons(model: Model, leaf_body: Body, u: float, x_center: float,
     out = []
     for lab, dx, dz in keypad_button_layout(kp):
         safe = {"*": "star", "#": "hash"}.get(lab, lab)
-        px, pz = x_center + u * dx, z_center + dz
+        # somebody facing `face` has +x on their right when face = -1 and -x when face = +1
+        px, pz = x_center - face * dx, z_center + dz
         b = Body(f"{name}_key_{safe}", leaf_body.name, (px, face * (t / 2 + kd), pz), QUAT_ID, None, [], [], FULL_ONLY, "lock", f"Button {lab}")
         b.joint = Joint(f"{name}_key_{safe}_slide", "slide", (0, -face, 0), (0, 0, 0), (0.0, kp.travel), damping=round(0.7 * c_crit, 3), frictionloss=0.05,
                         stiffness=k, springref=springref, armature=1e-6, role="lock",

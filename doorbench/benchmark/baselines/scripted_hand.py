@@ -70,10 +70,16 @@ class ScriptedHandPolicy(Policy):
         self.keys = [l for l in locks if "keypad_key_" in l]
         self.buttons = [l for l in locks if any(p in l for p in MOMENTARY)]
         self.locks = [l for l in locks if l not in self.keys and l not in self.buttons]
-        code = info["lock"].get("code") or ""
+        # keypad: press the buttons of the code, in code order, with a fingertip force from the keypad's own
+        # hardware entry (a Simplex button needs ~19 N, a Schlage dome ~5 N); on a mechanical lock the lever turn
+        # that follows (self.ops) is what checks the combination
+        kpm = meta.get("keypad") or {}
+        by_label = {b["label"]: b["joint"] for b in kpm.get("buttons", [])}
+        code = kpm.get("code") or info["lock"].get("code") or ""
+        self.key_force = 1.6 * float(kpm.get("press_force_N", 3.0))
         self.code_keys = []
         for k in code:
-            jn = f"leaf_keypad_key_{ {'*': 'star', '#': 'hash'}.get(k, k) }_slide"
+            jn = by_label.get(k) or f"leaf_keypad_key_{ {'*': 'star', '#': 'hash'}.get(k, k) }_slide"
             if jn in self.keys:
                 self.code_keys.append(jn)
         # automatic door: powered operator opens for us (elevator: after the call button)
@@ -255,7 +261,7 @@ class ScriptedHandPolicy(Policy):
                 out[jn] = out.get(jn, 0.0) + self.lock_effort(jn)      # bolts: a steady pull (the QA's 60 N)
         for t0, t1, jn in self.key_times:
             if t0 <= tt < t1:
-                out[jn] = out.get(jn, 0.0) + 10.0                      # keypad key: steady 10 N press
+                out[jn] = out.get(jn, 0.0) + self.key_force            # keypad key: fingertip press (bottoms it out)
         if self.buttons and tt < self.t_op + 0.5 and not flags["lock_released"]:
             for jn in self.buttons:
                 out[jn] = out.get(jn, 0.0) + 20.0                      # REX / call button: steady 20 N press

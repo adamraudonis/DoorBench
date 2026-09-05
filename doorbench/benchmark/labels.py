@@ -5,7 +5,9 @@ Labels (all bool unless noted) computed from MuJoCo state each step:
   touched_operator          robot contacted the operator (handle / bar / pull ...)
   operator_actuated         operator joint travelled >= 70 % of its useful travel
   latch_released            latch bolt retracted >= 80 % of throw (or no latch)
-  lock_released             engaged lock released by the robot (thumbturn / keypad / REX / slide bolt)
+  lock_released             engaged lock released by the robot (thumbturn / keypad code / REX / slide bolt)
+  code_entered              the door's keypad code was entered correctly (DoorEnv's keypad state machine)
+  wrong_code_attempts       how many wrong codes were entered (int)
   door_opened               primary joint >= open threshold (10 deg / 0.1 m)
   door_open_clear           opening wide enough for the robot (>= clearance angle / travel)
   robot_passed_through      robot base crossed the door plane inside the opening
@@ -38,6 +40,8 @@ class EpisodeLabels:
     operator_actuated: bool = False
     latch_released: bool = False
     lock_released: bool = False
+    code_entered: bool = False
+    wrong_code_attempts: int = 0
     door_opened: bool = False
     door_open_clear: bool = False
     robot_passed_through: bool = False
@@ -157,10 +161,7 @@ class LabelTracker:
         # a lift pin (gates, baby gates) is modelled as the operator but is what releases the lock
         self.lock_release_joints += [j for j in range(model.njnt) if "pin_slide" in (mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j) or "")]
         self.lock_release_joints = [j for j in dict.fromkeys(self.lock_release_joints) if model.jnt_range[j][1] - model.jnt_range[j][0] > 1e-6]
-        self.keypad_joints = {mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j): j for j in range(model.njnt) if "keypad_key_" in (mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j) or "")}
-        self.code = spec.get("lock", {}).get("code")
-        self._key_seq = []
-        self._key_down = set()
+        # keypad codes are owned by doorbench.keypad (DoorEnv drives it): the tracker only reports the result
         self.step_leaf_force = 0.0
 
     def _jid(self, name):
@@ -252,18 +253,6 @@ class LabelTracker:
                 lo, hi = m.jnt_range[j]
                 if hi - lo > 1e-6 and (self.q(d, j) - lo) > 0.8 * (hi - lo):
                     L.lock_released = True
-            if self.code and self.keypad_joints:
-                for name, j in self.keypad_joints.items():
-                    key = name.split("keypad_key_")[1].split("_slide")[0]
-                    pressed = self.q(d, j) > 0.7 * m.jnt_range[j][1]
-                    if pressed and key not in self._key_down:
-                        self._key_seq.append(key)
-                        self._key_down.add(key)
-                    if not pressed and key in self._key_down:
-                        self._key_down.discard(key)
-                if "".join(self._key_seq[-len(self.code):]) == self.code:
-                    L.lock_released = True
-                    L.notes.append(f"keypad code entered at t={d.time:.2f}")
         # ---- door state
         if abs(qd) >= self.open_thr and not L.door_opened:
             L.door_opened = True
