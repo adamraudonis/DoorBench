@@ -7,9 +7,11 @@ import { humanReferenceDev } from "./humanReferenceDev.ts";
 // Dev-only: serve ../assets at /assets (the generated dataset) and ../results at /results (benchmark results) in place.
 function serveAssets(): Plugin {
   const repoRoot = path.resolve(import.meta.dirname, "..");
+  // Preview a verified publication directory without replacing a local dataset.
+  const siteRoot = process.env.DOORBENCH_SITE_ROOT ? path.resolve(repoRoot, process.env.DOORBENCH_SITE_ROOT) : null;
   // Prepared release previews stay local; relative overrides use the repository root.
   const plannedWebRoot = path.resolve(repoRoot, process.env.DOORBENCH_PLANNED_WEB_ROOT || "out/planned-reference-web");
-  const roots: Record<string, string> = { "/planned-references/": plannedWebRoot, "/reference-motions/": path.resolve(repoRoot, "out", "reference-motions"), "/assets/": path.resolve(repoRoot, "assets"), "/results/": path.resolve(repoRoot, "results"), "/appearance/": path.resolve(repoRoot, "out", "appearance") };
+  const roots: Record<string, string> = { "/planned-references/": plannedWebRoot, "/reference-motions/": siteRoot ? path.join(siteRoot, "reference-motions") : path.resolve(repoRoot, "out", "reference-motions"), "/assets/": path.resolve(siteRoot ?? repoRoot, "assets"), "/results/": path.resolve(repoRoot, "results"), "/appearance/": siteRoot ? path.join(siteRoot, "appearance") : path.resolve(repoRoot, "out", "appearance") };
   const types: Record<string, string> = { ".json": "application/json", ".obj": "text/plain", ".jpg": "image/jpeg", ".png": "image/png", ".xml": "text/xml", ".urdf": "text/xml", ".usda": "text/plain", ".glb": "model/gltf-binary", ".md": "text/markdown" };
   return {
     name: "serve-assets",

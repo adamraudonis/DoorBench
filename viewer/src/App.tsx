@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { Manifest } from "./types";
+import { PetCollection } from "./PetCollection";
+import { standardManifest } from "./collections";
 import { Catalogue } from "./Catalogue";
 import { Families } from "./Families";
 import { DoorView } from "./DoorView";
@@ -32,6 +34,7 @@ export function App() {
   const route = useMemo(() => {
     const h = hash.replace(/^#/, "");
     if (h.startsWith("/door/")) return { page: "door", id: h.slice(6).split("?")[0], query: h.includes("?") ? h.split("?")[1] : "" };
+    if (h.split("?")[0] === "/pets" || new URLSearchParams(h.split("?")[1] ?? "").get("family") === "pet_door" && !h.startsWith("/door/")) return { page: "pets" };
     if (h.startsWith("/families")) return { page: "families" };
     if (h.startsWith("/about")) return { page: "about" };
     if (h.startsWith("/results")) return { page: "results" };
@@ -43,6 +46,8 @@ export function App() {
   useEffect(() => {
     document.getElementById("main-content")?.scrollTo({ top: 0, behavior: "instant" });
   }, [route.page, route.id]);
+  const standard = useMemo(() => manifest ? standardManifest(manifest) : null, [manifest]);
+  const supplementaryCount = manifest ? manifest.doors.length - standard!.doors.length : 0;
   return (
     <div className="app">
       <a className="skip-link" href="#main-content" onClick={(e) => { e.preventDefault(); document.getElementById("main-content")?.focus(); }}>Skip to content</a>
@@ -56,10 +61,11 @@ export function App() {
       <main id="main-content" tabIndex={-1} className={`content content-${route.page}`}>
         {route.page !== "human-reference" && err && <div className="empty-state"><Icon name="door" size={36} /><h1>The catalogue couldn’t load.</h1><p>Refresh the page to try again. If you’re running locally, generate the dataset first.</p><code>{err}</code><button onClick={() => window.location.reload()}>Try again</button></div>}
         {route.page !== "human-reference" && !manifest && !err && <div className="loading"><span className="loading-dot" />Loading the door collection…</div>}
-        {manifest && route.page === "catalogue" && <Catalogue manifest={manifest} query={route.query ?? ""} />}
-        {manifest && route.page === "families" && <Families manifest={manifest} />}
+        {manifest && route.page === "catalogue" && <Catalogue manifest={standard!} query={route.query ?? ""} supplementaryCount={supplementaryCount} />}
+        {manifest && route.page === "pets" && <PetCollection manifest={manifest} />}
+        {manifest && route.page === "families" && <Families manifest={standard!} supplementaryCount={supplementaryCount} />}
         {manifest && route.page === "door" && <DoorView manifest={manifest} id={route.id!} query={route.query ?? ""} />}
-        {manifest && route.page === "about" && <About manifest={manifest} />}
+        {manifest && route.page === "about" && <About manifest={standard!} />}
         {manifest && route.page === "results" && <Results manifest={manifest} />}
         {manifest && route.page === "review" && <Review manifest={manifest} />}
         {manifest && route.page === "motions" && <MotionLab manifest={manifest} />}

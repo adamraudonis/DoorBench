@@ -9,13 +9,14 @@ index.json holds, per result file, the run metadata and one block per suite pres
 `suites.human`): the aggregate numbers, the per-family / per-scenario / per-difficulty / per-lock-state breakdowns
 and a compact per-door outcome map (`doors: {door_id: [n_success, n_episodes]}`) so the catalogue can show a badge
 per door without loading the multi-megabyte result files.  Core and human numbers are never mixed: the headline
-"N / 1000 doors" is the core suite; the human suite (advanced, opt-in) gets its own table.
+"N / 985 standard doors" is the core suite; the human suite (advanced, opt-in) gets its own table.
 """
 from __future__ import annotations
 
 import argparse
 import datetime as _dt
 import glob
+import hashlib
 import json
 import os
 import sys
@@ -27,6 +28,10 @@ START, END = "<!-- leaderboard:start -->", "<!-- leaderboard:end -->"
 ROOT_START, ROOT_END = "<!-- baseline-results:start -->", "<!-- baseline-results:end -->"
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from validate_result import CORE_SCENARIOS, HUMAN_SCENARIOS, SUITE_OF, SUITES, manifest_scenarios, validate_file  # noqa: E402
+
+sys.path.insert(0, ROOT)
+from doorbench.benchmark_eligibility import is_benchmark_eligible, collection_counts, POLICY_VERSION
+from doorbench.result_aggregation import aggregate
 
 SCENARIO_ORDER = list(CORE_SCENARIOS) + list(HUMAN_SCENARIOS)
 LOCKS = ["unlocked", "locked_releasable", "locked_no_release"]
@@ -57,21 +62,40 @@ def suite_block(suite: str, tab: dict, eps: list[dict], n_doors_suite: int) -> d
     }
 
 
-def summarize(path: str, n_total: int, n_human: int) -> dict:
+def summarize(path: str, n_total: int, n_human: int, manifest: dict | None = None) -> dict:
     with open(path) as f:
         doc = json.load(f)
-    run, pol, agg, bench = doc["run"], doc["policy"], doc["aggregate"], doc["benchmark"]
+    run, pol, bench = doc["run"], doc["policy"], doc["benchmark"]
+    by_id = {d["id"]: d for d in manifest["doors"]} if manifest else {}
+    original = doc["episodes"]
+    retained = [e for e in original if is_benchmark_eligible(e) and is_benchmark_eligible(by_id.get(e["door_id"], e))]
+    excluded = [e for e in original if not is_benchmark_eligible(e) or not is_benchmark_eligible(by_id.get(e["door_id"], e))]
+    # Preserve unchanged aggregate blocks when there is no exclusion. Recompute
+    # affected runs from episode data using precisely the runner's formula.
+    agg = aggregate(retained, by_id) if excluded else doc["aggregate"]
+    subset = {"policy": POLICY_VERSION, "applied": bool(excluded), "source_file": os.path.basename(path),
+              "source_sha256": hashlib.sha256(open(path, "rb").read()).hexdigest(),
+              "original_n_doors": len({e["door_id"] for e in original}), "original_n_episodes": len(original),
+              "excluded_door_ids": sorted({e["door_id"] for e in excluded}),
+              "excluded_n_doors": len({e["door_id"] for e in excluded}), "excluded_n_episodes": len(excluded),
+              "retained_n_doors": len({e["door_id"] for e in retained}), "retained_n_episodes": len(retained),
+              "note": "Historical run filtered to benchmark-eligible doors; not a new evaluation. Wall time and host describe the original full run."}
+    expected = manifest_scenarios(manifest) or {}
     suites = {}
     for suite in SUITES:
         if suite in agg:
-            eps = [e for e in doc["episodes"] if e.get("suite") == suite and e.get("outcome") != "error"]
+            eps = [e for e in retained if e.get("suite") == suite and e.get("outcome") != "error"]
             suites[suite] = suite_block(suite, agg[suite], eps, n_total if suite == "core" else n_human)
+            if expected:
+                required = {(d, s, seed) for d, names in expected.items() for s in names if SUITE_OF[s] == suite for seed in run["seeds"]}
+                actual = {(e["door_id"], e["scenario"], e["seed"]) for e in eps}
+                suites[suite]["complete"] = bool(required) and required <= actual
     return {
         "file": os.path.basename(path), "policy": pol["name"], "description": pol.get("description", ""), "embodiment": pol.get("embodiment", "hand_base"),
         "policy_class": pol.get("class"), "extra": pol.get("extra", {}),
         "simulator": run["simulator"], "simulator_version": run.get("simulator_version"), "tier": run["tier"], "date": run["date"][:10], "label": run.get("label", ""),
-        "commit": bench.get("commit"), "dataset_version": bench.get("dataset_version"), "n_doors_total": bench.get("n_doors_total"),
-        "suite": run.get("suite", "core"), "scenario_filter": run.get("scenario_filter", "all"), "n_doors": run["n_doors"], "seeds": run["seeds"],
+        "commit": bench.get("commit"), "dataset_version": bench.get("dataset_version"), "n_doors_total": n_total, "historical_subset": subset,
+        "suite": run.get("suite", "core"), "scenario_filter": run.get("scenario_filter", "all"), "n_doors": subset["retained_n_doors"], "seeds": run["seeds"],
         "scenarios": [s["name"] for s in run["scenarios"]], "randomize": run.get("randomize"), "time_budget_s": run.get("time_budget_s"),
         "wall_time_s": run.get("wall_time_s"), "host": (run.get("host") or {}).get("platform"), "door_selection": run.get("door_selection", "all"),
         # leaderboard = a complete core run (every door, every listed core scenario, the scenario's own budget)
@@ -104,7 +128,7 @@ def _scenario_table(rows: list[dict], suite: str, scenarios: list[str]) -> list[
 
 
 def leaderboard_md(index: dict) -> str:
-    total, n_human = index.get("n_doors_total") or 1000, index.get("n_doors_human") or 0
+    total, n_human = index.get("n_doors_total") or 985, index.get("n_doors_human") or 0
     core = _rows(index, "core")
     lines = ["### Core suite (default: no simulated person)", "",
              "| policy | embodiment | simulator | tier | doors | seeds | solved (every scenario, every seed) | episode success | damage | median time-to-traverse | date | commit |",
@@ -112,6 +136,8 @@ def leaderboard_md(index: dict) -> str:
     for r in core:
         c = r["suites"]["core"]
         note = "" if c["complete"] else f" (subset: {r.get('door_selection', '')})"
+        if r.get("historical_subset", {}).get("applied"):
+            note += " (historical eligible subset)"
         lines.append(f"| [{r['policy']}]({r['file']}){note} | {r['embodiment']} | {r['simulator']} {r.get('simulator_version') or ''} | {r['tier']} | {c['n_doors']} | {len(r['seeds'])} | "
                      f"**{c['doors_solved']} / {c['n_doors_suite'] if c['complete'] else c['n_doors']}** | {_pct(c['success_rate'])} | {_pct(c['damage_rate'])} | {_secs(c['median_time_to_pass_s'])} | {r['date']} | {(r.get('commit') or '')[:8]} |")
     fams = sorted({f for r in core for f in r["suites"]["core"]["by_family"]})
@@ -141,6 +167,8 @@ def leaderboard_md(index: dict) -> str:
     else:
         lines.append("_No human-suite run yet._")
     lines.append("")
+    if any(r.get("historical_subset", {}).get("applied") for r in index["results"]):
+        lines.append("Historical eligible subsets exclude standalone pet-door episodes from the original runs; these are recomputed summaries, not new evaluations. Raw result files remain unchanged. Runtime and host metadata describe the original run.")
     lines.append(f"_Generated by `scripts/build_results_index.py` on {index['generated'][:10]} from {len(index['results'])} result file(s)._")
     return "\n".join(lines)
 
@@ -154,9 +182,9 @@ WHAT = {
 
 def root_readme_block(index: dict, manifest: dict | None) -> str:
     """The root README 'Baseline results' tables: core headline + per family + per scenario, then the human suite."""
-    total, n_human = index.get("n_doors_total") or 1000, index.get("n_doors_human") or 0
+    total, n_human = index.get("n_doors_total") or 985, index.get("n_doors_human") or 0
     rows = _rows(index, "core")
-    out = ["**Core suite** (the default: every door, every core scenario it lists, no simulated person):", "",
+    out = ["**Core suite** (the default: every benchmark-eligible door, every core scenario it lists, no simulated person):", "",
            "| policy | what it is | doors solved (every scenario, every seed) | episode success | damage | median time-to-traverse | wall time |", "|---|---|---|---|---|---|---|"]
     for r in rows:
         c = r["suites"]["core"]
@@ -166,6 +194,8 @@ def root_readme_block(index: dict, manifest: dict | None) -> str:
     fam_n = {}
     if manifest:
         for d in manifest["doors"]:
+            if not is_benchmark_eligible(d):
+                continue
             fam_n[d["family"]] = fam_n.get(d["family"], 0) + 1
     else:
         for r in rows:
@@ -187,6 +217,8 @@ def root_readme_block(index: dict, manifest: dict | None) -> str:
     else:
         out.append("_No human-suite run yet._")
     out.append("")
+    if any(r.get("historical_subset", {}).get("applied") for r in index["results"]):
+        out.append("Historical eligible subsets exclude pet-door episodes; no new evaluation was run. Raw files and original full-run timing remain unchanged.")
     return "\n".join(out)
 
 
@@ -227,7 +259,7 @@ def update_readme(path: str, table: str) -> str:
     return new
 
 
-def build(check: bool = False) -> int:
+def build(check: bool = False, index_only: bool = False) -> int:
     files = [p for p in sorted(glob.glob(os.path.join(RESULTS, "*.json"))) if os.path.basename(p) not in RESERVED]
     with open(os.path.join(RESULTS, "schema.json")) as f:
         schema = json.load(f)
@@ -236,7 +268,7 @@ def build(check: bool = False) -> int:
     if os.path.exists(mp):
         with open(mp) as f:
             manifest = json.load(f)
-    n_total = (len(manifest["doors"]) if manifest else 0)
+    n_total = collection_counts(manifest["doors"])["n_doors_eligible"] if manifest else 0
     listed = manifest_scenarios(manifest) or {}
     n_human = sum(1 for ss in listed.values() if any(SUITE_OF.get(s) == "human" for s in ss))
     bad = 0
@@ -250,8 +282,9 @@ def build(check: bool = False) -> int:
         results.append(None)
     if bad:
         return 1
-    n_total = max([n_total] + [json.load(open(p))["benchmark"].get("n_doors_total") or 0 for p in files]) or 1000
-    results = [summarize(p, n_total, n_human) for p in files]
+    if not manifest:
+        raise ValueError("An asset manifest is required to establish the eligible benchmark denominator")
+    results = [summarize(p, n_total, n_human, manifest) for p in files]
     prev_generated = None
     ip = os.path.join(RESULTS, "index.json")
     if os.path.exists(ip):
@@ -260,7 +293,7 @@ def build(check: bool = False) -> int:
                 prev_generated = json.load(f).get("generated")
         except Exception:
             pass
-    index = {"schema_version": "1.1", "generated": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "n_doors_total": n_total, "n_doors_human": n_human,
+    index = {"schema_version": "1.1", "generated": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "n_doors_total": n_total, "n_doors_human": n_human, **collection_counts(manifest["doors"]),
              "suites": {"core": list(CORE_SCENARIOS), "human": list(HUMAN_SCENARIOS)}, "results": results}
     table = leaderboard_md(index)
     rp = os.path.join(RESULTS, "README.md")
@@ -279,15 +312,15 @@ def build(check: bool = False) -> int:
                 stale.append("results/index.json")
         else:
             stale.append("results/index.json")
-        if os.path.exists(rp):
+        if not index_only and os.path.exists(rp):
             with open(rp) as f:
                 old_readme = f.read()
             strip = lambda s: "\n".join(ln for ln in s.splitlines() if not ln.startswith("_Generated by"))
             if strip(old_readme) != strip(new_readme):
                 stale.append("results/README.md")
-        else:
+        elif not index_only:
             stale.append("results/README.md")
-        if new_root is not None:
+        if not index_only and new_root is not None:
             with open(root_rp) as f:
                 if f.read() != new_root:
                     stale.append("README.md (baseline-results block)")
@@ -309,20 +342,22 @@ def build(check: bool = False) -> int:
     with open(ip, "w") as f:
         json.dump(index, f, separators=(",", ":"))
         f.write("\n")
-    with open(rp, "w") as f:
-        f.write(new_readme)
-    if new_root is not None:
+    if not index_only:
+        with open(rp, "w") as f:
+            f.write(new_readme)
+    if not index_only and new_root is not None:
         with open(root_rp, "w") as f:
             f.write(new_root)
-    print(f"wrote {ip} ({os.path.getsize(ip) / 1e3:.0f} kB, {len(results)} results), {rp}" + (f" and the baseline-results block of {root_rp}" if new_root is not None else ""))
+    print(f"wrote {ip} ({os.path.getsize(ip) / 1e3:.0f} kB, {len(results)} results)" + (f", {rp}" + (f" and the baseline-results block of {root_rp}" if new_root is not None else "") if not index_only else ""))
     return 0
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--check", action="store_true", help="verify index.json and README.md are current; exit 1 otherwise")
+    ap.add_argument("--index-only", action="store_true", help="update/check only index.json; leave README files untouched")
     a = ap.parse_args(argv)
-    return build(check=a.check)
+    return build(check=a.check, index_only=a.index_only)
 
 
 if __name__ == "__main__":

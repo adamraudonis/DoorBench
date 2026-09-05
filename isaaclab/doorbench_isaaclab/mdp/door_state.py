@@ -69,6 +69,8 @@ class DoorState:
         metas = self._read_metas()
         self.metas = metas
         self.door_ids = [m["door_id"] for m in metas]
+        from ..doors import require_eligible_ids
+        require_eligible_ids(self.door_ids)
         N, dev = self.N, self.device
         f = lambda key, default=0.0: torch.tensor([float(key(m) if key(m) is not None else default) for m in metas], device=dev)
         b = lambda key: torch.tensor([bool(key(m)) for m in metas], device=dev)

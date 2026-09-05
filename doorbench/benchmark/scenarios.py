@@ -16,6 +16,8 @@ from __future__ import annotations
 import math
 import random
 
+from ..benchmark_eligibility import benchmark_eligibility, is_benchmark_eligible, require_benchmark_eligible
+
 SCENARIO_TYPES = ("open_and_traverse", "open_then_close", "close_only", "unlock_and_traverse", "locked_recognize",
                   "hold_open_for_human", "wait_for_human", "knock_and_wait")
 
@@ -327,6 +329,7 @@ def _path_from_points(points, speed, t0):
 
 
 def make_scenario(name: str, spec: dict, phys: dict, model: dict) -> dict:
+    require_benchmark_eligible(spec, operation="scenario generation")
     if name not in SCENARIO_TYPES:
         raise KeyError(name)
     meta = model.get("meta", {})
@@ -431,6 +434,8 @@ def make_scenario(name: str, spec: dict, phys: dict, model: dict) -> dict:
 
 def assign_scenarios(spec: dict) -> list:
     """Seeded per-door scenario list (see docs/BENCHMARK.md, 'Scenario assignment')."""
+    if not is_benchmark_eligible(spec):
+        return []
     rng = random.Random(int(spec["seed"]) * 1000003 + 17)
     lock = spec["lock"]
     locked, releasable = bool(lock.get("engaged")), bool(lock.get("robot_side_release", True))
@@ -461,20 +466,22 @@ def assign_scenarios(spec: dict) -> list:
 
 def build_benchmark(spec: dict, phys: dict, model: dict) -> dict:
     names = assign_scenarios(spec)
-    assert SCENARIO_SUITE[names[0]] == "core", names          # the primary (default) scenario never needs a person
+    assert not names or SCENARIO_SUITE[names[0]] == "core", names          # the primary (default) scenario never needs a person
     scen = [make_scenario(n, spec, phys, model) for n in names]
-    return {"schema_version": "1.1", "robot": ROBOT, "human": HUMAN, "primary_scenario": names[0],
+    return {"schema_version": "1.1", "robot": ROBOT, "human": HUMAN, "primary_scenario": names[0] if names else None,
+            "benchmark_eligibility": benchmark_eligibility(spec),
             "suites": {s: scenarios_in_suite(names, s) for s in SUITES}, "scenarios": scen,
             "reward_values": R, "event_descriptions": EVENT_DESCRIPTIONS}
 
 
 def benchmark_summary(bench: dict) -> dict:
     """Compact form for manifest.json."""
-    p = bench["scenarios"][0]
+    p = bench["scenarios"][0] if bench["scenarios"] else {}
     names = [s["name"] for s in bench["scenarios"]]
     return {"scenarios": names, "primary": bench["primary_scenario"], "core": scenarios_in_suite(names, "core"),
-            "human": scenarios_in_suite(names, "human"), "time_budget_s": p["time_budget_s"],
-            "expected_transit_s": p["expected_transit_s"], "has_human": any(s.get("human") for s in bench["scenarios"])}
+            "human": scenarios_in_suite(names, "human"), "time_budget_s": p.get("time_budget_s"),
+            "benchmark_eligibility": bench.get("benchmark_eligibility"),
+            "expected_transit_s": p.get("expected_transit_s"), "has_human": any(s.get("human") for s in bench["scenarios"])}
 
 
 def sample_start(scenario: dict, seed: int = 0) -> dict:

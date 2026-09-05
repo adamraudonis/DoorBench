@@ -182,6 +182,9 @@ export interface BenchmarkSummary {
 export type IsaacParityStatus = "ok" | "fail" | "untested";
 
 export interface ManifestDoor {
+  benchmark_eligibility?: { eligible: boolean; collection: string; reason_code: string | null; reason: string | null };
+  reference_motion_available?: boolean;
+  reference_motion_unavailable_reason?: string;
   id: string;
   index: number;
   family: string;

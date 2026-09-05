@@ -12,6 +12,8 @@ import os
 import random
 from functools import lru_cache
 
+from doorbench.benchmark_eligibility import is_benchmark_eligible, require_benchmark_eligible
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
 # operator kinds a simple end-effector can work without grasping (press / push / pull-through)
@@ -100,10 +102,11 @@ def easy_ids(n: int = 100, seed: int = 0, root: str | None = None) -> list[str]:
     return sorted(out)
 
 
-def select_ids(spec: str, root: str | None = None, seed: int = 0) -> list[str]:
+def select_ids(spec: str, root: str | None = None, seed: int = 0, *, benchmark_only: bool = True) -> list[str]:
     """Door selection strings used by the CLI / env cfg:
 
-    ``all``            every signed-off door (1000)
+    ``all``            every signed-off benchmark-eligible door (985)
+    ``benchmark_only=False`` is reserved for physical asset QA/parity, not policy evaluation.
     ``easy`` / ``easy-100`` / ``easy-300``   curated easy subset of that size
     ``family:<name>``  every door of one family (comma separate several)
     ``db0002_swing_single,db0016_swing_single``  explicit ids
@@ -111,26 +114,49 @@ def select_ids(spec: str, root: str | None = None, seed: int = 0) -> list[str]:
     ``random-50``      50 random doors (seeded)
     """
     spec = spec.strip()
+    rows = manifest(root)["doors"]
+    eligible = {r["id"] for r in rows if is_benchmark_eligible(r)}
+    def filtered(ids):
+        return [i for i in ids if not benchmark_only or i in eligible]
     if spec == "all":
-        return all_ids(root)
+        return filtered(all_ids(root))
     if spec.startswith("easy"):
         n = int(spec.split("-")[1]) if "-" in spec else 100
         return easy_ids(n, seed=seed, root=root)
     if spec.startswith("random-"):
-        ids = all_ids(root)
+        ids = filtered(all_ids(root))
         return sorted(random.Random(seed).sample(ids, min(int(spec.split("-")[1]), len(ids))))
     if spec.startswith("@"):
         with open(spec[1:]) as f:
-            return [l.strip() for l in f if l.strip() and not l.startswith("#")]
+            ids = [l.strip() for l in f if l.strip() and not l.startswith("#")]
+        return select_ids(",".join(ids), root=root, seed=seed, benchmark_only=benchmark_only)
     if spec.startswith("family:"):
         fams = set(spec[len("family:"):].split(","))
+        if benchmark_only:
+            for family in fams:
+                require_benchmark_eligible(family, operation="Isaac Lab benchmark selection")
         return [d["id"] for d in manifest(root)["doors"] if d["family"] in fams and d.get("signed_off", True)]
     ids = [s for s in spec.split(",") if s]
     known = set(all_ids(root, signed_off_only=False))
     bad = [i for i in ids if i not in known]
     if bad:
         raise KeyError(f"unknown door ids: {bad[:5]}")
+    if benchmark_only:
+        require_eligible_ids(ids, root=root)
     return ids
+
+
+def require_eligible_ids(ids: list[str], root: str | None = None) -> None:
+    """Guard evaluation config lists and actual source specs before USD spawning.
+
+    Raw USD lookup/all_ids/load_spec deliberately remain usable for asset QA.
+    """
+    by_id = {row["id"]: row for row in manifest(root)["doors"]}
+    for door_id in ids:
+        if door_id not in by_id:
+            raise KeyError(f"unknown door id: {door_id}")
+        require_benchmark_eligible(by_id[door_id], operation="Isaac Lab evaluation/training")
+        require_benchmark_eligible(load_spec(door_id, root=root), operation="Isaac Lab evaluation/training")
 
 
 def door_usd_paths(ids: list[str], canonical: bool = True, root: str | None = None) -> list[str]:

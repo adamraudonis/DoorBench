@@ -1,3 +1,4 @@
+import { isPetDoor, isPetDoorId, referenceUnavailable } from "./collections";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -84,6 +85,8 @@ function ScenarioOptions({ scenarios }: { scenarios: ScenarioJ[] }) {
 
 export function DoorView({ manifest, id, query = "", embedded = false, initialDiagnostic = false }: { manifest: Manifest; id: string; query?: string; embedded?: boolean; initialDiagnostic?: boolean }) {
   const entry = manifest.doors.find((d) => d.id === id);
+  const supplementary = entry ? isPetDoor(entry) : isPetDoorId(id);
+  const referenceBlocked = referenceUnavailable(entry);
   const mountRef = useRef<HTMLDivElement>(null);
   const [model, setModel] = useState<ModelJ | null>(null);
   const [spec, setSpec] = useState<any>(null);
@@ -121,7 +124,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
   const builtModel = useRef<ModelJ | null>(null);   // the model the current scene was built from (pose is kept across rebuilds of the same model)
 
   useEffect(() => {
-    setModel(null); setSpec(null); setQa(null); setErr(null); setScenIdx(0); setHumanT(0); setHumanPlay(false);
+    setModel(null); setSpec(null); setQa(null); setErr(null); setScenIdx(0); setHumanT(0); setHumanPlay(false); setShowEval(false);
     let cancelled = false;
     Promise.all([
       fetch(`${ASSETS}/doors/${id}/model.json`).then((r) => r.json()),
@@ -135,12 +138,13 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
     const abort = new AbortController();
     setReference(null); setReferenceError(null); setReferenceTime(0); setReferencePlaying(false); setReferenceVisible(false);
     referenceState.current = {time:0,playing:false,visible:false,last:0,speed:1,clip:null};
+    if (referenceBlocked) return () => abort.abort();
     fetchReference(id, abort.signal).then(c => {
       if (abort.signal.aborted) return;
       setReference(c); referenceState.current.clip = c;
     }).catch(e => { if (!abort.signal.aborted) setReferenceError(String(e.message || e)); });
     return () => abort.abort();
-  }, [id]);
+  }, [id, referenceBlocked]);
   useEffect(() => { built.current?.setDiagnostic(diagnostic); }, [diagnostic, joints]);
   useEffect(() => {
     const t = three.current;
@@ -315,7 +319,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
     force((x) => x + 1);
   }, [id, query, joints]);
 
-  const bench: BenchmarkJ | undefined = spec?.benchmark;
+  const bench: BenchmarkJ | undefined = supplementary ? undefined : spec?.benchmark;
   const scenarios: ScenarioJ[] = bench?.scenarios ?? [];
   const scenario: ScenarioJ | undefined = scenarios[Math.min(scenIdx, Math.max(0, scenarios.length - 1))];
   scenarioRef.current = scenario;
@@ -462,7 +466,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
   ] : [];
 
   return (
-    <div className={"doorview" + (embedded ? " embedded" : "")}>
+    <div className={"doorview" + (embedded ? " embedded" : "") + (referenceBlocked ? " reference-unavailable" : "")}>
       <div className="viewport">
         <div className="scene-mount" ref={mountRef} />
         <div className="hud">
@@ -472,12 +476,12 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
           <button className={diagnostic ? "active" : ""} aria-pressed={diagnostic} title="Brown door, gold mechanisms, neutral surroundings; glass remains transparent" onClick={() => setDiagnostic(v=>!v)}>Mechanism contrast</button>
           <button onClick={() => setShowEnv((v) => !v)}>{showEnv ? "Hide" : "Show"} walls</button>
           <button onClick={() => setShowCol((v) => !v)}>{showCol ? "Hide" : "Show"} collision</button>
-          <button className={showEval ? "active" : ""} aria-pressed={showEval} disabled={!scenario} title={scenario ? "Draw the benchmark scenario: start zone, approach, handle targets, pass plane, goal, human path" : "no benchmark block in spec.json"} onClick={() => { const v = !showEval; setShowEval(v); if (v) setTimeout(frameEvaluation, 0); }}>{showEval ? "Hide" : "Show"} evaluation</button>
+          {!supplementary && <button className={showEval ? "active" : ""} aria-pressed={showEval} disabled={!scenario} title={scenario ? "Draw the benchmark scenario: start zone, approach, handle targets, pass plane, goal, human path" : "no benchmark block in spec.json"} onClick={() => { const v = !showEval; setShowEval(v); if (v) setTimeout(frameEvaluation, 0); }}>{showEval ? "Hide" : "Show"} evaluation</button>}
           {showEval && scenarios.length > 1 && (
             <select aria-label="Scenario" value={scenIdx} onChange={(e) => setScenIdx(parseInt(e.target.value))}><ScenarioOptions scenarios={scenarios} /></select>
           )}
         </div>
-        <div className="reference-player" data-review-shortcuts="off">
+        {!referenceBlocked && (<div className="reference-player" data-review-shortcuts="off">
           <div className="reference-heading"><strong>Original illustrative reference</strong><span>Recorded MuJoCo door · kinematic figure</span></div>
           {reference ? <>
             <div className="reference-controls">
@@ -500,7 +504,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
             </div>
           </> : <p>{referenceError || "Loading reference recording…"}</p>}
           <p className="reference-note">Generalized forces move the door; this original figure has known contact and clearance errors. <a href={`#/motions?door=${encodeURIComponent(id)}`}>Open Motion Lab for independently checked candidates and this door’s results →</a></p>
-        </div>
+        </div>)}
         {showEval && scenario?.human && (
           <div className="timeline">
             <button onClick={() => setHumanPlay((v) => !v)} aria-label={humanPlay ? "Pause" : "Play"}>{humanPlay ? "❚❚" : "▶"}</button>
@@ -516,21 +520,23 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
       </div>
       <div className="side">
         <h2>{entry.use_case || entry.id}</h2>
+        {supplementary && <div className="collection-notice"><strong>Supplementary pet-door asset</strong><p>Available for inspection and download. Excluded from robot and human benchmarks; no baseline evaluation or reference motion.</p><a href="#/pets">← Pet-door collection</a></div>}
+        {!supplementary && referenceBlocked && <div className="collection-notice"><strong>Archived motion unavailable</strong>{referenceBlocked}</div>}
         <AppearancePanel id={id} />
-        <div className="use">{entry.id} · <a href={`#/?family=${entry.family}`}>{FAMILY_LABELS[entry.family] ?? entry.family}</a> · {entry.context} · task: {nice(entry.task)} · difficulty {entry.difficulty}/5</div>
+        <div className="use">{entry.id} · <a href={supplementary ? "#/pets" : `#/?family=${entry.family}`}>{FAMILY_LABELS[entry.family] ?? entry.family}</a> · {entry.context}{!supplementary && <> · task: {nice(entry.task)} · difficulty {entry.difficulty}/5</>}</div>
         <div style={{ marginTop: 6 }} className="chips">
           <span className={"chip " + (entry.signed_off ? "ok" : "bad")}>{entry.signed_off ? "Automated QA passed" : "QA: " + (entry.qa_failed?.join(", ") || "needs review")}</span>
-          {parityStatus && parityStatus !== "untested" && (
+          {!supplementary && parityStatus && parityStatus !== "untested" && (
             <span className={"chip res " + (parityStatus === "ok" ? "ok" : "bad")} title={parityStatus === "ok" ? `Isaac parity gate: behaves the same in Isaac Sim / PhysX as in MuJoCo (grade ${parityGrade}); details in the Isaac parity section` : `Isaac parity gate: behaves differently in Isaac Sim / PhysX than in MuJoCo (grade ${parityGrade ?? "X"}${ip?.classes?.length ? ": " + ip.classes.join(", ") : ""}); details in the Isaac parity section`}>
               Isaac {parityStatus === "ok" ? "parity" : "mismatch"}{parityGrade ? ` ${parityGrade}` : ""}
             </span>
           )}
           {scenarios.map((s, i) => <button key={s.name} className={"chip link" + (showEval && i === scenIdx ? " active" : "")} title={s.suite === "human" ? "human-interaction suite: advanced, opt-in (not part of the default core benchmark)" : "core suite: default benchmark, no person involved"} onClick={() => { setScenIdx(i); if (!showEval) { setShowEval(true); setTimeout(frameEvaluation, 0); } }}>{nice(s.name)}{s.suite === "human" ? <span className="suite-badge">human</span> : null}</button>)}
         </div>
-        <div style={{ marginTop: 4 }} className="chips" title="baseline results on this door: successful episodes / episodes (core suite; human suite where the door lists one) - see the Results page">
+        {!supplementary && (<div style={{ marginTop: 4 }} className="chips" title="baseline results on this door: successful episodes / episodes (core suite; human suite where the door lists one) - see the Results page">
           <BaselineBadges id={entry.id} compact={false} />
           {scenarios.some((s) => s.suite === "human") && <BaselineBadges id={entry.id} compact={false} suite="human" />}
-        </div>
+        </div>)}
         <h3>Joints</h3>
         {joints.map((h) => (
           <div className="joint" key={h.name}>
@@ -551,6 +557,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
             ))}
           </div>
         )}
+        {!supplementary && <>
         <h3>Evaluation</h3>
         {!bench && <p style={{ fontSize: 12, color: "var(--muted)" }}>No benchmark block in spec.json (regenerate the dataset).</p>}
         {bench && scenario && (
@@ -583,6 +590,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
             <div className="chips">{scenario.success.map((c) => <span key={c} className={"chip " + (c.startsWith("!") ? "bad" : "ok")}>{c.startsWith("!") ? "no " + (REWARD_LABELS[c.slice(1)] ?? nice(c.slice(1))) : (REWARD_LABELS[c] ?? nice(c))}</span>)}</div>
           </div>
         )}
+        </>}
         <h3>Leaf</h3>
         <KV rows={[["mass (leaf + hardware)", `${fmt(phys.mass?.total_kg)} kg`, "mass_total"], ["slab", `${fmt(phys.mass?.slab_kg)} kg (${nice(spec?.leaf?.slab)})`, "mass_slab"], ["glass", `${fmt(phys.mass?.glass_kg)} kg`, "mass_glass"], ["hardware", `${fmt(phys.mass?.hardware_kg)} kg`, "mass_hardware"], ["size W×H×t", spec ? `${spec.leaf.width}×${spec.leaf.height}×${spec.leaf.thickness} m` : "–", "size"], ["panel style", nice(spec?.leaf?.panel_style), "panel_style"], ["finish", spec ? `${spec.leaf.finish.kind} ${spec.leaf.finish.color}` : "–", "finish"], ["inertia about hinge", phys.inertia_about_hinge_kg_m2 != null ? `${fmt(phys.inertia_about_hinge_kg_m2)} kg·m²` : "–", "inertia"], ["condition", spec?.condition, "condition"]]} />
         <h3>Hinge / motion</h3>
@@ -596,7 +604,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
         <h3>Damage thresholds</h3>
         <KV rows={[["leaf dent", phys.damage ? `${fmt(phys.damage.leaf_dent_force_N)} N` : "–", "dent"], ["leaf puncture", phys.damage ? `${fmt(phys.damage.leaf_puncture_force_N)} N` : "–", "puncture"], ["glass break", phys.damage?.glass_break_force_N != null ? `${fmt(phys.damage.glass_break_force_N)} N` : "–", "glass_break"], ["operator yield", phys.damage ? `${fmt(phys.damage.operator_yield_torque_Nm)} ${rotary ? "N·m" : "N"}` : "–", "op_yield_dmg"], ["latch shear", phys.damage ? `${fmt(phys.damage.latch_shear_yield_N)} N` : "–", "latch_shear"], ["hinge tear-out", phys.damage ? `${fmt(phys.damage.hinge_tearout_force_N)} N` : "–", "hinge_tearout"], ["slam velocity", phys.damage ? `${fmt(phys.damage.slam_velocity_rad_s)} ${spec?.kinematics?.type?.startsWith("hinge") || spec?.kinematics?.type === "rotor" ? "rad/s" : "m/s"}` : "–", "slam_velocity"]]} />
         {qa && (<><h3>QA sign-off</h3><KV rows={qaRows} /></>)}
-        {(ip || manifest.isaac_parity) && (
+        {!supplementary && (ip || manifest.isaac_parity) && (
           <>
             <h3>Isaac parity<Info k="isaac_parity" label="Isaac parity" /></h3>
             {ip ? <KV rows={parityRows} /> : <p style={{ fontSize: 12, color: "var(--muted)" }}>Not yet run in Isaac Sim for this door (gate of {manifest.isaac_parity?.date}: {manifest.isaac_parity?.n_ok} ok, {manifest.isaac_parity?.n_fail} mismatch, {manifest.isaac_parity?.n_untested} untested).</p>}

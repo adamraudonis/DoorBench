@@ -14,9 +14,10 @@ from tests.test_reference_ik import door
 
 
 def test_solve_export_preserves_proposal_source_and_pose_correspondence(door,tmp_path,monkeypatch):
+    (door/"spec.json").write_text(json.dumps({"id": door.name, "family": "swing_single"}))
     initial=DoorHumanoidIK(door);poses=initial.foot_poses();landmarks=initial.joint_positions()
     n=3;time=np.array([0.,.1,.2]);native_time=np.array([0.,.02,.04])
-    source_hashes={name:hashlib.sha256((door/name).read_bytes()).hexdigest() for name in ['door.xml','model.json']}
+    source_hashes={name:hashlib.sha256((door/name).read_bytes()).hexdigest() for name in ['door.xml','model.json','spec.json']}
     guide=SimpleNamespace(time=time,native_time=native_time,native_qpos=np.array([[0.],[.01],[.02]]),
         pelvis=np.tile([0.,-1.,.94],(n,1)),yaw=np.zeros(n),
         foot_pos=np.tile([poses['left_foot']['pos'],poses['right_foot']['pos']],(n,1,1)),

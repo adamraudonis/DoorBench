@@ -115,11 +115,11 @@ def test_synthetic_base_gate():
 
 def test_select_doors():
     man = R.load_manifest(ASSETS)
-    assert len(R.select_doors(man, "all")) == len([d for d in man["doors"] if not d.get("error")])
+    assert len(R.select_doors(man, "all")) == len([d for d in man["doors"] if not d.get("error") and d["family"] != "pet_door"])
     assert [d["id"] for d in R.select_doors(man, FIVE)] == FIVE.split(",")
     assert all(d["family"] == "vault" for d in R.select_doors(man, "family:vault"))
     assert len(R.select_doors(man, "first:7")) == 7
-    assert len(R.select_doors(man, "every:4")) == 250 and R.select_doors(man, "every:4")[1]["index"] == R.select_doors(man, "every:4")[0]["index"] + 4
+    assert R.select_doors(man, "every:4") == R.select_doors(man, "all")[::4]
     assert len(R.select_doors(man, "sample:12:3")) == 12 and R.select_doors(man, "sample:12:3") == R.select_doors(man, "sample:12:3")
     assert all(d["lock_engaged"] for d in R.select_doors(man, "lock:locked"))
     assert all("knock_and_wait" in R.door_scenarios(d, "all") for d in R.select_doors(man, "scenario:knock_and_wait"))
@@ -287,6 +287,8 @@ def test_build_results_index(tmp_path, monkeypatch):
     with open(os.path.join(ROOT, "results", "schema.json")) as f:
         (rdir / "schema.json").write_text(f.read())
     R.write_result(res, str(rdir / "scripted_hand.json"))
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "assets" / "manifest.json").write_text(json.dumps(R.load_manifest(ASSETS)))
     monkeypatch.setattr(bi, "RESULTS", str(rdir))
     monkeypatch.setattr(bi, "ROOT", str(tmp_path))      # never touch the repo's README.md / manifest from a test
     assert bi.build() == 0

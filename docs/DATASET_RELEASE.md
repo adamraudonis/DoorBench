@@ -2,6 +2,10 @@
 
 DoorBench's generated data are distributed through the public, ungated [Hugging Face dataset](https://huggingface.co/datasets/adamraudonis/DoorBench). Source code and detailed documentation remain in [GitHub](https://github.com/adamraudonis/DoorBench), and the [catalogue](https://adamraudonis.github.io/DoorBench/) is for browsing. Use a release tag or full Hub commit to identify experimental data; a moving `main` branch is not a dataset version.
 
+The current catalogue separates **985 robotics doors** from **15 supplementary pet doors**. Pet assets remain downloadable, but the current runner and UI exclude them from all benchmark/evaluation suites. Previously published archives retain their historical pet metadata and recordings. Hugging Face releases are batched at most once per day; website corrections can ship independently without rewriting an existing Hub release.
+
+Baby-gate overhead-wall corrections are distributed through the website's versioned correction archive, described in [website publication](WEBSITE_DEPLOYMENT.md). The original `v2026.09.05` Hub download remains an immutable earlier snapshot; use the corrected website files or regenerate from current source when those corrections are required.
+
 ## Download
 
 From the source checkout:
