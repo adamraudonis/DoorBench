@@ -359,8 +359,9 @@ def tolerance_for(metric: str, is_hinge: bool) -> tuple[float, float]:
     return t["abs_hinge"] if is_hinge else t["abs_slide"], t["rel"]
 
 
-def metric_delta(metric: str, mj: Any, px: Any, is_hinge: bool) -> dict | None:
-    """[mj, px, delta, tol, ok] for numeric metrics; None when either side is missing / non-numeric."""
+def metric_delta(metric: str, mj: Any, px: Any, is_hinge: bool, tol_key: str | None = None) -> dict | None:
+    """[mj, px, delta, tol, ok] for numeric metrics; None when either side is missing / non-numeric.  `tol_key` looks the
+    tolerance up under another name (a free-opening door's hold_displacement is judged like q_at_1s, not like a latched one)."""
     if metric in NON_GATING_METRICS:
         return None
     if isinstance(mj, bool) or isinstance(px, bool):
@@ -370,7 +371,7 @@ def metric_delta(metric: str, mj: Any, px: Any, is_hinge: bool) -> dict | None:
     if not (_finite(mj) and _finite(px)):
         return None
     a, b = float(mj), float(px)
-    abs_tol, rel_tol = tolerance_for(metric, is_hinge)
+    abs_tol, rel_tol = tolerance_for(tol_key or metric, is_hinge)
     d = abs(a - b)
     ok = d <= abs_tol or (rel_tol > 0 and d <= rel_tol * max(abs(a), abs(b)))
     return {"mj": a, "px": b, "delta": a - b, "tol": abs_tol, "ok": bool(ok)}
@@ -527,8 +528,11 @@ def compare_phase(name: str, mj_ph: dict | None, px_ph: dict | None, is_hinge: b
         return out
     out["agree"] = mj_st == px_st
     mm, pm = mj_ph["metrics"], px_ph["metrics"]
+    # a free-opening door's push phase compares displacements of tenths of a rad / m, not the latch slop
+    hd_mj, hd_px = mm.get("hold_displacement"), pm.get("hold_displacement")
+    free = name == "hold" and ("free" in str(out["expected"] or "").lower() or (_finite(hd_mj) and _finite(hd_px) and min(abs(float(hd_mj)), abs(float(hd_px))) > 0.1))
     for k in sorted(set(mm) & set(pm)):
-        d = metric_delta(k, mm.get(k), pm.get(k), is_hinge)
+        d = metric_delta(k, mm.get(k), pm.get(k), is_hinge, tol_key="q_at_1s" if free and k == "hold_displacement" else None)
         if d is not None:
             out["metric_deltas"][k] = d
     out["within_tol"] = all(d["ok"] for d in out["metric_deltas"].values()) if out["metric_deltas"] else True
