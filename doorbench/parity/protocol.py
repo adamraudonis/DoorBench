@@ -298,6 +298,19 @@ def door_inputs(spec: dict, model_json: dict, forces: dict | None = None, qa: di
 # ---------------------------------------------------------------------------
 # what the door is expected to do, per phase and file kind
 # ---------------------------------------------------------------------------
+def _rl_blocking(inputs: dict, rl: dict) -> list:
+    """Joints the protocol works to release this door that ``door_rl.usda`` welded in their ENGAGED state.
+
+    ``rl["welded_engaged"]`` is the exporter's ground truth (every engaged latch / lock part with no canonical slot);
+    intersecting it with the joints the protocol actually actuates (``thumbturn_joint``, ``aux_joints``,
+    ``dog_joints``) is what decides whether the canonical door can open: a welded keypad key or thumbturn spindle
+    does not hold the leaf, a welded slide bolt or an extra dog does."""
+    release_set = set(inputs["dog_joints"]) | {a["joint"] for a in inputs["aux_joints"]}
+    if inputs["thumbturn_joint"]:
+        release_set.add(inputs["thumbturn_joint"])
+    return [j for j in (rl.get("welded_engaged") or []) if j in release_set]
+
+
 def expected_outcomes(inputs: dict, kind: str = "mjcf") -> dict:
     """{phase: expectation}.  Expectations: 'settle', 'hold', 'free_opens', 'opens', 'stays_closed',
     'bolt_returns', 'bolt_returns_info', 'relatches', 'relatches_info', 'closes', 'locked_holds', or 'na:<reason>'."""
@@ -317,7 +330,7 @@ def expected_outcomes(inputs: dict, kind: str = "mjcf") -> dict:
         exp["hold"] = "free_opens"
     if rl is not None and exp["hold"] == "hold" and f["spring_latch"] and not f["lock_engaged"] and not rl["latch_present"]:
         exp["hold"] = "na:rl latch not in the canonical articulation (welded released)"
-    if rl is not None and exp["hold"] == "hold" and rl.get("released_holding") and not rl.get("welded_engaged"):
+    if rl is not None and exp["hold"] == "hold" and rl.get("released_holding") and not _rl_blocking(inputs, rl):
         # door_rl.usda welded every part that holds this leaf in its RELEASED state (a hook / cremone bolt / dog that
         # the operator retracts and that has no canonical slot): nothing can hold the canonical leaf, by construction
         exp["hold"] = f"na:rl holding part welded released ({', '.join(rl['released_holding'][:3])})"
@@ -336,9 +349,12 @@ def expected_outcomes(inputs: dict, kind: str = "mjcf") -> dict:
             if not rl["operator_present"]:
                 exp["operate"] = "na:rl operator slot empty (world-mounted operator)"
             elif rl.get("weld_ground_truth"):
-                # the exporter records what door_rl.usda actually did with every mechanism part
-                if rl.get("welded_engaged"):
-                    exp["operate"] = "stays_closed"      # an engaged lock part is welded engaged and has no canonical slot
+                # the exporter records what door_rl.usda did with every mechanism part; the protocol contributes which
+                # parts IT works to release the door (thumbturn, aux bolts, dogs).  A release part welded ENGAGED is
+                # what the canonical file cannot undo; keypad keys and thumbturn spindles are welded too but do not
+                # hold the leaf, and their release parts (or the latch) still open it.
+                if f["lock_engaged"] and _rl_blocking(inputs, rl):
+                    exp["operate"] = "stays_closed"
             else:
                 welded_release = [n for n in ([inputs["thumbturn_joint"]] if inputs["thumbturn_joint"] else []) + [a["joint"] for a in inputs["aux_joints"]] + inputs["dog_joints"] if n and n != oj]
                 if f["lock_engaged"] and welded_release:

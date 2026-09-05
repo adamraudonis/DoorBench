@@ -1340,6 +1340,19 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
     spec_lock = (spec or {}).get("lock", {}) if isinstance(spec, dict) else {}
     lock_engaged_spec = bool(spec_lock.get("engaged"))
     op_driven = operator_driven_joints(model, meta.get("operator_joint"), tier)
+    leaf_normal_w = quat_rotate(leaf_quat, np.array([0.0, 1.0, 0.0]))
+
+    def _press_only(b):
+        """A slide that moves along the leaf's normal is a BUTTON, not a bolt: it presses into the leaf face and can
+        never reach the frame, so welding it in either state cannot hold or release the leaf (keypad keys, REX and
+        call buttons, privacy buttons).  A bolt / rod / pin moves in the plane of the leaf, toward an edge."""
+        jt = b.joint
+        if jt is None or jt.type != "slide":
+            return False
+        pos, quat = wt[b.name]
+        ax = quat_rotate(quat, np.asarray(jt.axis, float) / np.linalg.norm(jt.axis))
+        return abs(float(np.dot(ax, leaf_normal_w))) > 0.9
+
     shift, weld_record = {}, []
     for n in leaf_bodies + static_extra:
         b = model.body(n)
@@ -1347,7 +1360,10 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
             continue
         role, jt = b.joint.role, b.joint
         engaged = _engaged_in_ir(jt)
-        holding = role in ("latch", "lock") or b.semantic in ("latch", "lock")
+        # can this part hold the leaf shut at all?  Only a bolt / hook / rod / pin that is in its engaged state; a
+        # button (presses into the face), a sensor or a decoration never does.
+        holding = (engaged and b.semantic not in ("sensor", "decor")
+                   and (role in ("latch", "lock") or b.semantic in ("latch", "lock")) and not _press_only(b))
         if role == "latch" or b.semantic == "latch":
             released, why = True, "latch hardware never blocks the canonical leaf"
         elif role == "operator" and n in static_extra:
@@ -1366,7 +1382,8 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
             shift[n] = dq
         weld_record.append({"body": n, "joint": jt.name, "role": role, "semantic": b.semantic, "type": jt.type,
                             "released": bool(released), "shift": float(dq), "was_engaged": bool(engaged),
-                            "holding": bool(holding), "link": "static" if n in static_extra else "leaf", "reason": why})
+                            "holding": bool(holding), "press_only": bool(_press_only(b)),
+                            "link": "static" if n in static_extra else "leaf", "reason": why})
     # recompute world poses with the shifts applied (descendants follow)
     wt2 = {}
 
@@ -1653,8 +1670,8 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
         # ``welded_engaged`` are welded ENGAGED (they hold the leaf shut and no canonical slot can release them).
         "welded": weld_record,
         "released_parts": [w for w in weld_record if w["released"]],
-        "released_holding": [w for w in weld_record if w["released"] and w["holding"] and w["was_engaged"]],
-        "welded_engaged": [w for w in weld_record if not w["released"] and w["holding"] and w["was_engaged"]],
+        "released_holding": [w for w in weld_record if w["released"] and w["holding"]],
+        "welded_engaged": [w for w in weld_record if not w["released"] and w["holding"]],
         "operator_driven_joints": sorted(op_driven),
         "couplings": rl_couplings,
         "coupling_reflected_armature": reflected_rl,

@@ -128,13 +128,20 @@ state** is decided per part and recorded, not guessed:
 | **released** (joint moved to its travel end) | the part is latch hardware (`role == "latch"` or the body's semantic is `latch`), **or** the operator drives it through a bilateral equality / tendon (transitive closure from `meta.operator_joint`), **or** its lock is not engaged | hook bolts of a hook-slider, cremone shoot bolts on the espagnolette handle, dogs driven by a ship wheel, world-mounted lift pins |
 | **engaged** (initial state) | an engaged lock part with no canonical slot and no operator coupling — the robot would have to work it separately, which this file cannot represent | a thrown slide bolt, a keypad-locked deadbolt, a second dog with its own lever |
 
+`holding` marks the parts that can actually hold the leaf shut: engaged, with a `latch` / `lock` role or semantic,
+not a sensor or decoration, and **not press-only** — a slide whose axis is the leaf normal (keypad keys, REX and call
+buttons, privacy buttons) presses into the face and can never reach the frame, so welding it in either state changes
+nothing. A bolt, rod, hook or pin moves in the plane of the leaf, toward an edge.
+
 Welding a hook or a cremone bolt engaged locked the door **by construction** while the protocol expected it to open
 (11 hook sliders, 2 cremone pairs and ~35 doors flagged `RL_CANON` in parity round 2). `doorbench:rl` records every
 decision — `welded` (all parts, with `role`, `semantic`, `shift`, `was_engaged`, `holding`, `reason`),
 `released_parts`, `released_holding`, `welded_engaged`, `operator_driven_joints` — and
-`doorbench.parity.protocol.expected_outcomes` reads that ground truth: a door whose only holding part is welded
-released gets `hold = "na:rl holding part welded released (…)"`, a door with a `welded_engaged` part gets
-`operate = "stays_closed"`. World-mounted parts (gate lift pins, REX buttons) become static; leaf-like panels beyond
+`doorbench.parity.protocol.expected_outcomes` reads that ground truth and combines it with the joints the protocol
+itself works to release the door (`thumbturn_joint`, `aux_joints`, `dog_joints`): a door whose only holding part is
+welded released gets `hold = "na:rl holding part welded released (…)"` (21 doors: hook sliders, vault and blast
+bolt rings, ship dogs, cremone pairs, a garage lock bar), and a door where one of those release joints is welded
+**engaged** gets `operate = "stays_closed"` (`_rl_blocking`). World-mounted parts (gate lift pins, REX buttons) become static; leaf-like panels beyond
 the second (strip curtains, accordions) are omitted.
 
 `door_rl.usda` carries the same self-collision setting, filtered pairs (at link level: `leaf`/`operator` is filtered

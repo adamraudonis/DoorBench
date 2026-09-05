@@ -56,6 +56,7 @@ PICKS = {
     "rise": lambda s: s["family"] == "cold_storage" and s["hinge"].get("axis_tilt_deg"),
     "thumbturn": lambda s: s["lock"]["model"] == "deadbolt_single" and s["lock"].get("engaged"),
     "auto_slider": lambda s: s["family"] == "automatic_sliding",
+    "keypad": lambda s: s["lock"]["model"].startswith("keypad") and s["lock"].get("engaged"),   # buttons, not bolts
 }
 
 
@@ -204,6 +205,35 @@ def test_rl_releases_parts_the_operator_retracts(doors, key, role_hint):
     if role_hint == "operator":
         assert any("operator" in w["reason"] for w in rlm["released_parts"])
         assert set(rlm["operator_driven_joints"]) & set(released)
+
+
+def test_buttons_are_welded_but_never_count_as_holding(doors):
+    """Keypad keys and REX / call buttons press INTO the leaf face: they can never reach the frame, so welding them
+    in either state neither holds nor releases the leaf.  Treating them as holding parts made every keypad-locked
+    door read `stays_closed` (and every unlocked one lose its hold phase), which PhysX contradicts."""
+    spec, dd, mj, full, rl, rlm = doors["keypad"]
+    keys = [w for w in rlm["welded"] if "keypad_key" in w["joint"]]
+    assert len(keys) >= 5, [w["joint"] for w in rlm["welded"]]
+    for w in keys:
+        assert w["press_only"] is True and w["holding"] is False, w
+    assert not [w for w in rlm["welded_engaged"] + rlm["released_holding"] if "keypad_key" in w["joint"]]
+    # a button is never what makes the canonical door read "locked shut" (this door's deadbolt may still be)
+    inp = _inputs(spec, mj, dd)
+    assert not [j for j in P._rl_blocking(inp, inp["rl"]) if "keypad_key" in j]
+    for w in rlm["welded"]:
+        if w["semantic"] in ("sensor", "decor"):
+            assert w["holding"] is False, w
+
+
+def test_press_only_is_geometric_not_by_name(doors):
+    """`press_only` is 'the slide axis is the leaf normal', so a 12.7 mm latch bolt or a 20 mm shoot bolt (which move
+    in the plane of the leaf, toward an edge) is never mistaken for a button even though both are small."""
+    for key, (_, _, mj, _, _, rlm) in doors.items():
+        for w in rlm["welded"]:
+            if w["type"] != "slide":
+                assert w["press_only"] is False, (key, w)
+            if w["role"] == "latch" and w["type"] == "slide":
+                assert w["press_only"] is False, (key, w)
 
 
 def test_rl_keeps_an_engaged_lock_without_a_release_welded_shut(doors):
