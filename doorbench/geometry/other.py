@@ -857,6 +857,7 @@ def build_horizontal(spec, phys, model: Model):
         if spec["lock"]["model"] == "slide_bolt" and spec["lock"].get("engaged"):
             flap.joint.range = (-0.001, 0.001)
             flap.joint.notes = "locking panel slid in: flap blocked"
+            model.meta["locked"] = True   # like a credential-locked turnstile: QA / parity expect it to hold, not to swing
         world.sites.append(Site("approach_point", (0, -1.0, 0), QUAT_ID, 0.05, "approach"))
         world.sites.append(Site("goal_point", (0, 1.0, 0), QUAT_ID, 0.05, "goal"))
         world.sites.append(Site("door_plane_center", (0, 0, 0.05 + Ho / 2), QUAT_ID, 0.02, "pass_plane"))

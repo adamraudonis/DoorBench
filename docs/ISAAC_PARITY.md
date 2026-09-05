@@ -35,7 +35,7 @@ Phases follow `doorbench.qa.run_qa` (the dataset sign-off) expressed in simulate
 | phase | drive | duration | expectation (from `qa.door_flags` + the RL slot metadata) |
 |---|---|---|---|
 | settle | none | 1 s | primary drift < 0.05 rad / 0.01 m, no MuJoCo warnings, initial penetration > -12 mm |
-| hold | adaptive push on the primary joint: `min(2(bias + friction + preload) + 60 N·m \| 80 N, 800 \| 4000)` | 1 s (holding) / ≤ 6 s (free) | `hold` (< 2°/15 mm) for latched / locked doors, `free_opens` (> 10°/5 cm) otherwise; free-swing families informational |
+| hold | adaptive push on the primary joint: `min(2(bias + friction + preload) + 60 N·m \| 80 N, 800 \| 4000)` | 1 s (holding) / ≤ 6 s (free) | `hold` (< 2°/15 mm) for latched / locked doors, `free_opens` (> 10°/5 cm) otherwise; free-swing families informational here, but graded by qa.py's jam gate (`free_opens` + `no_jam`: no static geometry may press on a moving part with > 200 N during the push - the check that caught the revolving wings jammed on the wall header) |
 | operate | thumbturn 2 N·m (t < 1.2 s), aux bolts 3 N·m / 60 N, dogs 14 N·m, operator 4 / 8 / 10 / 14 N·m or 120 N from 0.6 s, push from 1.2 s while q < 50° | 6.4 s | `opens` (> min(20°, ½ max_open) / 5 cm; chain guards inside the slack window); RL: `stays_closed` when the release parts are welded engaged |
 | release | none; primary joint pinned | 0.8 s | `bolt_returns` (< 6 mm) |
 | relatch | −min(½ push, 1.5·static + 40) for 6 s, then +push 1 s | 7 s | `relatches` (closed < 2°, re-push < 2.5°) |
