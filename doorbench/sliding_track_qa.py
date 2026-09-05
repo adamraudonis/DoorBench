@@ -91,8 +91,10 @@ def run_sliding_track_qa(model, metadata, samples=25, tolerance=0.003):
             for wheel in wheels:
                 wp = data.geom_xpos[wheel]
                 radius, half_width = model.geom_size[wheel][:2]
-                # Wheels have their cylinder axis along y and roll on the rail's upper x face.
-                vertical_gap = abs(float(wp[2] - radius - (rp[2] + rs[2])))
+                # Wheels have their cylinder axis along y and roll on the rail's upper x face - or, on a top-hung
+                # leaf, hang from its underside (a carrier wheel in the header): tangency to either face counts.
+                vertical_gap = min(abs(float(wp[2] - radius - (rp[2] + rs[2]))),
+                                   abs(float((rp[2] - rs[2]) - (wp[2] + radius))))
                 lateral_gap = max(abs(float(wp[1] - rp[1])) - float(rs[1] + half_width), 0.0)
                 tread_overhang = max(float(rail_low - (wp[0] - radius)), float(wp[0] + radius - rail_high), 0.0)
                 gap = max(vertical_gap, lateral_gap, tread_overhang)

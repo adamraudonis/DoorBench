@@ -138,6 +138,7 @@ def add_header_hangers(model, world, body, spec, zb, support, roller_material):
     rail = next((g for g in world.geoms if g.name == support["rail"]), None)
     if rail is None:
         return
+    z_rail_lo = float(rail.pos[2]) - float(rail.size[2])
     z_top = zb + Hh
     x_body, y_body = float(body.pos[0]), float(body.pos[1])
     z_target = None
@@ -163,4 +164,5 @@ def add_header_hangers(model, world, body, spec, zb, support, roller_material):
         wheel = C.cyl(f"{body.name}_carrier_wheel_{k}", (xr, y_rel, z_target - 0.014), 0.014, 0.006, roller_material,
                       (0, 1, 0), 7850, False, True, FULL_SIMPLE, "track", "Carrier wheel")
         body.geoms.append(wheel)
-        support["rollers"].append(wheel.name)
+        if abs(z_target - z_rail_lo) < 1e-6:
+            support["rollers"].append(wheel.name)     # only a wheel that really bears on the RAIL is track support

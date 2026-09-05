@@ -3,6 +3,10 @@
 Checks (all tiers where applicable):
   load        MJCF loads in MuJoCo (full / simple / minimal)
   clearance   geometric gate: nothing interpenetrates anywhere in the travel (doorbench/clearance.py)
+  attachment  geometric gate: nothing FLOATS - every static geom is connected to the structure, every body touches
+              what carries it at rest and through its travel, each body's geoms form one part, equalities are
+              authored closed, declared stops are struck, and nothing is degenerate or duplicated
+              (doorbench/attachment.py)
   running_clearance  geometric gate: no moving collider ever TOUCHES static structure - every structural
               moving/static pair keeps a real running clearance at rest and through the sweep (seals, bearings,
               latches and stops are allow-listed by semantics; see clearance.required_gap)
@@ -237,6 +241,16 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         checks["clearance"] = False
         checks["running_clearance"] = False
         metrics["clearance_error"] = str(e)[:200]
+    # ---- attachment: nothing floats.  Every static part is bolted to the structure, every body touches what
+    #      carries it (at rest and through its travel), each body's own geoms are one connected part, every
+    #      connect/weld equality is authored closed, every declared stop is actually struck, and no geom is
+    #      degenerate or duplicated.  See doorbench/attachment.py for the rules and their tolerances.
+    from .attachment import run_attachment
+    at = run_attachment(door_dir, "full")
+    checks["attachment"] = bool(at["ok"])
+    metrics["attachment_n_findings"] = at["n_findings"]
+    metrics["attachment_by_rule"] = at["by_rule"]
+    metrics["attachment_findings"] = at["findings"][:10]
     m = models["full"]
     # Full-travel rail span plus actual tread contact where rollers are modeled.
     # The returned rail-only scope explicitly records incomplete suspension geometry.
