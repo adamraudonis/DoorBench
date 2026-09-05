@@ -862,7 +862,12 @@ def joint_couplings(model: Model, tier: str, joint_types: dict, wt: dict, body_o
         out.append({
             "driven": q.a, "driver": q.b, "driven_type": ta, "driver_type": tb,
             "mode": mode,
-            "coeff": [c0, c1], "gearing": -c1, "offset": -c0, "label": q.label,
+            # PhysxMimicJointAPI constrains q_driven + gearing * q_driver + offset = 0 in PHYSX joint coordinates,
+            # which are the USD ones (q_usd = q_mjcf - zero_offset), so the offset comes from coeff_usd, not coeff.
+            # Every mimic pair in the dataset today has zero_offset 0 on both sides (coeff == coeff_usd), so this is
+            # currently a no-op; it stops being one the first time a rotational equality lands on a joint that is
+            # modelled away from its USD zero, and the error would be a silent c1*off_b - off_a of mis-gearing.
+            "coeff": [c0, c1], "gearing": -c1, "offset": -(c0 + c1 * off_b - off_a), "label": q.label,
             # the same law in USD joint coordinates (q_usd = q_db - zero_offset), which is what a consumer reads back
             # from PhysX: q_a_usd = coeff_usd[0] + coeff_usd[1] * q_b_usd
             "coeff_usd": [c0 + c1 * off_b - off_a, c1], "driven_zero_offset": off_a, "driver_zero_offset": off_b,

@@ -571,3 +571,26 @@ def test_validator_rejects_a_dropped_filtered_pair(doors, tmp_path):
     r = validate_door(str(bad))
     assert not r["full"]["ok"]
     assert any("filtered pairs" in e for e in r["full"]["errors"]), r["full"]["errors"]
+
+
+def test_mimic_offset_is_the_usd_coordinate_law(doors):
+    """``PhysxMimicJointAPI`` constrains q_driven + gearing*q_driver + offset = 0 in PhysX (= USD) coordinates.
+
+    Every mimic pair in the dataset has zero_offset 0 on both sides today, so ``coeff`` and ``coeff_usd`` coincide
+    and the distinction is invisible.  This pins it anyway: the offset must be built from ``coeff_usd``, so that a
+    rotational equality landing on a joint modelled away from its USD zero cannot silently mis-gear by
+    ``c1 * off_driver - off_driven``.
+    """
+    from doorbench.export.usd import joint_couplings
+    seen = 0
+    for key, (spec, dd, mj, full, rl, rlm) in doors.items():
+        for c in json.loads(full.GetDefaultPrim().GetAttribute("doorbench:couplings").Get()):
+            if c.get("mode") != "mimic":
+                continue
+            seen += 1
+            assert c["gearing"] == pytest.approx(-c["coeff_usd"][1]), (key, c["driven"])
+            assert c["offset"] == pytest.approx(-c["coeff_usd"][0]), (key, c["driven"])
+            prim = full.GetPrimAtPath(c["driven_path"])
+            assert float(prim.GetAttribute("physxMimicJoint:rotX:gearing").Get()) == pytest.approx(c["gearing"], abs=1e-6)
+            assert float(prim.GetAttribute("physxMimicJoint:rotX:offset").Get()) == pytest.approx(c["offset"], abs=1e-6)
+    assert seen, "no mimic coupling among the sampled doors: the test would be vacuous"
