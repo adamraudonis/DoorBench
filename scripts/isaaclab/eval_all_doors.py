@@ -22,7 +22,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _common import ROOT, ensure_extension_importable  # noqa: E402
+from _common import ROOT, ensure_extension_importable, rsl_rl_version_check, unwrap_obs  # noqa: E402
 
 from isaaclab.app import AppLauncher  # noqa: E402
 
@@ -46,6 +46,7 @@ import torch  # noqa: E402
 from isaaclab_rl.rsl_rl import RslRlVecEnvWrapper  # noqa: E402
 from isaaclab_tasks.utils.parse_cfg import load_cfg_from_registry, parse_env_cfg  # noqa: E402
 
+rsl_rl_version_check()
 ensure_extension_importable()
 import doorbench_isaaclab  # noqa: E402, F401
 from doorbench_isaaclab import doors as D  # noqa: E402
@@ -67,9 +68,7 @@ def run_batch(ids: list[str], seeds: int, agent_cfg, checkpoint: str | None):
         runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=base.device)
         runner.load(checkpoint)
         policy = runner.get_inference_policy(device=base.device)
-    obs = env.get_observations()
-    if isinstance(obs, tuple):
-        obs = obs[0]
+    obs = unwrap_obs(env.get_observations())   # TensorDict in Isaac Lab v2.3.x
     st = get_door_state(base)
     n = base.num_envs
     done_once = torch.zeros(n, dtype=torch.bool, device=base.device)

@@ -4,7 +4,10 @@
   * the canonical RL articulation has exactly the 8 links / 7 joints, and the doorbench:rl meta is consistent
   * doors.py: dataset index, easy-100 curation, selection strings
   * the gantry hand USD regenerates identically and validates
-  * py_compile of the extension + scripts, and the offline API-name checklist
+  * py_compile of the extension + scripts, and the offline API-name checklist (Isaac Lab v2.3.2 reference list)
+  * the v2.3.2 compatibility helpers of scripts/isaaclab/_common.py (local dump_pickle, TensorDict observations)
+  * optional: the same checklist plus config keyword arguments against a real Isaac Lab checkout when
+    ISAACLAB_SRC=/path/to/IsaacLab[:/path/to/rsl_rl] is set (skipped otherwise)
 """
 from __future__ import annotations
 
@@ -120,3 +123,39 @@ def test_extension_compiles_and_api_names():
                     py_compile.compile(os.path.join(dp, fn), doraise=True)
     r = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "isaaclab", "check_api_names.py")], capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
+    assert "v2.3.2 reference list" in r.stdout
+
+
+@pytest.mark.skipif(not os.environ.get("ISAACLAB_SRC"), reason="set ISAACLAB_SRC=/path/to/IsaacLab[:/path/to/rsl_rl] to check against a source checkout")
+def test_api_names_against_isaaclab_source():
+    """Imports, `mdp.` / `sim_utils.` attributes and every config keyword argument resolve in the given Isaac Lab tree."""
+    args = [sys.executable, os.path.join(ROOT, "scripts", "isaaclab", "check_api_names.py")]
+    for root in os.environ["ISAACLAB_SRC"].split(":"):
+        args += ["--source", root]
+    r = subprocess.run(args, capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "keyword arguments of" in r.stdout
+
+
+def test_common_compat_helpers(tmp_path):
+    """Isaac Lab v2.3.2 removed isaaclab.utils.io.dump_pickle; train.py uses the local replacement."""
+    import _common
+
+    p = _common.dump_pickle(str(tmp_path / "params" / "env"), {"seed": 3, "doors": ["db0002_swing_single"]})
+    assert p.endswith("env.pkl") and os.path.exists(p)
+    assert _common.load_pickle(p) == {"seed": 3, "doors": ["db0002_swing_single"]}
+    with pytest.raises(FileNotFoundError):
+        _common.load_pickle(str(tmp_path / "nope.pkl"))
+    assert _common.unwrap_obs(("obs", {"extras": 1})) == "obs"      # pre-2.3 wrapper
+    assert _common.unwrap_obs({"policy": 1}) == {"policy": 1}       # TensorDict-like (v2.3.x)
+
+    class _Policy:
+        actor_obs_normalizer = "norm"
+
+    assert _common.policy_normalizer(_Policy()) == "norm"
+    assert _common.policy_normalizer(object()) is None
+    # the pipeline is validation-first: training must be off unless TRAIN=1
+    with open(os.path.join(ROOT, "isaaclab", "cloud", "run_all.sh")) as f:
+        sh = f.read()
+    assert 'TRAIN="${TRAIN:-0}"' in sh and "run_stage validate" in sh and "validate_usd_isaacsim.py --all" in sh
+    assert 'STAGE_${name}_EXIT=$rc' in sh and "Traceback (most recent call last)" in sh   # markers + masked-exit detection

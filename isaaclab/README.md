@@ -5,15 +5,17 @@ vectorised scene holds a different door (`MultiUsdFileCfg`), the rewards are the
 either a 6-DoF gantry hand (fast, validates the door mechanics) or the Unitree G1 humanoid.
 
 > **Status:** written and statically validated on a Mac without an NVIDIA GPU. The USD side is verified (1000/1000
-> doors pass the pxr validator, see [`STATUS.md`](STATUS.md)); the Isaac Lab side is syntax/API-checked against
-> Isaac Lab v2.3.0 but **has not been executed**. Expect small fixes on the first GPU run — the scripts are thin and
-> mirror Isaac Lab's own train/play scripts to keep that cheap.
+> doors pass the pxr validator, see [`STATUS.md`](STATUS.md)); the Isaac Lab side is syntax/API-checked against the
+> Isaac Lab **v2.3.2** sources (imports, `mdp.`/`sim_utils.` attributes and config keyword arguments:
+> `scripts/isaaclab/check_api_names.py --source ~/IsaacLab`).  The USD validator ran on a RunPod L40S; training has
+> not — the scripts are thin and mirror Isaac Lab's own train/play scripts to keep first-run fixes cheap.  The GPU
+> pipeline (`cloud/run_all.sh`) is validation-first: training runs only with `TRAIN=1`.
 
 ## Ultra-short path (fresh Ubuntu 22.04 GPU box)
 
 ```bash
 git clone https://github.com/adamraudonis/DoorBench.git && cd DoorBench
-bash isaaclab/cloud/setup.sh                   # Isaac Sim 5.1 (pip) + Isaac Lab v2.3.0 + DoorBench, ~15 min
+bash isaaclab/cloud/setup.sh                   # Isaac Sim 5.1 (pip) + Isaac Lab v2.3.2 + DoorBench, ~15 min
 source isaaclab/cloud/env.sh
 bash isaaclab/cloud/validate.sh                # headless import of all 1000 doors -> assets/usd_validation_isaacsim.json
 bash isaaclab/cloud/train.sh --task DoorBench-Open-Hand-v0 --num_envs 1024 --max_iterations 300

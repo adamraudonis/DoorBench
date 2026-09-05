@@ -1,4 +1,8 @@
-"""RSL-RL PPO runner configurations (Isaac Lab 2.3 / rsl-rl 3.x field set).
+"""RSL-RL PPO runner configurations (Isaac Lab v2.3.2 / rsl-rl-lib 3.1.2 field set).
+
+Field set checked against isaaclab_rl/rsl_rl/rl_cfg.py of v2.3.2: ``obs_groups`` is mandatory, observation
+normalization is configured per network (``actor_obs_normalization`` / ``critic_obs_normalization``); the runner-level
+``empirical_normalization`` is deprecated (rsl_rl 3.1 warns and maps it onto those two) and therefore not set here.
 
 NOT EXECUTED ON THIS MACHINE (no NVIDIA GPU).
 """
@@ -14,7 +18,6 @@ class DoorHandPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     max_iterations = 1500
     save_interval = 50
     experiment_name = "doorbench_hand"
-    empirical_normalization = False
     obs_groups = {"policy": ["policy"], "critic": ["policy"]}
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
@@ -46,7 +49,6 @@ class DoorG1PPORunnerCfg(RslRlOnPolicyRunnerCfg):
     max_iterations = 5000
     save_interval = 100
     experiment_name = "doorbench_g1"
-    empirical_normalization = False
     obs_groups = {"policy": ["policy"], "critic": ["policy"]}
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,

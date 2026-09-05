@@ -7,9 +7,13 @@ Run inside the Isaac Lab python:
   ... --task DoorBench-Open-G1-v0 --num_envs 2048 --doors easy-100 --headless --video
 
 Extra flags over Isaac Lab's script: --doors / --door_seed / --door_random_choice (door subset per environment).
-Logs: logs/rsl_rl/<experiment_name>/<date>/  (checkpoints model_<iter>.pt, params/env.yaml, params/agent.yaml)
+Logs: logs/rsl_rl/<experiment_name>/<date>/  (checkpoints model_<iter>.pt, params/env.yaml, params/agent.yaml,
+params/env.pkl, params/agent.pkl, params/doors.txt)
 
-NOT EXECUTED ON THIS MACHINE (no NVIDIA GPU): mirrors scripts/reinforcement_learning/rsl_rl/train.py of Isaac Lab v2.3.
+Mirrors scripts/reinforcement_learning/rsl_rl/train.py of Isaac Lab **v2.3.2** (rsl-rl-lib 3.1.2): configs are
+dumped with ``isaaclab.utils.io.dump_yaml`` (the pickle helpers were removed from Isaac Lab in isaaclab 0.47.0; the
+``.pkl`` copies come from ``_common.dump_pickle``), the runner is chosen by ``agent_cfg.class_name`` and the env cfg
+gets ``log_dir``.  In this repo training is a data-validation tool (isaaclab/cloud/run_all.sh: TRAIN=1).
 """
 from __future__ import annotations
 
@@ -18,7 +22,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _common import add_door_args, apply_door_args, ensure_extension_importable  # noqa: E402
+from _common import add_door_args, apply_door_args, dump_pickle, ensure_extension_importable, rsl_rl_version_check  # noqa: E402
 
 from isaaclab.app import AppLauncher  # noqa: E402
 
@@ -50,15 +54,16 @@ import datetime  # noqa: E402
 
 import gymnasium as gym  # noqa: E402
 import torch  # noqa: E402
-from rsl_rl.runners import OnPolicyRunner  # noqa: E402
+from rsl_rl.runners import DistillationRunner, OnPolicyRunner  # noqa: E402
 
 from isaaclab.envs import ManagerBasedRLEnvCfg  # noqa: E402
 from isaaclab.utils.dict import print_dict  # noqa: E402
-from isaaclab.utils.io import dump_pickle, dump_yaml  # noqa: E402
+from isaaclab.utils.io import dump_yaml  # noqa: E402
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper  # noqa: E402
 from isaaclab_tasks.utils import get_checkpoint_path  # noqa: E402
 from isaaclab_tasks.utils.parse_cfg import load_cfg_from_registry, parse_env_cfg  # noqa: E402
 
+rsl_rl_version_check()
 ensure_extension_importable()
 import doorbench_isaaclab  # noqa: E402, F401
 
@@ -102,8 +107,12 @@ def main():
         log_dir += f"_{agent_cfg.run_name}"
     log_dir = os.path.join(log_root_path, log_dir)
     print(f"[INFO] Logging experiment in directory: {log_dir}")
+    if hasattr(env_cfg, "log_dir"):  # v2.3.2: the env writes its own logs (IO descriptors, physics logs) here
+        env_cfg.log_dir = log_dir
 
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
+    # resolve the resume path before the new log_dir exists (get_checkpoint_path picks the latest run)
+    resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint) if agent_cfg.resume else None
     if args_cli.video:
         video_kwargs = {"video_folder": os.path.join(log_dir, "videos", "train"), "step_trigger": lambda step: step % args_cli.video_interval == 0,
                         "video_length": args_cli.video_length, "disable_logger": True}
@@ -112,10 +121,12 @@ def main():
         env = gym.wrappers.RecordVideo(env, **video_kwargs)
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
-    runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    runner_cls = {"OnPolicyRunner": OnPolicyRunner, "DistillationRunner": DistillationRunner}.get(getattr(agent_cfg, "class_name", "OnPolicyRunner"))
+    if runner_cls is None:
+        raise ValueError(f"Unsupported runner class: {agent_cfg.class_name}")
+    runner = runner_cls(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
     runner.add_git_repo_to_log(__file__)
-    if agent_cfg.resume:
-        resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
+    if resume_path is not None:
         print(f"[INFO]: Loading model checkpoint from: {resume_path}")
         runner.load(resume_path)
     dump_yaml(os.path.join(log_dir, "params", "env.yaml"), env_cfg)

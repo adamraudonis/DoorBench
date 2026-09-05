@@ -2,9 +2,10 @@
 
 DoorBench ships as Isaac Lab tasks: `DoorBench-Open-Hand-v0` (6-DoF gantry hand) and `DoorBench-Open-G1-v0`
 (Unitree G1), each with a **different door in every environment**. This page explains the USD design decisions,
-the environment, and the exact commands. Everything on this page targets **Isaac Sim 5.1.0 + Isaac Lab v2.3.0**
-and was **not executed on the author's machine (no NVIDIA GPU)** — see [`isaaclab/STATUS.md`](../isaaclab/STATUS.md)
-for what was and was not verified.
+the environment, and the exact commands. Everything on this page targets **Isaac Sim 5.1.0 + Isaac Lab v2.3.2**
+(rsl-rl-lib 3.1.2; `scripts/isaaclab/check_api_names.py --source ~/IsaacLab` audits every symbol and config keyword
+argument against that tree) and was **not executed on the author's machine (no NVIDIA GPU)** — see
+[`isaaclab/STATUS.md`](../isaaclab/STATUS.md) for what was and was not verified.
 
 ## 1. Quick start on a GPU box
 
@@ -135,4 +136,6 @@ leaves per door, no loop-closure closer arms (they are visual).
 3. Contact-sensor filter expressions with `{ENV_REGEX_NS}/Robot/.*` (G1); the hand uses a single body.
 4. The 0-dim action term (`DoorMechanismAction`); if the action manager rejects it, move `apply_actions` into an
    interval event term (`mode="interval", interval_range_s=(0, 0)`), which runs once per policy step.
-5. Isaac Lab / rsl-rl versions: the PPO cfgs use the v2.3.0 field set (`obs_groups`, `actor_obs_normalization`).
+5. Isaac Lab / rsl-rl versions: the PPO cfgs use the v2.3.2 / rsl-rl-lib 3.1.2 field set (`obs_groups`,
+   `actor_obs_normalization`; the runner-level `empirical_normalization` is deprecated).  v2.3.2 removed
+   `isaaclab.utils.io.dump_pickle` (isaaclab 0.47.0) — `scripts/isaaclab/_common.py` carries the replacement.

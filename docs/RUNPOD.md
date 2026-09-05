@@ -91,8 +91,13 @@ bash isaaclab/cloud/eval.sh logs/rsl_rl/doorbench_hand/<run>/model_300.pt
 python scripts/runpod_pod.py watch          # refreshes every 15 s: GPU load, pipeline stage, latest PPO iteration / mean reward
 python scripts/runpod_pod.py tensorboard    # opens an SSH tunnel; TensorBoard (written by rsl_rl) at http://localhost:6006
 ```
-The pipeline itself is `isaaclab/cloud/run_all.sh` (validate -> train -> hero -> eval); each stage appends
+The pipeline itself is `isaaclab/cloud/run_all.sh` (validate -> [train -> hero -> eval]); each stage appends
 `STAGE_<name>_EXIT=<code>` to `logs/run_all.log`, so a failed stage is visible at a glance and the next stage still runs.
+It is validation-first: the validate stage runs the Isaac parity runner over all 1000 doors when the repo has one
+(`scripts/isaaclab/*parity*.py`, override with `PARITY_RUNNER=...`), otherwise `validate_usd_isaacsim.py --all`
+(`VALIDATE_LIMIT=40` for a quick probe).  Training, the hero shot and the evals are **off by default** and write
+`STAGE_<name>_EXIT=skipped`; `TRAIN=1 bash isaaclab/cloud/run_all.sh` enables them (training is a data-validation
+tool here, not the goal).
 
 ## 5. Tear down (stops billing)
 
