@@ -1028,11 +1028,15 @@ def build_stall(spec, phys, model: Model):
     lb.pos = (0, 0, 0)
     j = hinge_joint(spec, phys, u, v, 0.0, name="leaf_hinge", tilt_deg=0.0)
     j.pos = (u * 0.05, 0.0, 0.0)   # gravity pivot ~44 mm inside the leaf edge: corner sweep radius 49 mm < 50 mm to the pilaster
+    rise_per_rad = 0.010 / (math.pi / 2)
     if spec["kinematics"].get("rest_angle_deg"):
         j.initial = math.radians(spec["kinematics"]["rest_angle_deg"])
+        # the coupling is relative to the joints' qpos0: a leaf resting open is already lifted by its gravity hinge,
+        # otherwise the rise would have to go negative (below its 0 limit) when the leaf closes - a locked coupling
+        riser.joint.initial = rise_per_rad * j.initial
     lb.joint = j
     model.add_body(lb)
-    model.equalities.append(Equality("joint", "leaf_rise_couple", "leaf_rise", "leaf_hinge", (0.0, 0.010 / (math.pi / 2), 0, 0, 0), tiers=ALL_TIERS, label="gravity hinge: 10 mm rise per 90 deg"))
+    model.equalities.append(Equality("joint", "leaf_rise_couple", "leaf_rise", "leaf_hinge", (0.0, rise_per_rad, 0, 0, 0), tiers=ALL_TIERS, label="gravity hinge: 10 mm rise per 90 deg"))
     C.add_leaf_geoms(model, lb, spec, leaf, u, u * 0.006, zb, phys, name_prefix="leaf")
     x_edge = u * (0.006 + W)
     hz = spec["operator"]["height"]

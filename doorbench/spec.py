@@ -14,6 +14,7 @@ from . import materials as M
 from . import hardware as H
 from . import taxonomy as T
 from .panels import glazing_layout, glazing_area_fraction
+from .folding import fold_groups, fold_opening_width, fold_opening_height, FOLD_PIVOT_MAX_DEG
 
 IN = 0.0254
 
@@ -699,13 +700,17 @@ def gen_saloon(i, ctx, B, rng):
     pair = B.pick("sa:pair", {True: 3, False: 1})
     W = B.pick("sa:w", {0.45: 2, 0.50: 1, 0.60: 1}) if pair else B.pick("sa:w1", {0.80: 1, 0.90: 1})
     Hh = B.pick("sa:h", {1.10: 2, 1.30: 1, 2.03: 1, 0.90: 1})
-    zb = _round(B.pick("sa:zb", {0.35: 2, 0.20: 1, 0.60: 1, 0.0: 1})) if Hh < 1.9 else 0.0
+    # a hung leaf never rests on the floor: the lowest option is the hinged-door floor clearance, not 0 - five saloon
+    # leaves used to sit on the floor (a zero-gap touch whose degenerate contact stalled the swing; one could not reach
+    # 10 deg under the QA push); real double-acting pivots run >= 12-20 mm above the floor
+    zb = _round(B.pick("sa:zb", {0.35: 2, 0.20: 1, 0.60: 1, 0.012: 1})) if Hh < 1.9 else 0.012
+    zb = max(zb, 0.015)
     panel = "louver_full" if slab == "louver_wood" else B.pick("sa:panel", {"flush": 2, "shaker_1": 1, "glass_vision": 1, "hpl_flat": 1})
     s["use_case"] = B.pick("sa:use", ["saloon bar doors", "cafe kitchen pass doors", "restaurant kitchen swing door", "hospital utility double-acting door", "supermarket stockroom doors"])
     t_sal = B.pick("sa:t", {0.035: 2, 0.044: 1})   # double-acting pivots: hinge-edge gap >= t/2 + 6 mm so the corners clear the jamb
     s["leaf"] = {"width": W, "height": Hh, "thickness": t_sal, "slab": slab, "panel_style": panel, "finish": finish_for(slab, "default", B, rng), "count": 2 if pair else 1,
                  "glazing": glazing_for(panel, W, Hh, "glass_clear", 0.006, rng), "bottom_clearance": zb}
-    s["opening"] = {"width": _round((2 * W if pair else W) + t_sal + 0.024), "height": _round(2.05 if Hh < 1.9 else Hh + 0.013), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
+    s["opening"] = {"width": _round((2 * W if pair else W) + t_sal + 0.024), "height": _round(2.05 if Hh < 1.9 else Hh + zb + 0.013), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
     s["hinge"] = hinge_block("spring_double", 2, "left", "push")
     s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": B.pick("sa:mo", {90: 2, 110: 1, 100: 1}), "stop": "none", "both_ways": True, "pair": pair}
     s["operator"] = {"model": B.pick("sa:op", {"none": 3, "push_plate": 1, "kick_plate_only": 0.001}), "height": 1.0, "sides": "both"}
@@ -899,10 +904,14 @@ def gen_bifold(i, ctx, B, rng):
     W = _round(W_total / n)
     Hh = B.pick("bf:h", {2.032: 4, 2.4: 1})
     s["use_case"] = B.pick("bf:use", ["bedroom closet bifold", "laundry closet bifold", "pantry bifold", "utility closet bifold (louvered)"])
-    s["leaf"] = {"width": W, "height": Hh, "thickness": 0.006 if slab == "mirror_bypass" else 0.035, "slab": slab, "panel_style": panel, "finish": finish_for(slab, "residential_interior", B, rng), "count": n, "glazing": None}
-    s["opening"] = {"width": _round(W_total + 0.01), "height": _round(Hh + 0.02), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
+    t = 0.006 if slab == "mirror_bypass" else 0.035
+    s["leaf"] = {"width": W, "height": Hh, "thickness": t, "slab": slab, "panel_style": panel, "finish": finish_for(slab, "residential_interior", B, rng), "count": n, "glazing": None}
+    # opening sized around the panel set (doorbench/folding.py): pivot-jamb gap + the lead / meeting gap the face-hinged
+    # zigzag needs while it folds; height = panels + floor gap + top track under the head jamb
+    s["opening"] = {"width": _round(fold_opening_width(W, n, fold_groups(n, False), t)), "height": _round(fold_opening_height(Hh)), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
     s["hinge"] = hinge_block("butt_35_plain", 2, "left", "fold")
-    s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": 90, "stop": "track_end", "fold": True, "n_panels": n, "roller": B.pick("bf:roller", {"bifold_pivot_guide": 3, "plain_nylon": 1, "dirty_track": 1})}
+    # max_open_deg = pivot panel travel; the panel pair folds to twice that (170 deg: knuckles keep the stack off flat)
+    s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": FOLD_PIVOT_MAX_DEG, "stop": "track_end", "fold": True, "n_panels": n, "roller": B.pick("bf:roller", {"bifold_pivot_guide": 3, "plain_nylon": 1, "dirty_track": 1})}
     s["operator"] = {"model": B.pick("bf:op", {"bifold_knob": 4, "pull_d": 1}), "height": 1.0, "sides": "robot"}
     s["latch"] = {"model": B.pick("bf:latch", {"none": 3, "magnetic_catch": 1})}
     s["lock"] = {"model": "none"}
@@ -924,10 +933,14 @@ def gen_accordion(i, ctx, B, rng):
     W = _round(W_total / n)
     Hh = B.pick("ac:h", {2.032: 3, 2.4: 1})
     s["use_case"] = B.pick("ac:use", ["accordion closet door", "room divider accordion", "laundry nook accordion", "office partition accordion"])
-    s["leaf"] = {"width": W, "height": Hh, "thickness": 0.012 if slab != "mdf_solid" else 0.018, "slab": slab, "panel_style": "hpl_flat", "finish": finish_for(slab, "residential_interior", B, rng), "count": n, "glazing": None}
-    s["opening"] = {"width": _round(W_total + 0.01), "height": _round(Hh + 0.02), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
+    t = 0.012 if slab != "mdf_solid" else 0.018
+    s["leaf"] = {"width": W, "height": Hh, "thickness": t, "slab": slab, "panel_style": "hpl_flat", "finish": finish_for(slab, "residential_interior", B, rng), "count": n, "glazing": None}
+    # opening sized around the panel set (doorbench/folding.py): pivot-jamb gap + the lead gap the face-hinged zigzag
+    # needs while it folds (up to ~20 mm for ten 18 mm panels); height = panels + floor gap + top track under the head jamb
+    s["opening"] = {"width": _round(fold_opening_width(W, n, fold_groups(n, True), t)), "height": _round(fold_opening_height(Hh)), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
     s["hinge"] = hinge_block("piano", n - 1, "left", "fold")
-    s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": 170, "stop": "track_end", "fold": True, "accordion": True, "n_panels": n, "roller": "accordion_glides"}
+    # max_open_deg = pivot panel travel (the primary joint); every panel pair folds to twice that, 170 deg at the stack
+    s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": FOLD_PIVOT_MAX_DEG, "stop": "track_end", "fold": True, "accordion": True, "n_panels": n, "roller": "accordion_glides"}
     s["operator"] = {"model": B.pick("ac:op", {"pull_d": 2, "bifold_knob": 1, "pull_flush_recessed": 1}), "height": 1.0, "sides": "robot"}
     s["latch"] = {"model": B.pick("ac:latch", {"none": 2, "magnetic_catch": 2})}
     s["lock"] = {"model": "none"}

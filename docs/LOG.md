@@ -112,9 +112,24 @@ often on the agent branch; the main session owns `TASKS.md`, `README.md`, creden
 new modules rather than editing shared files where possible; when a batch dies, snapshot every worktree as a WIP
 commit, push the branches, and write a self-contained brief per task (`handoffs/`) so a cheaper agent can continue.
 
+**Zero-gap touches: the defect class the clearance gate cannot see (2026-09-05).** The MuJoCo parity reference pushes
+every door, including the free-swing families qa.py never pushed, and found 10/15 revolving doors that did not turn.
+Root cause: the wing stiles ended at exactly the underside of the wall header (and the canopy). A coplanar box-box
+touch is not an interpenetration, so the clearance gate passed it, but its contact normal is orthogonal to the
+rotor's only DOF - a degenerate constraint that MuJoCo answers with 8-17 kN of normal force, and friction on that at
+1 m radius stalls the rotor. Fix: model the real enclosure (rotor 15 mm under the canopy ceiling, header on top of
+the canopy, top bearing / floor pivot). A push survey of all 147 free-swing doors then found the same class in four
+more families - saloon leaves standing on the floor, bifold / accordion panel tops level with the head, strips
+hinged beside their own plane swinging 1 mm into the hanger rail, pet flaps whose pins sat level with the frame
+rail (20+ kN) - all fixed at the geometry. New deterministic gate in qa.py for those families (`free_opens` +
+`no_jam`: the push must move the primary joint, and `mj_contactForce` between any moving body and static geometry
+must stay under 200 N; a free door is carried by its joint, so anything static pressing on it is a jam). Lesson: a
+geometric gate needs a dynamic twin; "gap 0.000" is a defect, not a pass.
+
 ## Checks that exist now (a door is "signed off" only if all pass)
 
 clearance (no interpenetration through every sweep) · mass (within 20 % of spec) · physics QA (opens, holds,
-latches, closer returns, hardware misuse limits) · static USD validation · benchmark block present ·
-`usd_rl_opens`. In progress: attachment (nothing floats, mechanisms move), closer_linkage / closer_closes,
-operator_returns, rollers_on_track, keypad_code_works, vision review.
+latches, closer returns, hardware misuse limits) · jam gate for free-swing / rotary doors (`free_opens`: the push
+moves the primary joint; `no_jam`: < 20 N of static contact on any moving part while it does - every free-swing door reads 0 N, so 200 N was far too loose to catch a leaf scraping without stalling) · static USD
+validation · benchmark block present · `usd_rl_opens`. In progress: attachment (nothing floats, mechanisms move),
+closer_linkage / closer_closes, operator_returns, rollers_on_track, keypad_code_works, vision review.

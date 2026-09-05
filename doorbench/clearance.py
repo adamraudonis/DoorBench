@@ -12,6 +12,9 @@ failure.  Sweeps:
 * ``latched:<leaf joint>`` - same sweep with mechanisms at rest; pairs that are *supposed* to block (latch/lock
                            against strike/frame) are ignored, everything else must still clear
 * ``mech:<joint>``       - each mechanism joint through its range with the leaf closed (coupled joints follow)
+* ``coupling:<joint>``   - every joint equality: the driven joint must be able to follow its driver over the driver's
+                           whole range without leaving its own limits (a driven hinge parked on a limit that the
+                           coupling pushes against locks the mechanism - the accordion folds of 2026-09)
 
 Hinge knuckles/leaves are allowed a larger overlap (they are mortised into leaf and jamb by design).
 """
@@ -52,6 +55,39 @@ def gate_model(xml_path: str):
         g.margin = 0.0
     spec.option.disableflags |= int(mujoco.mjtDisableBit.mjDSBL_FILTERPARENT)
     return spec.compile()
+
+
+COUPLING_TOL = 1e-3   # rad / m; a driven joint may leave its range by no more than this over the driver's travel
+
+
+def coupling_range_failures(m, tol: float = COUPLING_TOL, n_samples: int = 49) -> List[dict]:
+    """Joint equalities whose driven joint cannot follow its driver over the driver's whole range.
+
+    MuJoCo's joint equality is q_a = qpos0_a + poly(q_b - qpos0_b).  If the image of the driver's range leaves the
+    driven joint's own limited range, the joint limit and the equality fight: the pair is locked (or the driver is
+    capped short of its range) - a mechanism that looks fine in every kinematic pose and never moves under a push.
+    Unlimited drivers are skipped (their image is unbounded by construction)."""
+    import mujoco
+    out = []
+    jname = lambda j: mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_JOINT, j)
+    for e in range(m.neq):
+        if int(m.eq_type[e]) != int(mujoco.mjtEq.mjEQ_JOINT) or not m.eq_active0[e]:
+            continue
+        a, b = int(m.eq_obj1id[e]), int(m.eq_obj2id[e])
+        if b < 0 or not m.jnt_limited[a] or not m.jnt_limited[b]:
+            continue
+        lo_b, hi_b = (float(x) for x in m.jnt_range[b])
+        lo_a, hi_a = (float(x) for x in m.jnt_range[a])
+        qa0, qb0 = float(m.qpos0[m.jnt_qposadr[a]]), float(m.qpos0[m.jnt_qposadr[b]])
+        c = [float(x) for x in m.eq_data[e][:5]]
+        xs = np.linspace(lo_b, hi_b, n_samples)
+        ys = qa0 + sum(c[k] * (xs - qb0) ** k for k in range(5))
+        over = np.maximum(lo_a - ys, ys - hi_a)
+        i = int(np.argmax(over))
+        if over[i] > tol:
+            out.append({"equality": mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_EQUALITY, e), "driven": jname(a), "driver": jname(b),
+                        "driver_q": float(xs[i]), "driven_q": float(ys[i]), "driven_range": [lo_a, hi_a], "overshoot": float(over[i])})
+    return out
 
 
 def _joint_info(model_json: dict) -> Dict[str, dict]:
@@ -233,6 +269,11 @@ class Clearance:
                 q = base.copy()
                 q[m.jnt_qposadr[j]] = qv
                 record(f"mech:{jn}", jn, qv, self.contacts(self.resolve(q), lambda a, b: self.tol_for(a, b)))
+        # couplings: a driven joint parked on a limit that its equality pushes against is a locked mechanism
+        for c in coupling_range_failures(m):
+            failures[("coupling", c["driven"])] = {"geoms": [c["driven"], c["driver"]], "depth": round(c["overshoot"], 4), "config": f"coupling:{c['driven']}",
+                                                  "joint": c["driver"], "q": round(c["driver_q"], 4), "bodies": [self.bname[m.jnt_bodyid[self.jid[c["driven"]]]], self.bname[m.jnt_bodyid[self.jid[c["driver"]]]]],
+                                                  "coupling": c}
         fails = sorted(failures.values(), key=lambda f: -f["depth"])
         return {"ok": len(fails) == 0, "n_failures": len(fails), "failures": fails[:40], "leaf_joints": leaf_joints, "mech_joints": mech_joints}
 
