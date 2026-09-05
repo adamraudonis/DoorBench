@@ -1046,8 +1046,9 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
     body.joint = Joint(f"{name}_hinge", "hinge", axis, (0, 0, 0), rng, damping=0.02, frictionloss=0.02 + 0.02 * op.mass,
                        stiffness=op.spring_rate, springref=(-preload_ / op.spring_rate) if op.spring_rate > 0 else 0.0, armature=2e-5,
                        role="operator", label=f"{op.name} (0 = rest, + = actuated)", notes="locked: range limited to backlash" if locked_backlash is not None else "")
-    # spindle through door
-    body.geoms.append(cyl(f"{name}_spindle", (0, 0, 0), 0.006, max(t / 2 - 0.001, 0.004), mat, (0, 1, 0), 7850, False, True, FULL_ONLY, "mechanism", "Spindle"))
+    # spindle through door - sized after the trim is built, so it actually reaches INTO the hub on each face
+    # (a spindle that stops at the door faces leaves each lever floating as its own island)
+    spindle_i = len(body.geoms)
     grip_sites = []
     trim_m = mat_from_material(model, "brass", "mat_trim")
     for f in faces:
@@ -1110,6 +1111,19 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
             body.geoms.append(mesh_geom(f"{name}_cremone_knob_{'p' if f > 0 else 'n'}", key, mesh, (0, f * t / 2, 0), q, mat, 3000, False, ALL_TIERS, "operator", "Cremone knob"))
             body.geoms.append(sphere(f"{name}_cremone_col_{'p' if f > 0 else 'n'}", (0, f * (t / 2 + 0.035), 0), 0.022, mat, 3000, True, ALL_TIERS, "operator", "Knob grip"))
             grip_sites.append(Site(f"{name}_grip_{'p' if f > 0 else 'n'}", (0, f * (t / 2 + 0.035), 0), QUAT_ID, 0.012, "grip"))
+    # the spindle: long enough to reach 8 mm INTO the innermost part of the trim on every face it serves, so the
+    # two faces' trim and the spindle are one connected part rather than three islands floating around the slab
+    half_sp = max(t / 2 - 0.001, 0.004)
+    for f in faces:
+        inners = []
+        for g in body.geoms[spindle_i:]:
+            lo_, hi_ = geom_local_aabb(g)
+            inner = lo_[1] if f > 0 else -hi_[1]
+            if inner > 0:
+                inners.append(inner)
+        if inners:
+            half_sp = max(half_sp, min(min(inners) + 0.008, 0.075))
+    body.geoms.insert(spindle_i, cyl(f"{name}_spindle", (0, 0, 0), 0.006, half_sp, mat, (0, 1, 0), 7850, False, True, FULL_ONLY, "mechanism", "Spindle"))
     body.sites += grip_sites
     if sp.get("reader"):
         # hotel RFID reader: part of the OUTSIDE trim, above the lever on the outside face
@@ -1254,12 +1268,16 @@ def add_touchbar(model: Model, leaf_body: Body, spec: dict, op: H.OperatorModel,
         rm = mat_from_material(model, op.material, f"mat_op_{op.material}")
         zt = (z_top if z_top is not None else spec["leaf"]["height"]) - 0.03
         zb_ = (z_bot if z_bot is not None else 0.0) + 0.03
-        a, b = z + bh / 2 + 0.02, zt
+        # the rods leave the device case (or the rail end block): they start ON it, not 20 mm above it
+        has_case = bool(sp.get("rim_case", True))
+        z_case = bh * (0.75 if has_case else 0.5)
+        x_rod = (x_edge - u * 0.06) if has_case else (xc + u * (L / 2 + 0.01))
+        a, b = z + z_case, zt
         if b - a > 0.02:
-            leaf_body.geoms.append(cyl(f"{name}_rod_top", (x_edge - u * 0.06, face * (t / 2 + 0.03), (a + b) / 2), 0.008, (b - a) / 2, rm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "latch", "Vertical rod (top)"))
-        a2, b2 = zb_, z - bh / 2 - 0.02
+            leaf_body.geoms.append(cyl(f"{name}_rod_top", (x_rod, face * (t / 2 + 0.03), (a + b) / 2), 0.008, (b - a) / 2, rm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "latch", "Vertical rod (top)"))
+        a2, b2 = zb_, z - z_case
         if b2 - a2 > 0.02:
-            leaf_body.geoms.append(cyl(f"{name}_rod_bot", (x_edge - u * 0.06, face * (t / 2 + 0.03), (a2 + b2) / 2), 0.008, (b2 - a2) / 2, rm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "latch", "Vertical rod (bottom)"))
+            leaf_body.geoms.append(cyl(f"{name}_rod_bot", (x_rod, face * (t / 2 + 0.03), (a2 + b2) / 2), 0.008, (b2 - a2) / 2, rm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "latch", "Vertical rod (bottom)"))
     # pad body
     pad = Body(name, leaf_body.name, (xc, face * (t / 2), z), QUAT_ID, None, [], [], tiers, "operator", op.name)
     pad.joint = Joint(f"{name}_slide", "slide", (0, -face, 0), (0, 0, 0), (0.0, op.travel), damping=8.0, frictionloss=0.5, stiffness=op.spring_rate, springref=-op.spring_torque_preload / max(op.spring_rate, 1e-6), armature=1e-4, role="operator", label="Touch bar pad (+ = pressed)")
@@ -1609,11 +1627,15 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
         if "keypad_reader_wall" in ex:
             world.geoms.append(box("wall_reader", (xw, yw - (spec["opening"]["wall_thickness"] / 2 + 0.015), 1.1), (0.04, 0.015, 0.06), wm, 1000, True, True, FULL_SIMPLE, "sensor", "Wall card/keypad reader"))
         if "rex_button" in ex:
-            rb = Body("rex_button", "world_env", (xw, yw + (spec["opening"]["wall_thickness"] / 2 + 0.012), 1.25 if "wave_sensor" in ex else 1.1), QUAT_ID, None, [], [], FULL_SIMPLE, "sensor", "Request-to-exit button")
+            # the button sits ON its wall plate (it used to float 6 mm in front of it - and 15 cm above it when a
+            # wave sensor pushed the button up the wall)
+            z_rex = 1.25 if "wave_sensor" in ex else 1.1
+            y_plate = yw + spec["opening"]["wall_thickness"] / 2
+            rb = Body("rex_button", "world_env", (xw, y_plate + 0.006, z_rex), QUAT_ID, None, [], [], FULL_SIMPLE, "sensor", "Request-to-exit button")
             rb.joint = Joint("rex_button_slide", "slide", (0, -1, 0), (0, 0, 0), (0.0, 0.004), damping=1.0, stiffness=1500.0, springref=-0.004, role="lock", label="REX button (press to release maglock)")
             rb.geoms.append(cyl("rex_button_geom", (0, 0.004, 0), 0.02, 0.004, mat_rgba(model, "mat_rex", (0.1, 0.6, 0.2, 1), 0.4), (0, 1, 0), 1000, True, True, FULL_SIMPLE, "lock", "REX button"))
             model.add_body(rb)
-            world.geoms.append(box("rex_plate", (xw, yw + (spec["opening"]["wall_thickness"] / 2 + 0.003), 1.1), (0.04, 0.003, 0.06), wm, 1000, False, True, FULL_SIMPLE, "sensor", "REX plate"))
+            world.geoms.append(box("rex_plate", (xw, y_plate + 0.003, z_rex), (0.04, 0.003, 0.06), wm, 1000, False, True, FULL_SIMPLE, "sensor", "REX plate"))
         if "wave_sensor" in ex:
             for f in (-1, 1):
                 world.geoms.append(box(f"wave_sensor_{'p' if f > 0 else 'n'}", (xw, yw + f * (spec["opening"]["wall_thickness"] / 2 + 0.012), 1.05), (0.05, 0.012, 0.05), wm, 1000, True, True, FULL_SIMPLE, "sensor", "Wave-to-open / push plate sensor"))
@@ -1665,4 +1687,6 @@ def add_pet_flap(model: Model, leaf_body: Body, spec: dict, u: float, x0: float,
     ft = slab.typical_thickness[0]
     flap.geoms.append(box("pet_flap_geom", (0, 0, -fh / 2), (fw / 2 - 0.004, ft / 2, fh / 2 - 0.004), gm, M.MATERIALS[slab.core_material].density, True, True, FULL_SIMPLE, "leaf", "Pet flap"))
     model.add_body(flap)
+    model.meta.setdefault("attachment_allow", []).append(
+        ["*", f"{pfx}pet_flap*", "a pet flap swings in a hole: it hangs on its top hinge line and keeps a 4 mm running clearance from the frame all round"])
     model.meta.setdefault("notes", []).append("Pet flap: leaf slab collision box is NOT cut out (single box); the flap opening is visual + the flap is a separate articulated body.")

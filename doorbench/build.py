@@ -12,8 +12,18 @@ from .geometry import other as GO
 from .geometry import meshes as MESH
 
 
+MIN_MODELLED_T = 0.003   # m; the thinnest a leaf may be MODELLED.  spec["leaf"]["thickness"] is the mass parameter
+#                          (materials.SlabConstruction.area_density smears the whole leaf into it), and for a
+#                          chain-link gate that is the 0.3 mm of the mesh wire - which builds a gate leaf, its
+#                          stiles, rails and pickets and its collision proxy 0.3 mm thick: a degenerate collider in
+#                          both engines and a membrane on screen.  The clamp is applied to the geometry only, after
+#                          physics has been derived, so no mass or QA number moves.
+
+
 def build_model(spec: dict, phys: dict | None = None) -> Model:
     phys = phys or P.derive(spec)
+    if float(spec["leaf"].get("thickness", 1.0)) < MIN_MODELLED_T:
+        spec = {**spec, "leaf": {**spec["leaf"], "thickness": MIN_MODELLED_T, "mass_thickness": spec["leaf"]["thickness"]}}
     model = Model(spec["id"])
     model.meta.update({"door_id": spec["id"], "family": spec["family"], "task": spec.get("task"), "notes": []})
     fam = spec["family"]

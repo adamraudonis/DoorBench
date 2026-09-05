@@ -707,13 +707,36 @@ def build_vertical(spec, phys, model: Model):
             for sy in (-1, 1):
                 world.geoms.append(C.box(f"track_{'r' if sgn > 0 else 'l'}_flange_{'p' if sy > 0 else 'n'}", (sgn * (W / 2 + 0.032), track_y + sy * 0.029, zt_), (0.022, 0.004, hz_), tm, 7850, True, True, FULL_SIMPLE, "track", "Track flange"))
             for k in range(ns + 1):
-                lb.geoms.append(C.cyl(f"roller_{'r' if sgn > 0 else 'l'}_{k}", (sgn * (W / 2 + 0.03), track_y, max(0.04, 0.01 + k * (Hh / ns)) if k < ns else Hh - 0.05), 0.025, 0.01, tm, (1, 0, 0), 7850, False, True, FULL_ONLY, "track", "Track roller"))
-                lb.geoms.append(C.box(f"roller_arm_{'r' if sgn > 0 else 'l'}_{k}", (sgn * (W / 2 - 0.02), track_y / 2 + t / 4, 0.01 + k * (Hh / ns) if k < ns else Hh - 0.05), (0.03, track_y / 2 - t / 4, 0.006), tm, 7850, False, True, FULL_ONLY, "track", "Roller hinge arm"))
-        # torsion spring shaft
-        world.geoms.append(C.cyl("torsion_shaft", (0, 0.17, Ho + 0.25), 0.013, W / 2 + 0.2, tm, (1, 0, 0), 7850, True, True, FULL_SIMPLE, "mechanism", "Torsion spring shaft"))
-        world.geoms.append(C.cyl("torsion_spring", (0, 0.17, Ho + 0.25), 0.03, 0.35, C.mat_from_material(model, "steel", "mat_spring"), (1, 0, 0), 7850, False, True, FULL_ONLY, "mechanism", "Torsion spring"))
+                nm_ = 'r' if sgn > 0 else 'l'
+                zr_ = (max(0.04, 0.01 + k * (Hh / ns)) if k < ns else Hh - 0.05)
+                lb.geoms.append(C.cyl(f"roller_{nm_}_{k}", (sgn * (W / 2 + 0.03), track_y, zr_), 0.025, 0.01, tm, (1, 0, 0), 7850, False, True, FULL_ONLY, "track", "Track roller"))
+                # the roller's stem runs from the hinge arm out through the track's open side into the wheel hub -
+                # without it the wheel hangs 10 mm off the door with nothing between them
+                lb.geoms.append(C.cyl(f"roller_stem_{nm_}_{k}", (sgn * (W / 2 + 0.005), track_y, zr_), 0.006, 0.027, tm, (1, 0, 0), 7850, False, True, FULL_ONLY, "track", "Roller stem"))
+                lb.geoms.append(C.box(f"roller_arm_{nm_}_{k}", (sgn * (W / 2 - 0.02), track_y / 2 + t / 4, zr_), (0.03, track_y / 2 - t / 4, 0.006), tm, 7850, False, True, FULL_ONLY, "track", "Roller hinge arm"))
+        # torsion spring shaft, carried on end bearing plates bolted to the wall beside the opening (a shaft and a
+        # spring floating in mid-air above the door is exactly what this looked like before)
+        wt2_ = op["wall_thickness"] / 2
+        y_sh = max(0.17, wt2_ + 0.07)
+        x_br = Wo / 2 + rough + 0.06
+        world.geoms.append(C.cyl("torsion_shaft", (0, y_sh, Ho + 0.25), 0.013, max(W / 2 + 0.2, x_br + 0.05), tm, (1, 0, 0), 7850, True, True, FULL_SIMPLE, "mechanism", "Torsion spring shaft"))
+        world.geoms.append(C.cyl("torsion_spring", (0, y_sh, Ho + 0.25), 0.03, 0.35, C.mat_from_material(model, "steel", "mat_spring"), (1, 0, 0), 7850, False, True, FULL_ONLY, "mechanism", "Torsion spring"))
+        for sgn in (-1, 1):
+            nb_ = 'r' if sgn > 0 else 'l'
+            world.geoms.append(C.box(f"torsion_bearing_plate_{nb_}", (sgn * x_br, wt2_ + 0.004, Ho + 0.25), (0.055, 0.004, 0.055), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Torsion end bearing plate"))
+            world.geoms.append(C.box(f"torsion_bearing_arm_{nb_}", (sgn * x_br, (wt2_ + y_sh) / 2 + 0.004, Ho + 0.25), (0.008, (y_sh - wt2_) / 2 + 0.014, 0.03), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Torsion end bearing bracket"))
         if kin.get("opener", "none_manual") != "none_manual":
-            world.geoms.append(C.box("opener_rail", (0, 1.75, Ho + 0.15), (0.03, 1.25, 0.03), tm, 7850, True, True, FULL_ONLY, "mechanism", "Opener rail"))
+            # header angle across the opening on two wall gussets: the opener rail's front end bolts to it, exactly
+            # as it does in a real garage (the rail used to start 0.5 m out in mid-air).  The angle stands clear of
+            # the roller/track envelope (y <= track_y + 0.033) so the door still runs past it.
+            y_ang = max(wt2_ + 0.025, 0.145)
+            x_ang = Wo / 2 + rough + 0.06
+            world.geoms.append(C.box("opener_header_angle", (0, y_ang, Ho + 0.15), (x_ang + 0.055, 0.025, 0.025), tm, 7850, False, True, FULL_ONLY, "mechanism", "Opener header angle"))
+            for sgn in (-1, 1):
+                world.geoms.append(C.box(f"opener_header_gusset_{'r' if sgn > 0 else 'l'}", (sgn * x_ang, (wt2_ + y_ang + 0.025) / 2, Ho + 0.15),
+                                         (0.05, (y_ang + 0.025 - wt2_) / 2, 0.05), tm, 7850, False, True, FULL_ONLY, "mechanism", "Header angle wall gusset"))
+            y_r0 = y_ang - 0.025
+            world.geoms.append(C.box("opener_rail", (0, (y_r0 + 3.0) / 2, Ho + 0.15), (0.03, (3.0 - y_r0) / 2, 0.03), tm, 7850, True, True, FULL_ONLY, "mechanism", "Opener rail"))
             world.geoms.append(C.box("opener_unit", (0, 3.0, Ho + 0.1), (0.15, 0.2, 0.1), C.mat_from_material(model, "black_matte_metal", "mat_opener"), 500, True, True, FULL_ONLY, "mechanism", "Opener unit"))
     elif fam == "rollup":
         C.add_leaf_geoms(model, lb, spec, leaf, 1.0, -W / 2, 0.01, phys, name_prefix="curtain", y_center=y_leaf)
@@ -730,12 +753,24 @@ def build_vertical(spec, phys, model: Model):
                 world.geoms.append(C.box("guide_l_upper", (sgn * (W / 2 + 0.035), y_leaf, (zsl_ + 0.015 + Ho) / 2), (0.03, 0.025, (Ho - zsl_ - 0.015) / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
                 continue
             world.geoms.append(C.box(f"guide_{'r' if sgn > 0 else 'l'}", (sgn * (W / 2 + 0.035), y_leaf, Ho / 2), (0.03, 0.025, Ho / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
+        # the guides are surface-mounted: angle brackets bolt them back to the wall (without them the guide only
+        # reaches the world through the floor, and a split guide's upper half reaches nothing at all)
+        wt2_ = op["wall_thickness"] / 2
+        y_br = (wt2_ + y_leaf - 0.025) / 2
+        h_br = max(0.006, (y_leaf - 0.025 - wt2_) / 2 + 0.004)
+        for sgn in (-1, 1):
+            for iz, zb_ in enumerate((0.12, Ho * 0.5, Ho - 0.12)):
+                world.geoms.append(C.box(f"guide_bracket_{'r' if sgn > 0 else 'l'}_{iz}", (sgn * (W / 2 + 0.035), y_br, zb_), (0.028, h_br, 0.02), tm, 7850, False, True, FULL_SIMPLE, "track", "Guide mounting bracket"))
         # the curtain translates rigidly (no coiling is simulated): the coil sits in FRONT of the curtain plane, tangent to
         # it, inside an open-topped hood, so the raised curtain never intersects drum or hood (visual parts, no collision)
         world.geoms.append(C.cyl("coil_drum", (0, y_leaf + 0.278, Ho + 0.3), 0.25, W / 2 + 0.05, fm, (1, 0, 0), 300, False, True, FULL_SIMPLE, "mechanism", "Coil (visual)"))
+        # barrel shaft through the coil into both end plates (the coil floated between them)
+        world.geoms.append(C.cyl("coil_shaft", (0, y_leaf + 0.278, Ho + 0.3), 0.022, W / 2 + 0.13, tm, (1, 0, 0), 7850, False, True, FULL_SIMPLE, "mechanism", "Barrel shaft"))
         world.geoms.append(C.box("hood_front", (0, y_leaf + 0.54, Ho + 0.30), (W / 2 + 0.12, 0.02, 0.30), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Hood front"))
         for sx in (-1, 1):
-            world.geoms.append(C.box(f"hood_end_{'r' if sx > 0 else 'l'}", (sx * (W / 2 + 0.12), y_leaf + 0.27, Ho + 0.30), (0.02, 0.29, 0.30), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Hood end plate"))
+            # the end plates run back to the wall they are bolted to
+            y0_, y1_ = wt2_, y_leaf + 0.56
+            world.geoms.append(C.box(f"hood_end_{'r' if sx > 0 else 'l'}", (sx * (W / 2 + 0.12), (y0_ + y1_) / 2, Ho + 0.30), (0.02, (y1_ - y0_) / 2, 0.30), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Hood end plate"))
         # A real roll-up closes onto its rubber bottom astragal, not on bare steel: the bar is carried ROLLUP_ASTRAGAL
         # above the slab and the seal spans the gap.  (The steel bar used to end exactly on the floor - a 0.000 m
         # structural touch that MuJoCo at margin 0 ignores and PhysX resolves inside its contact offset.)

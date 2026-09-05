@@ -76,6 +76,15 @@ TOL_BODY = 0.003         # m; a body must touch what carries it within this.  3 
 #                          keeps at its jambs, so it is the largest gap that can still read as "in contact" here
 #                          without colliding with the running-clearance gate's requirement in the other direction.
 TOL_STATIC = 0.003       # m; same, for static geometry against the static structure it is mounted to.
+TOL_BODY_GUIDED = 0.012  # m; a body carried by a RUNNING fit - a curtain in its guides, a hanger in its rail, a
+#                          roller in its track - is captured by that fit, not resting on it, and the running
+#                          clearance gate REQUIRES it to keep a gap there (3 mm structural, 6 mm over a floor,
+#                          10 mm on a rotor).  The two gates would contradict each other at TOL_BODY, so a running
+#                          fit is attached at 12 mm: just above the largest gap running clearance ever demands, and
+#                          far below anything a viewer would call floating.  What counts as a running fit is the
+#                          semantics/names in GUIDE_SEM / GUIDE_NAME below.
+GUIDE_SEM = ("track",)
+GUIDE_NAME = ("*track*", "*guide*", "*roller*", "*hanger*", "*glide*", "*carriage*", "*rail*", "*shoe*", "*trolley*")
 TOL_EQ = 0.001           # m; a connect/weld equality is authored closed to a millimetre (shared with
 #                          linkage_qa.RESIDUAL_TOL_M so the two gates cannot disagree).
 MIN_HALF_EXTENT = 2e-4   # m; the smallest half-extent a real part may have (0.4 mm thick).  The thinnest genuine
@@ -152,6 +161,22 @@ class Attachment:
         for i, j, dist in self._pairs_within(ids_a, ids_b, cutoff):
             if dist < best[0]:
                 best = (dist, i, j)
+        return best
+
+    def is_guide(self, gid: int) -> bool:
+        """Is this geom a running fit (a track, guide, rail, roller, hanger) rather than a fixing?"""
+        n = self.gname[gid] or ""
+        return self.c.sem.get(n, "") in GUIDE_SEM or any(fnmatch.fnmatch(n, p) for p in GUIDE_NAME)
+
+    def attach_dist(self, ids: Sequence[int], targets: Sequence[int]) -> Tuple[float, float, int, int]:
+        """(effective gap, tolerance that applies, geom a, geom b) for a body against what carries it.
+
+        The closest target decides; if that target is a running fit the guided tolerance applies instead."""
+        best = (SEARCH, TOL_BODY, -1, -1)
+        for i, j, dist in self._pairs_within(ids, targets, SEARCH):
+            tol = TOL_BODY_GUIDED if self.is_guide(j) or self.is_guide(i) else TOL_BODY
+            if dist - tol < best[0] - best[1]:
+                best = (dist, tol, i, j)
         return best
 
     def _clusters(self, ids: Sequence[int], tol: float) -> List[List[int]]:
@@ -297,10 +322,11 @@ class Attachment:
             targets = [t for t in targets if t not in ids]
             if not targets:
                 continue
-            dist, i, j = self._min_dist(ids, targets)
+            dist, tol, i, j = self.attach_dist(ids, targets)
             worst[bid] = dist
-            if dist > TOL_BODY:
-                self._finding(out, "body_detached" if config == "rest" else "detached_in_motion", "TOL_BODY", TOL_BODY, dist,
+            if dist > tol:
+                self._finding(out, "body_detached" if config == "rest" else "detached_in_motion",
+                              "TOL_BODY" if tol == TOL_BODY else "TOL_BODY_GUIDED", tol, dist,
                               [self.bname[bid]] + [self.gname[g] for g in ids],
                               f"body {self.bname[bid]} is {dist * 1000:.1f} mm from {what}"
                               + (f" (closest pair {self.gname[i]} / {self.gname[j]})" if j >= 0 else f" (nothing within {SEARCH} m)")
@@ -341,20 +367,20 @@ class Attachment:
                 continue
             if hi - lo < 1e-6:
                 continue
-            worst = (-1.0, 0.0, -1, -1)
+            worst = (-1.0, TOL_BODY, 0.0, -1, -1)
             for k in range(n_steps + 1):
                 qv = lo + (hi - lo) * k / n_steps
                 q = base.copy()
                 q[m.jnt_qposadr[j]] = qv
                 self.d.qpos[:] = self.c.resolve(q)
                 self.mj.mj_forward(m, self.d)
-                dist, ia, ja = self._min_dist(ids, targets)
-                if dist > worst[0]:
-                    worst = (dist, qv, ia, ja)
-            dist, qv, ia, ja = worst
-            if dist > TOL_BODY:
+                dist, tol, ia, ja = self.attach_dist(ids, targets)
+                if dist - tol > worst[0] - worst[1]:
+                    worst = (dist, tol, qv, ia, ja)
+            dist, tol, qv, ia, ja = worst
+            if dist > tol:
                 jn = self.mj.mj_id2name(m, self.mj.mjtObj.mjOBJ_JOINT, j)
-                self._finding(out, "detached_in_motion", "TOL_BODY", TOL_BODY, dist,
+                self._finding(out, "detached_in_motion", "TOL_BODY" if tol == TOL_BODY else "TOL_BODY_GUIDED", tol, dist,
                               [self.bname[bid]] + [self.gname[g] for g in ids],
                               f"body {self.bname[bid]} leaves {what}: {dist * 1000:.1f} mm at {jn}={qv:.3f}"
                               + (f" (closest pair {self.gname[ia]} / {self.gname[ja]})" if ja >= 0 else ""),

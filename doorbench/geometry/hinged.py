@@ -157,7 +157,8 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         # helical (rising) hinge = hinge + coupled vertical slide (screw joint); gravity closes the door with m*g*pitch
         riser = Body(f"{leaf_name}_riser", None, (hx, 0.0, 0.0), QUAT_ID, None, [], [], ALL_TIERS, "hinge", "Rising hinge carrier")
         riser.joint = Joint(f"{leaf_name}_rise", "slide", (0, 0, 1), (0, 0, 0), (0.0, rise_per_90 * 2.2), damping=1.0, frictionloss=0.0, armature=0.5, role="mechanism", label="Rising-hinge lift (coupled to hinge angle)", robot_interactive=False)
-        riser.geoms.append(C.sphere(f"{leaf_name}_riser_marker", (x_axis_rel, y_pin, 0.05), 0.004, C.mat_from_material(model, "steel", "mat_hinge"), 7850, False, FULL_ONLY, "hinge", "Rising hinge"))
+        # the carrier collar sits ON the hinge jamb it rides (a 4 mm bead floated 3.6 mm off it)
+        riser.geoms.append(C.cyl(f"{leaf_name}_riser_marker", (x_axis_rel, y_pin, 0.055), 0.014, 0.018, C.mat_from_material(model, "steel", "mat_hinge"), (0, 0, 1), 7850, False, True, FULL_ONLY, "hinge", "Rising hinge carrier collar"))
         model.add_body(riser)
         leaf_parent = riser.name
     leaf_body = Body(leaf_name, leaf_parent, (hx, 0.0, 0.0) if leaf_parent is None else (0.0, 0.0, 0.0), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Door leaf")

@@ -52,7 +52,12 @@ DEFAULT_ALLOW = [("*pushbutton_geom", "*pushbutton_housing"), ("*_pin_geom", "*_
                  ("*_device_case", "*_bolt_capsule"),
                  # a surface hasp plate lies flat across the door/frame joint (frame face modelled as a solid member)
                  ("*_hasp", "jamb_*"), ("*_hasp", "post_*"), ("*_hasp", "stop_*"), ("*_hasp", "seal_*"),
-                 ("*thumbturn_mesh", "*_escutcheon_*"), ("*cylinder_face", "*_escutcheon_*")]
+                 ("*thumbturn_mesh", "*_escutcheon_*"), ("*cylinder_face", "*_escutcheon_*"),
+                 # a spindle runs through the hole in the rose / escutcheon plate it turns in, and a wall button
+                 # presses into the recess of the plate it is mounted on
+                 ("*_spindle", "*_escutcheon_*"), ("*_spindle", "*_rose_*"), ("*_spindle", "*handleset*"),
+                 ("*_spindle", "*_device_case"), ("*_spindle", "*_backplate_*"), ("rex_button_geom", "rex_plate"),
+                 ("call_button_geom", "*_plate")]
 FRAME_LIKE = ("frame", "latch", "lock", "wall", "track")
 HARDWARE = ("operator", "latch", "lock", "mechanism", "closer", "track", "hinge")
 
