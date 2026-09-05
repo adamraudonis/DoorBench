@@ -203,7 +203,11 @@ class KeypadHand(SwingHand):
         super().act(t)
 
     def hud_joints(self):
-        return super().hud_joints() + [(f"key {k}", self.key_joint(k)[0]) for k in self.code[:2]]
+        rows = super().hud_joints()
+        if self.op and self.op != self.env.meta.get("operator_joint"):
+            # the hand works the trim the code released, not the always-free inside lever
+            rows = [(("outside lever", self.op) if j == self.env.meta.get("operator_joint") else (l, j)) for l, j in rows]
+        return rows + [(f"key {k}", self.key_joint(k)[0]) for k in self.code[:2]]
 
 
 class PairHand(SwingHand):
