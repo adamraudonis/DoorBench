@@ -59,6 +59,16 @@ The validator's report records all numeric thresholds and the interpolation samp
 
 The standard rig has a neutral head top of 1.68 m, a rigid 20 cm head, finite feet and spherical hand proxies. It has no fingers. Some apertures are intrinsically too small for that head; other cases need crawling, climbing, access equipment or a better planner. Full dataset coverage includes honest unresolved cases rather than silently changing the actor or the requested task.
 
+Compare complete revisions with matching native inputs, original rig and independent gates:
+
+```sh
+.venv/bin/python scripts/compare_planned_reference_corpora.py \
+  --before out/reference-planned-corpus-v1 --after out/reference-planned-corpus-v2 \
+  --out out/reference-comparison/v1-v2.json
+```
+
+The comparison verifies complete artifact inventories and bound acceptance reports, lists both new acceptances and regressions, and separates source-task counts from durations. It rejects pending runs, changed native inputs, and changed validation thresholds. It does not infer visual or dynamic success.
+
 ## Read the arrays
 
 `trajectory.npz` is loadable with `numpy.load(..., allow_pickle=False)`. `actor_time` is the authoritative clock. `proposal_time` preserves timing before the local derivative adjustment; `native_time` maps each frame to the immutable source recording. The nominal `fps` field controls rendering, not necessarily uniform sample spacing.
