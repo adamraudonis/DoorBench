@@ -700,12 +700,15 @@ def gen_saloon(i, ctx, B, rng):
     W = B.pick("sa:w", {0.45: 2, 0.50: 1, 0.60: 1}) if pair else B.pick("sa:w1", {0.80: 1, 0.90: 1})
     Hh = B.pick("sa:h", {1.10: 2, 1.30: 1, 2.03: 1, 0.90: 1})
     zb = _round(B.pick("sa:zb", {0.35: 2, 0.20: 1, 0.60: 1, 0.0: 1})) if Hh < 1.9 else 0.0
+    # double-acting leaves never drag on the floor: a leaf bottom coplanar with the floor is a zero-gap touch whose
+    # degenerate contact stalled the swing under the QA push; real pivot doors run >= 12-20 mm above the floor
+    zb = max(zb, 0.015)
     panel = "louver_full" if slab == "louver_wood" else B.pick("sa:panel", {"flush": 2, "shaker_1": 1, "glass_vision": 1, "hpl_flat": 1})
     s["use_case"] = B.pick("sa:use", ["saloon bar doors", "cafe kitchen pass doors", "restaurant kitchen swing door", "hospital utility double-acting door", "supermarket stockroom doors"])
     t_sal = B.pick("sa:t", {0.035: 2, 0.044: 1})   # double-acting pivots: hinge-edge gap >= t/2 + 6 mm so the corners clear the jamb
     s["leaf"] = {"width": W, "height": Hh, "thickness": t_sal, "slab": slab, "panel_style": panel, "finish": finish_for(slab, "default", B, rng), "count": 2 if pair else 1,
                  "glazing": glazing_for(panel, W, Hh, "glass_clear", 0.006, rng), "bottom_clearance": zb}
-    s["opening"] = {"width": _round((2 * W if pair else W) + t_sal + 0.024), "height": _round(2.05 if Hh < 1.9 else Hh + 0.013), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
+    s["opening"] = {"width": _round((2 * W if pair else W) + t_sal + 0.024), "height": _round(2.05 if Hh < 1.9 else Hh + zb + 0.010), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
     s["hinge"] = hinge_block("spring_double", 2, "left", "push")
     s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": B.pick("sa:mo", {90: 2, 110: 1, 100: 1}), "stop": "none", "both_ways": True, "pair": pair}
     s["operator"] = {"model": B.pick("sa:op", {"none": 3, "push_plate": 1, "kick_plate_only": 0.001}), "height": 1.0, "sides": "both"}
@@ -900,7 +903,9 @@ def gen_bifold(i, ctx, B, rng):
     Hh = B.pick("bf:h", {2.032: 4, 2.4: 1})
     s["use_case"] = B.pick("bf:use", ["bedroom closet bifold", "laundry closet bifold", "pantry bifold", "utility closet bifold (louvered)"])
     s["leaf"] = {"width": W, "height": Hh, "thickness": 0.006 if slab == "mirror_bypass" else 0.035, "slab": slab, "panel_style": panel, "finish": finish_for(slab, "residential_interior", B, rng), "count": n, "glazing": None}
-    s["opening"] = {"width": _round(W_total + 0.01), "height": _round(Hh + 0.02), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
+    # head jamb 60 mm above the panel bottom + height: the 30 mm track hangs under the head and the panel tops run
+    # 10 mm below it (panels level with the head underside were a zero-gap touch that stalled the fold under the QA push)
+    s["opening"] = {"width": _round(W_total + 0.01), "height": _round(Hh + 0.06), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
     s["hinge"] = hinge_block("butt_35_plain", 2, "left", "fold")
     s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": 90, "stop": "track_end", "fold": True, "n_panels": n, "roller": B.pick("bf:roller", {"bifold_pivot_guide": 3, "plain_nylon": 1, "dirty_track": 1})}
     s["operator"] = {"model": B.pick("bf:op", {"bifold_knob": 4, "pull_d": 1}), "height": 1.0, "sides": "robot"}
@@ -925,7 +930,8 @@ def gen_accordion(i, ctx, B, rng):
     Hh = B.pick("ac:h", {2.032: 3, 2.4: 1})
     s["use_case"] = B.pick("ac:use", ["accordion closet door", "room divider accordion", "laundry nook accordion", "office partition accordion"])
     s["leaf"] = {"width": W, "height": Hh, "thickness": 0.012 if slab != "mdf_solid" else 0.018, "slab": slab, "panel_style": "hpl_flat", "finish": finish_for(slab, "residential_interior", B, rng), "count": n, "glazing": None}
-    s["opening"] = {"width": _round(W_total + 0.01), "height": _round(Hh + 0.02), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
+    # head clearance as for the bifold: track under the head, panel tops 10 mm below the track (see gen_bifold)
+    s["opening"] = {"width": _round(W_total + 0.01), "height": _round(Hh + 0.06), "wall_thickness": 0.145, "frame": {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.0, "jamb_depth": 0.115}, "threshold": "none", "sidelite": False, "transom": False}
     s["hinge"] = hinge_block("piano", n - 1, "left", "fold")
     s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": 170, "stop": "track_end", "fold": True, "accordion": True, "n_panels": n, "roller": "accordion_glides"}
     s["operator"] = {"model": B.pick("ac:op", {"pull_d": 2, "bifold_knob": 1, "pull_flush_recessed": 1}), "height": 1.0, "sides": "robot"}

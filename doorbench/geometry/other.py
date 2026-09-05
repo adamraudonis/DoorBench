@@ -839,7 +839,10 @@ def build_horizontal(spec, phys, model: Model):
             world.geoms.append(C.box(nm, c, h, fm, 1200, True, True, ALL_TIERS, "frame", "Pet door frame"))
         # tunnel liner
         world.geoms.append(C.box("pet_sill", (0, 0, 0.05 - 0.006), (Wo / 2, wt / 2 + 0.006, 0.006), fm, 1200, True, True, ALL_TIERS, "frame", "Sill"))
-        flap = Body("flap", None, (0, 0, 0.05 + Ho), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Pet flap")
+        # the flap pins hang below the frame's top rail by half the flap thickness plus a clearance: a flap swung past
+        # ~45 deg lifts its top corners (t/2 sin(q) - 2 mm cos(q)) above the pin, so pins level with the rail underside
+        # drove the corners ~1 mm into the rail / wall header (under the clearance gate's tolerance, 20+ kN of contact)
+        flap = Body("flap", None, (0, 0, 0.05 + Ho - (t / 2 + 0.004)), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Pet flap")
         mo = math.radians(kin.get("max_open_deg", 90))
         flap.joint = Joint("flap_hinge", "hinge", (1, 0, 0), (0, 0, 0), (-mo, mo), damping=0.01 + hf.get("air_damping_Nms_per_rad", 0.0), frictionloss=hf["coulomb_torque_Nm"] + 0.005, armature=1e-4, role="primary", label="Flap (swings both ways)")
         model.add_body(flap)
@@ -865,15 +868,20 @@ def build_horizontal(spec, phys, model: Model):
         world.geoms.append(C.box("hanger_rail", (0, 0, Ho + 0.03), (Wo / 2 + 0.05, 0.03, 0.03), fm, 7900, True, True, ALL_TIERS, "track", "Hanger rail"))
         n = leaf["count"]
         sw = leaf["strip_width"]
-        pitch = (Wo - sw) / max(n - 1, 1)
+        edge = 0.01                      # outermost strips stay clear of the jamb walls (a strip flush with the wall rubs it)
+        pitch = (Wo - 2 * edge - sw) / max(n - 1, 1)
         gm = C.mat_from_material(model, "pvc_flexible", "mat_strip")
         strips = []
         for k in range(n):
-            x = -Wo / 2 + sw / 2 + k * pitch
-            y = ((k % 2) - 0.5) * (t + 0.004)
+            x = -Wo / 2 + edge + sw / 2 + k * pitch
+            # every strip hangs from its own plate: the hinge axis runs along the strip's own top edge (the 2-plane rail
+            # stagger and the 3-plane overlap stagger are both in the body position, the geom is centred on its axis), so
+            # a swinging strip's top corners rise at most t/2 - a strip hinged beside its own plane swung its top edge up
+            # into the hanger rail (1-2 mm interpenetration, kN of contact force)
+            y = ((k % 2) - 0.5) * (t + 0.004) + ((k % 3) - 1) * (t + 0.002)
             s = Body(f"strip_{k}", None, (x, y, Ho - 0.006), QUAT_ID, None, [], [], ALL_TIERS if k % 2 == 0 else FULL_SIMPLE, "leaf", f"Strip {k + 1}")
             s.joint = Joint(f"strip_{k}_hinge", "hinge", (1, 0, 0), (0, 0, 0), (-1.25, 1.25), damping=0.05, frictionloss=0.02, armature=1e-4, role="primary" if k == n // 2 else "secondary", label="Strip swings both ways")
-            s.geoms.append(C.box(f"strip_{k}_geom", (0, ((k % 3) - 1) * (t + 0.002), -Hh / 2), (sw / 2, t / 2, Hh / 2), gm, 1250, True, True, ALL_TIERS if k % 2 == 0 else FULL_SIMPLE, "leaf", "PVC strip", friction=(0.6, 0.005, 0.0001)))
+            s.geoms.append(C.box(f"strip_{k}_geom", (0, 0, -Hh / 2), (sw / 2, t / 2, Hh / 2), gm, 1250, True, True, ALL_TIERS if k % 2 == 0 else FULL_SIMPLE, "leaf", "PVC strip", friction=(0.6, 0.005, 0.0001)))
             model.add_body(s)
             strips.append(s)
             if k > 0:
