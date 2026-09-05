@@ -15,7 +15,7 @@ DoorBench combines 30 door families with operators, locks, closers and configura
 
 This is a research dataset with known construction and physics approximations. Automated QA is not physical or artistic certification. Read the [construction audit](docs/review/takeover/REVIEW.md) and [appearance review](docs/review/blender/REVIEW.md) before using it for training or evaluation.
 
-The experimental [constrained motion pipeline](docs/PLANNED_REFERENCE_MOTIONS.md) adds fixed foot contacts, whole-body collision checks and independently verified actor routes. Its [first complete audit](docs/research/planned-reference-baseline.md) accepted 61 traversals and 51 locked-door checks; grasp, balance and benchmark success remain separate.
+The experimental [constrained motion pipeline](docs/PLANNED_REFERENCE_MOTIONS.md) adds fixed foot contacts, whole-body collision checks and independently verified actor routes. The public supplement has 61 accepted traversals and 51 locked-door checks; a [local second revision](docs/research/planned-reference-v2.md) raises traversal coverage to 108. Natural motion, causal operation and timed benchmark success remain unfinished.
 
 ## Try a door
 

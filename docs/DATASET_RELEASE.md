@@ -53,6 +53,8 @@ DoorBench's generated assets and original reference skeleton/motion are MIT. Pol
 
 ## Prepare and publish a new version
 
+Batch Hugging Face updates at most once per day, publishing a reviewed revision when ready. Local development and website updates can continue between releases; a daily upload is not required.
+
 Freeze and validate generated inputs before preparing a release. This script verifies full source/render correspondence, required source hashes, USD asset references, one default render per door, complete motion coverage and per-clip/native/source checksums. The motion generator's own physical and visual checks remain separate; packaging does not turn a failed episode into a successful demonstration.
 
 ```sh
