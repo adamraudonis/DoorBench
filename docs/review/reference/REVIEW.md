@@ -25,3 +25,11 @@ Clean-browser checks cover Catalogue, Door types, Results, About and Review at 1
 The human review workspace has validated import preview/merge, actual export/import between isolated browser profiles, local persistence, keyboard safety, undo and explicit appearance/construction/mechanism assessments. Queue scrolling does not move the outer page. Human assessments remain separate from automated QA.
 
 See [reference format and Blender use](../../REFERENCE_MOTIONS.md), [human review](../../HUMAN_REVIEW.md), [existing construction audit](../takeover/REVIEW.md) and [all-door Blender appearance screening](../blender/REVIEW.md). Numeric/browser receipts and contact sheets are retained under ignored `out/reference-review/` and `out/ui-review/`; generated datasets and packed scenes are distributed outside Git.
+
+## Published release verification
+
+On September 5, 2026, the research release was merged with the concurrently completed Isaac parity tooling at master `6c1c98435867ca72d630bbd079d70511e8a44210`. The combined source passed 679 Python tests (one skipped), 29 viewer tests, typechecking and the production build. The catalogue retains the new parity filter and badges.
+
+[Pages run 33951862652](https://github.com/adamraudonis/DoorBench/actions/runs/33951862652) succeeded. The live deployment, dataset, appearance and reference index hashes match the pinned bundle; a compressed clip and its decoded JSON match the recorded source hashes. Browser checks verified reference playback, pause, brown/gold contrast, mobile layout, the human-review workspace and historical result loading. Blender image/metadata and packed Blender/USDC downloads also passed. All 122 shared USDC dependencies resolve in the restored bundle; the complete site is approximately 916 MB.
+
+The public, ungated [Hugging Face release v2026.09.05](https://huggingface.co/datasets/adamraudonis/DoorBench/tree/v2026.09.05) resolves to `6e17f0f588bf81fec0f04b2a329b471488164366`. Its published standalone downloader was executed anonymously, verified 17,246 simulation asset files, preserved the complete 22,310-file inventory and successfully loaded/stepped a downloaded door in MuJoCo. Source and archive provenance remain fixed to the frozen generation inputs documented in the release; merging later simulator tooling does not silently replace the published data.
