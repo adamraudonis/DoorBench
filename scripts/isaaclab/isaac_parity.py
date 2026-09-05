@@ -52,13 +52,12 @@ import argparse
 import json
 import math
 import os
-import platform
 import sys
 import time
 import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _common import ROOT, ensure_extension_importable  # noqa: E402
+from _common import ROOT, ensure_extension_importable, package_version, simulator_engine  # noqa: E402
 
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
@@ -109,54 +108,7 @@ if abs(SAMPLE_EVERY * DT * P.SAMPLE_HZ - 1.0) > 1e-6:
 POS_ITERS, VEL_ITERS = (int(x) for x in args_cli.iters.split(","))
 X_SPACING, Y_SPACING = (float(x) for x in args_cli.spacing.split(","))
 LATCH_TARGET = args_cli.latch_mode == "clamp+target"
-def _pkg_version(module: str, *dist_names: str) -> str | None:
-    """Version of an installed package, from whichever of the four places actually carries it.
-
-    ``isaaclab.__version__`` / ``isaacsim.__version__`` do not exist in Isaac Sim 5.1 + Isaac Lab 2.3, which is why
-    every record of rounds 1 and 2 says ``null``.  The version does live in the distribution metadata, in Isaac Sim's
-    own ``get_version()`` and in the ``VERSION`` file next to the app - try all of them and, failing that, say where
-    the module was imported from so the run is still identifiable."""
-    import importlib
-    try:
-        mod = importlib.import_module(module)
-    except Exception:
-        return None
-    v = getattr(mod, "__version__", None) or getattr(mod, "VERSION", None)
-    if isinstance(v, str) and v:
-        return v
-    for dist in (dist_names or (module,)):
-        try:
-            from importlib.metadata import version as _dist_version
-            return _dist_version(dist)
-        except Exception:
-            continue
-    if module == "isaacsim":
-        try:
-            from isaacsim.core.version import get_version
-            core, _, _, _, _, _, _, _ = (list(get_version()) + [None] * 8)[:8]
-            if core:
-                return str(core)
-        except Exception:
-            pass
-        for base in {os.path.dirname(os.path.dirname(getattr(mod, "__file__", "") or "")), os.environ.get("ISAAC_PATH", "")}:
-            vf = os.path.join(base, "VERSION") if base else ""
-            if vf and os.path.isfile(vf):
-                try:
-                    with open(vf) as f:
-                        return f.read().strip().splitlines()[0]
-                except OSError:
-                    pass
-    path = getattr(mod, "__file__", None)
-    return f"unknown (imported from {os.path.dirname(path)})" if path else "unknown"
-
-
-ENGINE = {"isaac_sim": _pkg_version("isaacsim", "isaacsim", "isaacsim-core"), "isaac_lab": _pkg_version("isaaclab", "isaaclab"),
-          "physx_dt": DT, "solver_iterations": [POS_ITERS, VEL_ITERS], "python": platform.python_version(), "platform": platform.platform()}
-try:
-    import torch as _torch
-    ENGINE["torch"] = _torch.__version__
-except Exception:
-    pass
+ENGINE = simulator_engine() | {"physx_dt": DT, "solver_iterations": [POS_ITERS, VEL_ITERS]}
 if ENGINE["isaac_sim"] is None or ENGINE["isaac_lab"] is None:
     print(f"[parity] WARNING: could not resolve the simulator version (isaac_sim={ENGINE['isaac_sim']}, isaac_lab={ENGINE['isaac_lab']}); "
           f"the parity report will say so instead of claiming a version.")

@@ -422,3 +422,20 @@ def test_report_lists_every_door_of_a_class(tmp_path):
     _write_results(d, px_hash="bbbb", px_metrics_version="1.1")
     _summary, md = build_report(d, None, None, plots=False)
     assert "all 20 doors" in md and "`db0007_swing_single`" in md
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# 11. the runner can name the simulator it ran on
+
+def test_package_version_resolves_or_says_it_cannot():
+    import _common as C
+
+    assert C.package_version("json") == json.__version__            # __version__ where there is one
+    assert C.package_version("numpy") is not None                   # distribution metadata where there is not
+    assert C.package_version("definitely_not_installed_xyz") is None
+    eng = C.simulator_engine()
+    assert set(eng) >= {"isaac_sim", "isaac_lab", "python", "platform"}
+    assert eng["python"] and eng["platform"]
+    # every value is either a version string or None - never a silent empty string the report would print as blank
+    for k, v in eng.items():
+        assert v is None or (isinstance(v, str) and v), (k, v)
