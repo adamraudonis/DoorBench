@@ -2,6 +2,8 @@
 
 The first complete supplement is public: [planned-v2026.09.05 on Hugging Face](https://huggingface.co/datasets/adamraudonis/DoorBench/tree/planned-v2026.09.05/experimental/planned-reference/planned-v2026.09.05). It contains 61 traversal references, 51 locked-door checks, and reports for the other 888 doors. The immutable Hub commit is `e33db254c76712a2a9fcbfd97776b924dd473a15`; see [the baseline review](planned-reference-baseline.md) for the limits of these results.
 
+The [second corpus](planned-reference-v2.md) is prepared locally with 108 traversals and 51 locked-door checks. It is not yet public. Per the owner's September 5 request, batch Hugging Face updates **at most once per day**, publishing a reviewed revision when ready. Local experiments, previews and source/website changes can continue between uploads; a daily upload is not required. Keep the public index pinned to its actual publication receipt until the next release is verified.
+
 The planned-reference supplement is separate from the native scripted-hand dataset. Every one of the 1,000 doors retains a status and reason. Only `accepted_kinematic` rows receive browser playback and research trajectories. Rejected and unresolved rows retain public audit summaries; an unresolved planner, timeout, or engine error is not a proof that a person cannot operate that door.
 
 Acceptance means independent **sampled kinematic and actor-route evidence checks** passed for an original approximate adult rig. Door motion remains prescribed and retimed from the native recording. This does not certify forces, balance, causal humanoid control, grasp or lock semantics, the original benchmark clock, continuous collision clearance, natural appearance, or personal visual approval. The native primary recording outcomes (879 successes, 118 failures, 3 damaged) and historical benchmark scores remain separate evaluations. See [the detailed scope](planned-reference-scope.md).
@@ -47,7 +49,7 @@ Public result summaries are explicitly labeled projections carrying `original_re
 
 ## Explicit publication and deployment
 
-Only the owner performs publication after reviewing the concrete prepared bundle:
+Publication is a separate explicit step for a reviewed prepared bundle. The owner has authorized the project agent to publish, subject to the release cadence above:
 
 ```sh
 .venv/bin/python scripts/planned_reference_release.py publish \

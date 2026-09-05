@@ -87,6 +87,21 @@ the viewer as described in [human review](HUMAN_REVIEW.md):
   --out out/planned-reference-web
 ```
 
+To review an existing prepared release directly, run this command from the
+repository root. It reads the release's `web/` directory and the matching local
+`assets/` without copying, exporting or uploading anything:
+
+```sh
+DOORBENCH_PLANNED_WEB_ROOT=out/planned-release/planned-v2026.09.05.2/web \
+VITE_PLANNED_REFERENCE_INDEX=./planned-references/index.json \
+  bun run --cwd viewer dev --host 127.0.0.1 --port 5175 --strictPort
+```
+
+Open <http://127.0.0.1:5175/#/motions>. This is an unpublished local preview;
+the public Motion Lab remains on its pinned release. Relative
+`DOORBENCH_PLANNED_WEB_ROOT` paths resolve from the repository root; absolute
+paths also work. Omitting the variable keeps `out/planned-reference-web`.
+
 Open `#/motions` in the local viewer. Visual notes use the exact served clip
 checksum, so changing a motion does not transfer an old review to it. Pass,
 needs-work, issue tags and notes can be exported/imported locally. This review
