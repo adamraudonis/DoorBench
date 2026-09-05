@@ -8,7 +8,7 @@ except ImportError:  # pragma: no cover
 
 from .actions import DoorMechanismAction, DoorMechanismActionCfg  # noqa: F401
 from .door_state import DoorState, get_door_state, EVENTS, TASK_IDS  # noqa: F401
-from .events import reset_door, reset_hand_at_approach, reset_robot_at_approach  # noqa: F401
+from .events import release_env_lock, reset_door, reset_hand_at_approach, reset_robot_at_approach  # noqa: F401
 from .observations import (  # noqa: F401
     door_state_obs, door_task_obs, door_events_obs, grip_rel_tip, grip_rel_base, goal_rel_base, goal_rel_tip, tip_pos_local,
 )

@@ -188,7 +188,7 @@ class MujocoDoor:
                 ctx["opened"] = metrics.get("opened")
             phases[phase] = {"expected": expected, "status": status, "metrics": metrics, "curve": curve, "informational": expected.endswith("_info")}
         rec = {"door_id": inputs["door_id"], "sim": "mujoco", "kind": "mjcf", "engine": {"mujoco": self.mj.__version__}, "dt": self.dt, "protocol_version": P.PROTOCOL_VERSION,
-               "inputs_hash": inputs["inputs_hash"], "inputs": inputs, "pose0": self.pose0(), "phases": phases, "emulations_used": ["servo_native"] if inputs["flags"]["automatic"] else [],
+               "metrics_version": P.METRICS_VERSION, "inputs_hash": inputs["inputs_hash"], "inputs": inputs, "pose0": self.pose0(), "phases": phases, "emulations_used": ["servo_native"] if inputs["flags"]["automatic"] else [],
                "limits": {"violations": [dict(v, phase=p) for p, r in phases.items() for v in (r["metrics"].get("limit_violations") or [])]},
                "sanity": {"finite": all(r["metrics"].get("finite", True) for r in phases.values() if r["metrics"]), "velocity_cap_hit": any(r["metrics"].get("velocity_cap_hit") for r in phases.values() if r["metrics"]),
                           "warnings": sorted({w for r in phases.values() for w in (r["metrics"].get("warnings") or [])})},
@@ -224,8 +224,9 @@ def compact_record(rec: dict, keep_joints: int = 3, hz: int = 5) -> dict:
     keep = [j for j in (inputs["primary_joint"], inputs["operator_joint"], inputs["latch_bolt_joint"]) if j]
     step = max(1, P.SAMPLE_HZ // hz)
     out = {k: v for k, v in rec.items() if k not in ("phases", "inputs", "pose0")}
+    out["metrics_version"] = rec.get("metrics_version", P.METRICS_VERSION)
     out["pose0"] = {"bodies": {n: b["pos"] for n, b in rec.get("pose0", {}).get("bodies", {}).items() if b.get("moving")}, "joints": rec.get("pose0", {}).get("joints", {})}
-    out["inputs"] = {k: inputs[k] for k in ("door_id", "family", "is_hinge", "primary_joint", "operator_joint", "latch_bolt_joint", "secondary_joint", "flags", "forces", "thresholds", "schedule", "inputs_hash", "coupling", "rl", "reference_qa", "joints", "thumbturn_joint", "aux_joints", "dog_joints", "unlimited_joints", "latch_joints", "max_open_deg", "travel_m", "unit", "mass_kg", "kinematics_type", "leaf_width_m", "task", "protocol_version")}
+    out["inputs"] = {k: inputs[k] for k in ("door_id", "family", "is_hinge", "primary_joint", "operator_joint", "latch_bolt_joint", "secondary_joint", "flags", "forces", "thresholds", "schedule", "inputs_hash", "coupling", "rl", "reference_qa", "push_base", "joints", "thumbturn_joint", "aux_joints", "dog_joints", "unlimited_joints", "latch_joints", "max_open_deg", "travel_m", "unit", "mass_kg", "kinematics_type", "leaf_width_m", "task", "protocol_version")}
     out["phases"] = {}
     for p, r in rec["phases"].items():
         row = {"expected": r["expected"], "status": r["status"], "metrics": r["metrics"], "informational": bool(r.get("informational"))}
@@ -245,7 +246,8 @@ def run_door(door_dir: str, dt: float | None = None, cache_dir: str | None = Non
         try:
             with open(cache_path) as f:
                 rec = json.load(f)
-            if rec.get("protocol_version") == P.PROTOCOL_VERSION and rec.get("inputs_hash") == door.inputs["inputs_hash"] and abs(rec.get("dt", 0) - door.dt) < 1e-12:
+            if rec.get("protocol_version") == P.PROTOCOL_VERSION and rec.get("metrics_version") == P.METRICS_VERSION \
+                    and rec.get("inputs_hash") == door.inputs["inputs_hash"] and abs(rec.get("dt", 0) - door.dt) < 1e-12:
                 rec["cached"] = True
                 return rec
         except Exception:

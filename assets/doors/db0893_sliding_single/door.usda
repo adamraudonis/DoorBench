@@ -7,9 +7,11 @@
 
 def Xform "db0893_sliding_single"
 {
-    custom string doorbench:couplings = '[{"type": "mimic", "driven": "leaf_hook_hinge", "driver": "leaf_hook_thumbturn_hinge", "coeff": [0, 1.0, 0, 0, 0], "gearing": -1.0, "offset": -0.0, "label": "hook = driver * coeff", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}]'
+    custom string doorbench:couplings = '[{"driven": "leaf_hook_hinge", "driver": "leaf_hook_thumbturn_hinge", "driven_type": "hinge", "driver_type": "hinge", "mode": "mimic", "coeff": [0.0, 1.0], "gearing": -1.0, "offset": -0.0, "label": "hook = driver * coeff", "coeff_usd": [0.0, 1.0], "driven_zero_offset": 0.0, "driver_zero_offset": 0.0, "driven_inertia": 7.686131200000006e-05, "reflected_inertia": 7.686131200000006e-05, "driven_gravity_bias": 0.01889735616000001, "driven_stiffness": 0.0, "driven_damping": 0.05, "driven_target": 0.0, "driven_friction": 0.1, "driven_range": [0.0, 1.0], "friction_vel_eps": 0.001, "reason": null, "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m", "chain_order": 0, "type": "mimic", "driven_path": "/db0893_sliding_single/Articulation/Joints/leaf_hook_hinge", "driver_path": "/db0893_sliding_single/Articulation/Joints/leaf_hook_thumbturn_hinge"}]'
     custom string doorbench:door_id = "db0893_sliding_single"
-    custom string doorbench:meta = '{"door_id": "db0893_sliding_single", "family": "sliding_single", "task": "unlock_open_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "track_header", "nominal_range": [0.0, 0.724], "leaf_width_m": 0.762, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.05, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 35.97022450247269, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.29100000000000004, -0.0175, 1.05], "handle_cam_pos": [0.47100000000000003, -0.8175, 1.33], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0893_sliding_single/Articulation/Joints/leaf_slide", "leaf_hook_thumbturn_hinge": "/db0893_sliding_single/Articulation/Joints/leaf_hook_thumbturn_hinge", "leaf_hook_hinge": "/db0893_sliding_single/Articulation/Joints/leaf_hook_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["leaf", "leaf_hook"], ["leaf", "leaf_hook_thumbturn"]]'
+    custom string doorbench:meta = '{"door_id": "db0893_sliding_single", "family": "sliding_single", "task": "unlock_open_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "track_header", "nominal_range": [0.0, 0.724], "leaf_width_m": 0.762, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.05, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 35.97022450247269, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.29100000000000004, -0.0175, 1.05], "handle_cam_pos": [0.47100000000000003, -0.8175, 1.33], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0893_sliding_single/Articulation/Joints/leaf_slide", "leaf_hook_thumbturn_hinge": "/db0893_sliding_single/Articulation/Joints/leaf_hook_thumbturn_hinge", "leaf_hook_hinge": "/db0893_sliding_single/Articulation/Joints/leaf_hook_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_hook"], ["leaf", "leaf_hook_thumbturn"]], "n_filtered_pairs": 2, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -583,7 +585,7 @@ def Xform "db0893_sliding_single"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -688,6 +690,15 @@ def Xform "db0893_sliding_single"
             )
             {
                 custom float doorbench:armature_si = 0.005
+                custom float doorbench:coupling_c0 = 0
+                custom float doorbench:coupling_c1 = 1
+                custom int doorbench:coupling_chain_order = 0
+                custom float doorbench:coupling_driven_inertia = 0.00007686131
+                custom string doorbench:coupling_driver = "leaf_hook_thumbturn_hinge"
+                custom rel doorbench:coupling_driver_joint = </db0893_sliding_single/Articulation/Joints/leaf_hook_thumbturn_hinge>
+                custom float doorbench:coupling_gravity_bias = 0.018897356
+                custom string doorbench:coupling_mode = "mimic"
+                custom float doorbench:coupling_reflected_inertia = 0.00007686131
                 custom float doorbench:damping_si = 0.05
                 custom float doorbench:friction_effort = 0.1
                 custom float doorbench:initial = 0
@@ -749,7 +760,7 @@ def Xform "db0893_sliding_single"
         }
 
         def Xform "leaf" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Sliding leaf"
@@ -758,6 +769,10 @@ def Xform "db0893_sliding_single"
             float3 physics:diagonalInertia = (1.7462332, 12.37021, 14.109092)
             float physics:mass = 35.970226
             quatf physics:principalAxes = (0.49998125, -0.49998125, 0.5000187, 0.5000187)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0893_sliding_single/Articulation/leaf_hook>,
+                </db0893_sliding_single/Articulation/leaf_hook_thumbturn>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1036,7 +1051,7 @@ def Xform "db0893_sliding_single"
         }
 
         def Xform "leaf_hook_thumbturn" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Hook thumbturn"
@@ -1045,6 +1060,7 @@ def Xform "db0893_sliding_single"
             float3 physics:diagonalInertia = (0.000026044634, 0.00002621466, 0.000032437667)
             float physics:mass = 0.17894638
             quatf physics:principalAxes = (0.5, 0.5, 0.5, 0.5)
+            custom rel physxFilteredPairs:filteredPairs = </db0893_sliding_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1105,7 +1121,7 @@ def Xform "db0893_sliding_single"
         }
 
         def Xform "leaf_hook" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Hook bolt"
@@ -1114,6 +1130,7 @@ def Xform "db0893_sliding_single"
             float3 physics:diagonalInertia = (0.000005266143, 0.00001510967, 0.000019175013)
             float physics:mass = 0.072048
             quatf physics:principalAxes = (0.20081732, -0.20081732, 0.67799145, 0.67799145)
+            custom rel physxFilteredPairs:filteredPairs = </db0893_sliding_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0

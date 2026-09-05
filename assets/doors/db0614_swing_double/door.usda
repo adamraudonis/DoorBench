@@ -9,7 +9,9 @@ def Xform "db0614_swing_double"
 {
     custom string doorbench:couplings = '[{"type": "one_sided_tendon", "terms": [["leaf_a_latch_bolt_slide", 1.0], ["leaf_a_exit_device_hinge", -0.059375000000000004]], "range": [0.0, 10.0], "label": "bolt_q >= scale*handle_q (one-sided)", "note": "bolt_q >= scale*operator_q: drive the latch target from the operator in the environment (doorbench_isaaclab does this)"}, {"type": "one_sided_tendon", "terms": [["leaf_b_latch_bolt_slide", 1.0], ["leaf_b_exit_device_hinge", -0.059375000000000004]], "range": [0.0, 10.0], "label": "bolt_q >= scale*handle_q (one-sided)", "note": "bolt_q >= scale*operator_q: drive the latch target from the operator in the environment (doorbench_isaaclab does this)"}]'
     custom string doorbench:door_id = "db0614_swing_double"
-    custom string doorbench:meta = '{"door_id": "db0614_swing_double", "family": "swing_double", "task": "open_only", "wall_y": 0.108, "u": -1.0, "v": -1.0, "hinge_x": 0.8175, "leaf_edge_x_local": -0.7895, "handle_height": 1.016, "primary_joint": "leaf_a_hinge", "operator_joint": null, "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": true, "mass_reconciled_kg": 61.71129978687673, "scene_extent": 2.33825, "cam_target_z": 1.2255, "cam_target_x": 0.0, "handle_cam_x": 0.10450000000000004, "handle_cam_target": [-0.118, -0.08199999999999999, 1.016], "handle_cam_pos": [0.062, -0.882, 1.296], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0614_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_a_exit_device_hinge": "/db0614_swing_double/Articulation/Joints/leaf_a_exit_device_hinge", "leaf_a_latch_bolt_slide": "/db0614_swing_double/Articulation/Joints/leaf_a_latch_bolt_slide", "leaf_b_hinge": "/db0614_swing_double/Articulation/Joints/leaf_b_hinge", "leaf_b_exit_device_hinge": "/db0614_swing_double/Articulation/Joints/leaf_b_exit_device_hinge", "leaf_b_latch_bolt_slide": "/db0614_swing_double/Articulation/Joints/leaf_b_latch_bolt_slide"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["leaf_a", "leaf_a_exit_device"], ["leaf_a", "leaf_a_latch_bolt"], ["leaf_b", "leaf_b_exit_device"], ["leaf_b", "leaf_b_latch_bolt"]]'
+    custom string doorbench:meta = '{"door_id": "db0614_swing_double", "family": "swing_double", "task": "open_only", "wall_y": 0.108, "u": -1.0, "v": -1.0, "hinge_x": 0.8175, "leaf_edge_x_local": -0.7895, "handle_height": 1.016, "primary_joint": "leaf_a_hinge", "operator_joint": null, "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": true, "mass_reconciled_kg": 61.71129978687673, "scene_extent": 2.33825, "cam_target_z": 1.2255, "cam_target_x": 0.0, "handle_cam_x": 0.10450000000000004, "handle_cam_target": [-0.118, -0.08199999999999999, 1.016], "handle_cam_pos": [0.062, -0.882, 1.296], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0614_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_a_exit_device_hinge": "/db0614_swing_double/Articulation/Joints/leaf_a_exit_device_hinge", "leaf_a_latch_bolt_slide": "/db0614_swing_double/Articulation/Joints/leaf_a_latch_bolt_slide", "leaf_b_hinge": "/db0614_swing_double/Articulation/Joints/leaf_b_hinge", "leaf_b_exit_device_hinge": "/db0614_swing_double/Articulation/Joints/leaf_b_exit_device_hinge", "leaf_b_latch_bolt_slide": "/db0614_swing_double/Articulation/Joints/leaf_b_latch_bolt_slide"}, "self_collisions": true, "filtered_pairs": [["leaf_a", "leaf_a_exit_device"], ["leaf_a", "leaf_a_latch_bolt"], ["leaf_b", "leaf_b_exit_device"], ["leaf_b", "leaf_b_latch_bolt"]], "n_filtered_pairs": 4, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -968,7 +970,7 @@ def Xform "db0614_swing_double"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -1264,7 +1266,7 @@ def Xform "db0614_swing_double"
         }
 
         def Xform "leaf_a" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Door leaf"
@@ -1273,6 +1275,10 @@ def Xform "db0614_swing_double"
             float3 physics:diagonalInertia = (1.4336, 18.499475, 19.876905)
             float physics:mass = 30.85565
             quatf physics:principalAxes = (0.5013411, -0.480511, -0.5080208, -0.50958914)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0614_swing_double/Articulation/leaf_a_exit_device>,
+                </db0614_swing_double/Articulation/leaf_a_latch_bolt>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1480,7 +1486,7 @@ def Xform "db0614_swing_double"
         }
 
         def Xform "leaf_a_exit_device" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Crossbar exit device (Von Duprin 88 class)"
@@ -1489,6 +1495,7 @@ def Xform "db0614_swing_double"
             float3 physics:diagonalInertia = (0.0003383824, 0.068956494, 0.069151804)
             float physics:mass = 1.9344941
             quatf physics:principalAxes = (1, -1.1849508e-13, -8.094937e-17, 8.7786015e-18)
+            custom rel physxFilteredPairs:filteredPairs = </db0614_swing_double/Articulation/leaf_a>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1542,7 +1549,7 @@ def Xform "db0614_swing_double"
         }
 
         def Xform "leaf_a_latch_bolt" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Latch bolt"
@@ -1551,6 +1558,7 @@ def Xform "db0614_swing_double"
             float3 physics:diagonalInertia = (0.0000043645396, 0.000018286775, 0.000018286775)
             float physics:mass = 0.102826424
             quatf physics:principalAxes = (0.9238795, -0.38268343, -1.0257123e-16, -4.2486395e-17)
+            custom rel physxFilteredPairs:filteredPairs = </db0614_swing_double/Articulation/leaf_a>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1581,7 +1589,7 @@ def Xform "db0614_swing_double"
         }
 
         def Xform "leaf_b" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Door leaf"
@@ -1590,6 +1598,10 @@ def Xform "db0614_swing_double"
             float3 physics:diagonalInertia = (1.4336, 18.499475, 19.876905)
             float physics:mass = 30.85565
             quatf physics:principalAxes = (0.50958914, -0.5080208, -0.480511, -0.5013411)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0614_swing_double/Articulation/leaf_b_exit_device>,
+                </db0614_swing_double/Articulation/leaf_b_latch_bolt>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1797,7 +1809,7 @@ def Xform "db0614_swing_double"
         }
 
         def Xform "leaf_b_exit_device" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Crossbar exit device (Von Duprin 88 class)"
@@ -1806,6 +1818,7 @@ def Xform "db0614_swing_double"
             float3 physics:diagonalInertia = (0.0003383824, 0.068956494, 0.069151804)
             float physics:mass = 1.9344941
             quatf physics:principalAxes = (7.860898e-15, 1, -8.7786015e-18, 4.4059894e-17)
+            custom rel physxFilteredPairs:filteredPairs = </db0614_swing_double/Articulation/leaf_b>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1859,7 +1872,7 @@ def Xform "db0614_swing_double"
         }
 
         def Xform "leaf_b_latch_bolt" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Latch bolt"
@@ -1868,6 +1881,7 @@ def Xform "db0614_swing_double"
             float3 physics:diagonalInertia = (0.0000043645396, 0.000018286775, 0.000018286775)
             float physics:mass = 0.102826424
             quatf physics:principalAxes = (0.9238795, 0.38268343, 1.0257123e-16, -4.2486395e-17)
+            custom rel physxFilteredPairs:filteredPairs = </db0614_swing_double/Articulation/leaf_b>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0

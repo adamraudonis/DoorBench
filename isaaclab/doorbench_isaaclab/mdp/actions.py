@@ -2,8 +2,17 @@
 
 Isaac Lab overwrites the PhysX drive targets of every joint with the articulation's position targets each step, so a
 closer spring authored as ``drive:targetPosition = springref`` in the USD would lose its preload.  This term restores
-the spring targets, couples the latch bolt to the operator (the one-sided tendon of the MJCF), adds the asymmetric
-closer damping / backcheck as feed-forward effort, and drives automatic doors when the agent is in sensor range.
+the spring targets, couples the latch bolt to the operator (the one-sided tendon of the MJCF), applies the bilateral
+couplings PhysX cannot represent, adds the asymmetric closer damping / backcheck as feed-forward effort, and drives
+automatic doors when the agent is in sensor range.
+
+Bilateral couplings: ``PhysxMimicJointAPI`` supports rotational axes only, so a coupling with a prismatic axis is
+parsed and dropped by PhysX.  ``doorbench:rl["couplings"]`` marks those ``emulated``; this term makes the driven
+joint track ``q_a = c0 + c1 q_b`` AND puts the reaction ``c1 * tau_a_ext`` (the driven joint's spring, damping,
+Coulomb friction and gravity bias, all authored by the exporter) on the driver, whose armature already carries the
+reflected inertia ``c1^2 I_a`` (``DoorState._collect_couplings``).  A pure kinematic write applies no reaction at
+all: the driver loses the coupled part's weight and sags.  The rising-hinge closing torque below is the same
+reaction for the one coupling whose driven joint has no canonical slot (``c1 * gravity_bias``).
 
 NOT EXECUTED ON THIS MACHINE (no NVIDIA GPU).
 """
@@ -99,7 +108,40 @@ class DoorMechanismAction(ActionTerm):
         extra = extra + st.rise_torque
         self._effort.zero_()
         self._effort[ar, st.door_j] = extra
+        # bilateral couplings PhysX drops: track the driven joint and put the reaction on its driver
+        if st.couplings:
+            self._apply_couplings(jp, jv)
         door.set_joint_effort_target(self._effort)
+
+    def _apply_couplings(self, jp: torch.Tensor, jv: torch.Tensor):
+        """q_driven = c0 + c1 * q_driver, with the reaction c1 * tau_driven_ext on the driver.
+
+        Couplings are applied in chain order (a driver that is itself driven is resolved first).  The driven joint is
+        written kinematically - it has no independent dynamics once the constraint holds - and everything the driven
+        DOF would have felt (drive spring / damping, Coulomb friction, gravity) is reflected onto the driver."""
+        st = self.state
+        pos, vel, ids = [], [], []
+        q_new = {}
+        for c in st.couplings:
+            k, ia, ib = c["env"], c["ia"], c["ib"]
+            qb = q_new.get((k, ib), float(jp[k, ib]))
+            qa = min(max(c["c0"] + c["c1"] * qb, c["lo"]), c["hi"])
+            va = c["c1"] * float(jv[k, ib])
+            q_new[(k, ia)] = qa
+            tau = c["k"] * (c["target"] - qa) - c["d"] * va + c["bias"]
+            if c["friction"]:
+                tau = tau - c["friction"] * max(-1.0, min(1.0, va / c["eps"]))
+            self._effort[k, ib] = self._effort[k, ib] + c["c1"] * tau
+            ids.append((k, ia))
+            pos.append(qa)
+            vel.append(va)
+        if ids:
+            q = jp.clone()
+            v = jv.clone()
+            for (k, i), p_, v_ in zip(ids, pos, vel):
+                q[k, i], v[k, i] = p_, v_
+            envs = torch.tensor(sorted({k for k, _ in ids}), device=st.device, dtype=torch.long)
+            st.door.write_joint_state_to_sim(q[envs], v[envs], env_ids=envs)
 
 
 @configclass

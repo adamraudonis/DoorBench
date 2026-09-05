@@ -9,7 +9,9 @@ def Xform "db0847_dutch"
 {
     custom string doorbench:couplings = '[{"type": "one_sided_tendon", "terms": [["lower_latch_bolt_slide", 1.0], ["lower_handle_hinge", -0.015679012345679012]], "range": [0.0, 10.0], "label": "bolt_q >= scale*handle_q (one-sided)", "note": "bolt_q >= scale*operator_q: drive the latch target from the operator in the environment (doorbench_isaaclab does this)"}]'
     custom string doorbench:door_id = "db0847_dutch"
-    custom string doorbench:meta = '{"door_id": "db0847_dutch", "family": "dutch", "task": "open_and_traverse", "wall_y": 0.030499999999999996, "u": 1.0, "v": -1.0, "primary_joint": "leaf_lower_hinge", "secondary_joint": "leaf_upper_hinge", "operator_joint": "lower_handle_hinge", "handle_height": 0.965, "mass_reconciled_kg": 61.77117008591256, "scene_extent": 2.03375, "cam_target_z": 1.0225, "cam_target_x": 0.0, "handle_cam_x": 0.8140000000000001, "handle_cam_target": [0.38649999999999995, -0.06849999999999999, 0.896], "handle_cam_pos": [0.5665, -0.8685, 1.1760000000000002], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_lower_hinge": "/db0847_dutch/Articulation/Joints/leaf_lower_hinge", "leaf_upper_hinge": "/db0847_dutch/Articulation/Joints/leaf_upper_hinge", "lower_handle_hinge": "/db0847_dutch/Articulation/Joints/lower_handle_hinge", "lower_latch_bolt_slide": "/db0847_dutch/Articulation/Joints/lower_latch_bolt_slide", "upper_catch_slide": "/db0847_dutch/Articulation/Joints/upper_catch_slide", "join_bolt_slide": "/db0847_dutch/Articulation/Joints/join_bolt_slide"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["join_bolt", "leaf_upper"], ["leaf_lower", "lower_handle"], ["leaf_lower", "lower_latch_bolt"], ["leaf_upper", "upper_catch"]]'
+    custom string doorbench:meta = '{"door_id": "db0847_dutch", "family": "dutch", "task": "open_and_traverse", "wall_y": 0.030499999999999996, "u": 1.0, "v": -1.0, "primary_joint": "leaf_lower_hinge", "secondary_joint": "leaf_upper_hinge", "operator_joint": "lower_handle_hinge", "handle_height": 0.965, "mass_reconciled_kg": 61.77117008591256, "scene_extent": 2.03375, "cam_target_z": 1.0225, "cam_target_x": 0.0, "handle_cam_x": 0.8140000000000001, "handle_cam_target": [0.38649999999999995, -0.06849999999999999, 0.896], "handle_cam_pos": [0.5665, -0.8685, 1.1760000000000002], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_lower_hinge": "/db0847_dutch/Articulation/Joints/leaf_lower_hinge", "leaf_upper_hinge": "/db0847_dutch/Articulation/Joints/leaf_upper_hinge", "lower_handle_hinge": "/db0847_dutch/Articulation/Joints/lower_handle_hinge", "lower_latch_bolt_slide": "/db0847_dutch/Articulation/Joints/lower_latch_bolt_slide", "upper_catch_slide": "/db0847_dutch/Articulation/Joints/upper_catch_slide", "join_bolt_slide": "/db0847_dutch/Articulation/Joints/join_bolt_slide"}, "self_collisions": true, "filtered_pairs": [["join_bolt", "leaf_upper"], ["leaf_lower", "lower_handle"], ["leaf_lower", "lower_latch_bolt"], ["leaf_upper", "upper_catch"]], "n_filtered_pairs": 4, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -1026,7 +1028,7 @@ def Xform "db0847_dutch"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -1316,7 +1318,7 @@ def Xform "db0847_dutch"
         }
 
         def Xform "leaf_lower" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Leaf Lower"
@@ -1325,6 +1327,10 @@ def Xform "db0847_dutch"
             float3 physics:diagonalInertia = (1.0364773, 2.3076854, 3.328332)
             float physics:mass = 30.714851
             quatf physics:principalAxes = (0.30158, 0.27031904, 0.6515052, -0.6414968)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0847_dutch/Articulation/lower_handle>,
+                </db0847_dutch/Articulation/lower_latch_bolt>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1635,7 +1641,7 @@ def Xform "db0847_dutch"
         }
 
         def Xform "leaf_upper" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Leaf Upper"
@@ -1644,6 +1650,10 @@ def Xform "db0847_dutch"
             float3 physics:diagonalInertia = (1.0697904, 3.4271333, 4.481918)
             float physics:mass = 31.056318
             quatf physics:principalAxes = (0.6593645, -0.66696995, 0.22789101, 0.26163942)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0847_dutch/Articulation/join_bolt>,
+                </db0847_dutch/Articulation/upper_catch>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1984,7 +1994,7 @@ def Xform "db0847_dutch"
         }
 
         def Xform "lower_handle" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Round knob (residential passage)"
@@ -1993,6 +2003,7 @@ def Xform "db0847_dutch"
             float3 physics:diagonalInertia = (0.00031222642, 0.00425396, 0.00425396)
             float physics:mass = 1.1359711
             quatf physics:principalAxes = (0.5, -0.5, 0.5, -0.5)
+            custom rel physxFilteredPairs:filteredPairs = </db0847_dutch/Articulation/leaf_lower>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2144,7 +2155,7 @@ def Xform "db0847_dutch"
         }
 
         def Xform "lower_latch_bolt" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Latch bolt"
@@ -2153,6 +2164,7 @@ def Xform "db0847_dutch"
             float3 physics:diagonalInertia = (7.983011e-7, 0.0000055978417, 0.0000055978417)
             float physics:mass = 0.041419115
             quatf physics:principalAxes = (0.9238795, -0.38268343, -1.0257123e-16, -4.2486395e-17)
+            custom rel physxFilteredPairs:filteredPairs = </db0847_dutch/Articulation/leaf_lower>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2183,7 +2195,7 @@ def Xform "db0847_dutch"
         }
 
         def Xform "upper_catch" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Latch bolt"
@@ -2192,6 +2204,7 @@ def Xform "db0847_dutch"
             float3 physics:diagonalInertia = (4.9143057e-7, 0.0000024653561, 0.0000024653561)
             float physics:mass = 0.028839821
             quatf physics:principalAxes = (7.850462e-17, -7.850462e-17, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0847_dutch/Articulation/leaf_upper>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2222,7 +2235,7 @@ def Xform "db0847_dutch"
         }
 
         def Xform "join_bolt" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Joining bolt"
@@ -2231,6 +2244,7 @@ def Xform "db0847_dutch"
             float3 physics:diagonalInertia = (0.000009832742, 0.00010060342, 0.00010854805)
             float physics:mass = 0.111783914
             quatf physics:principalAxes = (0.06507519, 0.704106, 0.06507519, 0.704106)
+            custom rel physxFilteredPairs:filteredPairs = </db0847_dutch/Articulation/leaf_upper>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0

@@ -9,7 +9,9 @@ def Xform "db0566_gate_swing"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0566_gate_swing"
-    custom string doorbench:meta = '{"door_id": "db0566_gate_swing", "family": "gate_swing", "task": "locked_recognize", "wall_y": 0.0, "clearance_allow": [["leaf_fork_eye", "leaf_fork_pin", "pivot pin through the fork eye"], ["leaf_fork_arm", "leaf_fork_pin", "pivot pin through the arm"], ["leaf_fork_padlock*", "leaf_fork_arm", "shackle through the arm eye"], ["leaf_fork_padlock*", "leaf_fork_lug", "shackle through the lug"]], "u": 1.0, "v": 1.0, "hinge_x": -0.606, "leaf_edge_x_local": 1.2029999999999998, "handle_height": 1.0, "primary_joint": "leaf_hinge", "operator_joint": "leaf_fork_hinge", "mass_reconciled_kg": 6.574206540123231, "scene_extent": 1.865, "cam_target_z": 0.91, "cam_target_x": 0.0, "handle_cam_x": 0.4939999999999999, "handle_cam_target": [0.5860000000000001, -0.012150000000000001, 1.105], "handle_cam_pos": [0.766, -0.81215, 1.385], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0566_gate_swing/Articulation/Joints/leaf_hinge", "leaf_fork_hinge": "/db0566_gate_swing/Articulation/Joints/leaf_fork_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["leaf", "leaf_fork"]]'
+    custom string doorbench:meta = '{"door_id": "db0566_gate_swing", "family": "gate_swing", "task": "locked_recognize", "wall_y": 0.0, "clearance_allow": [["leaf_fork_eye", "leaf_fork_pin", "pivot pin through the fork eye"], ["leaf_fork_arm", "leaf_fork_pin", "pivot pin through the arm"], ["leaf_fork_padlock*", "leaf_fork_arm", "shackle through the arm eye"], ["leaf_fork_padlock*", "leaf_fork_lug", "shackle through the lug"]], "u": 1.0, "v": 1.0, "hinge_x": -0.606, "leaf_edge_x_local": 1.2029999999999998, "handle_height": 1.0, "primary_joint": "leaf_hinge", "operator_joint": "leaf_fork_hinge", "mass_reconciled_kg": 6.574206540123231, "scene_extent": 1.865, "cam_target_z": 0.91, "cam_target_x": 0.0, "handle_cam_x": 0.4939999999999999, "handle_cam_target": [0.5860000000000001, -0.012150000000000001, 1.105], "handle_cam_pos": [0.766, -0.81215, 1.385], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0566_gate_swing/Articulation/Joints/leaf_hinge", "leaf_fork_hinge": "/db0566_gate_swing/Articulation/Joints/leaf_fork_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_fork"]], "n_filtered_pairs": 1, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -444,7 +446,7 @@ def Xform "db0566_gate_swing"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -473,7 +475,7 @@ def Xform "db0566_gate_swing"
                 custom float doorbench:friction_effort = 2.8501716
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
-                custom float doorbench:legacy_friction_coeff = 0.026150523
+                custom float doorbench:legacy_friction_coeff = 0.02611533
                 custom bool doorbench:limited = 1
                 custom string doorbench:notes = "Padlocked hasp: leaf effectively fixed (2 mm rattle)"
                 custom bool doorbench:robot_interactive = 1
@@ -492,8 +494,8 @@ def Xform "db0566_gate_swing"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0566_gate_swing/Articulation/base>
                 rel physics:body1 = </db0566_gate_swing/Articulation/leaf>
-                point3f physics:localPos0 = (-0.603, 0.00715, 0)
-                point3f physics:localPos1 = (0.003, 0.00715, 0)
+                point3f physics:localPos0 = (-0.603, 0.05, 0)
+                point3f physics:localPos1 = (0.003, 0.05, 0)
                 quatf physics:localRot0 = (0.70710677, 0, -0.70710677, 0)
                 quatf physics:localRot1 = (0.70710677, 0, -0.70710677, 0)
                 float physics:lowerLimit = 0
@@ -567,7 +569,7 @@ def Xform "db0566_gate_swing"
         }
 
         def Xform "leaf" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Door leaf"
@@ -576,6 +578,7 @@ def Xform "db0566_gate_swing"
             float3 physics:diagonalInertia = (0.9454738, 1.9852146, 2.9306278)
             float physics:mass = 6.5742064
             quatf physics:principalAxes = (0.50035375, 0.4995185, -0.50047964, 0.49964735)
+            custom rel physxFilteredPairs:filteredPairs = </db0566_gate_swing/Articulation/leaf_fork>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -778,7 +781,7 @@ def Xform "db0566_gate_swing"
         }
 
         def Xform "leaf_fork" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Fork latch"
@@ -787,6 +790,7 @@ def Xform "db0566_gate_swing"
             float3 physics:diagonalInertia = (0.000619632, 0.0022249625, 0.002344131)
             float physics:mass = 0.46259347
             quatf physics:principalAxes = (0.948384, -0.041758306, -0.31266224, 0.032656107)
+            custom rel physxFilteredPairs:filteredPairs = </db0566_gate_swing/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0

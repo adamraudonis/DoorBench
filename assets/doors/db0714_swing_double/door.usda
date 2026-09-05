@@ -7,9 +7,11 @@
 
 def Xform "db0714_swing_double"
 {
-    custom string doorbench:couplings = '[{"type": "mimic", "driven": "leaf_a_deadbolt_slide", "driver": "leaf_a_deadbolt_thumbturn_hinge", "coeff": [0.0, 0.01617010440539852, 0, 0, 0], "gearing": -0.01617010440539852, "offset": -0.0, "label": "deadbolt = throw/travel * thumbturn", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "one_sided_tendon", "terms": [["leaf_a_latch_bolt_slide", 1.0], ["leaf_a_handle_hinge", -0.013956043956043957]], "range": [0.0, 10.0], "label": "bolt_q >= scale*handle_q (one-sided)", "note": "bolt_q >= scale*operator_q: drive the latch target from the operator in the environment (doorbench_isaaclab does this)"}]'
+    custom string doorbench:couplings = "[{\"driven\": \"leaf_a_deadbolt_slide\", \"driver\": \"leaf_a_deadbolt_thumbturn_hinge\", \"driven_type\": \"slide\", \"driver_type\": \"hinge\", \"mode\": \"emulated\", \"coeff\": [0.0, 0.01617010440539852], \"gearing\": -0.01617010440539852, \"offset\": 3.469446951953614e-18, \"label\": \"deadbolt = throw/travel * thumbturn\", \"coeff_usd\": [-3.469446951953614e-18, 0.01617010440539852], \"driven_zero_offset\": 0.0254, \"driver_zero_offset\": 1.5708, \"driven_inertia\": 0.18836, \"reflected_inertia\": 4.92509179980532e-05, \"driven_gravity_bias\": 0.0, \"driven_stiffness\": 0.0, \"driven_damping\": 5.0, \"driven_target\": 0.0, \"driven_friction\": 1.5, \"driven_range\": [-0.0254, 0.0], \"friction_vel_eps\": 0.001, \"reason\": \"PhysX articulation mimic joints support rotational axes only: a mimic on a prismatic axis is dropped\", \"note\": \"PhysX drops mimics on prismatic axes: emulate bilaterally (track q_driven = c0 + c1*q_driver, apply c1 * tau_driven_ext on the driver and add reflected_inertia to the driver's armature)\", \"chain_order\": 0, \"type\": \"coupling_emulated\", \"driven_path\": \"/db0714_swing_double/Articulation/Joints/leaf_a_deadbolt_slide\", \"driver_path\": \"/db0714_swing_double/Articulation/Joints/leaf_a_deadbolt_thumbturn_hinge\"}, {\"type\": \"one_sided_tendon\", \"terms\": [[\"leaf_a_latch_bolt_slide\", 1.0], [\"leaf_a_handle_hinge\", -0.013956043956043957]], \"range\": [0.0, 10.0], \"label\": \"bolt_q >= scale*handle_q (one-sided)\", \"note\": \"bolt_q >= scale*operator_q: drive the latch target from the operator in the environment (doorbench_isaaclab does this)\"}]"
     custom string doorbench:door_id = "db0714_swing_double"
-    custom string doorbench:meta = '{"door_id": "db0714_swing_double", "family": "swing_double", "task": "open_and_traverse", "wall_y": 0.030499999999999996, "u": -1.0, "v": -1.0, "hinge_x": 0.9185, "leaf_edge_x_local": -0.917, "handle_height": 0.965, "primary_joint": "leaf_a_hinge", "operator_joint": "leaf_a_handle_hinge", "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": false, "mass_reconciled_kg": 25.695705759393043, "scene_extent": 2.03375, "cam_target_z": 1.0225, "cam_target_x": 0.0, "handle_cam_x": 0.10449999999999993, "handle_cam_target": [-0.1715, -0.077, 0.965], "handle_cam_pos": [0.00849999999999998, -0.877, 1.245], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0714_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_a_handle_hinge": "/db0714_swing_double/Articulation/Joints/leaf_a_handle_hinge", "leaf_a_latch_bolt_slide": "/db0714_swing_double/Articulation/Joints/leaf_a_latch_bolt_slide", "leaf_a_deadbolt_slide": "/db0714_swing_double/Articulation/Joints/leaf_a_deadbolt_slide", "leaf_a_deadbolt_thumbturn_hinge": "/db0714_swing_double/Articulation/Joints/leaf_a_deadbolt_thumbturn_hinge", "leaf_b_hinge": "/db0714_swing_double/Articulation/Joints/leaf_b_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["leaf_a", "leaf_a_deadbolt"], ["leaf_a", "leaf_a_deadbolt_thumbturn"], ["leaf_a", "leaf_a_handle"], ["leaf_a", "leaf_a_latch_bolt"], ["leaf_a_deadbolt", "leaf_a_deadbolt_thumbturn"]]'
+    custom string doorbench:meta = '{"door_id": "db0714_swing_double", "family": "swing_double", "task": "open_and_traverse", "wall_y": 0.030499999999999996, "u": -1.0, "v": -1.0, "hinge_x": 0.9185, "leaf_edge_x_local": -0.917, "handle_height": 0.965, "primary_joint": "leaf_a_hinge", "operator_joint": "leaf_a_handle_hinge", "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": false, "mass_reconciled_kg": 25.695705759393043, "scene_extent": 2.03375, "cam_target_z": 1.0225, "cam_target_x": 0.0, "handle_cam_x": 0.10449999999999993, "handle_cam_target": [-0.1715, -0.077, 0.965], "handle_cam_pos": [0.00849999999999998, -0.877, 1.245], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0714_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_a_handle_hinge": "/db0714_swing_double/Articulation/Joints/leaf_a_handle_hinge", "leaf_a_latch_bolt_slide": "/db0714_swing_double/Articulation/Joints/leaf_a_latch_bolt_slide", "leaf_a_deadbolt_slide": "/db0714_swing_double/Articulation/Joints/leaf_a_deadbolt_slide", "leaf_a_deadbolt_thumbturn_hinge": "/db0714_swing_double/Articulation/Joints/leaf_a_deadbolt_thumbturn_hinge", "leaf_b_hinge": "/db0714_swing_double/Articulation/Joints/leaf_b_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf_a", "leaf_a_deadbolt"], ["leaf_a", "leaf_a_deadbolt_thumbturn"], ["leaf_a", "leaf_a_handle"], ["leaf_a", "leaf_a_latch_bolt"], ["leaf_a_deadbolt", "leaf_a_deadbolt_thumbturn"]], "n_filtered_pairs": 5, "env_release": [], "couplings_emulated": [{"driven": "leaf_a_deadbolt_slide", "driver": "leaf_a_deadbolt_thumbturn_hinge", "driven_type": "slide", "driver_type": "hinge", "mode": "emulated", "coeff": [0.0, 0.01617010440539852], "gearing": -0.01617010440539852, "offset": 3.469446951953614e-18, "label": "deadbolt = throw/travel * thumbturn", "coeff_usd": [-3.469446951953614e-18, 0.01617010440539852], "driven_zero_offset": 0.0254, "driver_zero_offset": 1.5708, "driven_inertia": 0.18836, "reflected_inertia": 4.92509179980532e-05, "driven_gravity_bias": 0.0, "driven_stiffness": 0.0, "driven_damping": 5.0, "driven_target": 0.0, "driven_friction": 1.5, "driven_range": [-0.0254, 0.0], "friction_vel_eps": 0.001, "reason": "PhysX articulation mimic joints support rotational axes only: a mimic on a prismatic axis is dropped", "note": "q_driven = c0 + c1*q_driver; the driver carries the reaction c1 * tau_driven_ext and the reflected inertia c1^2 * I_driven", "chain_order": 0}], "couplings_servo": [], "coupling_reflected_armature": {"leaf_a_deadbolt_thumbturn_hinge": 4.92509179980532e-05}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -679,7 +681,7 @@ def Xform "db0714_swing_double"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -825,17 +827,25 @@ def Xform "db0714_swing_double"
             }
 
             def PhysicsPrismaticJoint "leaf_a_deadbolt_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear", "PhysxMimicJointAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
                 custom float doorbench:armature_si = 0.1
+                custom float doorbench:coupling_c0 = 0
+                custom float doorbench:coupling_c1 = 0.016170105
+                custom int doorbench:coupling_chain_order = 0
+                custom float doorbench:coupling_driven_inertia = 0.18836
+                custom string doorbench:coupling_driver = "leaf_a_deadbolt_thumbturn_hinge"
+                custom rel doorbench:coupling_driver_joint = </db0714_swing_double/Articulation/Joints/leaf_a_deadbolt_thumbturn_hinge>
+                custom float doorbench:coupling_gravity_bias = 0
+                custom string doorbench:coupling_mode = "emulated"
+                custom float doorbench:coupling_reflected_inertia = 0.000049250917
                 custom float doorbench:damping_si = 5
                 custom float doorbench:friction_effort = 1.5
                 custom float doorbench:initial = 0.0254
                 custom string doorbench:label = "Deadbolt (0 = thrown, + = retracted)"
                 custom float doorbench:legacy_friction_coeff = 0.78989106
                 custom bool doorbench:limited = 1
-                custom string doorbench:mimic_label = "deadbolt = throw/travel * thumbturn"
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "lock"
                 custom bool doorbench:servo_in_drive = 0
@@ -864,10 +874,6 @@ def Xform "db0714_swing_double"
                 custom float physxJointAxis:linear:dynamicFrictionEffort = 1.5
                 custom float physxJointAxis:linear:staticFrictionEffort = 1.5
                 custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
-                custom float physxMimicJoint:transX:gearing = -0.016170105
-                custom float physxMimicJoint:transX:offset = -0
-                custom rel physxMimicJoint:transX:referenceJoint = </db0714_swing_double/Articulation/Joints/leaf_a_deadbolt_thumbturn_hinge>
-                custom token physxMimicJoint:transX:referenceJointAxis = "rotX"
             }
 
             def PhysicsRevoluteJoint "leaf_a_deadbolt_thumbturn_hinge" (
@@ -875,6 +881,7 @@ def Xform "db0714_swing_double"
             )
             {
                 custom float doorbench:armature_si = 0.005
+                custom float doorbench:coupling_reflected_armature = 0.000049250917
                 custom float doorbench:damping_si = 0.05
                 custom float doorbench:friction_effort = 0.3
                 custom float doorbench:initial = 1.5708
@@ -975,7 +982,7 @@ def Xform "db0714_swing_double"
         }
 
         def Xform "leaf_a" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Door leaf"
@@ -984,6 +991,12 @@ def Xform "db0714_swing_double"
             float3 physics:diagonalInertia = (0.99658155, 4.5159655, 5.507978)
             float physics:mass = 13.013803
             quatf physics:principalAxes = (-0.4993553, 0.50153714, -0.49843684, -0.50066507)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0714_swing_double/Articulation/leaf_a_deadbolt>,
+                </db0714_swing_double/Articulation/leaf_a_deadbolt_thumbturn>,
+                </db0714_swing_double/Articulation/leaf_a_handle>,
+                </db0714_swing_double/Articulation/leaf_a_latch_bolt>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1243,7 +1256,7 @@ def Xform "db0714_swing_double"
         }
 
         def Xform "leaf_a_handle" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Straight tubular lever (commercial Grade 1)"
@@ -1252,6 +1265,7 @@ def Xform "db0714_swing_double"
             float3 physics:diagonalInertia = (0.0017585229, 0.003593812, 0.0051744194)
             float physics:mass = 0.9622059
             quatf physics:principalAxes = (3.925231e-17, 0.70710677, 0.70710677, -7.1389426e-17)
+            custom rel physxFilteredPairs:filteredPairs = </db0714_swing_double/Articulation/leaf_a>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1409,7 +1423,7 @@ def Xform "db0714_swing_double"
         }
 
         def Xform "leaf_a_latch_bolt" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Latch bolt"
@@ -1418,6 +1432,7 @@ def Xform "db0714_swing_double"
             float3 physics:diagonalInertia = (7.983011e-7, 0.0000055978417, 0.0000055978417)
             float physics:mass = 0.041419115
             quatf physics:principalAxes = (0.9238795, -0.38268343, -1.0257123e-16, -4.2486395e-17)
+            custom rel physxFilteredPairs:filteredPairs = </db0714_swing_double/Articulation/leaf_a>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1448,7 +1463,7 @@ def Xform "db0714_swing_double"
         }
 
         def Xform "leaf_a_deadbolt" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Deadbolt"
@@ -1457,6 +1472,10 @@ def Xform "db0714_swing_double"
             float3 physics:diagonalInertia = (0.000013828763, 0.00005219393, 0.000057986)
             float physics:mass = 0.18836
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0714_swing_double/Articulation/leaf_a>,
+                </db0714_swing_double/Articulation/leaf_a_deadbolt_thumbturn>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1486,7 +1505,7 @@ def Xform "db0714_swing_double"
         }
 
         def Xform "leaf_a_deadbolt_thumbturn" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Thumbturn"
@@ -1495,6 +1514,10 @@ def Xform "db0714_swing_double"
             float3 physics:diagonalInertia = (0.000026044634, 0.00002621466, 0.000032437667)
             float physics:mass = 0.17894638
             quatf physics:principalAxes = (0.70710677, -0.0000012986741, -0.0000012986741, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0714_swing_double/Articulation/leaf_a>,
+                </db0714_swing_double/Articulation/leaf_a_deadbolt>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0

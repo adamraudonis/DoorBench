@@ -44,6 +44,28 @@ Conventions
   * Rising (helical) hinges couple a vertical slide to the hinge (``rise = c1 * hinge``); the canonical RL file
     locks the riser, so ``doorbench:rl["rise_coupling"]`` carries the equivalent gravity closing torque
     ``-m g c1`` that the environment applies on the door joint (docs/ISAAC_LAB.md, parameter mapping).
+  * Couplings.  ``PhysxMimicJointAPI`` is authored ONLY for rotational -> rotational equalities: PhysX articulation
+    mimic joints support rotational axes only, so a mimic on a prismatic joint (or one referencing a prismatic axis)
+    is parsed and silently dropped - thumbturn -> deadbolt, wheel -> bolts, cremone and the helical riser all fall in
+    that class.  Those couplings are exported as first-class metadata instead (``doorbench:coupling_*`` on the driven
+    and driver joint prims + ``doorbench:couplings``): gearing, offset, the driven DOF's effective inertia, its
+    passive law (spring / damping / Coulomb friction) and the constant gravity bias, plus the reflected inertia
+    ``c1^2 * I_driven`` the consumer adds to the driver's armature.  Both consumers
+    (``scripts/isaaclab/isaac_parity.py``, ``doorbench_isaaclab.mdp.DoorMechanismAction``) apply the coupling
+    bilaterally: the driven joint tracks ``q_a = c0 + c1 q_b`` kinematically AND the driver carries the reaction
+    ``c1 * tau_a_ext`` (a pure kinematic write applies no reaction: the driver loses the coupled part's weight and
+    friction and sags).  The helical hinge's documented closing torque ``-m g dz/dq`` is exactly this reaction.
+  * Self-collision.  ``physxArticulation:enabledSelfCollisions`` is True (PhysX still skips joint-adjacent link
+    pairs, which is MuJoCo's parent/child default) and every pair MuJoCo suppresses - same weld body, weld
+    parent/child, ``contact_excludes`` - is authored as ``PhysxFilteredPairsAPI`` so both engines filter the same
+    set.  Without it a latch that holds one moving link against another (swing pairs latched into the inactive
+    leaf, gate / baby-gate lift pins, sliding drop bolts) passes straight through in PhysX.
+  * Env-release locks (mag lock, delayed egress, electric bolt, interlock) are a MuJoCo ``<weld>`` leaf -> world.
+    They are exported as a real breakable ``UsdPhysics.FixedJoint`` base -> leaf with
+    ``physics:excludeFromArticulation = True`` (the articulation stays a tree; PhysX solves it as a loop joint),
+    ``physics:breakForce / breakTorque = holding_force_N`` and ``physics:jointEnabled`` that the environment clears
+    on REX / badge / timer, exactly as ``doorbench.benchmark.DoorEnv`` clears ``d.eq_active``.
+    ``doorbench:env_release`` on the default prim names the joints.
 """
 from __future__ import annotations
 
@@ -82,6 +104,9 @@ LOCK_STIFF_LIN = 2.0e4      # N/m
 LOCK_STIFF_ANG = 2.0e3      # N*m/rad
 LOCK_DAMP_LIN = 2.0e2
 LOCK_DAMP_ANG = 2.0e1
+# smoothing velocity of the Coulomb term in the exported coupling law (rad/s or m/s): the reaction a consumer applies
+# on the driver is c1 * tau_driven, and tau_driven's friction bound needs a sign that is defined at v = 0
+COUPLING_FRICTION_VEL_EPS = 1e-3
 
 
 # ---------------------------------------------------------------------------
@@ -391,13 +416,20 @@ class _Writer:
         return prim
 
     def add_articulation_root(self, path):
+        """Articulation root with self-collision ENABLED.
+
+        PhysX still skips joint-adjacent link pairs, which is exactly MuJoCo's parent/child default; every further
+        pair MuJoCo suppresses (same weld body, weld parent/child, ``contact_excludes``) is authored explicitly as
+        ``PhysxFilteredPairsAPI`` (``add_filtered_pairs``).  With self-collision off, any latch that holds one moving
+        link against another - swing pairs latched into the inactive leaf, gate / baby-gate lift pins, sliding drop
+        bolts - passes straight through in PhysX while MuJoCo holds."""
         UsdGeom, UsdPhysics, Sdf = self.UsdGeom, self.UsdPhysics, self.Sdf
         art = UsdGeom.Xform.Define(self.stage, path)
         prim = art.GetPrim()
         UsdPhysics.ArticulationRootAPI.Apply(prim)
         prim.AddAppliedSchema("PhysxArticulationAPI")
         prim.CreateAttribute("physxArticulation:articulationEnabled", Sdf.ValueTypeNames.Bool).Set(True)
-        prim.CreateAttribute("physxArticulation:enabledSelfCollisions", Sdf.ValueTypeNames.Bool).Set(False)
+        prim.CreateAttribute("physxArticulation:enabledSelfCollisions", Sdf.ValueTypeNames.Bool).Set(True)
         prim.CreateAttribute("physxArticulation:solverPositionIterationCount", Sdf.ValueTypeNames.Int).Set(16)
         prim.CreateAttribute("physxArticulation:solverVelocityIterationCount", Sdf.ValueTypeNames.Int).Set(4)
         prim.CreateAttribute("physxArticulation:sleepThreshold", Sdf.ValueTypeNames.Float).Set(0.0)
@@ -416,6 +448,65 @@ class _Writer:
         fj.CreateLocalRot1Attr(_q(Gf, [1, 0, 0, 0]))
         fj.GetPrim().CreateAttribute("doorbench:role", self.Sdf.ValueTypeNames.String).Set("base")
         return base.GetPath()
+
+    # ---- collision filtering -----------------------------------------------
+    def add_filtered_pairs(self, pairs):
+        """``PhysxFilteredPairsAPI`` for every (path_a, path_b) pair: PhysX must not collide these two prims.
+
+        The API is single-apply, so all partners of one prim go into that prim's ``physxFilteredPairs:filteredPairs``
+        relationship.  BOTH directions are authored (a on b's list and b on a's).  Filtering is symmetric, so a pair
+        listed twice is still one filtered pair and the duplicate costs one relationship target; but if the omni.physx
+        parser ever reads only the prim it visits rather than the union, a one-sided listing would silently leave half
+        of the pairs colliding - a latch inside its keeper, a bolt in its housing - on every door in the dataset, with
+        nothing in a static check to show for it.  The asymmetry of that risk is what buys the extra target.
+        ``pairs`` are Sdf paths of rigid-body prims."""
+        by_prim = {}
+        for a, b in pairs:
+            by_prim.setdefault(str(a), set()).add(str(b))
+            by_prim.setdefault(str(b), set()).add(str(a))
+        n = 0
+        for path, others in sorted(by_prim.items()):
+            prim = self.stage.GetPrimAtPath(self.Sdf.Path(path))
+            if not prim.IsValid():
+                continue
+            prim.AddAppliedSchema("PhysxFilteredPairsAPI")
+            prim.CreateRelationship("physxFilteredPairs:filteredPairs").SetTargets([self.Sdf.Path(o) for o in sorted(others)])
+            n += len(others)
+        return n // 2
+
+    # ---- env-release lock (mag lock / delayed egress / electric bolt / interlock) ----
+    def add_env_release_joint(self, path, body0_path, body1_path, pos0, rot0, pos1, rot1, holding_force, weld, enabled=True):
+        """Breakable FixedJoint that reproduces the MJCF ``<weld>`` of an environment-released lock.
+
+        ``physics:excludeFromArticulation = True`` keeps the articulation a tree (PhysX solves the joint as a
+        maximal-coordinate loop joint between two articulation links).  ``physics:breakForce`` and
+        ``physics:breakTorque`` are both the latch model's holding force: MuJoCo's own breakaway test compares
+        every row of the weld constraint - three force rows and three torque rows - against the same number
+        (``DoorEnv._lock_logic``), so the closest PhysX equivalent uses it on both channels.
+        ``physics:jointEnabled`` is what the environment clears on REX / badge / timer / delayed-egress timeout,
+        the counterpart of ``d.eq_active[eid] = 0``."""
+        UsdPhysics, Sdf, Gf = self.UsdPhysics, self.Sdf, self.Gf
+        fj = UsdPhysics.FixedJoint.Define(self.stage, path)
+        fj.CreateBody0Rel().SetTargets([body0_path])
+        fj.CreateBody1Rel().SetTargets([body1_path])
+        fj.CreateLocalPos0Attr(_v3(Gf, pos0))
+        fj.CreateLocalRot0Attr(_q(Gf, rot0))
+        fj.CreateLocalPos1Attr(_v3(Gf, pos1))
+        fj.CreateLocalRot1Attr(_q(Gf, rot1))
+        fj.CreateExcludeFromArticulationAttr(True)
+        fj.CreateJointEnabledAttr(bool(enabled))
+        fj.CreateCollisionEnabledAttr(False)
+        f = float(holding_force) if holding_force and math.isfinite(float(holding_force)) and float(holding_force) > 0 else float("inf")
+        if math.isfinite(f):
+            fj.CreateBreakForceAttr(f)
+            fj.CreateBreakTorqueAttr(f)
+        p = fj.GetPrim()
+        p.CreateAttribute("doorbench:role", Sdf.ValueTypeNames.String).Set("env_release")
+        p.CreateAttribute("doorbench:weld_name", Sdf.ValueTypeNames.String).Set(str(weld["name"]))
+        p.CreateAttribute("doorbench:weld_body", Sdf.ValueTypeNames.String).Set(str(weld["body"]))
+        p.CreateAttribute("doorbench:holding_force_N", Sdf.ValueTypeNames.Float).Set(float(f if math.isfinite(f) else 0.0))
+        p.CreateAttribute("doorbench:label", Sdf.ValueTypeNames.String).Set(str(weld.get("label") or "environment-released lock"))
+        return p
 
     # ---- joints ------------------------------------------------------------
     def add_fixed_joint(self, path, body0_path, body1_path, pos0, rot0, pos1, rot1, label=""):
@@ -511,7 +602,13 @@ class _Writer:
         return prim
 
     def add_mimic(self, driven_path, driven_type, driver_path, driver_type, gearing, offset, label=""):
-        """PhysxMimicJointAPI on the driven joint:  q_driven + gearing * q_driver + offset = 0  (PhysX units)."""
+        """PhysxMimicJointAPI on the driven joint:  q_driven + gearing * q_driver + offset = 0  (PhysX units).
+
+        Only valid when BOTH axes are rotational: PhysX articulation mimic joints support rotational axes only, and
+        a mimic authored on a prismatic axis (or referencing one) is parsed without error and then ignored.  Callers
+        must route the other couplings through ``add_coupling`` instead (``joint_couplings`` decides)."""
+        assert driven_type in ("hinge", "revolute") and driver_type in ("hinge", "revolute"), \
+            f"PhysxMimicJointAPI needs rotational axes on both sides (got {driven_type} <- {driver_type})"
         Sdf = self.Sdf
         inst = _axis_instance(driven_type)
         p = self.stage.GetPrimAtPath(driven_path)
@@ -522,6 +619,34 @@ class _Writer:
         p.CreateAttribute(f"physxMimicJoint:{inst}:offset", Sdf.ValueTypeNames.Float).Set(float(offset))
         if label:
             p.CreateAttribute(f"doorbench:mimic_label", Sdf.ValueTypeNames.String).Set(label)
+
+    def add_coupling(self, c: dict, driven_path, driver_path, reflected_by_driver: dict):
+        """Machine-readable coupling on the driven joint prim (+ the reflected inertia on the driver prim).
+
+        Both consumers read these attributes and apply the coupling bilaterally: the driven joint tracks
+        ``q_driven = c0 + c1 q_driver`` and the driver carries the reaction ``c1 * tau_driven_ext`` plus the
+        reflected inertia ``c1^2 I_driven`` (as extra armature).  A pure kinematic write of the driven joint applies
+        no reaction at all: the driver loses the coupled part's weight, spring and Coulomb friction and sags."""
+        Sdf = self.Sdf
+        p = self.stage.GetPrimAtPath(driven_path)
+        p.CreateAttribute("doorbench:coupling_mode", Sdf.ValueTypeNames.String).Set(str(c["mode"]))
+        p.CreateAttribute("doorbench:coupling_driver", Sdf.ValueTypeNames.String).Set(str(c["driver"]))
+        p.CreateRelationship("doorbench:coupling_driver_joint").SetTargets([driver_path])
+        p.CreateAttribute("doorbench:coupling_c0", Sdf.ValueTypeNames.Float).Set(float(c["coeff"][0]))
+        p.CreateAttribute("doorbench:coupling_c1", Sdf.ValueTypeNames.Float).Set(float(c["coeff"][1]))
+        p.CreateAttribute("doorbench:coupling_driven_inertia", Sdf.ValueTypeNames.Float).Set(float(c["driven_inertia"]))
+        p.CreateAttribute("doorbench:coupling_reflected_inertia", Sdf.ValueTypeNames.Float).Set(float(c["reflected_inertia"]))
+        p.CreateAttribute("doorbench:coupling_gravity_bias", Sdf.ValueTypeNames.Float).Set(float(c["driven_gravity_bias"]))
+        p.CreateAttribute("doorbench:coupling_chain_order", Sdf.ValueTypeNames.Int).Set(int(c["chain_order"]))
+        if c["mode"] == "emulated":
+            reflected_by_driver[c["driver"]] = reflected_by_driver.get(c["driver"], 0.0) + float(c["reflected_inertia"])
+
+    def set_reflected_inertia(self, driver_path, value):
+        """``doorbench:coupling_reflected_armature`` on a driver joint: the inertia of everything it drives through
+        couplings PhysX cannot represent.  Consumers add it to that joint's armature (the exporter does NOT fold it
+        into ``physxJointAxis:*:armature``, which must keep matching the IR)."""
+        p = self.stage.GetPrimAtPath(driver_path)
+        p.CreateAttribute("doorbench:coupling_reflected_armature", self.Sdf.ValueTypeNames.Float).Set(float(value))
 
     def set_json(self, prim, name, obj):
         prim.CreateAttribute(name, self.Sdf.ValueTypeNames.String).Set(json.dumps(obj, default=_json_default))
@@ -589,6 +714,201 @@ def _reaction_estimate(model: Model, b: Body, tier: str, wt: dict):
     r = com - anchor
     moment = m * G_ACC * float(np.hypot(r[0], r[1]))
     return m * G_ACC + moment
+
+
+def _subtree_axis_inertia(model: Model, root_name: str, tier: str, wt: dict, axis_w, anchor_w, jtype: str):
+    """Effective inertia of the DoF that moves ``root_name``'s subtree: mass along the axis (slide) or the
+    subtree's inertia about the joint axis through ``anchor_w`` (hinge).  SI (kg or kg*m^2)."""
+    n = np.asarray(axis_w, float)
+    n = n / max(float(np.linalg.norm(n)), 1e-12)
+    total, I_ax = 0.0, 0.0
+    for name in _subtree(model, root_name):
+        b = model.body(name)
+        if tier not in b.tiers or name not in wt:
+            continue
+        m, com, I = b.inertial(tier)
+        if m <= 0:
+            continue
+        total += m
+        if jtype != "slide":
+            pos, quat = wt[name]
+            R = quat_to_mat(quat)
+            Iw = R @ np.asarray(I, float) @ R.T
+            r = (pos + quat_rotate(quat, com)) - np.asarray(anchor_w, float)
+            rp = r - float(np.dot(r, n)) * n                     # distance from the axis
+            I_ax += float(n @ Iw @ n) + m * float(np.dot(rp, rp))
+    return float(total if jtype == "slide" else I_ax)
+
+
+def _gravity_bias(model: Model, root_name: str, tier: str, wt: dict, axis_w, anchor_w, jtype: str):
+    """Generalised gravity force on that DoF at the authored pose (N on a slide, N*m on a hinge).
+
+    Slide: -m g (axis . z).  Hinge: -(sum_i m_i g) . (n x r_i) = -g * n . (sum_i m_i (z x r_i)) with r_i the COM
+    offset from the anchor.  This is what a consumer must reflect onto the driver of a coupling that PhysX drops;
+    for the helical hinge (vertical riser slide, gearing c1) c1 * bias reproduces the documented -m g dz/dq."""
+    n = np.asarray(axis_w, float)
+    n = n / max(float(np.linalg.norm(n)), 1e-12)
+    g_vec = np.array([0.0, 0.0, -G_ACC])
+    tau = 0.0
+    for name in _subtree(model, root_name):
+        b = model.body(name)
+        if tier not in b.tiers or name not in wt:
+            continue
+        m, com, _ = b.inertial(tier)
+        if m <= 0:
+            continue
+        pos, quat = wt[name]
+        c = pos + quat_rotate(quat, com)
+        if jtype == "slide":
+            tau += m * float(np.dot(g_vec, n))
+        else:
+            tau += m * float(np.dot(np.cross(n, c - np.asarray(anchor_w, float)), g_vec))
+    return float(tau)
+
+
+def _weld_map(model: Model, bodies):
+    """MuJoCo weld semantics: a body whose parent link carries no joint belongs to its parent's weld body.
+
+    Returns ({body: weld root}, {body: weld root of the weld body's parent, or None for a world child}) over the
+    moving bodies of the tier - the two quantities MuJoCo's contact filter uses (``weld1 == weld2`` -> skip;
+    ``weld1 == parent2`` or ``weld2 == parent1`` -> skip unless one of them is the world)."""
+    byname = {b.name: b for b in bodies}
+    root = {}
+
+    def wroot(n):
+        if n in root:
+            return root[n]
+        b = byname[n]
+        p = b.parent
+        root[n] = n if (b.joint is not None or p is None or p not in byname or byname[p].static) else wroot(p)
+        return root[n]
+
+    for b in bodies:
+        if not b.static:
+            wroot(b.name)
+    parent = {}
+    for n in root:
+        p = byname[root[n]].parent
+        parent[n] = None if (p is None or p not in byname or byname[p].static) else root[p]
+    return root, parent
+
+
+def mujoco_filtered_pairs(model: Model, bodies, tier: str):
+    """Sorted (body_a, body_b) pairs of colliding moving bodies whose contacts MuJoCo suppresses.
+
+    MuJoCo skips a geom pair when both geoms belong to the same weld body, when the two weld bodies are in a
+    parent/child relation (neither being the world), or when the body pair is listed in ``<contact><exclude>``.
+    PhysX with ``enabledSelfCollisions`` skips only joint-adjacent links, so the rest must be authored as
+    ``PhysxFilteredPairsAPI`` for the two engines to filter the same set."""
+    moving = [b for b in bodies if not b.static and any(g.collision and tier in g.tiers for g in b.geoms)]
+    root, wparent = _weld_map(model, bodies)
+    excl = {tuple(sorted(x)) for x in model.contact_excludes}
+    out = set()
+    for i, a in enumerate(moving):
+        for b in moving[i + 1:]:
+            pair = tuple(sorted((a.name, b.name)))
+            if root[a.name] == root[b.name] or wparent.get(a.name) == root[b.name] or wparent.get(b.name) == root[a.name] or pair in excl:
+                out.add(pair)
+    return sorted(out)
+
+
+def env_release_welds(model: Model, tier: str):
+    """Active ``weld`` equalities (mag lock / delayed egress / electric bolt / interlock leaf -> world) with the
+    holding force the environment breaks them at (``meta.breakable_welds``)."""
+    forces = {w["name"]: float(w.get("holding_force_N") or 0.0) for w in (model.meta.get("breakable_welds") or [])}
+    out = []
+    for q in model.equalities:
+        if q.kind != "weld" or tier not in q.tiers:
+            continue
+        out.append({"name": q.name, "body": q.a, "other": q.b or "world", "label": q.label, "active": bool(q.active),
+                    "holding_force_N": forces.get(q.name, 0.0)})
+    return out
+
+
+def joint_couplings(model: Model, tier: str, joint_types: dict, wt: dict, body_of_joint, servo_joints=()):
+    """Bilateral polynomial joint equalities with everything a consumer needs to reproduce them.
+
+    ``mode``: ``mimic`` when PhysX honours a ``PhysxMimicJointAPI`` (rotational driven axis AND rotational reference
+    axis - the only case PhysX articulations support); ``servo`` when BOTH joints carry their own MJCF position
+    servo in their PhysX drive (the two leaves of an automatic bi-parting slider / elevator: each leaf has its own
+    operator in the MJCF too, so the drives already move them together and there is nothing to reflect);
+    else ``emulated``.  For every coupling the entry carries the
+    driven DOF's effective inertia, its passive law and its constant gravity bias, plus ``reflected_inertia``
+    (``c1^2 * I_driven``, accumulated through coupling chains) that a consumer adds to the DRIVER's armature so the
+    driver carries the coupled part's inertia the way MuJoCo's constraint does."""
+    out = []
+    for q in model.equalities:
+        if q.kind != "joint" or tier not in q.tiers:
+            continue
+        if q.a not in joint_types or q.b not in joint_types:
+            continue
+        ta, tb = joint_types[q.a], joint_types[q.b]
+        ba = body_of_joint(q.a)
+        if ba is None or ba.joint is None:
+            continue
+        c0, c1 = float(q.polycoeff[0]), float(q.polycoeff[1])
+        ja = ba.joint
+        bb = body_of_joint(q.b)
+        off_a = float(ja.modeled_at)
+        off_b = float(bb.joint.modeled_at) if (bb is not None and bb.joint is not None) else 0.0
+        pos, quat = wt[ba.name]
+        axis_w = quat_rotate(quat, np.asarray(ja.axis, float) / np.linalg.norm(ja.axis))
+        anchor_w = pos + quat_rotate(quat, np.asarray(ja.pos, float))
+        I_a = _subtree_axis_inertia(model, ba.name, tier, wt, axis_w, anchor_w, ja.type)
+        bias = _gravity_bias(model, ba.name, tier, wt, axis_w, anchor_w, ja.type)
+        rotational = ta in ("hinge", "revolute") and tb in ("hinge", "revolute")
+        servoed = q.a in set(servo_joints) and q.b in set(servo_joints)
+        mode = "mimic" if rotational else ("servo" if servoed else "emulated")
+        out.append({
+            "driven": q.a, "driver": q.b, "driven_type": ta, "driver_type": tb,
+            "mode": mode,
+            # PhysxMimicJointAPI constrains q_driven + gearing * q_driver + offset = 0 in PHYSX joint coordinates,
+            # which are the USD ones (q_usd = q_mjcf - zero_offset), so the offset comes from coeff_usd, not coeff.
+            # Every mimic pair in the dataset today has zero_offset 0 on both sides (coeff == coeff_usd), so this is
+            # currently a no-op; it stops being one the first time a rotational equality lands on a joint that is
+            # modelled away from its USD zero, and the error would be a silent c1*off_b - off_a of mis-gearing.
+            "coeff": [c0, c1], "gearing": -c1, "offset": -(c0 + c1 * off_b - off_a), "label": q.label,
+            # the same law in USD joint coordinates (q_usd = q_db - zero_offset), which is what a consumer reads back
+            # from PhysX: q_a_usd = coeff_usd[0] + coeff_usd[1] * q_b_usd
+            "coeff_usd": [c0 + c1 * off_b - off_a, c1], "driven_zero_offset": off_a, "driver_zero_offset": off_b,
+            "driven_inertia": I_a, "reflected_inertia": c1 * c1 * I_a,
+            "driven_gravity_bias": bias,
+            "driven_stiffness": float(ja.stiffness), "driven_damping": float(ja.damping),
+            "driven_target": float(ja.springref - ja.modeled_at) if ja.stiffness else 0.0,
+            "driven_friction": float(ja.frictionloss),
+            "driven_range": None if ja.range is None else [float(ja.range[0] - ja.modeled_at), float(ja.range[1] - ja.modeled_at)],
+            "friction_vel_eps": COUPLING_FRICTION_VEL_EPS,
+            "reason": (None if rotational else
+                       ("both joints carry their own MJCF position servo in their PhysX drive: the drives move them together"
+                        if servoed else
+                        "PhysX articulation mimic joints support rotational axes only: a mimic on a prismatic axis is dropped")),
+            "note": "q_driven = c0 + c1*q_driver; the driver carries the reaction c1 * tau_driven_ext and the reflected inertia c1^2 * I_driven",
+        })
+    # coupling chains (multipoint bolt <- deadbolt <- thumbturn): reflect the inertia of the whole driven chain onto
+    # each driver, deepest first, so a driver that is itself driven passes its accumulated inertia on
+    by_driven = {c["driven"]: c for c in out}
+    order, seen = [], set()
+
+    def visit(name, stack=()):
+        if name in seen or name in stack or name not in by_driven:
+            return
+        c = by_driven[name]
+        visit(c["driver"], stack + (name,))
+        seen.add(name)
+        order.append(name)
+
+    for c in list(out):
+        visit(c["driven"])
+    eff = {c["driven"]: c["driven_inertia"] for c in out}
+    for name in reversed(order):                 # deepest driven joint first
+        c = by_driven[name]
+        c["reflected_inertia"] = c["coeff"][1] ** 2 * eff[name]
+        if c["driver"] in eff:
+            eff[c["driver"]] += c["reflected_inertia"]
+    depth = {name: i for i, name in enumerate(order)}
+    for c in out:
+        c["chain_order"] = int(depth.get(c["driven"], 0))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -691,23 +1011,49 @@ def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full",
             servo_joints[jt.name] = {k: servo[k] for k in ("kp", "kv", "force_limit", "ctrl")}
         joint_paths[jt.name] = jp
         joint_types[jt.name] = jt.type
-    # --- couplings: mimic joints (bilateral polynomial equalities) + JSON for everything else
+    # --- couplings: PhysxMimicJointAPI where PhysX honours it (rotational -> rotational), explicit bilateral
+    #     coupling metadata for the rest (hinge -> slide, slide -> slide: PhysX drops those mimics silently)
+    def _body_of_joint(jn):
+        for b in bodies:
+            if b.joint is not None and b.joint.name == jn:
+                return b
+        return None
+
     couplings = []
+    coupling_specs = joint_couplings(model, tier, joint_types, wt, _body_of_joint, servo_joints=set(servo_joints))
+    reflected = {}
+    for c in sorted(coupling_specs, key=lambda c: c["chain_order"]):
+        dpath, rpath = joint_paths[c["driven"]], joint_paths[c["driver"]]
+        if c["mode"] == "mimic":
+            # IR: q_a = c0 + c1 * q_b (USD coordinates)  ->  q_a + (-c1) * q_b + (-c0) = 0
+            W.add_mimic(dpath, joint_types[c["driven"]], rpath, joint_types[c["driver"]], gearing=c["gearing"], offset=c["offset"], label=c["label"])
+        W.add_coupling(c, dpath, rpath, reflected)
+        couplings.append(dict(c, type="mimic" if c["mode"] == "mimic" else "coupling_emulated", driven_path=str(dpath), driver_path=str(rpath),
+                              note=("PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"
+                                    if c["mode"] == "mimic" else
+                                    "PhysX drops mimics on prismatic axes: emulate bilaterally (track q_driven = c0 + c1*q_driver, apply "
+                                    "c1 * tau_driven_ext on the driver and add reflected_inertia to the driver's armature)")))
+    for jn, val in reflected.items():
+        W.set_reflected_inertia(joint_paths[jn], val)
     for q in model.equalities:
         if tier not in q.tiers:
             continue
-        if q.kind == "joint" and q.a in joint_paths and q.b in joint_paths:
-            c0, c1 = float(q.polycoeff[0]), float(q.polycoeff[1])
-            # IR: q_a = c0 + c1 * q_b (USD coordinates)  ->  q_a + (-c1) * q_b + (-c0) = 0
-            W.add_mimic(joint_paths[q.a], joint_types[q.a], joint_paths[q.b], joint_types[q.b], gearing=-c1, offset=-c0, label=q.label)
-            couplings.append({"type": "mimic", "driven": q.a, "driver": q.b, "coeff": list(q.polycoeff), "gearing": -c1, "offset": -c0, "label": q.label,
-                              "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"})
-        elif q.kind == "connect":
+        if q.kind == "connect":
             couplings.append({"type": "loop_closure_point", "body1": q.a, "body2": q.b, "anchor": list(q.anchor), "label": q.label,
                               "note": "not exported to USD (PhysX articulations are trees); closer arms are visual"})
-        elif q.kind == "weld":
-            couplings.append({"type": "weld", "body1": q.a, "body2": q.b, "label": q.label, "active": q.active,
-                              "note": "breakable weld (maglock): environment logic, see doorbench.benchmark.DoorEnv"})
+    # --- environment-released locks: a real breakable FixedJoint outside the articulation tree
+    env_release = []
+    for w in env_release_welds(model, tier):
+        if w["body"] not in body_paths:
+            continue
+        jp = joints_path.AppendChild(_safe(w["name"]))
+        pos, quat = wt[w["body"]]
+        prim = W.add_env_release_joint(jp, base_path, body_paths[w["body"]], pos, quat, [0, 0, 0], [1, 0, 0, 0],
+                                       w["holding_force_N"], w, enabled=w["active"])
+        env_release.append(dict(w, joint=str(jp), joint_name=prim.GetName(), body_prim=str(body_paths[w["body"]]), base_prim=str(base_path)))
+        couplings.append({"type": "weld", "body1": w["body"], "body2": w["other"], "label": w["label"], "active": w["active"],
+                          "joint": str(jp), "holding_force_N": w["holding_force_N"],
+                          "note": "breakable FixedJoint (excludeFromArticulation); the environment clears physics:jointEnabled on release"})
     for t in model.tendons:
         if tier in t.tiers:
             couplings.append({"type": "one_sided_tendon", "terms": [list(x) for x in t.sites], "range": list(t.range), "label": t.label,
@@ -722,10 +1068,23 @@ def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full",
                     p.CreateAttribute("doorbench:latch_coupling_joint", W.Sdf.ValueTypeNames.String).Set(op_j)
             except Exception:
                 pass
+    # --- collision filtering: PhysX skips joint-adjacent links, MuJoCo skips weld groups / weld parent-child /
+    #     contact_excludes -> author the difference (and the adjacent ones, harmlessly) so both engines agree
+    filtered = mujoco_filtered_pairs(model, bodies, tier)
+    n_filtered = W.add_filtered_pairs([(body_paths[a], body_paths[b]) for a, b in filtered if a in body_paths and b in body_paths])
     W.set_json(W.root.GetPrim(), "doorbench:couplings", couplings)
+    W.set_json(W.root.GetPrim(), "doorbench:env_release", env_release)
+    W.set_json(W.root.GetPrim(), "doorbench:filtered_pairs", [list(x) for x in filtered])
     meta = {k: v for k, v in model.meta.items() if k not in ("notes",)}
     meta["usd_layout"] = "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)"
     meta["joints"] = {name: str(p) for name, p in joint_paths.items()}
+    meta["self_collisions"] = True
+    meta["filtered_pairs"] = [list(x) for x in filtered]
+    meta["n_filtered_pairs"] = int(n_filtered)
+    meta["env_release"] = env_release
+    meta["couplings_emulated"] = [c for c in coupling_specs if c["mode"] == "emulated"]
+    meta["couplings_servo"] = [c["driven"] for c in coupling_specs if c["mode"] == "servo"]
+    meta["coupling_reflected_armature"] = reflected
     # physics mapping notes for runners (docs/ISAAC_LAB.md): servos folded into drives, rising-hinge gravity torque
     meta["servo_in_drive"] = servo_joints
     if meta.get("actuators"):
@@ -787,6 +1146,49 @@ def _released_pose_shift(model: Model, b: Body):
     if jt is None or jt.range is None:
         return 0.0
     return float(jt.range[1] - jt.modeled_at)
+
+
+def _engaged_in_ir(jt) -> bool:
+    """True when the joint sits at its ENGAGED end at q0.
+
+    Every latch / lock part in the IR is authored with ``range = (0, travel)`` and ``0 = engaged`` (thrown bolt,
+    hooked hook, dropped pin, dogged dog); ``initial`` (== ``modeled_at`` after ``bake_initial``) is 0 when the spec
+    says engaged and the travel end when it does not."""
+    if jt is None or jt.range is None:
+        return False
+    lo, hi = float(jt.range[0]), float(jt.range[1])
+    if hi - lo <= 1e-9:
+        return False
+    return abs(float(jt.modeled_at) - lo) <= 0.1 * (hi - lo)
+
+
+def operator_driven_joints(model: Model, operator_joint: str | None, tier: str):
+    """Joints the operator drives through bilateral equalities / tendons (transitive, driver -> driven).
+
+    A lock part in that set retracts when the robot works the operator (cremone shoot bolts on the handle, hook
+    bolts on the hook slider, dogs on a ship wheel), so the canonical RL articulation - which has no slot for it -
+    must weld it RELEASED; a lock part outside the set (a thumbturn deadbolt, a second dog with its own lever) needs
+    its own release the canonical file cannot offer and stays welded engaged."""
+    if not operator_joint:
+        return set()
+    edges = {}
+    for q in model.equalities:
+        if q.kind == "joint" and tier in q.tiers and q.b:
+            edges.setdefault(q.b, set()).add(q.a)
+    for t in model.tendons:
+        if tier not in t.tiers or len(t.sites) < 2:
+            continue
+        names = [x[0] for x in t.sites]
+        for driver in names[1:]:
+            edges.setdefault(driver, set()).add(names[0])
+    out, stack = set(), [operator_joint]
+    while stack:
+        n = stack.pop()
+        for m in edges.get(n, ()):
+            if m not in out:
+                out.add(m)
+                stack.append(m)
+    return out
 
 
 def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = "door_rl.usda", spec: dict | None = None):
@@ -945,15 +1347,66 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
         static_extra += sub
     if omitted:
         notes.append(f"leaf-like bodies omitted from the RL articulation (only two leaves are modelled): {omitted}")
-    # welded pose shifts: parts welded released (latch-like) get their joint moved to the upper limit
-    shift = {}
+    # ---------------------------------------------------------------- welded pose shifts (released vs engaged)
+    # Every moving part that has no canonical slot is welded into its link.  Welding it at the INITIAL state locks a
+    # door whose release part is a revolute hook, a cremone shoot bolt or a dog coupled to the operator: the protocol
+    # expects those doors to open (the robot works the operator, MuJoCo's coupling retracts the part), so they are
+    # welded RELEASED instead.  The decision is recorded per part in ``doorbench:rl`` (``welded`` / ``released_parts``
+    # / ``welded_engaged``) so the parity protocol reads the ground truth rather than guessing from the spec.
+    spec_lock = (spec or {}).get("lock", {}) if isinstance(spec, dict) else {}
+    lock_engaged_spec = bool(spec_lock.get("engaged"))
+    robot_can_release = bool(spec_lock.get("robot_side_release", True))
+    op_driven = operator_driven_joints(model, meta.get("operator_joint"), tier)
+    leaf_normal_w = quat_rotate(leaf_quat, np.array([0.0, 1.0, 0.0]))
+
+    def _press_only(b):
+        """A slide that moves along the leaf's normal is a BUTTON, not a bolt: it presses into the leaf face and can
+        never reach the frame, so welding it in either state cannot hold or release the leaf (keypad keys, REX and
+        call buttons, privacy buttons).  A bolt / rod / pin moves in the plane of the leaf, toward an edge."""
+        jt = b.joint
+        if jt is None or jt.type != "slide":
+            return False
+        pos, quat = wt[b.name]
+        ax = quat_rotate(quat, np.asarray(jt.axis, float) / np.linalg.norm(jt.axis))
+        return abs(float(np.dot(ax, leaf_normal_w))) > 0.9
+
+    shift, weld_record = {}, []
     for n in leaf_bodies + static_extra:
         b = model.body(n)
         if b.joint is None or n in (primary.name,):
             continue
-        released = (b.joint.role == "latch") or (b.joint.role == "operator" and n in static_extra) or (b.joint.role == "lock" and n in static_extra and b.joint.type == "slide" and "pin" in n)
+        role, jt = b.joint.role, b.joint
+        engaged = _engaged_in_ir(jt)
+        # can this part hold the leaf shut at all?  Only a bolt / hook / rod / pin that is in its engaged state; a
+        # button (presses into the face), a sensor or a decoration never does.
+        holding = (engaged and b.semantic not in ("sensor", "decor")
+                   and (role in ("latch", "lock") or b.semantic in ("latch", "lock")) and not _press_only(b))
+        if role == "latch":
+            released, why = True, "spring latch hardware never blocks the canonical leaf"
+        elif role == "operator" and n in static_extra:
+            released, why = True, "world-mounted operator welded static in its released state"
+        elif role == "lock" and lock_engaged_spec and not robot_can_release:
+            # no robot-side release (keyed outside only, padlock, multipoint with no inside trim): the robot cannot
+            # work the operator to retract this part, so the real door stays locked and so must the canonical one
+            released, why = False, "engaged lock with no robot-side release: welded engaged (the door must stay locked)"
+        elif b.semantic == "latch":
+            released, why = True, "latch hardware never blocks the canonical leaf"
+        elif role == "lock" and jt.name in op_driven:
+            released, why = True, f"lock part driven by the operator ({meta.get('operator_joint')}): retracts when the robot works the operator"
+        elif role == "lock" and (not lock_engaged_spec or not engaged):
+            released, why = True, "lock not engaged in the spec / IR"
+        elif role == "lock" and n in static_extra and jt.type == "slide" and "pin" in n:
+            released, why = True, "world-mounted lift pin welded static in its released state"
+        else:
+            released, why = False, ("engaged lock with no canonical slot and no operator coupling: welded engaged"
+                                    if holding else "part welded at its initial state")
+        dq = _released_pose_shift(model, b) if released else 0.0
         if released:
-            shift[n] = _released_pose_shift(model, b)
+            shift[n] = dq
+        weld_record.append({"body": n, "joint": jt.name, "role": role, "semantic": b.semantic, "type": jt.type,
+                            "released": bool(released), "shift": float(dq), "was_engaged": bool(engaged),
+                            "holding": bool(holding), "press_only": bool(_press_only(b)),
+                            "link": "static" if n in static_extra else "leaf", "reason": why})
     # recompute world poses with the shifts applied (descendants follow)
     wt2 = {}
 
@@ -1133,6 +1586,69 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
             if q.kind == "joint" and {q.a, q.b} == {secondary.joint.name, pj.name}:
                 driven_is_secondary = q.a == secondary.joint.name
                 secondary_coupling = {"driven": "secondary" if driven_is_secondary else "primary", "coeff": [float(c) for c in q.polycoeff[:2]], "label": q.label}
+    # ---------------------------------------------------------------- couplings between canonical slots
+    # Almost every mechanism coupling is welded away in this file; what survives is a bilateral equality between two
+    # ACTIVE slots (bi-parting sliders / elevators: leaf2 = c1 * leaf).  It is authored the same way as in
+    # door.usda - PhysxMimicJointAPI when both canonical joints are revolute (PhysX honours rotational mimics only),
+    # otherwise the doorbench:coupling_* emulation data that DoorMechanismAction applies with the reaction on the
+    # driver.  The helical riser's coupling is the other survivor and keeps its own ``rise_coupling`` entry (the same
+    # reaction, c1 * gravity_bias, precomputed because the riser has no slot at all).
+    slot_of = {info["source"]: name for name, info in joint_meta.items() if info.get("active") and info.get("source")}
+    slot_type = {name: ("hinge" if name.endswith("hinge") else "slide") for name in RL_DOF_JOINTS}
+
+    def _rl_body_of_joint(jn):
+        return body_of_joint(jn)
+
+    rl_couplings = []
+    reflected_rl = {}
+    for c in sorted(joint_couplings(model, tier, {b.joint.name: b.joint.type for b in bodies if b.joint is not None}, wt, _rl_body_of_joint,
+                                    servo_joints=set(servo_slots)), key=lambda c: c["chain_order"]):
+        sa, sb = slot_of.get(c["driven"]), slot_of.get(c["driver"])
+        if sa is None or sb is None:
+            continue
+        rot = slot_type[sa] == "hinge" and slot_type[sb] == "hinge"
+        mode = "mimic" if rot else c["mode"]
+        entry = dict(c, mode=mode, driven_slot=sa, driver_slot=sb)
+        dpath, rpath = joints_path.AppendChild(sa), joints_path.AppendChild(sb)
+        if rot:
+            W.add_mimic(dpath, "hinge", rpath, "hinge", gearing=entry["gearing"], offset=entry["offset"], label=entry["label"])
+        W.add_coupling(dict(entry, driver=sb), dpath, rpath, reflected_rl)
+        rl_couplings.append(entry)
+    for slot, val in reflected_rl.items():
+        W.set_reflected_inertia(joints_path.AppendChild(slot), val)
+    # ---------------------------------------------------------------- collision filtering (link level)
+    # every IR body lives in exactly one canonical link; PhysX skips joint-adjacent links, so a link pair that is not
+    # adjacent must be filtered whenever MuJoCo suppressed any of the body pairs it merges (leaf <-> operator: the
+    # handle is a child of the leaf; leaf <-> leaf2 stays colliding, which is what latches a swing pair)
+    link_of_body = {}
+    for lname, blist in (("leaf", leaf_bodies), ("operator", op_bodies), ("latch", latch_bodies), ("leaf2", sec_bodies)):
+        for n in blist:
+            link_of_body[n] = lname
+    RL_ADJACENT = {("base", "carriage"), ("carriage", "leaf"), ("leaf", "operator_pivot"), ("operator_pivot", "operator"),
+                   ("leaf", "latch"), ("base", "carriage2"), ("carriage2", "leaf2")}
+    RL_ADJACENT = {tuple(sorted(x)) for x in RL_ADJACENT}
+    body_pairs = mujoco_filtered_pairs(model, bodies, tier)
+    link_pairs = set()
+    for a, b in body_pairs:
+        la, lb = link_of_body.get(a), link_of_body.get(b)
+        if la is None or lb is None or la == lb:
+            continue
+        pair = tuple(sorted((la, lb)))
+        if pair not in RL_ADJACENT:
+            link_pairs.add(pair)
+    n_filtered = W.add_filtered_pairs([(link_paths[a], link_paths[b]) for a, b in sorted(link_pairs)])
+    # ---------------------------------------------------------------- environment-released locks
+    env_release = []
+    for w in env_release_welds(model, tier):
+        link = link_of_body.get(w["body"])
+        if link is None:
+            notes.append(f"env-release weld {w['name']} on {w['body']}, which is not part of the canonical articulation: not exported")
+            continue
+        jp = joints_path.AppendChild(_safe(w["name"]))
+        fp, fq = link_frames[link]
+        prim = W.add_env_release_joint(jp, base_path, link_paths[link], fp, fq, [0, 0, 0], [1, 0, 0, 0],
+                                       w["holding_force_N"], w, enabled=w["active"])
+        env_release.append(dict(w, joint=str(jp), joint_name=prim.GetName(), link=link, link_prim=str(link_paths[link]), base_prim=str(base_path)))
     # ---------------------------------------------------------------- meta
     spec = spec or {}
     kin = spec.get("kinematics", {})
@@ -1172,10 +1688,25 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
         "max_angular_velocity_deg_s": float(MAX_ANGULAR_VELOCITY_DEG_S),
         "welded_static": static_extra, "omitted": omitted, "notes": notes,
         "mass_kg": float(_subtree_mass(model, primary.name, tier, wt)[0]),
+        # ground truth for the parity protocol: which mechanism parts this file welded, and in which state.
+        # ``released_parts`` are welded RELEASED (they cannot hold the leaf here even though they do in MuJoCo),
+        # ``welded_engaged`` are welded ENGAGED (they hold the leaf shut and no canonical slot can release them).
+        "welded": weld_record,
+        "released_parts": [w for w in weld_record if w["released"]],
+        "released_holding": [w for w in weld_record if w["released"] and w["holding"]],
+        "welded_engaged": [w for w in weld_record if not w["released"] and w["holding"]],
+        "operator_driven_joints": sorted(op_driven),
+        "couplings": rl_couplings,
+        "coupling_reflected_armature": reflected_rl,
+        "self_collisions": True,
+        "filtered_pairs": [list(x) for x in sorted(link_pairs)],
+        "n_filtered_pairs": int(n_filtered),
+        "env_release": env_release,
     }
     if rl["rise_coupling"] is not None:
         notes.append(f"rising hinge {rl['rise_coupling']['rise_joint']} locked: apply gravity closing torque {rl['rise_coupling']['gravity_torque_Nm']:.3f} N*m on {rl['door_joint']}")
     W.set_json(W.root.GetPrim(), "doorbench:rl", rl)
+    W.set_json(W.root.GetPrim(), "doorbench:env_release", env_release)
     W.set_json(W.root.GetPrim(), "doorbench:meta", {k: v for k, v in meta.items() if k not in ("notes",)})
     return W.save()
 

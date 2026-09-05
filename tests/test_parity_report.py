@@ -34,17 +34,41 @@ def _curve(q_end: float, T: float = 6.4, n: int = 40, delay: float = 1.2):
     return [[round(i * T / n, 3), round(0.0 if i * T / n < delay else q_end * min(1.0, (i * T / n - delay) / 3.0), 4)] for i in range(n + 1)]
 
 
-def _rec(settle=0.0, hold=0.002, hold_pass=True, expected_hold="hold", opened=None, open_pass=None, op_travel=None, bolt=None, release=None, closer=None, curves=None, errors=(), is_hinge=True):
-    ph = {"P2 settle": {"pass": abs(settle) < 0.05, "metrics": {"settle_drift": settle}},
+def _rec(settle=0.0, hold=0.002, hold_pass=True, expected_hold="hold", opened=None, open_pass=None, op_travel=None, bolt=None, release=None, closer=None, curves=None,
+         errors=(), is_hinge=True, settle_signed=None, settle_extra=None, inputs=None, inputs_hash=None, metrics_version=None, q_primary_max=None, at_limit=None):
+    ph = {"P2 settle": {"pass": abs(settle) < 0.05, "metrics": {"settle_drift": settle} | ({"settle_drift_signed": settle_signed} if settle_signed else {}) | (settle_extra or {})},
           "P3 hold": {"pass": hold_pass, "expected": expected_hold, "metrics": {"hold_displacement": hold}},
           "P9 limits": {"pass": True, "metrics": {}}, "P10 sanity": {"pass": True, "metrics": {"max_v_primary": 1.2}}}
     if opened is not None:
-        ph["P4 operate_open"] = {"pass": open_pass, "metrics": {"opened": opened, "operator_travel_reached": op_travel, "bolt_retract_max_frac": bolt}}
+        m = {"opened": opened, "operator_travel_reached": op_travel, "bolt_retract_max_frac": bolt}
+        if q_primary_max is not None:
+            m["q_primary_max"] = q_primary_max
+        if at_limit is not None:
+            m["primary_at_limit"] = at_limit
+        ph["P4 operate_open"] = {"pass": open_pass, "metrics": m}
     if release is not None:
         ph["P5 release"] = {"pass": release < 0.006, "metrics": {"bolt_after_release_m": release}}
     if closer is not None:
         ph["P7 closer_return"] = {"pass": abs(closer) < math.radians(6), "metrics": {"closer_final_angle": closer}}
-    return {"phases": ph, "curves": curves or {}, "metrics": {"is_hinge": is_hinge}, "errors": list(errors)}
+    rec = {"phases": ph, "curves": curves or {}, "metrics": {"is_hinge": is_hinge}, "errors": list(errors)}
+    if inputs is not None:
+        rec["inputs"] = inputs
+    if inputs_hash is not None:
+        rec["inputs_hash"] = inputs_hash
+    if metrics_version is not None:
+        rec["metrics_version"] = metrics_version
+    return rec
+
+
+def _inputs(primary: str, joints: dict, thr: float = math.radians(2.0), limit_tol: float | None = None) -> dict:
+    """The slice of the protocol inputs the comparison needs (thresholds + joint parameters), as the MuJoCo runner writes it."""
+    return {"primary_joint": primary, "joints": joints,
+            "thresholds": {"thr": thr, "limit_tol": {"hinge": limit_tol if limit_tol is not None else math.radians(2.0), "slide": 0.01}, "v_cap_primary": 15.0}}
+
+
+SPRUNG_LEVER = _inputs("leaf_hinge", {"leaf_hinge": {"type": "hinge", "stiffness": 0.0, "springref": 0.0, "frictionloss": 0.0, "range": [0.0, 1.92]},
+                                      "leaf_handle_hinge": {"type": "hinge", "stiffness": 0.35, "springref": -0.35, "frictionloss": 0.0, "range": [-0.35, 0.9]}})
+FREE_ROTOR = _inputs("rotor_hinge", {"rotor_hinge": {"type": "hinge", "stiffness": 0.0, "springref": 0.0, "frictionloss": 4.17, "range": [-0.05, 0.05]}}, thr=math.radians(2.0) + 0.05)
 
 
 DOORS = {   # id -> (family, latch, lock, engaged, closer, operator, kinematics)
@@ -57,6 +81,7 @@ DOORS = {   # id -> (family, latch, lock, engaged, closer, operator, kinematics)
     "db0017_hatch_ceiling": ("hatch_ceiling", "none", "none", False, "none", "pull_d", "hinge_horizontal"),
     "db0029_sliding_single": ("sliding_single", "none", "none", False, "none", "pull_d", "slide_horizontal"),
     "db0019_swing_double": ("swing_double", "vertical_rods", "none", False, "lcn_4040", "panic_touchbar_svr", "hinge_vertical"),
+    "db0187_turnstile_fullheight": ("turnstile_fullheight", "none", "mag_lock", True, "none", "turnstile_arm", "rotor"),
 }
 
 
@@ -71,8 +96,10 @@ def make_results(out: str) -> None:
     mj["db0026_swing_single"] = _rec(hold=1.2e-6, curves={"leaf_hinge": _curve(0.0)})
     full["db0026_swing_single"] = _rec(hold=1.571, hold_pass=False, curves={"door_hinge": _curve(1.571, delay=0.0)})
     rl["db0026_swing_single"] = _rec(hold=1.571, hold_pass=False, curves={"door_hinge": _curve(1.571, delay=0.0)})
-    mj["db0036_swing_single"] = _rec(settle=0.0, opened=0.94, open_pass=True, op_travel=0.8, bolt=1.0, release=0.0, closer=0.01)
-    full["db0036_swing_single"] = _rec(settle=0.301, opened=0.002, open_pass=False, op_travel=0.8, bolt=0.0, release=0.0, closer=0.012)
+    mj["db0036_swing_single"] = _rec(settle=0.0, opened=0.94, open_pass=True, op_travel=0.8, bolt=1.0, release=0.0, closer=0.01,
+                                     settle_signed={"leaf_handle_hinge": 0.0}, inputs=SPRUNG_LEVER)
+    full["db0036_swing_single"] = _rec(settle=0.301, opened=0.002, open_pass=False, op_travel=0.8, bolt=0.0, release=0.0, closer=0.012,
+                                       settle_signed={"leaf_handle_hinge": 0.301})
     rl["db0036_swing_single"] = _rec(settle=0.0, opened=0.94, open_pass=True, op_travel=0.79, bolt=0.98, release=0.0, closer=0.011)
     mj["db0012_swing_single"] = _rec(hold=0.6, expected_hold="free_opens", closer=0.01, curves={"leaf_hinge": _curve(1.7)})
     full["db0012_swing_single"] = _rec(hold=0.9, expected_hold="free_opens", closer=0.012, curves={"door_hinge": _curve(1.7)})
@@ -86,6 +113,12 @@ def make_results(out: str) -> None:
     full["db0029_sliding_single"] = {"phases": [{"name": "settle", "status": "pass", "settle_drift": 0.0}, {"name": "free_opens", "pass": False, "expected": "free_opens", "metrics": {"hold_displacement": 0.006, "t_free": None}}],
                                      "metrics": {"is_hinge": False}, "curves": {"door_slide": _curve(0.006)}}
     rl["db0029_sliding_single"] = full["db0029_sliding_single"]
+    # full-height turnstile rotor: no spring anywhere, PhysX blows past the velocity cap and ends 9.4 rad away
+    mj["db0187_turnstile_fullheight"] = _rec(settle=0.0, hold=0.001, settle_signed={"rotor_hinge": 0.0}, settle_extra={"max_v_primary": 0.0, "velocity_cap_hit": False},
+                                             inputs=FREE_ROTOR, is_hinge=True)
+    full["db0187_turnstile_fullheight"] = _rec(settle=9.4036, hold=0.001, settle_signed={"rotor_hinge": 9.4036},
+                                               settle_extra={"max_v_primary": 110506.9, "velocity_cap_hit": True}, is_hinge=True)
+    rl["db0187_turnstile_fullheight"] = _rec(settle=0.0, hold=0.001, settle_signed={"rotor_hinge": 0.0}, settle_extra={"max_v_primary": 0.0, "velocity_cap_hit": False}, is_hinge=True)
     # panic door: full agrees (both hold), rl disagrees (rl opened: welded exit device released) -> RL_CANON
     mj["db0019_swing_double"] = _rec(hold=0.002)
     full["db0019_swing_double"] = _rec(hold=0.0018)
@@ -289,9 +322,9 @@ def test_counts_and_headline(report):
     summary, md = report
     c = summary["counts"]
     assert c["n_doors_total"] == 1000
-    assert c["full"]["tested"] == 8 and c["rl"]["tested"] == 7
+    assert c["full"]["tested"] == 9 and c["rl"]["tested"] == 8
     assert c["full"]["A"] + c["full"]["B"] + c["full"]["C"] + c["full"]["X"] == c["full"]["tested"]
-    assert c["full"]["untested"] == 1000 - 8
+    assert c["full"]["untested"] == 1000 - 9
     assert c["door"]["ok"] + c["door"]["fail"] + c["door"]["untested"] == 1000
     assert "# Isaac parity gate" in md and "## Headline" in md
     assert f"| `full` | {c['full']['tested']} / 1000 | **{c['full']['A']} / 1000**" in md
@@ -357,8 +390,8 @@ def test_merge_idempotent(paths):
     assert by["db0012_swing_single"]["isaac_parity"] == "ok"                     # grade B counts as ok
     assert by["db0033_gate_sliding"]["isaac_parity"] == "fail"                    # load error
     assert by["db0017_hatch_ceiling"]["isaac_parity"] == "untested" and by["db0999_swing_single"]["isaac_parity"] == "untested"
-    # ok: db0005, db0012; fail: db0002, db0026, db0036, db0029, db0019 (rl only), db0033 (load error); untested: db0017, db0999
-    assert man["isaac_parity"]["n_ok"] == 2 and man["isaac_parity"]["n_fail"] == 6 and man["isaac_parity"]["n_untested"] == 2
+    # ok: db0005, db0012; fail: db0002, db0026, db0036, db0029, db0019 (rl only), db0033 (load error), db0187; untested: db0017, db0999
+    assert man["isaac_parity"]["n_ok"] == 2 and man["isaac_parity"]["n_fail"] == 7 and man["isaac_parity"]["n_untested"] == 2
     assert man["n_signed_off"] == 10 and by["db0002_swing_single"]["signed_off"] is True
     # second run: nothing changes; --check agrees
     m_before = open(os.path.join(assets, "manifest.json")).read()

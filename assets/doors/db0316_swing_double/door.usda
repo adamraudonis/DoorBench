@@ -7,9 +7,11 @@
 
 def Xform "db0316_swing_double"
 {
-    custom string doorbench:couplings = '[{"type": "weld", "body1": "leaf_a", "body2": "world", "label": "Maglock w/ REX button inside (fail-safe) (env releases on REX / badge / timer)", "active": true, "note": "breakable weld (maglock): environment logic, see doorbench.benchmark.DoorEnv"}]'
+    custom string doorbench:couplings = '[{"type": "weld", "body1": "leaf_a", "body2": "world", "label": "Maglock w/ REX button inside (fail-safe) (env releases on REX / badge / timer)", "active": true, "joint": "/db0316_swing_double/Articulation/Joints/leaf_a_maglock", "holding_force_N": 2670.0, "note": "breakable FixedJoint (excludeFromArticulation); the environment clears physics:jointEnabled on release"}]'
     custom string doorbench:door_id = "db0316_swing_double"
-    custom string doorbench:meta = '{"door_id": "db0316_swing_double", "family": "swing_double", "task": "unlock_open_traverse", "wall_y": 0.0, "breakable_welds": [{"name": "leaf_a_maglock", "holding_force_N": 2670.0}], "u": -1.0, "v": 1.0, "hinge_x": 1.0715, "leaf_edge_x_local": -1.0699999999999998, "handle_height": 1.016, "primary_joint": "leaf_a_hinge", "operator_joint": null, "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": false, "mass_reconciled_kg": 57.536883759999995, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": 0.10449999999999993, "handle_cam_target": [0.10449999999999993, 0.0, 1.016], "handle_cam_pos": [0.2844999999999999, -0.8, 1.296], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0316_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_b_hinge": "/db0316_swing_double/Articulation/Joints/leaf_b_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = '[{"name": "leaf_a_maglock", "body": "leaf_a", "other": "world", "label": "Maglock w/ REX button inside (fail-safe) (env releases on REX / badge / timer)", "active": true, "holding_force_N": 2670.0, "joint": "/db0316_swing_double/Articulation/Joints/leaf_a_maglock", "joint_name": "leaf_a_maglock", "body_prim": "/db0316_swing_double/Articulation/leaf_a", "base_prim": "/db0316_swing_double/Articulation/base"}]'
+    custom string doorbench:filtered_pairs = "[]"
+    custom string doorbench:meta = '{"door_id": "db0316_swing_double", "family": "swing_double", "task": "unlock_open_traverse", "wall_y": 0.0, "breakable_welds": [{"name": "leaf_a_maglock", "holding_force_N": 2670.0}], "u": -1.0, "v": 1.0, "hinge_x": 1.0715, "leaf_edge_x_local": -1.0699999999999998, "handle_height": 1.016, "primary_joint": "leaf_a_hinge", "operator_joint": null, "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": false, "mass_reconciled_kg": 57.536883759999995, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": 0.10449999999999993, "handle_cam_target": [0.10449999999999993, 0.0, 1.016], "handle_cam_pos": [0.2844999999999999, -0.8, 1.296], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0316_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_b_hinge": "/db0316_swing_double/Articulation/Joints/leaf_b_hinge"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [{"name": "leaf_a_maglock", "body": "leaf_a", "other": "world", "label": "Maglock w/ REX button inside (fail-safe) (env releases on REX / badge / timer)", "active": true, "holding_force_N": 2670.0, "joint": "/db0316_swing_double/Articulation/Joints/leaf_a_maglock", "joint_name": "leaf_a_maglock", "body_prim": "/db0316_swing_double/Articulation/leaf_a", "base_prim": "/db0316_swing_double/Articulation/base"}], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -510,7 +512,7 @@ def Xform "db0316_swing_double"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -616,6 +618,26 @@ def Xform "db0316_swing_double"
                 custom float physxJointAxis:angular:dynamicFrictionEffort = 3.3725054
                 custom float physxJointAxis:angular:staticFrictionEffort = 3.3725054
                 custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
+            }
+
+            def PhysicsFixedJoint "leaf_a_maglock"
+            {
+                custom float doorbench:holding_force_N = 2670
+                custom string doorbench:label = "Maglock w/ REX button inside (fail-safe) (env releases on REX / badge / timer)"
+                custom string doorbench:role = "env_release"
+                custom string doorbench:weld_body = "leaf_a"
+                custom string doorbench:weld_name = "leaf_a_maglock"
+                rel physics:body0 = </db0316_swing_double/Articulation/base>
+                rel physics:body1 = </db0316_swing_double/Articulation/leaf_a>
+                float physics:breakForce = 2670
+                float physics:breakTorque = 2670
+                bool physics:collisionEnabled = 0
+                uniform bool physics:excludeFromArticulation = 1
+                bool physics:jointEnabled = 1
+                point3f physics:localPos0 = (-1.0715, 0, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
             }
         }
 
