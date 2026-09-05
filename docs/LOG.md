@@ -74,6 +74,16 @@ different doors can share one PhysX articulation view. Static validation 1000/10
   `sim._disable_app_control_on_stop_handle` is set. One line per script fixed it. Lesson: when a process is
   "slow" with 0 % GPU and 100 % CPU, get a stack before theorising.
 
+**First real GPU result, and a change of priority (2026-09-05).** With the hang fixed, 40 doors x 2 USD kinds
+validated in 69 s: 80/80 load and match model.json structurally, but 20/40 doors do not open in PhysX under the
+same push that opens them in MuJoCo (both kinds agree), and 6 drift during the settle phase. The training stage
+then crashed on an Isaac Lab v2.3.2 API rename (`dump_pickle`). The owner's call: the GPU's job is to find door
+defects systematically; training is only a way to validate the data. So the next artefact is an *Isaac parity
+gate*: one behavioural protocol (settle, hold, operate + open, release, closer return, limits, sanity) run on
+every door in MuJoCo and in PhysX, compared per door, discrepancies classified into bug classes and fixed at the
+root, results published per door. Built by a scout -> build -> verify workflow rather than hand-written, because
+the mapping between two physics engines has too many failure modes for one pass.
+
 **Working with agents.** Seven parallel Fable agents in git worktrees is productive until the account's usage
 limit hits, which kills all of them at once and twice cost partial work. Rules that now hold: commit early and
 often on the agent branch; the main session owns `TASKS.md`, `README.md`, credentials and merges; agents write
