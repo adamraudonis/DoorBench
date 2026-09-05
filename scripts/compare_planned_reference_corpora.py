@@ -61,14 +61,18 @@ def load_complete(root):
             require(clip['door_id']==audit['door_id']==door and clip.get('complete_proposal') is True and
                     audit.get('accepted') is True and audit.get('kinematic_accepted') is True and
                     audit.get('status')==ACCEPTED and not audit.get('failure_counts') and
-                    audit.get('task_completion',{}).get('evidence_pass') is True,
+                    audit.get('task_completion',{}).get('evidence_pass') is True and
+                    audit.get('task_completion',{}).get('complete_proposal') is True and
+                    all(result.get('new_completion',{}).get(k) is True for k in
+                        ('complete_proposal','artifact_bindings_verified','task_evidence_pass','source_success_declared')),
                     'Claimed accepted result did not pass independent complete task checks')
             require(audit['clip_sha256']==digest(files['clip.json']) and
                     audit['trajectory_sha256']==clip['trajectory_sha256']==digest(files['trajectory.npz']),
                     'Independent acceptance binds different motion bytes')
             require(clip['source_sha256']==audit['source_sha256']==provenance['source_sha256'] and
                     clip['proposal']['source_outcome']==result['source_outcome'] and
-                    result['source_outcome'].get('success') is True and result['source_outcome'].get('outcome')=='success',
+                    result['source_outcome'].get('success') is True and result['source_outcome'].get('outcome')=='success' and
+                    not result['source_outcome'].get('error'),
                     'Accepted motion source outcome or geometry binding differs')
             require(clip['proposal']['scenario']==record['scenario']==audit['task_completion']['scenario'],
                     'Accepted source task differs from checked task')

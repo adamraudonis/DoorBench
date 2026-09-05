@@ -97,3 +97,16 @@ def test_replaced_motion_invalidates_bound_validation(pair):
 def test_unlisted_failure_file_blocks_comparison(pair):
     (pair[1]/'fixture/failure.json').write_text('{}')
     with pytest.raises(ValueError,match='inventory'):compare(*pair)
+
+
+@pytest.mark.parametrize('flag',['complete_proposal','artifact_bindings_verified','task_evidence_pass','source_success_declared'])
+def test_incomplete_result_evidence_cannot_count_as_an_acceptance(pair,flag):
+    p=pair[1]/'fixture/result.json';result=json.loads(p.read_text())
+    result['new_completion'][flag]=False;write(p,result);refresh(pair[1])
+    with pytest.raises(ValueError,match='did not pass independent'):compare(*pair)
+
+
+def test_partial_task_report_cannot_count_as_an_acceptance(pair):
+    p=pair[1]/'fixture/validation.json';audit=json.loads(p.read_text())
+    audit['task_completion']['complete_proposal']=False;write(p,audit);refresh(pair[1])
+    with pytest.raises(ValueError,match='did not pass independent'):compare(*pair)
