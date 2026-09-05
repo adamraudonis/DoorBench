@@ -34,6 +34,9 @@ Rules (each finding carries ``rule``, the named tolerance it broke, and the meas
                       travel is the business of ``checks["linkage_feasibility"]`` / doorbench/linkage_qa.py, which
                       solves the loop's own mechanism joints with least-squares; this is the cheap authored-pose
                       half of the same requirement and needs no solve.)
+  stop_not_struck     Every opening stop the generator builds declares itself in ``meta["stops"]``; at the declared
+                      leaf joint's limit the leaf must actually be ON it (within STOP_STRIKE).  A stop that is
+                      bolted to the wall but that the leaf never touches is decoration, not hardware.
   degenerate_geom     A geom with a zero / near-zero dimension (half-extent below MIN_HALF_EXTENT = 0.2 mm, i.e. a
                       part thinner than 0.4 mm) or a non-finite one: it renders as an invisible sliver and collides
                       as a degenerate shape.
@@ -78,6 +81,8 @@ TOL_EQ = 0.001           # m; a connect/weld equality is authored closed to a mi
 MIN_HALF_EXTENT = 2e-4   # m; the smallest half-extent a real part may have (0.4 mm thick).  The thinnest genuine
 #                          parts in the dataset are 1.2 mm faceplates and 2 mm signs, six times this.
 MESH_MAX_HALF_EXTENT = 3.0   # m; no single mesh part is bigger than a 6 m box (the largest leaves are boxes).
+STOP_STRIKE = 0.003      # m; a stop the leaf never reaches is decoration.  Every opening stop the generator builds
+#                          declares itself in meta["stops"]; at the leaf joint's limit the leaf must be ON it.
 DUP_EPS = 1e-6           # m / rad; two geoms closer than this in size AND pose are the same geom twice.
 SEARCH = 1.5             # m; how far a finding looks to report "the nearest thing is X, that far away".
 
@@ -378,6 +383,38 @@ class Attachment:
                               f"equality {name} pins {self.bname[a]} to {self.bname[b]} but its anchors are "
                               f"{sep * 1000:.1f} mm apart in the shipped pose", body=self.bname[a], equality=name)
 
+    # ---- opening stops: mounted AND struck ---------------------------------------------------------------
+    def check_stops(self, out: list):
+        """Every stop the generator declares in ``meta["stops"]`` must be reached by the leaf at its limit.
+
+        ``static_detached`` already proves the stop is bolted to something; this proves it is not decoration: at the
+        declared leaf joint's maximum the leaf has to be within ``STOP_STRIKE`` of the rubber tip.  (The shipped
+        db0024 bumper was 14 mm clear of the leaf at 90 deg *and* 0.85 m from the nearest wall.)"""
+        m, mujoco = self.m, self.mj
+        moving = [int(g) for g in np.flatnonzero(~self.static)]
+        for st in self.meta.get("stops", []) or []:
+            gname, jn = st.get("geom", ""), st.get("joint", "")
+            gi = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, gname)
+            if gi < 0:
+                self._finding(out, "stop_not_struck", "-", 0.0, None, [gname],
+                              f"meta['stops'] declares {gname} but the model has no such geom")
+                continue
+            q = m.qpos0.copy()
+            j = self.c.jid.get(jn, None)
+            if j is not None:
+                # the declared strike angle, which may be BEYOND the joint's shipped limit (an engaged door chain
+                # shortens the travel; the stop is still correctly installed for the door's opening angle)
+                q[m.jnt_qposadr[j]] = float(st["q"]) if st.get("q") is not None else float(m.jnt_range[j][1])
+            self.d.qpos[:] = self.c.resolve(q)
+            mujoco.mj_forward(m, self.d)
+            dist, i, jj = self._min_dist([gi], moving)
+            if dist > STOP_STRIKE:
+                self._finding(out, "stop_not_struck", "STOP_STRIKE", STOP_STRIKE, dist, [gname],
+                              f"stop {gname} ({st.get('mount')} mount) is {dist * 1000:.1f} mm from the nearest moving part "
+                              f"at {jn} = limit: the leaf never reaches its stop", body=self.bname[int(self.gbody[gi])])
+        self.d.qpos[:] = self.c.resolve(m.qpos0.copy())
+        mujoco.mj_forward(m, self.d)
+
     # ---- rule 5: degenerate content ----------------------------------------------------------------------
     def check_degenerate(self, out: list):
         m, mujoco = self.m, self.mj
@@ -450,6 +487,7 @@ class Attachment:
         self.check_bodies(findings)
         self.check_equalities(findings)
         self.check_motion(findings, n_steps)
+        self.check_stops(findings)
         self.check_degenerate(findings)
         by_rule: Dict[str, int] = {}
         for f in findings:

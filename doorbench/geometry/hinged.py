@@ -598,21 +598,10 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         ex_spec = {**spec, "extras": [e for e in spec["extras"] if e in ("kick_plate", "armor_plate", "bumper_rail", "push_pull_sign", "warning_placard")]}
     C.add_extras(model, world, leaf_body, ex_spec, u, v, x_leaf0, zb, W, Hh, t, Wo, Ho)
     C.add_pet_flap(model, leaf_body, spec, u, x_leaf0, zb, W, t)
-    # wall bumper stop geometry
+    # opening stop hardware: a rubber bumper on a real mount (wall plate or floor riser), struck by the leaf at the limit
     stop = spec["kinematics"].get("stop")
     if stop in ("wall_bumper",) and not pair:
-        bm = C.mat_from_material(model, "rubber", "mat_bumper_stop")
-        ang = math.radians(spec["kinematics"].get("max_open_deg") or 90)
-        # place the bumper face-on against the leaf's swing-side face at max opening (rotation about the actual pin)
-        jp = leaf_body.joint.pos if leaf_body.joint is not None else (u * C.GAP, v * (t / 2 + 0.007), 0.0)
-        r = W * 0.85
-        rel = (x_leaf0 + u * r - jp[0], v * t / 2 - jp[1])
-        phi = u * v * ang
-        c_, s_ = math.cos(phi), math.sin(phi)
-        fx, fy = hx + jp[0] + c_ * rel[0] - s_ * rel[1], jp[1] + s_ * rel[0] + c_ * rel[1]
-        nx, ny = -s_ * v, c_ * v
-        off_b = 0.034 + (0.024 if spec["leaf"]["panel_style"] in ("plank_z_brace", "plank_x_brace", "board_batten") else 0.0)
-        world.geoms.append(C.cyl("wall_bumper_stop", (fx + nx * off_b, fy + ny * off_b, 0.35), 0.025, 0.02, bm, (nx, ny, 0), 1100, True, True, FULL_SIMPLE, "frame", "Wall bumper stop"))
+        C.add_bumper_stop(model, world, leaf_body, spec, u, v, hx, x_leaf0, W, t, Hh, zb)
     # --- sites for benchmark
     world.sites.append(Site("approach_point", (0, -1.5, 0), QUAT_ID, 0.05, "approach"))
     world.sites.append(Site("goal_point", (0, 1.5, 0), QUAT_ID, 0.05, "goal"))

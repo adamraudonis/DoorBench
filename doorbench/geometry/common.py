@@ -14,7 +14,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from ..ir import (Body, Geom, Joint, Site, Material, Equality, Tendon, Model, ALL_TIERS, FULL_ONLY, FULL_SIMPLE,
-                  quat_from_axis_angle, quat_mul, quat_z_to, QUAT_ID, quat_rotate, mat_to_quat)
+                  quat_from_axis_angle, quat_mul, quat_z_to, QUAT_ID, quat_rotate, mat_to_quat, quat_to_mat)
 from .. import materials as M
 from .. import hardware as H
 from ..panels import glazing_layout, raised_panel_layout, louver_slats
@@ -1008,6 +1008,11 @@ def add_paddle_operator(model: Model, leaf_body: Body, spec: dict, op: H.Operato
                                       "site": site_name, "geom": geom_name,
                                       "action": "push" if f == -v else "pull",
                                       "contact_face": "outer" if f == -v else "inner"})
+    # the rocker's hub and neck are one casting clamped on the door-fixed pivot pin: the pin is INSIDE them by design
+    model.meta.setdefault("clearance_allow", []).extend([
+        ["*_paddle_neck_*", "*_paddle_pin_*", "the rocker neck is part of the hub that is clamped on its pivot pin"],
+        ["*_paddle_hub_*", "*_paddle_pin_*", "the pivot pin runs in the hub's bore"],
+    ])
     model.meta.setdefault("paddle_mechanisms", []).append(description)
     return primary
 
@@ -1269,6 +1274,151 @@ def add_touchbar(model: Model, leaf_body: Body, spec: dict, op: H.OperatorModel,
 # ---------------------------------------------------------------------------
 # Closer
 # ---------------------------------------------------------------------------
+def geom_local_aabb(g: Geom):
+    """Axis-aligned bounding box (lo, hi) of a geom in its BODY frame, honouring its quaternion."""
+    R = np.abs(quat_to_mat(np.asarray(g.quat, float)))
+    if g.type == "box":
+        h = np.asarray(g.size[:3], float)
+    elif g.type in ("cylinder", "capsule"):
+        r, hl = float(g.size[0]), float(g.size[1])
+        h = np.array([r, r, hl + (r if g.type == "capsule" else 0.0)])
+    elif g.type == "sphere":
+        h = np.full(3, float(g.size[0]))
+    elif g.type == "mesh" and g.mesh is not None:
+        b = np.asarray(g.mesh.bounds, float)
+        c = (b[0] + b[1]) / 2
+        p = np.asarray(g.pos, float) + quat_to_mat(np.asarray(g.quat, float)) @ c
+        h = R @ ((b[1] - b[0]) / 2)
+        return p - h, p + h
+    else:
+        h = np.full(3, float(max(g.size)) if len(g.size) else 0.0)
+    h = R @ h
+    p = np.asarray(g.pos, float)
+    return p - h, p + h
+
+
+def face_proud(body: Body, v_face: float, half_t: float, x_lo: float, x_hi: float, z_lo: float, z_hi: float) -> float:
+    """How far the parts of ``body`` stand proud of its slab face (local y = v_face * half_t) inside the local
+    window (x_lo..x_hi, z_lo..z_hi).
+
+    Battens, planks and applied mouldings put the real striking surface in front of the slab box; a stop authored
+    against the slab face is then hit by the batten well before the leaf reaches its limit.  The window matters: a
+    continuous hinge stands 17 mm proud of the same face, but it is at the other end of the leaf."""
+    out = 0.0
+    for g in body.geoms:
+        lo, hi = geom_local_aabb(g)
+        if hi[2] < z_lo or lo[2] > z_hi or hi[0] < x_lo or lo[0] > x_hi:
+            continue
+        y = hi[1] if v_face > 0 else -lo[1]
+        out = max(out, float(y) - half_t)
+    return max(0.0, out)
+
+
+def mount_face(world: Body, x: float, z: float, hx: float, hz: float, v: float, default: float = 0.0) -> float:
+    """Distance along +v from the door plane (y = 0) to the frontmost STATIC surface that covers the footprint
+    (x +- hx, z +- hz).
+
+    Anything bolted to the frame - a closer shoe, a stop, a keeper - has to land on the surface that is actually
+    there at that spot, which is the head or jamb face on a plain frame but the casing / architrave face where trim
+    stands proud of it, and neither is at +-wall_thickness/2 because the wall is offset from the door plane
+    (meta["wall_y"]).  Only axis-aligned boxes are considered (every frame member is one)."""
+    best = default
+    for g in world.geoms:
+        if g.type != "box" or abs(float(g.quat[0]) - 1.0) > 1e-9:
+            continue
+        px, py, pz = (float(c) for c in g.pos)
+        sx, sy, sz = (float(s) for s in g.size[:3])
+        if abs(px - x) > sx + hx or abs(pz - z) > sz + hz:
+            continue
+        best = max(best, v * py + sy)
+    return best
+
+
+# ---------------------------------------------------------------------------
+# Opening stop hardware
+# ---------------------------------------------------------------------------
+STOP_TOUCH_GAP = 0.001     # m; the rubber tip is authored this far off the leaf face at the joint limit - the leaf
+#                            arrives ON its stop (a millimetre is invisible and keeps a permanent contact out of the
+#                            solver, which would otherwise sit in every settle / hold test)
+STOP_WALL_REACH = 0.10     # m; the longest wall bumper made (base plate + projecting rubber tip).  A leaf that stops
+#                            further than this from the wall behind it cannot be held by a wall bumper at all - at
+#                            90 deg the leaf stands perpendicular to its own wall and nothing on that wall can touch
+#                            it - so the stop is built as the floor-mounted riser bumper that real doors use there.
+STOP_TIP_R = 0.022         # m; rubber tip radius (44 mm dia, the common commercial bumper)
+STOP_BASE_R = 0.022        # m; base plate radius; never larger than the tip, so the plate cannot reach past the
+#                            leaf face plane and into the swept volume
+STOP_TIP_Z = 0.075         # m; height of a floor riser bumper's centre (a 95 mm stop: 6 mm plate + post + tip)
+
+
+def add_bumper_stop(model: Model, world: Body, leaf_body: Body, spec: dict, u: float, v: float, hx: float,
+                    x0: float, W: float, t: float, Hh: float, zb: float = 0.0):
+    """A rubber bumper stop that is actually mounted on something, and that the leaf actually strikes.
+
+    The leaf's swing-side face at the maximum opening angle is the strike plane.  A ray from the strike point along
+    that face's outward normal is cast at the static geometry: if it lands on a surface within ``STOP_WALL_REACH``
+    the stop is the classic WALL bumper (base plate screwed flat to that surface, rubber tip projecting from it to
+    the leaf).  If it does not - which is every door that stops at 90 deg, because there its leaf stands
+    perpendicular to its own wall - the stop is a FLOOR riser bumper: base plate on the floor, post, rubber tip at
+    bumper height.  Either way the tip's face ends ``STOP_TOUCH_GAP`` from the leaf at the joint limit and nothing
+    hangs in the air.  The strike is recorded in ``meta["stops"]`` and re-verified by the attachment gate."""
+    ang = math.radians(spec["kinematics"].get("max_open_deg") or 90)
+    jp = leaf_body.joint.pos if leaf_body.joint is not None else (u * GAP, v * (t / 2 + LEAF_FACE_INSET), 0.0)
+    wp = body_world_pos(model, leaf_body)
+    r = W * 0.85                                   # along the leaf, near the leading edge (where a stop is fitted)
+    phi = u * v * ang
+    c_, s_ = math.cos(phi), math.sin(phi)
+    nx, ny = -s_ * v, c_ * v                       # outward normal of that face at the maximum opening angle
+
+    def strike(proud: float):
+        """World (x, y) of the leaf's striking surface at the maximum opening angle, ``proud`` m in front of the slab."""
+        rel = (x0 + u * r - jp[0], v * (t / 2 + proud) - jp[1])
+        return (wp[0] + jp[0] + c_ * rel[0] - s_ * rel[1], wp[1] + jp[1] + s_ * rel[0] + c_ * rel[1])
+
+    bm = mat_from_material(model, "rubber", "mat_bumper_stop")
+    sm = mat_from_material(model, "chrome", "mat_stop_base")
+    # --- can a wall bumper reach?  Only if the face normal runs into a static surface within a bumper's length.
+    reach = None
+    z_wall = max(STOP_TIP_Z, min(0.9 * Hh, 0.35))   # wall bumpers sit at door-rail height
+    xs = x0 + u * r                                # local x of the strike point
+    fx, fy = strike(face_proud(leaf_body, v, t / 2, xs - 0.06, xs + 0.06, z_wall - 0.03, z_wall + 0.03))
+    if abs(ny) > 0.2:                              # a nearly parallel ray never lands on a wall in a useful place
+        vd = 1.0 if ny > 0 else -1.0
+        x_hit = fx + nx * (STOP_WALL_REACH * 0.6)
+        d_front = mount_face(world, x_hit, z_wall, 0.03, 0.03, vd, default=-1e9)
+        if d_front > -1e8:
+            L = (vd * d_front - fy) / ny
+            if STOP_TOUCH_GAP + 0.012 < L <= STOP_WALL_REACH:
+                reach = L
+    z_s = STOP_TIP_Z
+    if reach is not None:
+        # wall bumper: base plate flat on the wall, rubber tip projecting from it onto the leaf
+        z_s = z_wall
+        tip_h = (reach - STOP_TOUCH_GAP - 0.006) / 2
+        world.geoms.append(cyl("door_stop_base", (fx + nx * (reach - 0.003), fy + ny * (reach - 0.003), z_s),
+                               0.030, 0.003, sm, (nx, ny, 0), 7850, True, True, FULL_SIMPLE, "frame", "Wall bumper base plate"))
+        world.geoms.append(cyl("door_stop_bumper", (fx + nx * (STOP_TOUCH_GAP + tip_h), fy + ny * (STOP_TOUCH_GAP + tip_h), z_s),
+                               STOP_TIP_R, tip_h, bm, (nx, ny, 0), 1100, True, True, FULL_SIMPLE, "frame", "Wall bumper (rubber tip)"))
+        mount = "wall"
+    else:
+        # floor riser bumper: base plate on the floor, post, rubber tip whose barrel the leaf face strikes
+        # the riser is tall enough that its tip meets the leaf face even when the leaf is held off the ground (a gate)
+        z_s = max(STOP_TIP_Z, zb + 0.06)
+        fx, fy = strike(face_proud(leaf_body, v, t / 2, xs - 0.06, xs + 0.06, z_s - 0.02, z_s + 0.02))
+        bx_, by_ = fx + nx * (STOP_TOUCH_GAP + STOP_TIP_R), fy + ny * (STOP_TOUCH_GAP + STOP_TIP_R)
+        world.geoms.append(cyl("door_stop_base", (bx_, by_, 0.003), STOP_BASE_R, 0.003, sm, (0, 0, 1), 7850, True, True, FULL_SIMPLE, "frame", "Floor stop base plate"))
+        world.geoms.append(cyl("door_stop_post", (bx_, by_, (0.006 + z_s - 0.020) / 2), 0.012, max(0.004, (z_s - 0.020 - 0.006) / 2), sm, (0, 0, 1), 7850, True, True, FULL_SIMPLE, "frame", "Floor stop riser"))
+        world.geoms.append(cyl("door_stop_bumper", (bx_, by_, z_s), STOP_TIP_R, 0.020, bm, (0, 0, 1), 1100, True, True, FULL_SIMPLE, "frame", "Floor stop (rubber bumper)"))
+        mount = "floor"
+    model.meta.setdefault("stops", []).append({"geom": "door_stop_bumper", "joint": leaf_body.joint.name if leaf_body.joint else "",
+                                               "mount": mount, "max_open_deg": spec["kinematics"].get("max_open_deg"),
+                                               # the angle the stop is built for; the joint's own limit can be SHORTER
+                                               # (an engaged door chain), and the stop is still correctly installed
+                                               "q": round(ang, 5), "strike": [round(fx, 4), round(fy, 4), round(z_s, 4)]})
+    model.meta.setdefault("notes", []).append(
+        f"Opening stop: rubber bumper on a {mount} mount; the leaf face strikes its tip at the {spec['kinematics'].get('max_open_deg')} deg limit."
+        + ("" if mount == "wall" else "  A wall bumper cannot reach a leaf that stops perpendicular to its own wall, so the floor riser real doors use there is modelled instead."))
+
+
 def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dict, u: float, v: float, x_hinge_axis: float, Hh: float, t: float, Wo: float, jamb_t: float, tier_full_arms=True):
     cl = H.CLOSERS[spec["closer"]["model"]]
     if cl.kind in ("none", "spring_hinge", "gate", "gas_strut", "pneumatic"):
@@ -1304,11 +1454,26 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
         return
     wt_ = float(spec["opening"]["wall_thickness"])
     Ho_ = float(spec["opening"]["height"])
-    pin_y = v * max(t / 2 + h + 0.01, wt_ / 2 + 0.035)       # pinion clear of the head/casing face
+    # The frame head spans the whole wall depth, so its face on the closer side is where the shoe is screwed on.
+    # The wall is offset from the leaf plane (meta["wall_y"]), so the face is NOT at +-wall_thickness/2 - reading it
+    # off the origin instead put the shoe (and with it the pinion) up to 133 mm out in front of the frame.
+    depth_ = wt_ if spec["opening"]["frame"]["kind"] != "aluminum_storefront" else max(0.114, wt_)
     pin_z = Ho_ + 0.03                                       # arm plane above the head: the leaf swings under it
+    BRK_T = 0.012                                            # m; half thickness of the soffit shoe / mounting plate
+    # the shoe is bolted to the surface that is really there above the opening (head face, or casing where trim
+    # stands proud of it) - taking +-wall_thickness/2 off the origin put it up to 133 mm out in front of the frame
+    face_v = max(t / 2 + 0.005, v * float(model.meta.get("wall_y", 0.0)) + depth_ / 2,
+                 mount_face(world, x_hinge_axis + u * 0.10, pin_z, 0.030, 0.014, v))
+    y_face = v * face_v
+    pin_y = v * max(t / 2 + h / 2, face_v + 0.035)           # pinion inside the closer body, clear of the head/casing face
     leaf_body.geoms.append(cyl("closer_pinion_shaft", (x_p, pin_y, (zc + pin_z) / 2), 0.008, (pin_z - zc) / 2, m, (0, 0, 1), 2700, False, True, FULL_ONLY, "closer", "Pinion shaft"))
-    # shoe on the frame casing face above the opening, 10 cm from the hinge line
-    x_b_rel, y_b = u * 0.10, v * (wt_ / 2 + 0.012 + 0.02)
+    # shoe on the frame casing face above the opening, 10 cm from the hinge line (bolted flat to that face)
+    # A cam-lift leaf raises both arms.  A fixed planar shoe would oppose that rise, so that variant uses a shoe
+    # block sliding in a frame-mounted guide; its pivot then sits one plate thickness further out.
+    rise_coupling = next((e for e in model.equalities if e.kind == "joint"
+                          and e.b == leaf_body.joint.name and e.a.endswith("_rise")), None)
+    x_b_rel = u * 0.10
+    y_b = y_face + v * (0.018 if rise_coupling is not None else BRK_T)
     L1, L2 = 0.28, 0.26
     pfx = "" if leaf_body.name == "leaf" else leaf_body.name + "_"
     arm1 = Body(pfx + "closer_arm_main", leaf_body.name, (x_p, pin_y, pin_z), QUAT_ID, None, [], [], FULL_ONLY, "closer", "Closer main arm")
@@ -1335,12 +1500,8 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
     arm2.quat = tuple(quat_from_axis_angle([0, 0, 1], th2))
     arm2.geoms.append(box("closer_arm_fore_geom", ((L2 - 0.035) / 2, 0, 0), ((L2 - 0.035) / 2, 0.007, 0.004), m, 2700, False, True, FULL_ONLY, "closer", "Forearm"))
     model.add_body(arm2)
-    # A cam-lift leaf raises both arms. A fixed planar shoe would oppose that rise,
-    # so use a vertical shoe in a frame-mounted guide. Its translation is
-    # passive: the connect constraint carries it with the arm, without cancelling
-    # the helical hinge's gravity load or inventing another closing spring.
-    rise_coupling = next((e for e in model.equalities if e.kind == "joint"
-                          and e.b == leaf_body.joint.name and e.a.endswith("_rise")), None)
+    # Its translation is passive: the connect constraint carries the shoe with the arm, without cancelling the
+    # helical hinge's gravity load or inventing another closing spring.
     anchor_body = "world"
     if rise_coupling is not None:
         max_rise = max(0.0, rise_coupling.polycoeff[1] * leaf_body.joint.range[1])
@@ -1361,14 +1522,23 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
         ])
         model.add_body(shoe)
         center_z = pin_z + stroke / 2
-        world.geoms.append(box("closer_bracket", (x_hinge_axis + bx, by - v * 0.014, center_z),
+        # mounting plate flat on the frame face (its back face IS the frame face), shoe block riding on it
+        world.geoms.append(box("closer_bracket", (x_hinge_axis + bx, y_face + v * 0.004, center_z),
                                (0.032, 0.004, stroke / 2 + 0.018), m, 2700, False, True, FULL_ONLY, "closer", "Slotted shoe mounting plate"))
         for side in (-1, 1):
-            world.geoms.append(box(f"closer_shoe_guide_{side:+d}", (x_hinge_axis + bx + side * 0.026, by, center_z),
+            world.geoms.append(box(f"closer_shoe_guide_{side:+d}", (x_hinge_axis + bx + side * 0.026, y_face + v * 0.016, center_z),
                                    (0.006, 0.016, stroke / 2 + 0.018), m, 2700, False, True, FULL_ONLY, "closer", "Shoe guide (0.5 mm running clearance)"))
         model.meta.setdefault("notes", []).append("Cam-lift closer has a passive vertically sliding frame shoe; retaining lips/end caps are not modeled, and hydraulic torque remains the joint-level closer approximation.")
     else:
-        world.geoms.append(box("closer_bracket", (x_hinge_axis + bx, by, pin_z), (0.03, 0.02, 0.012), m, 2700, False, True, FULL_ONLY, "closer", "Closer soffit bracket"))
+        # soffit shoe bolted flat to the frame face; the forearm's pivot pin drops into its bore
+        world.geoms.append(box("closer_bracket", (x_hinge_axis + bx, y_face + v * BRK_T, pin_z), (0.030, BRK_T, 0.014), m, 2700, False, True, FULL_ONLY, "closer", "Closer soffit shoe"))
+        arm2.geoms.append(box("closer_fore_neck", (L2 - 0.0175, 0, 0), (0.0175, 0.003, 0.003), m, 2700, False, True, FULL_ONLY, "closer", "Forearm clevis neck"))
+        arm2.geoms.append(cyl("closer_fore_pivot", (L2, 0, 0), 0.005, 0.012, m, (0, 0, 1), 2700, False, True, FULL_ONLY, "closer", "Shoe pivot pin"))
+        model.meta.setdefault("clearance_allow", []).extend([
+            ["*closer_fore_pivot", "closer_bracket", "pivot pin occupies the soffit shoe's bore"],
+            ["*closer_fore_neck", "closer_bracket", "forearm clevis enters the shoe around its pivot"],
+            ["*closer_arm_fore_geom", "closer_bracket", "forearm reaches into the shoe it is pinned to"],
+        ])
     model.equalities.append(Equality("connect", pfx + "closer_arm_connect", arm2.name, anchor_body, (0, 0, 0, 0, 0), (L2, 0, 0), FULL_ONLY, "Closer forearm pinned to frame shoe"))
     model.contact_excludes += [(arm1.name, leaf_body.name), (arm2.name, leaf_body.name), (arm1.name, arm2.name)]
 
