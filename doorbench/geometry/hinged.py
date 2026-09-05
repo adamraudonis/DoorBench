@@ -1041,6 +1041,15 @@ def build_ship(spec, phys, model: Model):
             rb.joint = Joint(f"linkage_rod_{tag}_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, ROD_TRAVEL), damping=2.0, frictionloss=0.5, role="mechanism", label=f"Dogging push rod ({tag}); 0 = dogged, + = dogs withdrawn (wheel-driven)", robot_interactive=False)
             rb.geoms.append(C.cyl(f"linkage_rod_{tag}_geom", (0, -1.0 * (t / 2 + 0.040), (z_lo + z_hi) / 2), 0.009, (z_hi - z_lo) / 2, mat, (0, 0, 1), 7800, False, True, FULL_SIMPLE, "mechanism", "Dogging push rod"))
             model.add_body(rb)
+            # rod guides bolted to the door: without them the push rod hangs 6 mm off the leaf face with nothing
+            # holding it (the attachment gate only lets that pass on the 12 mm running-fit tolerance).  A real
+            # quick-acting door carries each rod in U-straps between the dogs it drives.
+            # between the dogs, never within one crank sweep (87 mm) of one, and clear of the torque tube
+            zs_g = sorted(zd for _, zd, ed in positions if (ed > 0) == (x_rod > u * (0.004 + W / 2)))
+            guide_z = [(a + b) / 2 for a, b in zip(zs_g, zs_g[1:])]
+            for gi_, zg_ in enumerate(z for z in guide_z if abs(z - z_gear) > 0.075 and min(abs(z - zz) for zz in zs_g) > 0.095):
+                C.add_guide_loop(lb.geoms, f"linkage_rod_{tag}_guide_{gi_}", (x_rod, -1.0 * t / 2, zg_), (0, 0, 1), (0, -1.0, 0),
+                                 0.0, 0.0105, 0.0505, mat, 0.004, 0.016, False, FULL_SIMPLE, "mechanism", "Push rod guide")
             model.equalities.append(Equality("joint", f"wheel_rod_{tag}", rb.joint.name, wb.joint.name, (0, ROD_TRAVEL / wm.travel, 0, 0, 0), tiers=FULL_SIMPLE, label="push rod = wheel * (travel / wheel travel)"))
         lb.geoms.append(C.cyl("linkage_tube", (u * (0.004 + W / 2), -1.0 * (t / 2 + 0.062), z_gear), 0.007, (W - 0.22) / 2, mat, (1, 0, 0), 7800, False, True, FULL_SIMPLE, "mechanism", "Torque tube (gearbox to the stile push rods)"))
     # no decorative rivet where a dog's shaft comes through the plate
