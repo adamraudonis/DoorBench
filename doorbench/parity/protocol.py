@@ -32,9 +32,13 @@ import re
 from typing import Iterable
 
 from .. import hardware as H
-from ..qa import door_flags, push_base, FREE_SWING_FAMILIES, PUSH_BASE_MAX, PUSH_BASE_MIN, PUSH_CAP
+from ..qa import door_flags, push_base, CLOSE_RATE_RAD_S, FREE_SWING_FAMILIES, PUSH_BASE_MAX, PUSH_BASE_MIN, PUSH_CAP
 
-PROTOCOL_VERSION = "1.0"
+PROTOCOL_VERSION = "1.1"
+# 1.1: the relatch closing drive is rate limited (qa.CLOSE_RATE_RAD_S).  Driven flat out it swung a 120 deg leaf
+#      shut at 5.9 rad/s - 12 mm of leaf-edge travel per 2 ms step - and the slab tunnelled through the frame stop,
+#      leaving the latch bolt wedged outside its strike.  The hand now stops pushing once the leaf is already
+#      closing at a human ~1.3 m/s, which is what qa.run_qa does.  Records made at 1.0 used the un-limited drive.
 # Version of the *metric definitions* (``phase_metrics``).  The protocol (schedule, efforts, expectations) is unchanged
 # at 1.0, so records of both versions describe the same experiment - but a metric whose formula changed cannot be
 # compared across the two, and ``compare_door`` refuses to instead of reporting a meaningless delta.
@@ -439,11 +443,14 @@ def phase_initial_state(inputs: dict, phase: str) -> dict:
 # ---------------------------------------------------------------------------
 # per-step drive (pure): efforts by MJCF joint name
 # ---------------------------------------------------------------------------
-def phase_efforts(inputs: dict, phase: str, t: float, q: dict, kind: str = "mjcf") -> dict:
+def phase_efforts(inputs: dict, phase: str, t: float, q: dict, kind: str = "mjcf", qd: dict | None = None) -> dict:
     """Generalized forces (N*m on hinges, N on slides) to apply at simulated time ``t`` (s since the phase start).
 
     ``q``: current joint values by MJCF name (at least the primary joint).  Time comparisons carry a 1e-9 slack so
     that 300 * 0.002 s counts as 0.6 s.
+    ``qd``: current joint RATES by MJCF name.  Only the relatch close needs them - the hand stops pushing once the
+    leaf is already swinging shut at CLOSE_RATE_RAD_S (see PROTOCOL_VERSION 1.1).  A runner that cannot supply
+    rates drives flat out, which is the 1.0 behaviour.
     """
     eps = 1e-9
     F = inputs["forces"]
@@ -470,7 +477,10 @@ def phase_efforts(inputs: dict, phase: str, t: float, q: dict, kind: str = "mjcf
             eff[pj] = F["push"]
     elif phase == "relatch":
         if t < DURATIONS["relatch_close"] - eps:
-            eff[pj] = -F["close_drive"]
+            # rate-limited close: a person stops shoving once the door is already swinging shut, and driving it flat
+            # out tunnels the slab through the frame stop in one step (PROTOCOL_VERSION 1.1)
+            if qd is None or not inputs["is_hinge"] or qd.get(pj, 0.0) > -CLOSE_RATE_RAD_S:
+                eff[pj] = -F["close_drive"]
         elif t < DURATIONS["relatch_close"] + DURATIONS["relatch_push"] - eps:
             eff[pj] = F["push"]
     elif phase == "locked":

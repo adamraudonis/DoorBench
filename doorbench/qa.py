@@ -667,20 +667,20 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
                     checks["latch_returns"] = bool(_q(m, d, bj) < 0.006 or opened < math.radians(3))
                 # relatch: drive closed (only for hinged doors that actually opened)
                 if is_hinge and opened > math.radians(5):
-                    # Close it at a HUMAN closing speed.  The constant closing torque below accelerates a leaf that
-                    # opened 120 deg to ~4.6 rad/s, which is 3 m/s at the leaf edge, i.e. 6 mm of travel per 2 ms
-                    # step: the slab tunnels through the frame stop before the contact solver can react and the
-                    # latch bolt is left wedged against the OUTSIDE of its strike box (measured on db0002: the leaf
-                    # settles 0.54 deg past closed, 6.6 mm inside the stop, with the bolt held 8.4 mm retracted).
-                    # That is an integration artifact, not a latch that failed, so the closing rate is capped at a
-                    # hand's ~1.3 m/s at the leaf edge.  The latch still has to catch and then hold the full QA
-                    # re-push, which is what the check measures.
+                    # Close it at a HUMAN closing speed: the hand keeps pushing only while the leaf is still slower
+                    # than CLOSE_RATE_RAD_S, exactly as a person stops shoving once the door is swinging shut.
+                    # Driven flat out the same torque takes a leaf that opened 120 deg to 5.9 rad/s - 5 m/s at the
+                    # leaf edge, 12 mm of travel per 2 ms step - and the slab then tunnels through the frame stop
+                    # before the contact solver sees it: measured on db0002 the leaf settles 0.54 deg PAST closed,
+                    # 6.6 mm inside the stop, with the latch bolt wedged 8.4 mm retracted against the outside of
+                    # its strike box.  That is an integration artifact, not a latch that failed.  The latch still
+                    # has to catch and then hold the full QA re-push, which is what the check measures.
+                    close = min(0.5 * push, 1.5 * (bias + fl + preload) + 40.0)
                     for _ in range(3000):
                         d.qfrc_applied[:] = 0
-                        d.qfrc_applied[m.jnt_dofadr[pj]] = -min(0.5 * push, 1.5 * (bias + fl + preload) + 40.0)
+                        if d.qvel[m.jnt_dofadr[pj]] > -CLOSE_RATE_RAD_S:
+                            d.qfrc_applied[m.jnt_dofadr[pj]] = -close
                         mujoco.mj_step(m, d)
-                        if d.qvel[m.jnt_dofadr[pj]] < -CLOSE_RATE_RAD_S:
-                            d.qvel[m.jnt_dofadr[pj]] = -CLOSE_RATE_RAD_S
                     closed = _q(m, d, pj)
                     for _ in range(500):
                         d.qfrc_applied[:] = 0

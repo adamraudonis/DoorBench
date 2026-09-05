@@ -600,9 +600,10 @@ class DoorHandle:
         art = self.art
         q, v = self.state(step)
         qm = self.qmap(q)
-        eff = P.phase_efforts(self.inputs, phase, t, qm, kind=self.pkind) if active else {}
+        vm = {n: float(v[i]) for n, i in self.map.items()}
+        eff = P.phase_efforts(self.inputs, phase, t, qm, kind=self.pkind, qd=vm) if active else {}
         if self.servo:
-            for n, f in P.servo_effort(self.inputs, qm, {n: float(v[i]) for n, i in self.map.items()}).items():
+            for n, f in P.servo_effort(self.inputs, qm, vm).items():
                 if n not in self.servo_in_drive:          # spring-less servo joints: the PhysX drive already is the servo
                     eff[n] = eff.get(n, 0.0) + f
         effort = self._effort

@@ -125,7 +125,8 @@ class MujocoDoor:
         for k in range(n_steps):
             t = k * self.dt
             q = self._qmap()
-            eff = P.phase_efforts(inputs, phase, t, q, kind="mjcf")
+            qd = {n: float(d.qvel[a]) for n, a in self.dadr.items()}
+            eff = P.phase_efforts(inputs, phase, t, q, kind="mjcf", qd=qd)
             self._apply(eff)
             if pins:
                 for n, v in pins.items():
