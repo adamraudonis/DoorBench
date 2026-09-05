@@ -7,7 +7,7 @@ import { FAMILY_LABELS } from "./types";
 import { buildScene, type BuiltScene, type JointHandle } from "./scene";
 import { buildEvaluationOverlay, type EvalOverlay } from "./evaluation";
 import { GLOSSARY, REWARD_LABELS, type GlossaryEntry } from "./glossary";
-import { activeLeaf, isLocked, isSwingPair, openClosePhases, parsePoseQuery, sliderReaction, type Phase } from "./doorLogic";
+import { activeLeaf, isLocked, isSwingPair, openClosePhases, operatorJoints, operatorsAreIndividual, parsePoseQuery, sliderReaction, type Phase } from "./doorLogic";
 import { ASSETS } from "./App";
 import { BaselineBadges } from "./ResultBadges";
 import { AppearancePanel } from "./Appearance";
@@ -391,6 +391,10 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
   const opLeaf = model ? activeLeaf(model) : undefined;
   const primaryH = opLeaf ? built.current?.joints.get(opLeaf) : undefined;
   const opH = operator ? built.current?.joints.get(operator) : undefined;
+  // every operator the robot has to work: a watertight door has one lever per dog, a blast door one per lever bolt
+  const opNames = model ? operatorJoints(model) : [];
+  const opSet = new Set(opNames);
+  const individualOps = !!model && operatorsAreIndividual(model);
 
   const animate = (joint: string | undefined, to: number) => {
     const b = built.current;
@@ -399,6 +403,17 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
     if (!h) return;
     pauseReference();
     queue.current = [{ joint, from: h.q, to, dur: 900 }];
+  };
+
+  /** "Actuate operator(s)": works EVERY operator, one after another for independent latches (dogs, lever bolts). */
+  const actuateOperators = () => {
+    const b = built.current;
+    if (!b || !opNames.length) return;
+    pauseReference();
+    const hs = opNames.map((n) => b.joints.get(n)).filter(Boolean) as typeof opH[];
+    const engaged = hs.some((h) => !!h && !!h.range && h.q < (h.range[0] + h.range[1]) / 2);
+    const dur = hs.length > 1 ? Math.max(220, Math.round(1400 / hs.length)) : 900;
+    queue.current = hs.map((h) => ({ joint: h!.name, from: h!.q, to: h!.range ? (engaged ? h!.range[1] : h!.range[0]) : h!.q + 1, dur }));
   };
 
   /** Kinematic mechanism preview: work each operator, move the free leaves, release. */
@@ -418,7 +433,8 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
     queue.current = [];
     const r = sliderReaction(model, b.joints, h.name, q);
     if (r.blocked) { if (r.note) toast(r.note); return; }
-    if (r.operatorTo != null && r.operator) b.setJoint(r.operator, r.operatorTo);
+    if (r.operatorsTo.length) for (const o of r.operatorsTo) b.setJoint(o.joint, o.q);
+    else if (r.operatorTo != null && r.operator) b.setJoint(r.operator, r.operatorTo);
     b.setJoint(h.name, q);
     if (r.mirror) b.setJoint(r.mirror.joint, r.mirror.q);
     if (r.note) toast(r.note);
@@ -471,8 +487,8 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
       <div className="viewport">
         <div className="scene-mount" ref={mountRef} />
         <div className="hud">
-          {primaryH && <button className="primary" onClick={openClose} title="Kinematic mechanism preview: retracts each leaf's latch, moves the free leaves, and releases the operators. Secured leaves stay locked.">{model && isSwingPair(model) ? "Open / close pair" : "Open / close door"}</button>}
-          {opH && <button onClick={() => animate(operator, opH.range ? (opH.q > (opH.range[0] + opH.range[1]) / 2 ? opH.range[0] : opH.range[1]) : opH.q + 1)}>Actuate operator</button>}
+          {primaryH && <button className="primary" onClick={openClose} title={individualOps ? `Releases all ${opNames.length} latches one by one (the leaf is held while any one of them is engaged), moves the leaf, re-engages them` : "Kinematic mechanism preview: retracts each leaf's latch, moves the free leaves, and releases the operators. Secured leaves stay locked."}>{model && isSwingPair(model) ? "Open / close pair" : "Open / close door"}</button>}
+          {opH && <button onClick={actuateOperators} title={individualOps ? opNames.join(", ") : operator}>{individualOps ? `Actuate all ${opNames.length} operators` : "Actuate operator"}</button>}
           <button onClick={() => { pauseReference(); const b = built.current; queue.current = []; if (b) { for (const h of b.joints.values()) b.setJoint(h.name, h.modeledAt); b.solveLoops(); } force((x) => x + 1); }}>Reset</button>
           <button className={diagnostic ? "active" : ""} aria-pressed={diagnostic} title="Brown door, gold mechanisms, neutral surroundings; glass remains transparent" onClick={() => setDiagnostic(v=>!v)}>Mechanism contrast</button>
           <button onClick={() => setShowEnv((v) => !v)}>{showEnv ? "Hide" : "Show"} walls</button>
@@ -542,7 +558,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
         <h3>Joints</h3>
         {joints.map((h) => (
           <div className="joint" key={h.name}>
-            <div className="lbl"><span className="name" title={h.loopSolved ? "solved by the closed-loop linkage: follows the door, not user-driven" : h.label}>{h.name}{h.name === primary ? " ★" : ""}{h.loopSolved ? " (linkage)" : !h.interactive ? " (driven)" : ""}{isLocked(h) && h.role === "operator" ? " 🔒" : ""}</span><span className="val">{h.type === "hinge" ? `${(h.q * 180 / Math.PI).toFixed(1)}°` : `${(h.q * 1000).toFixed(1)} mm`}</span></div>
+            <div className="lbl"><span className="name" title={h.loopSolved ? "solved by the closed-loop linkage: follows the door, not user-driven" : opSet.has(h.name) && individualOps ? `operator ${opNames.indexOf(h.name) + 1} of ${opNames.length}: the leaf is held until every one of them is released — ${h.label}` : h.label}>{h.name}{h.name === primary ? " ★" : ""}{opSet.has(h.name) && opNames.length > 1 ? ` ⚙${opNames.indexOf(h.name) + 1}` : ""}{h.loopSolved ? " (linkage)" : !h.interactive ? " (driven)" : ""}{isLocked(h) && h.role === "operator" ? " 🔒" : ""}</span><span className="val">{h.type === "hinge" ? `${(h.q * 180 / Math.PI).toFixed(1)}°` : `${(h.q * 1000).toFixed(1)} mm`}</span></div>
             <input type="range" min={h.range ? h.range[0] : -3.14} max={h.range ? h.range[1] : 3.14} step="any" value={h.q} aria-label={h.label || h.name} disabled={h.loopSolved}
               onChange={(e) => onSlider(h, parseFloat(e.target.value))} />
             <div style={{ fontSize: 11, color: "var(--muted)" }}>{h.label}</div>

@@ -20,6 +20,31 @@ def _uv(spec):
     return u, v
 
 
+# top of the sill / threshold the floor strike of a bottom shoot bolt stands on
+FLOOR_STRIKE_TOP = {"none": 0.0, "saddle": 0.013, "sill": 0.013, "sill_step": 0.045, "coaming": 0.0}
+# m; a retracted bottom shoot bolt has to clear a 25 mm floor dome stop, so it pulls up into its rod housing rather
+# than stopping flush with the leaf's bottom edge (which is how a cremone / SVR rod end actually retracts)
+FLOOR_RETRACT_Z = 0.030
+
+
+def bottom_shoot_bolt(spec) -> bool:
+    """True when this door's mechanism drives a bolt DOWN into the floor as well as up into the head: a cremone /
+    espagnolette knob (top and bottom rods off one gearbox) and a surface vertical rod exit device."""
+    return H.OPERATORS[spec["operator"]["model"]].kind == "cremone" or H.LATCHES[spec["latch"]["model"]].kind == "vertical_rods"
+
+
+def add_floor_strike(world, name: str, X: float, Y: float, sx: float, r: float, zb: float, z_base: float, mat) -> None:
+    """Surface floor strike for a bottom shoot bolt: a plate on the sill and three walls around the bolt.  The two
+    walls across the swing are what actually holds the leaf; the third closes the socket toward the leaf edge."""
+    top = zb - 0.003
+    h = max(0.004, (top - z_base - 0.0015) / 2)
+    zc = z_base + 0.0015 + h
+    world.geoms.append(C.box(f"{name}_plate", (X, Y, z_base + 0.00075), (r + 0.016, r + 0.016, 0.00075), mat, 7850, True, True, ALL_TIERS, "lock", "Floor strike plate"))
+    for s_, tag in ((1.0, "p"), (-1.0, "n")):
+        world.geoms.append(C.box(f"{name}_{tag}", (X, Y + s_ * (r + 0.005), zc), (r + 0.012, 0.004, h), mat, 7850, True, True, ALL_TIERS, "lock", "Floor socket wall"))
+    world.geoms.append(C.box(f"{name}_e", (X + sx * (r + 0.005), Y, zc), (0.004, r + 0.012, h), mat, 7850, True, True, ALL_TIERS, "lock", "Floor socket wall"))
+
+
 def hinge_joint(spec, phys, u, v, y_pin, name="door_hinge", both_ways=False, max_open_deg=None, tilt_deg=0.0, axis_override=None):
     kin = spec["kinematics"]
     mo = math.radians(max_open_deg if max_open_deg is not None else (kin.get("max_open_deg") or 90))
@@ -109,6 +134,16 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
             zb = max(zb, 0.017 if op.get("threshold") != "sill_step" else 0.045)
         else:
             zb = max(0.005, min(zb, Ho - Hh - 0.004))
+        if zb + Hh > Ho - 0.004:
+            Hh = Ho - 0.004 - zb
+            leaf = {**leaf, "height": Hh}
+    # A cremone / espagnolette knob and a surface vertical rod device shoot a bolt DOWN into a floor strike, so the
+    # leaf has to clear that strike: undercut = strike top + 16 mm.  Without it the bottom rod is a decoration - it
+    # was drawn on both mechanisms and latched nothing (the cremone knob threw only its head bolt, the SVR device
+    # only its top latch).
+    z_strike = FLOOR_STRIKE_TOP.get(op.get("threshold", "none"), 0.0) if bottom_shoot_bolt(spec) else None
+    if z_strike is not None and not op.get("outdoor"):
+        zb = max(zb, z_strike + 0.016)
         if zb + Hh > Ho - 0.004:
             Hh = Ho - 0.004 - zb
             leaf = {**leaf, "height": Hh}
@@ -242,6 +277,17 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
             model.equalities.append(Equality("joint", f"{leaf_name}_cremone_couple", sbolt.joint.name, hb.joint.name, (0, 0.02 / max(opm.travel, 1e-6), 0, 0, 0), tiers=FULL_SIMPLE, label="shoot bolt = knob * 0.02/travel"))
             model.meta.setdefault("clearance_allow", []).append([f"{leaf_name}_cremone_rod_up", f"{leaf_name}_cremone_top_bolt_geom", "the shoot bolt is the end of the rod"])
             head_pockets.append({"x": hx + x_r, "hx": 0.010, "w": 0.015, "depth": 0.026, "y": y_r})
+            # the DOWN rod ends in a shoot bolt too - a cremone/espagnolette is a two-point lock, and the down rod used
+            # to be a cylinder that latched nothing
+            z_base, z_ret = FLOOR_STRIKE_TOP.get(op.get("threshold", "none"), 0.0), max(zb, FLOOR_RETRACT_Z)
+            throw_b = max(0.006, z_ret - z_base - 0.004)
+            bbolt = Body(f"{leaf_name}_cremone_bottom_bolt", leaf_body.name, (x_r, y_r, z_ret), QUAT_ID, None, [], [], FULL_SIMPLE, "lock", "Cremone shoot bolt (bottom)")
+            bbolt.joint = Joint(f"{leaf_name}_cremone_bottom_bolt_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, throw_b), damping=2.0, frictionloss=0.5, role="lock", label="Shoot bolt (0 = thrown into the floor strike, + = retracted)", robot_interactive=False)
+            bbolt.geoms.append(C.box(f"{leaf_name}_cremone_bottom_bolt_geom", (0, 0, 0.03 - throw_b), (0.007, 0.007, 0.03), cm_, 7850, True, True, FULL_SIMPLE, "lock", "Shoot bolt"))
+            model.add_body(bbolt)
+            model.equalities.append(Equality("joint", f"{leaf_name}_cremone_bottom_couple", bbolt.joint.name, hb.joint.name, (0, throw_b / max(opm.travel, 1e-6), 0, 0, 0), tiers=FULL_SIMPLE, label="shoot bolt = knob * throw/travel"))
+            model.meta.setdefault("clearance_allow", []).append([f"{leaf_name}_cremone_rod_down", f"{leaf_name}_cremone_bottom_bolt_geom", "the shoot bolt is the end of the rod"])
+            add_floor_strike(world, f"{leaf_name}_cremone_floor_strike", hx + x_r, y_r, u, 0.007, zb, z_base, cm_)
     if lk.kind == "keypad_code" and not pair:
         # keypad / pushbutton unit above the handle on the outside face, whatever the operator
         z_min = None
@@ -467,6 +513,17 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         model.tendons.append(Tendon(f"{leaf_name}_top_latch_coupling", [(rb.joint.name, 1.0), (handle_joint, -scale)], (0.0, 10.0), tiers=ALL_TIERS, label="rod_q >= scale*bar_q (one-sided)"))
         model.tendons[-1].kind = "fixed"
         head_pockets.append({"x": hx + x_edge - u * 0.06, "hx": bw / 2 + 0.004, "w": bw + 0.003, "depth": rl.throw + 0.004})
+        # BOTTOM rod latch: a 9927 SVR is a two-point device and the bottom rod was drawn but latched nothing.  Same
+        # spring, same one-sided coupling to the bar, dropping into a floor strike instead of a head pocket.
+        z_base, z_ret = FLOOR_STRIKE_TOP.get(op.get("threshold", "none"), 0.0), max(zb, FLOOR_RETRACT_Z)
+        throw_b = max(0.006, z_ret - z_base - 0.004)
+        bb = Body(f"{leaf_name}_bottom_latch", leaf_body.name, (x_edge - u * 0.06, 0.0, z_ret), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Bottom rod latch")
+        bb.joint = Joint(f"{leaf_name}_bottom_latch_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, throw_b), damping=2.0, frictionloss=0.3, stiffness=rl.spring_rate, springref=-rl.spring_preload / rl.spring_rate, armature=1e-4, role="latch", label="Bottom rod latch (0 = extended down, + = retracted)", robot_interactive=False)
+        bb.geoms.append(Geom(f"{leaf_name}_bottom_latch_capsule", "capsule", (r, (throw_b + inside_) / 2 - r), (0, 0, (inside_ - throw_b) / 2), (1, 0, 0, 0), bm, True, True, 8500.0, None, (0.2, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "latch", "Bottom rod bolt"))
+        model.add_body(bb)
+        model.tendons.append(Tendon(f"{leaf_name}_bottom_latch_coupling", [(bb.joint.name, 1.0), (handle_joint, -scale * throw_b / max(rl.throw, 1e-6))], (0.0, 10.0), tiers=ALL_TIERS, label="rod_q >= scale*bar_q (one-sided)"))
+        model.tendons[-1].kind = "fixed"
+        add_floor_strike(world, f"{leaf_name}_bottom_strike", hx + x_edge - u * 0.06, 0.0, u, r, zb, z_base, bm)
     elif lt.kind == "gravity_bar" and opm.kind == "ring_pull":
         # latch bar lifted by... nothing on robot side except the ring; the bar is on the far side -> robot side must lift via a thumb? Use a simple gravity bar with a lift knob through the door.
         pass
@@ -853,8 +910,26 @@ def build_ship(spec, phys, model: Model):
     gm = C.mat_from_material(model, "rubber", "mat_gasket")
     for nm_, cx_, cz_, hx_, hz__ in (("l", u * 0.014, 0.004 + Hh / 2, 0.01, Hh / 2 - 0.01), ("r", u * (0.004 + W - 0.01), 0.004 + Hh / 2, 0.01, Hh / 2 - 0.01), ("b", u * (0.004 + W / 2), 0.014, W / 2 - 0.01, 0.01), ("t", u * (0.004 + W / 2), 0.004 + Hh - 0.01, W / 2 - 0.01, 0.01)):
         lb.geoms.append(C.box(f"gasket_{nm_}", (cx_, -v * (t / 2 + 0.004), cz_), (hx_, 0.004, hz__), gm, 1100, False, True, FULL_SIMPLE, "seal", "Knife-edge gasket"))
-    # dogs
+    # ---- dogs.  A watertight door is held shut by N wedge dogs, never by one: every dog swings a wedge into a cleat
+    # on the frame and the leaf cannot open while ANY of them is still dogged.  Two mechanisms, both modelled:
+    #   dog_lever          individually dogged: each dog carries its own lever and IS an operator - the robot must
+    #                      turn all of them (meta["operator_joints"], coupling "individual"; gate all_latches_release).
+    #   wheel_ship_hatch   quick-acting: one central handwheel drives every dog at once through a real coupling
+    #                      (a joint equality per dog) and a visible linkage - a gearbox under the wheel, a torque tube
+    #                      out to each stile, a push rod along each stile that translates as the wheel turns, and a
+    #                      crank on every dog riding that rod (coupling "coupled").
+    #
+    # The cleat is a SLOT, not a shelf: a 0.5 mm lip in front of the wedge and another behind it, which is what a
+    # dogged watertight door actually is (the wedge is driven metal-to-metal so the gasket stays compressed).  It used
+    # to be a single lip 3 mm clear of the wedge, and 3 mm of slop is the difference between a latch and a decoration
+    # on the hinge-stile dogs: the leaf hinge pin sits 30 mm outboard of the hinge edge, so a hinge-stile wedge is only
+    # 34 mm from the pin and needs 5 deg of leaf rotation to take up 3 mm - by then the leaf is moving, the wedge/cleat
+    # interference peaks at 8 mm and is gone past 55 deg, and 4 of the 6 individually dogged doors swung 103-133 deg
+    # with a hinge-stile dog still engaged (the other 2 stalled at 5.5 deg; which way it went was decided by leaf mass
+    # against contact softness, not by the mechanism).  At 0.5 mm the wedge bites within a degree and every dog holds.
+    # Lock-vs-lock pairs are allowed to touch by clearance.required_gap, so the tight slot costs no running clearance.
     n_dogs = spec["kinematics"].get("dogs", 0)
+    wheel_dogging = bool(spec["kinematics"].get("wheel_dogging"))
     opm = H.OPERATORS[spec["operator"]["model"]]
     mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
     dog_joints = []
@@ -863,46 +938,64 @@ def build_ship(spec, phys, model: Model):
         per_side = max(1, n_dogs // 2)
         for k in range(per_side):
             z = 0.2 + (Hh - 0.4) * (k + 0.5) / per_side
-            positions.append((u * (0.004 + W - 0.06), z, u))      # latch edge dogs
-            positions.append((u * (0.004 + 0.06), z, -u))         # hinge edge dogs
+            positions.append((u * (0.004 + W - 0.06), z, u))      # closing stile dogs
+            positions.append((u * (0.004 + 0.06), z, -u))         # hinge stile dogs
         positions = positions[:n_dogs]
+    wb = None
+    ROD_TRAVEL = 0.05                                             # m of push-rod travel over the wheel's full turn
+    DOG_FIT = 0.0005                                              # m of slop between a dogged wedge and its cleat
+    if wheel_dogging:
+        wm = H.OPERATORS["wheel_ship_hatch"]
+        wb = C.add_rotary_operator(model, lb, spec, phys, wm, u, v, u * (0.004 + W / 2), Hh / 2, t, [-1.0, 1.0], None, name="wheel")
+        model.meta["operator_joint"] = wb.joint.name
     for k, (xd, zd, edge_dir) in enumerate(positions):
         d = Body(f"dog_{k}", lb.name, (xd, 0, zd), QUAT_ID, None, [], [], ALL_TIERS, "lock", f"Dog {k + 1}")
-        d.joint = Joint(f"dog_{k}_hinge", "hinge", (0, -edge_dir * u, 0), (0, 0, 0), (0.0, 1.5708), damping=0.5, frictionloss=1.5, role="lock", label=f"Dog {k + 1} (0 = dogged, + = released)")
-        # lever on robot face (-1), wedge beyond edge
-        key, mesh = MESH.lever_mesh(shape="dog", length=0.22, diameter=0.025, rose_diameter=0.06, standoff=0.05)
-        d.geoms.append(C.mesh_geom(f"dog_{k}_lever", key, mesh, (0, -1.0 * (t / 2 + 0.009), 0), C.q_face(-1.0, edge_dir), mat, 7800, False, ALL_TIERS, "operator", "Dog lever"))
-        d.geoms.append(Geom(f"dog_{k}_lever_col", "capsule", (0.0125, 0.10), (-edge_dir * 0.11, -1.0 * (t / 2 + 0.05), 0), tuple(quat_z_to((1, 0, 0))), mat, True, False, 7800, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Dog lever grip"))
-        d.sites.append(Site(f"dog_{k}_grip", (-edge_dir * 0.18, -1.0 * (t / 2 + 0.05), 0), QUAT_ID, 0.012, "grip"))
+        d.joint = Joint(f"dog_{k}_hinge", "hinge", (0, -edge_dir * u, 0), (0, 0, 0), (0.0, 1.5708), damping=0.5,
+                        frictionloss=0.5 if wheel_dogging else 1.5, role="lock",
+                        label=(f"Dog {k + 1} (wheel-driven)" if wheel_dogging else f"Dog {k + 1} (0 = dogged, + = released)"),
+                        robot_interactive=not wheel_dogging)
+        if wheel_dogging:
+            # crank riding the stile push rod: the visible link between the linkage and this dog
+            d.geoms.append(C.cyl(f"dog_{k}_rod_crank", (-edge_dir * 0.04, -1.0 * (t / 2 + 0.020), 0), 0.007, 0.04, mat, (1, 0, 0), 7800, False, True, FULL_SIMPLE, "mechanism", "Dog crank (driven by the push rod)"))
+        else:
+            # lever on robot face (-1), wedge beyond edge
+            key, mesh = MESH.lever_mesh(shape="dog", length=0.22, diameter=0.025, rose_diameter=0.06, standoff=0.05)
+            d.geoms.append(C.mesh_geom(f"dog_{k}_lever", key, mesh, (0, -1.0 * (t / 2 + 0.009), 0), C.q_face(-1.0, edge_dir), mat, 7800, False, ALL_TIERS, "operator", "Dog lever"))
+            d.geoms.append(Geom(f"dog_{k}_lever_col", "capsule", (0.0125, 0.10), (-edge_dir * 0.11, -1.0 * (t / 2 + 0.05), 0), tuple(quat_z_to((1, 0, 0))), mat, True, False, 7800, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Dog lever grip"))
+            d.sites.append(Site(f"dog_{k}_grip", (-edge_dir * 0.18, -1.0 * (t / 2 + 0.05), 0), QUAT_ID, 0.012, "grip"))
         # wedge: box protruding beyond the leaf edge over the flange when dogged (pointing +edge_dir), lying on the -v face plane
         wy = t / 2 + 0.034
         d.geoms.append(C.box(f"dog_{k}_wedge", (edge_dir * 0.06, -v * wy, 0), (0.05, 0.012, 0.02), mat, 7800, True, True, ALL_TIERS, "lock", "Dog wedge"))
         _dog_shaft(d, mat, t, v, edge_dir)
         model.add_body(d)
         dog_joints.append(d.joint.name)
-        # frame cleat: block on the +v side of the wedge so the door can't open while dogged
+        if wheel_dogging and wb is not None:
+            model.equalities.append(Equality("joint", f"wheel_dog_{k}", d.joint.name, wb.joint.name, (0, 1.5708 / wm.travel, 0, 0, 0), tiers=ALL_TIERS, label="dog = wheel * (90deg / wheel travel)"))
+        # frame cleat: a slot the wedge drives into - inner jaw on the +v side (the leaf cannot open), outer jaw on the
+        # -v side (a wedge on the far side of the hinge pin cannot lift out), base and outboard bridge behind them
         cx = hx + xd + edge_dir * 0.08
-        world.geoms.append(C.box(f"cleat_{k}", (cx + edge_dir * 0.0075, -v * (wy - 0.012 - 0.005 - 0.003), zd + sill), (0.0275, 0.005, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Dog cleat"))
-        world.geoms.append(C.box(f"cleat_{k}_base", (cx + edge_dir * 0.0225, -v * (wy + 0.036), zd + sill), (0.0425, 0.018, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat base (welded to its bridge)"))
-        world.geoms.append(C.box(f"cleat_{k}_bridge", (cx + edge_dir * 0.043, -v * (wy + 0.008), zd + sill), (0.008, 0.03, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat bridge (welded to the cleat)"))
-    if spec["kinematics"].get("wheel_dogging"):
-        wm = H.OPERATORS["wheel_ship_hatch"]
-        wb = C.add_rotary_operator(model, lb, spec, phys, wm, u, v, u * (0.004 + W / 2), Hh / 2, t, [-1.0, 1.0], None, name="wheel")
-        # wheel drives 4 dogs (auto-created) if no explicit dogs
-        if not positions:
-            for k, (xd, zd, edge_dir) in enumerate([(u * (0.004 + W - 0.05), Hh * 0.25, u), (u * (0.004 + W - 0.05), Hh * 0.75, u), (u * 0.05, Hh * 0.25, -u), (u * 0.05, Hh * 0.75, -u)]):
-                d = Body(f"dog_{k}", lb.name, (xd, 0, zd), QUAT_ID, None, [], [], ALL_TIERS, "lock", f"Dog {k + 1}")
-                d.joint = Joint(f"dog_{k}_hinge", "hinge", (0, -edge_dir * u, 0), (0, 0, 0), (0.0, 1.5708), damping=0.5, frictionloss=0.5, role="lock", label=f"Dog {k + 1} (wheel-driven)", robot_interactive=False)
-                wy = t / 2 + 0.034
-                d.geoms.append(C.box(f"dog_{k}_wedge", (edge_dir * 0.06, -v * wy, 0), (0.05, 0.012, 0.02), mat, 7800, True, True, ALL_TIERS, "lock", "Dog wedge"))
-                _dog_shaft(d, mat, t, v, edge_dir)
-                model.add_body(d)
-                cx = hx + xd + edge_dir * 0.08
-                world.geoms.append(C.box(f"cleat_{k}", (cx + edge_dir * 0.0075, -v * (wy - 0.012 - 0.005 - 0.003), zd + sill), (0.0275, 0.005, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Dog cleat"))
-                world.geoms.append(C.box(f"cleat_{k}_base", (cx + edge_dir * 0.0225, -v * (wy + 0.036), zd + sill), (0.0425, 0.018, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat base (welded to its bridge)"))
-                world.geoms.append(C.box(f"cleat_{k}_bridge", (cx + edge_dir * 0.043, -v * (wy + 0.008), zd + sill), (0.008, 0.03, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat bridge (welded to the cleat)"))
-                model.equalities.append(Equality("joint", f"wheel_dog_{k}", d.joint.name, wb.joint.name, (0, 1.5708 / wm.travel, 0, 0, 0), tiers=ALL_TIERS, label="dog = wheel * (90deg / wheel travel)"))
-        model.meta["operator_joint"] = wb.joint.name
+        # The base and the bridge are sized so the whole cleat is ONE welded lump reaching the frame flange
+        # (fix-floating): the jaws run out to cx+edge*0.035, the bridge picks them up there and runs back in
+        # depth to the flange face, and the base sits on the bridge.  Nothing here floats.
+        world.geoms.append(C.box(f"cleat_{k}", (cx + edge_dir * 0.0075, -v * (wy - 0.012 - 0.005 - DOG_FIT), zd + sill), (0.0275, 0.005, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Dog cleat (inner jaw)"))
+        world.geoms.append(C.box(f"cleat_{k}_outer", (cx + edge_dir * 0.0075, -v * (wy + 0.012 + 0.005 + DOG_FIT), zd + sill), (0.0275, 0.005, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Dog cleat (outer jaw)"))
+        world.geoms.append(C.box(f"cleat_{k}_base", (cx + edge_dir * 0.0225, -v * (wy + 0.046), zd + sill), (0.0425, 0.018, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat base (welded to its bridge)"))
+        world.geoms.append(C.box(f"cleat_{k}_bridge", (cx + edge_dir * 0.043, -v * (wy + 0.019), zd + sill), (0.008, 0.041, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat bridge (welded to the cleat and the frame flange)"))
+    if wheel_dogging and wb is not None and positions:
+        # visible quick-acting linkage: gearbox below the wheel, a torque tube out to both stiles, a push rod along
+        # each stile translating with the wheel (joint equality); every dog's crank rides its rod, so turning the one
+        # handwheel visibly retracts every dog at once.
+        z_gear = max(0.14, Hh / 2 - 0.26)
+        zs = [zd for _, zd, _ in positions]
+        z_lo, z_hi = min(min(zs) - 0.10, z_gear - 0.05), max(max(zs) + 0.10, z_gear + 0.05)
+        lb.geoms.append(C.box("wheel_gearbox", (u * (0.004 + W / 2), -1.0 * (t / 2 + 0.045), z_gear), (0.05, 0.022, 0.045), mat, 7800, False, True, FULL_SIMPLE, "mechanism", "Dogging gearbox (the wheel drives the push rods)"))
+        for tag, x_rod in (("r", u * (0.004 + W - 0.11)), ("l", u * (0.004 + 0.11))):
+            rb = Body(f"linkage_rod_{tag}", lb.name, (x_rod, 0, 0), QUAT_ID, None, [], [], FULL_SIMPLE, "mechanism", f"Dogging push rod ({tag})")
+            rb.joint = Joint(f"linkage_rod_{tag}_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, ROD_TRAVEL), damping=2.0, frictionloss=0.5, role="mechanism", label=f"Dogging push rod ({tag}); 0 = dogged, + = dogs withdrawn (wheel-driven)", robot_interactive=False)
+            rb.geoms.append(C.cyl(f"linkage_rod_{tag}_geom", (0, -1.0 * (t / 2 + 0.040), (z_lo + z_hi) / 2), 0.009, (z_hi - z_lo) / 2, mat, (0, 0, 1), 7800, False, True, FULL_SIMPLE, "mechanism", "Dogging push rod"))
+            model.add_body(rb)
+            model.equalities.append(Equality("joint", f"wheel_rod_{tag}", rb.joint.name, wb.joint.name, (0, ROD_TRAVEL / wm.travel, 0, 0, 0), tiers=FULL_SIMPLE, label="push rod = wheel * (travel / wheel travel)"))
+        lb.geoms.append(C.cyl("linkage_tube", (u * (0.004 + W / 2), -1.0 * (t / 2 + 0.062), z_gear), 0.007, (W - 0.22) / 2, mat, (1, 0, 0), 7800, False, True, FULL_SIMPLE, "mechanism", "Torque tube (gearbox to the stile push rods)"))
     # no decorative rivet where a dog's shaft comes through the plate
     dogs_ = [b for b in model.bodies if b.name.startswith("dog_") and b.parent == lb.name]
     lb.geoms = [g for g in lb.geoms if not ("_rivet_" in g.name and any(abs(g.pos[0] - b.pos[0]) < 0.035 and abs(g.pos[2] - b.pos[2]) < 0.035 for b in dogs_))]
@@ -914,6 +1007,11 @@ def build_ship(spec, phys, model: Model):
     world.sites.append(Site("goal_point", (0, 1.5, 0), QUAT_ID, 0.05, "goal"))
     world.sites.append(Site("door_plane_center", (0, 0, sill + Ho / 2), QUAT_ID, 0.02, "pass_plane"))
     model.meta.update({"u": u, "v": v, "primary_joint": "leaf_hinge", "dog_joints": dog_joints, "operator_joint": model.meta.get("operator_joint", dog_joints[0] if dog_joints else None), "sill_height": sill})
+    if wheel_dogging and wb is not None:
+        model.meta.update({"operator_joints": [wb.joint.name], "operator_coupling": "coupled"})
+    elif dog_joints:
+        # every dog is its own operator: the leaf opens only when all of them are released
+        model.meta.update({"operator_joints": list(dog_joints), "operator_coupling": "individual"})
     return lb
 
 
@@ -957,6 +1055,8 @@ def build_vault(spec, phys, model: Model):
             model.equalities.append(Equality("joint", f"wheel_bolt_{k}", b.joint.name, wb.joint.name, (0, throw / opm.travel, 0, 0, 0), tiers=ALL_TIERS, label="bolt = wheel * throw/travel"))
             pockets.append({"z": z, "h": 2 * r + 0.01, "w": 2 * r + 0.004, "depth": throw + 0.006, "ramp": False})
         model.meta["operator_joint"] = wb.joint.name
+        model.meta["operator_joints"] = [wb.joint.name]
+        model.meta["operator_coupling"] = "coupled"      # the handwheel throws every bolt through the boltwork
     else:
         # lever bolts (blast door): each lever (hinge about the door normal) drives a sliding bolt into a jamb pocket
         mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
@@ -977,9 +1077,12 @@ def build_vault(spec, phys, model: Model):
             model.add_body(b)
             model.equalities.append(Equality("joint", f"lever_bolt_{k}", b.joint.name, d.joint.name, (0, throw / 1.5708, 0, 0, 0), tiers=ALL_TIERS, label="bolt = lever * throw/(pi/2)"))
             pockets.append({"z": z, "h": 2 * r + 0.01, "w": 2 * r + 0.004, "depth": throw + 0.006, "ramp": False})
+        # every lever bolt is its own operator: each throws its own bolt into its own jamb pocket and the leaf is held
+        # while ANY of them is still engaged, so the robot must work all of them.
         model.meta["operator_joint"] = "dog_0_hinge"
-    if opm.kind == "lever" and False:
-        pass
+        model.meta["operator_joints"] = [f"dog_{k}_hinge" for k in range(len(pockets))]
+        model.meta["operator_coupling"] = "individual"
+        model.meta["dog_joints"] = list(model.meta["operator_joints"])
     C.add_frame(model, spec, v, world, with_stop=True, strike_pockets=pockets, u=u)
     # big hinges
     hm = C.mat_from_material(model, "steel", "mat_hinge")

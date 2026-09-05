@@ -22,6 +22,11 @@ Checks (all tiers where applicable):
               moves the primary joint past 10 deg / 50 mm (locked rotors: it holds within its locked play instead)
   no_jam      ... and while it moves no static geometry presses on a moving part with more than JAM_FORCE_N: a zero-gap
               touch or a sub-tolerance interpenetration that the geometric clearance gate cannot see stalls the door
+  all_latches_release  a door held by SEVERAL independent latches (watertight dog levers, blast-door lever bolts)
+              behaves like the hardware: releasing all but ONE leaves the leaf shut under the QA push (checked for
+              each latch in turn) and releasing every one of them opens it
+  rod_points_hold  a two-point rod mechanism (cremone / espagnolette knob, surface vertical rod exit device) throws a
+              bolt into the head AND one into the floor, and each of them holds the leaf on its own
   urdf        URDF loads in MuJoCo (structure check)
   usd         USD stage opens; joint & rigid-body counts match the IR
 Writes qa.json with pass/fail per check, metrics, and a signed_off flag.
@@ -129,6 +134,56 @@ def push_primary(m, d, pj, push: float, has_holding: bool, thr_free: float) -> f
         mujoco.mj_step(m, d)
         if k >= 499 and not has_holding and _q(m, d, pj) > thr_free:
             break   # heavy leaves (big gates, vault doors) need longer to accelerate
+    return _q(m, d, pj)
+
+
+def operator_effort(m, j: int, name: str) -> float:
+    """Effort the QA drive puts on one operator joint (N*m on a hinge, N on a slide).  Mirrored by parity.protocol."""
+    import mujoco
+    if int(m.jnt_type[j]) != int(mujoco.mjtJoint.mjJNT_HINGE):
+        return 120.0
+    return 14.0 if name.startswith("dog_") else (10.0 if "wheel" in name else (8.0 if "exit_device" in name else 4.0))
+
+
+def drive_operators(m, d, pj: int, op_ids: list, aux_ids: list, tt: int, push: float, is_hinge: bool, steps: int = 3200) -> float:
+    """Work a SET of operators and push the leaf on the same schedule the ``actuate_opens`` drive uses (thumbturn for
+    the first 0.6 s, aux bolts throughout, operators from 0.3 s, push from 0.6 s and stopped past 50 deg).  Returns the
+    primary joint at the end.  Driving a subset is how ``all_latches_release`` asks "does one dog still hold it?"."""
+    import mujoco
+    HINGE = int(mujoco.mjtJoint.mjJNT_HINGE)
+    names = {j: (mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_JOINT, j) or "") for j in op_ids}
+    mujoco.mj_resetData(m, d)
+    for k in range(steps):
+        d.qfrc_applied[:] = 0
+        if tt >= 0 and k < 600:
+            d.qfrc_applied[m.jnt_dofadr[tt]] = 2.0
+        for a in aux_ids:
+            d.qfrc_applied[m.jnt_dofadr[a]] = 3.0 if int(m.jnt_type[a]) == HINGE else 60.0
+        if k >= 300:
+            for j in op_ids:
+                d.qfrc_applied[m.jnt_dofadr[j]] = operator_effort(m, j, names[j])
+        if k >= 600 and (not is_hinge or _q(m, d, pj) < math.radians(50)):
+            d.qfrc_applied[m.jnt_dofadr[pj]] = push
+        mujoco.mj_step(m, d)
+    return _q(m, d, pj)
+
+
+def hold_with_one_point(m, d, pj: int, keep: int, release: list, push: float, steps: int = 1200) -> float:
+    """Push the leaf with exactly ONE lock point still engaged: every joint in ``release`` is driven to its retracted
+    end and the joint equalities that drive them are switched off, so the point under test is the only thing holding
+    the leaf.  Returns the primary joint at the end."""
+    import mujoco
+    SLIDE = int(mujoco.mjtJoint.mjJNT_SLIDE)
+    mujoco.mj_resetData(m, d)
+    for e in range(m.neq):
+        if int(m.eq_type[e]) == int(mujoco.mjtEq.mjEQ_JOINT) and int(m.eq_obj1id[e]) in release:
+            d.eq_active[e] = 0
+    for _ in range(steps):
+        d.qfrc_applied[:] = 0
+        for j in release:
+            d.qfrc_applied[m.jnt_dofadr[j]] = 200.0 if int(m.jnt_type[j]) == SLIDE else 30.0
+        d.qfrc_applied[m.jnt_dofadr[pj]] = push
+        mujoco.mj_step(m, d)
     return _q(m, d, pj)
 
 
@@ -341,7 +396,7 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         elif oj >= 0 and can_release:
             mujoco.mj_resetData(m, d)
             ojn = mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_JOINT, oj) or ""
-            eff = (14.0 if ojn.startswith("dog_") else (10.0 if "wheel" in ojn else (8.0 if "exit_device" in ojn else 4.0))) if int(m.jnt_type[oj]) == HINGE else 120.0
+            eff = operator_effort(m, oj, ojn)
             tt = _jid(m, "leaf_deadbolt_thumbturn_hinge")
             if tt < 0:
                 tt = _jid(m, "leaf_a_deadbolt_thumbturn_hinge")
@@ -424,6 +479,53 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
                 mujoco.mj_step(m, d)
             metrics["closer_final_angle"] = _q(m, d, pj)
             checks["closer_returns"] = bool(_q(m, d, pj) < math.radians(6.0))
+    # ---- all_latches_release: a door held by SEVERAL independent latches (watertight dog levers, blast-door lever
+    # bolts) must behave like the real hardware: each latch holds the leaf on its own, so releasing all but one must
+    # NOT free it, and only releasing every one of them opens it.  Without this gate a "multi-dog" door is decoration:
+    # one dog turns, the leaf swings, and the other five never move.  Doors whose lock points are driven together from
+    # one operator (handwheel -> dogs / boltwork, cremone knob -> shoot bolts) cannot be partially released, and are
+    # covered by "hold" + "actuate_opens" instead; the coupling itself is recorded in the metrics.
+    op_names = [n for n in (model_meta.get("operator_joints") or []) if _jid(m, n) >= 0]
+    metrics["operator_joints"] = op_names
+    metrics["operator_coupling"] = model_meta.get("operator_coupling", "coupled")
+    if (pj >= 0 and not free_swing and int(m.jnt_type[pj]) in (HINGE, SLIDE) and len(op_names) > 1
+            and model_meta.get("operator_coupling") == "individual" and flags["can_release"] and not env_release_only):
+        is_hinge = int(m.jnt_type[pj]) == HINGE
+        push = float(metrics.get("qa_push") or qa_push(m, d, pj, phys["mass"]["total_kg"], spec["leaf"]["width"])["push"])
+        tt = _jid(m, "leaf_deadbolt_thumbturn_hinge")
+        if tt < 0:
+            tt = _jid(m, "leaf_a_deadbolt_thumbturn_hinge")
+        aux = [_jid(m, n) for n in ("leaf_aux_bolt_slide", "slide_latch_slide", "leaf_slide_bolt_slide", "leaf_pin_slide", "leaf_thumb_hinge", "hatch_bolt_slide", "join_bolt_slide", "garage_slide_lock_slide", "leaf_hook_thumbturn_hinge", "leaf_a_hook_thumbturn_hinge") if _jid(m, n) >= 0]
+        ids = [_jid(m, n) for n in op_names]
+        target = math.radians(min(20.0, 0.5 * (spec["kinematics"].get("max_open_deg") or 90))) if is_hinge else 0.05
+        # same "still shut" threshold the `hold` gate uses; the worst single latch left engaged today is a hinge-stile
+        # watertight dog at 0.95 deg (it sits 34 mm from the hinge pin, so it takes the most leaf rotation to bite).
+        thr_hold = min(math.radians(2.0) if is_hinge else 0.015, 0.5 * target)
+        partial = []
+        for keep in range(len(ids)):        # every latch on its own must still hold the leaf
+            partial.append(drive_operators(m, d, pj, [j for i, j in enumerate(ids) if i != keep], aux, tt, push, is_hinge))
+        full = drive_operators(m, d, pj, ids, aux, tt, push, is_hinge)
+        metrics["all_latches_partial_displacement"] = partial
+        metrics["all_latches_worst_partial"] = max(partial) if partial else 0.0
+        metrics["all_latches_full_displacement"] = full
+        metrics["all_latches_thresholds"] = [thr_hold, target]
+        checks["all_latches_release"] = bool(all(p < thr_hold for p in partial) and full > target)
+    # ---- rod_points_hold: a two-point rod mechanism throws a bolt into the head AND one into the floor - a cremone /
+    # espagnolette knob drives both its rods, a surface vertical rod exit device both of its latches.  Each of the two
+    # points has to hold the leaf ON ITS OWN, or the second rod is a drawn cylinder that latches nothing: which is
+    # exactly what both mechanisms were (the down rod and the bottom rod were visuals with no bolt behind them).
+    if pj >= 0 and int(m.jnt_type[pj]) == HINGE:
+        lname = (model_meta.get("primary_joint") or "").rsplit("_hinge", 1)[0]
+        push_r = float(metrics.get("qa_push") or 0.0)
+        for tag, a, b in (("vertical_rods", f"{lname}_top_latch_slide", f"{lname}_bottom_latch_slide"),
+                          ("cremone", f"{lname}_cremone_top_bolt_slide", f"{lname}_cremone_bottom_bolt_slide")):
+            ja, jb = _jid(m, a), _jid(m, b)
+            if ja < 0 or jb < 0 or push_r <= 0:
+                continue
+            top_only = hold_with_one_point(m, d, pj, ja, [jb], push_r)
+            bot_only = hold_with_one_point(m, d, pj, jb, [ja], push_r)
+            metrics["rod_points"] = {"mechanism": tag, "top_only_rad": top_only, "bottom_only_rad": bot_only, "joints": [a, b]}
+            checks["rod_points_hold"] = bool(max(top_only, bot_only) < math.radians(2.0))
     # ---- simple & minimal tiers settle
     for tier in ("simple", "minimal"):
         if tier in models:

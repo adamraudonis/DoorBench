@@ -201,6 +201,29 @@ rail (20+ kN) - all fixed at the geometry. New deterministic gate in qa.py for t
 must stay under 200 N; a free door is carried by its joint, so anything static pressing on it is a jam). Lesson: a
 geometric gate needs a dynamic twin; "gap 0.000" is a defect, not a pass.
 
+**Multi-latch doors: N latches, one of them modelled (2026-09-05).** Owner report on db0168_ship_watertight: "it
+only does 1 of 6 hinges". Three defects behind it. (1) `meta` named a single `operator_joint` - the first dog - so the
+QA drive, the benchmark and the viewer's "Open door" worked one dog and the leaf swung with five still dogged. `meta`
+now carries `operator_joints` (every operator the robot has to work) and `operator_coupling` ("individual" for the
+watertight dog levers and the blast/vault lever bolts, "coupled" for a handwheel that drives boltwork). (2) The dogs
+did not actually hold. A hinge-stile wedge sits 34 mm from the leaf hinge pin and had 3 mm of slop to its cleat, so it
+needed 5 deg of leaf rotation to bite; the wedge/cleat interference peaks at 8 mm and is gone past 55 deg. Measured
+with every other dog released: 4 of the 6 individually dogged doors swung 103-133 deg with a dog engaged, the other 2
+stalled at 5.5 deg - the outcome was decided by leaf mass against contact softness, not by the mechanism. The cleat is
+now a slot (inner and outer jaw, 0.5 mm fit), which is what a dogged watertight door is; worst single-dog hold is now
+0.95 deg. Lock-vs-lock pairs may touch (`clearance.required_gap`), so the tight fit costs no running clearance.
+(3) Quick-acting doors carried 4 hard-coded dogs and no visible linkage; they now carry the 4/6/8 dogs the spec samples
+and the handwheel drives them through a gearbox, a torque tube and a push rod along each stile - real bodies coupled by
+joint equalities, with a crank on every dog. The same "drawn but latching nothing" defect was in two more mechanisms:
+the cremone/espagnolette down rod and the surface vertical rod device's bottom rod were cylinders with no bolt behind
+them. Both now shoot a second bolt into a floor strike, retracting 30 mm up into the rod housing so they clear a 25 mm
+floor dome stop (leaf undercut grows to strike top + 16 mm). Two new gates: `all_latches_release` (releasing all but
+ONE latch must leave the leaf shut under the QA push, for each latch in turn, and releasing all of them must open it -
+13 doors) and `rod_points_hold` (each of a two-point rod mechanism's bolts holds on its own - 34 doors). Benchmark:
+`LabelTracker` treated a dogged door as unlatched on step 0 because no joint carried role "latch" (the dogs carry
+"lock"); `DoorEnv.operator_joints` missed them for the same reason. Lesson: "several parts exist in the model" is not
+"several parts work" - a latch that is not the one the metadata names is never driven and never tested.
+
 ## Checks that exist now (a door is "signed off" only if all pass)
 
 clearance (no interpenetration through every sweep) · mass (within 20 % of spec) · physics QA (opens, holds,
@@ -208,3 +231,6 @@ latches, closer returns, hardware misuse limits) · jam gate for free-swing / ro
 moves the primary joint; `no_jam`: < 20 N of static contact on any moving part while it does - every free-swing door reads 0 N, so 200 N was far too loose to catch a leaf scraping without stalling) · static USD
 validation · benchmark block present · `usd_rl_opens`. In progress: attachment (nothing floats, mechanisms move),
 closer_linkage / closer_closes, operator_returns, rollers_on_track, keypad_code_works, vision review.
+
+Added 2026-09-05: `all_latches_release` (multi-operator doors: every latch holds the leaf on its own, all of them
+released opens it) and `rod_points_hold` (two-point rod mechanisms: the head bolt and the floor bolt each hold).

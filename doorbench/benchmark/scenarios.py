@@ -206,7 +206,10 @@ def t_operate(spec: dict, phys: dict, unlock: bool, model: dict | None = None) -
         t = 3.0
     else:
         t = 1.5
-    n_dogs = sum(1 for b in (model or {}).get("bodies", []) if b.get("joint") and b["joint"]["name"].startswith("dog_")) if model else 0
+    # only dogs the robot has to turn ONE AT A TIME cost time per dog: on a quick-acting watertight door and on a
+    # vault handwheel the same dog bodies exist but the operator throws all of them together (the 3 s wheel above)
+    n_dogs = sum(1 for b in (model or {}).get("bodies", []) if (j := b.get("joint")) and j["name"].startswith("dog_")
+                 and j.get("robot_interactive", True)) if model else 0
     if n_dogs:
         t += 1.5 * n_dogs                                    # every dog is thrown individually
     if unlock:

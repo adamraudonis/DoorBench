@@ -57,7 +57,10 @@ DEFAULT_ALLOW = [("*pushbutton_geom", "*pushbutton_housing"), ("*_pin_geom", "*_
                  # presses into the recess of the plate it is mounted on
                  ("*_spindle", "*_escutcheon_*"), ("*_spindle", "*_rose_*"), ("*_spindle", "*handleset*"),
                  ("*_spindle", "*_device_case"), ("*_spindle", "*_backplate_*"), ("rex_button_geom", "rex_plate"),
-                 ("call_button_geom", "*_plate")]
+                 ("call_button_geom", "*_plate"),
+                 # a push/pull paddle is a rocker on a fixed pivot pin: the arm root envelops the pin it turns on,
+                 # exactly like the hub does (the pin is 4 mm and the neck 8 mm across it)
+                 ("*_paddle_neck_*", "*_paddle_pin_*")]
 FRAME_LIKE = ("frame", "latch", "lock", "wall", "track")
 HARDWARE = ("operator", "latch", "lock", "mechanism", "closer", "track", "hinge")
 

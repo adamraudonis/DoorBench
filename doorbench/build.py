@@ -131,6 +131,22 @@ def build_model(spec: dict, phys: dict | None = None) -> Model:
         off = (0.18, -0.8, 0.28)
     model.meta["handle_cam_target"] = grip
     model.meta["handle_cam_pos"] = [grip[0] + off[0], grip[1] + off[1], grip[2] + off[2]]
+    # --- multi-latch doors: EVERY operator the robot has to work, not just the first one.
+    # `operator_joints` lists them (a single-operator door lists its one joint, so every consumer reads one key) and
+    # `operator_coupling` says how they relate:
+    #   "individual"  independent releases - watertight dog levers, blast-door lever bolts: each one holds the leaf on
+    #                 its own, so the door frees only when ALL of them are released (QA gate "all_latches_release").
+    #   "coupled"     one operator drives every lock point through the mechanism (ship handwheel -> dogs, vault
+    #                 handwheel -> boltwork, cremone knob -> shoot bolts, multipoint lever -> hooks).
+    have = {b.joint.name for b in model.bodies if b.joint is not None}
+    ops = [n for n in (model.meta.get("operator_joints") or []) if n in have]
+    if not ops and model.meta.get("operator_joint"):
+        ops = [model.meta["operator_joint"]]
+    model.meta["operator_joints"] = ops
+    if len(ops) < 2:
+        model.meta["operator_coupling"] = "coupled"
+    else:
+        model.meta.setdefault("operator_coupling", "individual")
     model.bake_initial()
     model.uniquify()
     model.validate()

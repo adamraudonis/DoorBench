@@ -41,6 +41,26 @@ export function previewOperatorForLeaf(model: ModelJ, leaf: string): string | un
   return model.bodies.find(b => b.joint?.role === "operator" && !followers.has(b.joint.name) && leafOfJoint(model, b.joint.name) === leaf)?.joint?.name;
 }
 
+/**
+ * EVERY operator the robot has to work, in the order it works them.  A watertight door has one lever per dog and a
+ * blast door one per lever bolt (`operator_coupling === "individual"`): the leaf is held while any single one of them
+ * is still engaged, so all of them must be released before it can swing.  A door whose lock points are driven together
+ * from one operator (a ship handwheel, a vault handwheel, a cremone knob, a multipoint lever) lists just that one.
+ */
+export function operatorJoints(model: ModelJ): string[] {
+  const meta = model.meta ?? {};
+  const named: string[] = Array.isArray(meta.operator_joints) ? meta.operator_joints : [];
+  const have = new Set(model.bodies.map((b) => b.joint?.name).filter(Boolean) as string[]);
+  const out = named.filter((n) => have.has(n));
+  if (!out.length && meta.operator_joint && have.has(meta.operator_joint)) out.push(meta.operator_joint);
+  return out;
+}
+
+/** True when each operator is an independent latch that must be released on its own (dog levers, lever bolts). */
+export function operatorsAreIndividual(model: ModelJ): boolean {
+  return (model.meta ?? {}).operator_coupling === "individual" && operatorJoints(model).length > 1;
+}
+
 /** Bolt / lock joints that the operator drives (one-sided tendons and polynomial couplings). */
 export function boltJointsFor(model: ModelJ, operator: string | undefined): string[] {
   if (!operator) return [];
@@ -179,21 +199,34 @@ export function openClosePhases(model: ModelJ, joints: Map<string, JointLike>): 
   const open = !leaf.range ? closed + 1.2 : leaf.range[1] > closed + 1e-6 ? leaf.range[1] : leaf.range[0];
   const isClosed = Math.abs(leaf.q - closed) < 0.02;
   const target = isClosed ? open : closed;
+  const ops = operatorJoints(model).map((n) => joints.get(n)).filter(Boolean) as JointLike[];
+  const individual = operatorsAreIndividual(model);
   const op = operator ? joints.get(operator) : undefined;
   const bolts = boltJointsFor(model, operator);
   const locked = !!op && !!op.range && op.range[1] - op.range[0] < 0.006;
-  const needsOp = !!op && !!op.range && !locked && bolts.length > 0;
+  // each dog / lever bolt IS its own latch, so an individually latched door always has to be worked, whether or not
+  // the first operator happens to drive a separate bolt joint
+  const workable = ops.filter((h) => !!h.range && h.range[1] - h.range[0] >= 0.006 && (individual || boltJointsFor(model, h.name).length > 0));
+  const needsOp = !locked && workable.length > 0;
   const phases: Phase[] = [];
   let note: string | null = null;
   if (locked && isClosed && bolts.length && thrown(joints, bolts)) note = "locked: the operator cannot be worked from this side (range < 0.006)";
-  if (needsOp && op) phases.push({ joint: op.name, from: op.q, to: op.range![1], dur: 450 });
+  // release: one phase per operator (a robot turns dog levers one after another), 450 ms for a single operator and
+  // a shorter beat each when there are several so the whole sequence stays watchable
+  const beat = workable.length > 1 ? Math.max(220, Math.round(1200 / workable.length)) : 450;
+  if (needsOp) for (const h of workable) phases.push({ joint: h.name, from: h.q, to: h.range![1], dur: beat });
   const followers: NonNullable<Phase["followers"]> = [];
   const jb = joints.get("join_bolt_slide");
   const secondary: string | undefined = meta.secondary_joint ?? undefined;
   if (secondary && jb && jb.q < 0.01) { const s = joints.get(secondary); if (s) followers.push({ joint: secondary, from: s.q, to: target }); }
   phases.push({ joint: leaf.name, from: leaf.q, to: target, dur: 1400, followers });
-  if (needsOp && op) phases.push({ joint: op.name, from: op.range![1], to: op.modeledAt ?? op.range![0], dur: 400 });
-  if (!note) note = needsOp ? (isClosed ? "operator actuated → bolt retracted → leaf opens → operator released" : "operator actuated → bolt retracted → leaf closes → bolt re-extends") : followers.length ? "joining bolt engaged: both leaves move together" : null;
+  // re-engage in the reverse order: the last one released is the first one thrown again
+  if (needsOp) for (const h of [...workable].reverse()) phases.push({ joint: h.name, from: h.range![1], to: h.modeledAt ?? h.range![0], dur: Math.round(beat * 0.9) });
+  if (!note) {
+    if (needsOp && individual) note = `${workable.length} latches released one by one → leaf ${isClosed ? "opens" : "closes"} → all ${workable.length} re-engaged`;
+    else if (needsOp) note = isClosed ? "operator actuated → bolt retracted → leaf opens → operator released" : "operator actuated → bolt retracted → leaf closes → bolt re-extends";
+    else if (followers.length) note = "joining bolt engaged: both leaves move together";
+  }
   return { phases, note };
 }
 
@@ -201,13 +234,13 @@ export function openClosePhases(model: ModelJ, joints: Map<string, JointLike>): 
  * What else must move when a leaf slider is dragged to q: the operator is driven to full travel when the latch is still
  * thrown (so the bolt clears the strike), and the other leaf of a joined dutch door follows.
  */
-export function sliderReaction(model: ModelJ, joints: Map<string, JointLike>, leafJoint: string, q: number): { operator: string | null; operatorTo: number | null; blocked: boolean; mirror: { joint: string; q: number } | null; note: string | null } {
+export function sliderReaction(model: ModelJ, joints: Map<string, JointLike>, leafJoint: string, q: number): { operator: string | null; operatorTo: number | null; operatorsTo: { joint: string; q: number }[]; blocked: boolean; mirror: { joint: string; q: number } | null; note: string | null } {
   const meta = model.meta ?? {};
   const primary: string | undefined = meta.primary_joint ?? undefined;
   const secondary: string | undefined = meta.secondary_joint ?? undefined;
   const operator = previewOperatorForLeaf(model, leafJoint);
   const h = joints.get(leafJoint);
-  const out = { operator: null as string | null, operatorTo: null as number | null, blocked: false, mirror: null as { joint: string; q: number } | null, note: null as string | null };
+  const out = { operator: null as string | null, operatorTo: null as number | null, operatorsTo: [] as { joint: string; q: number }[], blocked: false, mirror: null as { joint: string; q: number } | null, note: null as string | null };
   if (!h || (leafJoint !== primary && leafJoint !== secondary)) return out;
   if (isSwingPair(model)) {
     const reason = pairLeafBlock(model, joints, h) || astragalBlock(model, joints, h, q);
@@ -218,10 +251,20 @@ export function sliderReaction(model: ModelJ, joints: Map<string, JointLike>, le
   const ownsOperator = opLeaf === leafJoint || (!opLeaf && leafJoint === primary);
   const op = operator ? joints.get(operator) : undefined;
   const locked = !!op && !!op.range && op.range[1] - op.range[0] < 0.006;
-  if (away && ownsOperator && op && op.range && !locked && thrown(joints, boltJointsFor(model, operator))) {
-    out.operator = op.name;
-    out.operatorTo = op.range[1];
-    out.note = "latch retracted: operator driven to full travel so the bolt clears the strike";
+  const individual = operatorsAreIndividual(model);
+  if (away && ownsOperator && op && op.range && !locked && (individual || thrown(joints, boltJointsFor(model, operator)))) {
+    // every independent latch has to be clear before the leaf can be dragged anywhere, not just the first one
+    const all = operatorJoints(model).map((n) => joints.get(n)).filter((x): x is JointLike => !!x && !!x.range && x.range[1] - x.range[0] >= 0.006);
+    if (individual && all.some((x) => x.q < 0.8 * x.range![1])) {
+      out.operator = op.name;
+      out.operatorsTo = all.map((x) => ({ joint: x.name, q: x.range![1] }));
+      out.operatorTo = op.range[1];
+      out.note = `all ${all.length} latches released: the leaf is held while any one of them is engaged`;
+    } else if (!individual && thrown(joints, boltJointsFor(model, operator))) {
+      out.operator = op.name;
+      out.operatorTo = op.range[1];
+      out.note = "latch retracted: operator driven to full travel so the bolt clears the strike";
+    }
   }
   const jb = joints.get("join_bolt_slide");
   if (primary && secondary && jb && jb.q < 0.01) out.mirror = { joint: leafJoint === primary ? secondary : primary, q };
