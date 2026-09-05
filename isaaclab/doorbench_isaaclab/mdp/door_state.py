@@ -192,10 +192,18 @@ class DoorState:
                 if info.get("active"):
                     want[k, self.j[name]] = float(info.get("friction") or 0.0)
         if bool(((fr - want).abs() > 1e-2 * want.clamp_min(1e-3)).any()):
+            # MuJoCo frictionloss = one Coulomb bound for stick and slip -> static == dynamic effort, no viscous term;
+            # Isaac Lab 2.3 offers the dynamic / viscous writes either as keyword arguments or as separate methods
             try:
                 self.door.write_joint_friction_coefficient_to_sim(want, joint_dynamic_friction_coeff=want.clone(), joint_viscous_friction_coeff=torch.zeros_like(want))
+                return
             except TypeError:
-                self.door.write_joint_friction_coefficient_to_sim(want)
+                pass
+            self.door.write_joint_friction_coefficient_to_sim(want)
+            for name, val in (("write_joint_dynamic_friction_coefficient_to_sim", want.clone()), ("write_joint_viscous_friction_coefficient_to_sim", torch.zeros_like(want))):
+                fn = getattr(self.door, name, None)
+                if fn is not None:
+                    fn(val)
 
     @staticmethod
     def _resolve_bodies(asset: Articulation, candidates):

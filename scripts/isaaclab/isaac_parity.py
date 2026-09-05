@@ -131,6 +131,23 @@ def _art_props():
         return p
 
 
+def _write_friction_efforts(art: Articulation, static: torch.Tensor):
+    """MuJoCo frictionloss -> PhysX static == dynamic friction effort, viscous 0, through whichever Isaac Lab 2.3 API
+    the installed version offers (keyword arguments on write_joint_friction_coefficient_to_sim, or the separate
+    write_joint_dynamic/viscous_friction_coefficient_to_sim methods)."""
+    zeros = torch.zeros_like(static)
+    try:
+        art.write_joint_friction_coefficient_to_sim(static, joint_dynamic_friction_coeff=static.clone(), joint_viscous_friction_coeff=zeros)
+        return
+    except TypeError:
+        pass
+    art.write_joint_friction_coefficient_to_sim(static)
+    for name, val in (("write_joint_dynamic_friction_coefficient_to_sim", static.clone()), ("write_joint_viscous_friction_coefficient_to_sim", zeros)):
+        fn = getattr(art, name, None)
+        if fn is not None:
+            fn(val)
+
+
 def _grid(n: int) -> list[tuple[float, float, float]]:
     """Door origins for a batch of ``n``: a centred grid, square-ish in metres, spaced X_SPACING x Y_SPACING.
 
@@ -365,10 +382,7 @@ class DoorHandle:
         static = torch.zeros(1, self.nj, device=self.dev)
         for n, i in self.map.items():
             static[0, i] = float(self.inputs["joints"][n]["frictionloss"])
-        try:
-            self.art.write_joint_friction_coefficient_to_sim(static, joint_dynamic_friction_coeff=static.clone(), joint_viscous_friction_coeff=torch.zeros_like(static))
-        except TypeError:
-            self.art.write_joint_friction_coefficient_to_sim(static)
+        _write_friction_efforts(self.art, static)
         self.emulations.append("joint_friction_written")
 
     def check_pose0(self, ref: dict) -> dict:
