@@ -444,6 +444,9 @@ def build_folding(spec, phys, model: Model):
 # ---------------------------------------------------------------------------
 # Rotors: revolving door, turnstiles
 # ---------------------------------------------------------------------------
+REVOLVING_RUN_CLEAR = 0.015   # m; running clearance between the rotor top (rails / stiles / shaft) and the canopy ceiling
+
+
 def build_revolving(spec, phys, model: Model):
     leaf = spec["leaf"]
     Hh, t = leaf["height"], leaf["thickness"]
@@ -452,10 +455,20 @@ def build_revolving(spec, phys, model: Model):
     R = D / 2
     wings = leaf["count"]
     open_deg = op.get("drum_opening_deg", 100)
-    world = C.add_floor_and_wall(model, spec, wall_half_width=max(3.0, R + 1.5), hole=(-R - 0.05, R + 0.05, 0.0, Hh + 0.1), wall_height=Hh + 0.6)
+    # Rotor envelope and enclosure heights.  The wings (glass + top/bottom rails + tip stiles) and the centre shaft all
+    # end at z_top; the drum ceiling (canopy underside) sits REVOLVING_RUN_CLEAR above that, as on a real revolving
+    # door where the wing top seals brush the ceiling with ~10-20 mm running clearance.  The enclosure fills the wall
+    # opening (spec opening height = wing height + 0.3), so the wall header sits ON the canopy, never at wing height:
+    # a header coplanar with the wing tops made a zero-gap box-box touch whose degenerate contact normal (orthogonal to
+    # the only DOF) produced kN forces and jammed the rotor.
+    z_bot = 0.02                       # rotor bottom above the floor ring (floor brush seal)
+    z_top = Hh + 0.07                  # top of the top rails / stiles / shaft
+    z_ceiling = z_top + REVOLVING_RUN_CLEAR   # canopy underside
+    z_canopy_top = max(float(op["height"]), z_ceiling + 0.1)
+    world = C.add_floor_and_wall(model, spec, wall_half_width=max(3.0, R + 1.5), hole=(-R - 0.05, R + 0.05, 0.0, z_canopy_top), wall_height=z_canopy_top + 0.3)
     fm = C.mat_from_material(model, op["frame"]["material"], "mat_frame")
     gm = C.mat_from_material(model, "glass_clear", "mat_drum_glass")
-    # drum: segments on ±x sides covering angles outside the openings (openings centered on ±y)
+    # drum: segments on ±x sides covering angles outside the openings (openings centered on ±y); glass runs floor to ceiling
     nseg = 28
     half_open = math.radians(open_deg) / 2
     for i in range(nseg):
@@ -465,22 +478,27 @@ def build_revolving(spec, phys, model: Model):
             continue
         seg_len = 2 * math.pi * (R + 0.02) / nseg
         q = quat_from_axis_angle([0, 0, 1], a + math.pi / 2)
-        world.geoms.append(C.box(f"drum_{i}", ((R + 0.02) * math.cos(a), (R + 0.02) * math.sin(a), Hh / 2 + 0.05), (seg_len / 2 + 0.002, 0.006, Hh / 2 + 0.05), gm, 2500, True, True, ALL_TIERS, "glass", "Drum glass", quat=q))
-    world.geoms.append(C.cyl("drum_canopy", (0, 0, Hh + 0.1 + 0.1), R + 0.08, 0.1, fm, (0, 0, 1), 300, True, True, ALL_TIERS, "frame", "Canopy"))
+        world.geoms.append(C.box(f"drum_{i}", ((R + 0.02) * math.cos(a), (R + 0.02) * math.sin(a), z_ceiling / 2), (seg_len / 2 + 0.002, 0.006, z_ceiling / 2), gm, 2500, True, True, ALL_TIERS, "glass", "Drum glass", quat=q))
+    world.geoms.append(C.cyl("drum_canopy", (0, 0, (z_ceiling + z_canopy_top) / 2), R + 0.08, (z_canopy_top - z_ceiling) / 2, fm, (0, 0, 1), 300, True, True, ALL_TIERS, "frame", "Canopy"))
+    # top bearing boss on the ceiling and floor pivot boss on the floor ring: the shaft runs between them with the running clearance
+    boss_h = 0.006
+    world.geoms.append(C.cyl("rotor_top_bearing", (0, 0, z_ceiling - boss_h / 2), 0.075, boss_h / 2, fm, (0, 0, 1), 2700, True, True, FULL_SIMPLE, "frame", "Top bearing housing"))
     world.geoms.append(C.cyl("drum_floor_ring", (0, 0, 0.003), R + 0.08, 0.003, C.mat_from_material(model, "stainless", "mat_floor_ring"), (0, 0, 1), 7900, False, True, FULL_ONLY, "frame", "Floor ring"))
+    world.geoms.append(C.cyl("rotor_floor_pivot", (0, 0, 0.006 + boss_h / 2), 0.075, boss_h / 2, fm, (0, 0, 1), 2700, True, True, FULL_SIMPLE, "frame", "Floor pivot housing"))
     rotor = Body("rotor", None, (0, 0, 0), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Rotor")
     hf = phys["hinge"]
     rotor.joint = Joint("rotor_hinge", "hinge", (0, 0, 1), (0, 0, 0), None, damping=spec["kinematics"].get("speed_governor_damping", 30.0), frictionloss=hf["coulomb_torque_Nm"] + 2.0, armature=0.5, role="primary", label="Rotor (unbounded, + = CCW from above)")
     model.add_body(rotor)
-    rotor.geoms.append(C.cyl("rotor_shaft", (0, 0, Hh / 2 + 0.055), 0.06, Hh / 2 + 0.045, fm, (0, 0, 1), 2700, True, True, ALL_TIERS, "leaf", "Center shaft"))
+    rotor.geoms.append(C.cyl("rotor_shaft", (0, 0, (z_bot + z_top) / 2), 0.06, (z_top - z_bot) / 2, fm, (0, 0, 1), 2700, True, True, ALL_TIERS, "leaf", "Center shaft"))
     for k in range(wings):
         a = 2 * math.pi * k / wings
         q = quat_from_axis_angle([0, 0, 1], a)
         Wl = R - 0.04
         rotor.geoms.append(C.box(f"wing_{k}_glass", (Wl / 2 * math.cos(a) + 0.02 * math.cos(a), Wl / 2 * math.sin(a) + 0.02 * math.sin(a), Hh / 2 + 0.05), (Wl / 2, t / 2, Hh / 2 - 0.05), gm, 2500, True, True, ALL_TIERS, "glass", f"Wing {k + 1} glass", quat=q, mass=phys["mass"]["total_kg"]))
-        rotor.geoms.append(C.box(f"wing_{k}_stile", ((R - 0.02) * math.cos(a), (R - 0.02) * math.sin(a), Hh / 2 + 0.055), (0.02, 0.03, Hh / 2 + 0.045), fm, 2700, True, True, ALL_TIERS, "leaf", "Wing stile", quat=q))
-        rotor.geoms.append(C.box(f"wing_{k}_rail_b", (Wl / 2 * math.cos(a), Wl / 2 * math.sin(a), 0.06), (Wl / 2, 0.03, 0.04), fm, 2700, True, True, FULL_SIMPLE, "leaf", "Bottom rail", quat=q))
-        rotor.geoms.append(C.box(f"wing_{k}_rail_t", (Wl / 2 * math.cos(a), Wl / 2 * math.sin(a), Hh + 0.03), (Wl / 2, 0.03, 0.04), fm, 2700, True, True, FULL_SIMPLE, "leaf", "Top rail", quat=q))
+        # tip stile: same z envelope as the rails (its outer face at R runs 14 mm inside the drum glass: brush-seal gap)
+        rotor.geoms.append(C.box(f"wing_{k}_stile", ((R - 0.02) * math.cos(a), (R - 0.02) * math.sin(a), (z_bot + z_top) / 2), (0.02, 0.03, (z_top - z_bot) / 2), fm, 2700, True, True, ALL_TIERS, "leaf", "Wing stile", quat=q))
+        rotor.geoms.append(C.box(f"wing_{k}_rail_b", (Wl / 2 * math.cos(a), Wl / 2 * math.sin(a), z_bot + 0.04), (Wl / 2, 0.03, 0.04), fm, 2700, True, True, FULL_SIMPLE, "leaf", "Bottom rail", quat=q))
+        rotor.geoms.append(C.box(f"wing_{k}_rail_t", (Wl / 2 * math.cos(a), Wl / 2 * math.sin(a), z_top - 0.04), (Wl / 2, 0.03, 0.04), fm, 2700, True, True, FULL_SIMPLE, "leaf", "Top rail", quat=q))
         # push bar on each wing
         if spec["operator"]["model"] in ("pull_d", "push_plate"):
             pm = C.mat_from_material(model, "stainless", "mat_op_stainless")
