@@ -485,3 +485,63 @@ _k(LockModel("electric_bolt", "Electric drop bolt (fail-safe) w/ card reader out
 _k(LockModel("hasp", "Hasp & staple (unlocked, no padlock)", "none", "none", "lever", 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, "Hasp"))
 
 _h(HingeModel("none", "No hinge (sliding / lifting door)", "none", "rotor_bearing", 0.0, 0.0, 0, (0, 0), 0.0, 1e6, 0, ""))
+
+
+# ---------------------------------------------------------------------------
+# Keypads: the buttons of a code lock are real, pressable hardware.
+#
+# Each button of a keypad lock is a body on a slide joint with a return spring (doorbench/geometry/common.py
+# add_keypad_buttons); `preload_force` is what it takes to start the button moving and `press_force` what it
+# takes to bottom it out against its stop, which is how the joint's spring rate is derived:
+#     k = (press_force - preload_force) / travel     springref = -preload_force / k
+# Sources: tactile rubber-dome keypads (Schlage FE595 / BE365, Yale Assure) run 1.2-1.6 mm of travel at
+# 1.5-3.5 N; the Kaba Simplex 1000 is a mechanical combination chamber - its five buttons are much stiffer
+# (~6 N to break away, ~12 N bottomed out) and travel ~4 mm because the button itself drives the chamber.
+#
+# `code_kind` is what the lock's mechanism actually checks:
+#   sequence  electronic keypad: the digits in order; an inactivity timeout clears a partial entry, and
+#             `max_attempts` wrong codes put the keypad in a `lockout_s` dead time (Schlage: 3 -> 30 s).
+#   set       mechanical pushbutton lock: the buttons of the combination in ANY order (each button once),
+#             checked when the lever is turned; a wrong set is cleared by that same turn - no timer, no lockout.
+# ---------------------------------------------------------------------------
+@dataclass
+class KeypadModel:
+    id: str                 # lock model id this keypad belongs to
+    name: str
+    layout: str             # "2x5" (Schlage, 10 keys) | "3x4" (phone keypad, 12 keys) | "column_5" (Simplex, staggered)
+    labels: tuple           # button labels, in layout order
+    travel: float           # m, button stroke
+    press_force: float      # N, bottomed out against the stop
+    preload_force: float    # N, return-spring preload (breakaway force)
+    key_size: tuple         # m, (half width, half height) of a square key, or (radius, radius) of a round one
+    round_keys: bool
+    proud: float            # m, how far the button stands out of the keypad face at rest
+    pitch: tuple            # m, (across, up) button pitch
+    pad: tuple              # m, (width, height, depth) of the keypad housing
+    code_kind: str          # sequence | set
+    timeout_s: float | None     # s, inactivity timeout that clears a partial entry (None: mechanical, no timer)
+    lockout_s: float | None     # s, keypad dead time after `max_attempts` wrong codes
+    max_attempts: int | None
+    source: str
+
+    def to_dict(self):
+        return asdict(self)
+
+
+KEYPADS: dict[str, KeypadModel] = {}
+
+
+def _kp(m: KeypadModel):
+    KEYPADS[m.id] = m
+    return m
+
+
+_kp(KeypadModel("keypad_code_4", "Electronic keypad, 10 keys (Schlage FE595)", "2x5", tuple("1234567890"), 0.0015, 3.0, 1.5,
+                (0.010, 0.007), False, 0.003, (0.026, 0.024), (0.070, 0.150, 0.020), "sequence", 5.0, 30.0, 3,
+                "Schlage FE595 keypad lever; 5 rows of 2 keys, tactile dome ~1.5-3 N, 3 wrong codes -> 30 s lockout"))
+_kp(KeypadModel("keypad_code_6", "Electronic keypad, 10 keys (Schlage BE365 / Yale Assure)", "2x5", tuple("1234567890"), 0.0015, 3.0, 1.5,
+                (0.010, 0.007), False, 0.003, (0.026, 0.024), (0.070, 0.150, 0.020), "sequence", 5.0, 30.0, 3,
+                "Schlage BE365 keypad deadbolt; motorised bolt, 3 wrong codes -> 30 s lockout"))
+_kp(KeypadModel("keypad_mechanical", "Mechanical pushbutton lock, 5 buttons (Kaba Simplex 1000)", "column_5", tuple("12345"), 0.004, 12.0, 6.0,
+                (0.009, 0.009), True, 0.004, (0.006, 0.026), (0.058, 0.190, 0.032), "set", None, None, None,
+                "Kaba Simplex 1000: buttons pressed in any order (each once), then the lever; turning the lever clears the chamber"))

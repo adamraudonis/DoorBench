@@ -130,6 +130,28 @@ def hinge_block(model: str, count: int, side: str, swing: str, tilt: float = 0.0
     return {"model": model, "count": count, "side": side, "swing": swing, "axis_tilt_deg": tilt}
 
 
+def keypad_code(lk: H.LockModel, rng: random.Random) -> str:
+    """The lock's code.  Electronic keypads: 4 or 6 digits, repeats allowed.  A mechanical pushbutton lock
+    (Kaba Simplex) has a combination *chamber*: each button can appear at most once and the order does not
+    matter, so its code is a sorted set of 3-4 of its five buttons (drawn with the same number of rng draws as
+    the digits it replaces, then repaired to distinct buttons, so the dataset stream is unchanged)."""
+    n = 6 if "6" in lk.id else 4
+    if lk.id != "keypad_mechanical":
+        return "".join(str(rng.randrange(10)) for _ in range(n))
+    n = rng.choice([3, 4])
+    drawn = [str(rng.randrange(1, 6)) for _ in range(n)]
+    out = []
+    for ch in drawn:
+        if ch not in out:
+            out.append(ch)
+    for ch in "12345":                      # a button can only be in the combination once: fill deterministically
+        if len(out) >= n:
+            break
+        if ch not in out:
+            out.append(ch)
+    return "".join(sorted(out))
+
+
 def choose_lock_engagement(spec: dict, B: Balanced, rng: random.Random, p_engaged: float = 0.5):
     """Decide whether a lock is engaged and if the robot can release it from its side."""
     lk = H.LOCKS[spec["lock"]["model"]]
@@ -140,6 +162,10 @@ def choose_lock_engagement(spec: dict, B: Balanced, rng: random.Random, p_engage
     robot_outside = spec["robot"]["robot_outside"]
     if not engaged:
         spec["lock"]["robot_side_release"] = True
+        if lk.kind == "keypad_code":
+            # an unlocked keypad set still HAS a code (the lock is simply not thrown): drawn from a stream of its
+            # own so adding it does not shift the dataset's main stream
+            spec["lock"]["code"] = keypad_code(lk, random.Random(int(spec["seed"]) ^ 0x0DDC0DE))
         return
     if robot_outside:
         rel = lk.outside_release in ("code",) and "keypad" in lk.kind or lk.outside_release in ("thumbturn", "button", "lever")
@@ -154,8 +180,7 @@ def choose_lock_engagement(spec: dict, B: Balanced, rng: random.Random, p_engage
         rel = True
     spec["lock"]["robot_side_release"] = bool(rel)
     if lk.kind == "keypad_code":
-        n = 6 if "6" in lk.id else 4
-        spec["lock"]["code"] = "".join(str(rng.randrange(10)) for _ in range(n)) if lk.id != "keypad_mechanical" else "".join(sorted(str(rng.randrange(1, 6)) for _ in range(rng.choice([3, 4]))))
+        spec["lock"]["code"] = keypad_code(lk, rng)
 
 
 def assign_task(spec: dict, B: Balanced):

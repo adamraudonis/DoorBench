@@ -18,6 +18,9 @@ Checks (all tiers where applicable):
               moves the primary joint past 10 deg / 50 mm (locked rotors: it holds within its locked play instead)
   no_jam      ... and while it moves no static geometry presses on a moving part with more than JAM_FORCE_N: a zero-gap
               touch or a sub-tolerance interpenetration that the geometric clearance gate cannot see stalls the door
+  keypad_code_works  every door with a code lock: a programmatic finger pressing the spec's code on the real
+              button bodies releases the lock and the door opens, a wrong code does not, a partial entry times
+              out (or is cleared by the lever, mechanically) and repeated wrong codes lock the keypad out
   urdf        URDF loads in MuJoCo (structure check)
   usd         USD stage opens; joint & rigid-body counts match the IR
 Writes qa.json with pass/fail per check, metrics, and a signed_off flag.
@@ -406,6 +409,18 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
                 mujoco.mj_step(m, d)
             metrics["closer_final_angle"] = _q(m, d, pj)
             checks["closer_returns"] = bool(_q(m, d, pj) < math.radians(6.0))
+    # ---- keypad: the code has to physically work (doorbench/keypad_qa.py)
+    if model_meta.get("keypad"):
+        try:
+            from .keypad_qa import run_keypad_qa
+            kpush = metrics.get("qa_push") or qa_push(m, mujoco.MjData(m), pj, phys["mass"]["total_kg"], spec["leaf"]["width"])["push"] if pj >= 0 else 0.0
+            kres = run_keypad_qa(m, spec, model_meta, phys, float(kpush), oj, pj)
+            if kres.get("ok") is not None:
+                checks["keypad_code_works"] = bool(kres["ok"])
+                metrics["keypad"] = {"checks": kres["checks"], **kres["metrics"]}
+        except Exception as e:
+            checks["keypad_code_works"] = False
+            metrics["keypad_error"] = f"{type(e).__name__}: {e}"[:300]
     # ---- simple & minimal tiers settle
     for tier in ("simple", "minimal"):
         if tier in models:
