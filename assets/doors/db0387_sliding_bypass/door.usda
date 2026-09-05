@@ -9,7 +9,7 @@ def Xform "db0387_sliding_bypass"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0387_sliding_bypass"
-    custom string doorbench:meta = '{"door_id": "db0387_sliding_bypass", "family": "sliding_bypass", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "leaf_0_slide", "secondary_joint": "leaf_1_slide", "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 6.138354559999998, "scene_extent": 2.069, "cam_target_z": 1.046, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.51, -0.055, 1.0], "handle_cam_pos": [-0.33, -0.8550000000000001, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_0_slide": "/db0387_sliding_bypass/Articulation/Joints/leaf_0_slide", "leaf_1_slide": "/db0387_sliding_bypass/Articulation/Joints/leaf_1_slide"}}'
+    custom string doorbench:meta = '{"door_id": "db0387_sliding_bypass", "family": "sliding_bypass", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_0_slide", "body": "leaf_0", "rail": "leaf_0_shikii", "nominal_range": [0.0, 0.58], "leaf_width_m": 0.61, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}, {"joint": "leaf_1_slide", "body": "leaf_1", "rail": "leaf_1_shikii", "nominal_range": [0.0, 0.58], "leaf_width_m": 0.61, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_0_slide", "secondary_joint": "leaf_1_slide", "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 6.138354559999998, "scene_extent": 2.069, "cam_target_z": 1.046, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.51, -0.055, 1.0], "handle_cam_pos": [-0.33, -0.8550000000000001, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_0_slide": "/db0387_sliding_bypass/Articulation/Joints/leaf_0_slide", "leaf_1_slide": "/db0387_sliding_bypass/Articulation/Joints/leaf_1_slide"}}'
 
     def Scope "Looks"
     {
@@ -362,12 +362,12 @@ def Xform "db0387_sliding_bypass"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "shikii" (
+            def Cube "leaf_0_shikii" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Shikii (bottom rail)"
+                custom string doorbench:label = "Full-travel sliding rail"
                 custom string doorbench:semantic = "track"
                 rel material:binding = </db0387_sliding_bypass/Looks/mat_shikii>
                 rel material:binding:physics = </db0387_sliding_bypass/Looks/PhysMat_mat_shikii_0_600> (
@@ -377,12 +377,12 @@ def Xform "db0387_sliding_bypass"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.3, 0.1, 0.024)
-                double3 xformOp:translate = (0, 0, 0.012)
+                float3 xformOp:scale = (1.29, 0.05, 0.024)
+                double3 xformOp:translate = (-0.0050000000000000044, -0.04, 0.012)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "kamoi" (
+            def Cube "leaf_0_kamoi" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
@@ -397,8 +397,48 @@ def Xform "db0387_sliding_bypass"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.3, 0.1, 0.06)
-                double3 xformOp:translate = (0, 0, 2.122)
+                float3 xformOp:scale = (1.29, 0.05, 0.06)
+                double3 xformOp:translate = (-0.0050000000000000044, -0.04, 2.122)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_1_shikii" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Full-travel sliding rail"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0387_sliding_bypass/Looks/mat_shikii>
+                rel material:binding:physics = </db0387_sliding_bypass/Looks/PhysMat_mat_shikii_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1.29, 0.05, 0.024)
+                double3 xformOp:translate = (-0.0050000000000000044, 0.04, 0.012)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_1_kamoi" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Kamoi (head rail)"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0387_sliding_bypass/Looks/mat_shikii>
+                rel material:binding:physics = </db0387_sliding_bypass/Looks/PhysMat_mat_shikii_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1.29, 0.05, 0.06)
+                double3 xformOp:translate = (-0.0050000000000000044, 0.04, 2.122)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

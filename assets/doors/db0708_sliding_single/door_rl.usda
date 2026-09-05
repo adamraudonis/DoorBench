@@ -8,7 +8,7 @@
 def Xform "db0708_sliding_single"
 {
     custom string doorbench:door_id = "db0708_sliding_single"
-    custom string doorbench:meta = '{"door_id": "db0708_sliding_single", "family": "sliding_single", "task": "locked_recognize", "wall_y": 0.0, "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 0.95, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 130.0929277984727, "scene_extent": 2.05775, "cam_target_z": 1.0385, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.829, -0.0225, 0.95], "handle_cam_pos": [1.009, -0.8225, 1.23]}'
+    custom string doorbench:meta = '{"door_id": "db0708_sliding_single", "family": "sliding_single", "task": "locked_recognize", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "bottom_rail", "nominal_range": [0.0, 0.841], "leaf_width_m": 0.914, "rollers": ["leaf_roller_0", "leaf_roller_1"], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 0.95, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 130.0929277984727, "scene_extent": 2.05775, "cam_target_z": 1.0385, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.829, -0.0225, 0.95], "handle_cam_pos": [1.009, -0.8225, 1.23]}'
     custom string doorbench:rl = '{"door_id": "db0708_sliding_single", "family": "sliding_single", "task": "locked_recognize", "slots": {"door": "slide", "operator": "none", "latch": "none", "secondary": "none"}, "links": ["base", "carriage", "leaf", "operator_pivot", "operator", "latch", "carriage2", "leaf2"], "joints": {"door_slide": {"active": true, "type": "prismatic", "source": "leaf_slide", "role": "primary", "range": [0.0, 0.841], "stiffness": 0.0, "damping": 8.5171961088, "target": 0.0, "friction": 153.38846692887245, "damping_closing": null, "damping_opening": null, "backcheck_angle": null, "backcheck_damping": null, "ratchet_one_way": false, "label": "Slide (0 = closed, + = open)"}, "door_hinge": {"active": false, "type": "revolute", "range": [-0.0008726646259971648, 0.0008726646259971648]}, "operator_hinge": {"active": false, "type": "revolute", "range": [-0.0008726646259971648, 0.0008726646259971648]}, "operator_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "latch_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "leaf2_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "leaf2_hinge": {"active": false, "type": "revolute", "range": [-0.0008726646259971648, 0.0008726646259971648]}}, "primary_joint": "leaf_slide", "operator_joint": null, "latch_joint": null, "secondary_joint": null, "door_joint": "door_slide", "operator_slot_joint": null, "secondary_slot_joint": null, "latch_coupling": null, "secondary_coupling": null, "open_threshold": 0.1, "clear_threshold": 0.55, "closed_threshold": 0.03, "sites": {"approach": [0.0, -1.5, 0.0], "goal": [0.0, 1.5, 0.0], "pass_plane": [0.0, 0.0, 1.0385], "grip": [{"name": "leaf_pull_grip_n", "link": "leaf", "pos": [0.36699999999999994, -0.0225, 0.95]}, {"name": "leaf_hook_tt_grip", "link": "leaf", "pos": [0.39699999999999996, -0.0525, 1.17]}], "grip_link": "leaf", "push": [], "leaf_edge": [{"name": "leaf_edge_mid", "link": "leaf", "pos": [0.457, 0.0, 1.046]}]}, "opening": {"width": 1.848, "height": 2.077}, "robot": {"approach_side": "-y", "is_push": false, "robot_outside": true, "start_distance_m": 2.0}, "handle_height": 0.95, "u": null, "v": null, "hinge_x": null, "lock": {"model": "hook_lock", "engaged": true, "robot_side_release": false}, "closer": "none", "operator": "pull_flush_recessed", "latch": "none", "damage": {"leaf_dent_force_N": 1500.0, "glass_break_force_N": 1500, "operator_yield_torque_Nm": 500.0, "slam_velocity_rad_s": 2.0, "frame_impact_force_N": 3000.0}, "actuators": [], "welded_static": [], "omitted": [], "notes": [], "mass_kg": 130.343922176}'
 
     def Scope "Looks"
@@ -196,7 +196,7 @@ def Xform "db0708_sliding_single"
             float physics:staticFriction = 0.6
         }
 
-        def Material "PhysMat_mat_track_0_600" (
+        def Material "PhysMat_mat_fixed_glass_0_600" (
             prepend apiSchemas = ["PhysicsMaterialAPI"]
         )
         {
@@ -205,7 +205,7 @@ def Xform "db0708_sliding_single"
             float physics:staticFriction = 0.6
         }
 
-        def Material "PhysMat_mat_fixed_glass_0_600" (
+        def Material "PhysMat_mat_track_0_600" (
             prepend apiSchemas = ["PhysicsMaterialAPI"]
         )
         {
@@ -341,26 +341,6 @@ def Xform "db0708_sliding_single"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "bottom_rail" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
-            )
-            {
-                custom bool doorbench:collision = 1
-                custom string doorbench:label = "Bottom rail"
-                custom string doorbench:semantic = "track"
-                rel material:binding = </db0708_sliding_single/Looks/mat_track>
-                rel material:binding:physics = </db0708_sliding_single/Looks/PhysMat_mat_track_0_600> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.938, 0.04, 0.024)
-                double3 xformOp:translate = (0, 0, 0.012)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
             def Cube "fixed_panel_glass" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
@@ -398,6 +378,26 @@ def Xform "db0708_sliding_single"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.024, 2.077)
                 double3 xformOp:translate = (-0.02999999999999997, 0.0475, 1.0385)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "bottom_rail" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Full-travel sliding rail"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0708_sliding_single/Looks/mat_track>
+                rel material:binding:physics = </db0708_sliding_single/Looks/PhysMat_mat_track_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1.855, 0.04, 0.024)
+                double3 xformOp:translate = (0.04150000000000004, 0, 0.012)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

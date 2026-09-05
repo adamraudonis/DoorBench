@@ -9,7 +9,7 @@ def Xform "db0235_sliding_single"
 {
     custom string doorbench:couplings = '[{"type": "mimic", "driven": "leaf_hook_hinge", "driver": "leaf_handle_hinge", "coeff": [0, 1.0, 0, 0, 0], "gearing": -1.0, "offset": -0.0, "label": "hook = driver * coeff", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}]'
     custom string doorbench:door_id = "db0235_sliding_single"
-    custom string doorbench:meta = '{"door_id": "db0235_sliding_single", "family": "sliding_single", "task": "locked_recognize", "wall_y": 0.0, "operator_joint": "leaf_handle_hinge", "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 0.95, "opens_toward": "right", "mass_reconciled_kg": 137.07486657577033, "scene_extent": 2.1342499999999998, "cam_target_z": 1.0895, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.829, 0.0225, 0.95], "handle_cam_pos": [-0.649, -0.7775000000000001, 1.23], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0235_sliding_single/Articulation/Joints/leaf_slide", "leaf_handle_hinge": "/db0235_sliding_single/Articulation/Joints/leaf_handle_hinge", "leaf_hook_hinge": "/db0235_sliding_single/Articulation/Joints/leaf_hook_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0235_sliding_single", "family": "sliding_single", "task": "locked_recognize", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "bottom_rail", "nominal_range": [0.0, 0.841], "leaf_width_m": 0.914, "rollers": ["leaf_roller_0", "leaf_roller_1"], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "operator_joint": "leaf_handle_hinge", "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 0.95, "opens_toward": "right", "mass_reconciled_kg": 137.07486657577033, "scene_extent": 2.1342499999999998, "cam_target_z": 1.0895, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.829, 0.0225, 0.95], "handle_cam_pos": [-0.649, -0.7775000000000001, 1.23], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0235_sliding_single/Articulation/Joints/leaf_slide", "leaf_handle_hinge": "/db0235_sliding_single/Articulation/Joints/leaf_handle_hinge", "leaf_hook_hinge": "/db0235_sliding_single/Articulation/Joints/leaf_hook_hinge"}}'
 
     def Scope "Looks"
     {
@@ -235,7 +235,7 @@ def Xform "db0235_sliding_single"
             float physics:staticFriction = 0.6
         }
 
-        def Material "PhysMat_mat_track_0_600" (
+        def Material "PhysMat_mat_fixed_glass_0_600" (
             prepend apiSchemas = ["PhysicsMaterialAPI"]
         )
         {
@@ -244,7 +244,7 @@ def Xform "db0235_sliding_single"
             float physics:staticFriction = 0.6
         }
 
-        def Material "PhysMat_mat_fixed_glass_0_600" (
+        def Material "PhysMat_mat_track_0_600" (
             prepend apiSchemas = ["PhysicsMaterialAPI"]
         )
         {
@@ -419,26 +419,6 @@ def Xform "db0235_sliding_single"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "bottom_rail" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
-            )
-            {
-                custom bool doorbench:collision = 1
-                custom string doorbench:label = "Bottom rail"
-                custom string doorbench:semantic = "track"
-                rel material:binding = </db0235_sliding_single/Looks/mat_track>
-                rel material:binding:physics = </db0235_sliding_single/Looks/PhysMat_mat_track_0_600> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.938, 0.04, 0.024)
-                double3 xformOp:translate = (0, 0, 0.012)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
             def Cube "fixed_panel_glass" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
@@ -476,6 +456,26 @@ def Xform "db0235_sliding_single"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.024, 2.179)
                 double3 xformOp:translate = (0.02999999999999997, 0.0475, 1.0895)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "bottom_rail" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Full-travel sliding rail"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0235_sliding_single/Looks/mat_track>
+                rel material:binding:physics = </db0235_sliding_single/Looks/PhysMat_mat_track_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1.855, 0.04, 0.024)
+                double3 xformOp:translate = (-0.04150000000000004, 0, 0.012)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

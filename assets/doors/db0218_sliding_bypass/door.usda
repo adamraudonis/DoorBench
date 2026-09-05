@@ -9,7 +9,7 @@ def Xform "db0218_sliding_bypass"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0218_sliding_bypass"
-    custom string doorbench:meta = '{"door_id": "db0218_sliding_bypass", "family": "sliding_bypass", "task": "peek", "wall_y": 0.0, "primary_joint": "leaf_0_slide", "secondary_joint": "leaf_1_slide", "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 19.412560000000003, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.51, -0.035, 1.0], "handle_cam_pos": [-0.33, -0.8350000000000001, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_0_slide": "/db0218_sliding_bypass/Articulation/Joints/leaf_0_slide", "leaf_1_slide": "/db0218_sliding_bypass/Articulation/Joints/leaf_1_slide"}}'
+    custom string doorbench:meta = '{"door_id": "db0218_sliding_bypass", "family": "sliding_bypass", "task": "peek", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_0_slide", "body": "leaf_0", "rail": "leaf_0_track_header", "nominal_range": [0.0, 0.58], "leaf_width_m": 0.61, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}, {"joint": "leaf_1_slide", "body": "leaf_1", "rail": "leaf_1_track_header", "nominal_range": [0.0, 0.58], "leaf_width_m": 0.61, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_0_slide", "secondary_joint": "leaf_1_slide", "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 19.412560000000003, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.51, -0.035, 1.0], "handle_cam_pos": [-0.33, -0.8350000000000001, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_0_slide": "/db0218_sliding_bypass/Articulation/Joints/leaf_0_slide", "leaf_1_slide": "/db0218_sliding_bypass/Articulation/Joints/leaf_1_slide"}}'
 
     def Scope "Looks"
     {
@@ -353,12 +353,12 @@ def Xform "db0218_sliding_bypass"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "track_header" (
+            def Cube "leaf_0_track_header" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Track header"
+                custom string doorbench:label = "Full-travel sliding rail"
                 custom string doorbench:semantic = "track"
                 rel material:binding = </db0218_sliding_bypass/Looks/mat_track>
                 rel material:binding:physics = </db0218_sliding_bypass/Looks/PhysMat_mat_track_0_600> (
@@ -368,8 +368,28 @@ def Xform "db0218_sliding_bypass"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.91, 0.08, 0.08)
-                double3 xformOp:translate = (0, 0, 2.111)
+                float3 xformOp:scale = (1.29, 0.05, 0.08)
+                double3 xformOp:translate = (-0.0050000000000000044, -0.030000000000000002, 2.111)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_1_track_header" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Full-travel sliding rail"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0218_sliding_bypass/Looks/mat_track>
+                rel material:binding:physics = </db0218_sliding_bypass/Looks/PhysMat_mat_track_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1.29, 0.05, 0.08)
+                double3 xformOp:translate = (-0.0050000000000000044, 0.030000000000000002, 2.111)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

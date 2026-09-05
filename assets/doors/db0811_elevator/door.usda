@@ -9,7 +9,7 @@ def Xform "db0811_elevator"
 {
     custom string doorbench:couplings = '[{"type": "mimic", "driven": "leaf_b_slide", "driver": "leaf_a_slide", "coeff": [0, 1.0, 0, 0, 0], "gearing": -1.0, "offset": -0.0, "label": "leaves move symmetrically", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}]'
     custom string doorbench:door_id = "db0811_elevator"
-    custom string doorbench:meta = '{"door_id": "db0811_elevator", "family": "elevator", "task": "unlock_open_traverse", "wall_y": 0.0, "actuators": [{"name": "leaf_a_drive", "joint": "leaf_a_slide", "kind": "position", "kp": 400.0, "kv": 60.0, "forcerange": [-135, 135], "ctrlrange": [0.0, 0.44]}, {"name": "leaf_b_drive", "joint": "leaf_b_slide", "kind": "position", "kp": 400.0, "kv": 60.0, "forcerange": [-135, 135], "ctrlrange": [0.0, 0.44]}], "primary_joint": "leaf_a_slide", "secondary_joint": "leaf_b_slide", "handle_height": 1.0, "opens_toward": "right", "operator_joint": null, "mass_reconciled_kg": 32.07175884991766, "scene_extent": 2.3449999999999998, "cam_target_z": 1.23, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.48, -0.8, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_slide": "/db0811_elevator/Articulation/Joints/leaf_a_slide", "leaf_b_slide": "/db0811_elevator/Articulation/Joints/leaf_b_slide", "call_button_slide": "/db0811_elevator/Articulation/Joints/call_button_slide"}}'
+    custom string doorbench:meta = '{"door_id": "db0811_elevator", "family": "elevator", "task": "unlock_open_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_a_slide", "body": "leaf_a", "rail": "leaf_a_track_header", "nominal_range": [0.0, 0.44], "leaf_width_m": 0.45, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}, {"joint": "leaf_b_slide", "body": "leaf_b", "rail": "leaf_b_track_header", "nominal_range": [0.0, 0.44], "leaf_width_m": 0.45, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "actuators": [{"name": "leaf_a_drive", "joint": "leaf_a_slide", "kind": "position", "kp": 400.0, "kv": 60.0, "forcerange": [-135, 135], "ctrlrange": [0.0, 0.44]}, {"name": "leaf_b_drive", "joint": "leaf_b_slide", "kind": "position", "kp": 400.0, "kv": 60.0, "forcerange": [-135, 135], "ctrlrange": [0.0, 0.44]}], "primary_joint": "leaf_a_slide", "secondary_joint": "leaf_b_slide", "handle_height": 1.0, "opens_toward": "right", "operator_joint": null, "mass_reconciled_kg": 32.07175884991766, "scene_extent": 2.3449999999999998, "cam_target_z": 1.23, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.48, -0.8, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_slide": "/db0811_elevator/Articulation/Joints/leaf_a_slide", "leaf_b_slide": "/db0811_elevator/Articulation/Joints/leaf_b_slide", "call_button_slide": "/db0811_elevator/Articulation/Joints/call_button_slide"}}'
 
     def Scope "Looks"
     {
@@ -385,12 +385,12 @@ def Xform "db0811_elevator"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "track_header" (
+            def Cube "leaf_a_track_header" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Track header"
+                custom string doorbench:label = "Full-travel sliding rail"
                 custom string doorbench:semantic = "track"
                 rel material:binding = </db0811_elevator/Looks/mat_track>
                 rel material:binding:physics = </db0811_elevator/Looks/PhysMat_mat_track_0_600> (
@@ -400,8 +400,28 @@ def Xform "db0811_elevator"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.47, 0.08, 0.08)
-                double3 xformOp:translate = (0, 0, 2.545)
+                float3 xformOp:scale = (0.99, 0.05, 0.08)
+                double3 xformOp:translate = (-0.445, 0, 2.545)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_b_track_header" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Full-travel sliding rail"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0811_elevator/Looks/mat_track>
+                rel material:binding:physics = </db0811_elevator/Looks/PhysMat_mat_track_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.99, 0.05, 0.08)
+                double3 xformOp:translate = (0.445, 0, 2.545)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

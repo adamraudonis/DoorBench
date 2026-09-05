@@ -9,7 +9,7 @@ def Xform "db0696_sliding_single"
 {
     custom string doorbench:couplings = '[{"type": "mimic", "driven": "leaf_hook_hinge", "driver": "leaf_hook_thumbturn_hinge", "coeff": [0, 1.0, 0, 0, 0], "gearing": -1.0, "offset": -0.0, "label": "hook = driver * coeff", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}]'
     custom string doorbench:door_id = "db0696_sliding_single"
-    custom string doorbench:meta = '{"door_id": "db0696_sliding_single", "family": "sliding_single", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 72.29775762247269, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.4435, -0.1815, 1.0], "handle_cam_pos": [0.6234999999999999, -0.9815, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0696_sliding_single/Articulation/Joints/leaf_slide", "leaf_hook_thumbturn_hinge": "/db0696_sliding_single/Articulation/Joints/leaf_hook_thumbturn_hinge", "leaf_hook_hinge": "/db0696_sliding_single/Articulation/Joints/leaf_hook_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0696_sliding_single", "family": "sliding_single", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "flat_track", "nominal_range": [0.0, 1.067], "leaf_width_m": 1.067, "rollers": ["leaf_hanger_wheel_0", "leaf_hanger_wheel_1"], "end_stops": ["leaf_track_stop_l", "leaf_track_stop_r"], "floor_guides_required": true, "floor_guides": [{"jaws": ["floor_guide_n", "floor_guide_p"], "feet": ["floor_guide_n_foot", "floor_guide_p_foot"]}], "guide_leaf_geoms": ["leaf_slab", "leaf_plank_gap_1", "leaf_plank_gap_2", "leaf_plank_gap_3", "leaf_plank_gap_4", "leaf_plank_gap_5", "leaf_plank_gap_6", "leaf_batten_13", "leaf_batten_192", "leaf_brace_z"]}], "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 72.29775762247269, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.4435, -0.1815, 1.0], "handle_cam_pos": [0.6234999999999999, -0.9815, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0696_sliding_single/Articulation/Joints/leaf_slide", "leaf_hook_thumbturn_hinge": "/db0696_sliding_single/Articulation/Joints/leaf_hook_thumbturn_hinge", "leaf_hook_hinge": "/db0696_sliding_single/Articulation/Joints/leaf_hook_hinge"}}'
 
     def Scope "Looks"
     {
@@ -346,7 +346,7 @@ def Xform "db0696_sliding_single"
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Flat track"
+                custom string doorbench:label = "Full-travel sliding rail"
                 custom string doorbench:semantic = "track"
                 rel material:binding = </db0696_sliding_single/Looks/mat_track>
                 rel material:binding:physics = </db0696_sliding_single/Looks/PhysMat_mat_track_0_600> (
@@ -357,7 +357,7 @@ def Xform "db0696_sliding_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (2.234, 0.008, 0.04)
-                double3 xformOp:translate = (0, -0.0945, 2.172)
+                double3 xformOp:translate = (-0.5334999999999999, -0.0945, 2.172)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -367,13 +367,13 @@ def Xform "db0696_sliding_single"
             {
                 uniform token axis = "Z"
                 custom bool doorbench:collision = 0
-                custom string doorbench:label = "Track standoff"
+                custom string doorbench:label = "Wall-to-track spacer"
                 custom string doorbench:semantic = "track"
-                double height = 0.024
+                double height = 0.018000000000000002
                 rel material:binding = </db0696_sliding_single/Looks/mat_track>
                 double radius = 0.012
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
-                double3 xformOp:translate = (-1.117, -0.0845, 2.172)
+                double3 xformOp:translate = (-1.6004999999999998, -0.08149999999999999, 2.172)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -383,13 +383,13 @@ def Xform "db0696_sliding_single"
             {
                 uniform token axis = "Z"
                 custom bool doorbench:collision = 0
-                custom string doorbench:label = "Track standoff"
+                custom string doorbench:label = "Wall-to-track spacer"
                 custom string doorbench:semantic = "track"
-                double height = 0.024
+                double height = 0.018000000000000002
                 rel material:binding = </db0696_sliding_single/Looks/mat_track>
                 double radius = 0.012
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
-                double3 xformOp:translate = (-0.517, -0.0845, 2.172)
+                double3 xformOp:translate = (-1.0669999999999997, -0.08149999999999999, 2.172)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -399,13 +399,13 @@ def Xform "db0696_sliding_single"
             {
                 uniform token axis = "Z"
                 custom bool doorbench:collision = 0
-                custom string doorbench:label = "Track standoff"
+                custom string doorbench:label = "Wall-to-track spacer"
                 custom string doorbench:semantic = "track"
-                double height = 0.024
+                double height = 0.018000000000000002
                 rel material:binding = </db0696_sliding_single/Looks/mat_track>
                 double radius = 0.012
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
-                double3 xformOp:translate = (0.08299999999999996, -0.0845, 2.172)
+                double3 xformOp:translate = (-0.5334999999999999, -0.08149999999999999, 2.172)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -415,14 +415,70 @@ def Xform "db0696_sliding_single"
             {
                 uniform token axis = "Z"
                 custom bool doorbench:collision = 0
-                custom string doorbench:label = "Track standoff"
+                custom string doorbench:label = "Wall-to-track spacer"
                 custom string doorbench:semantic = "track"
-                double height = 0.024
+                double height = 0.018000000000000002
                 rel material:binding = </db0696_sliding_single/Looks/mat_track>
                 double radius = 0.012
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
-                double3 xformOp:translate = (0.6829999999999998, -0.0845, 2.172)
+                double3 xformOp:translate = (0, -0.08149999999999999, 2.172)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "track_standoff_4" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Wall-to-track spacer"
+                custom string doorbench:semantic = "track"
+                double height = 0.018000000000000002
+                rel material:binding = </db0696_sliding_single/Looks/mat_track>
+                double radius = 0.012
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (0.5335000000000001, -0.08149999999999999, 2.172)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "leaf_track_stop_l" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Bolted track-end bumper"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0696_sliding_single/Looks/mat_track>
+                rel material:binding:physics = </db0696_sliding_single/Looks/PhysMat_mat_track_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.024, 0.032, 0.054)
+                double3 xformOp:translate = (-1.5424999999999998, -0.0945, 2.217)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_track_stop_r" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Bolted track-end bumper"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0696_sliding_single/Looks/mat_track>
+                rel material:binding:physics = </db0696_sliding_single/Looks/PhysMat_mat_track_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.024, 0.032, 0.054)
+                double3 xformOp:translate = (0.4755, -0.0945, 2.217)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
             def Cube "leaf_hook_keeper" (
@@ -462,6 +518,86 @@ def Xform "db0696_sliding_single"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.079, 0.145, 2.052)
                 double3 xformOp:translate = (0.583, 0, 1.026)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "floor_guide_n" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Floor-mounted guide jaw (1 mm face clearance)"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0696_sliding_single/Looks/mat_track>
+                rel material:binding:physics = </db0696_sliding_single/Looks/PhysMat_mat_track_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.056, 0.008, 0.018)
+                double3 xformOp:translate = (-0.5335, -0.14150000000000001, 0.009)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "floor_guide_n_foot" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Guide mounting foot"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0696_sliding_single/Looks/mat_track>
+                rel material:binding:physics = </db0696_sliding_single/Looks/PhysMat_mat_track_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.056, 0.036, 0.004)
+                double3 xformOp:translate = (-0.5335, -0.15550000000000003, 0.002)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "floor_guide_p" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Floor-mounted guide jaw (1 mm face clearance)"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0696_sliding_single/Looks/mat_track>
+                rel material:binding:physics = </db0696_sliding_single/Looks/PhysMat_mat_track_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.056, 0.008, 0.018)
+                double3 xformOp:translate = (-0.5335, -0.08750000000000001, 0.009)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "floor_guide_p_foot" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Guide mounting foot"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0696_sliding_single/Looks/mat_track>
+                rel material:binding:physics = </db0696_sliding_single/Looks/PhysMat_mat_track_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.056, 0.036, 0.004)
+                double3 xformOp:translate = (-0.5335, -0.07350000000000001, 0.002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -545,7 +681,7 @@ def Xform "db0696_sliding_single"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 1.067
                 custom float physxJoint:armature = 0.5
-                custom float physxJoint:jointFriction = 0.019898143
+                custom float physxJoint:jointFriction = 0.019899715
                 custom float physxJointAxis:transX:armature = 0.5
                 custom float physxJointAxis:transX:dynamicFrictionEffort = 14.229204
                 custom float physxJointAxis:transX:staticFrictionEffort = 14.229204
@@ -657,10 +793,10 @@ def Xform "db0696_sliding_single"
         {
             custom string doorbench:label = "Sliding leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.0030455694, -0.0005034523, 1.0750289)
-            float3 physics:diagonalInertia = (7.156482, 27.347452, 34.477966)
+            point3f physics:centerOfMass = (0.0030023588, 0.0000757229, 1.0919346)
+            float3 physics:diagonalInertia = (7.231759, 28.419676, 35.623158)
             float physics:mass = 72.29776
-            quatf physics:principalAxes = (0.50018597, 0.49943298, -0.50067925, 0.49970093)
+            quatf physics:principalAxes = (0.50059944, 0.49895436, -0.5002505, 0.50019413)
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -828,14 +964,29 @@ def Xform "db0696_sliding_single"
             {
                 uniform token axis = "Z"
                 custom bool doorbench:collision = 0
-                custom string doorbench:label = "Hanger wheel"
+                custom string doorbench:label = "Rail-bearing hanger wheel"
                 custom string doorbench:semantic = "track"
                 double height = 0.02
                 rel material:binding = </db0696_sliding_single/Looks/mat_roller>
                 double radius = 0.05
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
-                double3 xformOp:translate = (-0.4135, 0, 2.164)
+                double3 xformOp:translate = (-0.4135, 0.020000000000000004, 2.242)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "leaf_hanger_mount_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Hanger strap"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0696_sliding_single/Looks/mat_roller>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.036, 0.008, 0.145)
+                double3 xformOp:translate = (-0.4135, -0.026, 1.9965)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
             def Cube "leaf_hanger_strap_0" (
@@ -848,9 +999,72 @@ def Xform "db0696_sliding_single"
                 rel material:binding = </db0696_sliding_single/Looks/mat_roller>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.008, 0.14)
-                double3 xformOp:translate = (-0.4135, -0.012, 2.094)
+                float3 xformOp:scale = (0.036, 0.008, 0.185)
+                double3 xformOp:translate = (-0.4135, 0.006000000000000004, 2.1615)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_hanger_bend_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap offset above door"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0696_sliding_single/Looks/mat_roller>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.036, 0.04, 0.008)
+                double3 xformOp:translate = (-0.4135, -0.009999999999999998, 2.069)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "leaf_hanger_axle_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Hanger axle"
+                custom string doorbench:semantic = "track"
+                double height = 0.042
+                rel material:binding = </db0696_sliding_single/Looks/mat_roller>
+                double radius = 0.006
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (-0.4135, 0.013000000000000005, 2.242)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "leaf_hanger_bolt_0_90" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap fixing bolt"
+                custom string doorbench:semantic = "track"
+                double height = 0.008
+                rel material:binding = </db0696_sliding_single/Looks/mat_roller>
+                double radius = 0.007
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (-0.4135, -0.032, 1.954)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "leaf_hanger_bolt_0_45" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap fixing bolt"
+                custom string doorbench:semantic = "track"
+                double height = 0.008
+                rel material:binding = </db0696_sliding_single/Looks/mat_roller>
+                double radius = 0.007
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (-0.4135, -0.032, 1.999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Cylinder "leaf_hanger_wheel_1" (
@@ -859,14 +1073,29 @@ def Xform "db0696_sliding_single"
             {
                 uniform token axis = "Z"
                 custom bool doorbench:collision = 0
-                custom string doorbench:label = "Hanger wheel"
+                custom string doorbench:label = "Rail-bearing hanger wheel"
                 custom string doorbench:semantic = "track"
                 double height = 0.02
                 rel material:binding = </db0696_sliding_single/Looks/mat_roller>
                 double radius = 0.05
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
-                double3 xformOp:translate = (0.4135, 0, 2.164)
+                double3 xformOp:translate = (0.4135, 0.020000000000000004, 2.242)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "leaf_hanger_mount_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Hanger strap"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0696_sliding_single/Looks/mat_roller>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.036, 0.008, 0.145)
+                double3 xformOp:translate = (0.4135, -0.026, 1.9965)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
             def Cube "leaf_hanger_strap_1" (
@@ -879,9 +1108,72 @@ def Xform "db0696_sliding_single"
                 rel material:binding = </db0696_sliding_single/Looks/mat_roller>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.008, 0.14)
-                double3 xformOp:translate = (0.4135, -0.012, 2.094)
+                float3 xformOp:scale = (0.036, 0.008, 0.185)
+                double3 xformOp:translate = (0.4135, 0.006000000000000004, 2.1615)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_hanger_bend_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap offset above door"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0696_sliding_single/Looks/mat_roller>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.036, 0.04, 0.008)
+                double3 xformOp:translate = (0.4135, -0.009999999999999998, 2.069)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "leaf_hanger_axle_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Hanger axle"
+                custom string doorbench:semantic = "track"
+                double height = 0.042
+                rel material:binding = </db0696_sliding_single/Looks/mat_roller>
+                double radius = 0.006
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (0.4135, 0.013000000000000005, 2.242)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "leaf_hanger_bolt_1_90" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap fixing bolt"
+                custom string doorbench:semantic = "track"
+                double height = 0.008
+                rel material:binding = </db0696_sliding_single/Looks/mat_roller>
+                double radius = 0.007
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (0.4135, -0.032, 1.954)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "leaf_hanger_bolt_1_45" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap fixing bolt"
+                custom string doorbench:semantic = "track"
+                double height = 0.008
+                rel material:binding = </db0696_sliding_single/Looks/mat_roller>
+                double radius = 0.007
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (0.4135, -0.032, 1.999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Xform "leaf_pull_n" (

@@ -359,9 +359,23 @@
       </geometry>
     </collision>
     <visual name="closer_bracket_vis">
-      <origin xyz="0.365 -0.107 2.18" rpy="0 0 0"/>
+      <origin xyz="0.365 -0.093 2.187667" rpy="0 0 0"/>
       <geometry>
-        <box size="0.06 0.04 0.024"/>
+        <box size="0.064 0.008 0.051333"/>
+      </geometry>
+      <material name="mat_closer"/>
+    </visual>
+    <visual name="closer_shoe_guide_-1_vis">
+      <origin xyz="0.339 -0.107 2.187667" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.012 0.032 0.051333"/>
+      </geometry>
+      <material name="mat_closer"/>
+    </visual>
+    <visual name="closer_shoe_guide_+1_vis">
+      <origin xyz="0.391 -0.107 2.187667" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.012 0.032 0.051333"/>
       </geometry>
       <material name="mat_closer"/>
     </visual>
@@ -396,8 +410,8 @@
   <link name="leaf">
     <inertial>
       <origin xyz="-0.411352 0.056734 1.240248" rpy="0 0 0"/>
-      <mass value="57.603584"/>
-      <inertia ixx="28.21267823" ixy="0.220940578" ixz="-1.41264287" iyy="31.55598838" iyz="1.358822176" izz="3.867135619"/>
+      <mass value="57.56182"/>
+      <inertia ixx="28.192223712" ixy="0.220780393" ixz="-1.411618688" iyy="31.533109923" iyz="1.357837014" izz="3.864331901"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="-0.455 0.082 1.0737" rpy="0 0 0"/>
@@ -590,14 +604,42 @@
   </link>
   <link name="closer_arm_fore">
     <inertial>
-      <origin xyz="0.1125 0 0" rpy="0 0 0"/>
-      <mass value="0.06804"/>
-      <inertia ixx="0.000001474" ixy="0" ixz="0" iyy="0.000287407" iyz="0" izz="0.000288155"/>
+      <origin xyz="0.127353 0 0" rpy="0 0 0"/>
+      <mass value="0.076107"/>
+      <inertia ixx="0.000001712" ixy="0" ixz="0" iyy="0.000430185" iyz="0" izz="0.000430774"/>
     </inertial>
     <visual name="closer_arm_fore_geom_vis">
       <origin xyz="0.1125 0 0" rpy="0 0 0"/>
       <geometry>
         <box size="0.225 0.014 0.008"/>
+      </geometry>
+      <material name="mat_closer"/>
+    </visual>
+    <visual name="closer_shoe_neck_vis">
+      <origin xyz="0.2425 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.035 0.006 0.006"/>
+      </geometry>
+      <material name="mat_closer"/>
+    </visual>
+    <visual name="closer_shoe_pivot_vis">
+      <origin xyz="0.26 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.005" length="0.022"/>
+      </geometry>
+      <material name="mat_closer"/>
+    </visual>
+  </link>
+  <link name="closer_shoe">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.033696"/>
+      <inertia ixx="0.000001842" ixy="0" ixz="0" iyy="0.00000499" iyz="0" izz="0.000005394"/>
+    </inertial>
+    <visual name="closer_shoe_block_vis">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.039 0.02 0.016"/>
       </geometry>
       <material name="mat_closer"/>
     </visual>
@@ -663,6 +705,14 @@
     <axis xyz="0 0 1"/>
     <dynamics damping="0.01" friction="0"/>
   </joint>
+  <joint name="closer_shoe_slide" type="prismatic">
+    <origin xyz="0.365 -0.107 2.18" rpy="0 0 0"/>
+    <parent link="world_env"/>
+    <child link="closer_shoe"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="0.015333" effort="5000" velocity="10"/>
+    <dynamics damping="0.1" friction="0"/>
+  </joint>
   <material name="mat_bolt">
     <color rgba="0.75 0.76 0.77 1"/>
   </material>
@@ -705,5 +755,5 @@
   <material name="mat_wall">
     <color rgba="0.78 0.76 0.7 1"/>
   </material>
-  <doorbench:loop_closure body1="closer_arm_fore" body2="world" anchor="0.26 0 0" label="Closer forearm pinned to frame bracket"/>
+  <doorbench:loop_closure body1="closer_arm_fore" body2="closer_shoe" anchor="0.26 0 0" label="Closer forearm pinned to frame shoe"/>
 </robot>

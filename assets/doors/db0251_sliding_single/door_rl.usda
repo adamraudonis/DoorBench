@@ -8,7 +8,7 @@
 def Xform "db0251_sliding_single"
 {
     custom string doorbench:door_id = "db0251_sliding_single"
-    custom string doorbench:meta = '{"door_id": "db0251_sliding_single", "family": "sliding_single", "task": "peek", "wall_y": 0.0, "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "right", "operator_joint": null, "mass_reconciled_kg": 8.456879999999996, "scene_extent": 1.94, "cam_target_z": 0.93, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.865, -0.015, 1.0], "handle_cam_pos": [-0.685, -0.8150000000000001, 1.28]}'
+    custom string doorbench:meta = '{"door_id": "db0251_sliding_single", "family": "sliding_single", "task": "peek", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "shikii", "nominal_range": [0.0, 0.95], "leaf_width_m": 0.95, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "right", "operator_joint": null, "mass_reconciled_kg": 8.456879999999996, "scene_extent": 1.94, "cam_target_z": 0.93, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.865, -0.015, 1.0], "handle_cam_pos": [-0.685, -0.8150000000000001, 1.28]}'
     custom string doorbench:rl = '{"door_id": "db0251_sliding_single", "family": "sliding_single", "task": "peek", "slots": {"door": "slide", "operator": "none", "latch": "none", "secondary": "none"}, "links": ["base", "carriage", "leaf", "operator_pivot", "operator", "latch", "carriage2", "leaf2"], "joints": {"door_slide": {"active": true, "type": "prismatic", "source": "leaf_slide", "role": "primary", "range": [0.0, 0.95], "stiffness": 0.0, "damping": 2.422844, "target": 0.0, "friction": 32.34412827827998, "damping_closing": null, "damping_opening": null, "backcheck_angle": null, "backcheck_damping": null, "ratchet_one_way": false, "label": "Slide (0 = closed, + = open)"}, "door_hinge": {"active": false, "type": "revolute", "range": [-0.0008726646259971648, 0.0008726646259971648]}, "operator_hinge": {"active": false, "type": "revolute", "range": [-0.0008726646259971648, 0.0008726646259971648]}, "operator_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "latch_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "leaf2_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "leaf2_hinge": {"active": false, "type": "revolute", "range": [-0.0008726646259971648, 0.0008726646259971648]}}, "primary_joint": "leaf_slide", "operator_joint": null, "latch_joint": null, "secondary_joint": null, "door_joint": "door_slide", "operator_slot_joint": null, "secondary_slot_joint": null, "latch_coupling": null, "secondary_coupling": null, "open_threshold": 0.1, "clear_threshold": 0.55, "closed_threshold": 0.03, "sites": {"approach": [0.0, -1.5, 0.0], "goal": [0.0, 1.5, 0.0], "pass_plane": [0.0, 0.0, 0.93], "grip": [{"name": "leaf_pull_grip_n", "link": "leaf", "pos": [-0.385, -0.015, 1.0]}, {"name": "leaf_ext_pull_grip_p", "link": "leaf", "pos": [-0.385, 0.015, 1.0]}], "grip_link": "leaf", "push": [], "leaf_edge": [{"name": "leaf_edge_mid", "link": "leaf", "pos": [-0.475, 0.0, 0.927]}]}, "opening": {"width": 1.92, "height": 1.86}, "robot": {"approach_side": "-y", "is_push": false, "robot_outside": true, "start_distance_m": 2.15}, "handle_height": 1.0, "u": null, "v": null, "hinge_x": null, "lock": {"model": "none", "engaged": false, "robot_side_release": true}, "closer": "none", "operator": "shoji_finger_pull", "latch": "none", "damage": {"leaf_dent_force_N": 15.0, "glass_break_force_N": 30, "operator_yield_torque_Nm": 40.0, "slam_velocity_rad_s": 2.0, "frame_impact_force_N": 3000.0}, "actuators": [], "welded_static": [], "omitted": [], "notes": [], "mass_kg": 8.456879999999996}'
 
     def Scope "Looks"
@@ -73,21 +73,6 @@ def Xform "db0251_sliding_single"
             }
         }
 
-        def Material "mat_shikii"
-        {
-            token outputs:surface.connect = </db0251_sliding_single/Looks/mat_shikii/Shader.outputs:surface>
-
-            def Shader "Shader"
-            {
-                uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0.88, 0.78, 0.6)
-                float inputs:metallic = 0
-                float inputs:opacity = 1
-                float inputs:roughness = 0.6
-                token outputs:surface
-            }
-        }
-
         def Material "mat_fixed_glass"
         {
             token outputs:surface.connect = </db0251_sliding_single/Looks/mat_fixed_glass/Shader.outputs:surface>
@@ -114,6 +99,21 @@ def Xform "db0251_sliding_single"
                 float inputs:metallic = 0
                 float inputs:opacity = 0.45
                 float inputs:roughness = 0.9
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_shikii"
+        {
+            token outputs:surface.connect = </db0251_sliding_single/Looks/mat_shikii/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.88, 0.78, 0.6)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.6
                 token outputs:surface
             }
         }
@@ -226,7 +226,7 @@ def Xform "db0251_sliding_single"
             float physics:staticFriction = 0.6
         }
 
-        def Material "PhysMat_mat_shikii_0_600" (
+        def Material "PhysMat_mat_fixed_shoji_0_600" (
             prepend apiSchemas = ["PhysicsMaterialAPI"]
         )
         {
@@ -235,7 +235,7 @@ def Xform "db0251_sliding_single"
             float physics:staticFriction = 0.6
         }
 
-        def Material "PhysMat_mat_fixed_shoji_0_600" (
+        def Material "PhysMat_mat_shikii_0_600" (
             prepend apiSchemas = ["PhysicsMaterialAPI"]
         )
         {
@@ -362,46 +362,6 @@ def Xform "db0251_sliding_single"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "shikii" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
-            )
-            {
-                custom bool doorbench:collision = 1
-                custom string doorbench:label = "Shikii (bottom rail)"
-                custom string doorbench:semantic = "track"
-                rel material:binding = </db0251_sliding_single/Looks/mat_shikii>
-                rel material:binding:physics = </db0251_sliding_single/Looks/PhysMat_mat_shikii_0_600> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (2.02, 0.1, 0.024)
-                double3 xformOp:translate = (0, 0, 0.012)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "kamoi" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
-            )
-            {
-                custom bool doorbench:collision = 1
-                custom string doorbench:label = "Kamoi (head rail)"
-                custom string doorbench:semantic = "track"
-                rel material:binding = </db0251_sliding_single/Looks/mat_shikii>
-                rel material:binding:physics = </db0251_sliding_single/Looks/PhysMat_mat_shikii_0_600> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (2.02, 0.1, 0.06)
-                double3 xformOp:translate = (0, 0, 1.8900000000000001)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
             def Cube "fixed_panel_glass" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
@@ -439,6 +399,46 @@ def Xform "db0251_sliding_single"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.024, 1.86)
                 double3 xformOp:translate = (0.030000000000000027, 0.04, 0.93)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "shikii" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Full-travel sliding rail"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0251_sliding_single/Looks/mat_shikii>
+                rel material:binding:physics = </db0251_sliding_single/Looks/PhysMat_mat_shikii_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (2, 0.05, 0.024)
+                double3 xformOp:translate = (-0.004999999999999949, 0, 0.012)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "kamoi" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Kamoi (head rail)"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0251_sliding_single/Looks/mat_shikii>
+                rel material:binding:physics = </db0251_sliding_single/Looks/PhysMat_mat_shikii_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (2, 0.05, 0.06)
+                double3 xformOp:translate = (-0.004999999999999949, 0, 1.8900000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
