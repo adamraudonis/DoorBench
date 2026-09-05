@@ -255,7 +255,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
             # thumb piece (robot side) drives the same latch: small body with hinge about x on the -1 face, sitting at
             # the top of the grip plate (the deadbolt cylinder is above it, as on a Kwikset / Schlage handleset)
             tp = Body(f"{leaf_name}_thumbpiece", leaf_body.name, (x_edge - u * 0.105, -1.0 * (t / 2 + 0.018), hz + 0.112), QUAT_ID, None, [], [], FULL_SIMPLE, "operator", "Thumb latch")
-            tp.joint = Joint(f"{leaf_name}_thumbpiece_hinge", "hinge", (-1, 0, 0), (0, 0, 0.02), (0.0, opm.travel), damping=0.02, frictionloss=0.02, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Thumb piece (press in)")
+            tp.joint = Joint(f"{leaf_name}_thumbpiece_hinge", "hinge", (-1, 0, 0), (0, 0, 0.02), (0.0, opm.travel), role="operator", label="Thumb piece (press in; spring return)").set_operator_dynamics(phys["operator"])
             tm = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
             tp.geoms.append(C.box(f"{leaf_name}_thumbpiece_geom", (0, 0, 0), (0.018, 0.004, 0.02), tm, 3000, True, True, FULL_SIMPLE, "operator", "Thumb piece"))
             tp.sites.append(Site(f"{leaf_name}_thumb_push", (0, -0.005, 0.01), QUAT_ID, 0.01, "push"))
@@ -283,7 +283,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         # thumb piece: a horizontal pad standing off the plate top, pivoting on a pin along x at the door face; pressing
         # the pad DOWN (+q) rotates its tang, which passes through the door at pivot level, UP under the latch bar
         thumb = Body(f"{leaf_name}_thumb", leaf_body.name, (x_edge - u * 0.08, -1.0 * t / 2, hz + 0.095), QUAT_ID, None, [], [], ALL_TIERS, "operator", "Thumb press")
-        thumb.joint = Joint(f"{leaf_name}_thumb_hinge", "hinge", (1, 0, 0), (0, 0, 0), (0.0, opm.travel), damping=0.02, frictionloss=0.05, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Thumb press (+ = pad pressed down)")
+        thumb.joint = Joint(f"{leaf_name}_thumb_hinge", "hinge", (1, 0, 0), (0, 0, 0), (0.0, opm.travel), role="operator", label="Thumb press (+ = pad pressed down; spring return)").set_operator_dynamics(phys["operator"])
         thumb.geoms.append(C.box(f"{leaf_name}_thumb_geom", (0, -0.020, 0.0), (0.015, 0.014, 0.003), mat, 7000, True, True, ALL_TIERS, "operator", "Thumb pad"))
         thumb.geoms.append(C.box(f"{leaf_name}_thumb_boss", (0, -0.006, 0.0), (0.012, 0.006, 0.008), mat, 7000, False, True, FULL_SIMPLE, "operator", "Pivot boss"))
         thumb.geoms.append(C.box(f"{leaf_name}_thumb_lifter", (0, (0.002 + t + 0.010) / 2, -0.017), (0.004, (t + 0.008) / 2, 0.004), mat, 7000, False, True, FULL_SIMPLE, "operator", "Lifter tang (through the door, under the latch bar)"))
@@ -293,7 +293,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         bar_y = 1.0 * (t / 2 + 0.012)
         bar_z = hz + 0.09
         bar = Body(f"{leaf_name}_latch_bar", leaf_body.name, (x_edge - u * 0.20, bar_y, bar_z), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Latch bar")
-        bar.joint = Joint(f"{leaf_name}_latch_bar_hinge", "hinge", (0, -u, 0), (0, 0, 0), (0.0, 0.6), damping=0.01, frictionloss=0.01, role="latch", label="Latch bar (0 = in keeper, + = lifted)", robot_interactive=False)
+        bar.joint = Joint(f"{leaf_name}_latch_bar_hinge", "hinge", (0, -u, 0), (0, 0, 0), (0.0, 0.6), damping=0.15, frictionloss=0.01, role="latch", label="Latch bar (0 = in keeper, + = lifted)", robot_interactive=False)
         bar.geoms.append(Geom(f"{leaf_name}_latch_bar_geom", "capsule", (0.006, 0.10), (u * 0.106, 0, 0), tuple(quat_z_to((u, 0, 0))), mat, True, True, 7850.0, 0.25, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "latch", "Latch bar"))
         model.add_body(bar)
         # pivot plate on the far face (the bar's hinge pin) - leaf fixed, visual
@@ -317,10 +317,10 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         A = abs(sx_w + u * ps_ / 2 - (hx + x_piv))       # pivot -> post centre
         ty = ps_ / 2 + 0.006                              # prong inner faces 6 mm clear of the post
         y_arm = -1.0 * (t / 2 + 0.012)                    # flat arm on the robot face, strapped around the stile
-        h_f = 0.05                                        # the arm rises slightly to the fork (prongs above the pivot)
-        dens = 2500.0                                     # pressed-steel fork, ~0.25 kg
+        h_f = 0.02                                        # the arm rises slightly to the fork (prongs just above the pivot, so the
+        dens = 2500.0                                     # lifted fork's weight still pulls it back down); pressed steel, ~0.2 kg
         fork = Body(f"{leaf_name}_fork", leaf_body.name, (x_piv, 0.0, hz), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Fork latch")
-        fork.joint = Joint(f"{leaf_name}_fork_hinge", "hinge", (0, -u, 0), (0, 0, 0), (0.0, 1.2), damping=0.02, frictionloss=0.02, role="operator", label="Fork latch (0 = dropped over the post, + = lifted; lift to open AND to close)")
+        fork.joint = Joint(f"{leaf_name}_fork_hinge", "hinge", (0, -u, 0), (0, 0, 0), (0.0, opm.travel), role="operator", label="Fork latch (0 = dropped over the post, + = lifted 57 deg, prongs clear of the post; lift to open AND to close; gravity return)").set_operator_dynamics(phys["operator"])
         x_root = A - ps_ / 2 - 0.020                      # prong root / bridge, 20 mm short of the post face
         L_pr = A + 0.03 - x_root                          # prongs reach 30 mm past the post centre
         # sloping arm from the pivot eye up to the prong root
@@ -361,7 +361,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         sx_w = u * (Wo / 2)
         gap_edge = abs(sx_w - (hx + x_edge))
         protrusion = min(opm.travel - 0.004, max(0.036, gap_edge + 0.032))
-        sb, info = C.add_barrel_bolt(model, leaf_body, f"{leaf_name}_slide_bolt", (x_edge, face * t / 2, hz), (u, 0, 0), (0, face, 0), L, d, opm.travel, engaged, mat, protrusion=protrusion, standoff=standoff, role="lock", label="Slide bolt (0 = engaged, + = withdrawn)", frictionloss=opm.spring_torque_preload, joint_name=f"{leaf_name}_slide_bolt_slide", grip_site=f"{leaf_name}_grip_n")
+        sb, info = C.add_barrel_bolt(model, leaf_body, f"{leaf_name}_slide_bolt", (x_edge, face * t / 2, hz), (u, 0, 0), (0, face, 0), L, d, opm.travel, engaged, mat, protrusion=protrusion, standoff=standoff, role="lock", label="Slide bolt (0 = engaged, + = withdrawn; stays where put)", frictionloss=opm.detent_friction, joint_name=f"{leaf_name}_slide_bolt_slide", grip_site=f"{leaf_name}_grip_n")
         y_rod = face * (t / 2 + standoff)
         if is_gate:
             x_keep = sx_w + u * min(0.020, max(0.012, protrusion - gap_edge - 0.012))
@@ -388,7 +388,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         x_pin_w = hx + x_edge - u * 0.04         # world x, 40 mm inside the gate's latch edge (striker clears the post while swinging)
         sx_w = u * (Wo / 2)
         pin = Body(f"{leaf_name}_pin", None, (x_pin_w, y_pin, hz), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Lift pin")
-        pin.joint = Joint(f"{leaf_name}_pin_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, opm.travel + 0.03), damping=1.0, frictionloss=0.2, stiffness=60.0, springref=-1.0 / 60.0, role="operator", label="Lift pin (+ = lifted; weak return spring, magnet-assisted drop)")
+        pin.joint = Joint(f"{leaf_name}_pin_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, opm.travel + 0.03), role="operator", label="Lift pin (+ = lifted; spring return, magnet-assisted drop)").set_operator_dynamics(phys["operator"])
         pin.geoms.append(Geom(f"{leaf_name}_pin_geom", "capsule", (0.006, 0.03), (0, 0, -0.02), (1, 0, 0, 0), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "latch", "Latch pin"))
         pin.geoms.append(Geom(f"{leaf_name}_pin_knob", "capsule", (0.012, 0.01), (0, 0, 0.065), (1, 0, 0, 0), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Lift knob"))
         pin.sites.append(Site(f"{leaf_name}_grip_pin", (0, 0, 0.065), QUAT_ID, 0.012, "grip"))
@@ -421,7 +421,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         # push-button latch: small button on the robot face (slide), lever-ish; couples to a small latch bolt
         mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
         btn = Body(f"{leaf_name}_pushbutton", leaf_body.name, (x_spindle, -1.0 * (t / 2 + 0.01), hz), QUAT_ID, None, [], [], ALL_TIERS, "operator", "Push button")
-        btn.joint = Joint(f"{leaf_name}_pushbutton_slide", "slide", (0, 1, 0), (0, 0, 0), (0.0, opm.travel), damping=1.0, frictionloss=0.2, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Push button (+ = pressed)")
+        btn.joint = Joint(f"{leaf_name}_pushbutton_slide", "slide", (0, 1, 0), (0, 0, 0), (0.0, opm.travel), role="operator", label="Push button (+ = pressed; spring return)").set_operator_dynamics(phys["operator"])
         btn.geoms.append(C.cyl(f"{leaf_name}_pushbutton_geom", (0, -0.006, 0), 0.01, 0.006, mat, (0, 1, 0), 2700, True, True, ALL_TIERS, "operator", "Button"))
         btn.sites.append(Site(f"{leaf_name}_push", (0, -0.012, 0), QUAT_ID, 0.01, "push"))
         model.add_body(btn)
@@ -843,9 +843,14 @@ def build_ship(spec, phys, model: Model):
             positions.append((u * (0.004 + W - 0.06), z, u))      # latch edge dogs
             positions.append((u * (0.004 + 0.06), z, -u))         # hinge edge dogs
         positions = positions[:n_dogs]
+    dog_dyn = phys["operator"] if opm.id == "dog_lever" else None
     for k, (xd, zd, edge_dir) in enumerate(positions):
+        # every dog is an independent operator: a wedge cam on its own spindle, held dogged / undogged by friction
+        # (return_kind "detent"); the leaf is held shut while ANY dog is still over its cleat
         d = Body(f"dog_{k}", lb.name, (xd, 0, zd), QUAT_ID, None, [], [], ALL_TIERS, "lock", f"Dog {k + 1}")
-        d.joint = Joint(f"dog_{k}_hinge", "hinge", (0, -edge_dir * u, 0), (0, 0, 0), (0.0, 1.5708), damping=0.5, frictionloss=1.5, role="lock", label=f"Dog {k + 1} (0 = dogged, + = released)")
+        d.joint = Joint(f"dog_{k}_hinge", "hinge", (0, -edge_dir * u, 0), (0, 0, 0), (0.0, 1.5708), damping=0.5, frictionloss=1.5, role="lock", label=f"Dog {k + 1} of {len(positions)} (0 = dogged, + = released; stays where put)", return_kind="detent")
+        if dog_dyn is not None:
+            d.joint.frictionloss, d.joint.damping = dog_dyn["frictionloss"], dog_dyn["damping"]
         # lever on robot face (-1), wedge beyond edge
         key, mesh = MESH.lever_mesh(shape="dog", length=0.22, diameter=0.025, rose_diameter=0.06, standoff=0.05)
         d.geoms.append(C.mesh_geom(f"dog_{k}_lever", key, mesh, (0, -1.0 * (t / 2 + 0.009), 0), C.q_face(-1.0, edge_dir), mat, 7800, False, ALL_TIERS, "operator", "Dog lever"))
@@ -858,25 +863,44 @@ def build_ship(spec, phys, model: Model):
         dog_joints.append(d.joint.name)
         # frame cleat: block on the +v side of the wedge so the door can't open while dogged
         cx = hx + xd + edge_dir * 0.08
-        world.geoms.append(C.box(f"cleat_{k}", (cx, -v * (wy - 0.012 - 0.005 - 0.003), zd + sill), (0.02, 0.005, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Dog cleat"))
+        world.geoms.append(C.box(f"cleat_{k}", (cx, -v * (wy - 0.012 - 0.005 - 0.0005), zd + sill), (0.02, 0.005, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Dog cleat (0.5 mm under the wedge: a dogged wedge holds the leaf within 1 deg even 3 cm from the hinge line)"))
         world.geoms.append(C.box(f"cleat_{k}_base", (cx, -v * (wy + 0.036), zd + sill), (0.02, 0.018, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat base"))
         world.geoms.append(C.box(f"cleat_{k}_bridge", (cx + edge_dir * 0.045, -v * (wy + 0.008), zd + sill), (0.005, 0.03, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat bridge"))
     if spec["kinematics"].get("wheel_dogging"):
         wm = H.OPERATORS["wheel_ship_hatch"]
-        wb = C.add_rotary_operator(model, lb, spec, phys, wm, u, v, u * (0.004 + W / 2), Hh / 2, t, [-1.0, 1.0], None, name="wheel")
-        # wheel drives 4 dogs (auto-created) if no explicit dogs
+        x_wheel, z_wheel = u * (0.004 + W / 2), Hh / 2
+        wb = C.add_rotary_operator(model, lb, spec, phys, wm, u, v, x_wheel, z_wheel, t, [-1.0, 1.0], None, name="wheel")
+        # quick-acting door: the central handwheel drives 4 dogs simultaneously through a real coupling (joint
+        # equalities dog_k = wheel * 90deg / wheel travel); the linkage rods from the hub to each dog are drawn on the
+        # robot face (visual: the equality IS the mechanism)
         if not positions:
+            rod_m = C.mat_from_material(model, "steel_painted", "mat_dog_rod")
+            y_rod = -1.0 * (t / 2 + 0.021)       # clear of the 12 mm rivet heads of riveted leaves
             for k, (xd, zd, edge_dir) in enumerate([(u * (0.004 + W - 0.05), Hh * 0.25, u), (u * (0.004 + W - 0.05), Hh * 0.75, u), (u * 0.05, Hh * 0.25, -u), (u * 0.05, Hh * 0.75, -u)]):
                 d = Body(f"dog_{k}", lb.name, (xd, 0, zd), QUAT_ID, None, [], [], ALL_TIERS, "lock", f"Dog {k + 1}")
-                d.joint = Joint(f"dog_{k}_hinge", "hinge", (0, -edge_dir * u, 0), (0, 0, 0), (0.0, 1.5708), damping=0.5, frictionloss=0.5, role="lock", label=f"Dog {k + 1} (wheel-driven)", robot_interactive=False)
+                d.joint = Joint(f"dog_{k}_hinge", "hinge", (0, -edge_dir * u, 0), (0, 0, 0), (0.0, 1.5708), damping=0.5, frictionloss=0.5, role="lock", label=f"Dog {k + 1} of 4 (wheel-driven: dog = wheel * 90deg / wheel travel)", robot_interactive=False, return_kind="detent")
                 wy = t / 2 + 0.034
                 d.geoms.append(C.box(f"dog_{k}_wedge", (edge_dir * 0.06, -v * wy, 0), (0.05, 0.012, 0.02), mat, 7800, True, True, ALL_TIERS, "lock", "Dog wedge"))
+                # crank on the dog spindle (robot face): the rod end drives it
+                d.geoms.append(C.box(f"dog_{k}_crank", (0, y_rod, 0.02), (0.006, 0.004, 0.02), rod_m, 7800, False, True, FULL_SIMPLE, "mechanism", "Dog crank (driven by the wheel linkage)"))
                 model.add_body(d)
                 cx = hx + xd + edge_dir * 0.08
-                world.geoms.append(C.box(f"cleat_{k}", (cx, -v * (wy - 0.012 - 0.005 - 0.003), zd + sill), (0.02, 0.005, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Dog cleat"))
+                world.geoms.append(C.box(f"cleat_{k}", (cx, -v * (wy - 0.012 - 0.005 - 0.0005), zd + sill), (0.02, 0.005, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Dog cleat (0.5 mm under the wedge: a dogged wedge holds the leaf within 1 deg even 3 cm from the hinge line)"))
                 world.geoms.append(C.box(f"cleat_{k}_base", (cx, -v * (wy + 0.036), zd + sill), (0.02, 0.018, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat base"))
                 world.geoms.append(C.box(f"cleat_{k}_bridge", (cx + edge_dir * 0.045, -v * (wy + 0.008), zd + sill), (0.005, 0.03, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat bridge"))
                 model.equalities.append(Equality("joint", f"wheel_dog_{k}", d.joint.name, wb.joint.name, (0, 1.5708 / wm.travel, 0, 0, 0), tiers=ALL_TIERS, label="dog = wheel * (90deg / wheel travel)"))
+                # linkage rod: from the wheel hub (clear of the rotating hub, r >= 0.06) to just short of the dog crank
+                p0 = np.array([x_wheel, y_rod, z_wheel])
+                p1 = np.array([xd, y_rod, zd + 0.04])
+                dvec = p1 - p0
+                Lr = float(np.linalg.norm(dvec))
+                if Lr > 0.14:
+                    a0, a1 = 0.06 / Lr, 1.0 - 0.03 / Lr
+                    mid = p0 + dvec * (a0 + a1) / 2
+                    lb.geoms.append(Geom(f"dog_rod_{k}", "capsule", (0.005, Lr * (a1 - a0) / 2), tuple(mid), tuple(quat_z_to(dvec)), rod_m, False, True, 7800.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "mechanism", "Dogging linkage rod (wheel hub -> dog crank)"))
+                dog_joints.append(d.joint.name)
+            lb.geoms.append(C.cyl("wheel_hub_ring", (x_wheel, y_rod, z_wheel), 0.055, 0.004, rod_m, (0, 1, 0), 7800, False, True, FULL_SIMPLE, "mechanism", "Dogging ring on the wheel spindle"))
+            model.meta.setdefault("clearance_allow", []).extend([["wheel_hub_ring", "wheel_*", "the dogging ring sits on the wheel spindle"], ["dog_rod_*", "wheel_*", "linkage rods start at the hub"]])
         model.meta["operator_joint"] = wb.joint.name
     C.add_hinge_visuals(model, world, lb, spec, (lb.joint.pos[0], y_pin), Hh, 0.004, v, u)
     if "warning_placard" in spec["extras"]:
@@ -885,7 +909,9 @@ def build_ship(spec, phys, model: Model):
     world.sites.append(Site("approach_point", (0, -1.5, 0), QUAT_ID, 0.05, "approach"))
     world.sites.append(Site("goal_point", (0, 1.5, 0), QUAT_ID, 0.05, "goal"))
     world.sites.append(Site("door_plane_center", (0, 0, sill + Ho / 2), QUAT_ID, 0.02, "pass_plane"))
-    model.meta.update({"u": u, "v": v, "primary_joint": "leaf_hinge", "dog_joints": dog_joints, "operator_joint": model.meta.get("operator_joint", dog_joints[0] if dog_joints else None), "sill_height": sill})
+    model.meta.update({"u": u, "v": v, "primary_joint": "leaf_hinge", "dog_joints": dog_joints, "operator_joint": model.meta.get("operator_joint", dog_joints[0] if dog_joints else None), "sill_height": sill,
+                       # dogs_independent: every dog must be worked by hand (multi-operator door); False = wheel-coupled
+                       "dogs_independent": not bool(spec["kinematics"].get("wheel_dogging"))})
     return lb
 
 
@@ -934,9 +960,11 @@ def build_vault(spec, phys, model: Model):
         mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
         bm = C.mat_from_material(model, "stainless", "mat_vault_bolt")
         throw = 0.05 + max(0.0, Wo - W - 0.006 - 0.004)
+        lever_dogs = []
         for k, z in enumerate([zb + Hh * 0.25, zb + Hh * 0.75]):
             d = Body(f"dog_{k}", lb.name, (x_edge - u * 0.12, 0, z), QUAT_ID, None, [], [], ALL_TIERS, "lock", f"Lever bolt {k + 1}")
-            d.joint = Joint(f"dog_{k}_hinge", "hinge", (0, -u, 0), (0, 0, 0), (0.0, 1.5708), damping=1.0, frictionloss=6.0, role="lock", label=f"Lever bolt {k + 1} (0 = engaged, + = released; detent friction 6 N*m, not back-drivable)")
+            d.joint = Joint(f"dog_{k}_hinge", "hinge", (0, -u, 0), (0, 0, 0), (0.0, 1.5708), damping=1.0, frictionloss=6.0, role="lock", label=f"Lever bolt {k + 1} of 2 (0 = engaged, + = released; detent friction 6 N*m, not back-drivable; stays where put)", return_kind="detent")
+            lever_dogs.append(d.joint.name)
             key, mesh = MESH.lever_mesh(shape="dog", length=0.30, diameter=0.03, rose_diameter=0.08, standoff=0.06)
             d.geoms.append(C.mesh_geom(f"dog_{k}_lever", key, mesh, (0, -1.0 * t / 2, 0), C.q_face(-1.0, u), mat, 7800, False, ALL_TIERS, "operator", "Lever"))
             d.geoms.append(Geom(f"dog_{k}_lever_col", "capsule", (0.015, 0.14), (-u * 0.15, -1.0 * (t / 2 + 0.06), 0), tuple(quat_z_to((1, 0, 0))), mat, True, False, 7800, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Lever grip"))
@@ -950,6 +978,8 @@ def build_vault(spec, phys, model: Model):
             model.equalities.append(Equality("joint", f"lever_bolt_{k}", b.joint.name, d.joint.name, (0, throw / 1.5708, 0, 0, 0), tiers=ALL_TIERS, label="bolt = lever * throw/(pi/2)"))
             pockets.append({"z": z, "h": 2 * r + 0.01, "w": 2 * r + 0.004, "depth": throw + 0.006, "ramp": False})
         model.meta["operator_joint"] = "dog_0_hinge"
+        model.meta["dog_joints"] = lever_dogs           # both lever bolts must be thrown back by hand (multi-operator door)
+        model.meta["dogs_independent"] = True
     if opm.kind == "lever" and False:
         pass
     C.add_frame(model, spec, v, world, with_stop=True, strike_pockets=pockets, u=u)

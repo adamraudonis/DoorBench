@@ -17,6 +17,7 @@ from ..ir import (Body, Geom, Joint, Site, Material, Equality, Tendon, Model, AL
                   quat_from_axis_angle, quat_mul, quat_z_to, QUAT_ID, quat_rotate, mat_to_quat)
 from .. import materials as M
 from .. import hardware as H
+from .. import physics as P
 from ..panels import glazing_layout, raised_panel_layout, louver_slats
 from . import meshes as MESH
 
@@ -774,7 +775,7 @@ def add_barrel_bolt(model: Model, parent: Body, name: str, ref, axis, normal, L:
         guides.append(mid)
     lbl = label or "Slide bolt (0 = engaged, + = withdrawn)"
     body = Body(name, parent.name, tuple(rod0), QUAT_ID, None, [], [], tiers, body_semantic, lbl.split(" (")[0])
-    body.joint = Joint(joint_name or f"{name}_slide", "slide", tuple(-a), (0, 0, 0), (0.0, travel), damping=damping, frictionloss=frictionloss, role=role, label=lbl, robot_interactive=robot_interactive, initial=0.0 if engaged else travel, modeled_at=0.0)
+    body.joint = Joint(joint_name or f"{name}_slide", "slide", tuple(-a), (0, 0, 0), (0.0, travel), damping=damping, frictionloss=frictionloss, role=role, label=lbl, robot_interactive=robot_interactive, initial=0.0 if engaged else travel, modeled_at=0.0, return_kind="detent")
     body.geoms.append(Geom(f"{name}_rod", "capsule", (r, max(L / 2 - r, 0.004)), tuple(a * (protrusion - L / 2)), tuple(quat_z_to(a)), material, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, tiers, rod_semantic, "Bolt rod"))
     body.geoms.append(Geom(f"{name}_knob", "capsule", (knob_r, max(hl / 2 - knob_r, 0.004)), tuple(a * s_knob + n * (hl / 2)), tuple(quat_z_to(n)), material, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, tiers, "operator", "Bolt handle"))
     body.geoms.append(sphere(f"{name}_knob_end", tuple(a * s_knob + n * hl), knob_r * 1.35, material, 7850, False, FULL_ONLY, "operator", "Handle knob"))
@@ -865,11 +866,16 @@ def operator_faces(spec: dict, v: float):
     return [], None
 
 
-def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, op: H.OperatorModel, u: float, v: float, x_spindle: float, z: float, t: float, faces: list, locked_backlash: float | None, name="handle", tiers=ALL_TIERS, keypad_face: float = -1.0, cylinder_face: float | None = None, button_face: float | None = None, rim_case_face: float | None = None):
+RETURN_LABEL = {"spring": "spring return", "gravity": "gravity return", "detent": "stays where put", "none": ""}
+
+
+def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, op: H.OperatorModel, u: float, v: float, x_spindle: float, z: float, t: float, faces: list, locked_backlash: float | None, name="handle", tiers=ALL_TIERS, keypad_face: float = -1.0, cylinder_face: float | None = None, button_face: float | None = None, rim_case_face: float | None = None, dyn_override: dict | None = None):
     """Lever/knob/paddle/thumbturn-type operator rotating about the door normal.  One body through the door
     (spindle) carrying operator meshes on the requested faces.  Positive q = actuating (press down).
     cylinder_face / button_face: face carrying a key cylinder (keyed lever / knob) or a privacy turn button;
-    rim_case_face: face carrying a surface-mounted rim lock case that the knob spindle passes through."""
+    rim_case_face: face carrying a surface-mounted rim lock case that the knob spindle passes through.
+    dyn_override: a physics.operator_dynamics() block to use instead of `op`'s own (a handle drawn with one
+    catalogue shape but behaving like another, e.g. the toggle thumb latch of a patio slider)."""
     mat = mat_from_material(model, op.material, f"mat_op_{op.material}")
     body = Body(name, leaf_body.name, (x_spindle, 0.0, z), QUAT_ID, None, [], [], tiers, "operator", op.name)
     outside = 1.0 if not spec["robot"].get("robot_outside") else -1.0
@@ -887,10 +893,12 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
     if locked_backlash is not None:
         rng = (0.0, max(locked_backlash, 0.01))
     axis = (0.0, -u, 0.0)   # pressing lever (reaching -u) down = positive
-    preload_ = max(op.spring_torque_preload, 1.5) if op.kind == "paddle" else op.spring_torque_preload
-    body.joint = Joint(f"{name}_hinge", "hinge", axis, (0, 0, 0), rng, damping=0.02, frictionloss=0.02 + 0.02 * op.mass,
-                       stiffness=op.spring_rate, springref=(-preload_ / op.spring_rate) if op.spring_rate > 0 else 0.0, armature=2e-5,
-                       role="operator", label=f"{op.name} (0 = rest, + = actuated)", notes="locked: range limited to backlash" if locked_backlash is not None else "")
+    # return spring / detent friction / damping from the physics derivation (spec.json physics.operator for the
+    # primary operator; the same derivation for auxiliary operators such as a handleset's inside knob)
+    dyn = dyn_override or P.operator_dynamics(op, preload_override=(max(op.spring_torque_preload, 1.5) if op.kind == "paddle" else None))
+    body.joint = Joint(f"{name}_hinge", "hinge", axis, (0, 0, 0), rng, role="operator",
+                       label=f"{op.name} (0 = rest, + = actuated; {RETURN_LABEL.get(dyn['return'], '')})".replace("; )", ")"),
+                       notes="locked: range limited to backlash" if locked_backlash is not None else "").set_operator_dynamics(dyn)
     # spindle through door
     body.geoms.append(cyl(f"{name}_spindle", (0, 0, 0), 0.006, max(t / 2 - 0.001, 0.004), mat, (0, 1, 0), 7850, False, True, FULL_ONLY, "mechanism", "Spindle"))
     grip_sites = []
@@ -1076,7 +1084,7 @@ def add_touchbar(model: Model, leaf_body: Body, spec: dict, op: H.OperatorModel,
     if sp.get("shape") == "crossbar":
         # crossbar rotates about horizontal pivots at both ends (hinge along x)
         body = Body(name, leaf_body.name, (xc, face * (t / 2), z), QUAT_ID, None, [], [], tiers, "operator", op.name)
-        body.joint = Joint(f"{name}_hinge", "hinge", (u, 0, 0), (0, 0, 0), (0.0, op.travel), damping=0.5, frictionloss=0.3, stiffness=op.spring_rate, springref=-op.spring_torque_preload / max(op.spring_rate, 1e-6), armature=1e-4, role="operator", label="Crossbar (+ = pushed in)")
+        body.joint = Joint(f"{name}_hinge", "hinge", (u, 0, 0), (0, 0, 0), (0.0, op.travel), role="operator", label="Crossbar (+ = pushed in; spring return)").set_operator_dynamics(P.operator_dynamics(op))
         key, mesh = MESH.crossbar_mesh(length=L, bar_diameter=sp.get("bar_diameter", 0.025), arm_length=sp.get("arm_length", 0.06))
         body.geoms.append(mesh_geom(f"{name}_mesh", key, mesh, (0, 0, 0), q_face(face, u), mat, 3000, False, ALL_TIERS, "operator", "Crossbar"))
         body.geoms.append(Geom(f"{name}_col", "capsule", (sp.get("bar_diameter", 0.025) / 2, L / 2), (0, face * sp.get("arm_length", 0.06), 0), tuple(quat_z_to((1, 0, 0))), mat, True, False, 3000, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, tiers, "operator", "Crossbar grip"))
@@ -1117,7 +1125,7 @@ def add_touchbar(model: Model, leaf_body: Body, spec: dict, op: H.OperatorModel,
             leaf_body.geoms.append(cyl(f"{name}_rod_bot", (x_edge - u * 0.06, face * (t / 2 + 0.03), (a2 + b2) / 2), 0.008, (b2 - a2) / 2, rm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "latch", "Vertical rod (bottom)"))
     # pad body
     pad = Body(name, leaf_body.name, (xc, face * (t / 2), z), QUAT_ID, None, [], [], tiers, "operator", op.name)
-    pad.joint = Joint(f"{name}_slide", "slide", (0, -face, 0), (0, 0, 0), (0.0, op.travel), damping=8.0, frictionloss=0.5, stiffness=op.spring_rate, springref=-op.spring_torque_preload / max(op.spring_rate, 1e-6), armature=1e-4, role="operator", label="Touch bar pad (+ = pressed)")
+    pad.joint = Joint(f"{name}_slide", "slide", (0, -face, 0), (0, 0, 0), (0.0, op.travel), role="operator", label="Touch bar pad (+ = pressed; spring return)").set_operator_dynamics(P.operator_dynamics(op))
     key, mesh = MESH.touchbar_pad_mesh(length=L, height=bh, depth=bd)
     pad.geoms.append(mesh_geom(f"{name}_pad", key, mesh, (0, 0, 0), q_face(face, u), mat, 3000, False, FULL_SIMPLE, "operator", "Touch pad"))
     pad.geoms.append(box(f"{name}_pad_col", (0, face * (bd - 0.015), 0), ((L - 0.006) / 2, 0.015, bh * 0.45), mat, 3000, True, False, tiers, "operator", "Touch pad", friction=(0.8, 0.01, 0.0001)))

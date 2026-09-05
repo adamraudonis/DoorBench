@@ -298,6 +298,9 @@ class Joint:
     backcheck_angle: Optional[float] = None
     backcheck_damping: Optional[float] = None
     ratchet_one_way: bool = False
+    # operator release behaviour (hardware.OperatorModel.return_kind): spring | gravity | detent | "" (not an operator)
+    return_kind: str = ""
+    return_time_s: Optional[float] = None   # estimated time to come back to rest after release (physics.operator_dynamics)
 
     def to_dict(self):
         return {
@@ -310,7 +313,19 @@ class Joint:
             "backcheck_angle": self.backcheck_angle, "backcheck_damping": self.backcheck_damping,
             "limit_solref": None if self.limit_solref is None else list(self.limit_solref),
             "ratchet_one_way": self.ratchet_one_way, "modeled_at": self.modeled_at,
+            "return_kind": self.return_kind, "return_time_s": self.return_time_s,
         }
+
+    def set_operator_dynamics(self, dyn: dict):
+        """Apply a physics.operator_dynamics() block (spring, damping, friction, armature, return kind)."""
+        self.stiffness = float(dyn["spring_rate"])
+        self.springref = float(dyn["springref"]) if dyn["spring_rate"] > 0 else 0.0
+        self.damping = float(dyn["damping"])
+        self.frictionloss = float(dyn["frictionloss"])
+        self.armature = max(self.armature, float(dyn["armature"]))
+        self.return_kind = dyn["return"]
+        self.return_time_s = dyn.get("return_time_est_s")
+        return self
 
 
 @dataclass

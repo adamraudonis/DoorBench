@@ -257,7 +257,7 @@ def build_sliding(spec, phys, model: Model):
                 # teardrop latch on robot face at latch edge pivoting about y; hooks over a keeper on the jamb
                 lm = C.mat_from_material(model, "black_matte_metal", "mat_teardrop")
                 td = Body(f"{name}_teardrop", b.name, (x_latch_edge + dir_ * 0.06, -(t / 2 + 0.01), hz + 0.45), QUAT_ID, None, [], [], FULL_SIMPLE, "latch", "Teardrop latch")
-                td.joint = Joint(f"{name}_teardrop_hinge", "hinge", (0, dir_, 0), (0, 0, 0), (0.0, 1.4), damping=0.02, frictionloss=0.02, role="operator", label="Teardrop latch (0 = dropped over the keeper, + = lifted)", initial=0.0)
+                td.joint = Joint(f"{name}_teardrop_hinge", "hinge", (0, dir_, 0), (0, 0, 0), (0.0, 1.4), role="operator", label="Teardrop latch (0 = dropped over the keeper, + = lifted; gravity return)", initial=0.0).set_operator_dynamics(phys["operator"])
                 model.meta["operator_joint"] = td.joint.name
                 td.geoms.append(C.box(f"{name}_teardrop_top", (-dir_ * 0.04, 0, -0.005), (0.04, 0.004, 0.006), lm, 7800, True, True, FULL_SIMPLE, "latch", "Teardrop bar"))
                 td.geoms.append(C.box(f"{name}_teardrop_end", (-dir_ * 0.078, 0, -0.03), (0.005, 0.004, 0.03), lm, 7800, True, True, FULL_SIMPLE, "latch", "Teardrop end"))
@@ -267,9 +267,10 @@ def build_sliding(spec, phys, model: Model):
                 world.geoms.append(C.box(f"{name}_teardrop_keeper_base", (xc + x_latch_edge - dir_ * 0.005, yl - (t / 2 + 0.024), hz + 0.45 - 0.03), (0.005, 0.008, 0.02), lm, 7800, False, True, FULL_ONLY, "latch", "Keeper base"))
         elif opm.kind in ("hook_lock_slider",):
             # exterior face passes the fixed panel: flush pull there, lever handle on the robot face only
-            hb = C.add_rotary_operator(model, b, spec, phys, H.OPERATORS["lever_l_shape"], -dir_, 1.0, x_latch_edge + dir_ * 0.06, hz, t, [-1.0], None, name=f"{name}_handle")
+            # drawn with the L-lever shape; behaves like the catalogue's hook_lock_slider (a toggle thumb latch that stays where flipped)
+            hb = C.add_rotary_operator(model, b, spec, phys, H.OPERATORS["lever_l_shape"], -dir_, 1.0, x_latch_edge + dir_ * 0.06, hz, t, [-1.0], None, name=f"{name}_handle", dyn_override=phys["operator"])
             C.add_pull(model, b, H.OPERATORS["pull_flush_recessed"], -dir_, x_latch_edge + dir_ * 0.09, hz, t, 1.0, name=f"{name}_ext_pull")
-            hb.joint.label = "Slider handle / thumb latch (+ = unlock hook)"
+            hb.joint.label = "Slider handle / thumb latch (+ = unlock hook; toggle, stays where put)"
             # the hook (latch) is always thrown when the leaf starts closed; the hook LOCK only freezes the handle
             _add_hook(model, world, b, name, dir_, x_latch_edge, xc, yl, hz, True, hb.joint.name, 1.0 / max(H.OPERATORS["hook_lock_slider"].travel, 0.5))
             if engaged and lk.kind == "hook_lock" and not release:
@@ -300,7 +301,7 @@ def build_sliding(spec, phys, model: Model):
             dia = opm.style_params.get("diameter", 0.02)
             xb = x_latch_edge + dir_ * 0.12
             L = zb + 0.30 - 0.026
-            sb, info = C.add_barrel_bolt(model, b, f"{name}_slide_bolt", (xb, -t / 2, zb), (0, 0, -1), (0, -1, 0), L, dia, 0.08, engaged, mat, protrusion=zb - 0.026, standoff=dia, role="lock", label="Drop bolt (0 = in floor socket, + = lifted)", frictionloss=opm.spring_torque_preload, damping=2.0, handle_at="rear", handle_len=0.06, joint_name=f"{name}_slide_bolt_slide", grip_site=f"{name}_grip_bolt")
+            sb, info = C.add_barrel_bolt(model, b, f"{name}_slide_bolt", (xb, -t / 2, zb), (0, 0, -1), (0, -1, 0), L, dia, 0.08, engaged, mat, protrusion=zb - 0.026, standoff=dia, role="lock", label="Drop bolt (0 = in floor socket, + = lifted; stays where put)", frictionloss=opm.detent_friction, damping=2.0, handle_at="rear", handle_len=0.06, joint_name=f"{name}_slide_bolt_slide", grip_site=f"{name}_grip_bolt")
             km = C.mat_from_material(model, "steel_galvanized", "mat_keeper")
             yk = yl - (t / 2 + dia)
             for sx_ in (-1, 1):

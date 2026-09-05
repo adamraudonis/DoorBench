@@ -56,13 +56,17 @@ def build_model(spec: dict, phys: dict | None = None) -> Model:
         model.meta.setdefault("actuators", []).append({"name": "swing_operator", "joint": model.meta["primary_joint"], "kind": "position", "kp": 150.0, "kv": 40.0, "forcerange": (-act.get("max_torque_Nm", 60), act.get("max_torque_Nm", 60)), "ctrlrange": (0.0, 1.6)})
     # Armature floors: reflected inertia of internal lock/latch mechanisms (gears, springs, spindles).  Also required so
     # MuJoCo's mass-scaled soft constraints (equalities, tendon & joint limits) can act on very light mechanism bodies.
-    ARM_HINGE = {"operator": 0.01, "lock": 0.005, "latch": 0.005, "mechanism": 0.002, "secondary": 0.005, "decor": 0.002, "primary": 0.01}
+    # operators: 0.003 kg*m^2 (spindle + spring cassette, physics.OPERATOR_ARMATURE_ROTARY) so a lever's return spring
+    # brings it home in ~0.3 s; the old 0.01 floor made the return sluggish relative to real hardware
+    ARM_HINGE = {"operator": 0.003, "lock": 0.005, "latch": 0.005, "mechanism": 0.002, "secondary": 0.005, "decor": 0.002, "primary": 0.01}
     ARM_SLIDE = {"operator": 0.15, "lock": 0.1, "latch": 0.1, "mechanism": 0.05, "secondary": 0.1, "decor": 0.05, "primary": 0.5}
     for b in model.bodies:
         j = b.joint
         if j is None:
             continue
         floor = (ARM_HINGE if j.type == "hinge" else ARM_SLIDE).get(j.role, 0.005)
+        if j.role == "operator" and j.return_kind == "gravity":
+            floor = 0.0005 if j.type == "hinge" else 0.05     # a teardrop / fork on a plain pin: no spindle cassette to reflect
         if j.role == "primary" and j.type == "hinge":
             floor = 0.02
         if j.role == "primary" and j.type == "slide":
