@@ -7,9 +7,11 @@
 
 def Xform "db0525_stall"
 {
-    custom string doorbench:couplings = '[{"type": "mimic", "driven": "leaf_rise", "driver": "leaf_hinge", "coeff": [0.0, 0.006366197723675814, 0, 0, 0], "gearing": -0.006366197723675814, "offset": -0.0, "label": "gravity hinge: 10 mm rise per 90 deg", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}]'
+    custom string doorbench:couplings = "[{\"driven\": \"leaf_rise\", \"driver\": \"leaf_hinge\", \"driven_type\": \"slide\", \"driver_type\": \"hinge\", \"mode\": \"emulated\", \"coeff\": [0.0, 0.006366197723675814], \"gearing\": -0.006366197723675814, \"offset\": -0.0, \"label\": \"gravity hinge: 10 mm rise per 90 deg\", \"coeff_usd\": [0.0, 0.006366197723675814], \"driven_zero_offset\": 0.0, \"driver_zero_offset\": 0.0, \"driven_inertia\": 20.766659999999998, \"reflected_inertia\": 0.0008416410285991961, \"driven_gravity_bias\": -203.7209346, \"driven_stiffness\": 0.0, \"driven_damping\": 1.0, \"driven_target\": 0.0, \"driven_friction\": 0.0, \"driven_range\": [0.0, 0.03], \"friction_vel_eps\": 0.001, \"reason\": \"PhysX articulation mimic joints support rotational axes only: a mimic on a prismatic axis is dropped\", \"note\": \"PhysX drops mimics on prismatic axes: emulate bilaterally (track q_driven = c0 + c1*q_driver, apply c1 * tau_driven_ext on the driver and add reflected_inertia to the driver's armature)\", \"chain_order\": 0, \"type\": \"coupling_emulated\", \"driven_path\": \"/db0525_stall/Articulation/Joints/leaf_rise\", \"driver_path\": \"/db0525_stall/Articulation/Joints/leaf_hinge\"}]"
     custom string doorbench:door_id = "db0525_stall"
-    custom string doorbench:meta = '{"door_id": "db0525_stall", "family": "stall", "task": "close", "wall_y": 0.0, "operator_joint": "slide_latch_slide", "u": -1.0, "v": -1.0, "primary_joint": "leaf_hinge", "handle_height": 1.0, "mass_reconciled_kg": 20.626408848213142, "scene_extent": 2.075, "cam_target_z": 1.05, "cam_target_x": 0.0, "handle_cam_x": -0.51, "handle_cam_target": [-0.22499999999999995, -0.0445, 1.0], "handle_cam_pos": [-0.04499999999999996, -0.8445, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_rise": "/db0525_stall/Articulation/Joints/leaf_rise", "leaf_hinge": "/db0525_stall/Articulation/Joints/leaf_hinge", "slide_latch_slide": "/db0525_stall/Articulation/Joints/slide_latch_slide"}, "servo_in_drive": {}, "rise_coupling": {"rise_joint": "leaf_rise", "hinge_joint": "leaf_hinge", "coeff_m_per_rad": 0.006366197723675814, "lift_m_per_rad": 0.006366197723675814, "carried_mass_kg": 20.766659999999998, "gravity_torque_Nm": -1.2969277501156293, "label": "gravity hinge: 10 mm rise per 90 deg", "note": "constant closing torque -m*g*dz/dq of the helical hinge; apply on the hinge when the rise joint is not simulated"}, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["leaf", "slide_latch"]]'
+    custom string doorbench:meta = '{"door_id": "db0525_stall", "family": "stall", "task": "close", "wall_y": 0.0, "operator_joint": "slide_latch_slide", "u": -1.0, "v": -1.0, "primary_joint": "leaf_hinge", "handle_height": 1.0, "mass_reconciled_kg": 20.626408848213142, "scene_extent": 2.075, "cam_target_z": 1.05, "cam_target_x": 0.0, "handle_cam_x": -0.51, "handle_cam_target": [-0.22499999999999995, -0.0445, 1.0], "handle_cam_pos": [-0.04499999999999996, -0.8445, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_rise": "/db0525_stall/Articulation/Joints/leaf_rise", "leaf_hinge": "/db0525_stall/Articulation/Joints/leaf_hinge", "slide_latch_slide": "/db0525_stall/Articulation/Joints/slide_latch_slide"}, "self_collisions": true, "filtered_pairs": [["leaf", "slide_latch"]], "n_filtered_pairs": 1, "env_release": [], "couplings_emulated": [{"driven": "leaf_rise", "driver": "leaf_hinge", "driven_type": "slide", "driver_type": "hinge", "mode": "emulated", "coeff": [0.0, 0.006366197723675814], "gearing": -0.006366197723675814, "offset": -0.0, "label": "gravity hinge: 10 mm rise per 90 deg", "coeff_usd": [0.0, 0.006366197723675814], "driven_zero_offset": 0.0, "driver_zero_offset": 0.0, "driven_inertia": 20.766659999999998, "reflected_inertia": 0.0008416410285991961, "driven_gravity_bias": -203.7209346, "driven_stiffness": 0.0, "driven_damping": 1.0, "driven_target": 0.0, "driven_friction": 0.0, "driven_range": [0.0, 0.03], "friction_vel_eps": 0.001, "reason": "PhysX articulation mimic joints support rotational axes only: a mimic on a prismatic axis is dropped", "note": "q_driven = c0 + c1*q_driver; the driver carries the reaction c1 * tau_driven_ext and the reflected inertia c1^2 * I_driven", "chain_order": 0}], "couplings_servo": [], "coupling_reflected_armature": {"leaf_hinge": 0.0008416410285991961}, "servo_in_drive": {}, "rise_coupling": {"rise_joint": "leaf_rise", "hinge_joint": "leaf_hinge", "coeff_m_per_rad": 0.006366197723675814, "lift_m_per_rad": 0.006366197723675814, "carried_mass_kg": 20.766659999999998, "gravity_torque_Nm": -1.2969277501156293, "label": "gravity hinge: 10 mm rise per 90 deg", "note": "constant closing torque -m*g*dz/dq of the helical hinge; apply on the hinge when the rise joint is not simulated"}, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -518,7 +520,7 @@ def Xform "db0525_stall"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -537,17 +539,25 @@ def Xform "db0525_stall"
             }
 
             def PhysicsPrismaticJoint "leaf_rise" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear", "PhysxMimicJointAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
                 custom float doorbench:armature_si = 0.5
+                custom float doorbench:coupling_c0 = 0
+                custom float doorbench:coupling_c1 = 0.006366198
+                custom int doorbench:coupling_chain_order = 0
+                custom float doorbench:coupling_driven_inertia = 20.76666
+                custom string doorbench:coupling_driver = "leaf_hinge"
+                custom rel doorbench:coupling_driver_joint = </db0525_stall/Articulation/Joints/leaf_hinge>
+                custom float doorbench:coupling_gravity_bias = -203.72093
+                custom string doorbench:coupling_mode = "emulated"
+                custom float doorbench:coupling_reflected_inertia = 0.00084164104
                 custom float doorbench:damping_si = 1
                 custom float doorbench:friction_effort = 0
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Gravity-hinge lift (coupled)"
                 custom float doorbench:legacy_friction_coeff = 0
                 custom bool doorbench:limited = 1
-                custom string doorbench:mimic_label = "gravity hinge: 10 mm rise per 90 deg"
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "mechanism"
                 custom bool doorbench:servo_in_drive = 0
@@ -576,10 +586,6 @@ def Xform "db0525_stall"
                 custom float physxJointAxis:linear:dynamicFrictionEffort = 0
                 custom float physxJointAxis:linear:staticFrictionEffort = 0
                 custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
-                custom float physxMimicJoint:transX:gearing = -0.006366198
-                custom float physxMimicJoint:transX:offset = -0
-                custom rel physxMimicJoint:transX:referenceJoint = </db0525_stall/Articulation/Joints/leaf_hinge>
-                custom token physxMimicJoint:transX:referenceJointAxis = "rotX"
             }
 
             def PhysicsRevoluteJoint "leaf_hinge" (
@@ -587,6 +593,7 @@ def Xform "db0525_stall"
             )
             {
                 custom float doorbench:armature_si = 0.02
+                custom float doorbench:coupling_reflected_armature = 0.00084164104
                 custom float doorbench:damping_closing = 0
                 custom float doorbench:damping_opening = 0
                 custom float doorbench:damping_si = 0.095760226
@@ -704,7 +711,7 @@ def Xform "db0525_stall"
         }
 
         def Xform "leaf" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Stall door"
@@ -713,6 +720,7 @@ def Xform "db0525_stall"
             float3 physics:diagonalInertia = (0.64740306, 5.777613, 6.4244113)
             float physics:mass = 20.62641
             quatf physics:principalAxes = (0.50001854, 0.4998416, 0.5001537, -0.49998608)
+            custom rel physxFilteredPairs:filteredPairs = </db0525_stall/Articulation/slide_latch>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -834,7 +842,7 @@ def Xform "db0525_stall"
         }
 
         def Xform "slide_latch" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Slide latch"
@@ -843,6 +851,7 @@ def Xform "db0525_stall"
             float3 physics:diagonalInertia = (0.000009988614, 0.000084062696, 0.00008594917)
             float physics:mass = 0.14025114
             quatf physics:principalAxes = (0.02751398, 0.02751398, 0.7065713, 0.7065713)
+            custom rel physxFilteredPairs:filteredPairs = </db0525_stall/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0

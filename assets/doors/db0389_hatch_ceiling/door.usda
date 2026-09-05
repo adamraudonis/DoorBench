@@ -9,7 +9,9 @@ def Xform "db0389_hatch_ceiling"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0389_hatch_ceiling"
-    custom string doorbench:meta = '{"door_id": "db0389_hatch_ceiling", "family": "hatch_ceiling", "task": "unlock_open_traverse", "wall_y": 0.0, "operator_joint": "ring_hinge", "primary_joint": "hatch_hinge", "handle_height": 2.4, "horizontal": true, "mass_reconciled_kg": 5.5514113884778356, "scene_extent": 1.5, "cam_target_z": 2.855, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, -0.18749999999999997, 2.4280000000000004], "handle_cam_pos": [0.35, -0.7375, 1.5780000000000003], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"hatch_hinge": "/db0389_hatch_ceiling/Articulation/Joints/hatch_hinge", "ring_hinge": "/db0389_hatch_ceiling/Articulation/Joints/ring_hinge", "hatch_bolt_slide": "/db0389_hatch_ceiling/Articulation/Joints/hatch_bolt_slide"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["hatch", "hatch_bolt"], ["hatch", "ring"]]'
+    custom string doorbench:meta = '{"door_id": "db0389_hatch_ceiling", "family": "hatch_ceiling", "task": "unlock_open_traverse", "wall_y": 0.0, "operator_joint": "ring_hinge", "primary_joint": "hatch_hinge", "handle_height": 2.4, "horizontal": true, "mass_reconciled_kg": 5.5514113884778356, "scene_extent": 1.5, "cam_target_z": 2.855, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, -0.18749999999999997, 2.4280000000000004], "handle_cam_pos": [0.35, -0.7375, 1.5780000000000003], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"hatch_hinge": "/db0389_hatch_ceiling/Articulation/Joints/hatch_hinge", "ring_hinge": "/db0389_hatch_ceiling/Articulation/Joints/ring_hinge", "hatch_bolt_slide": "/db0389_hatch_ceiling/Articulation/Joints/hatch_bolt_slide"}, "self_collisions": true, "filtered_pairs": [["hatch", "hatch_bolt"], ["hatch", "ring"]], "n_filtered_pairs": 2, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -483,7 +485,7 @@ def Xform "db0389_hatch_ceiling"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -510,7 +512,7 @@ def Xform "db0389_hatch_ceiling"
                 custom float doorbench:friction_effort = 0.16239135
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Hatch (0 = closed, + = lifted)"
-                custom float doorbench:legacy_friction_coeff = 0.0019854533
+                custom float doorbench:legacy_friction_coeff = 0.0019719528
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -528,8 +530,8 @@ def Xform "db0389_hatch_ceiling"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0389_hatch_ceiling/Articulation/base>
                 rel physics:body1 = </db0389_hatch_ceiling/Articulation/hatch>
-                point3f physics:localPos0 = (0, 0.455, 2.44)
-                point3f physics:localPos1 = (0, 0, 0)
+                point3f physics:localPos0 = (0, 0.465, 2.44)
+                point3f physics:localPos1 = (0, 0.01, 0)
                 quatf physics:localRot0 = (0, 0, 0, 1)
                 quatf physics:localRot1 = (0, 0, 0, 1)
                 float physics:lowerLimit = 0
@@ -644,7 +646,7 @@ def Xform "db0389_hatch_ceiling"
         }
 
         def Xform "hatch" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Hatch leaf"
@@ -653,6 +655,10 @@ def Xform "db0389_hatch_ceiling"
             float3 physics:diagonalInertia = (0.18311651, 0.33034238, 0.4690869)
             float physics:mass = 5.551411
             quatf physics:principalAxes = (-0.044544686, 0.7561514, 0.64596957, -0.09473228)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0389_hatch_ceiling/Articulation/hatch_bolt>,
+                </db0389_hatch_ceiling/Articulation/ring>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -818,7 +824,7 @@ def Xform "db0389_hatch_ceiling"
         }
 
         def Xform "ring" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Ring pull"
@@ -827,6 +833,7 @@ def Xform "db0389_hatch_ceiling"
             float3 physics:diagonalInertia = (0.0000012131453, 0.000035629117, 0.000035629117)
             float physics:mass = 0.06880842
             quatf physics:principalAxes = (7.850462e-17, -7.850462e-17, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0389_hatch_ceiling/Articulation/hatch>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -865,7 +872,7 @@ def Xform "db0389_hatch_ceiling"
         }
 
         def Xform "hatch_bolt" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Slide bolt"
@@ -874,6 +881,7 @@ def Xform "db0389_hatch_ceiling"
             float3 physics:diagonalInertia = (0.000013354512, 0.00011975305, 0.00013089983)
             float physics:mass = 0.12954019
             quatf physics:principalAxes = (0.7069257, 0.7069257, 0.016003124, -0.016003124)
+            custom rel physxFilteredPairs:filteredPairs = </db0389_hatch_ceiling/Articulation/hatch>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0

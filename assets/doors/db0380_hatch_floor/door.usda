@@ -9,7 +9,9 @@ def Xform "db0380_hatch_floor"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0380_hatch_floor"
-    custom string doorbench:meta = '{"door_id": "db0380_hatch_floor", "family": "hatch_floor", "task": "open_and_traverse", "wall_y": 0.0, "operator_joint": "ring_hinge", "primary_joint": "hatch_hinge", "handle_height": 0.0, "horizontal": true, "mass_reconciled_kg": 12.525191581064016, "scene_extent": 1.6325, "cam_target_z": 0.755, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, -0.3375000000000001, 0.052], "handle_cam_pos": [0.35, -0.8875000000000002, 0.902], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"hatch_hinge": "/db0380_hatch_floor/Articulation/Joints/hatch_hinge", "ring_hinge": "/db0380_hatch_floor/Articulation/Joints/ring_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["hatch", "ring"]]'
+    custom string doorbench:meta = '{"door_id": "db0380_hatch_floor", "family": "hatch_floor", "task": "open_and_traverse", "wall_y": 0.0, "operator_joint": "ring_hinge", "primary_joint": "hatch_hinge", "handle_height": 0.0, "horizontal": true, "mass_reconciled_kg": 12.525191581064016, "scene_extent": 1.6325, "cam_target_z": 0.755, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, -0.3375000000000001, 0.052], "handle_cam_pos": [0.35, -0.8875000000000002, 0.902], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"hatch_hinge": "/db0380_hatch_floor/Articulation/Joints/hatch_hinge", "ring_hinge": "/db0380_hatch_floor/Articulation/Joints/ring_hinge"}, "self_collisions": true, "filtered_pairs": [["hatch", "ring"]], "n_filtered_pairs": 1, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -380,7 +382,7 @@ def Xform "db0380_hatch_floor"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -407,7 +409,7 @@ def Xform "db0380_hatch_floor"
                 custom float doorbench:friction_effort = 3.3556943
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Hatch (0 = closed, + = lifted)"
-                custom float doorbench:legacy_friction_coeff = 0.015524369
+                custom float doorbench:legacy_friction_coeff = 0.015436238
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -425,8 +427,8 @@ def Xform "db0380_hatch_floor"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0380_hatch_floor/Articulation/base>
                 rel physics:body1 = </db0380_hatch_floor/Articulation/hatch>
-                point3f physics:localPos0 = (0, 0.755, 0.04)
-                point3f physics:localPos1 = (0, 0, 0)
+                point3f physics:localPos0 = (0, 0.765, 0.04)
+                point3f physics:localPos1 = (0, 0.01, 0)
                 quatf physics:localRot0 = (0, 0, 0, 1)
                 quatf physics:localRot1 = (0, 0, 0, 1)
                 float physics:lowerLimit = 0
@@ -500,7 +502,7 @@ def Xform "db0380_hatch_floor"
         }
 
         def Xform "hatch" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Hatch leaf"
@@ -509,6 +511,7 @@ def Xform "db0380_hatch_floor"
             float3 physics:diagonalInertia = (0.9495019, 2.1996832, 3.0932581)
             float physics:mass = 12.525191
             quatf physics:principalAxes = (0.7248371, 0.018499328, 0.028672017, 0.6880747)
+            custom rel physxFilteredPairs:filteredPairs = </db0380_hatch_floor/Articulation/ring>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -569,7 +572,7 @@ def Xform "db0380_hatch_floor"
         }
 
         def Xform "ring" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Ring pull"
@@ -578,6 +581,7 @@ def Xform "db0380_hatch_floor"
             float3 physics:diagonalInertia = (0.0000012131453, 0.000035629117, 0.000035629117)
             float physics:mass = 0.06880842
             quatf physics:principalAxes = (7.850462e-17, -7.850462e-17, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0380_hatch_floor/Articulation/hatch>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0

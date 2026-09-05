@@ -7,9 +7,11 @@
 
 def Xform "db0188_cold_storage"
 {
-    custom string doorbench:couplings = '[{"type": "mimic", "driven": "leaf_rise", "driver": "leaf_hinge", "coeff": [0.0, 0.007639437268410976, 0, 0, 0], "gearing": -0.007639437268410976, "offset": -0.0, "label": "rise = 12 mm per 90 deg (helical hinge)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "loop_closure_point", "body1": "closer_arm_fore", "body2": "closer_shoe", "anchor": [0.26, 0, 0], "label": "Closer forearm pinned to frame shoe", "note": "not exported to USD (PhysX articulations are trees); closer arms are visual"}]'
+    custom string doorbench:couplings = "[{\"driven\": \"leaf_rise\", \"driver\": \"leaf_hinge\", \"driven_type\": \"slide\", \"driver_type\": \"hinge\", \"mode\": \"emulated\", \"coeff\": [0.0, 0.007639437268410976], \"gearing\": -0.007639437268410976, \"offset\": -0.0, \"label\": \"rise = 12 mm per 90 deg (helical hinge)\", \"coeff_usd\": [0.0, 0.007639437268410976], \"driven_zero_offset\": 0.0, \"driver_zero_offset\": 0.0, \"driven_inertia\": 61.61926559999999, \"reflected_inertia\": 0.0035961620692398256, \"driven_gravity_bias\": -604.484995536, \"driven_stiffness\": 0.0, \"driven_damping\": 1.0, \"driven_target\": 0.0, \"driven_friction\": 0.0, \"driven_range\": [0.0, 0.026400000000000003], \"friction_vel_eps\": 0.001, \"reason\": \"PhysX articulation mimic joints support rotational axes only: a mimic on a prismatic axis is dropped\", \"note\": \"PhysX drops mimics on prismatic axes: emulate bilaterally (track q_driven = c0 + c1*q_driver, apply c1 * tau_driven_ext on the driver and add reflected_inertia to the driver's armature)\", \"chain_order\": 0, \"type\": \"coupling_emulated\", \"driven_path\": \"/db0188_cold_storage/Articulation/Joints/leaf_rise\", \"driver_path\": \"/db0188_cold_storage/Articulation/Joints/leaf_hinge\"}, {\"type\": \"loop_closure_point\", \"body1\": \"closer_arm_fore\", \"body2\": \"closer_shoe\", \"anchor\": [0.26, 0, 0], \"label\": \"Closer forearm pinned to frame shoe\", \"note\": \"not exported to USD (PhysX articulations are trees); closer arms are visual\"}]"
     custom string doorbench:door_id = "db0188_cold_storage"
-    custom string doorbench:meta = "{\"door_id\": \"db0188_cold_storage\", \"family\": \"cold_storage\", \"task\": \"open_and_traverse\", \"wall_y\": 0.0, \"clearance_allow\": [[\"leaf_hasp_strap\", \"leaf_staple*\", \"staple passes through the strap slot\"], [\"leaf_padlock*\", \"leaf_staple*\", \"shackle through the staple eye\"], [\"leaf_padlock*\", \"leaf_hasp_strap\", \"padlock hangs over the strap\"], [\"leaf_hasp_strap\", \"leaf_hasp_plate\", \"strap over its hinge plate\"], [\"leaf_hasp_knuckle\", \"leaf_hasp_plate\", \"knuckle on its hinge plate\"], [\"closer_shoe_pivot\", \"closer_shoe_block\", \"pivot pin occupies the sliding shoe's bore\"], [\"closer_shoe_neck\", \"closer_shoe_block\", \"forearm clevis enters the shoe around its pivot\"]], \"u\": -1.0, \"v\": -1.0, \"hinge_x\": 0.545, \"leaf_edge_x_local\": -1.073, \"handle_height\": 1.0, \"primary_joint\": \"leaf_hinge\", \"operator_joint\": \"leaf_handle_hinge\", \"mass_reconciled_kg\": 58.29691192174504, \"scene_extent\": 2.1125, \"cam_target_z\": 1.075, \"cam_target_x\": 0.0, \"handle_cam_x\": -0.42500000000000004, \"handle_cam_target\": [-0.26299999999999996, -0.10500000000000001, 1.0], \"handle_cam_pos\": [-0.08299999999999996, -0.905, 1.28], \"usd_layout\": \"v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)\", \"joints\": {\"leaf_rise\": \"/db0188_cold_storage/Articulation/Joints/leaf_rise\", \"leaf_hinge\": \"/db0188_cold_storage/Articulation/Joints/leaf_hinge\", \"leaf_handle_hinge\": \"/db0188_cold_storage/Articulation/Joints/leaf_handle_hinge\", \"leaf_mag_catch_slide\": \"/db0188_cold_storage/Articulation/Joints/leaf_mag_catch_slide\", \"leaf_hasp_hinge\": \"/db0188_cold_storage/Articulation/Joints/leaf_hasp_hinge\", \"closer_pinion\": \"/db0188_cold_storage/Articulation/Joints/closer_pinion\", \"closer_elbow\": \"/db0188_cold_storage/Articulation/Joints/closer_elbow\", \"closer_shoe_slide\": \"/db0188_cold_storage/Articulation/Joints/closer_shoe_slide\"}, \"servo_in_drive\": {}, \"rise_coupling\": {\"rise_joint\": \"leaf_rise\", \"hinge_joint\": \"leaf_hinge\", \"coeff_m_per_rad\": 0.007639437268410976, \"lift_m_per_rad\": 0.007639437268410976, \"carried_mass_kg\": 61.61926559999999, \"gravity_torque_Nm\": -4.617925203092961, \"label\": \"rise = 12 mm per 90 deg (helical hinge)\", \"note\": \"constant closing torque -m*g*dz/dq of the helical hinge; apply on the hinge when the rise joint is not simulated\"}, \"max_angular_velocity_deg_s\": 5729.5779513082325}"
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["leaf", "leaf_handle"], ["leaf", "leaf_hasp"], ["leaf", "leaf_mag_catch"]]'
+    custom string doorbench:meta = "{\"door_id\": \"db0188_cold_storage\", \"family\": \"cold_storage\", \"task\": \"open_and_traverse\", \"wall_y\": 0.0, \"clearance_allow\": [[\"leaf_hasp_strap\", \"leaf_staple*\", \"staple passes through the strap slot\"], [\"leaf_padlock*\", \"leaf_staple*\", \"shackle through the staple eye\"], [\"leaf_padlock*\", \"leaf_hasp_strap\", \"padlock hangs over the strap\"], [\"leaf_hasp_strap\", \"leaf_hasp_plate\", \"strap over its hinge plate\"], [\"leaf_hasp_knuckle\", \"leaf_hasp_plate\", \"knuckle on its hinge plate\"], [\"closer_shoe_pivot\", \"closer_shoe_block\", \"pivot pin occupies the sliding shoe's bore\"], [\"closer_shoe_neck\", \"closer_shoe_block\", \"forearm clevis enters the shoe around its pivot\"]], \"u\": -1.0, \"v\": -1.0, \"hinge_x\": 0.545, \"leaf_edge_x_local\": -1.073, \"handle_height\": 1.0, \"primary_joint\": \"leaf_hinge\", \"operator_joint\": \"leaf_handle_hinge\", \"mass_reconciled_kg\": 58.29691192174504, \"scene_extent\": 2.1125, \"cam_target_z\": 1.075, \"cam_target_x\": 0.0, \"handle_cam_x\": -0.42500000000000004, \"handle_cam_target\": [-0.26299999999999996, -0.10500000000000001, 1.0], \"handle_cam_pos\": [-0.08299999999999996, -0.905, 1.28], \"usd_layout\": \"v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)\", \"joints\": {\"leaf_rise\": \"/db0188_cold_storage/Articulation/Joints/leaf_rise\", \"leaf_hinge\": \"/db0188_cold_storage/Articulation/Joints/leaf_hinge\", \"leaf_handle_hinge\": \"/db0188_cold_storage/Articulation/Joints/leaf_handle_hinge\", \"leaf_mag_catch_slide\": \"/db0188_cold_storage/Articulation/Joints/leaf_mag_catch_slide\", \"leaf_hasp_hinge\": \"/db0188_cold_storage/Articulation/Joints/leaf_hasp_hinge\", \"closer_pinion\": \"/db0188_cold_storage/Articulation/Joints/closer_pinion\", \"closer_elbow\": \"/db0188_cold_storage/Articulation/Joints/closer_elbow\", \"closer_shoe_slide\": \"/db0188_cold_storage/Articulation/Joints/closer_shoe_slide\"}, \"self_collisions\": true, \"filtered_pairs\": [[\"leaf\", \"leaf_handle\"], [\"leaf\", \"leaf_hasp\"], [\"leaf\", \"leaf_mag_catch\"]], \"n_filtered_pairs\": 3, \"env_release\": [], \"couplings_emulated\": [{\"driven\": \"leaf_rise\", \"driver\": \"leaf_hinge\", \"driven_type\": \"slide\", \"driver_type\": \"hinge\", \"mode\": \"emulated\", \"coeff\": [0.0, 0.007639437268410976], \"gearing\": -0.007639437268410976, \"offset\": -0.0, \"label\": \"rise = 12 mm per 90 deg (helical hinge)\", \"coeff_usd\": [0.0, 0.007639437268410976], \"driven_zero_offset\": 0.0, \"driver_zero_offset\": 0.0, \"driven_inertia\": 61.61926559999999, \"reflected_inertia\": 0.0035961620692398256, \"driven_gravity_bias\": -604.484995536, \"driven_stiffness\": 0.0, \"driven_damping\": 1.0, \"driven_target\": 0.0, \"driven_friction\": 0.0, \"driven_range\": [0.0, 0.026400000000000003], \"friction_vel_eps\": 0.001, \"reason\": \"PhysX articulation mimic joints support rotational axes only: a mimic on a prismatic axis is dropped\", \"note\": \"q_driven = c0 + c1*q_driver; the driver carries the reaction c1 * tau_driven_ext and the reflected inertia c1^2 * I_driven\", \"chain_order\": 0}], \"couplings_servo\": [], \"coupling_reflected_armature\": {\"leaf_hinge\": 0.0035961620692398256}, \"servo_in_drive\": {}, \"rise_coupling\": {\"rise_joint\": \"leaf_rise\", \"hinge_joint\": \"leaf_hinge\", \"coeff_m_per_rad\": 0.007639437268410976, \"lift_m_per_rad\": 0.007639437268410976, \"carried_mass_kg\": 61.61926559999999, \"gravity_torque_Nm\": -4.617925203092961, \"label\": \"rise = 12 mm per 90 deg (helical hinge)\", \"note\": \"constant closing torque -m*g*dz/dq of the helical hinge; apply on the hinge when the rise joint is not simulated\"}, \"max_angular_velocity_deg_s\": 5729.5779513082325}"
 
     def Scope "Looks"
     {
@@ -976,7 +978,7 @@ def Xform "db0188_cold_storage"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -995,17 +997,25 @@ def Xform "db0188_cold_storage"
             }
 
             def PhysicsPrismaticJoint "leaf_rise" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear", "PhysxMimicJointAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
                 custom float doorbench:armature_si = 0.5
+                custom float doorbench:coupling_c0 = 0
+                custom float doorbench:coupling_c1 = 0.0076394374
+                custom int doorbench:coupling_chain_order = 0
+                custom float doorbench:coupling_driven_inertia = 61.619267
+                custom string doorbench:coupling_driver = "leaf_hinge"
+                custom rel doorbench:coupling_driver_joint = </db0188_cold_storage/Articulation/Joints/leaf_hinge>
+                custom float doorbench:coupling_gravity_bias = -604.485
+                custom string doorbench:coupling_mode = "emulated"
+                custom float doorbench:coupling_reflected_inertia = 0.003596162
                 custom float doorbench:damping_si = 1
                 custom float doorbench:friction_effort = 0
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Rising-hinge lift (coupled to hinge angle)"
                 custom float doorbench:legacy_friction_coeff = 0
                 custom bool doorbench:limited = 1
-                custom string doorbench:mimic_label = "rise = 12 mm per 90 deg (helical hinge)"
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "mechanism"
                 custom bool doorbench:servo_in_drive = 0
@@ -1034,10 +1044,6 @@ def Xform "db0188_cold_storage"
                 custom float physxJointAxis:linear:dynamicFrictionEffort = 0
                 custom float physxJointAxis:linear:staticFrictionEffort = 0
                 custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
-                custom float physxMimicJoint:transX:gearing = -0.0076394374
-                custom float physxMimicJoint:transX:offset = -0
-                custom rel physxMimicJoint:transX:referenceJoint = </db0188_cold_storage/Articulation/Joints/leaf_hinge>
-                custom token physxMimicJoint:transX:referenceJointAxis = "rotX"
             }
 
             def PhysicsRevoluteJoint "leaf_hinge" (
@@ -1047,6 +1053,7 @@ def Xform "db0188_cold_storage"
                 custom float doorbench:armature_si = 0.02
                 custom float doorbench:backcheck_angle = 1.22
                 custom float doorbench:backcheck_damping = 60
+                custom float doorbench:coupling_reflected_armature = 0.003596162
                 custom float doorbench:damping_closing = 90
                 custom float doorbench:damping_opening = 12
                 custom float doorbench:damping_si = 12.504234
@@ -1384,7 +1391,7 @@ def Xform "db0188_cold_storage"
         }
 
         def Xform "leaf" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Door leaf"
@@ -1393,6 +1400,11 @@ def Xform "db0188_cold_storage"
             float3 physics:diagonalInertia = (5.2227874, 28.715136, 33.727726)
             float physics:mass = 58.296913
             quatf physics:principalAxes = (0.52329004, -0.5213617, -0.45849803, -0.49409416)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0188_cold_storage/Articulation/leaf_handle>,
+                </db0188_cold_storage/Articulation/leaf_hasp>,
+                </db0188_cold_storage/Articulation/leaf_mag_catch>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1583,7 +1595,7 @@ def Xform "db0188_cold_storage"
         }
 
         def Xform "leaf_handle" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Cold storage door handle w/ inside release"
@@ -1592,6 +1604,7 @@ def Xform "db0188_cold_storage"
             float3 physics:diagonalInertia = (0.018403485, 0.02370076, 0.040134348)
             float physics:mass = 2.9718466
             quatf physics:principalAxes = (0, 0.70710677, 0.70710677, 9.8543325e-18)
+            custom rel physxFilteredPairs:filteredPairs = </db0188_cold_storage/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1749,7 +1762,7 @@ def Xform "db0188_cold_storage"
         }
 
         def Xform "leaf_mag_catch" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Latch bolt"
@@ -1758,6 +1771,7 @@ def Xform "db0188_cold_storage"
             float3 physics:diagonalInertia = (5.260383e-7, 0.0000029485832, 0.0000029485832)
             float physics:mass = 0.030762475
             quatf physics:principalAxes = (7.850462e-17, 7.850462e-17, -0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0188_cold_storage/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1788,7 +1802,7 @@ def Xform "db0188_cold_storage"
         }
 
         def Xform "leaf_hasp" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Hasp"
@@ -1797,6 +1811,7 @@ def Xform "db0188_cold_storage"
             float3 physics:diagonalInertia = (0.000013680044, 0.00018591265, 0.00019908289)
             float physics:mass = 0.12057301
             quatf physics:principalAxes = (0.6959348, 0.6959348, -0.12519895, -0.12519895)
+            custom rel physxFilteredPairs:filteredPairs = </db0188_cold_storage/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0

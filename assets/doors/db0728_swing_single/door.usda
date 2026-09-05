@@ -7,9 +7,11 @@
 
 def Xform "db0728_swing_single"
 {
-    custom string doorbench:couplings = '[{"type": "mimic", "driven": "leaf_rise", "driver": "leaf_hinge", "coeff": [0.0, 0.005092958178940651, 0, 0, 0], "gearing": -0.005092958178940651, "offset": -0.0, "label": "rise = 8 mm per 90 deg (helical hinge)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "one_sided_tendon", "terms": [["leaf_latch_bolt_slide", 1.0], ["leaf_handle_hinge", -0.015679012345679012]], "range": [0.0, 10.0], "label": "bolt_q >= scale*handle_q (one-sided)", "note": "bolt_q >= scale*operator_q: drive the latch target from the operator in the environment (doorbench_isaaclab does this)"}]'
+    custom string doorbench:couplings = "[{\"driven\": \"leaf_rise\", \"driver\": \"leaf_hinge\", \"driven_type\": \"slide\", \"driver_type\": \"hinge\", \"mode\": \"emulated\", \"coeff\": [0.0, 0.005092958178940651], \"gearing\": -0.005092958178940651, \"offset\": -0.0, \"label\": \"rise = 8 mm per 90 deg (helical hinge)\", \"coeff_usd\": [0.0, 0.005092958178940651], \"driven_zero_offset\": 0.0, \"driver_zero_offset\": 0.0, \"driven_inertia\": 13.271492441600003, \"reflected_inertia\": 0.00034423893065811244, \"driven_gravity_bias\": -130.19334085209604, \"driven_stiffness\": 0.0, \"driven_damping\": 1.0, \"driven_target\": 0.0, \"driven_friction\": 0.0, \"driven_range\": [0.0, 0.0176], \"friction_vel_eps\": 0.001, \"reason\": \"PhysX articulation mimic joints support rotational axes only: a mimic on a prismatic axis is dropped\", \"note\": \"PhysX drops mimics on prismatic axes: emulate bilaterally (track q_driven = c0 + c1*q_driver, apply c1 * tau_driven_ext on the driver and add reflected_inertia to the driver's armature)\", \"chain_order\": 0, \"type\": \"coupling_emulated\", \"driven_path\": \"/db0728_swing_single/Articulation/Joints/leaf_rise\", \"driver_path\": \"/db0728_swing_single/Articulation/Joints/leaf_hinge\"}, {\"type\": \"one_sided_tendon\", \"terms\": [[\"leaf_latch_bolt_slide\", 1.0], [\"leaf_handle_hinge\", -0.015679012345679012]], \"range\": [0.0, 10.0], \"label\": \"bolt_q >= scale*handle_q (one-sided)\", \"note\": \"bolt_q >= scale*operator_q: drive the latch target from the operator in the environment (doorbench_isaaclab does this)\"}]"
     custom string doorbench:door_id = "db0728_swing_single"
-    custom string doorbench:meta = '{"door_id": "db0728_swing_single", "family": "swing_single", "task": "locked_recognize", "wall_y": -0.0625, "u": 1.0, "v": 1.0, "hinge_x": -0.359, "leaf_edge_x_local": 0.714, "handle_height": 0.914, "primary_joint": "leaf_hinge", "operator_joint": "leaf_handle_hinge", "mass_reconciled_kg": 12.097288137536866, "scene_extent": 2.03375, "cam_target_z": 1.0225, "cam_target_x": 0.0, "handle_cam_x": 0.252, "handle_cam_target": [0.29499999999999993, -0.064, 0.914], "handle_cam_pos": [0.4749999999999999, -0.8640000000000001, 1.194], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_rise": "/db0728_swing_single/Articulation/Joints/leaf_rise", "leaf_hinge": "/db0728_swing_single/Articulation/Joints/leaf_hinge", "leaf_handle_hinge": "/db0728_swing_single/Articulation/Joints/leaf_handle_hinge", "leaf_latch_bolt_slide": "/db0728_swing_single/Articulation/Joints/leaf_latch_bolt_slide"}, "servo_in_drive": {}, "rise_coupling": {"rise_joint": "leaf_rise", "hinge_joint": "leaf_hinge", "coeff_m_per_rad": 0.005092958178940651, "lift_m_per_rad": 0.005092958178940651, "carried_mass_kg": 13.271492441600003, "gravity_torque_Nm": -0.6630692401362905, "label": "rise = 8 mm per 90 deg (helical hinge)", "note": "constant closing torque -m*g*dz/dq of the helical hinge; apply on the hinge when the rise joint is not simulated"}, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["leaf", "leaf_handle"], ["leaf", "leaf_latch_bolt"]]'
+    custom string doorbench:meta = '{"door_id": "db0728_swing_single", "family": "swing_single", "task": "locked_recognize", "wall_y": -0.0755, "u": 1.0, "v": 1.0, "hinge_x": -0.359, "leaf_edge_x_local": 0.714, "handle_height": 0.914, "primary_joint": "leaf_hinge", "operator_joint": "leaf_handle_hinge", "mass_reconciled_kg": 12.097288137536866, "scene_extent": 2.03375, "cam_target_z": 1.0225, "cam_target_x": 0.0, "handle_cam_x": 0.252, "handle_cam_target": [0.29499999999999993, -0.064, 0.914], "handle_cam_pos": [0.4749999999999999, -0.8640000000000001, 1.194], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_rise": "/db0728_swing_single/Articulation/Joints/leaf_rise", "leaf_hinge": "/db0728_swing_single/Articulation/Joints/leaf_hinge", "leaf_handle_hinge": "/db0728_swing_single/Articulation/Joints/leaf_handle_hinge", "leaf_latch_bolt_slide": "/db0728_swing_single/Articulation/Joints/leaf_latch_bolt_slide"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_handle"], ["leaf", "leaf_latch_bolt"]], "n_filtered_pairs": 2, "env_release": [], "couplings_emulated": [{"driven": "leaf_rise", "driver": "leaf_hinge", "driven_type": "slide", "driver_type": "hinge", "mode": "emulated", "coeff": [0.0, 0.005092958178940651], "gearing": -0.005092958178940651, "offset": -0.0, "label": "rise = 8 mm per 90 deg (helical hinge)", "coeff_usd": [0.0, 0.005092958178940651], "driven_zero_offset": 0.0, "driver_zero_offset": 0.0, "driven_inertia": 13.271492441600003, "reflected_inertia": 0.00034423893065811244, "driven_gravity_bias": -130.19334085209604, "driven_stiffness": 0.0, "driven_damping": 1.0, "driven_target": 0.0, "driven_friction": 0.0, "driven_range": [0.0, 0.0176], "friction_vel_eps": 0.001, "reason": "PhysX articulation mimic joints support rotational axes only: a mimic on a prismatic axis is dropped", "note": "q_driven = c0 + c1*q_driver; the driver carries the reaction c1 * tau_driven_ext and the reflected inertia c1^2 * I_driven", "chain_order": 0}], "couplings_servo": [], "coupling_reflected_armature": {"leaf_hinge": 0.00034423893065811244}, "servo_in_drive": {}, "rise_coupling": {"rise_joint": "leaf_rise", "hinge_joint": "leaf_hinge", "coeff_m_per_rad": 0.005092958178940651, "lift_m_per_rad": 0.005092958178940651, "carried_mass_kg": 13.271492441600003, "gravity_torque_Nm": -0.6630692401362905, "label": "rise = 8 mm per 90 deg (helical hinge)", "note": "constant closing torque -m*g*dz/dq of the helical hinge; apply on the hinge when the rise joint is not simulated"}, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -290,7 +292,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (2.122, 0.2, 2.7)
-                double3 xformOp:translate = (-1.439, -0.0625, 1.35)
+                double3 xformOp:translate = (-1.439, -0.0755, 1.35)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -310,7 +312,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (2.092, 0.2, 2.7)
-                double3 xformOp:translate = (1.454, -0.0625, 1.35)
+                double3 xformOp:translate = (1.454, -0.0755, 1.35)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -330,7 +332,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.786, 0.2, 0.606)
-                double3 xformOp:translate = (0.015000000000000013, -0.0625, 2.3970000000000002)
+                double3 xformOp:translate = (0.015000000000000013, -0.0755, 2.3970000000000002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -344,7 +346,7 @@ def Xform "db0728_swing_single"
                 custom string doorbench:semantic = "hinge"
                 rel material:binding = </db0728_swing_single/Looks/mat_hinge>
                 quatf xformOp:orient = (0, 1, 0, 0)
-                double3 xformOp:translate = (-0.356, 0.0245, 0.2589999999999999)
+                double3 xformOp:translate = (-0.356, 0.024500000000000008, 0.2589999999999999)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -358,7 +360,7 @@ def Xform "db0728_swing_single"
                 custom string doorbench:semantic = "hinge"
                 rel material:binding = </db0728_swing_single/Looks/mat_hinge>
                 quatf xformOp:orient = (0, 1, 0, 0)
-                double3 xformOp:translate = (-0.356, 0.0245, 1.8505999999999998)
+                double3 xformOp:translate = (-0.356, 0.024500000000000008, 1.8505999999999998)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -378,7 +380,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.019, 0.2, 2.045)
-                double3 xformOp:translate = (-0.3685, -0.0625, 1.0225)
+                double3 xformOp:translate = (-0.3685, -0.0755, 1.0225)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -397,8 +399,8 @@ def Xform "db0728_swing_single"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.049, 0.15465, 0.0334)
-                double3 xformOp:translate = (0.3835, -0.085175, 0.914)
+                float3 xformOp:scale = (0.049, 0.16765, 0.0334)
+                double3 xformOp:translate = (0.3835, -0.09167499999999999, 0.914)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -436,9 +438,9 @@ def Xform "db0728_swing_single"
                 custom float physxCollision:contactOffset = 0.005
                 custom float physxCollision:restOffset = 0
                 double size = 1
-                quatf xformOp:orient = (0.9813718, -0, -0, -0.19211796)
-                float3 xformOp:scale = (0.049, 0.036331978, 0.0334)
-                double3 xformOp:translate = (0.38854144386131323, 0.03143658154829149, 0.914)
+                quatf xformOp:orient = (0.9771485, -0, -0, -0.212558)
+                float3 xformOp:scale = (0.049, 0.032980144, 0.0334)
+                double3 xformOp:translate = (0.388136135731401, 0.028672664682660207, 0.914)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -478,7 +480,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.049, 0.2, 0.8973)
-                double3 xformOp:translate = (0.3835, -0.0625, 0.44865)
+                double3 xformOp:translate = (0.3835, -0.07549999999999998, 0.44865)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -498,7 +500,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.049, 0.2, 1.1143)
-                double3 xformOp:translate = (0.3835, -0.0625, 1.48785)
+                double3 xformOp:translate = (0.3835, -0.07549999999999998, 1.48785)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -518,7 +520,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.786, 0.2, 0.019)
-                double3 xformOp:translate = (0.015000000000000013, -0.0625, 2.0545)
+                double3 xformOp:translate = (0.015000000000000013, -0.0755, 2.0545)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -538,7 +540,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.786, 0.2, 0.03)
-                double3 xformOp:translate = (0.015000000000000013, -0.0625, 2.079)
+                double3 xformOp:translate = (0.015000000000000013, -0.0755, 2.079)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -613,7 +615,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.07, 0.016, 2.064)
-                double3 xformOp:translate = (-0.40800000000000003, -0.1705, 1.0225)
+                double3 xformOp:translate = (-0.40800000000000003, -0.1835, 1.0225)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -628,7 +630,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.07, 0.016, 2.064)
-                double3 xformOp:translate = (0.40800000000000003, -0.1705, 1.0225)
+                double3 xformOp:translate = (0.40800000000000003, -0.1835, 1.0225)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -643,7 +645,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.886, 0.016, 0.07)
-                double3 xformOp:translate = (0, -0.1705, 2.0940000000000003)
+                double3 xformOp:translate = (0, -0.1835, 2.0940000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -658,7 +660,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.07, 0.016, 2.064)
-                double3 xformOp:translate = (-0.40800000000000003, 0.04550000000000001, 1.0225)
+                double3 xformOp:translate = (-0.40800000000000003, 0.032500000000000015, 1.0225)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -673,7 +675,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.07, 0.016, 2.064)
-                double3 xformOp:translate = (0.40800000000000003, 0.04550000000000001, 1.0225)
+                double3 xformOp:translate = (0.40800000000000003, 0.032500000000000015, 1.0225)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -688,7 +690,7 @@ def Xform "db0728_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.886, 0.016, 0.07)
-                double3 xformOp:translate = (0, 0.04550000000000001, 2.0940000000000003)
+                double3 xformOp:translate = (0, 0.032500000000000015, 2.0940000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -744,7 +746,7 @@ def Xform "db0728_swing_single"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -763,17 +765,25 @@ def Xform "db0728_swing_single"
             }
 
             def PhysicsPrismaticJoint "leaf_rise" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear", "PhysxMimicJointAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
                 custom float doorbench:armature_si = 0.5
+                custom float doorbench:coupling_c0 = 0
+                custom float doorbench:coupling_c1 = 0.005092958
+                custom int doorbench:coupling_chain_order = 0
+                custom float doorbench:coupling_driven_inertia = 13.271492
+                custom string doorbench:coupling_driver = "leaf_hinge"
+                custom rel doorbench:coupling_driver_joint = </db0728_swing_single/Articulation/Joints/leaf_hinge>
+                custom float doorbench:coupling_gravity_bias = -130.19334
+                custom string doorbench:coupling_mode = "emulated"
+                custom float doorbench:coupling_reflected_inertia = 0.00034423894
                 custom float doorbench:damping_si = 1
                 custom float doorbench:friction_effort = 0
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Rising-hinge lift (coupled to hinge angle)"
                 custom float doorbench:legacy_friction_coeff = 0
                 custom bool doorbench:limited = 1
-                custom string doorbench:mimic_label = "rise = 8 mm per 90 deg (helical hinge)"
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "mechanism"
                 custom bool doorbench:servo_in_drive = 0
@@ -802,10 +812,6 @@ def Xform "db0728_swing_single"
                 custom float physxJointAxis:linear:dynamicFrictionEffort = 0
                 custom float physxJointAxis:linear:staticFrictionEffort = 0
                 custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
-                custom float physxMimicJoint:transX:gearing = -0.005092958
-                custom float physxMimicJoint:transX:offset = -0
-                custom rel physxMimicJoint:transX:referenceJoint = </db0728_swing_single/Articulation/Joints/leaf_hinge>
-                custom token physxMimicJoint:transX:referenceJointAxis = "rotX"
             }
 
             def PhysicsRevoluteJoint "leaf_hinge" (
@@ -813,6 +819,7 @@ def Xform "db0728_swing_single"
             )
             {
                 custom float doorbench:armature_si = 0.02
+                custom float doorbench:coupling_reflected_armature = 0.00034423894
                 custom float doorbench:damping_closing = 0
                 custom float doorbench:damping_opening = 0
                 custom float doorbench:damping_si = 0.14378208
@@ -983,13 +990,13 @@ def Xform "db0728_swing_single"
                 rel material:binding = </db0728_swing_single/Looks/mat_hinge>
                 double radius = 0.004
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.003, 0.0245, 0.05)
+                double3 xformOp:translate = (0.003, 0.024500000000000008, 0.05)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
 
         def Xform "leaf" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Door leaf"
@@ -998,6 +1005,10 @@ def Xform "db0728_swing_single"
             float3 physics:diagonalInertia = (0.5426487, 4.228177, 4.7681274)
             float physics:mass = 12.097288
             quatf physics:principalAxes = (0.5006745, 0.49863157, -0.50134176, 0.4993476)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0728_swing_single/Articulation/leaf_handle>,
+                </db0728_swing_single/Articulation/leaf_latch_bolt>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1065,7 +1076,7 @@ def Xform "db0728_swing_single"
                 custom string doorbench:semantic = "hinge"
                 rel material:binding = </db0728_swing_single/Looks/mat_hinge>
                 quatf xformOp:orient = (0, 1, 0, 0)
-                double3 xformOp:translate = (0.003, 0.0245, 0.2589999999999999)
+                double3 xformOp:translate = (0.003, 0.024500000000000008, 0.2589999999999999)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -1079,7 +1090,7 @@ def Xform "db0728_swing_single"
                 custom string doorbench:semantic = "hinge"
                 rel material:binding = </db0728_swing_single/Looks/mat_hinge>
                 quatf xformOp:orient = (0, 1, 0, 0)
-                double3 xformOp:translate = (0.003, 0.0245, 1.8505999999999998)
+                double3 xformOp:translate = (0.003, 0.024500000000000008, 1.8505999999999998)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -1108,7 +1119,7 @@ def Xform "db0728_swing_single"
         }
 
         def Xform "leaf_handle" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Round knob w/ privacy push-button (bath/bedroom)"
@@ -1117,6 +1128,7 @@ def Xform "db0728_swing_single"
             float3 physics:diagonalInertia = (0.00031211483, 0.003721642, 0.003721642)
             float physics:mass = 1.1306808
             quatf physics:principalAxes = (0.5, 0.5, 0.5, 0.5)
+            custom rel physxFilteredPairs:filteredPairs = </db0728_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1268,7 +1280,7 @@ def Xform "db0728_swing_single"
         }
 
         def Xform "leaf_latch_bolt" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Latch bolt"
@@ -1277,6 +1289,7 @@ def Xform "db0728_swing_single"
             float3 physics:diagonalInertia = (7.983011e-7, 0.0000055978417, 0.0000055978417)
             float physics:mass = 0.041419115
             quatf physics:principalAxes = (0.9238795, -0.38268343, -1.0257123e-16, -4.2486395e-17)
+            custom rel physxFilteredPairs:filteredPairs = </db0728_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0

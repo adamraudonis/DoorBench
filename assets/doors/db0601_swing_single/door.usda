@@ -7,9 +7,11 @@
 
 def Xform "db0601_swing_single"
 {
-    custom string doorbench:couplings = '[{"type": "mimic", "driven": "leaf_deadbolt_slide", "driver": "leaf_deadbolt_thumbturn_hinge", "coeff": [0.0, 0.01617010440539852, 0, 0, 0], "gearing": -0.01617010440539852, "offset": -0.0, "label": "deadbolt = throw/travel * thumbturn", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "one_sided_tendon", "terms": [["leaf_latch_bolt_slide", 1.0], ["leaf_handle_hinge", -0.015679012345679012]], "range": [0.0, 10.0], "label": "bolt_q >= scale*handle_q (one-sided)", "note": "bolt_q >= scale*operator_q: drive the latch target from the operator in the environment (doorbench_isaaclab does this)"}]'
+    custom string doorbench:couplings = "[{\"driven\": \"leaf_deadbolt_slide\", \"driver\": \"leaf_deadbolt_thumbturn_hinge\", \"driven_type\": \"slide\", \"driver_type\": \"hinge\", \"mode\": \"emulated\", \"coeff\": [0.0, 0.01617010440539852], \"gearing\": -0.01617010440539852, \"offset\": 3.469446951953614e-18, \"label\": \"deadbolt = throw/travel * thumbturn\", \"coeff_usd\": [-3.469446951953614e-18, 0.01617010440539852], \"driven_zero_offset\": 0.0254, \"driver_zero_offset\": 1.5708, \"driven_inertia\": 0.18836, \"reflected_inertia\": 4.92509179980532e-05, \"driven_gravity_bias\": 0.0, \"driven_stiffness\": 0.0, \"driven_damping\": 5.0, \"driven_target\": 0.0, \"driven_friction\": 1.5, \"driven_range\": [-0.0254, 0.0], \"friction_vel_eps\": 0.001, \"reason\": \"PhysX articulation mimic joints support rotational axes only: a mimic on a prismatic axis is dropped\", \"note\": \"PhysX drops mimics on prismatic axes: emulate bilaterally (track q_driven = c0 + c1*q_driver, apply c1 * tau_driven_ext on the driver and add reflected_inertia to the driver's armature)\", \"chain_order\": 0, \"type\": \"coupling_emulated\", \"driven_path\": \"/db0601_swing_single/Articulation/Joints/leaf_deadbolt_slide\", \"driver_path\": \"/db0601_swing_single/Articulation/Joints/leaf_deadbolt_thumbturn_hinge\"}, {\"type\": \"one_sided_tendon\", \"terms\": [[\"leaf_latch_bolt_slide\", 1.0], [\"leaf_handle_hinge\", -0.015679012345679012]], \"range\": [0.0, 10.0], \"label\": \"bolt_q >= scale*handle_q (one-sided)\", \"note\": \"bolt_q >= scale*operator_q: drive the latch target from the operator in the environment (doorbench_isaaclab does this)\"}]"
     custom string doorbench:door_id = "db0601_swing_single"
-    custom string doorbench:meta = '{"door_id": "db0601_swing_single", "family": "swing_single", "task": "close", "wall_y": 0.015500000000000003, "clearance_allow": [["leaf_keypad_body", "leaf_keypad_key_*", "buttons travel into the keypad body"]], "u": -1.0, "v": -1.0, "hinge_x": 0.4605, "leaf_edge_x_local": -0.917, "handle_height": 0.965, "primary_joint": "leaf_hinge", "operator_joint": "leaf_handle_hinge", "mass_reconciled_kg": 55.16498974300971, "scene_extent": 2.03375, "cam_target_z": 1.0225, "cam_target_x": 0.0, "handle_cam_x": -0.35350000000000004, "handle_cam_target": [-0.29689999999999994, -0.077, 0.965], "handle_cam_pos": [-0.11689999999999995, -0.877, 1.245], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0601_swing_single/Articulation/Joints/leaf_hinge", "leaf_handle_hinge": "/db0601_swing_single/Articulation/Joints/leaf_handle_hinge", "leaf_keypad_key_1_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_1_slide", "leaf_keypad_key_2_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_2_slide", "leaf_keypad_key_3_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_3_slide", "leaf_keypad_key_4_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_4_slide", "leaf_keypad_key_5_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_5_slide", "leaf_keypad_key_6_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_6_slide", "leaf_keypad_key_7_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_7_slide", "leaf_keypad_key_8_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_8_slide", "leaf_keypad_key_9_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_9_slide", "leaf_keypad_key_star_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_star_slide", "leaf_keypad_key_0_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_0_slide", "leaf_keypad_key_hash_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_hash_slide", "leaf_latch_bolt_slide": "/db0601_swing_single/Articulation/Joints/leaf_latch_bolt_slide", "leaf_deadbolt_slide": "/db0601_swing_single/Articulation/Joints/leaf_deadbolt_slide", "leaf_deadbolt_thumbturn_hinge": "/db0601_swing_single/Articulation/Joints/leaf_deadbolt_thumbturn_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["leaf", "leaf_deadbolt"], ["leaf", "leaf_deadbolt_thumbturn"], ["leaf", "leaf_handle"], ["leaf", "leaf_keypad_key_0"], ["leaf", "leaf_keypad_key_1"], ["leaf", "leaf_keypad_key_2"], ["leaf", "leaf_keypad_key_3"], ["leaf", "leaf_keypad_key_4"], ["leaf", "leaf_keypad_key_5"], ["leaf", "leaf_keypad_key_6"], ["leaf", "leaf_keypad_key_7"], ["leaf", "leaf_keypad_key_8"], ["leaf", "leaf_keypad_key_9"], ["leaf", "leaf_keypad_key_hash"], ["leaf", "leaf_keypad_key_star"], ["leaf", "leaf_latch_bolt"], ["leaf_deadbolt", "leaf_deadbolt_thumbturn"]]'
+    custom string doorbench:meta = '{"door_id": "db0601_swing_single", "family": "swing_single", "task": "close", "wall_y": 0.028500000000000004, "clearance_allow": [["leaf_keypad_body", "leaf_keypad_key_*", "buttons travel into the keypad body"]], "u": -1.0, "v": -1.0, "hinge_x": 0.4605, "leaf_edge_x_local": -0.917, "handle_height": 0.965, "primary_joint": "leaf_hinge", "operator_joint": "leaf_handle_hinge", "mass_reconciled_kg": 55.16498974300971, "scene_extent": 2.03375, "cam_target_z": 1.0225, "cam_target_x": 0.0, "handle_cam_x": -0.35350000000000004, "handle_cam_target": [-0.29689999999999994, -0.077, 0.965], "handle_cam_pos": [-0.11689999999999995, -0.877, 1.245], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0601_swing_single/Articulation/Joints/leaf_hinge", "leaf_handle_hinge": "/db0601_swing_single/Articulation/Joints/leaf_handle_hinge", "leaf_keypad_key_1_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_1_slide", "leaf_keypad_key_2_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_2_slide", "leaf_keypad_key_3_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_3_slide", "leaf_keypad_key_4_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_4_slide", "leaf_keypad_key_5_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_5_slide", "leaf_keypad_key_6_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_6_slide", "leaf_keypad_key_7_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_7_slide", "leaf_keypad_key_8_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_8_slide", "leaf_keypad_key_9_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_9_slide", "leaf_keypad_key_star_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_star_slide", "leaf_keypad_key_0_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_0_slide", "leaf_keypad_key_hash_slide": "/db0601_swing_single/Articulation/Joints/leaf_keypad_key_hash_slide", "leaf_latch_bolt_slide": "/db0601_swing_single/Articulation/Joints/leaf_latch_bolt_slide", "leaf_deadbolt_slide": "/db0601_swing_single/Articulation/Joints/leaf_deadbolt_slide", "leaf_deadbolt_thumbturn_hinge": "/db0601_swing_single/Articulation/Joints/leaf_deadbolt_thumbturn_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_deadbolt"], ["leaf", "leaf_deadbolt_thumbturn"], ["leaf", "leaf_handle"], ["leaf", "leaf_keypad_key_0"], ["leaf", "leaf_keypad_key_1"], ["leaf", "leaf_keypad_key_2"], ["leaf", "leaf_keypad_key_3"], ["leaf", "leaf_keypad_key_4"], ["leaf", "leaf_keypad_key_5"], ["leaf", "leaf_keypad_key_6"], ["leaf", "leaf_keypad_key_7"], ["leaf", "leaf_keypad_key_8"], ["leaf", "leaf_keypad_key_9"], ["leaf", "leaf_keypad_key_hash"], ["leaf", "leaf_keypad_key_star"], ["leaf", "leaf_latch_bolt"], ["leaf_deadbolt", "leaf_deadbolt_thumbturn"]], "n_filtered_pairs": 17, "env_release": [], "couplings_emulated": [{"driven": "leaf_deadbolt_slide", "driver": "leaf_deadbolt_thumbturn_hinge", "driven_type": "slide", "driver_type": "hinge", "mode": "emulated", "coeff": [0.0, 0.01617010440539852], "gearing": -0.01617010440539852, "offset": 3.469446951953614e-18, "label": "deadbolt = throw/travel * thumbturn", "coeff_usd": [-3.469446951953614e-18, 0.01617010440539852], "driven_zero_offset": 0.0254, "driver_zero_offset": 1.5708, "driven_inertia": 0.18836, "reflected_inertia": 4.92509179980532e-05, "driven_gravity_bias": 0.0, "driven_stiffness": 0.0, "driven_damping": 5.0, "driven_target": 0.0, "driven_friction": 1.5, "driven_range": [-0.0254, 0.0], "friction_vel_eps": 0.001, "reason": "PhysX articulation mimic joints support rotational axes only: a mimic on a prismatic axis is dropped", "note": "q_driven = c0 + c1*q_driver; the driver carries the reaction c1 * tau_driven_ext and the reflected inertia c1^2 * I_driven", "chain_order": 0}], "couplings_servo": [], "coupling_reflected_armature": {"leaf_deadbolt_thumbturn_hinge": 4.92509179980532e-05}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -401,7 +403,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (1.9905, 0.115, 2.7)
-                double3 xformOp:translate = (-1.50475, 0.015500000000000003, 1.35)
+                double3 xformOp:translate = (-1.50475, 0.028500000000000004, 1.35)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -421,7 +423,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (2.0205, 0.115, 2.7)
-                double3 xformOp:translate = (1.48975, 0.015500000000000003, 1.35)
+                double3 xformOp:translate = (1.48975, 0.028500000000000004, 1.35)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -441,7 +443,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.989, 0.115, 0.606)
-                double3 xformOp:translate = (-0.015000000000000013, 0.015500000000000003, 2.3970000000000002)
+                double3 xformOp:translate = (-0.015000000000000013, 0.028500000000000004, 2.3970000000000002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -563,7 +565,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.019, 0.115, 2.045)
-                double3 xformOp:translate = (0.47000000000000003, 0.015500000000000003, 1.0225)
+                double3 xformOp:translate = (0.47000000000000003, 0.028500000000000004, 1.0225)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -582,8 +584,8 @@ def Xform "db0601_swing_single"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.049, 0.06515, 0.0334)
-                double3 xformOp:translate = (-0.48500000000000004, 0.040425, 0.965)
+                float3 xformOp:scale = (0.049, 0.07815, 0.0334)
+                double3 xformOp:translate = (-0.48500000000000004, 0.046925, 0.965)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -621,9 +623,9 @@ def Xform "db0601_swing_single"
                 custom float physxCollision:contactOffset = 0.005
                 custom float physxCollision:restOffset = 0
                 double size = 1
-                quatf xformOp:orient = (0.98517877, -0, -0, -0.17153071)
-                float3 xformOp:scale = (0.049, 0.040535323, 0.0334)
-                double3 xformOp:translate = (-0.49040828362599165, -0.03464456787218649, 0.965)
+                quatf xformOp:orient = (0.9771485, -0, -0, -0.212558)
+                float3 xformOp:scale = (0.049, 0.032980144, 0.0334)
+                double3 xformOp:translate = (-0.489636135731401, -0.028672664682660207, 0.965)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -662,8 +664,8 @@ def Xform "db0601_swing_single"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.049, 0.0635, 0.031)
-                double3 xformOp:translate = (-0.48500000000000004, 0.04125, 1.105)
+                float3 xformOp:scale = (0.049, 0.0765, 0.031)
+                double3 xformOp:translate = (-0.48500000000000004, 0.04775, 1.105)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -682,8 +684,8 @@ def Xform "db0601_swing_single"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.049, 0.0325, 0.031)
-                double3 xformOp:translate = (-0.48500000000000004, -0.02575, 1.105)
+                float3 xformOp:scale = (0.049, 0.0195, 0.031)
+                double3 xformOp:translate = (-0.48500000000000004, -0.01925, 1.105)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -723,7 +725,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.049, 0.115, 0.9483)
-                double3 xformOp:translate = (-0.48500000000000004, 0.015500000000000007, 0.47414999999999996)
+                double3 xformOp:translate = (-0.48500000000000004, 0.028500000000000004, 0.47414999999999996)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -743,7 +745,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.049, 0.115, 0.1078)
-                double3 xformOp:translate = (-0.48500000000000004, 0.015500000000000007, 1.0356)
+                double3 xformOp:translate = (-0.48500000000000004, 0.028500000000000004, 1.0356)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -763,7 +765,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.049, 0.115, 0.9245)
-                double3 xformOp:translate = (-0.48500000000000004, 0.015500000000000007, 1.5827499999999999)
+                double3 xformOp:translate = (-0.48500000000000004, 0.028500000000000004, 1.5827499999999999)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -783,7 +785,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.989, 0.115, 0.019)
-                double3 xformOp:translate = (-0.015000000000000013, 0.015500000000000003, 2.0545)
+                double3 xformOp:translate = (-0.015000000000000013, 0.028500000000000004, 2.0545)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -803,7 +805,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.989, 0.115, 0.03)
-                double3 xformOp:translate = (-0.015000000000000013, 0.015500000000000003, 2.079)
+                double3 xformOp:translate = (-0.015000000000000013, 0.028500000000000004, 2.079)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -923,7 +925,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.07, 0.016, 2.064)
-                double3 xformOp:translate = (-0.5095000000000001, -0.05, 1.0225)
+                double3 xformOp:translate = (-0.5095000000000001, -0.037, 1.0225)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -938,7 +940,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.07, 0.016, 2.064)
-                double3 xformOp:translate = (0.5095000000000001, -0.05, 1.0225)
+                double3 xformOp:translate = (0.5095000000000001, -0.037, 1.0225)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -953,7 +955,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (1.089, 0.016, 0.07)
-                double3 xformOp:translate = (0, -0.05, 2.0940000000000003)
+                double3 xformOp:translate = (0, -0.037, 2.0940000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -968,7 +970,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.07, 0.016, 2.064)
-                double3 xformOp:translate = (-0.5095000000000001, 0.081, 1.0225)
+                double3 xformOp:translate = (-0.5095000000000001, 0.094, 1.0225)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -983,7 +985,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.07, 0.016, 2.064)
-                double3 xformOp:translate = (0.5095000000000001, 0.081, 1.0225)
+                double3 xformOp:translate = (0.5095000000000001, 0.094, 1.0225)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -998,7 +1000,7 @@ def Xform "db0601_swing_single"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (1.089, 0.016, 0.07)
-                double3 xformOp:translate = (0, 0.081, 2.0940000000000003)
+                double3 xformOp:translate = (0, 0.094, 2.0940000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1052,7 +1054,7 @@ def Xform "db0601_swing_single"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -1690,17 +1692,25 @@ def Xform "db0601_swing_single"
             }
 
             def PhysicsPrismaticJoint "leaf_deadbolt_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear", "PhysxMimicJointAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
                 custom float doorbench:armature_si = 0.1
+                custom float doorbench:coupling_c0 = 0
+                custom float doorbench:coupling_c1 = 0.016170105
+                custom int doorbench:coupling_chain_order = 0
+                custom float doorbench:coupling_driven_inertia = 0.18836
+                custom string doorbench:coupling_driver = "leaf_deadbolt_thumbturn_hinge"
+                custom rel doorbench:coupling_driver_joint = </db0601_swing_single/Articulation/Joints/leaf_deadbolt_thumbturn_hinge>
+                custom float doorbench:coupling_gravity_bias = 0
+                custom string doorbench:coupling_mode = "emulated"
+                custom float doorbench:coupling_reflected_inertia = 0.000049250917
                 custom float doorbench:damping_si = 5
                 custom float doorbench:friction_effort = 1.5
                 custom float doorbench:initial = 0.0254
                 custom string doorbench:label = "Deadbolt (0 = thrown, + = retracted)"
                 custom float doorbench:legacy_friction_coeff = 0.78989106
                 custom bool doorbench:limited = 1
-                custom string doorbench:mimic_label = "deadbolt = throw/travel * thumbturn"
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "lock"
                 custom bool doorbench:servo_in_drive = 0
@@ -1729,10 +1739,6 @@ def Xform "db0601_swing_single"
                 custom float physxJointAxis:linear:dynamicFrictionEffort = 1.5
                 custom float physxJointAxis:linear:staticFrictionEffort = 1.5
                 custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
-                custom float physxMimicJoint:transX:gearing = -0.016170105
-                custom float physxMimicJoint:transX:offset = -0
-                custom rel physxMimicJoint:transX:referenceJoint = </db0601_swing_single/Articulation/Joints/leaf_deadbolt_thumbturn_hinge>
-                custom token physxMimicJoint:transX:referenceJointAxis = "rotX"
             }
 
             def PhysicsRevoluteJoint "leaf_deadbolt_thumbturn_hinge" (
@@ -1740,6 +1746,7 @@ def Xform "db0601_swing_single"
             )
             {
                 custom float doorbench:armature_si = 0.005
+                custom float doorbench:coupling_reflected_armature = 0.000049250917
                 custom float doorbench:damping_si = 0.05
                 custom float doorbench:friction_effort = 0.3
                 custom float doorbench:initial = 1.5708
@@ -1796,7 +1803,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Door leaf"
@@ -1805,6 +1812,24 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (3.9887044, 18.896837, 22.866428)
             float physics:mass = 55.16499
             quatf physics:principalAxes = (0.5006741, 0.4992454, -0.5007473, 0.49933106)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0601_swing_single/Articulation/leaf_deadbolt>,
+                </db0601_swing_single/Articulation/leaf_deadbolt_thumbturn>,
+                </db0601_swing_single/Articulation/leaf_handle>,
+                </db0601_swing_single/Articulation/leaf_keypad_key_0>,
+                </db0601_swing_single/Articulation/leaf_keypad_key_1>,
+                </db0601_swing_single/Articulation/leaf_keypad_key_2>,
+                </db0601_swing_single/Articulation/leaf_keypad_key_3>,
+                </db0601_swing_single/Articulation/leaf_keypad_key_4>,
+                </db0601_swing_single/Articulation/leaf_keypad_key_5>,
+                </db0601_swing_single/Articulation/leaf_keypad_key_6>,
+                </db0601_swing_single/Articulation/leaf_keypad_key_7>,
+                </db0601_swing_single/Articulation/leaf_keypad_key_8>,
+                </db0601_swing_single/Articulation/leaf_keypad_key_9>,
+                </db0601_swing_single/Articulation/leaf_keypad_key_hash>,
+                </db0601_swing_single/Articulation/leaf_keypad_key_star>,
+                </db0601_swing_single/Articulation/leaf_latch_bolt>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2130,7 +2155,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_handle" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Electronic keypad lever set (residential)"
@@ -2139,6 +2164,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (0.0012218143, 0.0032448452, 0.004300836)
             float physics:mass = 0.85728794
             quatf physics:principalAxes = (0, 0.70710677, 0.70710677, 1.718948e-17)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2296,7 +2322,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_keypad_key_1" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Key 1"
@@ -2305,6 +2331,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
             float physics:mass = 0.0009408
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2334,7 +2361,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_keypad_key_2" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Key 2"
@@ -2343,6 +2370,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
             float physics:mass = 0.0009408
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2372,7 +2400,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_keypad_key_3" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Key 3"
@@ -2381,6 +2409,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
             float physics:mass = 0.0009408
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2410,7 +2439,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_keypad_key_4" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Key 4"
@@ -2419,6 +2448,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
             float physics:mass = 0.0009408
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2448,7 +2478,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_keypad_key_5" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Key 5"
@@ -2457,6 +2487,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
             float physics:mass = 0.0009408
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2486,7 +2517,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_keypad_key_6" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Key 6"
@@ -2495,6 +2526,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
             float physics:mass = 0.0009408
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2524,7 +2556,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_keypad_key_7" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Key 7"
@@ -2533,6 +2565,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
             float physics:mass = 0.0009408
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2562,7 +2595,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_keypad_key_8" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Key 8"
@@ -2571,6 +2604,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
             float physics:mass = 0.0009408
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2600,7 +2634,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_keypad_key_9" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Key 9"
@@ -2609,6 +2643,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
             float physics:mass = 0.0009408
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2638,7 +2673,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_keypad_key_star" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Key *"
@@ -2647,6 +2682,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
             float physics:mass = 0.0009408
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2676,7 +2712,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_keypad_key_0" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Key 0"
@@ -2685,6 +2721,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
             float physics:mass = 0.0009408
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2714,7 +2751,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_keypad_key_hash" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Key #"
@@ -2723,6 +2760,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (1.66208e-8, 1.66208e-8, 3.07328e-8)
             float physics:mass = 0.0009408
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2752,7 +2790,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_latch_bolt" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Latch bolt"
@@ -2761,6 +2799,7 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (7.983011e-7, 0.0000055978417, 0.0000055978417)
             float physics:mass = 0.041419115
             quatf physics:principalAxes = (0.9238795, 0.38268343, 1.0257123e-16, -4.2486395e-17)
+            custom rel physxFilteredPairs:filteredPairs = </db0601_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2791,7 +2830,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_deadbolt" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Deadbolt"
@@ -2800,6 +2839,10 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (0.000013828763, 0.00005219393, 0.000057986)
             float physics:mass = 0.18836
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0601_swing_single/Articulation/leaf>,
+                </db0601_swing_single/Articulation/leaf_deadbolt_thumbturn>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -2829,7 +2872,7 @@ def Xform "db0601_swing_single"
         }
 
         def Xform "leaf_deadbolt_thumbturn" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Thumbturn"
@@ -2838,6 +2881,10 @@ def Xform "db0601_swing_single"
             float3 physics:diagonalInertia = (0.000026044634, 0.00002621466, 0.000032437667)
             float physics:mass = 0.17894638
             quatf physics:principalAxes = (0.70710677, 0.0000012986741, 0.0000012986741, 0.70710677)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0601_swing_single/Articulation/leaf>,
+                </db0601_swing_single/Articulation/leaf_deadbolt>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0

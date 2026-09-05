@@ -9,7 +9,9 @@ def Xform "db0384_ship_watertight"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0384_ship_watertight"
-    custom string doorbench:meta = '{"door_id": "db0384_ship_watertight", "family": "ship_watertight", "task": "unlock_open_traverse", "wall_y": 0.0, "u": 1.0, "v": -1.0, "primary_joint": "leaf_hinge", "dog_joints": ["dog_0_hinge", "dog_1_hinge", "dog_2_hinge", "dog_3_hinge", "dog_4_hinge", "dog_5_hinge"], "operator_joint": "dog_0_hinge", "sill_height": 0.15, "mass_reconciled_kg": 99.90233143724394, "scene_extent": 1.9324999999999999, "cam_target_z": 1.03, "cam_target_x": 0.0, "handle_cam_x": 0.55, "handle_cam_target": [0.08400000000000007, -0.056, 0.6], "handle_cam_pos": [0.26400000000000007, -0.8560000000000001, 0.88], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0384_ship_watertight/Articulation/Joints/leaf_hinge", "dog_0_hinge": "/db0384_ship_watertight/Articulation/Joints/dog_0_hinge", "dog_1_hinge": "/db0384_ship_watertight/Articulation/Joints/dog_1_hinge", "dog_2_hinge": "/db0384_ship_watertight/Articulation/Joints/dog_2_hinge", "dog_3_hinge": "/db0384_ship_watertight/Articulation/Joints/dog_3_hinge", "dog_4_hinge": "/db0384_ship_watertight/Articulation/Joints/dog_4_hinge", "dog_5_hinge": "/db0384_ship_watertight/Articulation/Joints/dog_5_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["dog_0", "leaf"], ["dog_1", "leaf"], ["dog_2", "leaf"], ["dog_3", "leaf"], ["dog_4", "leaf"], ["dog_5", "leaf"]]'
+    custom string doorbench:meta = '{"door_id": "db0384_ship_watertight", "family": "ship_watertight", "task": "unlock_open_traverse", "wall_y": 0.0, "u": 1.0, "v": -1.0, "primary_joint": "leaf_hinge", "dog_joints": ["dog_0_hinge", "dog_1_hinge", "dog_2_hinge", "dog_3_hinge", "dog_4_hinge", "dog_5_hinge"], "operator_joint": "dog_0_hinge", "sill_height": 0.15, "mass_reconciled_kg": 99.90233143724394, "scene_extent": 1.9324999999999999, "cam_target_z": 1.03, "cam_target_x": 0.0, "handle_cam_x": 0.55, "handle_cam_target": [0.08400000000000007, -0.056, 0.6], "handle_cam_pos": [0.26400000000000007, -0.8560000000000001, 0.88], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0384_ship_watertight/Articulation/Joints/leaf_hinge", "dog_0_hinge": "/db0384_ship_watertight/Articulation/Joints/dog_0_hinge", "dog_1_hinge": "/db0384_ship_watertight/Articulation/Joints/dog_1_hinge", "dog_2_hinge": "/db0384_ship_watertight/Articulation/Joints/dog_2_hinge", "dog_3_hinge": "/db0384_ship_watertight/Articulation/Joints/dog_3_hinge", "dog_4_hinge": "/db0384_ship_watertight/Articulation/Joints/dog_4_hinge", "dog_5_hinge": "/db0384_ship_watertight/Articulation/Joints/dog_5_hinge"}, "self_collisions": true, "filtered_pairs": [["dog_0", "leaf"], ["dog_1", "leaf"], ["dog_2", "leaf"], ["dog_3", "leaf"], ["dog_4", "leaf"], ["dog_5", "leaf"]], "n_filtered_pairs": 6, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -796,7 +798,7 @@ def Xform "db0384_ship_watertight"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -1123,7 +1125,7 @@ def Xform "db0384_ship_watertight"
         }
 
         def Xform "leaf" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Watertight door leaf"
@@ -1132,6 +1134,14 @@ def Xform "db0384_ship_watertight"
             float3 physics:diagonalInertia = (3.6822553, 30.503325, 34.181168)
             float physics:mass = 99.90233
             quatf physics:principalAxes = (-0.49930155, 0.5010185, -0.4989562, -0.5007206)
+            custom rel physxFilteredPairs:filteredPairs = [
+                </db0384_ship_watertight/Articulation/dog_0>,
+                </db0384_ship_watertight/Articulation/dog_1>,
+                </db0384_ship_watertight/Articulation/dog_2>,
+                </db0384_ship_watertight/Articulation/dog_3>,
+                </db0384_ship_watertight/Articulation/dog_4>,
+                </db0384_ship_watertight/Articulation/dog_5>,
+            ]
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1264,7 +1274,7 @@ def Xform "db0384_ship_watertight"
         }
 
         def Xform "dog_0" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Dog 1"
@@ -1273,6 +1283,7 @@ def Xform "db0384_ship_watertight"
             float3 physics:diagonalInertia = (0.002432828, 0.035672598, 0.037606746)
             float physics:mass = 3.2057781
             quatf physics:principalAxes = (-0.16772927, 1.625086e-18, 9.551484e-18, 0.9858331)
+            custom rel physxFilteredPairs:filteredPairs = </db0384_ship_watertight/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1346,7 +1357,7 @@ def Xform "db0384_ship_watertight"
         }
 
         def Xform "dog_1" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Dog 2"
@@ -1355,6 +1366,7 @@ def Xform "db0384_ship_watertight"
             float3 physics:diagonalInertia = (0.002432828, 0.035672598, 0.037606746)
             float physics:mass = 3.2057781
             quatf physics:principalAxes = (0.16772927, 6.120553e-18, -3.5973704e-17, 0.9858331)
+            custom rel physxFilteredPairs:filteredPairs = </db0384_ship_watertight/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1428,7 +1440,7 @@ def Xform "db0384_ship_watertight"
         }
 
         def Xform "dog_2" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Dog 3"
@@ -1437,6 +1449,7 @@ def Xform "db0384_ship_watertight"
             float3 physics:diagonalInertia = (0.002432828, 0.035672598, 0.037606746)
             float physics:mass = 3.2057781
             quatf physics:principalAxes = (-0.16772927, 1.625086e-18, 9.551484e-18, 0.9858331)
+            custom rel physxFilteredPairs:filteredPairs = </db0384_ship_watertight/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1510,7 +1523,7 @@ def Xform "db0384_ship_watertight"
         }
 
         def Xform "dog_3" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Dog 4"
@@ -1519,6 +1532,7 @@ def Xform "db0384_ship_watertight"
             float3 physics:diagonalInertia = (0.002432828, 0.035672598, 0.037606746)
             float physics:mass = 3.2057781
             quatf physics:principalAxes = (0.16772927, 6.120553e-18, -3.5973704e-17, 0.9858331)
+            custom rel physxFilteredPairs:filteredPairs = </db0384_ship_watertight/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1592,7 +1606,7 @@ def Xform "db0384_ship_watertight"
         }
 
         def Xform "dog_4" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Dog 5"
@@ -1601,6 +1615,7 @@ def Xform "db0384_ship_watertight"
             float3 physics:diagonalInertia = (0.002432828, 0.035672598, 0.037606746)
             float physics:mass = 3.2057781
             quatf physics:principalAxes = (-0.16772927, 1.625086e-18, 9.551484e-18, 0.9858331)
+            custom rel physxFilteredPairs:filteredPairs = </db0384_ship_watertight/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1674,7 +1689,7 @@ def Xform "db0384_ship_watertight"
         }
 
         def Xform "dog_5" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Dog 6"
@@ -1683,6 +1698,7 @@ def Xform "db0384_ship_watertight"
             float3 physics:diagonalInertia = (0.002432828, 0.035672598, 0.037606746)
             float physics:mass = 3.2057781
             quatf physics:principalAxes = (0.16772927, 6.120553e-18, -3.5973704e-17, 0.9858331)
+            custom rel physxFilteredPairs:filteredPairs = </db0384_ship_watertight/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0

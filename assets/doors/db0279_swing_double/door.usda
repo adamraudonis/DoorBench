@@ -9,7 +9,9 @@ def Xform "db0279_swing_double"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0279_swing_double"
-    custom string doorbench:meta = '{"door_id": "db0279_swing_double", "family": "swing_double", "task": "open_only", "wall_y": -0.05800000000000001, "u": -1.0, "v": 1.0, "hinge_x": 1.0045, "leaf_edge_x_local": -1.003, "handle_height": 1.05, "primary_joint": "leaf_a_hinge", "operator_joint": null, "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": false, "mass_reconciled_kg": 40.50821608909191, "scene_extent": 2.15975, "cam_target_z": 1.1065, "cam_target_x": 0.0, "handle_cam_x": 0.10449999999999993, "handle_cam_target": [-0.10650000000000004, -0.054, 0.99], "handle_cam_pos": [0.07349999999999995, -0.8540000000000001, 1.27], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0279_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_a_aux_bolt_slide": "/db0279_swing_double/Articulation/Joints/leaf_a_aux_bolt_slide", "leaf_b_hinge": "/db0279_swing_double/Articulation/Joints/leaf_b_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["leaf_a", "leaf_a_aux_bolt"]]'
+    custom string doorbench:meta = '{"door_id": "db0279_swing_double", "family": "swing_double", "task": "open_only", "wall_y": -0.05800000000000001, "u": -1.0, "v": 1.0, "hinge_x": 1.0045, "leaf_edge_x_local": -1.003, "handle_height": 1.05, "primary_joint": "leaf_a_hinge", "operator_joint": null, "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": false, "mass_reconciled_kg": 40.50821608909191, "scene_extent": 2.15975, "cam_target_z": 1.1065, "cam_target_x": 0.0, "handle_cam_x": 0.10449999999999993, "handle_cam_target": [-0.10650000000000004, -0.054, 0.99], "handle_cam_pos": [0.07349999999999995, -0.8540000000000001, 1.27], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0279_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_a_aux_bolt_slide": "/db0279_swing_double/Articulation/Joints/leaf_a_aux_bolt_slide", "leaf_b_hinge": "/db0279_swing_double/Articulation/Joints/leaf_b_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf_a", "leaf_a_aux_bolt"]], "n_filtered_pairs": 1, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -484,7 +486,7 @@ def Xform "db0279_swing_double"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -650,7 +652,7 @@ def Xform "db0279_swing_double"
         }
 
         def Xform "leaf_a" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Door leaf"
@@ -659,6 +661,7 @@ def Xform "db0279_swing_double"
             float3 physics:diagonalInertia = (1.7697577, 8.427026, 10.187373)
             float physics:mass = 20.341225
             quatf physics:principalAxes = (0.50077045, 0.49885264, -0.5010962, 0.4992771)
+            custom rel physxFilteredPairs:filteredPairs = </db0279_swing_double/Articulation/leaf_a_aux_bolt>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1067,7 +1070,7 @@ def Xform "db0279_swing_double"
         }
 
         def Xform "leaf_a_aux_bolt" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Barrel bolt"
@@ -1076,6 +1079,7 @@ def Xform "db0279_swing_double"
             float3 physics:diagonalInertia = (0.000012212392, 0.00007198491, 0.00008230919)
             float physics:mass = 0.111783914
             quatf physics:principalAxes = (0.99859506, 7.7918673e-17, -1.06297526e-16, -0.052989636)
+            custom rel physxFilteredPairs:filteredPairs = </db0279_swing_double/Articulation/leaf_a>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0

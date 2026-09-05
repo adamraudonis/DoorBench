@@ -7,9 +7,11 @@
 
 def Xform "db0524_bifold"
 {
-    custom string doorbench:couplings = '[{"type": "mimic", "driven": "panel_0_1_hinge", "driver": "panel_0_0_hinge", "coeff": [0, -2.0, 0, 0, 0], "gearing": 2.0, "offset": -0.0, "label": "q = -2 * q_pivot (track-guided fold)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}]'
+    custom string doorbench:couplings = '[{"driven": "panel_0_1_hinge", "driver": "panel_0_0_hinge", "driven_type": "hinge", "driver_type": "hinge", "mode": "mimic", "coeff": [0.0, -2.0], "gearing": 2.0, "offset": -0.0, "label": "q = -2 * q_pivot (track-guided fold)", "coeff_usd": [0.0, -2.0], "driven_zero_offset": 0.0, "driver_zero_offset": 0.0, "driven_inertia": 0.06488468888825334, "reflected_inertia": 0.25953875555301337, "driven_gravity_bias": 0.0, "driven_stiffness": 0.0, "driven_damping": 0.2, "driven_target": 0.0, "driven_friction": 0.1, "driven_range": [-3.141592653589793, 0.0], "friction_vel_eps": 0.001, "reason": null, "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m", "chain_order": 0, "type": "mimic", "driven_path": "/db0524_bifold/Articulation/Joints/panel_0_1_hinge", "driver_path": "/db0524_bifold/Articulation/Joints/panel_0_0_hinge"}]'
     custom string doorbench:door_id = "db0524_bifold"
-    custom string doorbench:meta = '{"door_id": "db0524_bifold", "family": "bifold", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "panel_0_0_hinge", "secondary_joint": null, "operator_joint": null, "handle_height": 1.0, "mass_reconciled_kg": 11.842880000000001, "scene_extent": 2.0652500000000003, "cam_target_z": 1.0435, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3305, -0.033, 1.0], "handle_cam_pos": [0.5105, -0.8330000000000001, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"panel_0_0_hinge": "/db0524_bifold/Articulation/Joints/panel_0_0_hinge", "panel_0_1_hinge": "/db0524_bifold/Articulation/Joints/panel_0_1_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:env_release = "[]"
+    custom string doorbench:filtered_pairs = '[["panel_0_0", "panel_0_1"]]'
+    custom string doorbench:meta = '{"door_id": "db0524_bifold", "family": "bifold", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "panel_0_0_hinge", "secondary_joint": null, "operator_joint": null, "handle_height": 1.0, "mass_reconciled_kg": 11.842880000000001, "scene_extent": 2.0652500000000003, "cam_target_z": 1.0435, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3305, -0.033, 1.0], "handle_cam_pos": [0.5105, -0.8330000000000001, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"panel_0_0_hinge": "/db0524_bifold/Articulation/Joints/panel_0_0_hinge", "panel_0_1_hinge": "/db0524_bifold/Articulation/Joints/panel_0_1_hinge"}, "self_collisions": true, "filtered_pairs": [["panel_0_0", "panel_0_1"]], "n_filtered_pairs": 1, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -534,7 +536,7 @@ def Xform "db0524_bifold"
     )
     {
         custom bool physxArticulation:articulationEnabled = 1
-        custom bool physxArticulation:enabledSelfCollisions = 0
+        custom bool physxArticulation:enabledSelfCollisions = 1
         custom float physxArticulation:sleepThreshold = 0
         custom int physxArticulation:solverPositionIterationCount = 16
         custom int physxArticulation:solverVelocityIterationCount = 4
@@ -598,6 +600,15 @@ def Xform "db0524_bifold"
             )
             {
                 custom float doorbench:armature_si = 0.005
+                custom float doorbench:coupling_c0 = 0
+                custom float doorbench:coupling_c1 = -2
+                custom int doorbench:coupling_chain_order = 0
+                custom float doorbench:coupling_driven_inertia = 0.06488469
+                custom string doorbench:coupling_driver = "panel_0_0_hinge"
+                custom rel doorbench:coupling_driver_joint = </db0524_bifold/Articulation/Joints/panel_0_0_hinge>
+                custom float doorbench:coupling_gravity_bias = 0
+                custom string doorbench:coupling_mode = "mimic"
+                custom float doorbench:coupling_reflected_inertia = 0.25953877
                 custom float doorbench:damping_si = 0.2
                 custom float doorbench:friction_effort = 0.1
                 custom float doorbench:initial = 0
@@ -659,7 +670,7 @@ def Xform "db0524_bifold"
         }
 
         def Xform "panel_0_0" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Fold panel"
@@ -668,6 +679,7 @@ def Xform "db0524_bifold"
             float3 physics:diagonalInertia = (0.06695657, 1.9760114, 2.0429335)
             float physics:mass = 5.7427444
             quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            custom rel physxFilteredPairs:filteredPairs = </db0524_bifold/Articulation/panel_0_1>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -697,7 +709,7 @@ def Xform "db0524_bifold"
         }
 
         def Xform "panel_0_1" (
-            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI"]
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsMassAPI", "PhysxFilteredPairsAPI"]
         )
         {
             custom string doorbench:label = "Fold panel"
@@ -706,6 +718,7 @@ def Xform "db0524_bifold"
             float3 physics:diagonalInertia = (0.058750786, 1.8706946, 1.9292805)
             float physics:mass = 6.1001353
             quatf physics:principalAxes = (0.47817326, 0.5225294, 0.47640345, -0.5209156)
+            custom rel physxFilteredPairs:filteredPairs = </db0524_bifold/Articulation/panel_0_0>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
