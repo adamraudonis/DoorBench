@@ -44,7 +44,7 @@ export function App() {
           <a href="#/about" className={route.page === "about" ? "active" : ""}>About &amp; usage</a>
         </nav>
         <div className="spacer" />
-        {manifest && <span style={{ color: "var(--muted)", fontSize: 12 }}>{manifest.n_doors} doors · {manifest.n_signed_off} signed off · v{manifest.version}</span>}
+        {manifest && <span style={{ color: "var(--muted)", fontSize: 12 }}>{manifest.n_doors} doors · {manifest.n_signed_off} automated QA passed · v{manifest.version}</span>}
         <a href="https://github.com/adamraudonis/DoorBench" target="_blank" rel="noreferrer">GitHub</a>
       </div>
       <div className="content">

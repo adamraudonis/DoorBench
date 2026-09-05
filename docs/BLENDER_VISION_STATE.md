@@ -89,7 +89,7 @@ Use a separate output root for each coherent dataset or trajectory, and run one 
 
 ## Verification
 
-Forty-four focused state tests cover native body/geom pose equivalence after physics steps on hinged, sliding, and repaired cold-room doors; a nested telescoping/ref-position fixture; unchanged live data; deterministic initial exports; invalid/unknown joint overrides; external snapshot validation; invalid/skewed calibration and Blender hard-limit boundaries; native asymmetric camera intrinsics; optional dependency imports; and a non-centered asymmetric mesh proving body-plus-IR placement matches the compiler-corrected native mesh. Including pipeline/cache tests, the focused suite contains 56 passing cases.
+Forty-four focused state tests cover native body/geom pose equivalence after physics steps on hinged, sliding, and repaired cold-room doors; a nested telescoping/ref-position fixture; unchanged live data; deterministic initial exports; invalid/unknown joint overrides; external snapshot validation; invalid/skewed calibration and Blender hard-limit boundaries; native asymmetric camera intrinsics; optional dependency imports; and a non-centered asymmetric mesh proving body-plus-IR placement matches the compiler-corrected native mesh. Including pipeline/cache tests, the focused suite contains 58 passing cases.
 
 All 1000 generated doors also produced valid deterministic initial snapshots during the implementation audit. Independent numerical projection checks in Blender 5.2.1 covered square, portrait, and landscape frames, unequal focal lengths, shifted principal points, and a rotated/transformed camera. The largest error was below 0.00014 pixels with correctly scaled pixel aspect settings.
 

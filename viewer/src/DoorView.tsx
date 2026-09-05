@@ -388,7 +388,7 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
         <AppearancePanel id={id} />
         <div className="use">{entry.id} · <a href={`#/?family=${entry.family}`}>{FAMILY_LABELS[entry.family] ?? entry.family}</a> · {entry.context} · task: {nice(entry.task)} · difficulty {entry.difficulty}/5</div>
         <div style={{ marginTop: 6 }} className="chips">
-          <span className={"chip " + (entry.signed_off ? "ok" : "bad")}>{entry.signed_off ? "QA signed off" : "QA: " + (entry.qa_failed?.join(", ") || "needs review")}</span>
+          <span className={"chip " + (entry.signed_off ? "ok" : "bad")}>{entry.signed_off ? "Automated QA passed" : "QA: " + (entry.qa_failed?.join(", ") || "needs review")}</span>
           {scenarios.map((s, i) => <button key={s.name} className={"chip link" + (showEval && i === scenIdx ? " active" : "")} title={s.suite === "human" ? "human-interaction suite: advanced, opt-in (not part of the default core benchmark)" : "core suite: default benchmark, no person involved"} onClick={() => { setScenIdx(i); if (!showEval) { setShowEval(true); setTimeout(frameEvaluation, 0); } }}>{nice(s.name)}{s.suite === "human" ? <span className="suite-badge">human</span> : null}</button>)}
         </div>
         <div style={{ marginTop: 4 }} className="chips" title="baseline results on this door: successful episodes / episodes (core suite; human suite where the door lists one) - see the Results page">

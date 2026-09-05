@@ -27,7 +27,7 @@ export function DoorCard({ d, appearance }: { d: ManifestDoor; appearance?: Appe
           <span className="chip">{d.task.replace(/_/g, " ")}</span>
           {d.benchmark?.has_human && <span className="chip">human scenario</span>}
           <span className="chip">L{d.difficulty}</span>
-          <span className={"chip " + (d.signed_off ? "ok" : "bad")}>{d.signed_off ? "signed off" : "needs review"}</span>
+          <span className={"chip " + (d.signed_off ? "ok" : "bad")}>{d.signed_off ? "automated QA passed" : "needs review"}</span>
           <BaselineBadges id={d.id} />
         </div>
       </div>
@@ -88,7 +88,7 @@ export function Catalogue({ manifest, query }: { manifest: Manifest; query: stri
         {sel(condition, setCondition, opts.condition, "Any condition")}
         {sel(task, setTask, opts.task, "Any task")}
         {opts.scenario.length > 0 && sel(scenario, setScenario, opts.scenario, "Any scenario")}
-        <select value={signed} onChange={(e) => setSigned(e.target.value)}><option value="">QA: all</option><option value="yes">signed off</option><option value="no">needs review</option></select>
+        <select value={signed} onChange={(e) => setSigned(e.target.value)}><option value="">QA: all</option><option value="yes">automated QA passed</option><option value="no">needs review</option></select>
         <select value={sort} onChange={(e) => setSort(e.target.value)}><option value="index">Sort: id</option><option value="family">Sort: type</option><option value="mass">Sort: mass</option><option value="difficulty">Sort: difficulty</option><option value="width">Sort: width</option></select>
         {photoById.size > 0 && <select aria-label="Thumbnail rendering" value={imageMode} onChange={(e) => setImageMode(e.target.value)}><option value="blender">Blender renders ({photoById.size} available)</option><option value="simulation">Simulation thumbnails</option></select>}
         <span className="count">{filtered.length} / {doors.length}</span>

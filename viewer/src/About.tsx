@@ -19,7 +19,7 @@ export function About({ manifest }: { manifest: Manifest }) {
         <div className="stat"><div className="n">{locks}</div><div className="l">lock types</div></div>
         <div className="stat"><div className="n">{slabs}</div><div className="l">slab constructions</div></div>
         <div className="stat"><div className="n">{locked}</div><div className="l">start locked</div></div>
-        <div className="stat"><div className="n">{manifest.n_signed_off}</div><div className="l">QA signed off</div></div>
+        <div className="stat"><div className="n">{manifest.n_signed_off}</div><div className="l">Automated QA passed</div></div>
       </div>
       <h2>What is modelled</h2>
       <ul>

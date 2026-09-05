@@ -58,7 +58,7 @@ export function Families({ manifest }: { manifest: Manifest }) {
               <div className="body">
                 <h3>{FAMILY_LABELS[f] ?? f} <span style={{ color: "var(--muted)", fontWeight: 400 }}>· {ds.length}</span></h3>
                 <p>{DESC[f]}</p>
-                <p>{ops} operator types · {locks} lock types · {Math.min(...masses).toFixed(0)}–{Math.max(...masses).toFixed(0)} kg · {ds.filter((d) => d.signed_off).length}/{ds.length} signed off</p>
+                <p>{ops} operator types · {locks} lock types · {Math.min(...masses).toFixed(0)}–{Math.max(...masses).toFixed(0)} kg · {ds.filter((d) => d.signed_off).length}/{ds.length} automated QA passed</p>
               </div>
             </a>
           );
