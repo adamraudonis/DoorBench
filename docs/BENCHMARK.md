@@ -210,3 +210,33 @@ Domain randomisation: `env.reset(randomize=True)` perturbs friction, damping, cl
 Report per family and per scenario: success rate, mean episode return, damage rate, human-collision rate, mean
 time-to-pass relative to `expected_transit_s`, mean peak leaf force, and the `locked_recognize` false-positive rate
 (policies that keep pushing locked doors).
+
+Report per family and per task: success rate, damage rate, mean time-to-pass, mean peak leaf force, and the
+`locked_recognize` false-positive rate (policies that keep pushing locked doors).
+
+## Running the benchmark (runner, baselines, leaderboard)
+
+`doorbench benchmark run` evaluates any policy over doors x scenarios x seeds in parallel and writes a result JSON
+(`results/schema.json`).  It evaluates each door on the scenarios the door lists in the chosen **suite** - `core`
+by default (no simulated person; every door; the headline number), `human` on request (`--suite human`, the 79
+doors with a person; `--suite all` runs both, kept in separate tables).  Success is each scenario's own criterion
+(`DoorEnv.success`); a door is *solved* when every scenario x every seed succeeded.  `doorbench.benchmark.policy`
+documents the small policy interface (`reset(door_info)`, `act(obs) -> {"torques", "base_velocity", "badge",
+"knock", "declare_locked", "done"}`), `doorbench.benchmark.runner` the reference embodiment (DoorEnv's programmatic
+hand with per-joint torque limits + a synthetic base that starts at the scenario's seeded start pose and can only
+cross the wall plane while the opening is clear) and the per-suite aggregation.
+
+```bash
+doorbench benchmark list-scenarios
+doorbench benchmark run --policy scripted_hand --doors all --seeds 3 --workers 8 --out results/scripted_hand.json          # core suite
+doorbench benchmark run --policy scripted_hand --suite human --seeds 3 --workers 8 --out results/scripted_hand_human.json  # opt-in human suite
+doorbench benchmark run --policy ./my_policy.py:MyPolicy --doors family:swing_single --seeds 1 --dry-run
+python scripts/validate_result.py --submission results/myteam_mypolicy.json
+python scripts/build_results_index.py          # results/index.json + results/README.md + the README tables (leaderboard)
+```
+
+Three baselines ship with the repo and their full runs are committed under [`results/`](../results/README.md):
+`random` (random torques), `scripted_hand` (the per-family oracle heuristic of `scripts/demo_mujoco.py`; also the
+only baseline with a human-suite run) and `g1_locomotion` (Unitree G1 + pretrained unitree_rl_gym locomotion
+policy, `bash robot_demo/setup.sh` first).  How to implement a policy, run it on all 1000 doors and submit the JSON
+by pull request: [SUBMITTING.md](SUBMITTING.md).

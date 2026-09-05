@@ -170,6 +170,8 @@ export interface BenchmarkJ {
 export interface BenchmarkSummary {
   scenarios: string[];
   primary: string;
+  core?: string[];      // the door's core-suite scenarios (no simulated person; the default benchmark)
+  human?: string[];     // the door's human-suite scenarios (advanced, opt-in)
   time_budget_s: number;
   expected_transit_s: number;
   has_human: boolean;

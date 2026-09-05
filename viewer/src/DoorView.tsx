@@ -8,6 +8,7 @@ import { buildEvaluationOverlay, type EvalOverlay } from "./evaluation";
 import { GLOSSARY, REWARD_LABELS, type GlossaryEntry } from "./glossary";
 import { activeLeaf, isLocked, openClosePhases, parsePoseQuery, sliderReaction, type Phase } from "./doorLogic";
 import { ASSETS } from "./App";
+import { BaselineBadges } from "./ResultBadges";
 
 function fmt(x: any, digits = 3): string {
   if (x === null || x === undefined) return "–";
@@ -387,6 +388,10 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
         <div style={{ marginTop: 6 }} className="chips">
           <span className={"chip " + (entry.signed_off ? "ok" : "bad")}>{entry.signed_off ? "QA signed off" : "QA: " + (entry.qa_failed?.join(", ") || "needs review")}</span>
           {scenarios.map((s, i) => <button key={s.name} className={"chip link" + (showEval && i === scenIdx ? " active" : "")} title={s.suite === "human" ? "human-interaction suite: advanced, opt-in (not part of the default core benchmark)" : "core suite: default benchmark, no person involved"} onClick={() => { setScenIdx(i); if (!showEval) { setShowEval(true); setTimeout(frameEvaluation, 0); } }}>{nice(s.name)}{s.suite === "human" ? <span className="suite-badge">human</span> : null}</button>)}
+        </div>
+        <div style={{ marginTop: 4 }} className="chips" title="baseline results on this door: successful episodes / episodes (core suite; human suite where the door lists one) - see the Results page">
+          <BaselineBadges id={entry.id} compact={false} />
+          {scenarios.some((s) => s.suite === "human") && <BaselineBadges id={entry.id} compact={false} suite="human" />}
         </div>
         <h3>Joints</h3>
         {joints.map((h) => (

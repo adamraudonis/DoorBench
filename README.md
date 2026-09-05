@@ -107,6 +107,121 @@ Setup, per-run numbers (time-to-pass, contact forces, real-time factors) and lim
 A locomotion policy cannot operate levers, knobs or bolts; latched and locked doors need the loco-manipulation policies this
 benchmark is built to train.
 
+## Baseline results
+
+Every baseline below was run with `doorbench benchmark run` (MuJoCo 3.12, `full` tier) over **all 1000 doors, every
+scenario each door lists in the core suite, 3 seeds each** (seed 0 = the nominal door, seeds 1-2 with randomised
+friction / damping / closer / masses and start pose).  The **core** suite - open & traverse, open then close, close
+only, unlock & traverse, recognise a locked door - involves nobody but the robot and is the benchmark; the **human**
+suite (hold the door for a person, wait for a person coming through, knock & wait) is an advanced, opt-in add-on
+(`--suite human`) reported separately.  A door counts as **solved** only if the policy met the scenario's own
+success criterion (e.g. opened ∧ traversed ∧ no damage) on **every** scenario and **every** seed.  The full result
+files, the JSON schema and the validator are in [`results/`](results/README.md); the same numbers are on the
+[Results page](https://adamraudonis.github.io/DoorBench/#/results) of the site with a per-door grid, and every
+catalogue card carries the per-door outcome of each baseline.
+
+<!-- baseline-results:start -->
+**Core suite** (the default: every door, every core scenario it lists, no simulated person):
+
+| policy | what it is | doors solved (every scenario, every seed) | episode success | damage | median time-to-traverse | wall time |
+|---|---|---|---|---|---|---|
+| `scripted_hand` | the per-family oracle heuristic of `scripts/demo_mujoco.py` (reads joint names, lock parts and keypad codes from the spec; DoorEnv hand + synthetic base) | **849 / 1000** | 88.2 % | 0.7 % | 3.4 s | 8.8 min |
+| `g1_locomotion` | Unitree G1 (MuJoCo Menagerie) + pretrained unitree_rl_gym locomotion policy, walks toward the goal, arms parked | **150 / 1000** | 13.1 % | 4.2 % | 7.2 s | 48.6 min |
+| `random` | uniform random torques within the hand limits on every reachable joint + a random-walk base | **42 / 1000** | 4.7 % | 56.3 % | 32.3 s | 12.5 min |
+
+Doors solved per family (core suite; of the family's door count):
+
+| family | doors | `scripted_hand` | `g1_locomotion` | `random` |
+|---|---|---|---|---|
+| swing_single | 440 | 387 | 62 | 13 |
+| sliding_single | 100 | 96 | 10 | 6 |
+| swing_double | 76 | 60 | 7 | 1 |
+| gate_swing | 40 | 34 | 7 | 2 |
+| sliding_bypass | 35 | 35 | 0 | 0 |
+| bifold | 30 | 12 | 0 | 0 |
+| pivot | 20 | 19 | 3 | 1 |
+| garage_sectional | 18 | 15 | 2 | 1 |
+| automatic_sliding | 15 | 12 | 12 | 0 |
+| cold_storage | 15 | 15 | 5 | 0 |
+| pet_door | 15 | 0 | 0 | 0 |
+| revolving | 15 | 10 | 4 | 0 |
+| rollup | 15 | 15 | 1 | 1 |
+| stall | 15 | 15 | 7 | 1 |
+| accordion | 12 | 0 | 0 | 0 |
+| dutch | 12 | 10 | 0 | 0 |
+| saloon | 12 | 11 | 7 | 0 |
+| automatic_swing | 10 | 9 | 3 | 2 |
+| baby_gate | 10 | 10 | 0 | 0 |
+| gate_sliding | 10 | 9 | 0 | 0 |
+| hatch_floor | 10 | 10 | 0 | 0 |
+| ship_watertight | 10 | 10 | 0 | 0 |
+| turnstile_fullheight | 10 | 10 | 9 | 6 |
+| turnstile_tripod | 10 | 10 | 10 | 7 |
+| elevator | 8 | 0 | 0 | 0 |
+| hatch_ceiling | 8 | 8 | 0 | 0 |
+| strip_curtain | 8 | 6 | 0 | 0 |
+| vault | 8 | 8 | 0 | 0 |
+| garage_tiltup | 7 | 7 | 1 | 1 |
+| blast | 6 | 6 | 0 | 0 |
+
+Per core scenario (doors solved on every seed / doors listing it; episode success in brackets):
+
+| scenario | doors | `scripted_hand` | `g1_locomotion` | `random` |
+|---|---|---|---|---|
+| open_and_traverse | 761 | 681 (89.9 %) | 54 (8.2 %) | 0 (0.3 %) |
+| open_then_close | 294 | 251 (87.4 %) | 0 (0.0 %) | 0 (0.2 %) |
+| close_only | 115 | 106 (92.8 %) | 23 (21.4 %) | 12 (18.6 %) |
+| unlock_and_traverse | 141 | 107 (76.1 %) | 0 (0.0 %) | 0 (0.0 %) |
+| locked_recognize | 98 | 87 (88.8 %) | 98 (100.0 %) | 42 (43.2 %) |
+
+**Human suite** (advanced, opt-in `--suite human`: a simulated person; 79 doors list `hold_open_for_human`, `wait_for_human` or `knock_and_wait`; reported separately, never part of the core number):
+
+| policy | doors | doors solved | episode success | human collisions | damage |
+|---|---|---|---|---|---|
+| `scripted_hand` | 79 | **67 / 79** | 88.1 % | 0.0 % | 0.0 % |
+
+| scenario | doors | `scripted_hand` |
+|---|---|---|
+| hold_open_for_human | 42 | 37 (91.3 %) |
+| wait_for_human | 29 | 22 (79.3 %) |
+| knock_and_wait | 10 | 10 (100.0 %) |
+
+<!-- baseline-results:end -->
+
+Reading the table honestly:
+
+* **`scripted_hand` is an upper bound for the reference embodiment, not a robot.** It has no perception or arm and
+  cannot fail for a robot's reasons; it fails where the door cannot be opened from where the robot stands or where
+  the dataset itself is at fault.  Its unsolved doors are dominated by: exit doors where the robot stands on the
+  *pull* side of a panic device with only a pull handle, pet doors (the opening is narrower than the 0.45 m the base
+  needs), credential-locked turnstiles, "jammed" doors (`jam_stuck`, `locked_recognize`) that open under a normal
+  push, accordion / bifold / revolving doors whose panels or wings rub the head jamb, delayed-egress and mechanical
+  keypad locks that open without ever reporting `lock_released`, and doors that succeed on some seeds only.  These
+  are dataset or scenario-assignment defects that the benchmark run exposed (the per-door grid on the site and
+  `python scripts/validate_result.py` make them easy to find); they are listed in `TASKS.md`.
+* **`g1_locomotion` is the honest number for an off-the-shelf humanoid controller**: it can only pass what a walking
+  robot can pass (open doorways, sensor-operated doors, saloon pairs, strip curtains, turnstiles it can push through),
+  and it "passes" `locked_recognize` doors by walking into them without breaking anything (the scenario criterion is
+  `!opened ∧ !damage ∧ !hardware_misuse`; it never declares anything).  Everything with a lever, knob, bar, bolt or
+  keypad is out of reach, which is exactly what the benchmark is for.
+* **`random` is the floor**: it damages most of the doors it touches (operator overload, slams) and its successes
+  are the `locked_recognize` doors that tolerate flailing plus the odd free-swinging leaf.
+* The **human suite** is only run for `scripted_hand`; its remaining failures are the same unreachable exit devices
+  plus doors whose closer shuts the leaf on the person's heels.  A policy that ignores people entirely is a complete
+  core submission.
+
+Reproduce any row (a few minutes for the hand baselines, ~40 min for the G1 on a 10-core CPU), then validate and index:
+
+```bash
+doorbench benchmark run --policy scripted_hand --doors all --seeds 3 --workers 8 --out results/scripted_hand.json
+doorbench benchmark run --policy scripted_hand --suite human --seeds 3 --workers 8 --out results/scripted_hand_human.json
+bash robot_demo/setup.sh && doorbench benchmark run --policy g1_locomotion --doors all --seeds 3 --workers 8 --out results/g1_locomotion.json
+python scripts/validate_result.py --all && python scripts/build_results_index.py
+```
+
+Writing your own policy (30 lines, `reset(door_info)` / `act(obs)`), running it and submitting the JSON by pull request:
+[docs/SUBMITTING.md](docs/SUBMITTING.md).
+
 ## How doors are built
 
 1. **Taxonomy & sampler** (`doorbench/taxonomy.py`, `spec.py`): 30 families with sub-contexts (residential interior,

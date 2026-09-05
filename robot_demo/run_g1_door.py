@@ -65,10 +65,14 @@ class G1DoorEnv(DoorEnv):
         self.hold_pose = {}  # non-leg joint name -> angle (Menagerie only)
         super().__init__(door_dir, tier=tier, robot_xml=robot_xml, robot_body_prefix=PREFIX, robot_base_body=BASE_BODY)
 
-    def _merge_with_robot(self, door_xml, robot_xml):
-        spec = mujoco.MjSpec.from_file(door_xml)
-        robot = mujoco.MjSpec.from_file(robot_xml)
+    def _build(self, with_human: bool = False):
+        """DoorEnv._build with the robot attached at the approach point facing +y (yaw 90 deg), its stand keyframe
+        turned into a hold pose for the waist / arms, the leg actuators switched to torque mode for the policy's PD
+        loop, and (human suite) DoorEnv's kinematic person."""
+        spec = mujoco.MjSpec.from_file(self.xml_path)
+        robot = mujoco.MjSpec.from_file(self.robot_xml)
         # stand keyframe -> hold pose for waist / arms (the policy only drives the 12 leg joints)
+        self.hold_pose = {}
         if robot.keys:
             key = robot.keys[0]
             names = [j.name for j in robot.joints if j.type != mujoco.mjtJoint.mjJNT_FREE]
@@ -89,7 +93,15 @@ class G1DoorEnv(DoorEnv):
         yaw = math.radians(self._yaw_deg)
         frame = spec.worldbody.add_frame(pos=pos, quat=[math.cos(yaw / 2), 0, 0, math.sin(yaw / 2)])
         spec.attach(robot, prefix=PREFIX, frame=frame)
-        return spec.compile()
+        if with_human:
+            hb = self.benchmark.get("human", {"radius_m": 0.22, "height_m": 1.75})
+            r, h = float(hb["radius_m"]), float(hb["height_m"])
+            body = spec.worldbody.add_body(name="human", mocap=True, pos=[0.0, -50.0, h / 2])
+            body.add_geom(name="human_capsule", type=mujoco.mjtGeom.mjGEOM_CAPSULE, size=[r, max(0.05, h / 2 - r), 0.0], rgba=[0.95, 0.55, 0.3, 0.9], group=0)
+        m = spec.compile()
+        if self.timestep:
+            m.opt.timestep = self.timestep
+        return m, mujoco.MjData(m)
 
 
 # ----------------------------------------------------------------------------------------------------------------------

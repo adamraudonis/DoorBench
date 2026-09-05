@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { FAMILY_LABELS, type Manifest, type ManifestDoor } from "./types";
 import { ASSETS } from "./App";
+import { BaselineBadges } from "./ResultBadges";
 
 function uniq(xs: string[]) { return Array.from(new Set(xs)).sort(); }
 
@@ -26,6 +27,7 @@ export function DoorCard({ d }: { d: ManifestDoor }) {
           {d.benchmark?.has_human && <span className="chip">human scenario</span>}
           <span className="chip">L{d.difficulty}</span>
           <span className={"chip " + (d.signed_off ? "ok" : "bad")}>{d.signed_off ? "signed off" : "needs review"}</span>
+          <BaselineBadges id={d.id} />
         </div>
       </div>
     </a>

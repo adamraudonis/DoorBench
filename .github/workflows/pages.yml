@@ -29,6 +29,9 @@ jobs:
           cp assets/manifest.json site/assets/
           cp -r assets/hardware site/assets/hardware
           rsync -a --include='*/' --include='model.json' --include='spec.json' --include='qa.json' --include='thumb_*.jpg' --include='door.xml' --include='door_simple.xml' --include='door_minimal.xml' --include='scene.xml' --include='door.urdf' --include='door.usda' --exclude='*' assets/doors/ site/assets/doors/
+          # benchmark results (leaderboard index + the full result files) for the Results page and the catalogue badges
+          mkdir -p site/results
+          cp results/*.json results/README.md site/results/ 2>/dev/null || true
           touch site/.nojekyll
           du -sh site
       - uses: actions/upload-pages-artifact@v3

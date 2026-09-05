@@ -4,6 +4,7 @@ import { Catalogue } from "./Catalogue";
 import { Families } from "./Families";
 import { DoorView } from "./DoorView";
 import { About } from "./About";
+import { Results } from "./Results";
 
 export const ASSETS = "./assets";
 
@@ -29,6 +30,7 @@ export function App() {
     if (h.startsWith("/door/")) return { page: "door", id: h.slice(6).split("?")[0], query: h.includes("?") ? h.split("?")[1] : "" };
     if (h.startsWith("/families")) return { page: "families" };
     if (h.startsWith("/about")) return { page: "about" };
+    if (h.startsWith("/results")) return { page: "results" };
     return { page: "catalogue", query: h.includes("?") ? h.split("?")[1] : "" };
   }, [hash]);
   return (
@@ -38,6 +40,7 @@ export function App() {
         <nav>
           <a href="#/" className={route.page === "catalogue" ? "active" : ""}>Catalogue</a>
           <a href="#/families" className={route.page === "families" ? "active" : ""}>Door types</a>
+          <a href="#/results" className={route.page === "results" ? "active" : ""}>Results</a>
           <a href="#/about" className={route.page === "about" ? "active" : ""}>About &amp; usage</a>
         </nav>
         <div className="spacer" />
@@ -51,6 +54,7 @@ export function App() {
         {manifest && route.page === "families" && <Families manifest={manifest} />}
         {manifest && route.page === "door" && <DoorView manifest={manifest} id={route.id!} query={route.query ?? ""} />}
         {manifest && route.page === "about" && <About manifest={manifest} />}
+        {manifest && route.page === "results" && <Results manifest={manifest} />}
       </div>
     </div>
   );
