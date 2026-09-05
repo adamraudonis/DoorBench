@@ -1,5 +1,7 @@
 # What a planned reference proves
 
+For final all-door counts and the later visual review, see [the first complete baseline](planned-reference-baseline.md). The pilot figures below document the earlier semantic audit, not the final corpus timing.
+
 Review date: 2026-09-05. This reviews the frozen `doorbench.reference-motion.v1` corpus and the current `doorbench.planned-reference.v1` planner, independent validator and corpus runner. The two accepted pilot artifacts are `out/reference-planned-pilot/db0002_swing_single` and `db0079_sliding_single`. Their accepted status establishes the declared sampled **kinematic and actor-route checks**, not causal humanoid opening or unlocking.
 
 The distinction matters even for a simple knob. In the frozen `db0002_swing_single` recording, 11 samples with the leaf still within 0.001 rad of closed and positive knob effort rotate the knob from 0.438887 to 0.839328 rad: **0.400441 rad (22.94°)**. The recorded hand target moves at most **1.49e-8 m** on any axis. Following this XYZ point does not demonstrate turning the wrist with the knob.
