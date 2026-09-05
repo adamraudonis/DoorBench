@@ -454,20 +454,25 @@ class _Writer:
         """``PhysxFilteredPairsAPI`` for every (path_a, path_b) pair: PhysX must not collide these two prims.
 
         The API is single-apply, so all partners of one prim go into that prim's ``physxFilteredPairs:filteredPairs``
-        relationship (PhysX reads the union of both directions; authoring one side is enough and keeps the file
-        small).  ``pairs`` are Sdf paths of rigid-body prims."""
+        relationship.  BOTH directions are authored (a on b's list and b on a's).  Filtering is symmetric, so a pair
+        listed twice is still one filtered pair and the duplicate costs one relationship target; but if the omni.physx
+        parser ever reads only the prim it visits rather than the union, a one-sided listing would silently leave half
+        of the pairs colliding - a latch inside its keeper, a bolt in its housing - on every door in the dataset, with
+        nothing in a static check to show for it.  The asymmetry of that risk is what buys the extra target.
+        ``pairs`` are Sdf paths of rigid-body prims."""
         by_prim = {}
         for a, b in pairs:
-            key = str(a) if str(a) <= str(b) else str(b)
-            other = str(b) if key == str(a) else str(a)
-            by_prim.setdefault(key, []).append(other)
+            by_prim.setdefault(str(a), set()).add(str(b))
+            by_prim.setdefault(str(b), set()).add(str(a))
+        n = 0
         for path, others in sorted(by_prim.items()):
             prim = self.stage.GetPrimAtPath(self.Sdf.Path(path))
             if not prim.IsValid():
                 continue
             prim.AddAppliedSchema("PhysxFilteredPairsAPI")
-            prim.CreateRelationship("physxFilteredPairs:filteredPairs").SetTargets([self.Sdf.Path(o) for o in sorted(set(others))])
-        return sum(len(v) for v in by_prim.values())
+            prim.CreateRelationship("physxFilteredPairs:filteredPairs").SetTargets([self.Sdf.Path(o) for o in sorted(others)])
+            n += len(others)
+        return n // 2
 
     # ---- env-release lock (mag lock / delayed egress / electric bolt / interlock) ----
     def add_env_release_joint(self, path, body0_path, body1_path, pos0, rot0, pos1, rot1, holding_force, weld, enabled=True):

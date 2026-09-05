@@ -1,12 +1,12 @@
 # Isaac parity gate
 
-_Report generated 2026-09-05T10:28:07 by `scripts/isaaclab/parity_report.py` from `results/parity/`, repository commit `055003ed5`. Dataset: 1000 doors, manifest version `0.1.0` generated 2026-09-05T10:26:37, reference run commit `055003ed5`._
+_Report generated 2026-09-05T10:33:13 by `scripts/isaaclab/parity_report.py` from `results/parity/`, repository commit `7237ef409`. Dataset: 1000 doors, manifest version `0.1.0` generated 2026-09-05T10:31:51, reference run commit `7237ef409`._
 
 ### Which runs this page compares
 
 | run | file | doors | engine | dt | protocol / metrics | generated |
 |---|---|---|---|---|---|---|
-| MuJoCo reference | `results/parity/mujoco.json` | 1000 | mujoco `3.12.0` | 0.002 | 1.0 / 1.1 | 2026-09-05T10:28:01 |
+| MuJoCo reference | `results/parity/mujoco.json` | 1000 | mujoco `3.12.0` | 0.002 | 1.0 / 1.1 | 2026-09-05T10:33:11 |
 | PhysX `full` | `results/parity/isaac_full.json` | 1000 | isaac_sim **not recorded**, isaac_lab **not recorded**, physx_dt `0.008333333333333333` | 0.008333333... | 1.0 / 1.0 (not recorded) | 2026-09-05T09:42:07 |
 | PhysX `rl` | `results/parity/isaac_rl.json` | 1000 | isaac_sim **not recorded**, isaac_lab **not recorded**, physx_dt `0.008333333333333333` | 0.008333333... | 1.0 / 1.0 (not recorded) | 2026-09-05T09:06:30 |
 

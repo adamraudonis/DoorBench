@@ -528,17 +528,45 @@ def test_validator_rejects_a_prismatic_mimic(doors, tmp_path):
     assert any("mimic" in e.lower() for e in r["full"]["errors"]), r["full"]["errors"]
 
 
+def test_both_directions_of_every_filtered_pair_are_authored(doors):
+    """Filtering is symmetric, and so is the authoring: a pair appears on BOTH prims' lists.
+
+    One-sided authoring relies on the omni.physx parser reading the union of the two directions.  That is what it
+    does today, but it cannot be checked without Isaac, and if it ever stopped doing it half of every door's pairs
+    would silently start colliding.  The duplicate target is one line of USD per pair and removes the question.
+    """
+    full = doors["swing_pair"][3]
+    listed = {}
+    for p in full.Traverse():
+        rel = p.GetRelationship("physxFilteredPairs:filteredPairs")
+        if rel and rel.IsValid() and rel.GetTargets():
+            listed[p.GetName()] = {t.name for t in rel.GetTargets()}
+    assert listed, "this door must need filtered pairs for the test to mean anything"
+    for a, others in listed.items():
+        for b in others:
+            assert a in listed.get(b, set()), f"{b} does not list {a}: the pair is authored one-sided"
+
+
 def test_validator_rejects_a_dropped_filtered_pair(doors, tmp_path):
+    """A pair removed from the union (both directions) must be an error."""
     _, dd, mj, _, _, _ = doors["swing_pair"]
     assert mj_filtered_pairs(mj), "this door must need filtered pairs for the test to mean anything"
     bad = tmp_path / "no_filter"
     shutil.copytree(dd, bad)
     st = Usd.Stage.Open(str(bad / "door.usda"))
+    victim = None
     for p in st.Traverse():
         rel = p.GetRelationship("physxFilteredPairs:filteredPairs")
         if rel and rel.IsValid() and rel.GetTargets():
-            rel.SetTargets([])
+            victim = (p.GetName(), rel.GetTargets()[0].name)
             break
+    assert victim is not None
+    for p in st.Traverse():                      # drop it from BOTH sides, which is what a lost pair looks like
+        if p.GetName() not in victim:
+            continue
+        rel = p.GetRelationship("physxFilteredPairs:filteredPairs")
+        if rel and rel.IsValid():
+            rel.SetTargets([t for t in rel.GetTargets() if t.name not in victim])
     st.GetRootLayer().Save()
     r = validate_door(str(bad))
     assert not r["full"]["ok"]
