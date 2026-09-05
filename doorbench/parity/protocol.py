@@ -266,7 +266,16 @@ def door_inputs(spec: dict, model_json: dict, forces: dict | None = None, qa: di
         rl = {"slot_of": slot_of, "door_joint": rl_meta.get("door_joint"), "operator_slot_joint": rl_meta.get("operator_slot_joint"), "latch_present": rl_meta.get("slots", {}).get("latch", "none") != "none",
               "operator_present": rl_meta.get("operator_slot_joint") is not None, "secondary_slot_joint": rl_meta.get("secondary_slot_joint"), "lock_engaged": bool(rl_meta.get("lock", {}).get("engaged")),
               "welded_static": rl_meta.get("welded_static", []), "omitted": rl_meta.get("omitted", []), "notes": rl_meta.get("notes", []),
-              "latch_coupling": rl_meta.get("latch_coupling"), "targets": {slot: info.get("target", 0.0) for slot, info in rl_meta.get("joints", {}).items() if info.get("active")}}
+              "latch_coupling": rl_meta.get("latch_coupling"), "targets": {slot: info.get("target", 0.0) for slot, info in rl_meta.get("joints", {}).items() if info.get("active")},
+              # ground truth from the exporter (usd.py write_usd_rl): which mechanism parts door_rl.usda welded and in
+              # which state.  Before this existed the schedule GUESSED "an engaged lock plus a thumbturn / aux bolt /
+              # dog joint in the MJCF means the canonical file is welded shut", which was wrong for every door whose
+              # release part is coupled to the operator (hook sliders, cremone bolts, wheel-driven dogs).
+              "welded_engaged": [w["joint"] for w in rl_meta.get("welded_engaged", [])],
+              "released_holding": [w["joint"] for w in rl_meta.get("released_holding", [])],
+              "released_parts": [w["joint"] for w in rl_meta.get("released_parts", [])],
+              "weld_ground_truth": "welded" in rl_meta,
+              "env_release": [e.get("name") for e in rl_meta.get("env_release", [])]}
     inputs = {
         "protocol_version": PROTOCOL_VERSION, "door_id": spec["id"], "family": fam, "kinematics_type": kin.get("type"), "is_hinge": is_hinge, "unit": unit,
         "max_open_deg": max_open_deg, "travel_m": travel, "leaf_width_m": W, "mass_kg": float(phys.get("mass", {}).get("total_kg", 0.0) or 0.0), "task": spec.get("task"),
@@ -308,6 +317,10 @@ def expected_outcomes(inputs: dict, kind: str = "mjcf") -> dict:
         exp["hold"] = "free_opens"
     if rl is not None and exp["hold"] == "hold" and f["spring_latch"] and not f["lock_engaged"] and not rl["latch_present"]:
         exp["hold"] = "na:rl latch not in the canonical articulation (welded released)"
+    if rl is not None and exp["hold"] == "hold" and rl.get("released_holding") and not rl.get("welded_engaged"):
+        # door_rl.usda welded every part that holds this leaf in its RELEASED state (a hook / cremone bolt / dog that
+        # the operator retracts and that has no canonical slot): nothing can hold the canonical leaf, by construction
+        exp["hold"] = f"na:rl holding part welded released ({', '.join(rl['released_holding'][:3])})"
     # ---- operate
     if free_swing:
         exp["operate"] = "na:free-swing family"
@@ -322,6 +335,10 @@ def expected_outcomes(inputs: dict, kind: str = "mjcf") -> dict:
         if rl is not None:
             if not rl["operator_present"]:
                 exp["operate"] = "na:rl operator slot empty (world-mounted operator)"
+            elif rl.get("weld_ground_truth"):
+                # the exporter records what door_rl.usda actually did with every mechanism part
+                if rl.get("welded_engaged"):
+                    exp["operate"] = "stays_closed"      # an engaged lock part is welded engaged and has no canonical slot
             else:
                 welded_release = [n for n in ([inputs["thumbturn_joint"]] if inputs["thumbturn_joint"] else []) + [a["joint"] for a in inputs["aux_joints"]] + inputs["dog_joints"] if n and n != oj]
                 if f["lock_engaged"] and welded_release:
