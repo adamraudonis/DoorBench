@@ -58,7 +58,7 @@ from .policy import Policy, load_policy_class, policy_meta, resolve_policy_spec
 from .scenarios import CORE_SCENARIOS, HUMAN_SCENARIOS, SCENARIO_DESCRIPTIONS, SCENARIO_SUITE, SCENARIO_TYPES, SUITES, scenarios_in_suite
 
 SCHEMA_VERSION = "1.1"
-FLAG_KEYS = ("touched_door", "touched_operator", "operator_actuated", "latch_released", "lock_released", "door_opened", "door_open_clear", "robot_passed_through", "door_closed_after", "door_slammed", "door_damaged", "robot_fell", "hardware_misuse")
+FLAG_KEYS = ("touched_door", "touched_operator", "operator_actuated", "latch_released", "lock_released", "code_entered", "door_opened", "door_open_clear", "robot_passed_through", "door_closed_after", "door_slammed", "door_damaged", "robot_fell", "hardware_misuse")
 EVENT_FLAGS = ("touched_door", "operator_actuated", "latch_released", "lock_released", "door_opened", "door_open_clear", "robot_passed_through", "door_closed_after", "door_slammed", "door_damaged", "robot_fell")
 ENV_DRIVEN_LOCK_PARTS = ("lock_bar_", "electric_bolt_slide")
 BASE_MAX_SPEED = 1.5      # m/s
@@ -193,11 +193,22 @@ def qa_push_for(door_dir: str, env) -> float:
 HAND_LIFTED_LATCHES = ("fork_hinge", "latch_bar_hinge")   # gravity latches a hand lifts directly (no operator drives them)
 
 
-def operator_reachable(spec: dict, joint_name: str) -> bool:
+def operator_reachable(spec: dict, joint_name: str, meta: dict | None = None) -> bool:
     """Is this operator joint on the robot's face of the door?  Mirrors `geometry.common.operator_faces`: the robot
     stands at -y; `sides == "push_side"` puts the exit device on the face the door swings away from, so a robot on
     the pull side only has the far-side pull / lever (`*_far_*`); a handleset's interior knob sits on the far face
-    (the robot has the thumb piece); `sides == "far"` is never reachable."""
+    (the robot has the thumb piece); `sides == "far"` is never reachable.
+
+    A keypad lever set is split by construction (`meta.keypad.clutch_joint`): the trim the code releases is on the
+    keypad's face and the always-free lever on the other one, so which of the two the robot can work is decided by
+    the keypad's face, not by `sides`."""
+    kp = (meta or {}).get("keypad") or {}
+    if kp.get("clutch_joint"):
+        on_robot_face = float(kp.get("face", -1.0)) < 0        # the robot stands at -y
+        if joint_name == kp["clutch_joint"]:
+            return on_robot_face
+        if joint_name == (meta or {}).get("operator_joint"):
+            return not on_robot_face
     sides = spec.get("operator", {}).get("sides", "both")
     is_push = bool(spec.get("robot", {}).get("is_push", True))
     if sides == "far":
@@ -234,12 +245,13 @@ def torque_limits(env, door_dir: str) -> dict[str, float]:
         if role in ("primary", "secondary"):
             lim = push
         elif role == "operator":
-            lim = ((60.0 if "wheel" in name else 30.0) if hinge else 300.0) if operator_reachable(env.spec, name) else 0.0
+            lim = ((60.0 if "wheel" in name else 30.0) if hinge else 300.0) if operator_reachable(env.spec, name, env.meta) else 0.0
         elif role == "lock":
             if any(p in name for p in ENV_DRIVEN_LOCK_PARTS) or far_side_lock:
                 lim = 0.0
             elif "keypad_key_" in name:
-                lim = 30.0
+                # the keypad is on ONE face: a robot on the other side of the door cannot reach the buttons
+                lim = 30.0 if float((env.meta.get("keypad") or {}).get("face", -1.0)) < 0 else 0.0
             else:
                 lim = 30.0 if hinge else 200.0
         elif role == "latch" and any(p in name for p in HAND_LIFTED_LATCHES):
@@ -679,7 +691,8 @@ def run_episode(job: Job, observer=None) -> dict:
             "damage": bool(labels.get("door_damaged")), "env_damage": env_damage, "damage_events": [{"t": _r(e.get("t"), 3), "kind": e.get("kind"), "part": e.get("part"), "value": _r(e.get("value"), 1), "threshold": _r(e.get("threshold"), 1)} for e in dmg_events[:5]],
             "max_leaf_force_N": _r(labels.get("max_leaf_contact_force"), 1), "max_operator_torque": _r(labels.get("max_operator_torque"), 2),
             "max_door_angle": _r(labels.get("max_door_angle"), 4), "door_q_end": _r(q_end, 4), "energy_J": _r(labels.get("energy_J"), 2),
-            "labels": {k: bool(labels.get(k)) for k in FLAG_KEYS}, "criteria": {c: bool(env._flag(c)) for c in sc.get("success", [])},
+            "labels": {k: bool(labels.get(k)) for k in FLAG_KEYS}, "wrong_code_attempts": int(labels.get("wrong_code_attempts") or 0),
+            "criteria": {c: bool(env._flag(c)) for c in sc.get("success", [])},
             "events": events, "reward_events": [[e["event"], _r(e["t"], 3), _r(e["reward"], 3)] for e in env.events], "episode_return": _r(env.episode_return, 3),
             "human_collision": bool(hum and hum.get("collided")) if hum is not None else None,
             "mujoco_warnings": int(_WARN["n"]), "base_end": [_r(v, 3) for v in base_pos()],

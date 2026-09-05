@@ -331,6 +331,29 @@ def _path_from_points(points, speed, t0):
     return out
 
 
+def keypad_block(spec: dict, model: dict) -> dict | None:
+    """The scenario's ``lock`` block for a door with a code lock: the code, where every button is in world space,
+    and the rules the lock plays by.  The dataset is open, so the code is given to the policy - the task is to
+    work the hardware, not to guess 4 digits.  ``docs/BENCHMARK.md`` documents the schema."""
+    kp = (model.get("meta") or {}).get("keypad")
+    if not kp or not kp.get("code"):
+        return None
+    sites = site_world_positions(model)
+    buttons = []
+    for b in kp["buttons"]:
+        s = sites.get(b.get("site") or "")
+        buttons.append({"label": b["label"], "joint": b["joint"], "site": b.get("site"),
+                        "pos": [round(float(c), 4) for c in s["pos"]] if s else None})
+    return {
+        "model": kp["lock_model"], "engaged": bool(spec["lock"].get("engaged")), "code": kp["code"], "code_kind": kp["code_kind"],
+        "release": kp["release"], "buttons": buttons, "press_force_N": kp["press_force_N"], "travel_m": kp["travel_m"],
+        "press_depth_frac": kp["press_depth_frac"], "debounce_s": kp["debounce_s"],
+        "code_timeout_s": kp["code_timeout_s"], "lockout_s": kp["lockout_s"], "max_attempts": kp["max_attempts"],
+        "clutch_joint": kp.get("clutch_joint"), "bolt_joint": kp.get("bolt_joint"), "keypad_face_normal_y": kp["face"],
+        "note": kp["note"],
+    }
+
+
 def make_scenario(name: str, spec: dict, phys: dict, model: dict) -> dict:
     require_benchmark_eligible(spec, operation="scenario generation")
     if name not in SCENARIO_TYPES:
@@ -422,6 +445,7 @@ def make_scenario(name: str, spec: dict, phys: dict, model: dict) -> dict:
     if name == "knock_and_wait":
         add("knocked", "waited")
         success = ["knocked", "waited", "opened", "traversed", "!damage"]
+    lock_block = keypad_block(spec, model)
     thr = {"open_rad": clear["open_rad"], "open_m": clear["open_m"], "clear_rad": clear["angle_rad"], "clear_m": clear["travel_m"]}
     tt = expected_transit_time(name, spec, phys, start_c, targets_xy, (plane[0], plane[1]), (goal[0], goal[1]), clear, human, model)
     budget = 5 * math.ceil((3.0 * tt["total_s"] + 10.0) / 5.0)
@@ -432,6 +456,7 @@ def make_scenario(name: str, spec: dict, phys: dict, model: dict) -> dict:
         "goal": goal_d if name not in ("close_only", "locked_recognize") else None, "human": human,
         "thresholds": thr, "rewards": rewards, "success": success,
         "time_budget_s": float(budget), "expected_transit_s": tt["total_s"], "expected_transit_terms": tt,
+        **({"lock": lock_block} if lock_block else {}),
     }
 
 

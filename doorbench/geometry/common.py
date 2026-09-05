@@ -1078,11 +1078,12 @@ def add_paddle_operator(model: Model, leaf_body: Body, spec: dict, op: H.Operato
     return primary
 
 
-def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, op: H.OperatorModel, u: float, v: float, x_spindle: float, z: float, t: float, faces: list, locked_backlash: float | None, name="handle", tiers=ALL_TIERS, keypad_face: float = -1.0, cylinder_face: float | None = None, button_face: float | None = None, rim_case_face: float | None = None):
+def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, op: H.OperatorModel, u: float, v: float, x_spindle: float, z: float, t: float, faces: list, locked_backlash: float | None, name="handle", tiers=ALL_TIERS, keypad_face: float = -1.0, cylinder_face: float | None = None, button_face: float | None = None, rim_case_face: float | None = None, spindle: bool = True):
     """Lever/knob/thumbturn-type operator rotating about the door normal.  One body through the door
     (spindle) carrying operator meshes on the requested faces.  Positive q = actuating (press down).
     cylinder_face / button_face: face carrying a key cylinder (keyed lever / knob) or a privacy turn button;
-    rim_case_face: face carrying a surface-mounted rim lock case that the knob spindle passes through."""
+    rim_case_face: face carrying a surface-mounted rim lock case that the knob spindle passes through;
+    spindle=False omits the spindle geom (a second trim body sharing the same bore, e.g. a declutched keypad lever)."""
     if op.kind == "paddle":
         return add_paddle_operator(model, leaf_body, spec, op, u, v, x_spindle, z, t,
                                    faces, locked_backlash, name, tiers)
@@ -1187,7 +1188,8 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
                 inners.append(inner)
         if inners:
             half_sp = max(half_sp, min(min(inners) + 0.008, 0.075))
-    body.geoms.insert(spindle_i, cyl(f"{name}_spindle", (0, 0, 0), 0.006, half_sp, mat, (0, 1, 0), 7850, False, True, FULL_ONLY, "mechanism", "Spindle"))
+    if spindle:
+        body.geoms.insert(spindle_i, cyl(f"{name}_spindle", (0, 0, 0), 0.006, half_sp, mat, (0, 1, 0), 7850, False, True, FULL_ONLY, "mechanism", "Spindle"))
     body.sites += grip_sites
     if sp.get("reader"):
         # hotel RFID reader: part of the OUTSIDE trim, above the lever on the outside face
@@ -1198,13 +1200,36 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
     return body
 
 
-def add_keypad(model: Model, leaf_body: Body, spec: dict, u: float, x_spindle: float, z: float, t: float, face: float, mechanical: bool = False, keys: int = 10, name="keypad", z_min: float | None = None, z_max: float | None = None):
-    """Electronic keypad (12-key grid, Schlage FE595 / BE365 style) or mechanical pushbutton lock (Kaba Simplex
-    1000: 5 round buttons in a column) on `face`, above the handle, with physical key bodies (full tier).
-    Returns the keypad centre z."""
-    km = mat_from_material(model, "black_matte_metal" if not mechanical else "aluminum_dark", "mat_keypad")
+def keypad_button_layout(kp: H.KeypadModel):
+    """[(label, dx, dz)] button centres relative to the keypad centre: dx to the RIGHT of somebody standing in
+    front of the keypad (so the keys read left-to-right, top-to-bottom, like the real unit), dz up."""
+    out = []
+    n = len(kp.labels)
+    if kp.layout == "2x5":                       # Schlage FE595 / BE365: 10 keys, five rows of two
+        for i, lab in enumerate(kp.labels):
+            r, c = divmod(i, 2)
+            out.append((lab, (c - 0.5) * kp.pitch[0], ((n / 2 - 1) / 2 - r) * kp.pitch[1]))
+    elif kp.layout == "3x4":                     # phone keypad
+        for i, lab in enumerate(kp.labels):
+            r, c = divmod(i, 3)
+            out.append((lab, (c - 1) * kp.pitch[0], ((n / 3 - 1) / 2 - r) * kp.pitch[1]))
+    else:                                        # column_5: Simplex 1000, one column, staggered left/right
+        for i, lab in enumerate(kp.labels):
+            out.append((lab, (kp.pitch[0] if i % 2 else -kp.pitch[0]), ((n - 1) / 2 - i) * kp.pitch[1]))
+    return out
+
+
+def add_keypad(model: Model, leaf_body: Body, spec: dict, u: float, x_spindle: float, z: float, t: float, face: float, kp: H.KeypadModel, name="keypad", z_min: float | None = None, z_max: float | None = None):
+    """Keypad unit on `face`, above the handle: the housing plus one pressable body per button (full tier).
+
+    `kp` (hardware.KEYPADS) fixes the layout, the stroke and the spring, so an electronic keypad (Schlage FE595 /
+    BE365: 10 keys in five rows of two, 1.5 mm at 3 N) and a mechanical pushbutton lock (Kaba Simplex 1000: five
+    stiff 4 mm buttons in a staggered column, + a key override cylinder) are both built from the same code.
+    Returns {"z", "x", "pad", "buttons"} for the model's `keypad` meta block."""
+    mechanical = kp.code_kind == "set"
+    km = mat_from_material(model, "aluminum_dark" if mechanical else "black_matte_metal", "mat_keypad")
     backset_ = H.LATCHES[spec["latch"]["model"]].backset or 0.06
-    kw, kh, kd = (0.070, 0.150, 0.020) if not mechanical else (0.058, 0.190, 0.032)
+    kw, kh, kd = kp.pad
     zk = z + 0.12
     if z_min is not None:
         zk = max(zk, z_min + kh / 2 + 0.008)
@@ -1213,41 +1238,83 @@ def add_keypad(model: Model, leaf_body: Body, spec: dict, u: float, x_spindle: f
     x_k = x_spindle - u * max(0.0, kw / 2 + 0.015 - backset_)
     if mechanical:
         zk += 0.02                                   # taller unit: keep its bottom clear of the lever rose
-    key, mesh = MESH.keypad_body_mesh(w=kw, h=kh, keys=keys, depth=kd)
-    leaf_body.geoms.append(mesh_geom(f"{name}_body", key, mesh, (x_k, face * t / 2, zk), q_face_upright(face), km, 2000, True, FULL_SIMPLE, "lock", "Keypad body" if not mechanical else "Mechanical pushbutton lock body"))
+    key, mesh = MESH.keypad_body_mesh(w=kw, h=kh, keys=len(kp.labels), depth=kd)
+    leaf_body.geoms.append(mesh_geom(f"{name}_body", key, mesh, (x_k, face * t / 2, zk), q_face_upright(face), km, 2000, True, FULL_SIMPLE, "lock", "Mechanical pushbutton lock body" if mechanical else "Keypad body"))
     model.meta.setdefault("clearance_allow", []).append([f"{name}_body", f"{name}_key_*", "buttons travel into the keypad body"])
-    if not mechanical:
-        add_keypad_buttons(model, leaf_body, u, x_k, zk, t, face, keys, spec["lock"].get("code"), name=name)
-        return zk
-    # Simplex: 5 buttons in a column + a key override cylinder at the bottom
-    bm = mat_rgba(model, "mat_key", (0.85, 0.85, 0.82, 1), 0.5)
-    for i, lab in enumerate(["1", "2", "3", "4", "5"]):
-        pz = zk + 0.055 - i * 0.026
-        b = Body(f"{name}_key_{lab}", leaf_body.name, (x_k, face * (t / 2 + kd), pz), QUAT_ID, None, [], [], FULL_ONLY, "lock", f"Button {lab}")
-        b.joint = Joint(f"{name}_key_{lab}_slide", "slide", (0, -face, 0), (0, 0, 0), (0.0, 0.004), damping=0.5, frictionloss=0.05, stiffness=1500.0, springref=-0.004, armature=1e-6, role="lock", label=f"Button {lab} (press)")
-        b.geoms.append(cyl(f"{name}_key_{i}_geom", (0, face * 0.003, 0), 0.009, 0.003, bm, (0, face, 0), 1200, True, True, FULL_ONLY, "lock", f"Button {lab}"))
-        model.add_body(b)
-    leaf_body.geoms.append(cyl(f"{name}_cylinder", (x_k, face * (t / 2 + kd + 0.002), zk - 0.075), 0.009, 0.002, mat_from_material(model, "brass", "mat_trim"), (0, face, 0), 7100, False, True, FULL_ONLY, "lock", "Key override cylinder"))
-    return zk
+    buttons = add_keypad_buttons(model, leaf_body, u, x_k, zk, t, face, kp, name=name)
+    if mechanical:
+        leaf_body.geoms.append(cyl(f"{name}_cylinder", (x_k, face * (t / 2 + kd + 0.002), zk - kh / 2 + 0.02), 0.009, 0.002, mat_from_material(model, "brass", "mat_trim"), (0, face, 0), 7100, False, True, FULL_ONLY, "lock", "Key override cylinder"))
+    return {"z": zk, "x": x_k, "pad": [kw, kh, kd], "buttons": buttons}
 
 
-def add_keypad_buttons(model: Model, leaf_body: Body, u: float, x_center: float, z_center: float, t: float, face: float, keys: int, code: str | None, name="keypad"):
-    """Physical keypad buttons (full tier): 12-key grid, each a slide body (1.5 mm travel, 3 N spring)."""
+def add_keypad_buttons(model: Model, leaf_body: Body, u: float, x_center: float, z_center: float, t: float, face: float, kp: H.KeypadModel, name="keypad"):
+    """One pressable body per key: a slide joint into the door face with a return spring, sized from the keypad
+    model (`preload_force` to break it away, `press_force` bottomed out over `travel`), and a `press` site on the
+    button face for a fingertip.  Returns the button descriptors for the `keypad` meta block."""
     bm = mat_rgba(model, "mat_key", (0.85, 0.85, 0.82, 1), 0.5)
-    cols, rows = 3, 4
-    pitch = 0.019
-    labels = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"]
-    bodies = []
-    for i, lab in enumerate(labels[: rows * cols]):
-        r, c = divmod(i, cols)
-        px = x_center + u * ((c - 1) * pitch)
-        pz = z_center + (1.5 - r) * pitch
-        b = Body(f"{name}_key_{lab if lab.isalnum() else ('star' if lab == '*' else 'hash')}", leaf_body.name, (px, face * (t / 2 + 0.02), pz), QUAT_ID, None, [], [], FULL_ONLY, "lock", f"Key {lab}")
-        b.joint = Joint(f"{name}_key_{lab if lab.isalnum() else ('star' if lab == '*' else 'hash')}_slide", "slide", (0, -face, 0), (0, 0, 0), (0.0, 0.0015), damping=0.5, frictionloss=0.05, stiffness=2000.0, springref=-0.0015, armature=1e-6, role="lock", label=f"Key {lab} (press)")
-        b.geoms.append(box(f"{name}_key_{i}_geom", (0, face * 0.002, 0), (0.007, 0.002, 0.007), bm, 1200, True, True, FULL_ONLY, "lock", f"Key {lab}"))
+    k = (kp.press_force - kp.preload_force) / kp.travel            # N/m
+    springref = -kp.preload_force / k                              # rest offset: F(0) = preload
+    # Damped to 0.7 of critical for the DOF's reflected inertia (build.py's 0.1 kg armature floor on a lock slide):
+    # a real keypad button is guided and dome-damped and does not bounce, and a bouncing button would read as two
+    # presses.  tau = c/k is ~10 ms, so the button is back out well before the next digit.
+    c_crit = 2.0 * math.sqrt(k * 0.1)
+    kd = kp.pad[2]
+    out = []
+    for lab, dx, dz in keypad_button_layout(kp):
+        safe = {"*": "star", "#": "hash"}.get(lab, lab)
+        # somebody facing `face` has +x on their right when face = -1 and -x when face = +1
+        px, pz = x_center - face * dx, z_center + dz
+        b = Body(f"{name}_key_{safe}", leaf_body.name, (px, face * (t / 2 + kd), pz), QUAT_ID, None, [], [], FULL_ONLY, "lock", f"Button {lab}")
+        b.joint = Joint(f"{name}_key_{safe}_slide", "slide", (0, -face, 0), (0, 0, 0), (0.0, kp.travel), damping=round(0.7 * c_crit, 3), frictionloss=0.05,
+                        stiffness=k, springref=springref, armature=1e-6, role="lock",
+                        label=f"Button {lab} (press {kp.press_force:.0f} N, {kp.travel * 1000:.1f} mm)")
+        if kp.round_keys:
+            b.geoms.append(cyl(f"{name}_key_{safe}_geom", (0, face * kp.proud / 2, 0), kp.key_size[0], kp.proud / 2, bm, (0, face, 0), 1200, True, True, FULL_ONLY, "lock", f"Button {lab}"))
+        else:
+            b.geoms.append(box(f"{name}_key_{safe}_geom", (0, face * kp.proud / 2, 0), (kp.key_size[0], kp.proud / 2, kp.key_size[1]), bm, 1200, True, True, FULL_ONLY, "lock", f"Button {lab}"))
+        b.sites.append(Site(f"{name}_key_{safe}_press", (0, face * (kp.proud + 0.002), 0), QUAT_ID, 0.008, "press"))
         model.add_body(b)
-        bodies.append(b)
-    return bodies
+        out.append({"label": lab, "body": b.name, "joint": b.joint.name, "site": f"{name}_key_{safe}_press",
+                    "pos": [round(float(px), 5), round(float(face * (t / 2 + kd)), 5), round(float(pz), 5)]})
+    return out
+
+
+def keypad_meta_block(spec: dict, phys: dict, lk: H.LockModel, kp: H.KeypadModel, built: dict, face: float, engaged: bool,
+                      clutch_joint: str | None, clutch_travel: float, bolt_joint: str | None, model: Model) -> dict:
+    """``model.json -> meta.keypad``: everything a simulator, a QA gate, a policy or the viewer needs to work the
+    keypad - where the buttons are, how hard and how far they press, what the code is (the dataset is open) and
+    what the lock does when it is entered.
+
+    release
+      ``clutch``      the code frees the outside trim (`clutch_joint`), which then retracts the latch
+      ``motor_bolt``  the code runs the motor that retracts the deadbolt (`bolt_joint`)
+      ``none``        the lock is not thrown; the code is checked but there is nothing to release
+    """
+    code = spec["lock"].get("code")
+    bolt = None
+    if bolt_joint and any(b.joint is not None and b.joint.name == bolt_joint for b in model.bodies):
+        bolt = bolt_joint
+    release = "clutch" if (engaged and clutch_joint) else ("motor_bolt" if (engaged and bolt) else "none")
+    out = {
+        "lock_model": lk.id, "keypad_model": kp.id, "code": code, "code_kind": kp.code_kind, "engaged": bool(engaged),
+        "face": float(face), "center": [round(float(built["x"]), 5), round(float(face * spec["leaf"]["thickness"] / 2), 5), round(float(built["z"]), 5)],
+        "pad_size_m": [round(float(x), 4) for x in built["pad"]], "layout": kp.layout,
+        "buttons": built["buttons"],
+        "travel_m": kp.travel, "press_force_N": kp.press_force, "preload_force_N": kp.preload_force,
+        "press_depth_frac": 0.6, "release_depth_frac": 0.3, "debounce_s": 0.02,
+        "code_timeout_s": kp.timeout_s, "lockout_s": kp.lockout_s, "max_attempts": kp.max_attempts,
+        "release": release, "clutch_joint": clutch_joint, "bolt_joint": bolt,
+        "clutch_locked_rad": round(float(phys["lock"]["handle_backlash_locked_rad"]), 5) if clutch_joint else None,
+        "clutch_open_rad": round(float(clutch_travel), 5) if clutch_joint else None,
+        "bolt_throw_m": float(lk.deadbolt_throw) if bolt else None,
+        "motor_force_N": 60.0 if bolt else None,
+        "source": kp.source,
+    }
+    if kp.code_kind == "set":
+        out["note"] = "mechanical combination chamber: press the buttons of the code in any order, then turn the outside lever; turning it on a wrong set clears the chamber and counts as a wrong attempt."
+    else:
+        out["note"] = f"electronic keypad: the digits in order; a partial entry clears after {kp.timeout_s:.0f} s, and {kp.max_attempts} wrong codes lock the keypad out for {kp.lockout_s:.0f} s."
+    return out
 
 
 def add_pull(model: Model, leaf_body: Body, op: H.OperatorModel, u: float, x: float, z: float, t: float, face: float, name="pull", tiers=ALL_TIERS):

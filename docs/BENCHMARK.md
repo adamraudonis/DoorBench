@@ -91,7 +91,40 @@ benchmark
     success             list of event / label names, "!" = negated; all must hold
     time_budget_s       5 · ceil((3 · expected_transit_s + 10) / 5)
     expected_transit_s  and expected_transit_terms {approach_s, operate_s, open_s, pass_s, scenario_extra_s, total_s}
+    lock                only on doors with a code lock (keypad): everything needed to enter the code (below)
 ```
+
+### Code locks (`scenario["lock"]`)
+
+A keypad door carries its **code** in the scenario, because the dataset is open: the task is to work the hardware,
+not to guess four digits.  Every scenario of such a door (`unlock_and_traverse` in particular) has:
+
+```
+lock
+  model                keypad_code_4 | keypad_code_6 | keypad_mechanical
+  engaged              is the lock actually thrown
+  code                 e.g. "0570" (electronic) or "2345" (the buttons of a mechanical combination)
+  code_kind            sequence (electronic: in order) | set (mechanical: any order, then the lever)
+  release              clutch (the code frees the outside lever) | motor_bolt (the code retracts the deadbolt) | none
+  buttons[]            {label, joint, site, pos [x,y,z] in world} — one entry per key, in layout order
+  press_force_N        force that bottoms a button out (Schlage dome 3 N, Kaba Simplex 12 N), travel_m its stroke
+  press_depth_frac     fraction of the stroke that registers a press (0.6), debounce_s how long it must stay there
+  code_timeout_s       inactivity after which a partial entry is cleared (5 s electronic; null on a mechanical lock)
+  lockout_s            keypad dead time after max_attempts wrong codes (30 s / 3 electronic; null mechanical)
+  clutch_joint         the outside lever's joint (release = clutch), bolt_joint the deadbolt (release = motor_bolt)
+  keypad_face_normal_y which face the keypad is on (+1 / -1 in y)
+```
+
+**How the lock behaves** (`doorbench/keypad.py`, the same state machine the QA gate and the viewer use).  Each
+button is a body on a slide joint with a return spring; a press registers when the button passes
+`press_depth_frac` of its stroke and stays there for `debounce_s`, and the same button can only register again
+after it has come back out.  An electronic keypad checks the digits **in order**; a partial entry is cleared after
+`code_timeout_s`, and `max_attempts` consecutive wrong codes freeze the keypad for `lockout_s` (every press is
+ignored while it is frozen — a correct code included).  A mechanical pushbutton lock (Kaba Simplex) has no
+electronics: press the buttons of the combination in **any** order (each button appears at most once), then turn
+the outside lever — the lever is what checks the chamber, and turning it on a wrong set clears the chamber and
+counts as a wrong attempt.  Once released, the lock stays released for the rest of the episode (real locks
+re-lock after a few seconds; an episode is one traversal, so the re-lock timer is not modelled).
 
 **Start zone.**  Centre = approach point moved back to `max(spec.robot.start_distance_m, |approach.y|, W + 0.45 if
 the leaf swings toward the robot, 1.2)` m from the wall, radius 0.30 m, yaw facing the pass-plane centre ± 0.35 rad.
@@ -174,6 +207,10 @@ print(env.success, env.episode_return, env.events)
 labels = env.labels()                            # EpisodeLabels incl. reward_events and episode_return
 ```
 
+`env.enter_code(code=None)` is a convenience wrapper that presses the door's code on the real buttons (it
+advances the simulation and returns whether the lock released); the physical path is the only path — a policy that
+presses the same buttons with its fingers gets exactly the same result, and a wrong code is refused.
+`env.keypad_state()` reports the entry, wrong attempts, lockout and event log.
 `env.badge()` presents a credential; `env.declare_locked()` ends a `locked_recognize` episode; `env.knock()` records a
 knock for programmatic hands (robot contacts are detected automatically); `env.grip_sites()` lists grasp / push
 targets; `env.apply_site_force` / `apply_joint_torque` drive doors without a robot.  `reset(task=...)` still accepts
@@ -184,7 +221,8 @@ recompiled once; robot and door ids are rebound).
 
 ## Labels (`EpisodeLabels`)
 
-`touched_door`, `touched_operator`, `operator_actuated`, `latch_released`, `lock_released`, `door_opened`,
+`touched_door`, `touched_operator`, `operator_actuated`, `latch_released`, `lock_released`, `code_entered`
+(the keypad code was entered correctly), `wrong_code_attempts` (int), `door_opened`,
 `door_open_clear`, `robot_passed_through`, `door_closed_after`, `door_slammed`, `door_damaged` (+ `damage_events`),
 `robot_fell`, `hardware_misuse`, `max_leaf_contact_force`, `max_operator_torque`, `max_door_angle`,
 `time_to_touch`, `time_to_open`, `time_to_pass`, `energy_J`, `steps`, `sim_time`, `success`, `reward_events`,

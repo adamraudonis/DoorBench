@@ -8,6 +8,7 @@ import { buildScene, type BuiltScene, type JointHandle } from "./scene";
 import { buildEvaluationOverlay, type EvalOverlay } from "./evaluation";
 import { GLOSSARY, REWARD_LABELS, type GlossaryEntry } from "./glossary";
 import { activeLeaf, easeFor, isLocked, isSwingPair, openClosePhases, operatorJoints, operatorReturnPhase, operatorsAreIndividual, parsePoseQuery, returnChip, returnLabel, sliderReaction, type Phase } from "./doorLogic";
+import { CodeLock, keypadOf, keypadRows, keypadStatus, type KeypadJ } from "./keypad";
 import { ASSETS } from "./App";
 import { BaselineBadges } from "./ResultBadges";
 import { AppearancePanel } from "./Appearance";
@@ -122,6 +123,12 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
   const showEvalRef = useRef(false);
   showEvalRef.current = showEval;
   const builtModel = useRef<ModelJ | null>(null);   // the model the current scene was built from (pose is kept across rebuilds of the same model)
+  // ---- code lock (keypad): the viewer runs the same state machine as the simulator (src/keypad.ts)
+  const keypad: KeypadJ | undefined = useMemo(() => keypadOf(model), [model]);
+  const lock = useRef<CodeLock | null>(null);
+  const [kpTick, setKpTick] = useState(0);
+  const pressKeyRef = useRef<(label: string) => void>(() => {});
+  const buttonNodes = useRef<Map<THREE.Object3D, string>>(new Map());
 
   useEffect(() => {
     setModel(null); setSpec(null); setQa(null); setErr(null); setScenIdx(0); setHumanT(0); setHumanPlay(false); setShowEval(false);
@@ -299,6 +306,11 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
       t.controls.target.copy(tgt);
       t.controls.update();
       setJoints(Array.from(b.joints.values()));
+      buttonNodes.current = new Map();
+      for (const btn of keypad?.buttons ?? []) {
+        const node = b.bodies.get(btn.body);
+        if (node) node.traverse((o) => buttonNodes.current.set(o, btn.label));
+      }
       if (showEvalRef.current) frameEvaluation();
     }).catch((e) => setErr(String(e)));
     return () => { cancelled = true; };
@@ -426,6 +438,114 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
     if (note) toast(note);
   };
 
+  // ---- keypad -------------------------------------------------------------
+  useEffect(() => {
+    lock.current = keypad ? new CodeLock(keypad) : null;
+    setKpTick((x) => x + 1);
+  }, [keypad]);
+
+  // the lockout / inactivity clock (only runs while there is something to expire)
+  useEffect(() => {
+    const l = lock.current;
+    if (!l || (!l.lockedOut && !l.entered.length)) return;
+    const iv = window.setInterval(() => { l.tick(performance.now() / 1000); setKpTick((x) => x + 1); }, 250);
+    return () => window.clearInterval(iv);
+  }, [kpTick]);
+
+  /** What the code releases: the outside lever's clutch, or the deadbolt motor. */
+  const applyKeypadRelease = () => {
+    const b = built.current;
+    if (!b || !keypad) return;
+    if (keypad.release === "clutch" && keypad.clutch_joint && keypad.clutch_open_rad) {
+      const h = b.joints.get(keypad.clutch_joint);
+      if (h && h.range) h.range = [h.range[0], keypad.clutch_open_rad];
+      setJoints(Array.from(b.joints.values()));
+    } else if (keypad.release === "motor_bolt" && keypad.bolt_joint) {
+      const h = b.joints.get(keypad.bolt_joint);
+      if (h && h.range) queue.current.push({ joint: h.name, from: h.q, to: h.range[1], dur: 900 });
+    }
+  };
+
+  /** Press one button: the body really travels (slide joint + return spring) and the lock reads it. */
+  const pressKey = (label: string) => {
+    const b = built.current, l = lock.current;
+    if (!b || !keypad || !l) return;
+    pauseReference();
+    const btn = keypad.buttons.find((x) => x.label === label);
+    const h = btn ? b.joints.get(btn.joint) : undefined;
+    const t = performance.now() / 1000;
+    l.tick(t);
+    const was = l.unlocked, wrong0 = l.wrongAttempts, out0 = l.lockedOut;
+    if (h && h.range) queue.current.push({ joint: h.name, from: h.range[0], to: h.range[1], dur: 90 }, { joint: h.name, from: h.range[1], to: h.range[0], dur: 130 });
+    l.press(label, t);
+    if (l.unlocked && !was) { applyKeypadRelease(); toast(keypadStatus(keypad, l, t)); }
+    else if (l.lockedOut && !out0) toast(`wrong code ${keypad.max_attempts}× — keypad locked out for ${keypad.lockout_s} s`);
+    else if (l.wrongAttempts > wrong0) toast("wrong code: nothing is released");
+    else if (out0) toast("the keypad is locked out and ignores every press");
+    setKpTick((x) => x + 1);
+    force((x) => x + 1);
+  };
+  pressKeyRef.current = pressKey;
+
+  /** Turn the outside trim: on a mechanical lock this is what checks the chamber; on any keypad set it shows
+   *  whether the clutch is in (full travel) or out (the lock's free play). */
+  const turnOutsideLever = () => {
+    const b = built.current, l = lock.current;
+    if (!b || !keypad || !l || !keypad.clutch_joint) return;
+    pauseReference();
+    const t = performance.now() / 1000;
+    l.tick(t);
+    const was = l.unlocked;
+    l.lever(t);
+    if (l.unlocked && !was) applyKeypadRelease();
+    else if (keypad.code_kind === "set" && !l.unlocked && l.wrongAttempts > 0) toast("wrong combination: the turn cleared the chamber");
+    const h = b.joints.get(keypad.clutch_joint);
+    if (h && h.range) queue.current.push({ joint: h.name, from: h.q, to: h.range[1], dur: 400 }, { joint: h.name, from: h.range[1], to: h.modeledAt ?? h.range[0], dur: 400 });
+    if (!l.unlocked && keypad.engaged) toast("the outside lever only jiggles in the lock's free play: it retracts nothing");
+    setKpTick((x) => x + 1);
+    force((x) => x + 1);
+  };
+
+  /** Back to the locked state: forget the entry, throw the bolt / declutch the outside lever. */
+  const resetKeypad = () => {
+    const b = built.current, l = lock.current;
+    if (!b || !keypad || !l) return;
+    l.reset();
+    if (keypad.clutch_joint && keypad.clutch_locked_rad && keypad.engaged) {
+      const h = b.joints.get(keypad.clutch_joint);
+      if (h && h.range) { h.range = [h.range[0], keypad.clutch_locked_rad]; b.setJoint(h.name, Math.min(h.q, keypad.clutch_locked_rad)); }
+      setJoints(Array.from(b.joints.values()));
+    }
+    if (keypad.release === "motor_bolt" && keypad.bolt_joint && keypad.engaged) b.setJoint(keypad.bolt_joint, 0);
+    setKpTick((x) => x + 1);
+    force((x) => x + 1);
+  };
+
+  // clicking a keypad button in the 3D view presses it (a click, not the end of an orbit drag)
+  useEffect(() => {
+    const t = three.current;
+    if (!t) return;
+    const el = t.renderer.domElement;
+    let down: { x: number; y: number } | null = null;
+    const onDown = (e: PointerEvent) => { down = { x: e.clientX, y: e.clientY }; };
+    const onUp = (e: PointerEvent) => {
+      const d0 = down;
+      down = null;
+      if (!d0 || Math.hypot(e.clientX - d0.x, e.clientY - d0.y) > 4) return;
+      const b = built.current;
+      if (!b || !buttonNodes.current.size) return;
+      const r = el.getBoundingClientRect();
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), t.camera);
+      const hit = ray.intersectObject(b.root, true).find((h) => (h.object as THREE.Mesh).visible);
+      const label = hit ? buttonNodes.current.get(hit.object) : undefined;   // only the NEAREST hit counts
+      if (label) pressKeyRef.current(label);
+    };
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointerup", onUp);
+    return () => { el.removeEventListener("pointerdown", onDown); el.removeEventListener("pointerup", onUp); };
+  }, [joints]);
+
   const onSlider = (h: JointHandle, q: number) => {
     const b = built.current;
     if (!b || !model) return;
@@ -519,7 +639,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
               if (!atRest) { const back = operatorReturnPhase(model, b.joints, operator); if (back) { pauseReference(); queue.current = [back]; toast(returnLabel(model, operator) ?? "released"); return; } }
               animate(operator, atRest ? opH.range[1] : opH.range[0]);
             }}>{individualOps ? `Actuate all ${opNames.length} operators` : "Actuate operator"}</button>}
-          <button onClick={() => { pauseReference(); const b = built.current; queue.current = []; if (b) { for (const h of b.joints.values()) b.setJoint(h.name, h.modeledAt); b.solveLoops(); } force((x) => x + 1); }}>Reset</button>
+          <button onClick={() => { pauseReference(); const b = built.current; queue.current = []; if (b) { for (const h of b.joints.values()) b.setJoint(h.name, h.modeledAt); b.solveLoops(); } resetKeypad(); force((x) => x + 1); }}>Reset</button>
           <button className={diagnostic ? "active" : ""} aria-pressed={diagnostic} title="Brown door, gold mechanisms, neutral surroundings; glass remains transparent" onClick={() => setDiagnostic(v=>!v)}>Mechanism contrast</button>
           <button onClick={() => setShowEnv((v) => !v)}>{showEnv ? "Hide" : "Show"} walls</button>
           <button onClick={() => setShowCol((v) => !v)}>{showCol ? "Hide" : "Show"} collision</button>
@@ -585,6 +705,43 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
           <BaselineBadges id={entry.id} compact={false} />
           {scenarios.some((s) => s.suite === "human") && <BaselineBadges id={entry.id} compact={false} suite="human" />}
         </div>)}
+        {keypad && lock.current && (() => {
+          const l = lock.current;
+          const now = performance.now() / 1000;
+          const engaged = keypad.engaged;
+          return (
+            <div className="keypad" data-tick={kpTick}>
+              <h3>Code lock · {nice(keypad.lock_model)}</h3>
+              <div className="kv" style={{ marginBottom: 6 }}>
+                <span className="k">code<Info entry={{ what: "The dataset is open: the code is published in spec.json, model.json (meta.keypad) and the benchmark scenario. The task is to work the hardware, not to guess it." }} label="code" /></span>
+                <span className="v"><code>{keypad.code}</code>{keypad.code_kind === "set" ? " (any order, then the lever)" : " (in this order)"}</span>
+              </div>
+              <div className="keypad-pad">
+                {keypadRows(keypad).map((row, i) => (
+                  <div className="keypad-row" key={i}>
+                    {row.map((b) => (
+                      <button key={b.label} className="keypad-key" title={`${b.joint} — press ${keypad.press_force_N} N over ${(keypad.travel_m * 1000).toFixed(1)} mm`}
+                        onClick={() => pressKey(b.label)}>{b.label}</button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <div className={"keypad-state " + (l.unlocked ? "ok" : l.lockedOut ? "bad" : "")}>
+                {l.unlocked ? "🔓 " : engaged ? "🔒 " : ""}{keypadStatus(keypad, l, now)}
+              </div>
+              <div className="keypad-entry">
+                entered <code>{l.entered.join("") || "–"}</code>
+                {l.wrongAttempts > 0 && <span className="bad"> · {l.wrongAttempts} wrong {l.wrongAttempts === 1 ? "attempt" : "attempts"}</span>}
+                {l.codeEntered && <span className="ok"> · code accepted</span>}
+              </div>
+              <div className="keypad-actions">
+                {keypad.clutch_joint && <button onClick={turnOutsideLever}>Turn the outside lever</button>}
+                <button onClick={resetKeypad}>Re-lock</button>
+              </div>
+              <p className="keypad-note">{keypad.note} Click a button here or on the keypad in the 3D view — each one is a real body on a slide joint ({(keypad.travel_m * 1000).toFixed(1)} mm, {keypad.preload_force_N}–{keypad.press_force_N} N return spring).</p>
+            </div>
+          );
+        })()}
         <h3>Joints</h3>
         {joints.map((h) => (
           <div className="joint" key={h.name}>

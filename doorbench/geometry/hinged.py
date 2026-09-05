@@ -254,6 +254,18 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
     btn_face = -outside_face if lk.kind in ("privacy_button", "keyed_cylinder") else None
     drive_op = opm      # the operator model of the joint the latch tendon is scaled to (a handleset drives it with
     #                     its interior knob, whose travel is not the thumb piece's)
+    # Keypad lever / knob set with no deadbolt (Schlage FE595, Kaba Simplex 1000): what the code releases is the
+    # CLUTCH between the outside trim and the latch retractor.  The outside lever is therefore its own body with
+    # its own joint - blocked to the lock's free play while the lock is thrown, full travel once the code is
+    # entered - while the inside lever keeps working at all times (egress).  A keypad DEADBOLT (Schlage BE365)
+    # instead has a motor that throws the bolt itself, so its knob stays a plain passage set.
+    kp_model = H.KEYPADS.get(lk.id) if lk.kind == "keypad_code" else None
+    keypad_clutch = bool(kp_model) and lk.deadbolt_throw <= 0 and opm.kind in ("lever", "knob", "keypad_lever", "keypad_deadbolt", "card_lever") and not pair
+    keypad_meta = None
+    out_joint = None
+    if keypad_clutch:
+        faces = [f for f in faces if abs(f - keypad_face) > 1e-9] or [-keypad_face]
+        far_op = None
     if opm.kind in ("lever", "knob", "keypad_lever", "card_lever", "keypad_deadbolt", "paddle", "t_handle", "cremone", "wheel") and faces:
         hb = C.add_rotary_operator(model, leaf_body, spec, phys, opm, u, v, x_spindle, hz, t, faces, locked_backlash, name=f"{leaf_name}_handle", cylinder_face=cyl_face, button_face=btn_face, rim_case_face=(-outside_face if opm.style_params.get("rim_box") else None))
         handle_joint = hb.joint.name
@@ -297,7 +309,14 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
             z_min = hz + opm.style_params["escutcheon"][0] / 2
         if opm.kind == "handleset":
             z_min = hz + 0.175 + 0.03
-        C.add_keypad(model, leaf_body, spec, u, x_spindle, hz, t, keypad_face, mechanical=(lk.id == "keypad_mechanical"), keys=opm.style_params.get("keys", 10), name=f"{leaf_name}_keypad", z_min=z_min, z_max=zb + Hh - 0.03)
+        keypad_meta = C.add_keypad(model, leaf_body, spec, u, x_spindle, hz, t, keypad_face, kp_model, name=f"{leaf_name}_keypad", z_min=z_min, z_max=zb + Hh - 0.03)
+        if keypad_clutch and handle_joint:
+            # outside trim: same lever / knob on the keypad face, on its own joint (the clutch)
+            ob = C.add_rotary_operator(model, leaf_body, spec, phys, opm, u, v, x_spindle, hz, t, [keypad_face],
+                                       phys["lock"]["handle_backlash_locked_rad"] if engaged else None,
+                                       name=f"{leaf_name}_handle_out", cylinder_face=None, button_face=None, spindle=False)
+            out_joint = ob.joint.name
+            ob.joint.notes = "keypad clutch: blocked to the lock's free play until the code is entered" if engaged else "keypad clutch engaged (lock not thrown)"
     elif opm.kind in ("pull", "flush_pull", "ring_pull", "push_plate", "handleset"):
         for f in (faces if opm.kind != "handleset" else [-1.0]):
             C.add_pull(model, leaf_body, opm, u, x_edge - u * 0.105, hz, t, f, name=f"{leaf_name}_{opm.kind}")
@@ -503,6 +522,10 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
             if abs(y_bolt) > 1e-6:
                 pk["stop_cut_half"] = opm.style_params.get("bar_height", 0.05) * 0.75 + 0.010   # stop cut for the rim case
             pockets.append(pk)
+        if out_joint and res.tendons and scale_eff > 0:
+            # the outside trim drives the same retractor: bolt_q >= scale * (inside_q + outside_q)
+            res.tendons[0].sites.append((out_joint, -scale_eff))
+            res.tendons[0].label = "bolt_q >= scale*(handle_q + outside_trim_q) (one-sided)"
         model.tendons += res.tendons
     elif lt.kind == "vertical_rods" and handle_joint:
         # top rod latch: bolt at the leaf top going up into a pocket in the head
@@ -685,6 +708,11 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
     if pair and leaf_name == "leaf_a":
         pair["op_a"] = handle_joint
     model.meta.update({"u": u, "v": v, "hinge_x": hx, "leaf_edge_x_local": x_edge, "handle_height": hz, "primary_joint": j.name, "operator_joint": handle_joint})
+    if keypad_meta is not None:
+        model.meta["keypad"] = C.keypad_meta_block(spec, phys, lk, kp_model, keypad_meta, face=keypad_face, engaged=engaged,
+                                                  clutch_joint=out_joint, clutch_travel=opm.travel,
+                                                  bolt_joint=f"{leaf_name}_deadbolt_slide" if lk.deadbolt_throw > 0 else None,
+                                                  model=model)
     return leaf_body
 
 

@@ -166,19 +166,26 @@ class SwingHand(Hand):
 
 
 class KeypadHand(SwingHand):
-    """Keypad lever: press the code keys in order (each key is a real joint), then lever + push like SwingHand."""
+    """Keypad lever: press the code keys in order (each key is a real body on a spring), then work the trim the
+    code released - the outside lever of a clutched keypad set, otherwise the operator - and push like SwingHand."""
 
-    def __init__(self, env, push, t_start=0.6, press_s=0.3, gap_s=0.2, key_force=10.0, **opts):
-        self.code = env.spec["lock"].get("code") or ""
+    def __init__(self, env, push, t_start=0.6, press_s=0.3, gap_s=0.2, key_force=None, **opts):
+        self.kp_meta = env.meta.get("keypad") or {}
+        self.code = self.kp_meta.get("code") or env.spec["lock"].get("code") or ""
         if any(env._jid(self.key_joint(k)[0]) < 0 for k in self.code):
             self.code = ""          # keypad without physical keys (e.g. lever_euro_backplate + keypad lock): nothing to press
         self.keys = [(t_start + i * (press_s + gap_s), t_start + i * (press_s + gap_s) + press_s, k) for i, k in enumerate(self.code)]
         t_end = self.keys[-1][1] + 0.5 if self.keys else t_start
         super().__init__(env, push, t_press=t_end, t_push=t_end + 0.6, **opts)
-        self.key_force = key_force
+        self.key_force = key_force if key_force is not None else 1.6 * float(self.kp_meta.get("press_force_N", 3.0))
+        if self.kp_meta.get("clutch_joint") and env._jid(self.kp_meta["clutch_joint"]) >= 0:
+            self.op = self.kp_meta["clutch_joint"]      # the outside lever: dead until the code frees the clutch
 
     def key_joint(self, k):
         lab = {"*": "star", "#": "hash"}.get(k, k)
+        by = {b["label"]: b for b in (getattr(self, "kp_meta", {}) or {}).get("buttons", [])}
+        if k in by:
+            return by[k]["joint"], by[k]["body"]
         return f"leaf_keypad_key_{lab}_slide", f"leaf_keypad_key_{lab}"
 
     def act(self, t):
@@ -196,7 +203,11 @@ class KeypadHand(SwingHand):
         super().act(t)
 
     def hud_joints(self):
-        return super().hud_joints() + [(f"key {k}", self.key_joint(k)[0]) for k in self.code[:2]]
+        rows = super().hud_joints()
+        if self.op and self.op != self.env.meta.get("operator_joint"):
+            # the hand works the trim the code released, not the always-free inside lever
+            rows = [(("outside lever", self.op) if j == self.env.meta.get("operator_joint") else (l, j)) for l, j in rows]
+        return rows + [(f"key {k}", self.key_joint(k)[0]) for k in self.code[:2]]
 
 
 class PairHand(SwingHand):

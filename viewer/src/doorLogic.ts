@@ -68,8 +68,10 @@ export function boltJointsFor(model: ModelJ, operator: string | undefined): stri
   const opRole = model.bodies.find((b) => b.joint?.name === operator)?.joint?.role;
   if (opRole === "latch" || opRole === "lock") out.add(operator);        // slide bolts, pins, hooks: the operator IS the bolt
   for (const t of model.tendons ?? []) {
-    const [[bolt], [driver]] = t.sites as [string, number][];
-    if (driver === operator) out.add(bolt);
+    const terms = t.sites as [string, number][];
+    if (terms.length < 2) continue;
+    const [bolt] = terms[0];
+    for (const [driver] of terms.slice(1)) if (driver === operator) out.add(bolt);   // a tendon can have several drivers
   }
   for (const e of model.equalities) {
     if (e.kind === "joint" && e.b === operator) {

@@ -72,7 +72,8 @@ What the policy sees and does (reference embodiment: DoorEnv's programmatic hand
   pass plane, goal, rewards, success criteria and time budget), the sampled `start` pose, the door's full
   `spec.json`, `model.json` meta, every robot-interactive joint with its role / type / range, the lock state (and
   the keypad code when the robot is allowed to know it), the per-joint torque limits.  Lock parts on the far side of
-  the door and operators the robot cannot reach (an exit device seen from the pull side) have a limit of 0.
+  the door and operators the robot cannot reach (an exit device seen from the pull side, a keypad or the trim it
+  releases on the far face of the door) have a limit of 0.
 * `obs` (every `control_dt`): sim time, primary / secondary joint position and velocity, every interactive joint
   `{q, dq}`, grip / push site positions, the base position, the label flags reached so far (`touched`,
   `operator_actuated`, `latch_released`, `lock_released`, `door_opened`, `door_open_clear`, `door_clear_now`,

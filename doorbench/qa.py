@@ -34,6 +34,9 @@ Checks (all tiers where applicable):
               each latch in turn) and releasing every one of them opens it
   rod_points_hold  a two-point rod mechanism (cremone / espagnolette knob, surface vertical rod exit device) throws a
               bolt into the head AND one into the floor, and each of them holds the leaf on its own
+  keypad_code_works  every door with a code lock: a programmatic finger pressing the spec's code on the real
+              button bodies releases the lock and the door opens, a wrong code does not, a partial entry times
+              out (or is cleared by the lever, mechanically) and repeated wrong codes lock the keypad out
   urdf        URDF loads in MuJoCo (structure check)
   usd         USD stage opens; joint & rigid-body counts match the IR
 Writes qa.json with pass/fail per check, metrics, and a signed_off flag.
@@ -748,6 +751,18 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
             bot_only = hold_with_one_point(m, d, pj, jb, [ja], push_r)
             metrics["rod_points"] = {"mechanism": tag, "top_only_rad": top_only, "bottom_only_rad": bot_only, "joints": [a, b]}
             checks["rod_points_hold"] = bool(max(top_only, bot_only) < math.radians(2.0))
+    # ---- keypad: the code has to physically work (doorbench/keypad_qa.py)
+    if model_meta.get("keypad"):
+        try:
+            from .keypad_qa import run_keypad_qa
+            kpush = metrics.get("qa_push") or qa_push(m, mujoco.MjData(m), pj, phys["mass"]["total_kg"], spec["leaf"]["width"])["push"] if pj >= 0 else 0.0
+            kres = run_keypad_qa(m, spec, model_meta, phys, float(kpush), oj, pj)
+            if kres.get("ok") is not None:
+                checks["keypad_code_works"] = bool(kres["ok"])
+                metrics["keypad"] = {"checks": kres["checks"], **kres["metrics"]}
+        except Exception as e:
+            checks["keypad_code_works"] = False
+            metrics["keypad_error"] = f"{type(e).__name__}: {e}"[:300]
     # ---- simple & minimal tiers settle
     for tier in ("simple", "minimal"):
         if tier in models:
