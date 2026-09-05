@@ -613,6 +613,8 @@ def classify(phases: dict[str, dict], mj: dict, px: dict, ctx: dict, kind: str, 
                     add("EXPORT_COUPLING", name, f"operator moved (travel {_fmt(op_px)}) but bolt retracted {_fmt(bolt_px)} of its throw; MuJoCo opened {_fmt(mm.get('opened') or mm.get('actuate_displacement'))}")
                 elif _finite(op_px) and _finite(op_mj) and float(op_mj) > 0 and float(op_px) < 0.5 * float(op_mj):
                     add("VALIDATOR_PROTOCOL", name, f"operator travel {_fmt(op_px)} vs {_fmt(op_mj)} in MuJoCo: effort too low for this operator type")
+                elif latch_kind in (None, "none") and not engaged and not spring_latch:
+                    add("PHYSICS_PARAM_FRICTION", name, f"nothing holds this door, yet PhysX opened only {_fmt(pm.get('opened') or pm.get('actuate_displacement'))} vs {_fmt(mm.get('opened') or mm.get('actuate_displacement'))}: push below the gravity / friction load, or friction mapped differently")
                 else:
                     add("CONTACT_GEOMETRY", name, f"latch released (bolt {_fmt(bolt_px)}) but the leaf did not open in PhysX ({_fmt(pm.get('opened') or pm.get('actuate_displacement'))} vs {_fmt(mm.get('opened') or mm.get('actuate_displacement'))})")
             else:

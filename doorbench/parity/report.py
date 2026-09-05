@@ -171,7 +171,7 @@ def _group_stats(verdicts: list[dict]) -> dict:
     g: dict[str, Any] = {"n": len(verdicts), "tested": 0, "ok": 0, "fail": 0, "untested": 0}
     for k in R.KINDS:
         g[k] = {gr: 0 for gr in GRADES} | {"tested": 0, "untested": 0}
-    cls: Counter = Counter()
+    cls: Counter = Counter()   # doors per class (a class counts once per door, whichever kinds show it)
     for v in verdicts:
         st = R.manifest_status(v)
         g[st] += 1
@@ -185,9 +185,9 @@ def _group_stats(verdicts: list[dict]) -> dict:
                 g[k]["tested"] += 1
                 if kv["grade"] in GRADES:
                     g[k][kv["grade"]] += 1
-            for c in kv["classes"]:
-                if c not in ("QUANT",):
-                    cls[c] += 1
+        for c in v.get("classes", []):
+            if c not in ("QUANT",):
+                cls[c] += 1
     g["top_classes"] = [f"{c} x{n}" for c, n in cls.most_common(3)]
     return g
 
@@ -465,14 +465,15 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
     L.append("## Reproduce")
     L.append("")
     L.append("```bash")
-    L.append("# CPU (local): MuJoCo reference for every door")
-    L.append("PYTHONPATH=$PWD python -m doorbench.parity.protocol --sim mujoco --all            # -> results/parity/mujoco.json")
-    L.append("# GPU pod: Isaac Sim / PhysX on both USD kinds")
-    L.append("./isaaclab.sh -p scripts/isaaclab/parity_isaac.py --all --which both              # -> results/parity/isaac_full.json, isaac_rl.json")
-    L.append("# join, classify, render this page + summary.json")
-    L.append("PYTHONPATH=$PWD python scripts/isaaclab/parity_report.py")
-    L.append("# publish per door: qa.json isaac_parity + manifest badge (idempotent)")
+    L.append("# 1. run the shared protocol (doorbench/parity/protocol.py) in MuJoCo on the CPU and in Isaac Sim on the GPU pod:")
+    L.append("#    -> results/parity/mujoco.json, results/parity/isaac_full.json, results/parity/isaac_rl.json")
+    L.append("#    (optional sensitivity reruns: results/parity/isaac_<kind>_<variant>.json, e.g. isaac_full_dt240.json)")
+    L.append("# 2. join, classify, render this page + summary.json (no simulator needed)")
+    L.append("PYTHONPATH=$PWD python scripts/isaaclab/parity_report.py            # --results DIR --top N --no-plots")
+    L.append("# 3. publish per door: qa.json isaac_parity + manifest badge (idempotent; --check for CI)")
     L.append("PYTHONPATH=$PWD python scripts/merge_isaac_results.py")
+    L.append("# legacy: render from the 40-door probe instead of protocol results")
+    L.append("PYTHONPATH=$PWD python scripts/isaaclab/probe_to_parity.py && PYTHONPATH=$PWD python scripts/isaaclab/parity_report.py --results results/parity/probe")
     L.append("```")
     L.append("")
     return "\n".join(L)

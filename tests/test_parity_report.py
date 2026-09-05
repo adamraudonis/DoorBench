@@ -261,6 +261,21 @@ def test_reference_qa_failure():
     assert cmp["grade"] == "A" and any(c["code"] == "REFERENCE_QA_FAILURE" for c in cmp["classes"])
 
 
+def test_operate_classes_by_hardware():
+    mj = R.normalize_record({"phases": {"operate_open": {"pass": True, "metrics": {"opened": 1.5, "operator_travel_reached": 1.57}}}})
+    px = R.normalize_record({"phases": {"operate_open": {"pass": False, "metrics": {"opened": 0.0, "operator_travel_reached": 1.57}}}})
+    hatch = {"flags": {"spring_latch": False}, "latch_kind": "none", "lock_kind": "none", "lock_engaged": False, "is_hinge": True}
+    assert [c["code"] for c in R.compare_kind(mj, px, hatch, "full")["classes"]] == ["PHYSICS_PARAM_FRICTION"]        # nothing holds it: push vs load
+    hook = {"flags": {"spring_latch": False}, "latch_kind": "slide_bolt", "lock_kind": "none", "lock_engaged": False, "is_hinge": False}
+    assert [c["code"] for c in R.compare_kind(mj, px, hook, "full")["classes"]] == ["CONTACT_GEOMETRY"]               # a bolt that does not clear its keeper
+    px2 = R.normalize_record({"phases": {"operate_open": {"pass": False, "metrics": {"opened": 0.0, "operator_travel_reached": 0.05}}}})
+    assert [c["code"] for c in R.compare_kind(mj, px2, hook, "full")["classes"]] == ["VALIDATOR_PROTOCOL"]            # operator barely moved: effort
+    locked = {"flags": {"spring_latch": False}, "latch_kind": "none", "lock_kind": "deadbolt_single", "lock_engaged": True, "robot_side_release": False, "is_hinge": True}
+    mj_l = R.normalize_record({"phases": {"operate_open": {"pass": False, "metrics": {"opened": 0.0}}}})
+    px_l = R.normalize_record({"phases": {"operate_open": {"pass": True, "metrics": {"opened": 1.5}}}})
+    assert [c["code"] for c in R.compare_kind(mj_l, px_l, locked, "full")["classes"]] == ["EXPORT_WELD"]              # a locked door PhysX opened
+
+
 def test_no_reference():
     px = R.normalize_record({"phases": {"hold": {"pass": True}}})
     v = R.door_verdict("dbX", None, {"full": px, "rl": None}, {"flags": {}})
