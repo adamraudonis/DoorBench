@@ -5,7 +5,19 @@ Checks per file (door.usda = full articulation, door_rl.usda = canonical 7-DoF R
   stage        default prim set, up axis Z, metersPerUnit 1, no NaN/Inf in any float attribute
   articulation exactly one PhysicsArticulationRootAPI prim, one fixed joint to the world (`base_fixed`),
                every rigid body reachable from `base` through joints (single tree, no cycles), body1 of every
-               joint is a rigid body, body0 is a rigid body or the world (base_fixed only)
+               joint is a rigid body, body0 is a rigid body or the world (base_fixed only); self-collision ENABLED
+               (`physxArticulation:enabledSelfCollisions`) - PhysX then skips only joint-adjacent link pairs, which
+               is MuJoCo's parent/child default
+  filtering    every body pair MuJoCo suppresses (same weld body, weld parent/child, `contact_excludes`) is authored
+               as `PhysxFilteredPairsAPI`, recomputed independently from model.json; nothing else is filtered
+  env release  `<weld>` lock equalities (mag lock / delayed egress / electric bolt / interlock) are real breakable
+               FixedJoints with `physics:excludeFromArticulation` (loop joint, the tree stays a tree),
+               `physics:breakForce / breakTorque` = the latch model's holding force, `physics:jointEnabled` and
+               `doorbench:*` naming; `doorbench:env_release` lists them
+  couplings    `PhysxMimicJointAPI` only on rotational -> rotational equalities (PhysX articulation mimic joints
+               support rotational axes only and drop the others silently); every other joint equality carries the
+               `doorbench:coupling_*` emulation data on the driven joint and `doorbench:coupling_reflected_armature`
+               on its driver
   bodies       every RigidBodyAPI prim has MassAPI with mass > 0 and positive finite principal inertia
   joints       Revolute/Prismatic joints: limits present, lower <= upper (strictly lower < upper unless the joint is a
                locked RL slot), local frames consistent (anchor and axis computed through body0 and body1 coincide),
@@ -70,6 +82,42 @@ def _applied_schemas(prim):
             out |= set(md.GetAddedOrExplicitItems())
         except Exception:
             pass
+    return out
+
+
+def mj_filtered_pairs(model_json: dict) -> set:
+    """Body pairs MuJoCo does not collide, recomputed from model.json alone (independent of the exporter).
+
+    MuJoCo skips a geom pair when both geoms are in the same weld body (a body chain with no joints between them),
+    when the two weld bodies are parent and child (neither being the world), or when the body pair is excluded.
+    Restricted to moving bodies that actually carry collision geometry."""
+    bodies = {b["name"]: b for b in model_json["bodies"]}
+    tier = model_json.get("tier", "full")
+
+    def has_coll(b):
+        return any(g.get("collision") and tier in g.get("tiers", [tier]) for g in b["geoms"])
+
+    def wroot(n):
+        cur = n
+        while True:
+            b = bodies[cur]
+            p = b.get("parent")
+            if b.get("joint") is not None or p is None or p not in bodies or bodies[p].get("static"):
+                return cur
+            cur = p
+
+    moving = sorted(n for n, b in bodies.items() if not b.get("static") and has_coll(b))
+    root = {n: wroot(n) for n in moving}
+    wparent = {}
+    for n in moving:
+        p = bodies[root[n]].get("parent")
+        wparent[n] = None if (p is None or p not in bodies or bodies[p].get("static")) else wroot(p)
+    excl = {tuple(sorted(x)) for x in model_json.get("contact_excludes", [])}
+    out = set()
+    for i, a in enumerate(moving):
+        for b in moving[i + 1:]:
+            if root[a] == root[b] or wparent.get(a) == root[b] or wparent.get(b) == root[a] or tuple(sorted((a, b))) in excl:
+                out.add((a, b))
     return out
 
 
@@ -170,6 +218,13 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
         for an in ("physxArticulation:enabledSelfCollisions", "physxArticulation:solverPositionIterationCount"):
             if not root.GetAttribute(an).IsValid():
                 R.warn(f"missing {an} on the articulation root")
+        # Self-collision must be ON: PhysX then skips joint-adjacent links only, which is MuJoCo's parent/child
+        # default; everything else MuJoCo suppresses is authored as PhysxFilteredPairsAPI.  With it off, a latch that
+        # holds one moving link against another (swing pairs latched into the inactive leaf, gate / baby-gate lift
+        # pins, sliding drop bolts) passes straight through in PhysX while MuJoCo holds.
+        sc = root.GetAttribute("physxArticulation:enabledSelfCollisions")
+        if sc.IsValid() and sc.Get() is not None and not bool(sc.Get()):
+            R.err("physxArticulation:enabledSelfCollisions is False (MuJoCo collides every non parent/child pair)")
     # ---- rigid bodies
     bodies = {}
     for p in prims:
@@ -202,11 +257,25 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
         if root is not None and not str(p.GetPath()).startswith(str(root.GetPath())):
             R.err(f"{name}: rigid body outside the articulation root")
     R.stats["n_rigid_bodies"] = len(bodies)
+    # authored collision filtering (PhysxFilteredPairsAPI), as unordered link-name pairs
+    authored_pairs = set()
+    for name, p in bodies.items():
+        rel = p.GetRelationship("physxFilteredPairs:filteredPairs")
+        tg = [str(t) for t in rel.GetTargets()] if rel and rel.IsValid() else []
+        if tg and "PhysxFilteredPairsAPI" not in _applied_schemas(p):
+            R.err(f"{name}: physxFilteredPairs:filteredPairs without PhysxFilteredPairsAPI applied")
+        for t in tg:
+            if t not in bodies:
+                R.err(f"{name}: filtered pair target {t} is not a rigid body of this articulation")
+                continue
+            authored_pairs.add(tuple(sorted((name.split("/")[-1], t.split("/")[-1]))))
+    R.stats["n_filtered_pairs"] = len(authored_pairs)
     # world transforms of bodies (through xformOps)
     body_tf = {n: _world_xform(UsdGeom, p) for n, p in bodies.items()}
     # ---- joints
     joints = {}
     world_joints = []
+    loop_joints = []
     children_of = {n: [] for n in bodies}
     parent_of = {}
     dof_joint_names = set()
@@ -231,11 +300,14 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
             R.err(f"{jname}: body0 {b0} is not a rigid body")
             continue
         joints[jname] = p
-        if b1[0] in parent_of:
-            R.err(f"{jname}: body {b1[0]} is the child of two joints ({parent_of[b1[0]]}, {jname})")
-        parent_of[b1[0]] = jname if not b0 else b0[0]
-        if b0:
-            children_of[b0[0]].append(b1[0])
+        exarti = p.GetAttribute("physics:excludeFromArticulation")
+        is_loop = bool(exarti.IsValid() and exarti.HasAuthoredValue() and exarti.Get())
+        if not is_loop:
+            if b1[0] in parent_of:
+                R.err(f"{jname}: body {b1[0]} is the child of two joints ({parent_of[b1[0]]}, {jname})")
+            parent_of[b1[0]] = jname if not b0 else b0[0]
+            if b0:
+                children_of[b0[0]].append(b1[0])
         # local frames
         lp0 = np.asarray(list(jp.GetLocalPos0Attr().Get() or (0, 0, 0)), float)
         lp1 = np.asarray(list(jp.GetLocalPos1Attr().Get() or (0, 0, 0)), float)
@@ -258,6 +330,29 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
             R.err(f"{jname}: joint anchors disagree through body0/body1 by {np.linalg.norm(anchor0 - anchor1):.4g} m")
         if not is_fix and np.linalg.norm(axis0 - axis1) > 1e-4:
             R.err(f"{jname}: joint axes disagree through body0/body1 by {np.linalg.norm(axis0 - axis1):.4g}")
+        # loop joints (physics:excludeFromArticulation): NOT part of the articulation tree.  Env-release locks
+        # (mag lock / delayed egress / electric bolt / interlock) are authored this way so PhysX solves them as a
+        # maximal-coordinate constraint between two articulation links instead of a second parent for the leaf.
+        if is_loop:
+            loop_joints.append(jname)
+            role = p.GetAttribute("doorbench:role").Get() if p.GetAttribute("doorbench:role").IsValid() else None
+            if role != "env_release":
+                R.err(f"{jname}: excludeFromArticulation joint without doorbench:role = env_release (got {role!r})")
+            if not is_fix:
+                R.err(f"{jname}: env-release lock must be a FixedJoint (got {p.GetTypeName()})")
+            bf, bt = p.GetAttribute("physics:breakForce").Get(), p.GetAttribute("physics:breakTorque").Get()
+            hf = p.GetAttribute("doorbench:holding_force_N").Get()
+            if hf is None or not (float(hf) > 0):
+                R.err(f"{jname}: doorbench:holding_force_N {hf} must be > 0 (the mag lock's holding force)")
+            elif bf is None or bt is None or abs(float(bf) - float(hf)) > 1e-3 or abs(float(bt) - float(hf)) > 1e-3:
+                R.err(f"{jname}: breakForce / breakTorque {bf} / {bt} != holding force {hf}")
+            je = p.GetAttribute("physics:jointEnabled")
+            if not (je.IsValid() and je.HasAuthoredValue()):
+                R.err(f"{jname}: physics:jointEnabled not authored (the environment clears it on release)")
+            for an in ("doorbench:weld_name", "doorbench:weld_body"):
+                if p.GetAttribute(an).Get() in (None, ""):
+                    R.err(f"{jname}: {an} missing")
+            continue
         if is_fix:
             continue
         dof_joint_names.add(jname)
@@ -316,17 +411,49 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
                 R.err(f"{jname}: servo in drive but maxForce {mf} != forcerange {lim}")
             if st is not None and kp is not None and float(st) * conv < float(kp) - 1e-6:
                 R.err(f"{jname}: servo in drive but drive stiffness {float(st) * conv:.4g} < kp {kp}")
-        # mimic joints
+        # mimic joints: PhysX articulation mimic joints support ROTATIONAL axes only - a mimic authored on a
+        # prismatic joint, or one whose reference axis is prismatic, is parsed and then silently dropped, which is
+        # why hinge -> slide and slide -> slide couplings are exported as doorbench:coupling_* emulation data instead
         for sch in applied:
             if sch.startswith("PhysxMimicJointAPI:"):
                 minst = sch.split(":")[1]
+                if not is_rev or not minst.startswith("rot"):
+                    R.err(f"{jname}: PhysxMimicJointAPI:{minst} on a {'revolute' if is_rev else 'prismatic'} joint "
+                          f"(PhysX mimic joints support rotational axes only and drop this one silently)")
                 rel = p.GetRelationship(f"physxMimicJoint:{minst}:referenceJoint")
                 tg = [str(t) for t in rel.GetTargets()] if rel else []
                 if len(tg) != 1 or not stage.GetPrimAtPath(tg[0]).IsValid():
                     R.err(f"{jname}: mimic reference joint {tg} missing")
+                elif not stage.GetPrimAtPath(tg[0]).IsA(UsdPhysics.RevoluteJoint):
+                    R.err(f"{jname}: mimic reference joint {tg[0]} is not revolute (rotational axes only)")
                 for an in ("gearing", "offset", "referenceJointAxis"):
                     if p.GetAttribute(f"physxMimicJoint:{minst}:{an}").Get() is None:
                         R.err(f"{jname}: mimic attribute {an} missing")
+                ax = p.GetAttribute(f"physxMimicJoint:{minst}:referenceJointAxis").Get()
+                if ax is not None and not str(ax).startswith("rot"):
+                    R.err(f"{jname}: mimic referenceJointAxis {ax} is not rotational")
+                if p.GetAttribute("doorbench:coupling_mode").Get() != "mimic":
+                    R.err(f"{jname}: PhysxMimicJointAPI applied but doorbench:coupling_mode is {p.GetAttribute('doorbench:coupling_mode').Get()!r}")
+        # emulated coupling: the driven joint carries everything a consumer needs to apply the coupling bilaterally
+        cm = p.GetAttribute("doorbench:coupling_mode")
+        if cm.IsValid() and cm.Get():
+            for an in ("doorbench:coupling_driver", "doorbench:coupling_c0", "doorbench:coupling_c1", "doorbench:coupling_driven_inertia",
+                       "doorbench:coupling_reflected_inertia", "doorbench:coupling_gravity_bias", "doorbench:coupling_chain_order"):
+                if p.GetAttribute(an).Get() is None:
+                    R.err(f"{jname}: {an} missing on a coupled joint")
+            drel = p.GetRelationship("doorbench:coupling_driver_joint")
+            dtg = [str(t) for t in drel.GetTargets()] if drel and drel.IsValid() else []
+            if len(dtg) != 1 or not stage.GetPrimAtPath(dtg[0]).IsValid():
+                R.err(f"{jname}: doorbench:coupling_driver_joint {dtg} missing")
+            if str(cm.Get()) not in ("mimic", "emulated", "servo"):
+                R.err(f"{jname}: unknown doorbench:coupling_mode {cm.Get()!r}")
+            if str(cm.Get()) != "mimic" and any(sc.startswith("PhysxMimicJointAPI:") for sc in applied):
+                R.err(f"{jname}: coupling_mode {cm.Get()!r} but a PhysxMimicJointAPI is applied")
+            ri = p.GetAttribute("doorbench:coupling_reflected_inertia").Get()
+            c1 = p.GetAttribute("doorbench:coupling_c1").Get()
+            di = p.GetAttribute("doorbench:coupling_driven_inertia").Get()
+            if None not in (ri, c1, di) and float(di) > 0 and float(ri) + 1e-12 < float(c1) ** 2 * float(di) * (1 - 1e-4):
+                R.err(f"{jname}: reflected inertia {ri} < c1^2 * driven inertia {float(c1) ** 2 * float(di)}")
     R.stats["n_joints"] = len(joints)
     R.stats["n_dof_joints"] = len(dof_joint_names)
     if len(world_joints) != 1:
@@ -415,6 +542,50 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
     # ---- compare with model.json
     if model_json is not None:
         mj_joints = {b["joint"]["name"]: b["joint"] for b in model_json["bodies"] if b.get("joint")}
+        want_filtered = mj_filtered_pairs(model_json)
+        # env-release locks: one breakable loop joint per active <weld> equality, with the spec's holding force
+        welds = {e["name"]: e for e in model_json.get("equalities", []) if e.get("kind") == "weld"}
+        forces = {w["name"]: float(w.get("holding_force_N") or 0.0) for w in (model_json.get("meta", {}).get("breakable_welds") or [])}
+        er_prims = {n: joints[n] for n in loop_joints if n in joints}
+        R.stats["n_env_release"] = len(er_prims)
+        if kind == "full" and set(er_prims) != set(welds):
+            R.err(f"env-release joints {sorted(er_prims)} != weld equalities of model.json {sorted(welds)}")
+        if kind != "full" and not set(er_prims) <= set(welds):
+            R.err(f"env-release joints {sorted(set(er_prims) - set(welds))} are not weld equalities of model.json")
+        for n, jprim in er_prims.items():
+            w = welds.get(n)
+            if w is None:
+                continue
+            if jprim.GetAttribute("doorbench:weld_body").Get() != w["a"]:
+                R.err(f"{n}: doorbench:weld_body {jprim.GetAttribute('doorbench:weld_body').Get()!r} != {w['a']!r}")
+            if bool(jprim.GetAttribute("physics:jointEnabled").Get()) != bool(w.get("active", True)):
+                R.err(f"{n}: physics:jointEnabled != equality active flag")
+            hf = jprim.GetAttribute("doorbench:holding_force_N").Get()
+            if n in forces and abs(float(hf or 0.0) - forces[n]) > 1e-3:
+                R.err(f"{n}: holding force {hf} != meta.breakable_welds {forces[n]}")
+        er_attr = None
+        for k, v in json_attrs.items():
+            if k.endswith("doorbench:env_release"):
+                er_attr = v
+        if er_attr is None:
+            R.err("doorbench:env_release attribute missing")
+        elif {e.get("name") for e in er_attr} != set(er_prims):
+            R.err(f"doorbench:env_release {sorted(e.get('name') for e in er_attr)} != authored joints {sorted(er_prims)}")
+        if kind == "full":
+            if authored_pairs != want_filtered:
+                miss = sorted(want_filtered - authored_pairs)[:5]
+                extra = sorted(authored_pairs - want_filtered)[:5]
+                R.err(f"filtered pairs differ from MuJoCo's filter set: missing {miss} extra {extra}")
+        else:
+            # the canonical file merges many bodies into one link: a non-adjacent link pair must be filtered exactly
+            # when MuJoCo suppressed a body pair it merges (leaf <-> operator); leaf <-> leaf2 must stay colliding
+            rl_adjacent = {tuple(sorted(x)) for x in (("base", "carriage"), ("carriage", "leaf"), ("leaf", "operator_pivot"),
+                                                      ("operator_pivot", "operator"), ("leaf", "latch"), ("base", "carriage2"), ("carriage2", "leaf2"))}
+            for a, b in authored_pairs:
+                if (a, b) in rl_adjacent:
+                    R.err(f"filtered pair {a}/{b} is joint-adjacent (PhysX already skips it)")
+            if ("leaf", "leaf2") in authored_pairs:
+                R.err("leaf / leaf2 filtered: MuJoCo collides the two leaves of a pair (that is what latches them)")
         if kind == "full":
             if set(mj_joints) != dof_joint_names:
                 R.err(f"joint names differ from model.json: missing {sorted(set(mj_joints) - dof_joint_names)[:5]} extra {sorted(dof_joint_names - set(mj_joints))[:5]}")
@@ -469,6 +640,38 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
                         R.err(f"{jn}: {an} {arm} != IR armature {jt.get('armature')}")
                 if jt["stiffness"] > 0 and st <= 0:
                     R.err(f"{jn}: spring in the IR but no drive stiffness")
+            # couplings: every bilateral joint equality of model.json is either a PhysX-honoured mimic
+            # (rotational -> rotational) or carries the emulation data
+            meta_couplings = None
+            for k, v in json_attrs.items():
+                if k.endswith("doorbench:couplings"):
+                    meta_couplings = v
+            for e in model_json.get("equalities", []):
+                if e.get("kind") != "joint" or e["a"] not in joints or e["b"] not in joints:
+                    continue
+                dp = joints[e["a"]]
+                rot = mj_joints.get(e["a"], {}).get("type") == "hinge" and mj_joints.get(e["b"], {}).get("type") == "hinge"
+                servoed = all(bool(joints[j].GetAttribute("doorbench:servo_in_drive").Get()) for j in (e["a"], e["b"]))
+                mode = dp.GetAttribute("doorbench:coupling_mode").Get()
+                want_mode = "mimic" if rot else ("servo" if servoed else "emulated")
+                if mode != want_mode:
+                    R.err(f"{e['a']}: coupling mode {mode!r} != {want_mode!r} (driven {mj_joints.get(e['a'], {}).get('type')} <- driver {mj_joints.get(e['b'], {}).get('type')}, servo {servoed})")
+                if dp.GetAttribute("doorbench:coupling_driver").Get() != e["b"]:
+                    R.err(f"{e['a']}: coupling driver {dp.GetAttribute('doorbench:coupling_driver').Get()!r} != {e['b']!r}")
+                c1 = dp.GetAttribute("doorbench:coupling_c1").Get()
+                if c1 is None or abs(float(c1) - float(e["polycoeff"][1])) > 1e-5 * max(1.0, abs(float(e["polycoeff"][1]))):
+                    R.err(f"{e['a']}: coupling c1 {c1} != IR {e['polycoeff'][1]}")
+                # the JSON entry must also carry the law in USD joint coordinates (q_usd = q_db - zero_offset)
+                entry = next((x for x in (meta_couplings or []) if x.get("driven") == e["a"] and x.get("driver") == e["b"]), None)
+                if entry is not None and "coeff_usd" in entry:
+                    off_a, off_b = float(mj_joints[e["a"]]["modeled_at"]), float(mj_joints[e["b"]]["modeled_at"])
+                    want0 = float(e["polycoeff"][0]) + float(e["polycoeff"][1]) * off_b - off_a
+                    if abs(float(entry["coeff_usd"][0]) - want0) > 1e-9 or abs(float(entry["coeff_usd"][1]) - float(e["polycoeff"][1])) > 1e-9:
+                        R.err(f"{e['a']}: coeff_usd {entry['coeff_usd']} != [{want0}, {e['polycoeff'][1]}]")
+                if want_mode == "emulated":
+                    ra = joints[e["b"]].GetAttribute("doorbench:coupling_reflected_armature").Get()
+                    if ra is None or float(ra) <= 0:
+                        R.err(f"{e['b']}: doorbench:coupling_reflected_armature {ra} missing on the driver of an emulated coupling")
             # collision geoms of moving + static bodies
             tier = model_json.get("tier", "full")
             want_coll = 0
@@ -492,9 +695,35 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
             if rl_meta is None:
                 R.err("doorbench:rl meta missing")
             else:
-                for k in ("slots", "door_joint", "sites", "open_threshold", "clear_threshold", "closed_threshold", "joints"):
+                for k in ("slots", "door_joint", "sites", "open_threshold", "clear_threshold", "closed_threshold", "joints",
+                          "welded", "released_parts", "welded_engaged", "released_holding", "env_release", "filtered_pairs"):
                     if k not in rl_meta:
                         R.err(f"doorbench:rl missing {k}")
+                # weld ground truth: every recorded part is a real IR joint, the released/engaged split is consistent
+                # and a released part really sits at its released end (that is what the parity protocol reads)
+                for w in rl_meta.get("welded", []):
+                    src = mj_joints.get(w.get("joint"))
+                    if src is None:
+                        R.err(f"doorbench:rl welded part {w.get('joint')} is not a joint of model.json")
+                        continue
+                    if w.get("released") and src.get("range") is not None:
+                        want = float(src["range"][1] - src["modeled_at"])
+                        if abs(float(w.get("shift", 0.0)) - want) > 1e-6:
+                            R.err(f"doorbench:rl {w['joint']}: released shift {w.get('shift')} != range end offset {want}")
+                    if not w.get("released") and abs(float(w.get("shift", 0.0))) > 1e-12:
+                        R.err(f"doorbench:rl {w['joint']}: welded engaged but shift {w.get('shift')}")
+                rec = {w["joint"] for w in rl_meta.get("welded", [])}
+                for key in ("released_parts", "released_holding", "welded_engaged"):
+                    bad = [w["joint"] for w in rl_meta.get(key, []) if w["joint"] not in rec]
+                    if bad:
+                        R.err(f"doorbench:rl {key} lists parts absent from `welded`: {bad[:4]}")
+                both = {w["joint"] for w in rl_meta.get("released_parts", [])} & {w["joint"] for w in rl_meta.get("welded_engaged", [])}
+                if both:
+                    R.err(f"doorbench:rl parts both released and welded engaged: {sorted(both)[:4]}")
+                if {e.get("name") for e in rl_meta.get("env_release", [])} != set(er_prims):
+                    R.err(f"doorbench:rl env_release {sorted(e.get('name') for e in rl_meta.get('env_release', []))} != authored joints {sorted(er_prims)}")
+                if {tuple(x) for x in rl_meta.get("filtered_pairs", [])} != authored_pairs:
+                    R.err(f"doorbench:rl filtered_pairs {rl_meta.get('filtered_pairs')} != authored {sorted(authored_pairs)}")
                 if rl_meta.get("slots", {}).get("door") not in ("hinge", "slide"):
                     R.err("doorbench:rl door slot invalid")
                 dj = rl_meta.get("door_joint")

@@ -137,6 +137,13 @@ class DoorState:
         # Coulomb joint friction: make sure PhysX holds the authored efforts (Isaac Sim >= 5 exposes the static effort
         # as joint_friction_coeff; a parser that dropped the per-axis API would leave every joint frictionless)
         self._ensure_joint_friction(metas)
+        # environment-released locks (mag lock / delayed egress / electric bolt / interlock): a real breakable
+        # FixedJoint in the USD that this class enables / disables, instead of nothing at all
+        self.env_lock_engaged = torch.zeros(N, dtype=torch.bool, device=dev)
+        self._collect_env_release(metas)
+        self.env_lock_engaged |= self.has_env_release
+        # bilateral couplings PhysX drops (prismatic mimic joints); the driver keeps the reaction
+        self._collect_couplings(metas)
         self.auto_open = f(lambda m: ((m.get("actuators") or [{}])[0].get("ctrlrange") or [0, 0])[1], 0.0)
         self.auto_speed = torch.where(self.is_hinge, torch.full((N,), 0.6, device=dev), torch.full((N,), 0.3, device=dev))
         self.auto_range = 1.8
@@ -218,6 +225,7 @@ class DoorState:
         stage = self.env.scene.stage
         prim_expr = self.door.cfg.prim_path  # e.g. /World/envs/env_.*/Door
         metas = []
+        self.door_prim_paths = []
         for k, env_path in enumerate(self.env.scene.env_prim_paths):
             path = prim_expr.replace("{ENV_REGEX_NS}", env_path)
             path = re.sub(r"env_\.\*", env_path.split("/")[-1], path)
@@ -225,8 +233,138 @@ class DoorState:
             attr = prim.GetAttribute("doorbench:rl") if prim.IsValid() else None
             if attr is None or not attr.IsValid() or not attr.Get():
                 raise RuntimeError(f"door prim {path} has no doorbench:rl attribute (spawn door_rl.usda from DoorBench, regenerate with scripts/generate_dataset.py)")
+            self.door_prim_paths.append(path)
             metas.append(json.loads(attr.Get()))
         return metas
+
+    # ------------------------------------------------------------------ environment-released locks
+    def _collect_env_release(self, metas: list[dict]):
+        """Breakable FixedJoints of environment-released locks (mag lock, delayed egress, electric bolt, interlock).
+
+        ``doorbench/export/usd.py`` authors them base -> leaf with ``physics:excludeFromArticulation`` so PhysX
+        solves them as a loop joint, ``physics:breakForce = breakTorque = holding_force_N`` (the leaf breaks free
+        under an excessive push, as ``DoorEnv._lock_logic`` does) and ``physics:jointEnabled``, which is what a badge
+        / REX press / delayed-egress timeout clears - the counterpart of MuJoCo's ``d.eq_active[eid] = 0``."""
+        self.env_release_joints = []          # per env: [(prim, holding_force_N)]
+        stage = self.env.scene.stage
+        n = 0
+        for k, m in enumerate(metas):
+            rows = []
+            for e in m.get("env_release", []) or []:
+                prim = stage.GetPrimAtPath(f"{self.door_prim_paths[k]}/Articulation/Joints/{e['joint_name']}")
+                if prim.IsValid():
+                    rows.append((prim, float(e.get("holding_force_N") or 0.0)))
+                    n += 1
+            self.env_release_joints.append(rows)
+        self.has_env_release = torch.tensor([bool(r) for r in self.env_release_joints], device=self.device)
+        self.n_env_release = n
+
+    def _warn_if_usd_writes_do_not_reach_physx(self):
+        """A runtime write to ``physics:jointEnabled`` only reaches PhysX while the USD stage is the source of truth.
+
+        Isaac Lab's ``SimulationCfg.use_fabric`` defaults to True: physics state then lives in Fabric and the USD
+        stage is synchronised for rendering only, so setting an attribute on the prim changes nothing in the solver
+        and the mag lock would stay engaged for ever - silently, because the attribute reads back the value we
+        wrote.  This cannot be tested without Isaac Sim, so it is checked at the moment of use and says so out loud
+        instead of failing quietly.  Fixes, in order of preference: toggle the joint through the PhysX SDK, or set
+        ``sim.use_fabric = False`` on a task that uses ``mdp.release_env_lock``.
+        """
+        if getattr(self, "_env_lock_warned", False):
+            return
+        self._env_lock_warned = True
+        fabric = None
+        for owner in (getattr(self.env, "sim", None), getattr(self.env, "cfg", None)):
+            cfg = getattr(owner, "cfg", owner)
+            if cfg is not None and hasattr(cfg, "use_fabric"):
+                fabric = bool(cfg.use_fabric)
+                break
+            sim_cfg = getattr(cfg, "sim", None)
+            if sim_cfg is not None and hasattr(sim_cfg, "use_fabric"):
+                fabric = bool(sim_cfg.use_fabric)
+                break
+        if fabric is not False:
+            print(f"[doorbench] WARNING: releasing an environment lock writes physics:jointEnabled on the USD prim, "
+                  f"and this simulation runs with use_fabric={fabric} (None = could not tell). With Fabric on, PhysX "
+                  f"does not read that write and the {self.n_env_release} env-release joint(s) stay engaged. Verify "
+                  f"the leaf actually swings after mdp.release_env_lock, or set sim.use_fabric = False.")
+
+    def set_env_lock(self, env_ids=None, enabled: bool = True):
+        """Enable / disable the environment-released locks of those envs (``physics:jointEnabled``).
+
+        Disabling is the release: badge presented, REX button pressed, delayed-egress timer expired, interlock
+        satisfied.  ``reset_door`` re-enables them so the next episode starts locked again.
+
+        See ``_warn_if_usd_writes_do_not_reach_physx``: whether this write reaches the solver depends on the sim
+        running without Fabric, which is the one thing about the env-release joint that no static check can settle.
+        """
+        if not getattr(self, "n_env_release", 0):
+            return
+        if not enabled:
+            self._warn_if_usd_writes_do_not_reach_physx()
+        ids = range(self.N) if env_ids is None else [int(i) for i in env_ids]
+        for k in ids:
+            for prim, _ in self.env_release_joints[k]:
+                attr = prim.GetAttribute("physics:jointEnabled")
+                if attr and attr.IsValid():
+                    attr.Set(bool(enabled))
+        self.env_lock_engaged[list(ids)] = bool(enabled)
+
+    # ------------------------------------------------------------------ bilateral couplings
+    def _collect_couplings(self, metas: list[dict]):
+        """Couplings between two canonical joints that PhysX cannot represent (``mode == "emulated"``).
+
+        ``PhysxMimicJointAPI`` supports rotational axes only, so a prismatic coupling is dropped silently; the
+        exporter writes the coupling law plus the driven DOF's effective inertia, passive law and gravity bias into
+        ``doorbench:rl["couplings"]`` instead.  ``DoorMechanismAction`` tracks the driven joint AND puts the reaction
+        ``c1 * tau_driven_ext`` on the driver (a pure kinematic write applies no reaction: the driver would lose the
+        coupled part's weight and friction).  ``mode == "servo"`` couplings (the two leaves of an automatic
+        bi-parting slider) are left to the drives: both joints carry their own MJCF position servo."""
+        rows = []
+        for k, m in enumerate(metas):
+            for c in m.get("couplings", []) or []:
+                if c.get("mode") != "emulated":
+                    continue
+                da, db = c.get("driven_slot"), c.get("driver_slot")
+                if da not in self.j or db not in self.j:
+                    continue
+                # PhysX joint positions are USD coordinates (q_usd = q_db - zero_offset); the exporter precomputes
+                # the same law in those coordinates as ``coeff_usd``
+                cu = c.get("coeff_usd") or c["coeff"]
+                rows.append({"env": k, "ia": self.j[da], "ib": self.j[db], "c0": float(cu[0]), "c1": float(cu[1]),
+                             "k": float(c.get("driven_stiffness") or 0.0), "d": float(c.get("driven_damping") or 0.0),
+                             "target": float(c.get("driven_target") or 0.0), "friction": float(c.get("driven_friction") or 0.0),
+                             "bias": float(c.get("driven_gravity_bias") or 0.0), "eps": float(c.get("friction_vel_eps") or 1e-3),
+                             "lo": (c.get("driven_range") or [-1e9, 1e9])[0], "hi": (c.get("driven_range") or [-1e9, 1e9])[1],
+                             "order": int(c.get("chain_order") or 0)})
+        rows.sort(key=lambda r: r["order"])
+        self.couplings = rows
+        # the driver of an emulated coupling carries the reflected inertia c1^2 * I_driven, which MuJoCo's equality
+        # gives it for free; write it into the driver's armature once
+        extra = {}
+        for k, m in enumerate(metas):
+            for slot, val in (m.get("coupling_reflected_armature") or {}).items():
+                if slot in self.j and float(val) > 0:
+                    extra[(k, self.j[slot])] = float(val)
+        # a driven joint is no longer a free DoF (its state is written every step) and its spring / damping are
+        # reflected onto the driver analytically, so switch its own PhysX drive off (the authored gains stay)
+        if rows and hasattr(self.door, "write_joint_stiffness_to_sim"):
+            k = self.door.data.joint_stiffness.clone()
+            d = self.door.data.joint_damping.clone()
+            for r in rows:
+                k[r["env"], r["ia"]] = 0.0
+                d[r["env"], r["ia"]] = 0.0
+            self.door.write_joint_stiffness_to_sim(k)
+            self.door.write_joint_damping_to_sim(d)
+        if extra and hasattr(self.door, "write_joint_armature_to_sim"):
+            arm = getattr(self.door.data, "joint_armature", None)
+            if arm is None:
+                arm = getattr(self.door.data, "default_joint_armature", None)
+            if arm is not None:
+                want = arm.clone()
+                for (k, i), v in extra.items():
+                    want[k, i] = want[k, i] + v
+                self.door.write_joint_armature_to_sim(want)
+        self.coupling_reflected = extra
 
     # ------------------------------------------------------------------ per-step update
     def update(self):

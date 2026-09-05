@@ -24,9 +24,26 @@ FOLD_FLOOR_GAP = 0.02      # panel bottoms above the floor
 FOLD_HINGE_GAP = 0.002     # panel edge set back from the hinge axis on each side (the knuckle sits in the gap)
 FOLD_PIVOT_MAX_DEG = 85.0  # pivot travel at the stack: adjacent panels fold to 170 deg (knuckles / edges stop them short of flat)
 FOLD_PIVOT_IN = 0.035      # jamb pivot pin inside the pivot panel's edge
-FOLD_JAMB_GAP = 0.005      # pivot panel edge to the pivot jamb (closed)
+FOLD_JAMB_GAP = 0.005      # smallest pivot panel edge to pivot jamb gap (closed); fold_jamb_gap() widens it for thick panels
+FOLD_RUN_CLEAR = 0.003     # running clearance the pivot panel's heel keeps from the pivot jamb all through the fold
 FOLD_LEAD_GAP = 0.006      # minimum lead edge to strike jamb gap (closed); half of it per leaf when two stacks meet
 FOLD_LEAD_MARGIN = 0.003   # clearance kept beyond the lead excursion
+
+
+def fold_jamb_gap(t: float, pivot_in: float = FOLD_PIVOT_IN, clear: float = FOLD_RUN_CLEAR) -> float:
+    """Closed gap between the pivot panel's heel edge and the pivot jamb, for a panel of thickness t.
+
+    The panel turns on a pin set ``pivot_in`` inside its heel edge, so the heel CORNER - half a thickness off the
+    panel centre plane - sweeps a circle of radius hypot(pivot_in - gap, t/2) about that pin, while the jamb face
+    stays ``pivot_in`` from it.  The corner therefore clears the jamb by ``pivot_in - radius``, which a flat 5 mm
+    gap left at 0.3 mm for 35 mm panels (and would have driven negative for thicker ones): the heel scrapes the
+    jamb and the wall return through the whole fold.  Solve the clearance instead:
+
+        pivot_in - hypot(pivot_in - gap, t/2) >= clear   <=>   gap >= pivot_in - sqrt((pivot_in - clear)^2 - (t/2)^2)
+    """
+    r2 = (pivot_in - clear) ** 2 - (t / 2.0) ** 2
+    need = pivot_in - math.sqrt(r2) if r2 > 0.0 else pivot_in
+    return max(FOLD_JAMB_GAP, need + 0.0005)
 
 
 def fold_coupling(k: int) -> float:
@@ -67,9 +84,10 @@ def fold_opening_width(W: float, n: int, n_groups: int, t: float) -> float:
     """Clear opening width for n panels of width W in n_groups stacks: a pivot-jamb gap per stack plus the lead gap
     (one stack: at the strike jamb; two stacks: the meeting gap at the centre)."""
     per = n // n_groups
+    jg = fold_jamb_gap(t)
     if n_groups == 1:
-        return n * W + FOLD_JAMB_GAP + fold_lead_gap(per, W, t)
-    return n * W + 2 * FOLD_JAMB_GAP + 2 * fold_meeting_gap(per, W, t)
+        return n * W + jg + fold_lead_gap(per, W, t)
+    return n * W + 2 * jg + 2 * fold_meeting_gap(per, W, t)
 
 
 def fold_opening_height(Hh: float) -> float:

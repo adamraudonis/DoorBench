@@ -17,6 +17,17 @@ failure.  Sweeps:
                            coupling pushes against locks the mechanism - the accordion folds of 2026-09)
 
 Hinge knuckles/leaves are allowed a larger overlap (they are mortised into leaf and jamb by design).
+
+The second gate in this module is the RUNNING CLEARANCE gate (``Clearance.run_running``, published as
+``checks["running_clearance"]``): the same sweeps, but it measures the *gap* instead of the overlap.  A part
+authored EXACTLY touching a static member (0.000 m) passes the penetration gate above - MuJoCo with margin 0
+never generates a force for it - while PhysX creates and resolves contacts inside its contact offset (the USD
+export sets ``physxCollision:contactOffset`` 5 mm), so the same door jams, drifts or explodes in Isaac Sim; and a
+real door does not touch its frame anyway, it runs 3-5 mm clear at the jambs and head, 6-20 mm above the floor and
+10-20 mm clear on a revolving/turnstile rotor.  Scope: MOVING geom vs STATIC (world-welded) geom, and only geoms
+that are simulated colliders in both engines - visual-only trim cannot jam anything, and its overlap is the
+penetration gate's business.  See ``required_gap`` for the per-pair minimum and the seal / bearing / latch
+allow-list.
 """
 from __future__ import annotations
 
@@ -46,13 +57,45 @@ FRAME_LIKE = ("frame", "latch", "lock", "wall", "track")
 HARDWARE = ("operator", "latch", "lock", "mechanism", "closer", "track", "hinge")
 
 
-def gate_model(xml_path: str):
+# ---------------------------------------------------------------------------
+# running clearance: what a moving part must keep between itself and static structure
+# ---------------------------------------------------------------------------
+RUN_MARGIN = 0.025     # m; contact margin the gap scan runs with (must exceed every required minimum below)
+RUN_MIN = 0.003        # m; structural running clearance: leaf/panel edge to jamb, head, casing, track (real doors 3-5 mm)
+RUN_MIN_FLOOR = 0.006  # m; undercut under a moving leaf / panel (real doors 6-20 mm; 6 mm is a tight carpet-less undercut)
+RUN_MIN_ROTOR = 0.010  # m; revolving canopy / turnstile rotor running clearance (real 10-20 mm), via meta["running_clearance_min"]
+RUN_EPS = 1e-5         # m; float slack on the comparison, not on the requirement.  mj_geomDistance itself is exact to
+#                        well under a micron on these shapes (measured), but a part authored at exactly the minimum
+#                        reaches the query as 0.0029999999999999947 after the kinematic chain, so a strict "<" would
+#                        make the design value a coin flip.  0.01 mm is four orders above that float noise and four
+#                        orders below the 3 mm it guards: nothing physical hides inside it.
+# semantics whose members touch or compress BY DESIGN and therefore need no running gap:
+#   seal      weatherstrip / brush seal / gasket / sweep - it is *meant* to be in contact
+#   hinge     knuckles, pins, pivots, bearings - a bearing surface carries the leaf
+#   latch/lock  a bolt seats in its strike / keeper; a hook drops on its keep
+#   closer    the closer arm and its foot plate are bolted to the frame
+#   mechanism spindles, shafts, drums running in their static housings
+#   sensor    wall readers / REX plates the leaf hardware sweeps past on its mount
+RUN_TOUCH_SEM = ("seal", "hinge", "latch", "lock", "closer", "mechanism", "sensor")
+# structural members: everything here has to run clear of everything else here
+RUN_STRUCT_SEM = ("leaf", "glass", "frame", "wall", "floor", "decor", "track", "operator")
+# ... except the names below, which are contact faces even though they are modelled as frame/decor:
+#   *stop*     the leaf closes ONTO the stop / bumper / floor stop - that contact is the door being shut
+#   *bumper*   wall and rail bumpers exist to be hit
+#   *threshold*/*sill*/*saddle*  the sill carries the door's sweep seal
+#   *_seal*/*gasket*/*brush*/*sweep*/*astragal*  soft parts, whatever semantic they were given
+RUN_TOUCH_NAME = ("*stop*", "*bumper*", "*threshold*", "*sill*", "*saddle*", "*seal*", "*gasket*", "*weatherstrip*",
+                  "*brush*", "*sweep*", "*astragal*", "*_pad*", "*catch*", "*keeper*", "*strike*", "*boss*", "*bearing*",
+                  "*pivot*", "*roller*", "*glide*", "*guide*", "*_shoe*", "*caster*", "*wheel*")
+
+
+def gate_model(xml_path: str, margin: float = 0.0):
     import mujoco
     spec = mujoco.MjSpec.from_file(xml_path)
     for g in spec.geoms:
         g.contype = 1
         g.conaffinity = 1
-        g.margin = 0.0
+        g.margin = margin
     spec.option.disableflags |= int(mujoco.mjtDisableBit.mjDSBL_FILTERPARENT)
     return spec.compile()
 
@@ -107,6 +150,15 @@ def _semantics(model_json: dict) -> Dict[str, str]:
     return out
 
 
+def _collision(model_json: dict) -> Dict[str, bool]:
+    """Which geoms are actually simulated colliders (MJCF contype/conaffinity 1, USD CollisionAPI)."""
+    out = {}
+    for b in model_json["bodies"]:
+        for g in b["geoms"]:
+            out[g["name"]] = bool(g.get("collision", True))
+    return out
+
+
 class Clearance:
     def __init__(self, door_dir: str, tier: str = "full"):
         import mujoco
@@ -119,6 +171,10 @@ class Clearance:
             mj_ = json.load(f)
         self.meta = mj_["meta"]
         self.allow = list(DEFAULT_ALLOW) + [tuple(a[:2]) for a in self.meta.get("clearance_allow", [])]
+        # running-clearance exceptions: a pair allowed to interpenetrate is certainly allowed to touch, plus the
+        # model's own documented [g1, g2, reason] entries
+        self.run_allow = list(self.allow) + [tuple(a[:2]) for a in self.meta.get("running_clearance_allow", [])]
+        self.run_min = max(RUN_MIN, float(self.meta.get("running_clearance_min", 0.0)))
         self.locked_shut = False
         try:
             with open(os.path.join(door_dir, "spec.json")) as f:
@@ -128,10 +184,22 @@ class Clearance:
             pass
         self.joints = _joint_info(mj_)
         self.sem = _semantics(mj_)
+        self.collide = _collision(mj_)
         m = self.m
         self.jid = {mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_JOINT, j): j for j in range(m.njnt)}
         self.gname = [mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, g) for g in range(m.ngeom)]
         self.bname = [mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_BODY, b) for b in range(m.nbody)]
+        # a geom is STATIC when its body is welded to the world (no joint anywhere up the chain)
+        self.static = np.asarray(m.body_weldid)[np.asarray(m.geom_bodyid)] == 0
+        # the running-clearance gate only looks at simulated colliders: those are the geoms both MuJoCo and PhysX
+        # resolve contacts for, and a PhysX contact offset can only bite on a collider.  Visual-only trim (casings,
+        # visual weatherstrips) is the penetration gate's business, not this one.
+        col = np.array([bool(self.collide.get(n, True)) for n in self.gname])
+        self.static_ids = np.flatnonzero(self.static & col)
+        self.moving_ids = np.flatnonzero(~self.static & col)
+        # bounding radii for the gap prefilter; a plane has rbound 0 but unbounded extent
+        self.rbound = np.array(m.geom_rbound, dtype=float)
+        self.rbound[np.asarray(m.geom_type) == int(mujoco.mjtGeom.mjGEOM_PLANE)] = 1e6
         # fixed tendons (one-sided couplings): list of (range_lo, [(qadr, coef)])
         self.tendons = []
         for t in range(m.ntendon):
@@ -225,6 +293,98 @@ class Clearance:
             return 1e9
         return TOL
 
+    # ---- running clearance (moving part vs static structure) --------------------------------------------
+    def required_gap(self, gm: str, gs: str) -> float:
+        """Running clearance (m) required between MOVING geom ``gm`` and STATIC geom ``gs``; 0.0 = may touch.
+
+        The allow-list is driven by geom semantics (a seal is meant to be squashed, a bearing is meant to carry the
+        leaf, a bolt is meant to seat in its strike), by the names of the parts that are contact faces whatever
+        semantic they carry (stops, bumpers, thresholds, rollers/glides in their tracks), and by the model's own
+        ``meta["running_clearance_allow"]`` entries ``[geom_a, geom_b, reason]``.  Everything structural that is
+        left over is a running fit and needs a real gap."""
+        for pa, pb in self.run_allow:
+            if (fnmatch.fnmatch(gm, pa) and fnmatch.fnmatch(gs, pb)) or (fnmatch.fnmatch(gm, pb) and fnmatch.fnmatch(gs, pa)):
+                return 0.0
+        sm, ss = self.sem.get(gm, ""), self.sem.get(gs, "")
+        if sm in RUN_TOUCH_SEM or ss in RUN_TOUCH_SEM:
+            return 0.0
+        if sm not in RUN_STRUCT_SEM or ss not in RUN_STRUCT_SEM:
+            return 0.0
+        for n in (gm, gs):
+            if any(fnmatch.fnmatch(n, p) for p in RUN_TOUCH_NAME):
+                return 0.0
+        if sm == "track" and ss == "track":
+            return 0.0          # running gear (roller / hanger / glide) rides in its own rail by design
+        if sm == "floor" or ss == "floor":
+            return RUN_MIN_FLOOR
+        return self.run_min
+
+    def gaps(self, q: np.ndarray) -> List[Tuple[str, str, float]]:
+        """(moving geom, static geom, signed distance) for every moving-vs-static pair within ``RUN_MARGIN``.
+
+        ``mj_geomDistance`` (libccd/GJK) rather than the contact set: a contact is only *generated* when the
+        narrow-phase routine for that shape pair converges, and exactly-touching coaxial faces - precisely the
+        defect this gate hunts - are the case it can miss (two full-height turnstiles whose rotor column ends flush
+        on the cage roof produced no contact at all at margin 25 mm, while the other eight did).  A distance query
+        has no such blind spot.  A cheap bounding-sphere prefilter keeps it to the pairs that can matter."""
+        m, d, mujoco = self.m, self.d, self.mj
+        d.qpos[:] = q
+        mujoco.mj_kinematics(m, d)
+        pos = np.asarray(d.geom_xpos)
+        out = []
+        for gi in self.moving_ids:
+            sep = np.linalg.norm(pos[self.static_ids] - pos[gi], axis=1) - self.rbound[self.static_ids] - self.rbound[gi]
+            for gj in self.static_ids[sep < RUN_MARGIN]:
+                dist = float(mujoco.mj_geomDistance(m, d, int(gi), int(gj), RUN_MARGIN, None))
+                if dist < RUN_MARGIN:
+                    out.append((self.gname[gi], self.gname[int(gj)], dist))
+        return out
+
+    def run_running(self, n_steps: int = 12, record_all: bool = False) -> dict:
+        """Sweep every leaf joint and measure the smallest gap each moving-vs-static pair ever reaches.
+
+        A pair that comes closer than ``required_gap`` - at rest or anywhere in the travel - is a failure: MuJoCo
+        with margin 0 shrugs at a 0.000 m touch, PhysX resolves it inside its contact offset and the door jams,
+        drifts or explodes, and a real door has running clearance there."""
+        m = self.m
+        best: Dict[Tuple[str, str], Tuple[float, str, float]] = {}
+
+        def record(config: str, qv: float, q: np.ndarray):
+            for gm, gs, dist in self.gaps(q):
+                key = (gm, gs)
+                if key not in best or dist < best[key][0]:
+                    best[key] = (dist, config, float(qv))
+
+        base = m.qpos0.copy()
+        record("rest", 0.0, self.resolve(base.copy()))
+        released = self.released_qpos()
+        leaf_joints = [n for n, j in self.joints.items() if j.get("role") in LEAF_ROLES and n in self.jid]
+        for jn in leaf_joints:
+            j = self.jid[jn]
+            lo, hi = (m.jnt_range[j] if m.jnt_limited[j] else (-math.pi, math.pi))
+            if hi - lo < 1e-6:
+                continue
+            for k in range(n_steps + 1):
+                qv = lo + (hi - lo) * k / n_steps if n_steps else lo   # n_steps=0: the closed pose only
+                q = released.copy()
+                q[m.jnt_qposadr[j]] = qv
+                record(f"open:{jn}", qv, self.resolve(q))
+        pairs, fails = [], []
+        for (gm, gs), (dist, config, qv) in best.items():
+            need = self.required_gap(gm, gs)
+            rec = {"moving": gm, "static": gs, "gap": round(dist, 5), "required": need, "config": config, "q": round(qv, 4),
+                   "sem": [self.sem.get(gm, ""), self.sem.get(gs, "")],
+                   "bodies": [self.bname[m.geom_bodyid[m.geom(gm).id]], self.bname[m.geom_bodyid[m.geom(gs).id]]]}
+            if record_all:
+                pairs.append(rec)
+            if need > 0 and dist < need - RUN_EPS:
+                fails.append(rec)
+        fails.sort(key=lambda f: f["gap"] - f["required"])
+        out = {"ok": not fails, "n_failures": len(fails), "failures": fails[:40], "n_pairs": len(best)}
+        if record_all:
+            out["pairs"] = sorted(pairs, key=lambda p: p["gap"])
+        return out
+
     # ---- the gate ---------------------------------------------------------------------------------------
     def run(self, n_steps: int = 24) -> dict:
         m = self.m
@@ -250,7 +410,7 @@ class Clearance:
             if hi - lo < 1e-6:
                 continue
             for k in range(n_steps + 1):
-                qv = lo + (hi - lo) * k / n_steps
+                qv = lo + (hi - lo) * k / n_steps if n_steps else lo   # n_steps=0: the closed pose only
                 q = released.copy()
                 q[m.jnt_qposadr[j]] = qv
                 record(f"open:{jn}", jn, qv, self.contacts(self.resolve(q), lambda a, b: self.tol_for(a, b, ignore_blocking=self.locked_shut)))
@@ -278,8 +438,24 @@ class Clearance:
         return {"ok": len(fails) == 0, "n_failures": len(fails), "failures": fails[:40], "leaf_joints": leaf_joints, "mech_joints": mech_joints}
 
 
-def run_clearance(door_dir: str, tier: str = "full", n_steps: int = 24) -> dict:
+def run_clearance(door_dir: str, tier: str = "full", n_steps: int = 24, run_steps: int = 12) -> dict:
+    """Both geometric gates off one compiled model: interpenetration (``run``) and running clearance (``run_running``).
+
+    The running-clearance result is nested under ``["running"]`` and surfaced by qa.py as ``checks["running_clearance"]``."""
     try:
-        return Clearance(door_dir, tier).run(n_steps)
+        c = Clearance(door_dir, tier)
+        out = c.run(n_steps)
+        out["running"] = c.run_running(run_steps)
+        return out
     except Exception as e:  # a gate that cannot run is a failure, not a pass
-        return {"ok": False, "n_failures": 1, "failures": [{"geoms": [], "depth": 0.0, "config": "error", "joint": "", "q": 0.0, "bodies": [], "error": f"{type(e).__name__}: {e}"}]}
+        err = f"{type(e).__name__}: {e}"
+        return {"ok": False, "n_failures": 1, "failures": [{"geoms": [], "depth": 0.0, "config": "error", "joint": "", "q": 0.0, "bodies": [], "error": err}],
+                "running": {"ok": False, "n_failures": 1, "n_pairs": 0, "failures": [{"moving": "", "static": "", "gap": 0.0, "required": 0.0, "config": "error", "q": 0.0, "sem": [], "bodies": [], "error": err}]}}
+
+
+def run_running_clearance(door_dir: str, tier: str = "full", n_steps: int = 12, record_all: bool = False) -> dict:
+    try:
+        return Clearance(door_dir, tier).run_running(n_steps, record_all=record_all)
+    except Exception as e:
+        return {"ok": False, "n_failures": 1, "n_pairs": 0,
+                "failures": [{"moving": "", "static": "", "gap": 0.0, "required": 0.0, "config": "error", "q": 0.0, "sem": [], "bodies": [], "error": f"{type(e).__name__}: {e}"}]}

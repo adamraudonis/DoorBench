@@ -66,8 +66,12 @@ card readers (`env.badge()`), delayed egress timers, maglock breakaway, elevator
 * **USD** (`door.usda`): default prim `/<door_id>`, static `Env`, `Articulation` with a fixed `base` link; `UsdPhysics`
   revolute/prismatic joints (q = 0 at the spec's initial state, `doorbench:zero_offset` = MJCF `ref`) with force drives
   carrying closer / latch / return springs (`stiffness`/`damping`/`targetPosition`), Coulomb friction efforts
-  (`physxJointAxis:*:staticFrictionEffort`), `physxJoint:armature`, `PhysxMimicJointAPI` couplings and a JSON string
-  `doorbench:couplings` on the root prim.  Mass properties are explicit (`MassAPI`).  `door_rl.usda` maps every door onto
+  (`physxJointAxis:*:staticFrictionEffort`), `physxJoint:armature`, `PhysxMimicJointAPI` couplings where PhysX honours
+  them (rotational -> rotational; the rest carry `doorbench:coupling_*` emulation data) and JSON strings
+  `doorbench:couplings` / `doorbench:env_release` / `doorbench:filtered_pairs` on the root prim.  Environment-released
+  locks (mag lock, delayed egress, electric bolt, interlock) are breakable `FixedJoint`s with
+  `physics:excludeFromArticulation` and `breakForce` = the holding force; self-collision is enabled with
+  `PhysxFilteredPairsAPI` reproducing MuJoCo's contact filter.  Mass properties are explicit (`MassAPI`).  `door_rl.usda` maps every door onto
   the same canonical articulation (see [ISAAC_LAB.md](ISAAC_LAB.md)); `assets/usd_validation.json` is the static
   validation report of both files for all doors.
 

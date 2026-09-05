@@ -9,7 +9,7 @@ from ..ir import (Body, Geom, Joint, Site, Equality, Tendon, Model, ALL_TIERS, F
                   quat_from_axis_angle, quat_z_to)
 from .. import materials as M
 from .. import hardware as H
-from ..folding import (FOLD_TRACK_H, FOLD_TRACK_GAP, FOLD_FLOOR_GAP, FOLD_HINGE_GAP, FOLD_PIVOT_MAX_DEG, FOLD_PIVOT_IN, FOLD_JAMB_GAP,
+from ..folding import (FOLD_TRACK_H, FOLD_TRACK_GAP, FOLD_FLOOR_GAP, FOLD_HINGE_GAP, FOLD_PIVOT_MAX_DEG, FOLD_PIVOT_IN, FOLD_JAMB_GAP, fold_jamb_gap,
                        fold_coupling, fold_hinge_range, fold_lead_gap, fold_meeting_gap, fold_groups)
 from . import common as C
 from . import meshes as MESH
@@ -173,9 +173,17 @@ def build_sliding(spec, phys, model: Model):
         # two leaves meeting at center, moving apart
         leaf_defs = [("leaf_a", -1.0, -W / 2, y_leaf), ("leaf_b", 1.0, W / 2, y_leaf)]
     elif fam == "sliding_bypass":
+        # The leaves share the opening on parallel tracks and overlap; both END leaves keep a real running clearance
+        # to their jamb, closed AND at the end of their travel (they used to be authored flush on the jamb face -
+        # 0.000 m - which MuJoCo at margin 0 ignores and PhysX resolves inside its contact offset).  The spec sizes
+        # the opening with 10 mm of slack for exactly this; spend it as C.GAP per jamb and put the rest in the
+        # leaf-to-leaf overlap.
+        bypass_span = Wo - 2 * C.GAP                  # the run the leaves may occupy
+        bypass_pitch = (bypass_span - W) / max(n - 1, 1)
+        bypass_travel = bypass_span - W - BYPASS_END_STOP   # the track end stop, not the jamb, ends the stroke
         leaf_defs = []
         for k in range(n):
-            xc = -Wo / 2 + W / 2 + k * (W - 0.03)
+            xc = -Wo / 2 + C.GAP + W / 2 + k * bypass_pitch
             yk = y_leaf + (k - (n - 1) / 2) * (t + 0.05) * (1 if n > 1 else 0)   # one track per leaf
             leaf_defs.append((f"leaf_{k}", 1.0 if k % 2 == 0 else -1.0, xc, yk))
     elif fam in ("sliding_single", "automatic_sliding") and fixed_panel and not center:
@@ -195,11 +203,15 @@ def build_sliding(spec, phys, model: Model):
             zb = op.get("ground_clearance", 0.08)
         if fam not in ("gate_sliding",) and track != "wood_groove_bottom" and zb + Hh > Ho - 0.004:
             zb = max(0.005, Ho - 0.004 - Hh)
-        tr = travel if fam != "sliding_bypass" else W - 0.03
+        tr = travel if fam != "sliding_bypass" else bypass_travel
         j = slide_joint(spec, phys, (dir_, 0, 0), tr, f"{name}_slide")
         if fam == "sliding_bypass":
-            j.range = (-(W - 0.03), W - 0.03) if 0 < leaf_defs.index((name, dir_, xc, yl)) < n - 1 else ((0.0, W - 0.03) if leaf_defs.index((name, dir_, xc, yl)) == 0 else (0.0, W - 0.03))
-            j.axis = (1.0, 0, 0) if leaf_defs.index((name, dir_, xc, yl)) == 0 else (-1.0, 0, 0)
+            # leaf 0 runs to the far jamb (+x), every other leaf runs back to the near jamb (-x); both are brought up
+            # by the track end stop BYPASS_END_STOP short of the jamb's running clearance, so a hard push cannot
+            # drive the leaf edge into the jamb through the joint limit's compliance
+            k_ = leaf_defs.index((name, dir_, xc, yl))
+            j.range = (0.0, bypass_travel if k_ == 0 else k_ * bypass_pitch - BYPASS_END_STOP)
+            j.axis = (1.0, 0, 0) if k_ == 0 else (-1.0, 0, 0)
         b.joint = j
         model.add_body(b)
         C.add_leaf_geoms(model, b, spec, leaf, 1.0, -W / 2, zb, phys, name_prefix=name)
@@ -436,7 +448,7 @@ def build_folding(spec, phys, model: Model):
             if k == 0:
                 b = Body(name, None, (hx, 0, 0), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Fold panel")
                 j = Joint(f"{name}_hinge", "hinge", (0, 0, u * v), (u * FOLD_PIVOT_IN, 0, 0), (0.0, q_max), damping=rf["viscous_damping_N_s_per_m"] * 0.2 + 0.2, frictionloss=rf["coulomb_force_N"] * 0.3 + 0.1, armature=0.005, role="primary", label="Pivot panel (0 = closed, + = folding open)")
-                x_a = FOLD_JAMB_GAP
+                x_a = fold_jamb_gap(t)
             else:
                 c = fold_coupling(k)
                 side = 1.0 if v * c > 0 else -1.0      # the panel swings to +/-y: the hinge axis is on that face of both panels
@@ -483,6 +495,11 @@ def build_folding(spec, phys, model: Model):
 # Rotors: revolving door, turnstiles
 # ---------------------------------------------------------------------------
 REVOLVING_RUN_CLEAR = 0.015   # m; running clearance between the rotor top (rails / stiles / shaft) and the canopy ceiling
+BYPASS_END_STOP = 0.020       # m; rubber track end stop that brings a bypass leaf up short of the jamb
+HATCH_HINGE_OUT = 0.010       # m; hatch hinge barrel outboard of the curb's inner face (surface hinge on the curb)
+ROLLUP_ASTRAGAL = 0.012       # m; rubber bottom seal under a roll-up curtain's steel bottom bar
+ROTOR_RUN_CLEAR = 0.015       # m; running clearance at the ends of a full-height turnstile rotor column (roof / floor)
+ROTOR_MIN_CLEAR = 0.010       # m; what the running-clearance gate demands of a rotor (real revolving / turnstile: 10-20 mm)
 
 
 def build_revolving(spec, phys, model: Model):
@@ -545,7 +562,8 @@ def build_revolving(spec, phys, model: Model):
             rotor.geoms.append(Geom(f"wing_{k}_bar", "capsule", (0.012, 0.15), (xb + nx * (t / 2 + 0.05), yb + ny * (t / 2 + 0.05), 1.0), (1, 0, 0, 0), pm, True, True, 7900, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Push bar"))
             rotor.sites.append(Site(f"wing_{k}_push", (xb + nx * (t / 2 + 0.05), yb + ny * (t / 2 + 0.05), 1.0), QUAT_ID, 0.015, "push"))
     _sites(world, Hh, -R - 1.0, R + 1.0)
-    model.meta.update({"primary_joint": "rotor_hinge", "operator_joint": None, "handle_height": 1.0, "drum_diameter": D})
+    model.meta.update({"primary_joint": "rotor_hinge", "operator_joint": None, "handle_height": 1.0, "drum_diameter": D,
+                       "running_clearance_min": ROTOR_MIN_CLEAR})
     return rotor
 
 
@@ -592,7 +610,8 @@ def build_turnstile(spec, phys, model: Model, full_height=False):
         world.sites.append(Site("approach_point", (xc + cab_w / 2 + 0.55, -1.2, 0), QUAT_ID, 0.05, "approach"))
         world.sites.append(Site("goal_point", (xc + cab_w / 2 + 0.55, 1.2, 0), QUAT_ID, 0.05, "goal"))
         world.sites.append(Site("door_plane_center", (xc + cab_w / 2 + 0.55, 0, 1.0), QUAT_ID, 0.02, "pass_plane"))
-        model.meta.update({"primary_joint": "rotor_hinge", "operator_joint": None, "handle_height": 0.95, "ratchet_deg": 120, "one_way": True, "locked": bool(spec["kinematics"].get("locked_until_credential"))})
+        model.meta.update({"primary_joint": "rotor_hinge", "operator_joint": None, "handle_height": 0.95, "ratchet_deg": 120, "one_way": True,
+                           "locked": bool(spec["kinematics"].get("locked_until_credential")), "running_clearance_min": ROTOR_MIN_CLEAR})
         if spec["kinematics"].get("locked_until_credential"):
             rotor.joint.range = (-0.05, 0.05)
             rotor.joint.notes = "locked until credential (env releases: set range None)"
@@ -617,7 +636,12 @@ def build_turnstile(spec, phys, model: Model, full_height=False):
     rotor.joint = Joint("rotor_hinge", "hinge", (0, 0, 1), (0, 0, 0), None, damping=6.0, frictionloss=hf["coulomb_torque_Nm"] + 4.0, armature=0.3, role="primary", label="Rotor (ratchets 360/wings deg; one-way enforced by env)", ratchet_one_way=bool(spec["kinematics"].get("one_way", True)))
     model.add_body(rotor)
     sm = C.mat_from_material(model, "stainless", "mat_op_stainless")
-    rotor.geoms.append(C.cyl("rotor_column", (0, 0, Hh / 2 + 0.05), 0.06, Hh / 2 + 0.05, sm, (0, 0, 1), 7900, True, True, ALL_TIERS, "leaf", "Rotor column"))
+    # The column runs between the floor and the cage roof (roof underside at Hh + 0.10) with a real running
+    # clearance at both ends: a column authored flush on the roof and the floor is a zero-gap touch whose contact
+    # normal is parallel to the rotor axis and orthogonal to its only DOF - MuJoCo at margin 0 never notices, PhysX
+    # resolves it inside its contact offset and the rotor jams, drifts or explodes (7 of these doors did).
+    z_bot, z_top = ROTOR_RUN_CLEAR, Hh + 0.10 - ROTOR_RUN_CLEAR
+    rotor.geoms.append(C.cyl("rotor_column", (0, 0, (z_bot + z_top) / 2), 0.06, (z_top - z_bot) / 2, sm, (0, 0, 1), 7900, True, True, ALL_TIERS, "leaf", "Rotor column"))
     for k in range(wings):
         a = 2 * math.pi * k / wings
         d = np.array([math.cos(a), math.sin(a), 0])
@@ -628,7 +652,8 @@ def build_turnstile(spec, phys, model: Model, full_height=False):
     world.sites.append(Site("approach_point", (cage_R + 0.4, -1.5, 0), QUAT_ID, 0.05, "approach"))
     world.sites.append(Site("goal_point", (cage_R + 0.4, 1.5, 0), QUAT_ID, 0.05, "goal"))
     world.sites.append(Site("door_plane_center", (cage_R * 0.5, 0, 1.0), QUAT_ID, 0.02, "pass_plane"))
-    model.meta.update({"primary_joint": "rotor_hinge", "operator_joint": None, "handle_height": 1.0, "ratchet_deg": 360 / wings, "one_way": bool(spec["kinematics"].get("one_way")), "locked": bool(spec["kinematics"].get("locked_until_credential"))})
+    model.meta.update({"primary_joint": "rotor_hinge", "operator_joint": None, "handle_height": 1.0, "ratchet_deg": 360 / wings, "one_way": bool(spec["kinematics"].get("one_way")),
+                       "locked": bool(spec["kinematics"].get("locked_until_credential")), "running_clearance_min": ROTOR_MIN_CLEAR})
     if spec["kinematics"].get("locked_until_credential"):
         rotor.joint.range = (-0.05, 0.05)
     return rotor
@@ -711,7 +736,13 @@ def build_vertical(spec, phys, model: Model):
         world.geoms.append(C.box("hood_front", (0, y_leaf + 0.54, Ho + 0.30), (W / 2 + 0.12, 0.02, 0.30), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Hood front"))
         for sx in (-1, 1):
             world.geoms.append(C.box(f"hood_end_{'r' if sx > 0 else 'l'}", (sx * (W / 2 + 0.12), y_leaf + 0.27, Ho + 0.30), (0.02, 0.29, 0.30), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Hood end plate"))
-        lb.geoms.append(C.box("bottom_bar", (0, y_leaf, 0.03), (W / 2, t / 2 + 0.015, 0.03), tm, 7850, True, True, ALL_TIERS, "leaf", "Bottom bar", mass=3.0 * W))
+        # A real roll-up closes onto its rubber bottom astragal, not on bare steel: the bar is carried ROLLUP_ASTRAGAL
+        # above the slab and the seal spans the gap.  (The steel bar used to end exactly on the floor - a 0.000 m
+        # structural touch that MuJoCo at margin 0 ignores and PhysX resolves inside its contact offset.)
+        lb.geoms.append(C.box("bottom_bar", (0, y_leaf, ROLLUP_ASTRAGAL + 0.03), (W / 2, t / 2 + 0.015, 0.03), tm, 7850, True, True, ALL_TIERS, "leaf", "Bottom bar", mass=3.0 * W))
+        lb.geoms.append(C.box("bottom_astragal", (0, y_leaf, ROLLUP_ASTRAGAL / 2), (W / 2, t / 2 + 0.010, ROLLUP_ASTRAGAL / 2),
+                              C.mat_rgba(model, "mat_astragal", (0.09, 0.09, 0.10, 1), 0.9), 1100, True, True, ALL_TIERS, "seal",
+                              "Bottom astragal (rubber; the curtain seats on this, not on the steel bar)"))
         if kin.get("opener") == "chain_hoist":
             world.geoms.append(C.cyl("hoist_chain", (W / 2 + 0.12, y_leaf, Ho / 2 + 0.3), 0.005, Ho / 2 + 0.3, C.mat_from_material(model, "steel", "mat_chain"), (0, 0, 1), 7850, True, True, FULL_ONLY, "mechanism", "Hoist chain"))
     # operator (lift handle / T-handle)
@@ -816,7 +847,10 @@ def build_horizontal(spec, phys, model: Model):
         mo = math.radians(kin.get("max_open_deg", 90))
         stiffness = cl.get("spring_stiffness_Nm_per_rad", 0.0)
         preload = cl.get("spring_preload_Nm", 0.0)
-        j = Joint("hatch_hinge", "hinge", (-1.0, 0, 0), (0, 0, 0), (0.0, mo), damping=hf.get("air_damping_Nms_per_rad", 0.1) + cl.get("damping_opening", 0.0) + 0.5, frictionloss=hf["coulomb_torque_Nm"], stiffness=abs(stiffness) if stiffness else 0.0, springref=(-preload / stiffness) if stiffness else 0.0, armature=0.02, role="primary", label="Hatch (0 = closed, + = lifted)")
+        # Surface hinge screwed to the curb, not a pin on the lid's own edge: the barrel sits HATCH_HINGE_OUT
+        # outboard of the curb's inner face, so the lid's heel corner swings up and away instead of raking across
+        # the curb (a pin in the lid's mid-plane at the curb face put the corner 1.7 mm inside the curb).
+        j = Joint("hatch_hinge", "hinge", (-1.0, 0, 0), (0, HATCH_HINGE_OUT, 0), (0.0, mo), damping=hf.get("air_damping_Nms_per_rad", 0.1) + cl.get("damping_opening", 0.0) + 0.5, frictionloss=hf["coulomb_torque_Nm"], stiffness=abs(stiffness) if stiffness else 0.0, springref=(-preload / stiffness) if stiffness else 0.0, armature=0.02, role="primary", label="Hatch (0 = closed, + = lifted)")
         lb.joint = j
         model.add_body(lb)
         lm = C.mat_from_finish(model, leaf["finish"], "mat_leaf")

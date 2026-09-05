@@ -114,9 +114,10 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
             leaf = {**leaf, "height": Hh}
     outdoor = bool(op.get("outdoor"))
     jt_ = C.frame_jamb_thickness(spec)
-    # the leaf hangs near the swing-side face of the jamb (inset ~20 mm) so it can fold back against the wall
+    # the leaf hangs with its swing-side face C.LEAF_FACE_INSET behind the jamb's swing-side face, so the hinge
+    # knuckle lands on that face and the leaf can swing back past 90 deg without the reveal arris fouling it
     depth_ = op["wall_thickness"] if op["frame"]["kind"] != "aluminum_storefront" else max(0.114, op["wall_thickness"])
-    y_wall = -v * max(0.0, depth_ / 2 - t / 2 - 0.02) if not outdoor else 0.0
+    y_wall = -v * max(0.0, depth_ / 2 - t / 2 - C.LEAF_FACE_INSET) if not outdoor else 0.0
     hole_ = C.frame_hole(spec, u, jt_)
     world = pair["world"] if pair else C.add_floor_and_wall(model, spec, outdoor=outdoor, hole=hole_, y_wall=y_wall)
     fam = spec["family"]
@@ -127,18 +128,22 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         y_pin = 0.0
     elif hg.kind == "pivot_offset":
         x_axis_rel = u * 0.019
-        y_pin = v * (t / 2 + 0.01)
+        y_pin = v * C.hinge_throw(t, depth_, y_wall, v, W, knuckle=0.010)
     elif hg.kind in ("gravity_pivot",):
         x_axis_rel = u * 0.02
         y_pin = 0.0
     else:
-        # butt hinge: pin at the door edge line, one knuckle radius proud of the swing-side face
+        # butt hinge: pin at the door edge line, its knuckle proud of the frame's swing-side face (see hinge_throw)
         x_axis_rel = u * C.GAP
-        y_pin = v * (t / 2 + 0.007)
+        y_pin = v * C.hinge_throw(t, depth_, y_wall, v, W)
     hx = pair["hx"] if pair else u * (-Wo / 2)      # hinge jamb inner face x (world)
     x_leaf0 = u * C.GAP                                # leaf hinge edge in body frame (body origin at jamb face)
     if hg.kind in ("pivot_center", "pivot_center_heavy"):
         x_leaf0 = u * 0.006
+    if abs(y_pin) < 1e-9:
+        # centre-hung pivot (the axis lies in the leaf's own centre plane): the heel corner sweeps a circle about it,
+        # so the heel gap has to be solved from the pivot setback, not fixed (see C.pivot_heel_gap)
+        x_leaf0 = u * max(abs(x_leaf0), C.pivot_heel_gap(abs(x_axis_rel), t))
     both_ways = bool(spec["kinematics"].get("both_ways"))
     if both_ways:
         # double-acting: centre-hung pivot at the leaf edge, gap t/2 + 6 mm so the edge corners clear the post
@@ -527,6 +532,11 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         inside_face = 1.0 if spec["robot"]["robot_outside"] else -1.0
         mat = C.mat_from_material(model, sbm.material, f"mat_op_{sbm.material}")
         L, d, standoff, prot = 0.1, 0.012, 0.012, 0.030
+        if op["frame"].get("casing") and t / 2 + standoff + d / 2 > t / 2 + C.LEAF_FACE_INSET:
+            # the rod stands proud of the jamb's face, so it runs ACROSS the reveal onto a surface keeper: its tip
+            # must stop inside the reveal, before the casing (which laps the jamb by 5 mm) - a 30 mm throw ran the
+            # rod straight through the casing once the leaf was hung flush with the frame face
+            prot = min(prot, max(0.012, jt_ - 0.005 - 0.003))
         zsb = hz + 0.25
         x_ab = x_edge
         if pair and inside_face == -v:
@@ -1037,8 +1047,11 @@ def build_stall(spec, phys, model: Model):
     lb.joint = j
     model.add_body(lb)
     model.equalities.append(Equality("joint", "leaf_rise_couple", "leaf_rise", "leaf_hinge", (0.0, rise_per_rad, 0, 0, 0), tiers=ALL_TIERS, label="gravity hinge: 10 mm rise per 90 deg"))
-    C.add_leaf_geoms(model, lb, spec, leaf, u, u * 0.006, zb, phys, name_prefix="leaf")
-    x_edge = u * (0.006 + W)
+    # heel gap: the leaf turns on a pivot 50 mm inside the pilaster face, so its heel corner sweeps
+    # hypot(50 - gap, t/2) - a flat 6 mm gap left 0.8 mm of running clearance on 44 mm doors
+    x_heel = max(0.006, C.pivot_heel_gap(0.05, t))
+    C.add_leaf_geoms(model, lb, spec, leaf, u, u * x_heel, zb, phys, name_prefix="leaf")
+    x_edge = u * (x_heel + W)
     hz = spec["operator"]["height"]
     opm = H.OPERATORS[spec["operator"]["model"]]
     lk, engaged, release = _lock_state(spec)
