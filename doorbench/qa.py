@@ -10,6 +10,10 @@ Checks (all tiers where applicable):
   return      releasing the operator lets the spring latch re-extend
   relatch     closing the door re-latches (spring latches with strike lip)
   closer      self-closing doors return to closed from 60 deg
+  free_opens  free-swing / rotary families (saloon, revolving, turnstiles, folding, bypass, flaps, strips): the QA push
+              moves the primary joint past 10 deg / 50 mm (locked rotors: it holds within its locked play instead)
+  no_jam      ... and while it moves no static geometry presses on a moving part with more than JAM_FORCE_N: a zero-gap
+              touch or a sub-tolerance interpenetration that the geometric clearance gate cannot see stalls the door
   urdf        URDF loads in MuJoCo (structure check)
   usd         USD stage opens; joint & rigid-body counts match the IR
 Writes qa.json with pass/fail per check, metrics, and a signed_off flag.
@@ -78,6 +82,50 @@ def push_primary(m, d, pj, push: float, has_holding: bool, thr_free: float) -> f
 SPRING_LATCH_KINDS = ("tubular_latch", "deadlatch", "mortise_latch", "rim_latch", "vertical_rods", "hook", "gravity_bar", "dogs", "multi_bolt", "electric_bolt")
 ENV_RELEASE_LOCK_KINDS = ("mag_lock", "delayed_egress", "card_reader", "electric_strike", "interlock")
 FREE_SWING_FAMILIES = ("saloon", "strip_curtain", "pet_door", "turnstile_tripod", "turnstile_fullheight", "revolving", "bifold", "accordion", "sliding_bypass")
+JAM_FORCE_N = 200.0      # N; largest contact normal force static geometry may exert on a moving part while a free door is pushed
+FREE_PUSH_S = 6.0        # s; a free door is pushed for up to this long (stops once past thr_free after MIN_PUSH_S)
+MIN_PUSH_S = 1.0
+
+
+def jam_sweep(m, d, pj: int, push: float, thr_free: float, duration_s: float = FREE_PUSH_S, min_push_s: float = MIN_PUSH_S) -> dict:
+    """Push the primary joint of a door that nothing holds shut and watch what static geometry does to it.
+
+    The push runs for up to ``duration_s`` and stops once the joint is past ``thr_free`` after ``min_push_s`` (the
+    free-door hold schedule of qa.py / the parity protocol).  Every step, every contact between a body that can move
+    and static geometry (welded to the world) is measured with ``mj_contactForce``; the largest normal force and its
+    geom pair are returned.  A free-swinging or rotating door is carried by its joint and has nothing static pressing
+    on it while it moves (brush seals aside), so a large force here is a jam: an interpenetration too shallow for the
+    geometric clearance gate, or a zero-gap touch whose degenerate contact normal is orthogonal to the only DOF
+    (coplanar box faces) - either one stalls the door under the push.
+    """
+    import mujoco
+    dof, qadr = m.jnt_dofadr[pj], m.jnt_qposadr[pj]
+    static = np.asarray(m.body_weldid)[np.asarray(m.geom_bodyid)] == 0
+    f6 = np.zeros(6)
+    peak, pair, t_free = 0.0, None, None
+    dt = float(m.opt.timestep)
+    n, n_min = int(round(duration_s / dt)), int(round(min_push_s / dt))
+    mujoco.mj_resetData(m, d)
+    k = -1
+    for k in range(n):
+        d.qfrc_applied[:] = 0
+        d.qfrc_applied[dof] = push
+        mujoco.mj_step(m, d)
+        for i in range(d.ncon):
+            c = d.contact[i]
+            if static[c.geom1] == static[c.geom2]:
+                continue
+            mujoco.mj_contactForce(m, d, i, f6)
+            fn = abs(float(f6[0]))
+            if fn > peak:
+                peak = fn
+                pair = (mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, c.geom1), mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, c.geom2))
+        q = float(d.qpos[qadr])
+        if t_free is None and q > thr_free:
+            t_free = (k + 1) * dt
+        if k >= n_min - 1 and q > thr_free:
+            break
+    return {"moved": float(d.qpos[qadr]), "t_free": t_free, "t_end": (k + 1) * dt, "peak_force_N": peak, "peak_pair": list(pair) if pair else None}
 
 
 def door_flags(spec: dict) -> dict:
@@ -165,7 +213,26 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
     flags = door_flags(spec)
     has_holding, env_release_only, free_swing = flags["has_holding"], flags["env_release_only"], flags["free_swing"]
     HINGE, SLIDE = int(mujoco.mjtJoint.mjJNT_HINGE), int(mujoco.mjtJoint.mjJNT_SLIDE)
-    if pj >= 0 and int(m.jnt_type[pj]) in (HINGE, SLIDE):
+    # ---- free-swing / rotary families: nothing holds them, so the push must move them and nothing static may press on
+    # them while they move (the "jam" gate; a locked rotor - turnstile awaiting a credential, pet flap with its locking
+    # panel in - must instead hold within its locked play)
+    if pj >= 0 and free_swing and int(m.jnt_type[pj]) in (HINGE, SLIDE):
+        is_hinge = int(m.jnt_type[pj]) == HINGE
+        push = qa_push(m, d, pj)["push"]
+        metrics["qa_push"] = push
+        thr_free = math.radians(10) if is_hinge else 0.05
+        lo, hi = (m.jnt_range[pj] if m.jnt_limited[pj] else (-math.inf, math.inf))
+        locked = bool(model_meta.get("locked")) or (bool(m.jnt_limited[pj]) and (hi - lo) < thr_free)
+        jam = jam_sweep(m, d, pj, push, thr_free, duration_s=MIN_PUSH_S if locked else FREE_PUSH_S)
+        metrics["hold_displacement"] = jam["moved"]
+        metrics.update({"jam_t_free": jam["t_free"], "jam_push_s": jam["t_end"], "jam_peak_force_N": jam["peak_force_N"], "jam_peak_pair": jam["peak_pair"]})
+        if locked:
+            thr_l = max(math.radians(2.0), hi + math.radians(1.0)) if is_hinge else max(0.015, hi + 0.005)
+            checks["locked_holds"] = bool(jam["moved"] < thr_l)
+        else:
+            checks["free_opens"] = bool(jam["moved"] > thr_free)
+        checks["no_jam"] = bool(jam["peak_force_N"] < JAM_FORCE_N)
+    if pj >= 0 and not free_swing and int(m.jnt_type[pj]) in (HINGE, SLIDE):
         is_hinge = int(m.jnt_type[pj]) == HINGE
         mass = phys["mass"]["total_kg"]
         W = spec["leaf"]["width"]

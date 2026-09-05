@@ -700,9 +700,11 @@ def gen_saloon(i, ctx, B, rng):
     pair = B.pick("sa:pair", {True: 3, False: 1})
     W = B.pick("sa:w", {0.45: 2, 0.50: 1, 0.60: 1}) if pair else B.pick("sa:w1", {0.80: 1, 0.90: 1})
     Hh = B.pick("sa:h", {1.10: 2, 1.30: 1, 2.03: 1, 0.90: 1})
-    # a hung leaf never rests on the floor: the lowest option is the hinged-door floor clearance (12 mm), not 0 -
-    # five saloon leaves used to sit on the floor and drag (one could not reach 10 deg under the QA push)
+    # a hung leaf never rests on the floor: the lowest option is the hinged-door floor clearance, not 0 - five saloon
+    # leaves used to sit on the floor (a zero-gap touch whose degenerate contact stalled the swing; one could not reach
+    # 10 deg under the QA push); real double-acting pivots run >= 12-20 mm above the floor
     zb = _round(B.pick("sa:zb", {0.35: 2, 0.20: 1, 0.60: 1, 0.012: 1})) if Hh < 1.9 else 0.012
+    zb = max(zb, 0.015)
     panel = "louver_full" if slab == "louver_wood" else B.pick("sa:panel", {"flush": 2, "shaker_1": 1, "glass_vision": 1, "hpl_flat": 1})
     s["use_case"] = B.pick("sa:use", ["saloon bar doors", "cafe kitchen pass doors", "restaurant kitchen swing door", "hospital utility double-acting door", "supermarket stockroom doors"])
     t_sal = B.pick("sa:t", {0.035: 2, 0.044: 1})   # double-acting pivots: hinge-edge gap >= t/2 + 6 mm so the corners clear the jamb
