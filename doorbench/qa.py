@@ -18,6 +18,11 @@ Checks (all tiers where applicable):
               moves the primary joint past 10 deg / 50 mm (locked rotors: it holds within its locked play instead)
   no_jam      ... and while it moves no static geometry presses on a moving part with more than JAM_FORCE_N: a zero-gap
               touch or a sub-tolerance interpenetration that the geometric clearance gate cannot see stalls the door
+  all_latches_release  a door held by SEVERAL independent latches (watertight dog levers, blast-door lever bolts)
+              behaves like the hardware: releasing all but ONE leaves the leaf shut under the QA push (checked for
+              each latch in turn) and releasing every one of them opens it
+  rod_points_hold  a two-point rod mechanism (cremone / espagnolette knob, surface vertical rod exit device) throws a
+              bolt into the head AND one into the floor, and each of them holds the leaf on its own
   urdf        URDF loads in MuJoCo (structure check)
   usd         USD stage opens; joint & rigid-body counts match the IR
 Writes qa.json with pass/fail per check, metrics, and a signed_off flag.
@@ -373,7 +378,7 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         elif oj >= 0 and can_release:
             mujoco.mj_resetData(m, d)
             ojn = mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_JOINT, oj) or ""
-            eff = (14.0 if ojn.startswith("dog_") else (10.0 if "wheel" in ojn else (8.0 if "exit_device" in ojn else 4.0))) if int(m.jnt_type[oj]) == HINGE else 120.0
+            eff = operator_effort(m, oj, ojn)
             tt = _jid(m, "leaf_deadbolt_thumbturn_hinge")
             if tt < 0:
                 tt = _jid(m, "leaf_a_deadbolt_thumbturn_hinge")
