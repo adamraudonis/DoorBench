@@ -9,6 +9,8 @@ Replicable one-command flow (see docs/RUNPOD.md):
     python scripts/runpod_pod.py bootstrap        # copies scripts/pod_bootstrap.sh and runs it in tmux (~25 min)
     python scripts/runpod_pod.py ssh              # interactive shell
     python scripts/runpod_pod.py status           # GPU, cost/h, uptime, spend so far
+    python scripts/runpod_pod.py tensorboard      # live training curves at http://localhost:6006 (SSH tunnel)
+    python scripts/runpod_pod.py watch            # live stage / iteration / GPU status of isaaclab/cloud/run_all.sh
     python scripts/runpod_pod.py stop / start     # pause GPU billing keeping /workspace, resume later
     python scripts/runpod_pod.py terminate        # stops billing (volume is deleted too)
 
@@ -166,6 +168,24 @@ def cmd_start(a):
     print(f"start requested for pod {st['id']} - run `wait` next")
 
 
+def cmd_tensorboard(a):
+    """Live training curves: start TensorBoard on the pod (rsl_rl writes logs/rsl_rl/<exp>/<run>) and tunnel it to http://localhost:6006."""
+    st = _state()
+    remote = ("source /workspace/DoorBench/isaaclab/cloud/env.sh 2>/dev/null; cd /workspace/DoorBench; "
+              "pgrep -f 'tensorboard --logdir' >/dev/null || nohup tensorboard --logdir logs/rsl_rl --port 6006 --bind_all >/workspace/tensorboard.log 2>&1 & "
+              "sleep 2; echo 'TensorBoard on the pod: http://localhost:6006 (through this tunnel). Ctrl-C closes the tunnel.'; sleep 100000000")
+    os.execvp("ssh", _ssh_args() + ["-L", f"{a.port}:localhost:6006", remote])
+
+
+def cmd_watch(a):
+    """Follow the pipeline: stage markers of logs/run_all.log, latest training iteration/reward, GPU utilisation."""
+    remote = ("cd /workspace/DoorBench; while true; do clear; date -u; nvidia-smi --query-gpu=name,utilization.gpu,memory.used --format=csv,noheader; "
+              "echo; grep -E '^== |STAGE_|isaacsim-validate\\]|RUN_ALL DONE|checkpoint:' logs/run_all.log 2>/dev/null | tail -8; echo; "
+              "grep -E 'Learning iteration|Mean reward|Mean episode length' logs/run_all.log 2>/dev/null | tail -3; "
+              "grep -E 'Traceback|Error:' logs/run_all.log 2>/dev/null | grep -v omni | tail -2; sleep 15; done")
+    os.execvp("ssh", _ssh_args() + [remote])
+
+
 def cmd_terminate(a):
     st = _state()
     _req("DELETE", f"/pods/{st['id']}")
@@ -182,6 +202,8 @@ def main():
     sub.add_parser("bootstrap").set_defaults(f=cmd_bootstrap)
     sub.add_parser("status").set_defaults(f=cmd_status)
     sub.add_parser("stop").set_defaults(f=cmd_stop)
+    p = sub.add_parser("tensorboard"); p.add_argument("--port", type=int, default=6006); p.set_defaults(f=cmd_tensorboard)
+    sub.add_parser("watch").set_defaults(f=cmd_watch)
     sub.add_parser("start").set_defaults(f=cmd_start)
     sub.add_parser("terminate").set_defaults(f=cmd_terminate)
     a = ap.parse_args(); a.f(a)

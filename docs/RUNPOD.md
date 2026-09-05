@@ -85,6 +85,15 @@ bash isaaclab/cloud/hero.sh                        # docs/media/isaaclab_hero.{p
 bash isaaclab/cloud/eval.sh logs/rsl_rl/doorbench_hand/<run>/model_300.pt
 ```
 
+## 4b. Watching a run
+
+```bash
+python scripts/runpod_pod.py watch          # refreshes every 15 s: GPU load, pipeline stage, latest PPO iteration / mean reward
+python scripts/runpod_pod.py tensorboard    # opens an SSH tunnel; TensorBoard (written by rsl_rl) at http://localhost:6006
+```
+The pipeline itself is `isaaclab/cloud/run_all.sh` (validate -> train -> hero -> eval); each stage appends
+`STAGE_<name>_EXIT=<code>` to `logs/run_all.log`, so a failed stage is visible at a glance and the next stage still runs.
+
 ## 5. Tear down (stops billing)
 
 ```bash
