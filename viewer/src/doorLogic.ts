@@ -1,4 +1,4 @@
-// Pure helpers about the door mechanism as described by model.json (used by the viewer's honest open / close).
+// Pure helpers about the door mechanism as described by model.json (used by the kinematic preview).
 import type { ModelJ } from "./types";
 import type { JointHandle } from "./scene";
 
@@ -24,6 +24,21 @@ export function leafOfJoint(model: ModelJ, joint: string | undefined): string | 
 export function activeLeaf(model: ModelJ): string | undefined {
   const meta = model.meta ?? {};
   return leafOfJoint(model, meta.operator_joint) ?? meta.primary_joint;
+}
+
+/** Paired swing leaves are independent; Dutch, bifold and sliding couplings keep their own behavior. */
+export function isSwingPair(model: ModelJ): boolean {
+  return model.meta?.family === "swing_double" && !!model.meta?.secondary_joint;
+}
+
+/** A preview may work the inside panic bar even when no operator is accessible from the robot's approach side.
+ * Keep meta.operator_joint unchanged: it describes benchmark accessibility, not every modeled operator. */
+export function previewOperatorForLeaf(model: ModelJ, leaf: string): string | undefined {
+  const operator = model.meta?.operator_joint as string | undefined;
+  if (operator && (leafOfJoint(model, operator) === leaf || (!leafOfJoint(model, operator) && leaf === model.meta?.primary_joint))) return operator;
+  if (!isSwingPair(model)) return undefined;
+  const followers = new Set(model.equalities.filter(e => e.kind === "joint").map(e => e.a));
+  return model.bodies.find(b => b.joint?.role === "operator" && !followers.has(b.joint.name) && leafOfJoint(model, b.joint.name) === leaf)?.joint?.name;
 }
 
 /** Bolt / lock joints that the operator drives (one-sided tendons and polynomial couplings). */
@@ -60,12 +75,101 @@ function thrown(joints: Map<string, JointLike>, bolts: string[]): boolean {
   return false;
 }
 
+function openPosition(leaf: JointLike): number {
+  return !leaf.range ? leaf.modeledAt + 1.2 : leaf.range[1] > leaf.modeledAt + 1e-6 ? leaf.range[1] : leaf.range[0];
+}
+
+/** Do not use the inspection button to bypass authored inactive-leaf bolts or active lock welds. */
+function pairLeafBlock(model: ModelJ, joints: Map<string, JointLike>, leaf: JointLike): string | null {
+  if (leaf.range && leaf.range[1] - leaf.range[0] < 0.006) return `${leaf.name}: secured by its authored joint limit`;
+  const body = model.bodies.find(b => b.joint?.name === leaf.name)?.name;
+  const weld = model.equalities.find(e => e.kind === "weld" && e.active !== false &&
+    ((e.a === body && (e.b === "world" || !e.b)) || (e.b === body && e.a === "world")));
+  if (weld) return `${leaf.name}: locked (${weld.label || weld.name})`;
+  const operator = previewOperatorForLeaf(model, leaf.name);
+  const driven = new Set(boltJointsFor(model, operator));
+  // common.add_deadbolt places each bolt body's origin on the leaf edge, its box along local X.
+  // Measure projection past that edge, including the modeled-at offset; fixed retracted bolts stay free.
+  for (const bolt of model.bodies.filter(b => b.parent === body && b.semantic === "lock")) {
+    const box = bolt.geoms.find(g => g.name === `${bolt.name}_box` && g.type === "box" && g.part_label === "Deadbolt");
+    if (!box || (bolt.joint && driven.has(bolt.joint.name))) continue;
+    const h = bolt.joint ? joints.get(bolt.joint.name) : undefined;
+    const projection = Math.sign(bolt.pos[0]) * box.pos[0] + box.size[0] - (h ? h.q - h.modeledAt : 0);
+    if (projection > 0.001) return `${leaf.name}: locked by a separate deadbolt${h ? "; retract its thumbturn first" : " (fixed; no release)"}`;
+  }
+  // Independent native lock slides (e.g. auxiliary barrel bolts) use full positive travel for withdrawal.
+  for (const b of model.bodies) {
+    const joint = b.joint;
+    if (joint?.role !== "lock" || joint.type !== "slide" || driven.has(joint.name) || leafOfJoint(model, joint.name) !== leaf.name) continue;
+    const h = joints.get(joint.name);
+    if (h?.range && h.q < h.range[1] - 1e-6) return `${leaf.name}: locked; withdraw ${joint.label || joint.name} first`;
+  }
+  const op = operator ? joints.get(operator) : undefined;
+  if (op?.range && op.range[1] - op.range[0] < 0.006 && thrown(joints, boltJointsFor(model, operator))) return `${leaf.name}: locked operator`;
+  return null;
+}
+
+function simultaneous(moves: { joint: string; from: number; to: number }[], dur: number): Phase[] {
+  const [first, ...followers] = moves;
+  return first ? [{ ...first, dur, followers }] : [];
+}
+
+function hasAstragal(model: ModelJ): boolean {
+  const secondaryBody = model.bodies.find(b => b.joint?.name === model.meta.secondary_joint);
+  return !!secondaryBody?.geoms.some(g => g.name === "astragal");
+}
+
+/** B's astragal overlaps A. A can open with B bolted shut; B cannot open until A is clear. */
+function astragalBlock(model: ModelJ, joints: Map<string, JointLike>, leaf: JointLike, target: number): string | null {
+  if (!hasAstragal(model)) return null;
+  const opening = Math.abs(target - leaf.modeledAt) > Math.abs(leaf.q - leaf.modeledAt) + 1e-6;
+  const closing = Math.abs(target - leaf.modeledAt) < Math.abs(leaf.q - leaf.modeledAt) - 1e-6;
+  const a = joints.get(model.meta.primary_joint), b = joints.get(model.meta.secondary_joint);
+  if (leaf === b && opening && a && Math.abs(a.q - openPosition(a)) > 1e-6) return "overlapping astragal: open leaf A fully before opening leaf B";
+  if (leaf === a && closing && b && Math.abs(b.q - b.modeledAt) > 1e-6) return "overlapping astragal: close leaf B before closing leaf A";
+  return null;
+}
+
+function pairedOpenClosePhases(model: ModelJ, joints: Map<string, JointLike>): { phases: Phase[]; note: string | null } {
+  const leaves = [model.meta.primary_joint, model.meta.secondary_joint].map(name => joints.get(name)).filter((h): h is JointLike => !!h);
+  const notes: string[] = [];
+  let movable = leaves.filter(leaf => {
+    const reason = pairLeafBlock(model, joints, leaf);
+    if (reason) notes.push(reason);
+    return !reason;
+  });
+  // The astragal attached to B overlaps A: clear A first when opening, seat B first when closing.
+  const overlaps = hasAstragal(model);
+  // A partly open pair opens fully on the next click; only a fully open pair toggles closed.
+  const opening = movable.some(leaf => Math.abs(leaf.q - openPosition(leaf)) > 0.02);
+  movable = movable.filter(leaf => {
+    const other = leaves.find(h => h !== leaf);
+    // Both free leaves will be sequenced below. Otherwise check the stationary leaf's position.
+    const reason = other && !movable.includes(other) ? astragalBlock(model, joints, leaf, opening ? openPosition(leaf) : leaf.modeledAt) : null;
+    if (reason) notes.push(reason);
+    return !reason;
+  });
+  const moves = movable.map(leaf => ({ joint: leaf.name, from: leaf.q, to: opening ? openPosition(leaf) : leaf.modeledAt }))
+    .filter(move => Math.abs(move.to - move.from) > 1e-6);
+  const operators = moves.map(move => previewOperatorForLeaf(model, move.joint))
+    .filter((name): name is string => !!name && boltJointsFor(model, name).length > 0)
+    .map(name => joints.get(name)).filter((op): op is JointLike => !!op && !!op.range && op.range[1] - op.range[0] >= 0.006);
+  const phases = simultaneous(operators.map(op => ({ joint: op.name, from: op.q, to: op.range![1] })), 450);
+  phases.push(...(overlaps
+    ? (opening ? moves : [...moves].reverse()).map(move => ({ ...move, dur: 1400, followers: [] }))
+    : simultaneous(moves, 1400)));
+  phases.push(...simultaneous(operators.map(op => ({ joint: op.name, from: op.range![1], to: op.modeledAt })), 400));
+  if (moves.length) notes.unshift(`mechanism preview: ${operators.length ? "operators actuated → bolts retracted → " : ""}${moves.length === 2 ? "both leaves" : "free leaf"} ${opening ? "open" : "close"}${overlaps ? " in astragal order" : ""}`);
+  return { phases, note: notes.join("; ") || null };
+}
+
 /**
  * Phases for the "Open / close door" button: work the operator (which retracts the bolt through its coupling), move
- * the active leaf (both leaves of a dutch door when the joining bolt is engaged; only the active leaf of a pair),
+ * the active leaf (both leaves of a dutch door when the joining bolt is engaged; both free leaves of a swing pair),
  * release the operator.  A locked operator (range < 0.006) is never driven.
  */
 export function openClosePhases(model: ModelJ, joints: Map<string, JointLike>): { phases: Phase[]; note: string | null } {
+  if (isSwingPair(model)) return pairedOpenClosePhases(model, joints);
   const meta = model.meta ?? {};
   const operator: string | undefined = meta.operator_joint ?? undefined;
   const leafName = activeLeaf(model);
@@ -97,20 +201,25 @@ export function openClosePhases(model: ModelJ, joints: Map<string, JointLike>): 
  * What else must move when a leaf slider is dragged to q: the operator is driven to full travel when the latch is still
  * thrown (so the bolt clears the strike), and the other leaf of a joined dutch door follows.
  */
-export function sliderReaction(model: ModelJ, joints: Map<string, JointLike>, leafJoint: string, q: number): { operatorTo: number | null; mirror: { joint: string; q: number } | null; note: string | null } {
+export function sliderReaction(model: ModelJ, joints: Map<string, JointLike>, leafJoint: string, q: number): { operator: string | null; operatorTo: number | null; blocked: boolean; mirror: { joint: string; q: number } | null; note: string | null } {
   const meta = model.meta ?? {};
   const primary: string | undefined = meta.primary_joint ?? undefined;
   const secondary: string | undefined = meta.secondary_joint ?? undefined;
-  const operator: string | undefined = meta.operator_joint ?? undefined;
+  const operator = previewOperatorForLeaf(model, leafJoint);
   const h = joints.get(leafJoint);
-  const out = { operatorTo: null as number | null, mirror: null as { joint: string; q: number } | null, note: null as string | null };
+  const out = { operator: null as string | null, operatorTo: null as number | null, blocked: false, mirror: null as { joint: string; q: number } | null, note: null as string | null };
   if (!h || (leafJoint !== primary && leafJoint !== secondary)) return out;
+  if (isSwingPair(model)) {
+    const reason = pairLeafBlock(model, joints, h) || astragalBlock(model, joints, h, q);
+    if (reason) return { ...out, blocked: true, note: reason };
+  }
   const away = Math.abs(q - (h.modeledAt ?? 0)) > 0.02;
   const opLeaf = leafOfJoint(model, operator);
   const ownsOperator = opLeaf === leafJoint || (!opLeaf && leafJoint === primary);
   const op = operator ? joints.get(operator) : undefined;
   const locked = !!op && !!op.range && op.range[1] - op.range[0] < 0.006;
   if (away && ownsOperator && op && op.range && !locked && thrown(joints, boltJointsFor(model, operator))) {
+    out.operator = op.name;
     out.operatorTo = op.range[1];
     out.note = "latch retracted: operator driven to full travel so the bolt clears the strike";
   }
