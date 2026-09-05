@@ -9,7 +9,7 @@ def Xform "db0542_sliding_bypass"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0542_sliding_bypass"
-    custom string doorbench:meta = '{"door_id": "db0542_sliding_bypass", "family": "sliding_bypass", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_0_slide", "body": "leaf_0", "rail": "leaf_0_shikii", "nominal_range": [0.0, 0.732], "leaf_width_m": 0.762, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}, {"joint": "leaf_1_slide", "body": "leaf_1", "rail": "leaf_1_shikii", "nominal_range": [-0.732, 0.732], "leaf_width_m": 0.762, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}, {"joint": "leaf_2_slide", "body": "leaf_2", "rail": "leaf_2_shikii", "nominal_range": [0.0, 0.732], "leaf_width_m": 0.762, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_0_slide", "secondary_joint": "leaf_1_slide", "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 7.660436351999997, "scene_extent": 2.177, "cam_target_z": 1.046, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-1.028, -0.095, 1.0], "handle_cam_pos": [-0.8480000000000001, -0.895, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_0_slide": "/db0542_sliding_bypass/Articulation/Joints/leaf_0_slide", "leaf_1_slide": "/db0542_sliding_bypass/Articulation/Joints/leaf_1_slide", "leaf_2_slide": "/db0542_sliding_bypass/Articulation/Joints/leaf_2_slide"}}'
+    custom string doorbench:meta = '{"door_id": "db0542_sliding_bypass", "family": "sliding_bypass", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_0_slide", "body": "leaf_0", "rail": "leaf_0_shikii", "nominal_range": [0.0, 0.732], "leaf_width_m": 0.762, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}, {"joint": "leaf_1_slide", "body": "leaf_1", "rail": "leaf_1_shikii", "nominal_range": [-0.732, 0.732], "leaf_width_m": 0.762, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}, {"joint": "leaf_2_slide", "body": "leaf_2", "rail": "leaf_2_shikii", "nominal_range": [0.0, 0.732], "leaf_width_m": 0.762, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_0_slide", "secondary_joint": "leaf_1_slide", "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 7.660436351999997, "scene_extent": 2.177, "cam_target_z": 1.046, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-1.028, -0.095, 1.0], "handle_cam_pos": [-0.8480000000000001, -0.895, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_0_slide": "/db0542_sliding_bypass/Articulation/Joints/leaf_0_slide", "leaf_1_slide": "/db0542_sliding_bypass/Articulation/Joints/leaf_1_slide", "leaf_2_slide": "/db0542_sliding_bypass/Articulation/Joints/leaf_2_slide"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -576,16 +576,19 @@ def Xform "db0542_sliding_bypass"
             }
 
             def PhysicsPrismaticJoint "leaf_0_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
+                custom float doorbench:armature_si = 0.5
                 custom float doorbench:damping_si = 2.3830218
                 custom float doorbench:friction_effort = 45.073933
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Slide (0 = closed, + = open)"
+                custom float doorbench:legacy_friction_coeff = 1.7992163
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_0_slide"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -606,24 +609,27 @@ def Xform "db0542_sliding_bypass"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 0.732
                 custom float physxJoint:armature = 0.5
-                custom float physxJoint:jointFriction = 1.7992163
-                custom float physxJointAxis:transX:armature = 0.5
-                custom float physxJointAxis:transX:dynamicFrictionEffort = 45.073933
-                custom float physxJointAxis:transX:staticFrictionEffort = 45.073933
-                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:linear:armature = 0.5
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 45.073933
+                custom float physxJointAxis:linear:staticFrictionEffort = 45.073933
+                custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
 
             def PhysicsPrismaticJoint "leaf_1_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
+                custom float doorbench:armature_si = 0.5
                 custom float doorbench:damping_si = 2.3830218
                 custom float doorbench:friction_effort = 45.073933
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Slide (0 = closed, + = open)"
+                custom float doorbench:legacy_friction_coeff = 1.7992163
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_1_slide"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -644,24 +650,27 @@ def Xform "db0542_sliding_bypass"
                 float physics:lowerLimit = -0.732
                 float physics:upperLimit = 0.732
                 custom float physxJoint:armature = 0.5
-                custom float physxJoint:jointFriction = 1.7992163
-                custom float physxJointAxis:transX:armature = 0.5
-                custom float physxJointAxis:transX:dynamicFrictionEffort = 45.073933
-                custom float physxJointAxis:transX:staticFrictionEffort = 45.073933
-                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:linear:armature = 0.5
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 45.073933
+                custom float physxJointAxis:linear:staticFrictionEffort = 45.073933
+                custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
 
             def PhysicsPrismaticJoint "leaf_2_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
+                custom float doorbench:armature_si = 0.5
                 custom float doorbench:damping_si = 2.3830218
                 custom float doorbench:friction_effort = 45.073933
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Slide (0 = closed, + = open)"
+                custom float doorbench:legacy_friction_coeff = 1.7992163
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_2_slide"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -682,11 +691,11 @@ def Xform "db0542_sliding_bypass"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 0.732
                 custom float physxJoint:armature = 0.5
-                custom float physxJoint:jointFriction = 1.7992163
-                custom float physxJointAxis:transX:armature = 0.5
-                custom float physxJointAxis:transX:dynamicFrictionEffort = 45.073933
-                custom float physxJointAxis:transX:staticFrictionEffort = 45.073933
-                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:linear:armature = 0.5
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 45.073933
+                custom float physxJointAxis:linear:staticFrictionEffort = 45.073933
+                custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
         }
 
@@ -700,6 +709,7 @@ def Xform "db0542_sliding_bypass"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -717,6 +727,7 @@ def Xform "db0542_sliding_bypass"
             float3 physics:diagonalInertia = (0.12374398, 0.8784196, 1.0017802)
             float physics:mass = 2.5534787
             quatf physics:principalAxes = (0.5000043, 0.4999889, 0.5000108, -0.49999604)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1040,6 +1051,7 @@ def Xform "db0542_sliding_bypass"
             float3 physics:diagonalInertia = (0.12374398, 0.8784196, 1.0017802)
             float physics:mass = 2.5534787
             quatf physics:principalAxes = (0.49999604, 0.5000108, 0.4999889, -0.5000043)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1363,6 +1375,7 @@ def Xform "db0542_sliding_bypass"
             float3 physics:diagonalInertia = (0.12374398, 0.8784196, 1.0017802)
             float physics:mass = 2.5534787
             quatf physics:principalAxes = (0.5000043, 0.4999889, 0.5000108, -0.49999604)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

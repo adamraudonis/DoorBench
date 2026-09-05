@@ -9,7 +9,7 @@ def Xform "db0432_cold_storage"
 {
     custom string doorbench:couplings = '[{"type": "mimic", "driven": "leaf_rise", "driver": "leaf_hinge", "coeff": [0.0, 0.007639437268410976, 0, 0, 0], "gearing": -0.007639437268410976, "offset": -0.0, "label": "rise = 12 mm per 90 deg (helical hinge)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "loop_closure_point", "body1": "closer_arm_fore", "body2": "closer_shoe", "anchor": [0.26, 0, 0], "label": "Closer forearm pinned to frame shoe", "note": "not exported to USD (PhysX articulations are trees); closer arms are visual"}, {"type": "one_sided_tendon", "terms": [["leaf_latch_bolt_slide", 1.0], ["leaf_handle_hinge", -0.012765957446808512]], "range": [0.0, 10.0], "label": "bolt_q >= scale*handle_q (one-sided)", "note": "bolt_q >= scale*operator_q: drive the latch target from the operator in the environment (doorbench_isaaclab does this)"}]'
     custom string doorbench:door_id = "db0432_cold_storage"
-    custom string doorbench:meta = "{\"door_id\": \"db0432_cold_storage\", \"family\": \"cold_storage\", \"task\": \"peek\", \"wall_y\": -0.0, \"clearance_allow\": [[\"closer_shoe_pivot\", \"closer_shoe_block\", \"pivot pin occupies the sliding shoe's bore\"], [\"closer_shoe_neck\", \"closer_shoe_block\", \"forearm clevis enters the shoe around its pivot\"]], \"u\": 1.0, \"v\": 1.0, \"hinge_x\": -0.62, \"leaf_edge_x_local\": 1.2229999999999999, \"handle_height\": 1.0, \"primary_joint\": \"leaf_hinge\", \"operator_joint\": \"leaf_handle_hinge\", \"mass_reconciled_kg\": 60.39910892489949, \"scene_extent\": 2.0, \"cam_target_z\": 1.0, \"cam_target_x\": 0.0, \"handle_cam_x\": 0.4999999999999999, \"handle_cam_target\": [0.3379999999999999, -0.10500000000000001, 1.0], \"handle_cam_pos\": [0.5179999999999999, -0.905, 1.28], \"usd_layout\": \"v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)\", \"joints\": {\"leaf_rise\": \"/db0432_cold_storage/Articulation/Joints/leaf_rise\", \"leaf_hinge\": \"/db0432_cold_storage/Articulation/Joints/leaf_hinge\", \"leaf_handle_hinge\": \"/db0432_cold_storage/Articulation/Joints/leaf_handle_hinge\", \"leaf_latch_bolt_slide\": \"/db0432_cold_storage/Articulation/Joints/leaf_latch_bolt_slide\", \"closer_pinion\": \"/db0432_cold_storage/Articulation/Joints/closer_pinion\", \"closer_elbow\": \"/db0432_cold_storage/Articulation/Joints/closer_elbow\", \"closer_shoe_slide\": \"/db0432_cold_storage/Articulation/Joints/closer_shoe_slide\"}}"
+    custom string doorbench:meta = "{\"door_id\": \"db0432_cold_storage\", \"family\": \"cold_storage\", \"task\": \"peek\", \"wall_y\": -0.0, \"clearance_allow\": [[\"closer_shoe_pivot\", \"closer_shoe_block\", \"pivot pin occupies the sliding shoe's bore\"], [\"closer_shoe_neck\", \"closer_shoe_block\", \"forearm clevis enters the shoe around its pivot\"]], \"u\": 1.0, \"v\": 1.0, \"hinge_x\": -0.62, \"leaf_edge_x_local\": 1.2229999999999999, \"handle_height\": 1.0, \"primary_joint\": \"leaf_hinge\", \"operator_joint\": \"leaf_handle_hinge\", \"mass_reconciled_kg\": 60.39910892489949, \"scene_extent\": 2.0, \"cam_target_z\": 1.0, \"cam_target_x\": 0.0, \"handle_cam_x\": 0.4999999999999999, \"handle_cam_target\": [0.3379999999999999, -0.10500000000000001, 1.0], \"handle_cam_pos\": [0.5179999999999999, -0.905, 1.28], \"usd_layout\": \"v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)\", \"joints\": {\"leaf_rise\": \"/db0432_cold_storage/Articulation/Joints/leaf_rise\", \"leaf_hinge\": \"/db0432_cold_storage/Articulation/Joints/leaf_hinge\", \"leaf_handle_hinge\": \"/db0432_cold_storage/Articulation/Joints/leaf_handle_hinge\", \"leaf_latch_bolt_slide\": \"/db0432_cold_storage/Articulation/Joints/leaf_latch_bolt_slide\", \"closer_pinion\": \"/db0432_cold_storage/Articulation/Joints/closer_pinion\", \"closer_elbow\": \"/db0432_cold_storage/Articulation/Joints/closer_elbow\", \"closer_shoe_slide\": \"/db0432_cold_storage/Articulation/Joints/closer_shoe_slide\"}, \"servo_in_drive\": {}, \"rise_coupling\": {\"rise_joint\": \"leaf_rise\", \"hinge_joint\": \"leaf_hinge\", \"coeff_m_per_rad\": 0.007639437268410976, \"lift_m_per_rad\": 0.007639437268410976, \"carried_mass_kg\": 63.60088959999999, \"gravity_torque_Nm\": -4.766433811943597, \"label\": \"rise = 12 mm per 90 deg (helical hinge)\", \"note\": \"constant closing torque -m*g*dz/dq of the helical hinge; apply on the hinge when the rise joint is not simulated\"}, \"max_angular_velocity_deg_s\": 5729.5779513082325}"
 
     def Scope "Looks"
     {
@@ -867,17 +867,20 @@ def Xform "db0432_cold_storage"
             }
 
             def PhysicsPrismaticJoint "leaf_rise" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX", "PhysxMimicJointAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear", "PhysxMimicJointAPI:transX"]
             )
             {
+                custom float doorbench:armature_si = 0.5
                 custom float doorbench:damping_si = 1
                 custom float doorbench:friction_effort = 0
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Rising-hinge lift (coupled to hinge angle)"
+                custom float doorbench:legacy_friction_coeff = 0
                 custom bool doorbench:limited = 1
                 custom string doorbench:mimic_label = "rise = 12 mm per 90 deg (helical hinge)"
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "mechanism"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_rise"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -899,10 +902,10 @@ def Xform "db0432_cold_storage"
                 float physics:upperLimit = 0.0264
                 custom float physxJoint:armature = 0.5
                 custom float physxJoint:jointFriction = 0
-                custom float physxJointAxis:transX:armature = 0.5
-                custom float physxJointAxis:transX:dynamicFrictionEffort = 0
-                custom float physxJointAxis:transX:staticFrictionEffort = 0
-                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxJointAxis:linear:armature = 0.5
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 0
+                custom float physxJointAxis:linear:staticFrictionEffort = 0
+                custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
                 custom float physxMimicJoint:transX:gearing = -0.0076394374
                 custom float physxMimicJoint:transX:offset = -0
                 custom rel physxMimicJoint:transX:referenceJoint = </db0432_cold_storage/Articulation/Joints/leaf_hinge>
@@ -910,9 +913,10 @@ def Xform "db0432_cold_storage"
             }
 
             def PhysicsRevoluteJoint "leaf_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.02
                 custom float doorbench:backcheck_angle = 1.22
                 custom float doorbench:backcheck_damping = 60
                 custom float doorbench:damping_closing = 63
@@ -921,10 +925,12 @@ def Xform "db0432_cold_storage"
                 custom float doorbench:friction_effort = 6.7526374
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
+                custom float doorbench:legacy_friction_coeff = 0.006932838
                 custom bool doorbench:limited = 1
                 custom string doorbench:notes = "rising hinge: gravity closing torque ~ m*g*0.0076 N*m/rad"
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_hinge"
                 custom float doorbench:stiffness_si = 21.358593
                 custom float doorbench:target_si = -1.7323238
@@ -945,24 +951,27 @@ def Xform "db0432_cold_storage"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 100
                 custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 0.006932838
-                custom float physxJointAxis:rotX:armature = 0.02
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 6.7526374
-                custom float physxJointAxis:rotX:staticFrictionEffort = 6.7526374
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.02
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 6.7526374
+                custom float physxJointAxis:angular:staticFrictionEffort = 6.7526374
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "leaf_handle_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.01
                 custom float doorbench:damping_si = 0.02
                 custom float doorbench:friction_effort = 0.07
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Cold storage door handle w/ inside release (0 = rest, + = actuated)"
+                custom float doorbench:legacy_friction_coeff = 0.0022945863
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "operator"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_handle_hinge"
                 custom float doorbench:stiffness_si = 2.5
                 custom float doorbench:target_si = -0.48
@@ -983,26 +992,29 @@ def Xform "db0432_cold_storage"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 28.64789
                 custom float physxJoint:armature = 0.01
-                custom float physxJoint:jointFriction = 0.0022945863
-                custom float physxJointAxis:rotX:armature = 0.01
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.07
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.07
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.01
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.07
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.07
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsPrismaticJoint "leaf_latch_bolt_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
+                custom float doorbench:armature_si = 0.1
                 custom float doorbench:damping_si = 2
                 custom float doorbench:friction_effort = 0.3
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Latch bolt (0 = extended, + = retracted)"
                 custom string doorbench:latch_coupling_joint = "leaf_handle_hinge"
                 custom float doorbench:latch_coupling_scale = 0.012765957
+                custom float doorbench:legacy_friction_coeff = 0.3
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "latch"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_latch_bolt_slide"
                 custom float doorbench:stiffness_si = 3000
                 custom float doorbench:target_si = -0.004
@@ -1023,24 +1035,27 @@ def Xform "db0432_cold_storage"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 0.006
                 custom float physxJoint:armature = 0.1
-                custom float physxJoint:jointFriction = 0.3
-                custom float physxJointAxis:transX:armature = 0.1
-                custom float physxJointAxis:transX:dynamicFrictionEffort = 0.3
-                custom float physxJointAxis:transX:staticFrictionEffort = 0.3
-                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:linear:armature = 0.1
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 0.3
+                custom float physxJointAxis:linear:staticFrictionEffort = 0.3
+                custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "closer_pinion" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.002
                 custom float doorbench:damping_si = 0.01
                 custom float doorbench:friction_effort = 0
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Closer pinion"
+                custom float doorbench:legacy_friction_coeff = 0
                 custom bool doorbench:limited = 0
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "mechanism"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "closer_pinion"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -1062,23 +1077,26 @@ def Xform "db0432_cold_storage"
                 float physics:upperLimit = 720
                 custom float physxJoint:armature = 0.002
                 custom float physxJoint:jointFriction = 0
-                custom float physxJointAxis:rotX:armature = 0.002
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJointAxis:angular:armature = 0.002
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0
+                custom float physxJointAxis:angular:staticFrictionEffort = 0
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "closer_elbow" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.002
                 custom float doorbench:damping_si = 0.01
                 custom float doorbench:friction_effort = 0
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Closer elbow"
+                custom float doorbench:legacy_friction_coeff = 0
                 custom bool doorbench:limited = 0
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "mechanism"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "closer_elbow"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -1100,23 +1118,26 @@ def Xform "db0432_cold_storage"
                 float physics:upperLimit = 720
                 custom float physxJoint:armature = 0.002
                 custom float physxJoint:jointFriction = 0
-                custom float physxJointAxis:rotX:armature = 0.002
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJointAxis:angular:armature = 0.002
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0
+                custom float physxJointAxis:angular:staticFrictionEffort = 0
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsPrismaticJoint "closer_shoe_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
+                custom float doorbench:armature_si = 0.05
                 custom float doorbench:damping_si = 0.1
                 custom float doorbench:friction_effort = 0
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Closer shoe lift (passive cam-lift accommodation)"
+                custom float doorbench:legacy_friction_coeff = 0
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "mechanism"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "closer_shoe_slide"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -1138,10 +1159,10 @@ def Xform "db0432_cold_storage"
                 float physics:upperLimit = 0.015333333
                 custom float physxJoint:armature = 0.05
                 custom float physxJoint:jointFriction = 0
-                custom float physxJointAxis:transX:armature = 0.05
-                custom float physxJointAxis:transX:dynamicFrictionEffort = 0
-                custom float physxJointAxis:transX:staticFrictionEffort = 0
-                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxJointAxis:linear:armature = 0.05
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 0
+                custom float physxJointAxis:linear:staticFrictionEffort = 0
+                custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
         }
 
@@ -1155,6 +1176,7 @@ def Xform "db0432_cold_storage"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1172,6 +1194,7 @@ def Xform "db0432_cold_storage"
             float3 physics:diagonalInertia = (1.3468468e-8, 1.3468468e-8, 1.3468468e-8)
             float physics:mass = 0.0021044482
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1203,6 +1226,7 @@ def Xform "db0432_cold_storage"
             float3 physics:diagonalInertia = (6.942058, 26.061064, 32.787235)
             float physics:mass = 60.39911
             quatf physics:principalAxes = (0.53750044, 0.53240556, 0.44474468, -0.4794161)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1357,6 +1381,7 @@ def Xform "db0432_cold_storage"
             float3 physics:diagonalInertia = (0.018403485, 0.02370076, 0.040134348)
             float physics:mass = 2.9718466
             quatf physics:principalAxes = (3.8550637e-17, 0.70710677, 0.70710677, -1.4776847e-16)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1522,6 +1547,7 @@ def Xform "db0432_cold_storage"
             float3 physics:diagonalInertia = (5.260383e-7, 0.0000029485832, 0.0000029485832)
             float physics:mass = 0.030762475
             quatf physics:principalAxes = (7.850462e-17, -7.850462e-17, 0.70710677, 0.70710677)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1560,6 +1586,7 @@ def Xform "db0432_cold_storage"
             float3 physics:diagonalInertia = (0.00000358848, 0.00079128, 0.0007928525)
             float physics:mass = 0.12096
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (0.34573433, 0, 0, 0.93833244)
@@ -1592,6 +1619,7 @@ def Xform "db0432_cold_storage"
             float3 physics:diagonalInertia = (0.0000017119356, 0.0004301848, 0.00043077423)
             float physics:mass = 0.07610726
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (0.72465104, 0, 0, -0.689116)
@@ -1655,6 +1683,7 @@ def Xform "db0432_cold_storage"
             float3 physics:diagonalInertia = (0.000001842048, 0.000004989816, 0.000005394168)
             float physics:mass = 0.033696
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

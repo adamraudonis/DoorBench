@@ -9,7 +9,7 @@ def Xform "db0387_sliding_bypass"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0387_sliding_bypass"
-    custom string doorbench:meta = '{"door_id": "db0387_sliding_bypass", "family": "sliding_bypass", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_0_slide", "body": "leaf_0", "rail": "leaf_0_shikii", "nominal_range": [0.0, 0.58], "leaf_width_m": 0.61, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}, {"joint": "leaf_1_slide", "body": "leaf_1", "rail": "leaf_1_shikii", "nominal_range": [0.0, 0.58], "leaf_width_m": 0.61, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_0_slide", "secondary_joint": "leaf_1_slide", "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 6.138354559999998, "scene_extent": 2.069, "cam_target_z": 1.046, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.51, -0.055, 1.0], "handle_cam_pos": [-0.33, -0.8550000000000001, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_0_slide": "/db0387_sliding_bypass/Articulation/Joints/leaf_0_slide", "leaf_1_slide": "/db0387_sliding_bypass/Articulation/Joints/leaf_1_slide"}}'
+    custom string doorbench:meta = '{"door_id": "db0387_sliding_bypass", "family": "sliding_bypass", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_0_slide", "body": "leaf_0", "rail": "leaf_0_shikii", "nominal_range": [0.0, 0.58], "leaf_width_m": 0.61, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}, {"joint": "leaf_1_slide", "body": "leaf_1", "rail": "leaf_1_shikii", "nominal_range": [0.0, 0.58], "leaf_width_m": 0.61, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_0_slide", "secondary_joint": "leaf_1_slide", "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 6.138354559999998, "scene_extent": 2.069, "cam_target_z": 1.046, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.51, -0.055, 1.0], "handle_cam_pos": [-0.33, -0.8550000000000001, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_0_slide": "/db0387_sliding_bypass/Articulation/Joints/leaf_0_slide", "leaf_1_slide": "/db0387_sliding_bypass/Articulation/Joints/leaf_1_slide"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -512,16 +512,19 @@ def Xform "db0387_sliding_bypass"
             }
 
             def PhysicsPrismaticJoint "leaf_0_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
+                custom float doorbench:armature_si = 0.5
                 custom float doorbench:damping_si = 2.3069177
                 custom float doorbench:friction_effort = 23.476711
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Slide (0 = closed, + = open)"
+                custom float doorbench:legacy_friction_coeff = 0.77966595
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_0_slide"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -542,24 +545,27 @@ def Xform "db0387_sliding_bypass"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 0.58
                 custom float physxJoint:armature = 0.5
-                custom float physxJoint:jointFriction = 0.77966595
-                custom float physxJointAxis:transX:armature = 0.5
-                custom float physxJointAxis:transX:dynamicFrictionEffort = 23.476711
-                custom float physxJointAxis:transX:staticFrictionEffort = 23.476711
-                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:linear:armature = 0.5
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 23.476711
+                custom float physxJointAxis:linear:staticFrictionEffort = 23.476711
+                custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
 
             def PhysicsPrismaticJoint "leaf_1_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
+                custom float doorbench:armature_si = 0.5
                 custom float doorbench:damping_si = 2.3069177
                 custom float doorbench:friction_effort = 23.476711
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Slide (0 = closed, + = open)"
+                custom float doorbench:legacy_friction_coeff = 0.77966595
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_1_slide"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -580,11 +586,11 @@ def Xform "db0387_sliding_bypass"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 0.58
                 custom float physxJoint:armature = 0.5
-                custom float physxJoint:jointFriction = 0.77966595
-                custom float physxJointAxis:transX:armature = 0.5
-                custom float physxJointAxis:transX:dynamicFrictionEffort = 23.476711
-                custom float physxJointAxis:transX:staticFrictionEffort = 23.476711
-                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:linear:armature = 0.5
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 23.476711
+                custom float physxJointAxis:linear:staticFrictionEffort = 23.476711
+                custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
         }
 
@@ -598,6 +604,7 @@ def Xform "db0387_sliding_bypass"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -615,6 +622,7 @@ def Xform "db0387_sliding_bypass"
             float3 physics:diagonalInertia = (0.09538913, 1.0557425, 1.1506706)
             float physics:mass = 3.0691774
             quatf physics:principalAxes = (0.4999923, 0.50001365, -0.499986, 0.50000805)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -923,6 +931,7 @@ def Xform "db0387_sliding_bypass"
             float3 physics:diagonalInertia = (0.09538913, 1.0557425, 1.1506706)
             float physics:mass = 3.0691774
             quatf physics:principalAxes = (0.50000805, 0.499986, -0.50001365, 0.4999923)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

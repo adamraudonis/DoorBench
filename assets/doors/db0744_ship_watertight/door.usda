@@ -9,7 +9,7 @@ def Xform "db0744_ship_watertight"
 {
     custom string doorbench:couplings = '[{"type": "mimic", "driven": "dog_0_hinge", "driver": "wheel_hinge", "coeff": [0, 0.16666666666666669, 0, 0, 0], "gearing": -0.16666666666666669, "offset": -0.0, "label": "dog = wheel * (90deg / wheel travel)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "mimic", "driven": "dog_1_hinge", "driver": "wheel_hinge", "coeff": [0, 0.16666666666666669, 0, 0, 0], "gearing": -0.16666666666666669, "offset": -0.0, "label": "dog = wheel * (90deg / wheel travel)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "mimic", "driven": "dog_2_hinge", "driver": "wheel_hinge", "coeff": [0, 0.16666666666666669, 0, 0, 0], "gearing": -0.16666666666666669, "offset": -0.0, "label": "dog = wheel * (90deg / wheel travel)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "mimic", "driven": "dog_3_hinge", "driver": "wheel_hinge", "coeff": [0, 0.16666666666666669, 0, 0, 0], "gearing": -0.16666666666666669, "offset": -0.0, "label": "dog = wheel * (90deg / wheel travel)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}]'
     custom string doorbench:door_id = "db0744_ship_watertight"
-    custom string doorbench:meta = '{"door_id": "db0744_ship_watertight", "family": "ship_watertight", "task": "unlock_open_traverse", "wall_y": 0.0, "operator_joint": "wheel_hinge", "u": 1.0, "v": 1.0, "primary_joint": "leaf_hinge", "dog_joints": [], "sill_height": 0.3, "mass_reconciled_kg": 63.57217668378924, "scene_extent": 1.6325, "cam_target_z": 0.905, "cam_target_x": 0.0, "handle_cam_x": 0.6, "handle_cam_target": [-0.0010000000000000009, -0.084, 1.23], "handle_cam_pos": [0.179, -0.884, 1.51], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0744_ship_watertight/Articulation/Joints/leaf_hinge", "wheel_hinge": "/db0744_ship_watertight/Articulation/Joints/wheel_hinge", "dog_0_hinge": "/db0744_ship_watertight/Articulation/Joints/dog_0_hinge", "dog_1_hinge": "/db0744_ship_watertight/Articulation/Joints/dog_1_hinge", "dog_2_hinge": "/db0744_ship_watertight/Articulation/Joints/dog_2_hinge", "dog_3_hinge": "/db0744_ship_watertight/Articulation/Joints/dog_3_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0744_ship_watertight", "family": "ship_watertight", "task": "unlock_open_traverse", "wall_y": 0.0, "operator_joint": "wheel_hinge", "u": 1.0, "v": 1.0, "primary_joint": "leaf_hinge", "dog_joints": [], "sill_height": 0.3, "mass_reconciled_kg": 63.57217668378924, "scene_extent": 1.6325, "cam_target_z": 0.905, "cam_target_x": 0.0, "handle_cam_x": 0.6, "handle_cam_target": [-0.0010000000000000009, -0.084, 1.23], "handle_cam_pos": [0.179, -0.884, 1.51], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0744_ship_watertight/Articulation/Joints/leaf_hinge", "wheel_hinge": "/db0744_ship_watertight/Articulation/Joints/wheel_hinge", "dog_0_hinge": "/db0744_ship_watertight/Articulation/Joints/dog_0_hinge", "dog_1_hinge": "/db0744_ship_watertight/Articulation/Joints/dog_1_hinge", "dog_2_hinge": "/db0744_ship_watertight/Articulation/Joints/dog_2_hinge", "dog_3_hinge": "/db0744_ship_watertight/Articulation/Joints/dog_3_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -716,18 +716,21 @@ def Xform "db0744_ship_watertight"
             }
 
             def PhysicsRevoluteJoint "leaf_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.02
                 custom float doorbench:damping_closing = 0
                 custom float doorbench:damping_opening = 0
                 custom float doorbench:damping_si = 0.11504309
                 custom float doorbench:friction_effort = 5.716098
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
+                custom float doorbench:legacy_friction_coeff = 0.0058344966
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -748,24 +751,27 @@ def Xform "db0744_ship_watertight"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 110
                 custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 0.0058344966
-                custom float physxJointAxis:rotX:armature = 0.02
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 5.716098
-                custom float physxJointAxis:rotX:staticFrictionEffort = 5.716098
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.02
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 5.716098
+                custom float physxJointAxis:angular:staticFrictionEffort = 5.716098
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "wheel_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.01
                 custom float doorbench:damping_si = 0.02
                 custom float doorbench:friction_effort = 0.12
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Ship hatch handwheel (central dogging) (0 = rest, + = actuated)"
+                custom float doorbench:legacy_friction_coeff = 0.002048081
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "operator"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "wheel_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -786,25 +792,28 @@ def Xform "db0744_ship_watertight"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 540.0013
                 custom float physxJoint:armature = 0.01
-                custom float physxJoint:jointFriction = 0.002048081
-                custom float physxJointAxis:rotX:armature = 0.01
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.12
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.12
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.01
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.12
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.12
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "dog_0_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX", "PhysxMimicJointAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular", "PhysxMimicJointAPI:rotX"]
             )
             {
+                custom float doorbench:armature_si = 0.005
                 custom float doorbench:damping_si = 0.5
                 custom float doorbench:friction_effort = 0.5
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Dog 1 (wheel-driven)"
+                custom float doorbench:legacy_friction_coeff = 0.063553154
                 custom bool doorbench:limited = 1
                 custom string doorbench:mimic_label = "dog = wheel * (90deg / wheel travel)"
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "lock"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "dog_0_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -825,11 +834,11 @@ def Xform "db0744_ship_watertight"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 90.00021
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.063553154
-                custom float physxJointAxis:rotX:armature = 0.005
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.5
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.5
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.005
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.5
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.5
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
                 custom float physxMimicJoint:rotX:gearing = -0.16666667
                 custom float physxMimicJoint:rotX:offset = -0
                 custom rel physxMimicJoint:rotX:referenceJoint = </db0744_ship_watertight/Articulation/Joints/wheel_hinge>
@@ -837,17 +846,20 @@ def Xform "db0744_ship_watertight"
             }
 
             def PhysicsRevoluteJoint "dog_1_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX", "PhysxMimicJointAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular", "PhysxMimicJointAPI:rotX"]
             )
             {
+                custom float doorbench:armature_si = 0.005
                 custom float doorbench:damping_si = 0.5
                 custom float doorbench:friction_effort = 0.5
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Dog 2 (wheel-driven)"
+                custom float doorbench:legacy_friction_coeff = 0.063553154
                 custom bool doorbench:limited = 1
                 custom string doorbench:mimic_label = "dog = wheel * (90deg / wheel travel)"
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "lock"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "dog_1_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -868,11 +880,11 @@ def Xform "db0744_ship_watertight"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 90.00021
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.063553154
-                custom float physxJointAxis:rotX:armature = 0.005
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.5
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.5
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.005
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.5
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.5
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
                 custom float physxMimicJoint:rotX:gearing = -0.16666667
                 custom float physxMimicJoint:rotX:offset = -0
                 custom rel physxMimicJoint:rotX:referenceJoint = </db0744_ship_watertight/Articulation/Joints/wheel_hinge>
@@ -880,17 +892,20 @@ def Xform "db0744_ship_watertight"
             }
 
             def PhysicsRevoluteJoint "dog_2_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX", "PhysxMimicJointAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular", "PhysxMimicJointAPI:rotX"]
             )
             {
+                custom float doorbench:armature_si = 0.005
                 custom float doorbench:damping_si = 0.5
                 custom float doorbench:friction_effort = 0.5
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Dog 3 (wheel-driven)"
+                custom float doorbench:legacy_friction_coeff = 0.063553154
                 custom bool doorbench:limited = 1
                 custom string doorbench:mimic_label = "dog = wheel * (90deg / wheel travel)"
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "lock"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "dog_2_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -911,11 +926,11 @@ def Xform "db0744_ship_watertight"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 90.00021
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.063553154
-                custom float physxJointAxis:rotX:armature = 0.005
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.5
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.5
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.005
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.5
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.5
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
                 custom float physxMimicJoint:rotX:gearing = -0.16666667
                 custom float physxMimicJoint:rotX:offset = -0
                 custom rel physxMimicJoint:rotX:referenceJoint = </db0744_ship_watertight/Articulation/Joints/wheel_hinge>
@@ -923,17 +938,20 @@ def Xform "db0744_ship_watertight"
             }
 
             def PhysicsRevoluteJoint "dog_3_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX", "PhysxMimicJointAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular", "PhysxMimicJointAPI:rotX"]
             )
             {
+                custom float doorbench:armature_si = 0.005
                 custom float doorbench:damping_si = 0.5
                 custom float doorbench:friction_effort = 0.5
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Dog 4 (wheel-driven)"
+                custom float doorbench:legacy_friction_coeff = 0.063553154
                 custom bool doorbench:limited = 1
                 custom string doorbench:mimic_label = "dog = wheel * (90deg / wheel travel)"
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "lock"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "dog_3_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -954,11 +972,11 @@ def Xform "db0744_ship_watertight"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 90.00021
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.063553154
-                custom float physxJointAxis:rotX:armature = 0.005
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.5
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.5
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.005
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.5
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.5
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
                 custom float physxMimicJoint:rotX:gearing = -0.16666667
                 custom float physxMimicJoint:rotX:offset = -0
                 custom rel physxMimicJoint:rotX:referenceJoint = </db0744_ship_watertight/Articulation/Joints/wheel_hinge>
@@ -976,6 +994,7 @@ def Xform "db0744_ship_watertight"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -993,6 +1012,7 @@ def Xform "db0744_ship_watertight"
             float3 physics:diagonalInertia = (2.8174295, 12.1592655, 14.974154)
             float physics:mass = 63.572178
             quatf physics:principalAxes = (0.5007056, 0.4982401, -0.5017131, 0.49933422)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1289,6 +1309,7 @@ def Xform "db0744_ship_watertight"
             float3 physics:diagonalInertia = (0.11551508, 0.11551508, 0.1482112)
             float physics:mass = 5.9726233
             quatf physics:principalAxes = (0.70710677, -0.70710677, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1670,6 +1691,7 @@ def Xform "db0744_ship_watertight"
             float3 physics:diagonalInertia = (0.0001357824, 0.0006599424, 0.00072384)
             float physics:mass = 0.7488
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1707,6 +1729,7 @@ def Xform "db0744_ship_watertight"
             float3 physics:diagonalInertia = (0.0001357824, 0.0006599424, 0.00072384)
             float physics:mass = 0.7488
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1744,6 +1767,7 @@ def Xform "db0744_ship_watertight"
             float3 physics:diagonalInertia = (0.0001357824, 0.0006599424, 0.00072384)
             float physics:mass = 0.7488
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1781,6 +1805,7 @@ def Xform "db0744_ship_watertight"
             float3 physics:diagonalInertia = (0.0001357824, 0.0006599424, 0.00072384)
             float physics:mass = 0.7488
             quatf physics:principalAxes = (-0, 0, 0.70710677, 0.70710677)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

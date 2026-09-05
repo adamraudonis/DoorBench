@@ -9,7 +9,7 @@ def Xform "db0995_turnstile_fullheight"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0995_turnstile_fullheight"
-    custom string doorbench:meta = '{"door_id": "db0995_turnstile_fullheight", "family": "turnstile_fullheight", "task": "traverse_open", "wall_y": 0.0, "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 1.0, "ratchet_deg": 120.0, "one_way": true, "locked": false, "mass_reconciled_kg": 13.565850284968406, "scene_extent": 2.2249999999999996, "cam_target_z": 1.15, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.55, -1.1, 1.35], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"rotor_hinge": "/db0995_turnstile_fullheight/Articulation/Joints/rotor_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0995_turnstile_fullheight", "family": "turnstile_fullheight", "task": "traverse_open", "wall_y": 0.0, "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 1.0, "ratchet_deg": 120.0, "one_way": true, "locked": false, "mass_reconciled_kg": 13.565850284968406, "scene_extent": 2.2249999999999996, "cam_target_z": 1.15, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.55, -1.1, 1.35], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"rotor_hinge": "/db0995_turnstile_fullheight/Articulation/Joints/rotor_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -577,17 +577,20 @@ def Xform "db0995_turnstile_fullheight"
             }
 
             def PhysicsRevoluteJoint "rotor_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.3
                 custom float doorbench:damping_si = 6
                 custom float doorbench:friction_effort = 4.212857
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Rotor (ratchets 360/wings deg; one-way enforced by env)"
+                custom float doorbench:legacy_friction_coeff = 0.03165634
                 custom bool doorbench:limited = 0
                 custom bool doorbench:ratchet_one_way = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "rotor_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -608,11 +611,11 @@ def Xform "db0995_turnstile_fullheight"
                 float physics:lowerLimit = -720
                 float physics:upperLimit = 720
                 custom float physxJoint:armature = 0.3
-                custom float physxJoint:jointFriction = 0.03165634
-                custom float physxJointAxis:rotX:armature = 0.3
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 4.212857
-                custom float physxJointAxis:rotX:staticFrictionEffort = 4.212857
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.3
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 4.212857
+                custom float physxJointAxis:angular:staticFrictionEffort = 4.212857
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
         }
 
@@ -626,6 +629,7 @@ def Xform "db0995_turnstile_fullheight"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -643,6 +647,7 @@ def Xform "db0995_turnstile_fullheight"
             float3 physics:diagonalInertia = (0.2150641, 5.506766, 5.506766)
             float physics:mass = 13.56585
             quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

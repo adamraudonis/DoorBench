@@ -9,7 +9,7 @@ def Xform "db0395_swing_double"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0395_swing_double"
-    custom string doorbench:meta = '{"door_id": "db0395_swing_double", "family": "swing_double", "task": "open_and_traverse", "wall_y": 0.030499999999999996, "u": -1.0, "v": -1.0, "hinge_x": 1.2045, "leaf_edge_x_local": -1.2029999999999998, "handle_height": 1.05, "primary_joint": "leaf_a_hinge", "operator_joint": null, "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": false, "mass_reconciled_kg": 64.52559999999998, "scene_extent": 2.3097499999999997, "cam_target_z": 1.2065, "cam_target_x": 0.0, "handle_cam_x": 0.10450000000000004, "handle_cam_target": [-0.10650000000000004, -0.067, 1.05], "handle_cam_pos": [0.07349999999999995, -0.867, 1.33], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0395_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_b_hinge": "/db0395_swing_double/Articulation/Joints/leaf_b_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0395_swing_double", "family": "swing_double", "task": "open_and_traverse", "wall_y": 0.030499999999999996, "u": -1.0, "v": -1.0, "hinge_x": 1.2045, "leaf_edge_x_local": -1.2029999999999998, "handle_height": 1.05, "primary_joint": "leaf_a_hinge", "operator_joint": null, "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": false, "mass_reconciled_kg": 64.52559999999998, "scene_extent": 2.3097499999999997, "cam_target_z": 1.2065, "cam_target_x": 0.0, "handle_cam_x": 0.10450000000000004, "handle_cam_target": [-0.10650000000000004, -0.067, 1.05], "handle_cam_pos": [0.07349999999999995, -0.867, 1.33], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0395_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_b_hinge": "/db0395_swing_double/Articulation/Joints/leaf_b_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -470,18 +470,21 @@ def Xform "db0395_swing_double"
             }
 
             def PhysicsRevoluteJoint "leaf_a_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.02
                 custom float doorbench:damping_closing = 0
                 custom float doorbench:damping_opening = 0
                 custom float doorbench:damping_si = 0.9487812
                 custom float doorbench:friction_effort = 28.985632
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
+                custom float doorbench:legacy_friction_coeff = 0.05770834
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_a_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -502,27 +505,30 @@ def Xform "db0395_swing_double"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 80
                 custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 0.05770834
-                custom float physxJointAxis:rotX:armature = 0.02
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 28.985632
-                custom float physxJointAxis:rotX:staticFrictionEffort = 28.985632
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.02
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 28.985632
+                custom float physxJointAxis:angular:staticFrictionEffort = 28.985632
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "leaf_b_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.02
                 custom float doorbench:damping_closing = 0
                 custom float doorbench:damping_opening = 0
                 custom float doorbench:damping_si = 0.9487812
                 custom float doorbench:friction_effort = 28.985632
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Inactive leaf (flush bolts engaged)"
+                custom float doorbench:legacy_friction_coeff = 0.058125004
                 custom bool doorbench:limited = 1
                 custom string doorbench:notes = "inactive leaf held by flush bolts; set range to free it"
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_b_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -543,11 +549,11 @@ def Xform "db0395_swing_double"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 0.05729578
                 custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 0.058125004
-                custom float physxJointAxis:rotX:armature = 0.02
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 28.985632
-                custom float physxJointAxis:rotX:staticFrictionEffort = 28.985632
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.02
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 28.985632
+                custom float physxJointAxis:angular:staticFrictionEffort = 28.985632
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
         }
 
@@ -561,6 +567,7 @@ def Xform "db0395_swing_double"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -578,6 +585,7 @@ def Xform "db0395_swing_double"
             float3 physics:diagonalInertia = (3.9743745, 16.559196, 20.517967)
             float physics:mass = 32.300194
             quatf physics:principalAxes = (0.5003157, -0.49809012, -0.50190395, -0.49968275)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -904,6 +912,7 @@ def Xform "db0395_swing_double"
             float3 physics:diagonalInertia = (3.8945374, 16.75084, 20.633154)
             float physics:mass = 32.225407
             quatf physics:principalAxes = (0.501119, 0.49887848, -0.501119, 0.49887848)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

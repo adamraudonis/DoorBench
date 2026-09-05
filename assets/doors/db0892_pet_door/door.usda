@@ -9,7 +9,7 @@ def Xform "db0892_pet_door"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0892_pet_door"
-    custom string doorbench:meta = '{"door_id": "db0892_pet_door", "family": "pet_door", "task": "push_through", "wall_y": 0.0, "locked": true, "primary_joint": "flap_hinge", "operator_joint": null, "handle_height": 0.195, "both_ways": true, "mass_reconciled_kg": 0.462, "scene_extent": 1.5, "cam_target_z": 0.145, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 0.195], "handle_cam_pos": [0.48, -0.8, 0.47500000000000003], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"flap_hinge": "/db0892_pet_door/Articulation/Joints/flap_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0892_pet_door", "family": "pet_door", "task": "push_through", "wall_y": 0.0, "locked": true, "primary_joint": "flap_hinge", "operator_joint": null, "handle_height": 0.195, "both_ways": true, "mass_reconciled_kg": 0.462, "scene_extent": 1.5, "cam_target_z": 0.145, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 0.195], "handle_cam_pos": [0.48, -0.8, 0.47500000000000003], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"flap_hinge": "/db0892_pet_door/Articulation/Joints/flap_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -359,17 +359,20 @@ def Xform "db0892_pet_door"
             }
 
             def PhysicsRevoluteJoint "flap_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.02
                 custom float doorbench:damping_si = 0.010053084
                 custom float doorbench:friction_effort = 0.023784008
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Flap (swings both ways)"
+                custom float doorbench:legacy_friction_coeff = 0.005247761
                 custom bool doorbench:limited = 1
                 custom string doorbench:notes = "locking panel slid in: flap blocked"
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "flap_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -390,11 +393,11 @@ def Xform "db0892_pet_door"
                 float physics:lowerLimit = -0.05729578
                 float physics:upperLimit = 0.05729578
                 custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 0.005247761
-                custom float physxJointAxis:rotX:armature = 0.02
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.023784008
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.023784008
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.02
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.023784008
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.023784008
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
         }
 
@@ -408,6 +411,7 @@ def Xform "db0892_pet_door"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -425,6 +429,7 @@ def Xform "db0892_pet_door"
             float3 physics:diagonalInertia = (0.0010899717, 0.0035718235, 0.004660277)
             float physics:mass = 0.462
             quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

@@ -9,7 +9,7 @@ def Xform "db0651_garage_tiltup"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0651_garage_tiltup"
-    custom string doorbench:meta = '{"door_id": "db0651_garage_tiltup", "family": "garage_tiltup", "task": "locked_recognize", "wall_y": 0.0, "primary_joint": "door_hinge", "handle_height": 0.9, "counterbalance_fraction": 0.9, "operator_joint": null, "mass_reconciled_kg": 72.537025, "scene_extent": 2.825, "cam_target_z": 1.09, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, -0.07250000000000001, 0.9], "handle_cam_pos": [0.25, -1.1725, 1.25], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"door_hinge": "/db0651_garage_tiltup/Articulation/Joints/door_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0651_garage_tiltup", "family": "garage_tiltup", "task": "locked_recognize", "wall_y": 0.0, "primary_joint": "door_hinge", "handle_height": 0.9, "counterbalance_fraction": 0.9, "operator_joint": null, "mass_reconciled_kg": 72.537025, "scene_extent": 2.825, "cam_target_z": 1.09, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, -0.07250000000000001, 0.9], "handle_cam_pos": [0.25, -1.1725, 1.25], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"door_hinge": "/db0651_garage_tiltup/Articulation/Joints/door_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -358,16 +358,19 @@ def Xform "db0651_garage_tiltup"
             }
 
             def PhysicsRevoluteJoint "door_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.5
                 custom float doorbench:damping_si = 15.253702
                 custom float doorbench:friction_effort = 5.529074
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Tilt-up (0 = closed vertical, + = tilting open/up)"
+                custom float doorbench:legacy_friction_coeff = 0.0077665425
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "door_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -388,11 +391,11 @@ def Xform "db0651_garage_tiltup"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 0.5729578
                 custom float physxJoint:armature = 0.5
-                custom float physxJoint:jointFriction = 0.0077665425
-                custom float physxJointAxis:rotX:armature = 0.5
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 5.529074
-                custom float physxJointAxis:rotX:staticFrictionEffort = 5.529074
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.5
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 5.529074
+                custom float physxJointAxis:angular:staticFrictionEffort = 5.529074
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
         }
 
@@ -406,6 +409,7 @@ def Xform "db0651_garage_tiltup"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -423,6 +427,7 @@ def Xform "db0651_garage_tiltup"
             float3 physics:diagonalInertia = (27.25977, 55.848866, 83.07996)
             float physics:mass = 72.537025
             quatf physics:principalAxes = (0, 0, -0.7070329, 0.7071806)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

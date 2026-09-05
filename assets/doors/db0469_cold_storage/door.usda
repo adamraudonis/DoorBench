@@ -9,7 +9,7 @@ def Xform "db0469_cold_storage"
 {
     custom string doorbench:couplings = '[{"type": "mimic", "driven": "leaf_rise", "driver": "leaf_hinge", "coeff": [0.0, 0.007639437268410976, 0, 0, 0], "gearing": -0.007639437268410976, "offset": -0.0, "label": "rise = 12 mm per 90 deg (helical hinge)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}]'
     custom string doorbench:door_id = "db0469_cold_storage"
-    custom string doorbench:meta = '{"door_id": "db0469_cold_storage", "family": "cold_storage", "task": "close", "wall_y": -0.0, "clearance_allow": [["leaf_hasp_strap", "leaf_staple*", "staple passes through the strap slot"], ["leaf_padlock*", "leaf_staple*", "shackle through the staple eye"], ["leaf_padlock*", "leaf_hasp_strap", "padlock hangs over the strap"], ["leaf_hasp_strap", "leaf_hasp_plate", "strap over its hinge plate"], ["leaf_hasp_knuckle", "leaf_hasp_plate", "knuckle on its hinge plate"]], "u": 1.0, "v": 1.0, "hinge_x": -0.545, "leaf_edge_x_local": 1.073, "handle_height": 1.0, "primary_joint": "leaf_hinge", "operator_joint": "leaf_handle_hinge", "mass_reconciled_kg": 58.98423648264041, "scene_extent": 2.0, "cam_target_z": 1.0, "cam_target_x": 0.0, "handle_cam_x": 0.42500000000000004, "handle_cam_target": [0.26299999999999996, -0.13, 1.0], "handle_cam_pos": [0.44299999999999995, -0.93, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_rise": "/db0469_cold_storage/Articulation/Joints/leaf_rise", "leaf_hinge": "/db0469_cold_storage/Articulation/Joints/leaf_hinge", "leaf_handle_hinge": "/db0469_cold_storage/Articulation/Joints/leaf_handle_hinge", "leaf_mag_catch_slide": "/db0469_cold_storage/Articulation/Joints/leaf_mag_catch_slide", "leaf_hasp_hinge": "/db0469_cold_storage/Articulation/Joints/leaf_hasp_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0469_cold_storage", "family": "cold_storage", "task": "close", "wall_y": -0.0, "clearance_allow": [["leaf_hasp_strap", "leaf_staple*", "staple passes through the strap slot"], ["leaf_padlock*", "leaf_staple*", "shackle through the staple eye"], ["leaf_padlock*", "leaf_hasp_strap", "padlock hangs over the strap"], ["leaf_hasp_strap", "leaf_hasp_plate", "strap over its hinge plate"], ["leaf_hasp_knuckle", "leaf_hasp_plate", "knuckle on its hinge plate"]], "u": 1.0, "v": 1.0, "hinge_x": -0.545, "leaf_edge_x_local": 1.073, "handle_height": 1.0, "primary_joint": "leaf_hinge", "operator_joint": "leaf_handle_hinge", "mass_reconciled_kg": 58.98423648264041, "scene_extent": 2.0, "cam_target_z": 1.0, "cam_target_x": 0.0, "handle_cam_x": 0.42500000000000004, "handle_cam_target": [0.26299999999999996, -0.13, 1.0], "handle_cam_pos": [0.44299999999999995, -0.93, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_rise": "/db0469_cold_storage/Articulation/Joints/leaf_rise", "leaf_hinge": "/db0469_cold_storage/Articulation/Joints/leaf_hinge", "leaf_handle_hinge": "/db0469_cold_storage/Articulation/Joints/leaf_handle_hinge", "leaf_mag_catch_slide": "/db0469_cold_storage/Articulation/Joints/leaf_mag_catch_slide", "leaf_hasp_hinge": "/db0469_cold_storage/Articulation/Joints/leaf_hasp_hinge"}, "servo_in_drive": {}, "rise_coupling": {"rise_joint": "leaf_rise", "hinge_joint": "leaf_hinge", "coeff_m_per_rad": 0.007639437268410976, "lift_m_per_rad": 0.007639437268410976, "carried_mass_kg": 62.15391360000001, "gravity_torque_Nm": -4.657993263787007, "label": "rise = 12 mm per 90 deg (helical hinge)", "note": "constant closing torque -m*g*dz/dq of the helical hinge; apply on the hinge when the rise joint is not simulated"}, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -927,17 +927,20 @@ def Xform "db0469_cold_storage"
             }
 
             def PhysicsPrismaticJoint "leaf_rise" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX", "PhysxMimicJointAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear", "PhysxMimicJointAPI:transX"]
             )
             {
+                custom float doorbench:armature_si = 0.5
                 custom float doorbench:damping_si = 1
                 custom float doorbench:friction_effort = 0
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Rising-hinge lift (coupled to hinge angle)"
+                custom float doorbench:legacy_friction_coeff = 0
                 custom bool doorbench:limited = 1
                 custom string doorbench:mimic_label = "rise = 12 mm per 90 deg (helical hinge)"
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "mechanism"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_rise"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -959,10 +962,10 @@ def Xform "db0469_cold_storage"
                 float physics:upperLimit = 0.0264
                 custom float physxJoint:armature = 0.5
                 custom float physxJoint:jointFriction = 0
-                custom float physxJointAxis:transX:armature = 0.5
-                custom float physxJointAxis:transX:dynamicFrictionEffort = 0
-                custom float physxJointAxis:transX:staticFrictionEffort = 0
-                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxJointAxis:linear:armature = 0.5
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 0
+                custom float physxJointAxis:linear:staticFrictionEffort = 0
+                custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
                 custom float physxMimicJoint:transX:gearing = -0.0076394374
                 custom float physxMimicJoint:transX:offset = -0
                 custom rel physxMimicJoint:transX:referenceJoint = </db0469_cold_storage/Articulation/Joints/leaf_hinge>
@@ -970,19 +973,22 @@ def Xform "db0469_cold_storage"
             }
 
             def PhysicsRevoluteJoint "leaf_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.02
                 custom float doorbench:damping_closing = 0
                 custom float doorbench:damping_opening = 0
                 custom float doorbench:damping_si = 0.5187249
                 custom float doorbench:friction_effort = 5.8238544
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
+                custom float doorbench:legacy_friction_coeff = 0.006165671
                 custom bool doorbench:limited = 1
                 custom string doorbench:notes = "rising hinge: gravity closing torque ~ m*g*0.0076 N*m/rad"
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -1003,24 +1009,27 @@ def Xform "db0469_cold_storage"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 90
                 custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 0.006165671
-                custom float physxJointAxis:rotX:armature = 0.02
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 5.8238544
-                custom float physxJointAxis:rotX:staticFrictionEffort = 5.8238544
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.02
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 5.8238544
+                custom float physxJointAxis:angular:staticFrictionEffort = 5.8238544
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "leaf_handle_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.01
                 custom float doorbench:damping_si = 0.02
                 custom float doorbench:friction_effort = 0.07
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Cold storage door handle w/ inside release (0 = rest, + = actuated)"
+                custom float doorbench:legacy_friction_coeff = 0.0022622927
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "operator"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_handle_hinge"
                 custom float doorbench:stiffness_si = 2.5
                 custom float doorbench:target_si = -0.48
@@ -1041,24 +1050,27 @@ def Xform "db0469_cold_storage"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 28.64789
                 custom float physxJoint:armature = 0.01
-                custom float physxJoint:jointFriction = 0.0022622927
-                custom float physxJointAxis:rotX:armature = 0.01
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.07
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.07
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.01
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.07
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.07
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsPrismaticJoint "leaf_mag_catch_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
+                custom float doorbench:armature_si = 0.1
                 custom float doorbench:damping_si = 2
                 custom float doorbench:friction_effort = 0.3
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Latch bolt (0 = extended, + = retracted)"
+                custom float doorbench:legacy_friction_coeff = 0.3
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "latch"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_mag_catch_slide"
                 custom float doorbench:stiffness_si = 20000
                 custom float doorbench:target_si = -0.006
@@ -1079,24 +1091,27 @@ def Xform "db0469_cold_storage"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 0.006
                 custom float physxJoint:armature = 0.1
-                custom float physxJoint:jointFriction = 0.3
-                custom float physxJointAxis:transX:armature = 0.1
-                custom float physxJointAxis:transX:dynamicFrictionEffort = 0.3
-                custom float physxJointAxis:transX:staticFrictionEffort = 0.3
-                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:linear:armature = 0.1
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 0.3
+                custom float physxJointAxis:linear:staticFrictionEffort = 0.3
+                custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "leaf_hasp_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.005
                 custom float doorbench:damping_si = 0.02
                 custom float doorbench:friction_effort = 0.05
                 custom float doorbench:initial = 2.8
                 custom string doorbench:label = "Hasp (0 = closed over the staple, + = flipped open)"
+                custom float doorbench:legacy_friction_coeff = 0.040267963
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "lock"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_hasp_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -1117,11 +1132,11 @@ def Xform "db0469_cold_storage"
                 float physics:lowerLimit = -160.42818
                 float physics:upperLimit = 5.729578
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.040267963
-                custom float physxJointAxis:rotX:armature = 0.005
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.05
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.05
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.005
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.05
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.05
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
         }
 
@@ -1135,6 +1150,7 @@ def Xform "db0469_cold_storage"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1152,6 +1168,7 @@ def Xform "db0469_cold_storage"
             float3 physics:diagonalInertia = (1.3468468e-8, 1.3468468e-8, 1.3468468e-8)
             float physics:mass = 0.0021044482
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1183,6 +1200,7 @@ def Xform "db0469_cold_storage"
             float3 physics:diagonalInertia = (6.0436788, 20.661673, 26.451061)
             float physics:mass = 58.984238
             quatf physics:principalAxes = (0.5043287, 0.4937985, -0.50137514, 0.5004384)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1316,6 +1334,7 @@ def Xform "db0469_cold_storage"
             float3 physics:diagonalInertia = (0.018498454, 0.037988584, 0.05451634)
             float physics:mass = 3.0162373
             quatf physics:principalAxes = (3.925231e-17, 0.70710677, 0.70710677, -1.01070825e-17)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1481,6 +1500,7 @@ def Xform "db0469_cold_storage"
             float3 physics:diagonalInertia = (5.260383e-7, 0.0000029485832, 0.0000029485832)
             float physics:mass = 0.030762475
             quatf physics:principalAxes = (7.850462e-17, -7.850462e-17, 0.70710677, 0.70710677)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1519,6 +1539,7 @@ def Xform "db0469_cold_storage"
             float3 physics:diagonalInertia = (0.000013680044, 0.00018591265, 0.00019908289)
             float physics:mass = 0.12057301
             quatf physics:principalAxes = (0.6959348, -0.6959348, 0.12519895, -0.12519895)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

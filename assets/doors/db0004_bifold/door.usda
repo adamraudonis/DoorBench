@@ -9,7 +9,7 @@ def Xform "db0004_bifold"
 {
     custom string doorbench:couplings = '[{"type": "mimic", "driven": "panel_0_1_hinge", "driver": "panel_0_0_hinge", "coeff": [0, -2.0, 0, 0, 0], "gearing": 2.0, "offset": -0.0, "label": "q = -2 * q_pivot (track-guided fold)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}]'
     custom string doorbench:door_id = "db0004_bifold"
-    custom string doorbench:meta = '{"door_id": "db0004_bifold", "family": "bifold", "task": "open_only", "wall_y": 0.0, "primary_joint": "panel_0_0_hinge", "secondary_joint": null, "operator_joint": null, "handle_height": 1.0, "mass_reconciled_kg": 14.311760000000003, "scene_extent": 2.34125, "cam_target_z": 1.2275, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.7114999999999999, -0.0475, 1.0], "handle_cam_pos": [0.8915, -0.8475, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"panel_0_0_hinge": "/db0004_bifold/Articulation/Joints/panel_0_0_hinge", "panel_0_1_hinge": "/db0004_bifold/Articulation/Joints/panel_0_1_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0004_bifold", "family": "bifold", "task": "open_only", "wall_y": 0.0, "primary_joint": "panel_0_0_hinge", "secondary_joint": null, "operator_joint": null, "handle_height": 1.0, "mass_reconciled_kg": 14.311760000000003, "scene_extent": 2.34125, "cam_target_z": 1.2275, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.7114999999999999, -0.0475, 1.0], "handle_cam_pos": [0.8915, -0.8475, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"panel_0_0_hinge": "/db0004_bifold/Articulation/Joints/panel_0_0_hinge", "panel_0_1_hinge": "/db0004_bifold/Articulation/Joints/panel_0_1_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -562,16 +562,19 @@ def Xform "db0004_bifold"
             }
 
             def PhysicsRevoluteJoint "panel_0_0_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.02
                 custom float doorbench:damping_si = 0.7431176
                 custom float doorbench:friction_effort = 1.3631538
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Pivot panel (0 = closed, + = folding open)"
+                custom float doorbench:legacy_friction_coeff = 0.006161896
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "panel_0_0_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -592,25 +595,28 @@ def Xform "db0004_bifold"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 85
                 custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 0.006161896
-                custom float physxJointAxis:rotX:armature = 0.02
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 1.3631538
-                custom float physxJointAxis:rotX:staticFrictionEffort = 1.3631538
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.02
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 1.3631538
+                custom float physxJointAxis:angular:staticFrictionEffort = 1.3631538
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "panel_0_1_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX", "PhysxMimicJointAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular", "PhysxMimicJointAPI:rotX"]
             )
             {
+                custom float doorbench:armature_si = 0.005
                 custom float doorbench:damping_si = 0.2
                 custom float doorbench:friction_effort = 0.1
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Panel-to-panel hinge (track-driven, q = -2 q_pivot)"
+                custom float doorbench:legacy_friction_coeff = 0.0013165658
                 custom bool doorbench:limited = 1
                 custom string doorbench:mimic_label = "q = -2 * q_pivot (track-guided fold)"
                 custom bool doorbench:robot_interactive = 0
                 custom string doorbench:role = "secondary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "panel_0_1_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -631,11 +637,11 @@ def Xform "db0004_bifold"
                 float physics:lowerLimit = -180
                 float physics:upperLimit = 0
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.0013165658
-                custom float physxJointAxis:rotX:armature = 0.005
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.1
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.1
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.005
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.1
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.1
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
                 custom float physxMimicJoint:rotX:gearing = 2
                 custom float physxMimicJoint:rotX:offset = -0
                 custom rel physxMimicJoint:rotX:referenceJoint = </db0004_bifold/Articulation/Joints/panel_0_0_hinge>
@@ -653,6 +659,7 @@ def Xform "db0004_bifold"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -670,6 +677,7 @@ def Xform "db0004_bifold"
             float3 physics:diagonalInertia = (0.33785462, 3.4075239, 3.7439294)
             float physics:mass = 7.0981946
             quatf physics:principalAxes = (0.49999997, 0.5, 0.5, -0.49999997)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1307,6 +1315,7 @@ def Xform "db0004_bifold"
             float3 physics:diagonalInertia = (0.31012523, 3.176495, 3.4860733)
             float physics:mass = 7.2135653
             quatf physics:principalAxes = (0.4883609, 0.5241408, 0.4744898, -0.51150703)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

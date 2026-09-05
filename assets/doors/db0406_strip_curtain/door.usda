@@ -9,7 +9,7 @@ def Xform "db0406_strip_curtain"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0406_strip_curtain"
-    custom string doorbench:meta = '{"door_id": "db0406_strip_curtain", "family": "strip_curtain", "task": "push_through", "wall_y": 0.0, "primary_joint": "strip_3_hinge", "operator_joint": null, "handle_height": 1.0, "both_ways": true, "n_strips": 6, "clearance_allow": [["strip_*_geom", "strip_*_geom", "overlapping PVC strips push each other aside (compliant in reality)"]], "mass_reconciled_kg": 4.220000000000001, "scene_extent": 2.09, "cam_target_z": 1.06, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.48, -0.8, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"strip_0_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_0_hinge", "strip_1_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_1_hinge", "strip_2_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_2_hinge", "strip_3_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_3_hinge", "strip_4_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_4_hinge", "strip_5_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_5_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0406_strip_curtain", "family": "strip_curtain", "task": "push_through", "wall_y": 0.0, "primary_joint": "strip_3_hinge", "operator_joint": null, "handle_height": 1.0, "both_ways": true, "n_strips": 6, "clearance_allow": [["strip_*_geom", "strip_*_geom", "overlapping PVC strips push each other aside (compliant in reality)"]], "mass_reconciled_kg": 4.220000000000001, "scene_extent": 2.09, "cam_target_z": 1.06, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.48, -0.8, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"strip_0_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_0_hinge", "strip_1_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_1_hinge", "strip_2_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_2_hinge", "strip_3_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_3_hinge", "strip_4_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_4_hinge", "strip_5_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_5_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -269,16 +269,19 @@ def Xform "db0406_strip_curtain"
             }
 
             def PhysicsRevoluteJoint "strip_0_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.005
                 custom float doorbench:damping_si = 0.05
                 custom float doorbench:friction_effort = 0.02
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Strip swings both ways"
+                custom float doorbench:legacy_friction_coeff = 0.0028986768
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "secondary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "strip_0_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -299,24 +302,27 @@ def Xform "db0406_strip_curtain"
                 float physics:lowerLimit = -71.61973
                 float physics:upperLimit = 71.61973
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.0028986768
-                custom float physxJointAxis:rotX:armature = 0.005
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.02
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.02
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.005
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.02
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.02
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "strip_1_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.005
                 custom float doorbench:damping_si = 0.05
                 custom float doorbench:friction_effort = 0.02
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Strip swings both ways"
+                custom float doorbench:legacy_friction_coeff = 0.0028986768
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "secondary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "strip_1_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -337,24 +343,27 @@ def Xform "db0406_strip_curtain"
                 float physics:lowerLimit = -71.61973
                 float physics:upperLimit = 71.61973
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.0028986768
-                custom float physxJointAxis:rotX:armature = 0.005
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.02
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.02
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.005
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.02
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.02
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "strip_2_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.005
                 custom float doorbench:damping_si = 0.05
                 custom float doorbench:friction_effort = 0.02
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Strip swings both ways"
+                custom float doorbench:legacy_friction_coeff = 0.0028986768
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "secondary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "strip_2_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -375,24 +384,27 @@ def Xform "db0406_strip_curtain"
                 float physics:lowerLimit = -71.61973
                 float physics:upperLimit = 71.61973
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.0028986768
-                custom float physxJointAxis:rotX:armature = 0.005
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.02
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.02
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.005
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.02
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.02
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "strip_3_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.02
                 custom float doorbench:damping_si = 0.05
                 custom float doorbench:friction_effort = 0.02
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Strip swings both ways"
+                custom float doorbench:legacy_friction_coeff = 0.0028986768
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "strip_3_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -413,24 +425,27 @@ def Xform "db0406_strip_curtain"
                 float physics:lowerLimit = -71.61973
                 float physics:upperLimit = 71.61973
                 custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 0.0028986768
-                custom float physxJointAxis:rotX:armature = 0.02
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.02
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.02
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.02
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.02
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.02
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "strip_4_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.005
                 custom float doorbench:damping_si = 0.05
                 custom float doorbench:friction_effort = 0.02
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Strip swings both ways"
+                custom float doorbench:legacy_friction_coeff = 0.0028986768
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "secondary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "strip_4_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -451,24 +466,27 @@ def Xform "db0406_strip_curtain"
                 float physics:lowerLimit = -71.61973
                 float physics:upperLimit = 71.61973
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.0028986768
-                custom float physxJointAxis:rotX:armature = 0.005
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.02
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.02
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.005
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.02
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.02
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
 
             def PhysicsRevoluteJoint "strip_5_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.005
                 custom float doorbench:damping_si = 0.05
                 custom float doorbench:friction_effort = 0.02
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Strip swings both ways"
+                custom float doorbench:legacy_friction_coeff = 0.0028986768
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "secondary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "strip_5_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -489,11 +507,11 @@ def Xform "db0406_strip_curtain"
                 float physics:lowerLimit = -71.61973
                 float physics:upperLimit = 71.61973
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.0028986768
-                custom float physxJointAxis:rotX:armature = 0.005
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.02
-                custom float physxJointAxis:rotX:staticFrictionEffort = 0.02
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.005
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.02
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.02
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
         }
 
@@ -507,6 +525,7 @@ def Xform "db0406_strip_curtain"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -524,6 +543,7 @@ def Xform "db0406_strip_curtain"
             float3 physics:diagonalInertia = (0.009378306, 0.25357565, 0.2629529)
             float physics:mass = 0.7033333
             quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -561,6 +581,7 @@ def Xform "db0406_strip_curtain"
             float3 physics:diagonalInertia = (0.009378306, 0.25357565, 0.2629529)
             float physics:mass = 0.7033333
             quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -598,6 +619,7 @@ def Xform "db0406_strip_curtain"
             float3 physics:diagonalInertia = (0.009378306, 0.25357565, 0.2629529)
             float physics:mass = 0.7033333
             quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -635,6 +657,7 @@ def Xform "db0406_strip_curtain"
             float3 physics:diagonalInertia = (0.009378306, 0.25357565, 0.2629529)
             float physics:mass = 0.7033333
             quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -672,6 +695,7 @@ def Xform "db0406_strip_curtain"
             float3 physics:diagonalInertia = (0.009378306, 0.25357565, 0.2629529)
             float physics:mass = 0.7033333
             quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -709,6 +733,7 @@ def Xform "db0406_strip_curtain"
             float3 physics:diagonalInertia = (0.009378306, 0.25357565, 0.2629529)
             float physics:mass = 0.7033333
             quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

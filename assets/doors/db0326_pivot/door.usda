@@ -9,7 +9,7 @@ def Xform "db0326_pivot"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0326_pivot"
-    custom string doorbench:meta = '{"door_id": "db0326_pivot", "family": "pivot", "task": "hold_and_pass", "wall_y": 0.04949999999999999, "u": 1.0, "v": -1.0, "hinge_x": -0.906, "leaf_edge_x_local": 1.806, "handle_height": 1.05, "primary_joint": "leaf_hinge", "operator_joint": null, "mass_reconciled_kg": 262.34000000000003, "scene_extent": 2.759, "cam_target_z": 1.506, "cam_target_x": 0.0, "handle_cam_x": 0.7939999999999999, "handle_cam_target": [0.795, -0.068, 1.05], "handle_cam_pos": [0.9750000000000001, -0.8680000000000001, 1.33], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0326_pivot/Articulation/Joints/leaf_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0326_pivot", "family": "pivot", "task": "hold_and_pass", "wall_y": 0.04949999999999999, "u": 1.0, "v": -1.0, "hinge_x": -0.906, "leaf_edge_x_local": 1.806, "handle_height": 1.05, "primary_joint": "leaf_hinge", "operator_joint": null, "mass_reconciled_kg": 262.34000000000003, "scene_extent": 2.759, "cam_target_z": 1.506, "cam_target_x": 0.0, "handle_cam_x": 0.7939999999999999, "handle_cam_target": [0.795, -0.068, 1.05], "handle_cam_pos": [0.9750000000000001, -0.8680000000000001, 1.33], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0326_pivot/Articulation/Joints/leaf_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -418,9 +418,10 @@ def Xform "db0326_pivot"
             }
 
             def PhysicsRevoluteJoint "leaf_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.02
                 custom float doorbench:backcheck_angle = 1.4
                 custom float doorbench:backcheck_damping = 60
                 custom float doorbench:damping_closing = 100
@@ -429,9 +430,11 @@ def Xform "db0326_pivot"
                 custom float doorbench:friction_effort = 4.760965
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
+                custom float doorbench:legacy_friction_coeff = 0.0013520181
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_hinge"
                 custom float doorbench:stiffness_si = 58.187046
                 custom float doorbench:target_si = -1.569937
@@ -452,11 +455,11 @@ def Xform "db0326_pivot"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 90
                 custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 0.0013520181
-                custom float physxJointAxis:rotX:armature = 0.02
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 4.760965
-                custom float physxJointAxis:rotX:staticFrictionEffort = 4.760965
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.02
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 4.760965
+                custom float physxJointAxis:angular:staticFrictionEffort = 4.760965
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
         }
 
@@ -470,6 +473,7 @@ def Xform "db0326_pivot"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -487,6 +491,7 @@ def Xform "db0326_pivot"
             float3 physics:diagonalInertia = (76.46406, 191.94464, 268.24142)
             float physics:mass = 262.34
             quatf physics:principalAxes = (0.5134659, -0.5134659, 0.4861613, 0.4861613)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

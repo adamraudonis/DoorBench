@@ -9,7 +9,7 @@ def Xform "db0344_turnstile_tripod"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0344_turnstile_tripod"
-    custom string doorbench:meta = '{"door_id": "db0344_turnstile_tripod", "family": "turnstile_tripod", "task": "push_through", "wall_y": 0.0, "clearance_allow": [["hub_boss", "tripod_mesh", "rotor hub seats on the boss"]], "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 0.95, "ratchet_deg": 120, "one_way": true, "locked": true, "mass_reconciled_kg": 10.738226043740887, "scene_extent": 1.5, "cam_target_z": 0.525, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 0.95], "handle_cam_pos": [0.55, -1.1, 1.2999999999999998], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"rotor_hinge": "/db0344_turnstile_tripod/Articulation/Joints/rotor_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0344_turnstile_tripod", "family": "turnstile_tripod", "task": "push_through", "wall_y": 0.0, "clearance_allow": [["hub_boss", "tripod_mesh", "rotor hub seats on the boss"]], "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 0.95, "ratchet_deg": 120, "one_way": true, "locked": true, "mass_reconciled_kg": 10.738226043740887, "scene_extent": 1.5, "cam_target_z": 0.525, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 0.95], "handle_cam_pos": [0.55, -1.1, 1.2999999999999998], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"rotor_hinge": "/db0344_turnstile_tripod/Articulation/Joints/rotor_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -320,18 +320,21 @@ def Xform "db0344_turnstile_tripod"
             }
 
             def PhysicsRevoluteJoint "rotor_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.05
                 custom float doorbench:damping_si = 2
                 custom float doorbench:friction_effort = 3.0842447
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Tripod rotor (ratchets 120 deg; one-way enforced by env)"
+                custom float doorbench:legacy_friction_coeff = 0.029113512
                 custom bool doorbench:limited = 1
                 custom string doorbench:notes = "locked until credential (env releases: set range None)"
                 custom bool doorbench:ratchet_one_way = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "rotor_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -352,11 +355,11 @@ def Xform "db0344_turnstile_tripod"
                 float physics:lowerLimit = -2.864789
                 float physics:upperLimit = 2.864789
                 custom float physxJoint:armature = 0.05
-                custom float physxJoint:jointFriction = 0.029113512
-                custom float physxJointAxis:rotX:armature = 0.05
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 3.0842447
-                custom float physxJointAxis:rotX:staticFrictionEffort = 3.0842447
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.05
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 3.0842447
+                custom float physxJointAxis:angular:staticFrictionEffort = 3.0842447
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
         }
 
@@ -370,6 +373,7 @@ def Xform "db0344_turnstile_tripod"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -387,6 +391,7 @@ def Xform "db0344_turnstile_tripod"
             float3 physics:diagonalInertia = (0.5696514, 0.6937151, 1.2430601)
             float physics:mass = 10.738226
             quatf physics:principalAxes = (0.6532815, -0.27059805, -0.27059805, -0.6532815)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

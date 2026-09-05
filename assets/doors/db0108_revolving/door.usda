@@ -9,7 +9,7 @@ def Xform "db0108_revolving"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0108_revolving"
-    custom string doorbench:meta = '{"door_id": "db0108_revolving", "family": "revolving", "task": "push_through", "wall_y": 0.0, "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 1.0, "drum_diameter": 2.0, "mass_reconciled_kg": 54.6995, "scene_extent": 2.3255, "cam_target_z": 1.217, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.55, -1.1, 1.35], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"rotor_hinge": "/db0108_revolving/Articulation/Joints/rotor_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0108_revolving", "family": "revolving", "task": "push_through", "wall_y": 0.0, "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 1.0, "drum_diameter": 2.0, "mass_reconciled_kg": 54.6995, "scene_extent": 2.3255, "cam_target_z": 1.217, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.55, -1.1, 1.35], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"rotor_hinge": "/db0108_revolving/Articulation/Joints/rotor_hinge"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -607,16 +607,19 @@ def Xform "db0108_revolving"
             }
 
             def PhysicsRevoluteJoint "rotor_hinge" (
-                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:rotX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
+                custom float doorbench:armature_si = 0.5
                 custom float doorbench:damping_si = 36
                 custom float doorbench:friction_effort = 2.8864124
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Rotor (unbounded, + = CCW from above)"
+                custom float doorbench:legacy_friction_coeff = 0.0053790556
                 custom bool doorbench:limited = 0
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "rotor_hinge"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -637,11 +640,11 @@ def Xform "db0108_revolving"
                 float physics:lowerLimit = -720
                 float physics:upperLimit = 720
                 custom float physxJoint:armature = 0.5
-                custom float physxJoint:jointFriction = 0.0053790556
-                custom float physxJointAxis:rotX:armature = 0.5
-                custom float physxJointAxis:rotX:dynamicFrictionEffort = 2.8864124
-                custom float physxJointAxis:rotX:staticFrictionEffort = 2.8864124
-                custom float physxJointAxis:rotX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:angular:armature = 0.5
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 2.8864124
+                custom float physxJointAxis:angular:staticFrictionEffort = 2.8864124
+                custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
         }
 
@@ -655,6 +658,7 @@ def Xform "db0108_revolving"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -672,6 +676,7 @@ def Xform "db0108_revolving"
             float3 physics:diagonalInertia = (19.403725, 38.48301, 38.48301)
             float physics:mass = 54.6995
             quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)

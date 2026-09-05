@@ -9,7 +9,7 @@ def Xform "db0433_garage_sectional"
 {
     custom string doorbench:couplings = "[]"
     custom string doorbench:door_id = "db0433_garage_sectional"
-    custom string doorbench:meta = '{"door_id": "db0433_garage_sectional", "family": "garage_sectional", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "door_slide", "handle_height": 0.9, "counterbalance_fraction": 0.85, "operator_joint": null, "mass_reconciled_kg": 79.93598952573574, "scene_extent": 2.3675, "cam_target_z": 1.09, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, -0.07250000000000001, 0.9], "handle_cam_pos": [0.25, -1.1725, 1.25], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"door_slide": "/db0433_garage_sectional/Articulation/Joints/door_slide", "garage_slide_lock_slide": "/db0433_garage_sectional/Articulation/Joints/garage_slide_lock_slide"}}'
+    custom string doorbench:meta = '{"door_id": "db0433_garage_sectional", "family": "garage_sectional", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "door_slide", "handle_height": 0.9, "counterbalance_fraction": 0.85, "operator_joint": null, "mass_reconciled_kg": 79.93598952573574, "scene_extent": 2.3675, "cam_target_z": 1.09, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, -0.07250000000000001, 0.9], "handle_cam_pos": [0.25, -1.1725, 1.25], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"door_slide": "/db0433_garage_sectional/Articulation/Joints/door_slide", "garage_slide_lock_slide": "/db0433_garage_sectional/Articulation/Joints/garage_slide_lock_slide"}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -774,17 +774,20 @@ def Xform "db0433_garage_sectional"
             }
 
             def PhysicsPrismaticJoint "door_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
+                custom float doorbench:armature_si = 0.5
                 custom float doorbench:damping_si = 6.004164
                 custom float doorbench:friction_effort = 31.41395
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Vertical lift (0 = closed, + = raised)"
+                custom float doorbench:legacy_friction_coeff = 0.039620094
                 custom bool doorbench:limited = 1
                 custom string doorbench:notes = "counterbalance spring ~85% of weight counterbalance ~85% of 80 kg"
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "door_slide"
                 custom float doorbench:stiffness_si = 96.31363
                 custom float doorbench:target_si = 6.9333334
@@ -805,24 +808,27 @@ def Xform "db0433_garage_sectional"
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 2.08
                 custom float physxJoint:armature = 0.5
-                custom float physxJoint:jointFriction = 0.039620094
-                custom float physxJointAxis:transX:armature = 0.5
-                custom float physxJointAxis:transX:dynamicFrictionEffort = 31.41395
-                custom float physxJointAxis:transX:staticFrictionEffort = 31.41395
-                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:linear:armature = 0.5
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 31.41395
+                custom float physxJointAxis:linear:staticFrictionEffort = 31.41395
+                custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
 
             def PhysicsPrismaticJoint "garage_slide_lock_slide" (
-                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:transX"]
+                prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysxJointAPI", "PhysxJointAxisAPI:linear"]
             )
             {
+                custom float doorbench:armature_si = 0.1
                 custom float doorbench:damping_si = 1
                 custom float doorbench:friction_effort = 1
                 custom float doorbench:initial = 0.05
                 custom string doorbench:label = "Slide lock (0 = in track, + = withdrawn)"
+                custom float doorbench:legacy_friction_coeff = 0.64263725
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "lock"
+                custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "garage_slide_lock_slide"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
@@ -843,11 +849,11 @@ def Xform "db0433_garage_sectional"
                 float physics:lowerLimit = -0.05
                 float physics:upperLimit = 0
                 custom float physxJoint:armature = 0.1
-                custom float physxJoint:jointFriction = 0.64263725
-                custom float physxJointAxis:transX:armature = 0.1
-                custom float physxJointAxis:transX:dynamicFrictionEffort = 1
-                custom float physxJointAxis:transX:staticFrictionEffort = 1
-                custom float physxJointAxis:transX:viscousFrictionCoefficient = 0
+                custom float physxJoint:jointFriction = 0
+                custom float physxJointAxis:linear:armature = 0.1
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 1
+                custom float physxJointAxis:linear:staticFrictionEffort = 1
+                custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
         }
 
@@ -861,6 +867,7 @@ def Xform "db0433_garage_sectional"
             float3 physics:diagonalInertia = (0.01, 0.01, 0.01)
             float physics:mass = 1
             quatf physics:principalAxes = (1, 0, 0, 0)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -878,6 +885,7 @@ def Xform "db0433_garage_sectional"
             float3 physics:diagonalInertia = (29.019817, 48.003925, 76.93236)
             float physics:mass = 79.93599
             quatf physics:principalAxes = (0.70713204, -0.7070809, -0.0006416058, -0.0006822329)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
@@ -1896,6 +1904,7 @@ def Xform "db0433_garage_sectional"
             float3 physics:diagonalInertia = (0.000014057957, 0.00019009097, 0.00020162159)
             float physics:mass = 0.14729647
             quatf physics:principalAxes = (0.9999179, 5.2948476e-17, 1.1030324e-16, 0.012811016)
+            custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
