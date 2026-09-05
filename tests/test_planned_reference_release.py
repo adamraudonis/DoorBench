@@ -395,6 +395,53 @@ def hub_error(status, retry_after=None):
     return HfHubHTTPError('Mock metadata response', response=response)
 
 
+@pytest.mark.parametrize('problem',[None,'missing','size','git_hash','lfs_hash','duplicate','revision'])
+def test_remote_tree_proves_every_git_and_lfs_file_without_paths_post(tmp_path,problem):
+    prefix='experimental/planned-reference/planned-test'
+    paths={prefix+'/one.txt':tmp_path/'one',prefix+'/nested/two.npz':tmp_path/'two'}
+    for path in paths.values(): path.write_bytes(b'public immutable data')
+    entries=[]
+    for i,(name,path) in enumerate(paths.items()):
+        payload=path.read_bytes()
+        entries.append(SimpleNamespace(path=name,size=len(payload),
+            blob_id=hashlib.sha1(f'blob {len(payload)}\0'.encode()+payload).hexdigest(),
+            lfs=SimpleNamespace(sha256=digest(path)) if i else None))
+    if problem=='missing':entries.pop()
+    elif problem=='size':entries[0].size+=1
+    elif problem=='git_hash':entries[0].blob_id='0'*40
+    elif problem=='lfs_hash':entries[1].lfs.sha256='0'*64
+    elif problem=='duplicate':entries.append(entries[0])
+    calls=[]
+    class API:
+        def repo_info(self,*args,**kwargs):
+            calls.append('info');return SimpleNamespace(private=False,gated=False,sha=('0' if problem=='revision' else 'c')*40)
+        def list_repo_tree(self,repo,**kwargs):
+            calls.append('tree')
+            assert kwargs=={'path_in_repo':prefix,'recursive':True,'repo_type':'dataset','revision':'c'*40}
+            yield SimpleNamespace(path=prefix+'/nested')  # directories are not files
+            yield from entries
+        def get_paths_info(self,*args,**kwargs):pytest.fail('Queue-limited POST endpoint called')
+    if problem:
+        with pytest.raises(ValueError):release.verify_remote(API(),'owner/repo','c'*40,paths)
+    else:
+        release.verify_remote(API(),'owner/repo','c'*40,paths)
+        assert calls==['info','tree']
+
+
+def test_remote_tree_partial_pagination_failure_restarts_without_accepting_partial_listing(tmp_path,monkeypatch):
+    path=tmp_path/'one';path.write_bytes(b'content');name='experimental/planned-reference/planned-test/one'
+    entry=SimpleNamespace(path=name,size=7,lfs=None,blob_id=hashlib.sha1(b'blob 7\0content').hexdigest())
+    calls=[];sleeps=[]
+    class API:
+        def repo_info(self,*args,**kwargs):return SimpleNamespace(private=False,gated=False,sha='c'*40)
+        def list_repo_tree(self,*args,**kwargs):
+            calls.append(1);yield entry
+            if len(calls)==1:raise hub_error(503)
+    monkeypatch.setattr(release.time,'sleep',sleeps.append)
+    release.verify_remote(API(),'repo','c'*40,{name:path})
+    assert len(calls)==2 and sleeps==[2]
+
+
 def test_remote_verification_retries_only_failed_twenty_path_batch(tmp_path, monkeypatch):
     # Exercise the real Git-blob verifier after a transient paths-info failure.
     files = {}
