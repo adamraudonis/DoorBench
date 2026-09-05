@@ -112,6 +112,8 @@ def _unwrap(doc: Any) -> tuple[dict, dict]:
         if isinstance(doc.get(key), (dict, list)):
             inner, _ = _unwrap(doc[key])
             meta = {k: v for k, v in doc.items() if k != key}
+            if isinstance(meta.get("meta"), dict):
+                meta = meta.pop("meta") | meta      # {"meta": {...}, "doors": {...}}: flatten, so engine / versions / dates are readable
             return inner, meta
     # plain {door_id: record}: records are dicts and keys look like door ids (or at least not meta keys)
     meta_keys = {"meta", "engine", "generated", "commit", "dt", "version", "protocol", "inputs_hash", "sim", "kind"}
@@ -359,6 +361,43 @@ TOLERANCES: dict[str, dict[str, float]] = {
     "locked_displacement": {"abs_hinge": 0.01, "abs_slide": 0.003, "rel": 0.0},
 }
 DEFAULT_TOLERANCE = {"abs_hinge": 0.05, "abs_slide": 0.02, "rel": 0.20}
+
+# Where each bound comes from.  A tolerance is only legitimate when it is the size of a physical or numerical effect
+# that is *not* the behaviour under test; anything larger hides a discrepancy, anything smaller reports the solver.
+TOLERANCE_NOTES: dict[str, str] = {
+    "settle_drift": "the QA settle gate itself allows 0.05 rad / 0.01 m of drift in 1 s; the comparison bound is under half of that, so a door that would still sign off cannot disagree here",
+    "settle_drift_primary": "as settle_drift",
+    "settle_drift_operator": "as settle_drift",
+    "settle_drift_latch": "2 mm: a third of the 6 mm 'bolt has returned' threshold, so latch slop cannot be confused with a bolt that did not re-extend",
+    "pen0_m": "3 mm: PhysX's 5 mm contactOffset vs MuJoCo's margin-free contacts; the sign-off gate rejects anything past -12 mm",
+    "hold_displacement": "0.01 rad / 3 mm on a door that must stay shut: half the 2 deg / 15 mm 'held' threshold, plus the leaf's authored locked play where it has any. On a door that must swing open the quantity is q at the free-swing crossing and the q_at_1s bound applies instead",
+    "t_free": "0.25 s / 30 %: two 30 Hz samples plus the 1 s minimum push; the crossing time of a leaf accelerating from rest is dominated by the first tenth of a rad",
+    "q_at_1s": "0.1 rad / 5 cm, 20 %: a free leaf covers ~0.1 rad in one 30 Hz sample at its typical 3 rad/s, so this is sampling noise, not travel; the door's own locked play is added",
+    "opened": "0.1 rad / 5 cm, 20 %: as q_at_1s. Waived when both runs coasted into the same joint stop - MuJoCo's soft limit (solreflimit 0.005) returns ~17 % of the impact velocity and PhysX's articulation limit is inelastic, so the end-of-phase angle is a rebound; q_primary_max is graded instead",
+    "actuate_displacement": "as opened",
+    "q_primary_max": "0.1 rad / 5 cm, 20 %: the peak the leaf reaches, which both engines must agree on even when they bounce off the stop differently",
+    "t_open": "0.3 s / 30 %: the operator is worked from 0.6 s and the push starts at 1.2 s, so a 0.3 s spread is the width of the drive ramp, not a difference in whether the door opens",
+    "t_open_bench": "as t_open",
+    "t_unlatch": "0.2 s: six 30 Hz samples of bolt travel",
+    "operator_travel_reached": "10 % of the operator's own travel (the hardware table's travel, or the joint range when the MJCF authors a larger one)",
+    "bolt_retract_max_frac": "15 % of the throw: the latch is judged unlatched at 80 % of throw, so this cannot flip that verdict",
+    "curve_rmse_primary": "0.15 rad / 5 cm RMS over the operate phase: about the 0.1 rad per-sample bound sustained over the whole curve",
+    "bolt_after_release_m": "2 mm: a third of the 6 mm 'bolt returned' threshold",
+    "t_bolt_return": "0.2 s: six 30 Hz samples",
+    "operator_after_release_frac": "10 % of the operator travel, as operator_travel_reached",
+    "relatch_closed_angle": "1 deg / 5 mm: half the 2 deg 'closed' threshold of the relatch check",
+    "relatch_repush_angle": "1 deg / 5 mm: as relatch_closed_angle against the 2.5 deg re-push threshold",
+    "t_close": "0.5 s / 30 %: the closing drive is a constant effort from rest. Not compared when the two runs entered the phase at different angles - relatch continues from operate, and a leaf that starts 0.4 rad further open must take longer",
+    "arrival_speed": "0.2 rad/s / 0.1 m/s, 30 %: peak |v| over the 100 ms before the latch crossing (metrics 1.1). The 1.0 definition - |v| at the single sample nearest the crossing - was a sampling artefact and is never compared against 1.1",
+    "closer_final_angle": "2 deg / 1 cm: a third of the 6 deg 'closed by the closer' threshold",
+    "closer_t_close": "0.5 s / 30 %: a 12 s phase; the closer's own sweep takes 2-6 s",
+    "peak_closing_speed": "0.2 rad/s / 0.1 m/s, 30 %: the slam threshold of the damage model is 2-4 rad/s, so this cannot hide a slam",
+    "speed_at_latch": "as arrival_speed (same definition, same 100 ms window)",
+    "curve_rmse_closer": "0.1 rad / 5 cm RMS over the 12 s closer sweep",
+    "locked_displacement": "0.01 rad / 3 mm: half the 2 deg / 15 mm 'locked holds' threshold, plus the chain / guard slack where the lock has any",
+    "velocity_cap_hit_primary": "boolean: did the door joint leave the physical velocity range (15 rad/s / 6 m/s) in one run and not the other",
+    "settle_drift_joint": "per joint, over the joints the USD actually has: 0.02 rad / 5 mm, the same bound as settle_drift",
+}
 # metrics that are informational only (never decide agreement).  Three groups:
 #  * run bookkeeping - how long the phase ran and how many samples it produced.  The free-swing hold phase legitimately
 #    exits at different times in the two simulators (it stops once the leaf is past thr_free), which is what `t_free`
@@ -373,6 +412,10 @@ NON_GATING_METRICS = {
     "t_start_s", "duration_s", "wall_time_s", "n_steps", "steps", "dt", "push", "qa_push", "effort", "eff", "warnings", "pen0_pair",
     "t_end", "n_samples", "max_v_primary", "max_v_any", "opened_before", "operator_travel_frac", "bolt_retract_max_m",
     "latch_clamps", "latch_target_raised_steps", "rebounds", "settle_drift_other_joint", "primary_at_limit",
+    # aggregates over "every joint", which is not the same set of joints in the two files: door.usda drops the
+    # closer-arm loop-closure joints (MuJoCo spins those pinions at 75-119 rad/s while the leaf does 1.4), door_rl.usda
+    # keeps 8.  Both are replaced below by like-for-like comparisons on joints both files have.
+    "velocity_cap_hit", "settle_drift_other_max",
 }
 
 
@@ -600,6 +643,13 @@ def compare_phase(name: str, mj_ph: dict | None, px_ph: dict | None, is_hinge: b
     # soft limit returns ~17 % of the impact velocity, PhysX's articulation limit is inelastic), and the peak both
     # reach - q_primary_max, graded on its own - is the comparable quantity
     rebound = name == "operate_open" and _at_limit(inputs, mm, is_hinge) is True and _at_limit(inputs, pm, is_hinge) is True
+    # relatch continues from operate: entering it at different angles (that same rebound) makes its timing metrics two
+    # different experiments.  Its verdict metrics - the closed angle and the re-push angle, both end states - stay graded.
+    not_like_for_like: set[str] = set()
+    if name == "relatch":
+        ob = metric_delta("opened", mm.get("opened_before"), pm.get("opened_before"), is_hinge)
+        if ob is not None and not ob["ok"]:
+            not_like_for_like = {"t_close", "arrival_speed"}
     skew = set(skew)
     for k in sorted(set(mm) & set(pm)):
         tol_key = "q_at_1s" if free and k == "hold_displacement" else None
@@ -608,13 +658,48 @@ def compare_phase(name: str, mj_ph: dict | None, px_ph: dict | None, is_hinge: b
             continue
         if k in skew:
             d["ok"], d["not_comparable"] = None, "metric definition changed between the two runs; re-run the older side"
+        elif k in not_like_for_like:
+            d["ok"], d["not_comparable"] = None, f"phase entered at a different angle ({_fmt(mm.get('opened_before'))} vs {_fmt(pm.get('opened_before'))})"
         elif not d["ok"] and rebound and k == "opened":
             d["ok"], d["waived"] = True, "both runs reached the joint limit; graded on q_primary_max"
         out["metric_deltas"][k] = d
+    _derived_deltas(out, name, mm, pm, inputs, is_hinge)
     graded = [d for d in out["metric_deltas"].values() if d["ok"] is not None]
     out["within_tol"] = all(d["ok"] for d in graded) if graded else True
     out["not_comparable"] = sorted(k for k, d in out["metric_deltas"].items() if d["ok"] is None)
     return out
+
+
+def _derived_deltas(out: dict, name: str, mm: dict, pm: dict, inputs: dict | None, is_hinge: bool) -> None:
+    """Like-for-like replacements for the two metrics that aggregate over "every joint".
+
+    ``velocity_cap_hit`` is (primary over 15 rad/s **or any joint over 50**); the second half fires in MuJoCo alone on
+    128 closer doors because the USD has no closer-arm pinion to spin.  ``settle_drift_other_max`` is the largest drift
+    of any *other* joint, over the same unequal sets.  Both are re-derived here over what the two runs share: the
+    primary joint's own cap, and the per-joint drift of the joints PhysX actually recorded."""
+    def flag(key: str, a: bool, b: bool, detail: str) -> None:
+        out["metric_deltas"][key] = {"mj": a, "px": b, "delta": 0 if a == b else 1, "tol": 0, "ok": a == b, "detail": detail}
+
+    cap = ((inputs or {}).get("thresholds") or {}).get("v_cap_primary")
+    if _finite(cap) and _finite(mm.get("max_v_primary")) and _finite(pm.get("max_v_primary")):
+        a, b = float(mm["max_v_primary"]) > float(cap), float(pm["max_v_primary"]) > float(cap)
+        if a or b:
+            flag("velocity_cap_hit_primary", a, b, f"max |v| of the door joint: {_fmt(mm['max_v_primary'])} vs {_fmt(pm['max_v_primary'])} (cap {_fmt(cap)})")
+    if name == "settle":
+        dm, dp = mm.get("settle_drift_signed"), pm.get("settle_drift_signed")
+        if isinstance(dm, dict) and isinstance(dp, dict):
+            joints = ((inputs or {}).get("joints") or {})
+            unlimited = {j for j, v in joints.items() if isinstance(v, dict) and v.get("range") is None}
+            worst = None
+            for j, v in dp.items():          # MuJoCo records every joint, PhysX only the ones its file has
+                if j in unlimited or not _finite(v):
+                    continue
+                tol = 0.02 if (joints.get(j) or {}).get("type", "hinge") == "hinge" else 0.005
+                d = abs(float(v) - float(dm.get(j, 0.0)))
+                if d > tol and (worst is None or d > worst[1]):
+                    worst = (j, d, tol)
+            if worst is not None:
+                out["metric_deltas"]["settle_drift_joint"] = {"mj": dm.get(worst[0], 0.0), "px": dp[worst[0]], "delta": worst[1], "tol": worst[2], "ok": False, "detail": f"joint {worst[0]}"}
 
 
 def _phase_curve_rmse(mj: dict, px: dict, ctx: dict, phase: str, role: str) -> float | None:
@@ -733,7 +818,12 @@ def classify(phases: dict[str, dict], mj: dict, px: dict, ctx: dict, kind: str, 
     if not out:
         quant = [n for n, p in phases.items() if p["within_tol"] is False]
         for n in quant:
-            worst = max(phases[n]["metric_deltas"].items(), key=lambda kv: 0 if kv[1]["ok"] else abs(kv[1]["delta"]) / max(kv[1]["tol"], 1e-9))
+            deltas = phases[n]["metric_deltas"]
+            if deltas.get("velocity_cap_hit_primary") and deltas["velocity_cap_hit_primary"]["ok"] is False:
+                d = deltas["velocity_cap_hit_primary"]
+                add("VELOCITY_EXPLOSION", n, f"the door joint leaves the physical velocity range in {'PhysX' if d['px'] else 'MuJoCo'}: {d.get('detail', '')}")
+                continue
+            worst = max(deltas.items(), key=lambda kv: 0 if kv[1]["ok"] is not False else abs(kv[1]["delta"]) / max(kv[1]["tol"], 1e-9))
             add("QUANT", n, f"{worst[0]}: mujoco {_fmt(worst[1]['mj'])} vs physx {_fmt(worst[1]['px'])} (tol {_fmt(worst[1]['tol'])})")
     return out
 

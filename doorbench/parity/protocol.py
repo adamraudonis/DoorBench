@@ -884,14 +884,22 @@ def compare_door(inputs: dict, mj: dict | None, px: dict | None, kind: str = "us
             # articulation limit is inelastic), so the peak - which both reach - is the comparable quantity
             rebound = phase == "operate" and bool(m_mj.get("primary_at_limit", primary_at_limit(inputs, m_mj.get("q_primary_max")))) \
                 and bool(m_px.get("primary_at_limit", primary_at_limit(inputs, m_px.get("q_primary_max"))))
+            # relatch continues from operate: when the two runs enter it from different angles (that same rebound off
+            # the stop), its *timing* metrics measure two different experiments.  The verdict metrics of the phase
+            # (relatch_closed_angle / relatch_repush_angle, both end states) stay graded.
+            not_like_for_like = set()
+            if phase == "relatch" and not _within(m_mj.get("opened_before"), m_px.get("opened_before"), 0.1 if inputs["is_hinge"] else 0.05, 0.2):
+                not_like_for_like = {"t_close", "arrival_speed"}
             for name, (atol, rtol) in metric_tolerances(inputs, phase, e_mj).items():
                 a, b = m_mj.get(name), m_px.get(name)
                 if a is None and b is None:
                     continue
-                if name in skew:
+                if name in skew or name in not_like_for_like:
+                    why = ("metric definition changed; re-run the older side" if name in skew else
+                           f"phase entered at a different angle (mujoco {m_mj.get('opened_before')}, physx {m_px.get('opened_before')})")
                     row["deltas"][name] = {"mujoco": a, "physx": b, "delta": (None if (a is None or b is None) else float(b - a)),
-                                           "abs_tol": atol, "rel_tol": rtol, "ok": None, "not_comparable": "metric definition changed; re-run the older side"}
-                    if "METRICS_VERSION_SKEW" not in codes:
+                                           "abs_tol": atol, "rel_tol": rtol, "ok": None, "not_comparable": why}
+                    if name in skew and "METRICS_VERSION_SKEW" not in codes:
                         codes.append("METRICS_VERSION_SKEW")
                     continue
                 ok = _within(a, b, atol, rtol)

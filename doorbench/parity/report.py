@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import math
 import os
 import subprocess
 from collections import Counter, defaultdict
@@ -98,6 +99,64 @@ def plot_curves(path: str, title: str, series: list[dict], ylabel: str = "q [rad
         d.rectangle([lx, ly + 2, lx + 10, ly + 10], fill=tuple(s.get("color") or _COLORS["other"]))
         d.text((lx + 14, ly - 1), s["label"], fill=(40, 40, 40), font=fs)
         lx += int(d.textlength(s["label"], font=fs)) + 30
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    img.save(path, optimize=True)
+    return True
+
+
+def plot_histogram(path: str, title: str, values: list[float], tol: float | None = None, size: tuple[int, int] = (540, 200), bins: int = 41,
+                   xlabel: str = "PhysX - MuJoCo") -> bool:
+    """Histogram of one metric's per-door deltas, with the tolerance band shaded -> PNG.
+
+    This is what makes A vs B legible: a metric whose deltas pile up inside the band and one whose deltas are spread
+    ten times wider both read as "B" in a table, and only the shape says which is solver noise and which is a
+    behavioural difference."""
+    from PIL import Image, ImageDraw
+    vals = [float(v) for v in values if isinstance(v, (int, float)) and math.isfinite(float(v))]
+    if len(vals) < 2:
+        return False
+    W, H = size
+    L, Rm, T, B = 46, 12, 24, 30
+    lo, hi = min(vals), max(vals)
+    if tol:
+        lo, hi = min(lo, -1.5 * tol), max(hi, 1.5 * tol)
+    if hi - lo < 1e-9:
+        lo, hi = lo - 0.5, hi + 0.5
+    pad = 0.04 * (hi - lo)
+    lo, hi = lo - pad, hi + pad
+    counts = [0] * bins
+    for v in vals:
+        k = min(bins - 1, max(0, int((v - lo) / (hi - lo) * bins)))
+        counts[k] += 1
+    top = max(counts) or 1
+    img = Image.new("RGB", size, (255, 255, 255))
+    d = ImageDraw.Draw(img)
+    f, fs = _font(11), _font(10)
+
+    def X(v: float) -> float:
+        return L + (v - lo) / (hi - lo) * (W - L - Rm)
+
+    def Y(c: float) -> float:
+        return H - B - c / top * (H - T - B)
+
+    if tol:
+        d.rectangle([X(-tol), T, X(tol), H - B], fill=(226, 240, 226), outline=None)
+    d.rectangle([L, T, W - Rm, H - B], outline=(150, 150, 150), width=1)
+    bw = (W - L - Rm) / bins
+    for k, c in enumerate(counts):
+        if not c:
+            continue
+        x0 = L + k * bw
+        inside = tol is not None and abs(lo + (k + 0.5) * (hi - lo) / bins) <= tol
+        d.rectangle([x0, Y(c), x0 + max(1.0, bw - 1), H - B], fill=(70, 130, 90) if inside else (214, 84, 40))
+    if lo < 0 < hi:
+        d.line([(X(0), T), (X(0), H - B)], fill=(90, 90, 90))
+    for i in range(5):
+        v = lo + (hi - lo) * i / 4
+        d.text((X(v) - 12, H - B + 4), _fmt_tick(v), fill=(70, 70, 70), font=fs)
+    d.text((4, T - 2), str(top), fill=(70, 70, 70), font=fs)
+    d.text((L, 4), f"{title[:78]}  (n={len(vals)}" + (f", tol +/-{_fmt_tick(tol)}" if tol else "") + ")", fill=(20, 20, 20), font=f)
+    d.text((W // 2 - 30, H - 13), xlabel, fill=(70, 70, 70), font=fs)
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     img.save(path, optimize=True)
     return True
@@ -232,6 +291,9 @@ def build_report(results_dir: str, assets_dir: str | None, media_dir: str | None
                 c[v["kinds"][k]["grade"]] += 1
         c["tested"] = len(tested)
         c["untested"] = n_total - len(tested)
+        c["stale"] = sum(1 for v in tested if v["kinds"][k]["status"] == "stale")
+        c["compared"] = c["tested"] - c["stale"]
+        c["metrics_skew"] = sum(1 for v in tested if "METRICS_VERSION_SKEW" in (v["kinds"][k].get("classes") or []))
         c["parity"] = c["A"]
         c["same_verdicts"] = c["A"] + c["B"]
         counts[k] = c
@@ -276,8 +338,47 @@ def build_report(results_dir: str, assets_dir: str | None, media_dir: str | None
             except Exception as e:  # a plotting problem must never sink the report
                 v["plot_error"] = f"{type(e).__name__}: {e}"
 
+    # ---- per-metric delta distributions (what separates "B by a hair" from "B by a mile")
+    metric_stats: dict[str, dict] = {}
+    for did, v in verdicts.items():
+        for k in R.KINDS:
+            kv = (v.get("_kinds_full") or {}).get(k) or {}
+            for ph, prow in (kv.get("phases") or {}).items():
+                for m, d in (prow.get("metric_deltas") or {}).items():
+                    if d.get("ok") is None or isinstance(d.get("mj"), bool):
+                        continue
+                    e = metric_stats.setdefault(f"{k}|{ph}|{m}", {"kind": k, "phase": ph, "metric": m, "tol": d.get("tol"), "deltas": [], "n_bad": 0, "worst": None})
+                    e["deltas"].append(float(d["px"]) - float(d["mj"]))
+                    if d["ok"] is False:
+                        e["n_bad"] += 1
+                        if e["worst"] is None or abs(float(d["px"]) - float(d["mj"])) > abs(e["worst"][1]):
+                            e["worst"] = (did, float(d["px"]) - float(d["mj"]))
+    for key, e in metric_stats.items():
+        vals = sorted(e["deltas"])
+        e["n"] = len(vals)
+        e["median_abs"] = sorted(abs(x) for x in vals)[len(vals) // 2] if vals else None
+        e["p95_abs"] = sorted(abs(x) for x in vals)[min(len(vals) - 1, int(0.95 * len(vals)))] if vals else None
+        e["plot"] = None
+        if plots and media_dir and e["n"] >= 12:
+            fn = f"hist_{e['kind']}_{e['phase']}_{e['metric']}.png"
+            try:
+                if plot_histogram(os.path.join(media_dir, fn), f"{e['kind']} {e['phase']}.{e['metric']}", vals, e["tol"]):
+                    e["plot"] = f"media/parity/{fn}"
+            except Exception as ex:
+                e["plot_error"] = f"{type(ex).__name__}: {ex}"
+        e.pop("deltas")
+        if e["worst"]:
+            e["worst"] = {"door_id": e["worst"][0], "delta": e["worst"][1]}
+
     generated = _dt.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     engines = {"mujoco": _engine_of(mj_meta, mj_all)} | {f"isaac_{k}": _engine_of(px_meta.get(k, {}), px_all.get(k, {})) for k in px_all}
+    provenance = {"reference": _provenance(files["mujoco"], mj_meta, mj_all), "isaac": {k: _provenance(files["isaac"].get(k), px_meta.get(k, {}), px_all.get(k, {})) for k in px_all},
+                  "dataset": (mj_meta.get("dataset") or {}) | ({"manifest_version": (manifest or {}).get("version"), "manifest_generated": (manifest or {}).get("generated"),
+                                                                "n_doors": (manifest or {}).get("n_doors"), "n_signed_off": (manifest or {}).get("n_signed_off")} if manifest else {}),
+                  "stale": {k: {"n": counts[k]["stale"], "doors": [d for d, v in verdicts.items() if v["kinds"][k]["status"] == "stale"][:200],
+                                "reason": next((v["kinds"][k].get("stale") for v in verdicts.values() if v["kinds"][k].get("stale")), None)} for k in R.KINDS},
+                  "metrics_version_skew": {k: {"n": counts[k]["metrics_skew"],
+                                               "metrics": sorted({m for v in verdicts.values() for m in ((v.get("_kinds_full") or {}).get(k) or {}).get("not_comparable_metrics", [])})} for k in R.KINDS}}
     # which protocol produced the inputs (the runners write meta.protocol = {"name", "warning"?}; a legacy-probe adapter warns)
     metas = [("mujoco", mj_meta)] + [(f"isaac_{k}", px_meta.get(k, {})) for k in px_all]
     proto_names = {k: (m.get("protocol") if isinstance(m.get("protocol"), str) else (m.get("protocol") or {}).get("name")) for k, m in metas}
@@ -287,7 +388,7 @@ def build_report(results_dir: str, assets_dir: str | None, media_dir: str | None
         "schema_version": SCHEMA_VERSION, "generated": generated, "date": generated[:10], "commit": _git_commit(root),
         "inputs": {"mujoco": _file_info(files["mujoco"], mj_all), "isaac": {k: _file_info(p, px_all.get(k, {})) for k, p in files["isaac"].items()},
                    "variants": {k: sorted(vs) for k, vs in files["isaac_variants"].items()}, "mujoco_variants": sorted(files["mujoco_variants"])},
-        "engines": engines, "protocol": protocol,
+        "engines": engines, "protocol": protocol, "provenance": provenance, "metric_stats": dict(sorted(metric_stats.items(), key=lambda kv: -kv[1]["n_bad"])),
         "counts": counts, "by_class": dict(sorted(by_class.items(), key=lambda kv: -(kv[1]["full"] + kv[1]["rl"]))),
         "by_family": by_family, "by_kinematics": by_kin, "by_hardware": by_hw,
         "top_offenders": [v["door_id"] for v in offenders],
@@ -304,6 +405,17 @@ def rel(path: str, root: str = ROOT) -> str:
     return os.path.relpath(ap, root) if ap.startswith(os.path.abspath(root) + os.sep) else ap
 
 
+def _provenance(path: str | None, meta: dict, recs: dict) -> dict:
+    """Everything needed to say *which run* a column of this report is: file, engine version, when, from what."""
+    rec = next(iter(recs.values()), {}) if recs else {}
+    return {"file": rel(path) if path else None, "n_doors": len(recs),
+            "engine": meta.get("engine") or rec.get("engine"),
+            "generated": meta.get("generated"), "commit": meta.get("commit"),
+            "protocol_version": meta.get("protocol_version") or rec.get("protocol_version"),
+            "metrics_version": meta.get("metrics_version") or rec.get("metrics_version") or "1.0 (not recorded)",
+            "dt": meta.get("dt") or rec.get("dt"), "options": meta.get("options")}
+
+
 def _file_info(path: str | None, recs: dict) -> dict | None:
     if not path or not os.path.exists(path):
         return None
@@ -318,11 +430,40 @@ def _pct(a: int, b: int) -> str:
 
 
 def _tol_table() -> list[str]:
-    rows = ["| metric | hinge (rad, s) | slide (m, s) | relative |", "|---|---|---|---|"]
+    rows = ["| metric | hinge (rad, s) | slide (m, s) | relative | where the bound comes from |", "|---|---|---|---|---|"]
     for k, t in R.TOLERANCES.items():
-        rows.append(f"| `{k}` | {t['abs_hinge']:.3g} | {t['abs_slide']:.3g} | {('%.0f %%' % (100 * t['rel'])) if t['rel'] else '-'} |")
-    rows.append(f"| *(any other metric)* | {R.DEFAULT_TOLERANCE['abs_hinge']:.3g} | {R.DEFAULT_TOLERANCE['abs_slide']:.3g} | {100 * R.DEFAULT_TOLERANCE['rel']:.0f} % |")
+        rows.append(f"| `{k}` | {t['abs_hinge']:.3g} | {t['abs_slide']:.3g} | {('%.0f %%' % (100 * t['rel'])) if t['rel'] else '-'} | {R.TOLERANCE_NOTES.get(k, '-')} |")
+    rows.append(f"| *(any other metric)* | {R.DEFAULT_TOLERANCE['abs_hinge']:.3g} | {R.DEFAULT_TOLERANCE['abs_slide']:.3g} | {100 * R.DEFAULT_TOLERANCE['rel']:.0f} % | "
+                "fallback for a metric with no bound of its own; every metric that decides a grade should have an entry above |")
+    for k in ("velocity_cap_hit_primary", "settle_drift_joint"):
+        rows.append(f"| `{k}` | - | - | - | {R.TOLERANCE_NOTES.get(k, '-')} |")
     return rows
+
+
+def _provenance_rows(summary: dict) -> list[str]:
+    prov = summary.get("provenance") or {}
+    L = ["| run | file | doors | engine | dt | protocol / metrics | generated |", "|---|---|---|---|---|---|---|"]
+    rows = [("MuJoCo reference", prov.get("reference") or {})] + [(f"PhysX `{k}`", v) for k, v in sorted((prov.get("isaac") or {}).items())]
+    for label, p in rows:
+        if not p:
+            continue
+        L.append(f"| {label} | `{p.get('file') or 'n/a'}` | {p.get('n_doors', 0)} | {_engine_cell(p.get('engine'))} | {_short(p.get('dt'), 12)} | "
+                 f"{p.get('protocol_version') or 'n/a'} / {p.get('metrics_version') or 'n/a'} | {p.get('generated') or 'n/a'} |")
+    return L
+
+
+def _engine_cell(engine: Any) -> str:
+    """Engine versions, spelled out - and named as missing when the runner could not resolve them."""
+    if not engine:
+        return "**not recorded**"
+    if isinstance(engine, str):
+        return f"`{engine}`"
+    parts = []
+    for k, v in engine.items():
+        if k in ("solver_iterations", "platform"):
+            continue
+        parts.append(f"{k} `{v}`" if v not in (None, "") else f"{k} **not recorded**")
+    return ", ".join(parts) or "**not recorded**"
 
 
 def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> str:
@@ -332,8 +473,33 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
     L: list[str] = []
     L.append("# Isaac parity gate")
     L.append("")
-    L.append(f"_Generated {summary['generated']} by `scripts/isaaclab/parity_report.py` from `{rel(results_dir)}/` "
-             f"(commit `{summary.get('commit') or 'n/a'}`). Reference: MuJoCo {_short(eng.get('mujoco'))}; PhysX: {_short(eng.get('isaac_full') or eng.get('isaac_rl'))}._")
+    prov = summary.get("provenance") or {}
+    ds = prov.get("dataset") or {}
+    L.append(f"_Report generated {summary['generated']} by `scripts/isaaclab/parity_report.py` from `{rel(results_dir)}/`, repository commit "
+             f"`{summary.get('commit') or 'n/a'}`. Dataset: {ds.get('n_doors') or '?'} doors, manifest version "
+             f"`{ds.get('manifest_version') or ds.get('version') or 'n/a'}` generated {ds.get('manifest_generated') or ds.get('generated') or 'n/a'}"
+             f"{', reference run commit `%s`' % (prov.get('reference') or {}).get('commit') if (prov.get('reference') or {}).get('commit') else ''}._")
+    L.append("")
+    L.append("### Which runs this page compares")
+    L.append("")
+    L.extend(_provenance_rows(summary))
+    L.append("")
+    stale_n = {k: (prov.get("stale") or {}).get(k, {}).get("n", 0) for k in R.KINDS}
+    skew = {k: (prov.get("metrics_version_skew") or {}).get(k, {}) for k in R.KINDS}
+    if any(stale_n.values()) or any(v.get("n") for v in skew.values()):
+        L.append("> **Not comparable, and not counted as agreement.**")
+        for k in R.KINDS:
+            if stale_n.get(k):
+                doors = ((prov.get("stale") or {}).get(k) or {}).get("doors", [])
+                L.append(f"> * `{k}`: **{stale_n[k]} doors stale** - the PhysX record and the MuJoCo reference were produced from different protocol inputs "
+                         f"(`inputs_hash`), so nothing in them is comparable. They are grade **X** and published as *untested*, never as ok or fail. "
+                         f"Example: `{doors[0] if doors else 'n/a'}`; reason: {((prov.get('stale') or {}).get(k) or {}).get('reason') or 'n/a'}.")
+        for k in R.KINDS:
+            if skew.get(k, {}).get("n"):
+                L.append(f"> * `{k}`: **{skew[k]['n']} doors** carry metrics whose *definition* changed between the two runs "
+                         f"({', '.join('`%s`' % m for m in skew[k].get('metrics') or []) or 'see METRIC_DEF_CHANGED_IN'}). Those metrics are reported and **not graded** "
+                         f"until the older side is re-run; every other metric of the door is compared as usual.")
+        L.append("")
     proto = summary.get("protocol") or {}
     if proto.get("warning"):
         L.append("")
@@ -347,11 +513,12 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
     L.append("")
     L.append("## Headline")
     L.append("")
-    L.append(f"| USD kind | tested | parity (A) | same verdicts (A + B) | disagree (C) | not comparable (X) | untested |")
-    L.append("|---|---|---|---|---|---|---|")
+    L.append(f"| USD kind | compared | parity (A) | same verdicts (A + B) | disagree (C) | not comparable (X) | of which stale | untested |")
+    L.append("|---|---|---|---|---|---|---|---|")
     for k in R.KINDS:
         ck = c[k]
-        L.append(f"| `{k}` | {ck['tested']} / {n} | **{ck['A']} / {n}** ({_pct(ck['A'], ck['tested'])} of tested) | {ck['A'] + ck['B']} / {n} ({_pct(ck['A'] + ck['B'], ck['tested'])}) | {ck['C']} | {ck['X']} | {ck['untested']} |")
+        cmpd = ck.get("compared", ck["tested"])
+        L.append(f"| `{k}` | {cmpd} / {n} | **{ck['A']} / {n}** ({_pct(ck['A'], cmpd)} of compared) | {ck['A'] + ck['B']} / {n} ({_pct(ck['A'] + ck['B'], cmpd)}) | {ck['C']} | {ck['X']} | {ck.get('stale', 0)} | {ck['untested']} |")
     d = c["door"]
     L.append("")
     L.append(f"Door badge (`qa.json.isaac_parity.ok`; viewer chip *Isaac parity*): **{d['ok']} ok** (grade A or B in every tested kind), **{d['fail']} fail** (a status disagreement or not comparable), {d['untested']} untested.")
@@ -391,6 +558,16 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
         info = R.CLASS_INFO.get(code, {"meaning": "-", "root_cause": "-", "fix": "-"})
         L.append(f"| `{code}` | {e['full']} | {e['rl']} | {e['n_doors']} | {info['meaning']} | {info['root_cause']} | {info['fix']} | {', '.join(f'`{x}`' for x in e['examples'][:4])} |")
     L.append("")
+    for code, e in summary["by_class"].items():
+        if code in ("OK",) or not e.get("doors"):
+            continue
+        more = e["n_doors"] - len(e["doors"])
+        L.append(f"<details><summary><code>{code}</code> - all {e['n_doors']} doors</summary>")
+        L.append("")
+        L.append(" ".join(f"`{x}`" for x in e["doors"]) + (f" ... and {more} more" if more > 0 else ""))
+        L.append("")
+        L.append("</details>")
+        L.append("")
     # ---- family
     L.append("## By family")
     L.append("")
@@ -418,6 +595,32 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
     for kin, g in summary["by_kinematics"].items():
         L.append(f"| {kin} | {g['tested']} | {g['ok']} | {g['fail']} | {g['full']['A']} / {g['full']['A'] + g['full']['B']} | {g['rl']['A']} / {g['rl']['A'] + g['rl']['B']} | {', '.join(g['top_classes']) or '-'} |")
     L.append("")
+    # ---- metric deltas
+    ms = summary.get("metric_stats") or {}
+    if ms:
+        L.append("## Metric deltas")
+        L.append("")
+        L.append("Every graded metric, per USD kind and phase: how far apart the two simulators are, against the bound. "
+                 "`median |delta|` and `p95 |delta|` are over the doors where the metric exists in both runs; `outside tol` is how many of "
+                 "them decide a grade **B**. A metric whose deltas pile up inside the band is solver noise; one whose deltas are spread far "
+                 "wider is a behavioural difference the class table should already name.")
+        L.append("")
+        L.append(r"| kind | phase | metric | n | median \|delta\| | p95 \|delta\| | tol | outside tol | worst door |")
+        L.append("|---|---|---|---|---|---|---|---|---|")
+        for key, e in ms.items():
+            w = e.get("worst") or {}
+            L.append(f"| `{e['kind']}` | `{e['phase']}` | `{e['metric']}` | {e['n']} | {_fmtn(e.get('median_abs'))} | {_fmtn(e.get('p95_abs'))} | "
+                     f"{_fmtn(e.get('tol'))} | {e['n_bad']} | {('`%s` (%s)' % (w['door_id'], _fmtn(w['delta']))) if w else '-'} |")
+        L.append("")
+        plotted = [e for e in ms.values() if e.get("plot")]
+        if plotted:
+            L.append("<details><summary>Delta histograms (green = inside the tolerance band)</summary>")
+            L.append("")
+            for e in plotted:
+                L.append(f"![{e['kind']} {e['phase']}.{e['metric']}]({e['plot']})")
+                L.append("")
+            L.append("</details>")
+            L.append("")
     # ---- offenders
     L.append(f"## Top offenders ({len(offenders)})")
     L.append("")
@@ -477,6 +680,10 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
     L.append("```")
     L.append("")
     return "\n".join(L)
+
+
+def _fmtn(x: Any) -> str:
+    return R._fmt(x)
 
 
 def _short(s: Any, n: int = 60) -> str:
