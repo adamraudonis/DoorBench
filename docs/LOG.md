@@ -106,6 +106,18 @@ qa.py never did for free-swing families, also found two dataset defects: all 12 
 locked by a coupling sign vs joint-range mismatch, and 10 of 15 revolving doors jam a wing stile against the wall
 header. Both are being fixed with new gates.
 
+**Parity round 1 and two more dataset defects fixed (2026-09-05).** All 1000 doors x 2 USD kinds ran in PhysX in
+70 min (35-90 s per 20-door batch). Same verdict as MuJoCo on 881/1000 (full USD) and 933/1000 (canonical rl USD);
+145 doors flagged into classes with a likely root cause each: welds and multi-bolt couplings exported only as
+metadata (mag-locks swing open, vault dogs do not retract), friction/preload mapping on bifolds, pet doors and
+turnstiles, rising-hinge drift on cold-storage doors, canonical-articulation limits (dogs, twin thumbturns), and
+pairs of swing doors that hold in MuJoCo but open in PhysX. Only 30 doors match strictly (grade A); most differ in
+metrics such as opening time, which needs a per-metric look before the tolerance is called wrong. Meanwhile the
+accordion and revolving fixes landed: a real folding mechanism (face-alternating piano hinges, top track,
+coupling-consistent ranges, 85 deg stack stop) and header clearance for revolving wings, with three new gates
+(free-swing push for every free-swing family, a coupling-vs-range check in the clearance sweep, a jam check on
+contact force). Regenerated: 1000/1000 signed off under the new gates.
+
 **Working with agents.** Seven parallel Fable agents in git worktrees is productive until the account's usage
 limit hits, which kills all of them at once and twice cost partial work. Rules that now hold: commit early and
 often on the agent branch; the main session owns `TASKS.md`, `README.md`, credentials and merges; agents write
