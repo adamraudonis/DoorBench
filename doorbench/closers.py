@@ -67,10 +67,10 @@ ARM_TEMPLATES = {
 }
 # telescoping closers (m / N): body length, stroke, rod radius, tube radius, mounting reach along the leaf
 STRUT_TEMPLATES = {
-    "pneumatic_screen": {"length_m": 0.33, "stroke_m": 0.16, "r_tube": 0.016, "r_rod": 0.006, "leaf_reach_m": 0.34, "post_reach_m": 0.05},     # Wright V150
+    "pneumatic_screen": {"length_m": 0.35, "stroke_m": 0.20, "r_tube": 0.016, "r_rod": 0.006, "leaf_reach_m": 0.34, "post_reach_m": 0.05},     # Wright V150 / V920 (heavy duty)
     "gate_spring": {"length_m": 0.30, "stroke_m": 0.30, "r_tube": 0.017, "r_rod": 0.007, "leaf_reach_m": 0.36, "post_reach_m": 0.06},         # coil spring, 15 lbf class
     "gate_hydraulic": {"length_m": 0.36, "stroke_m": 0.15, "r_tube": 0.019, "r_rod": 0.007, "leaf_reach_m": 0.30, "post_reach_m": 0.05},      # Lockey TB / Kant-Slam
-    "gas_strut": {"length_m": 0.40, "stroke_m": 0.18, "r_tube": 0.012, "r_rod": 0.006, "leaf_reach_m": 0.0, "post_reach_m": 0.0},
+    "gas_strut": {"length_m": 0.55, "stroke_m": 0.25, "r_tube": 0.012, "r_rod": 0.006, "leaf_reach_m": 0.0, "post_reach_m": 0.0},           # 500-600 mm gas spring, 250 mm stroke
 }
 
 
@@ -160,11 +160,13 @@ def closer_design(spec: dict, mass_kg: float, friction_Nm: float, W: float, air_
     elif cl.kind == "spring_hinge":
         n = spec["hinge"]["count"]
         k_each = float(cs_.get("spring_hinge_k", 2.2))
+        need = max(need, latch_torque_need(spec))          # tension is set until the door latches
         st = {"sweep_time_s": 0.0, "latch_angle_deg": 0.0, "latch_speed_factor": 1.0, "backcheck_angle_deg": 0.0, "backcheck_factor": 0.0, "delayed_action_s": 0.0, "delayed_angle_deg": 0.0,
               "hold_open_deg": 0.0, "hold_open_kind": "none", "closing_time_window_s": list(CLOSING_WINDOWS["spring"]), "tension_turns": int(cs_.get("tension_turns", 2))}
         out.update({"spring_stiffness_Nm_per_rad": k_each * n, "spring_preload_Nm": max(0.9 * n, need), "settings": st, "damping_closing": cl.closing_damping, "damping_opening": cl.opening_damping,
                     "formula": "n_hinges x (0.9 N*m + k_each * theta); k_each = spring_hinge_k (tension pin turns)", "source": "Bommer 4310 adjustable spring hinge (2-3 per door)"})
     elif cl.kind == "pneumatic":
+        need = max(need, latch_torque_need(spec))
         F0 = float(cs_.get("spring_force_N", 45.0 * adj))
         st = {"sweep_time_s": float(settings.get("sweep_time_s", 3.0)), "latch_angle_deg": float(settings.get("latch_angle_deg", 15.0)), "latch_speed_factor": float(settings.get("latch_speed_factor", 0.4)),
               "backcheck_angle_deg": 0.0, "backcheck_factor": 0.0, "delayed_action_s": 0.0, "delayed_angle_deg": 0.0,
@@ -175,6 +177,7 @@ def closer_design(spec: dict, mass_kg: float, friction_Nm: float, W: float, air_
                     "formula": "rod force F = F0 + k*s (tension spring in the tube), air-cushion damping c*ds/dt through the adjustable latch valve", "source": "Wright Products V150 pneumatic screen-door closer"})
     elif cl.kind == "gate":
         hydraulic = cl.id == "gate_hydraulic"
+        need = max(need, latch_torque_need(spec))
         F0 = float(cs_.get("spring_force_N", (70.0 if hydraulic else 40.0) * adj))
         st = {"sweep_time_s": float(settings.get("sweep_time_s", 3.0 if hydraulic else 0.0)), "latch_angle_deg": float(settings.get("latch_angle_deg", 12.0 if hydraulic else 0.0)),
               "latch_speed_factor": float(settings.get("latch_speed_factor", 0.5 if hydraulic else 1.0)), "backcheck_angle_deg": 0.0, "backcheck_factor": 0.0, "delayed_action_s": 0.0, "delayed_angle_deg": 0.0,
@@ -212,6 +215,17 @@ def closer_design(spec: dict, mass_kg: float, friction_Nm: float, W: float, air_
         out["delayed_action_damping"] = 0.0
     out["closing_time_est_s"] = closing_time(mass_kg, W, out["spring_preload_Nm"], out["spring_stiffness_Nm_per_rad"], out["damping_closing"], friction_Nm, out.get("damping_latch", out["damping_closing"]), out.get("latch_angle_rad", 0.0), air_damping)[0]
     return out
+
+
+def latch_torque_need(spec: dict) -> float:
+    """Door torque needed to push the spring latch over its strike lip while closing: bolt spring force (preload +
+    rate x half throw) times the lip slope (~0.7) plus friction, at the latch edge lever arm; 1.3 safety."""
+    lt = H.LATCHES[spec["latch"]["model"]]
+    if lt.throw <= 0 or lt.kind not in ("tubular_latch", "deadlatch", "mortise_latch", "rim_latch", "hook", "vertical_rods"):
+        return 0.0
+    F_bolt = lt.spring_preload + lt.spring_rate * lt.throw * 0.5
+    arm = max(0.3, spec["leaf"]["width"] - (lt.backset or 0.06))
+    return 1.3 * F_bolt * (0.7 + 0.3) * arm
 
 
 # ---------------------------------------------------------------------------
@@ -315,15 +329,26 @@ def twobar_sweep(pinion_local, shoe_local, hinge, L1, L2, sign, thetas, rot_sign
     return q, dq, np.array(ds), np.array(elbows)
 
 
-def fit_linear(theta, tau, weights=None):
-    """Least-squares line tau0 + k*theta; returns (tau0, k, max_rel_err, rms_rel_err)."""
+def fit_linear(theta, tau, weights=None, minimax=True):
+    """Line tau0 + k*theta fitted to a torque curve: least squares, then (minimax=True) iteratively re-weighted
+    toward the Chebyshev (minimum maximum relative error) line.  Returns (tau0, k, max_rel_err, rms_rel_err)."""
     theta = np.asarray(theta, float)
     tau = np.asarray(tau, float)
-    w = np.ones_like(theta) if weights is None else np.asarray(weights, float)
-    A = np.column_stack([np.ones_like(theta), theta]) * w[:, None]
-    c, *_ = np.linalg.lstsq(A, tau * w, rcond=None)
+    scale = np.maximum(np.abs(tau), 0.05 * max(float(np.max(np.abs(tau))), 1e-6))
+    w = (np.ones_like(theta) if weights is None else np.asarray(weights, float)) / scale
+    A0 = np.column_stack([np.ones_like(theta), theta])
+    c, *_ = np.linalg.lstsq(A0 * w[:, None], tau * w, rcond=None)
+    if minimax:
+        for _ in range(60):
+            res = np.abs((c[0] + c[1] * theta - tau) / scale)
+            w2 = w * ((res / max(res.max(), 1e-12)) ** 2 + 1e-3)
+            c_new, *_ = np.linalg.lstsq(A0 * w2[:, None], tau * w2, rcond=None)
+            if np.max(np.abs(c_new - c)) < 1e-7 * max(1.0, float(np.abs(c).max())):
+                c = c_new
+                break
+            c = 0.5 * c + 0.5 * c_new
     fit = c[0] + c[1] * theta
-    rel = np.abs(fit - tau) / np.maximum(np.abs(tau), 1e-6)
+    rel = np.abs(fit - tau) / scale
     return float(c[0]), float(c[1]), float(rel.max()), float(math.sqrt(float(np.mean(rel ** 2))))
 
 
@@ -431,7 +456,9 @@ def solve_linkages(m, d, linkages: list, mujoco=None) -> dict:
             d.qpos[m.jnt_qposadr[jp]] = 0.0
             d.qpos[m.jnt_qposadr[je]] = 0.0
             mj.mj_kinematics(m, d)
-            axis = d.xaxis[jp].copy()
+            jaxis = d.xaxis[jp].copy()                         # pinion joint axis (may be -plane normal so that q > 0 opens)
+            axis = np.asarray(lk.get("axis", [0, 0, 1]), float)  # plane normal used by the elbow formula (elbow_sign refers to it)
+            axis = axis / np.linalg.norm(axis)
             P = d.xanchor[jp].copy()
             S = world_point(lk["anchor"]["body"], lk["anchor"]["pos"])
             bp, be = bid(lk["pinion"]["body"]), bid(lk["elbow"]["body"])
@@ -448,7 +475,7 @@ def solve_linkages(m, d, linkages: list, mujoco=None) -> dict:
             a = (L1 * L1 - L2 * L2 + dc * dc) / (2 * dc)
             h = math.sqrt(max(L1 * L1 - a * a, 0.0))
             E = P + a * ex + float(lk.get("elbow_sign", 1)) * h * ey
-            q1 = _signed_angle(arm0, E - P, axis)
+            q1 = _signed_angle(arm0, E - P, jaxis)
             d.qpos[m.jnt_qposadr[jp]] = q1
             mj.mj_kinematics(m, d)
             fore_now = d.xmat[be].reshape(3, 3) @ np.asarray(lk.get("fore_dir0", [1, 0, 0]), float)
@@ -539,15 +566,25 @@ def run_closer_qa(m, spec: dict, phys: dict, model_json: dict, meta: dict, prima
     d = mj.MjData(m)
     rules = passive_rules(m, pc)
     qa_, dof = m.jnt_qposadr[pj], m.jnt_dofadr[pj]
+    # welds (maglocks / delayed egress) hold the leaf shut: the environment releases them before the door can move,
+    # so the mechanism tests run with them released
+    weld_ids = [e for e in range(m.neq) if int(m.eq_type[e]) == int(mj.mjtEq.mjEQ_WELD)]
+    # surface vertical-rod exit devices hold the top rod retracted while the door is open (rod retention) and let it
+    # drop into the head strike in the last degrees: emulated here (the bolt would otherwise stab the head edge)
+    retention = [j for j in range(m.njnt) if (mj.mj_id2name(m, mj.mjtObj.mjOBJ_JOINT, j) or "").endswith("top_latch_slide")]
     lo, hi = (m.jnt_range[pj] if m.jnt_limited[pj] else (0.0, math.radians(90)))
     max_open = float(hi)
     both_ways = bool(spec["kinematics"].get("both_ways"))
 
     def reset(angle):
         mj.mj_resetData(m, d)
+        for e in weld_ids:
+            d.eq_active[e] = 0
         d.qpos[qa_] = angle
         if latch_joint >= 0:
             d.qpos[m.jnt_qposadr[latch_joint]] = 0.0
+        for j in retention:
+            d.qpos[m.jnt_qposadr[j]] = m.jnt_range[j][1] if angle > math.radians(5.0) else 0.0
         solve_linkages(m, d, linkages)
         mj.mj_forward(m, d)
 
@@ -561,14 +598,20 @@ def run_closer_qa(m, spec: dict, phys: dict, model_json: dict, meta: dict, prima
             if hold is not None:
                 d.qpos[qa_] = hold
                 d.qvel[dof] = 0.0
+            if retention and float(d.qpos[qa_]) > math.radians(5.0):
+                for j in retention:
+                    d.qpos[m.jnt_qposadr[j]] = m.jnt_range[j][1]
+                    d.qvel[m.jnt_dofadr[j]] = 0.0
             mj.mj_step(m, d)
 
     # ---- linkage integrity (kinematic sweep + dynamic trajectory)
+    leaf_name = mj.mj_id2name(m, mj.mjtObj.mjOBJ_BODY, m.jnt_bodyid[pj])
+    my_links = [lk for lk in linkages if leaf_name in (lk.get("pinion", {}).get("parent"), lk.get("anchor", {}).get("body"))] or linkages
     if linkages:
         worst_k, moved = 0.0, {}
         for k in range(25):
             reset(lo + (hi - lo) * k / 24)
-            for lkg in linkages:
+            for lkg in my_links:
                 for key in (("pinion", "elbow") if lkg["type"] == "two_bar" else ("base", "slide")):
                     jn = lkg[key]["joint"]
                     j = mj.mj_name2id(m, mj.mjtObj.mjOBJ_JOINT, jn)
@@ -642,22 +685,23 @@ def run_closer_qa(m, spec: dict, phys: dict, model_json: dict, meta: dict, prima
                 reset(max(math.radians(20.0), bc - math.radians(25.0)))
                 d.qvel[dof] = 3.0
                 mj.mj_forward(m, d)
-                peak = 0.0
+                impact = 0.0
                 for _ in range(int(2.0 / m.opt.timestep)):
                     d.qfrc_applied[:] = 0
                     if use_law and rules:
                         passive_torque(rules, m, d, d.qfrc_applied, False)
                     mj.mj_step(m, d)
-                    if float(d.qpos[qa_]) > bc + 0.05:
-                        peak = max(peak, float(d.qvel[dof]))
+                    if float(d.qpos[qa_]) >= hi - 0.03:          # reached the stop: impact speed
+                        impact = float(d.qvel[dof])
+                        break
                     if float(d.qvel[dof]) <= 0:
                         break
-                peaks.append(peak)
-            metrics["closer_backcheck_peak_speed_rad_s"] = peaks
-            if peaks[1] > 0.3:      # without backcheck the leaf reaches the zone at speed: with it the peak must be cut
-                checks["closer_backcheck"] = bool(peaks[0] < 0.8 * peaks[1])
+                peaks.append(max(impact, 0.0))
+            metrics["closer_backcheck_impact_speed_rad_s"] = peaks
+            if peaks[1] > 0.3:      # without backcheck the leaf slams the stop: with it the impact must be cut
+                checks["closer_backcheck"] = bool(peaks[0] < 0.6 * peaks[1] or peaks[0] < 0.5)
             else:
-                metrics["closer_backcheck_note"] = "leaf too heavy / stiff to reach the backcheck zone at 3 rad/s; not testable"
+                metrics["closer_backcheck_note"] = "leaf too heavy / stiff to reach the stop at 3 rad/s; backcheck not testable"
                 checks["closer_backcheck"] = bool(peaks[0] <= peaks[1] + 1e-6)
         # hold-open: park the leaf at the hold angle, it must stay
         if hold_deg > 0 and max_open >= math.radians(hold_deg) - 1e-6:

@@ -71,15 +71,16 @@ def _interp(table_x, table_y, x):
 # ---------------------------------------------------------------------------
 # two-bar placement search
 # ---------------------------------------------------------------------------
-def _search_two_bar(pinion_on_leaf: bool, pinion, hinge, rot_sign, L1, fore_range, shoe_candidates, angs, theta_max, clear_fn, ratio_band=(0.45, 2.2)):
-    """Pick (shoe, rest angle, L2, elbow_sign) giving the most uniform monotonic pinion ratio over [0, theta_max].
+def _search_two_bar(pinion_on_leaf: bool, pinion, hinge, rot_sign, L1s, fore_range, shoe_candidates, angs, theta_max, clear_fn, ratio_band=(0.45, 2.2)):
+    """Pick (L1, shoe, rest angle, L2, elbow_sign) giving the most uniform monotonic pinion ratio over [0, theta_max].
     clear_fn(theta, pts_world) -> bool must be True for every sampled configuration (arms clear of everything).
     Returns the best candidate dict or None."""
     thetas = np.linspace(0.0, theta_max, max(12, int(math.degrees(theta_max) / 5) + 1))
     best = None
-    for shoe in shoe_candidates:
+    L1s = [float(L1s)] if isinstance(L1s, (int, float)) else list(L1s)
+    for L1, shoe, ang in ((a, b, c) for a in L1s for b in shoe_candidates for c in angs):
         shoe = np.asarray(shoe, float)
-        for ang in angs:
+        if True:
             elbow0 = pinion + L1 * np.array([math.cos(ang), math.sin(ang)])
             L2 = float(np.linalg.norm(elbow0 - shoe))
             if not (fore_range[0] - 0.02 <= L2 <= fore_range[1] + 0.02):
@@ -94,6 +95,11 @@ def _search_two_bar(pinion_on_leaf: bool, pinion, hinge, rot_sign, L1, fore_rang
                 continue
             q, dq, ds, elbows = CK.twobar_sweep(pinion, shoe, hinge, L1, L2, sign, thetas, rot_sign, pinion_on_leaf)
             if (L1 + L2) - ds.max() < 0.015 or ds.min() - abs(L1 - L2) < 0.012:
+                continue
+            # transmission angle (elbow interior angle) within [25, 155] deg: a near-folded or near-straight linkage
+            # transmits the pinion torque through enormous arm forces (and the loop constraint cannot hold it)
+            cos_e = (L1 * L1 + L2 * L2 - ds ** 2) / (2 * L1 * L2)
+            if cos_e.max() > math.cos(math.radians(25.0)) or cos_e.min() < math.cos(math.radians(155.0)):
                 continue
             s_ = 1.0 if q[-1] > 0 else -1.0
             r = dq * s_
@@ -121,7 +127,7 @@ def _search_two_bar(pinion_on_leaf: bool, pinion, hinge, rot_sign, L1, fore_rang
                 pen += 0.3
             score = r.max() / r.min() + pen + 0.15 * abs(math.degrees(q[min(len(q) - 1, int(round(math.radians(90) / (thetas[1] - thetas[0]))))]) * s_ - 100.0) / 100.0
             if best is None or score < best["score"]:
-                best = {"score": score, "shoe": shoe, "ang": ang, "L2": L2, "sign": sign, "q_sign": s_, "ratio": (float(r.min()), float(r.max()))}
+                best = {"score": score, "shoe": shoe, "ang": ang, "L1": L1, "L2": L2, "sign": sign, "q_sign": s_, "ratio": (float(r.min()), float(r.max()))}
     return best
 
 
@@ -238,6 +244,28 @@ def _apply_door_joint_reduced(leaf_body: Body, reduced: dict, phys: dict, both_w
                            "notes": (j.notes + " " if j.notes else "") + "full tier: closer torque transmitted through the mechanism (see physics.closer.mechanism_params)"}
 
 
+def _fallback_door_law(leaf_body: Body, phys: dict, pfx: str):
+    """No mechanism could be placed: the door joint carries the design spring in every tier and the valve law acts on
+    it directly (the closer is then a torque source at the hinge line, like a floor spring)."""
+    pc = phys["closer"]
+    jt_ = leaf_body.joint
+    if jt_ is None:
+        return
+    b_air = float(phys.get("hinge", {}).get("air_damping_Nms_per_rad", 0.0))
+    st = pc.get("settings", {})
+    reduced = {"spring_preload_Nm": float(pc["spring_preload_Nm"]), "spring_stiffness_Nm_per_rad": float(pc["spring_stiffness_Nm_per_rad"]), "damping_closing": float(pc.get("damping_closing", 0.0)),
+               "damping_latch": float(pc.get("damping_latch", pc.get("damping_closing", 0.0))), "damping_opening": float(pc.get("damping_opening", 0.0)), "backcheck_damping": float(pc.get("backcheck_damping", 0.0) or 0.0),
+               "backcheck_angle_rad": pc.get("backcheck_angle_rad"), "latch_angle_rad": float(pc.get("latch_angle_rad", 0.0) or 0.0), "delayed_action_damping": float(pc.get("delayed_action_damping", 0.0) or 0.0),
+               "delayed_angle_rad": math.radians(st.get("delayed_angle_deg", 70.0)) if st.get("delayed_action_s", 0) else None, "hold_open_rad": pc.get("hold_open_rad"),
+               "hold_torque_Nm": 1.6 * (float(pc["spring_preload_Nm"]) + float(pc["spring_stiffness_Nm_per_rad"]) * float(pc["hold_open_rad"])) if pc.get("hold_open_rad") else 0.0,
+               "hold_open_kind": st.get("hold_open_kind", "none"), "fit": {"note": "no mechanism placed: the design curve acts on the door joint in every tier"}}
+    pc["reduced"] = reduced
+    pc.setdefault("laws", []).append(_door_law(jt_.name, ALL_TIERS, reduced, b_air))
+    jt_.damping_closing, jt_.damping_opening = reduced["damping_closing"], reduced["damping_opening"]
+    jt_.backcheck_angle, jt_.backcheck_damping = reduced["backcheck_angle_rad"], reduced["backcheck_damping"]
+    jt_.damping = b_air + reduced["damping_opening"]
+
+
 def _door_law(joint_name: str, tiers, reduced: dict, b_air: float) -> dict:
     return CK.law_from_windows(joint_name, tiers, b_air + reduced["damping_opening"], reduced["damping_closing"], reduced["damping_latch"], reduced["damping_opening"],
                                reduced["backcheck_damping"], reduced["latch_angle_rad"], reduced.get("backcheck_angle_rad"),
@@ -277,6 +305,14 @@ def _add_arm_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys
     y_face_pull = yw + v * (depth / 2 + casing)                        # frame / casing face on the pull side (world y)
     y_face_push = yw - v * (depth / 2 + casing)                        # ... on the push side
     y_soffit_far = yw - v * depth / 2                                  # far edge of the head soffit on the push side
+    # lowest point of the head stop / head seal (pairs have a 30 mm stop): the push-side arm plane goes under it
+    under_head = Ho - 0.005
+    for g in world.geoms:
+        if g.type == "box" and (g.name.startswith("stop_head") or g.name.startswith("seal_head") or g.name.startswith("stop_l") or g.name.startswith("stop_r")) and g.pos[2] > Ho - 0.08:
+            under_head = min(under_head, g.pos[2] - g.size[2])
+    if pfx:
+        under_head = min(under_head, Ho - 0.031)                        # pair head stop (built after the leaves): 30 mm
+    z_arm_push = under_head - 0.021
     pinion_on_leaf = mech in ("rack_pinion_regular_arm", "rack_pinion_parallel_arm")
     name_pin, name_elb = pfx + "closer_pinion", pfx + "closer_elbow"
     linkage_axis = [0.0, 0.0, 1.0]
@@ -301,7 +337,7 @@ def _add_arm_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys
     elif mech == "rack_pinion_parallel_arm":
         # ---- body on the push face, arm plane under the head soffit (below the stop), shoe on the soffit
         face = -v
-        z_arm = Ho - 0.026
+        z_arm = z_arm_push
         zc = z_arm - 0.014 - w / 2
         y_pin = face * (t / 2 + 0.55 * h)
         x_p = hinge[0] + u * x_p_off
@@ -326,7 +362,7 @@ def _add_arm_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys
     else:
         # ---- pinion on the frame: concealed closer under the head soffit / operator header on the push-side wall face
         face = -v
-        z_arm = Ho - 0.026
+        z_arm = z_arm_push
         if mech == "rack_pinion_frame_arm":
             y_pin_mag = min(t / 2 + stop_d + 0.045, abs(y_soffit_far) - 0.014)
             y_pin_mag = max(y_pin_mag, t / 2 + 0.03)
@@ -350,14 +386,16 @@ def _add_arm_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys
                     return False
             return True
     sweep_max = min(max_open + math.radians(8), math.radians(178))
-    best = _search_two_bar(pinion_on_leaf, pinion, hinge, rot_sign, L1, fore_range, shoe_candidates, angs, sweep_max, clear_fn)
+    L1s = [L1] if mech == "rack_pinion_regular_arm" else [L1 * f for f in (0.8, 0.9, 1.0, 1.1, 1.2)]
+    best = _search_two_bar(pinion_on_leaf, pinion, hinge, rot_sign, L1s, fore_range, shoe_candidates, angs, sweep_max, clear_fn)
     if best is None:
-        best = _search_two_bar(pinion_on_leaf, pinion, hinge, rot_sign, L1, (fore_range[0] - 0.04, fore_range[1] + 0.08), shoe_candidates, angs, sweep_max, clear_fn, ratio_band=(0.3, 3.0))
+        best = _search_two_bar(pinion_on_leaf, pinion, hinge, rot_sign, [L1 * f for f in (0.7, 0.85, 1.0, 1.15, 1.3)], (fore_range[0] - 0.05, fore_range[1] + 0.10), shoe_candidates, angs, sweep_max, clear_fn, ratio_band=(0.3, 3.0))
     if best is None:
         model.meta.setdefault("notes", []).append(f"{pfx}closer: no arm placement satisfies the clearance / ratio constraints; closer modelled on the door joint")
         pc["mechanism_note"] = "no feasible arm placement (narrow door / thin wall): closer torque left on the door joint"
+        _fallback_door_law(leaf_body, phys, pfx)
         return None
-    shoe, ang, L2, sign = best["shoe"], best["ang"], best["L2"], best["sign"]
+    shoe, ang, L1, L2, sign = best["shoe"], best["ang"], best["L1"], best["L2"], best["sign"]
     thetas = np.linspace(0.0, max_open, max(19, int(math.degrees(max_open) / 2.5) + 1))
     q, dq, ds, elbows = CK.twobar_sweep(pinion, shoe, hinge, L1, L2, sign, thetas, rot_sign, pinion_on_leaf)
     qs = best["q_sign"]
@@ -389,7 +427,8 @@ def _add_arm_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys
             if not any(g.name == "auto_operator_header" for g in world.geoms):
                 world.geoms.append(box("auto_operator_header", (0.0, y_hdr, z_hdr), (min(l / 2, Wo / 2 + jamb_t), w / 2, h / 2), m_body, 1500, True, True, FULL_SIMPLE, "closer", "Automatic operator header"))
             z_shaft0 = z_hdr - h / 2
-        world.geoms.append(cyl(pfx + "closer_pinion_shaft", (xw, y_pin, (z_shaft0 + z_arm) / 2), SHAFT_R, max((z_shaft0 - z_arm) / 2, 0.006), m_body, (0, 0, 1), 2700, False, True, FULL_ONLY, "closer", "Pinion spindle"))
+        z_sh1 = z_arm + ARM_HALF_T + 0.0015                                 # spindle ends just above the arm plane (the boss bridges)
+        world.geoms.append(cyl(pfx + "closer_pinion_shaft", (xw, y_pin, (z_shaft0 + z_sh1) / 2), SHAFT_R, max((z_shaft0 - z_sh1) / 2, 0.006), m_body, (0, 0, 1), 2700, False, True, FULL_ONLY, "closer", "Pinion spindle"))
         arm_pos = (xw, y_pin, z_arm)
     arm1 = Body(pfx + "closer_arm_main", parent_name, arm_pos, tuple(quat_from_axis_angle([0, 0, 1], th1)), None, [], [], FULL_ONLY, "closer", "Closer main arm")
     arm1.joint = Joint(name_pin, "hinge", (0, 0, pin_axis_sign), (0, 0, 0), None, damping=0.01, role="mechanism", label="Closer pinion (spring + hydraulics; 0 = door closed, + = opening)", robot_interactive=False)
@@ -424,7 +463,7 @@ def _add_arm_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys
         model.equalities.append(Equality("connect", pfx + "closer_arm_connect", arm2.name, "world", (0, 0, 0, 0, 0), (L2, 0, 0), FULL_ONLY, "Closer forearm pinned to the frame shoe", solref=(0.002, 1.0), solimp=(0.99, 0.999, 0.001, 0.5, 2.0)))
     else:
         # foot on the leaf's push face at the top rail
-        leaf_body.geoms.append(box(pfx + "closer_shoe_plate", (shoe[0], face * (t / 2 + 0.002), z_arm - 0.012), (0.024, 0.002, 0.03), m_arm, 2700, False, True, FULL_ONLY, "closer", "Arm foot plate (leaf)"))
+        leaf_body.geoms.append(box(pfx + "closer_shoe_plate", (shoe[0], face * (t / 2 + 0.002), z_arm - 0.03), (0.024, 0.002, 0.027), m_arm, 2700, False, True, FULL_ONLY, "closer", "Arm foot plate (leaf)"))
         leaf_body.geoms.append(box(pfx + "closer_shoe", (shoe[0], face * (t / 2 + (abs(shoe[1]) - t / 2) / 2), z_arm - 0.027), (0.016, (abs(shoe[1]) - t / 2) / 2, 0.005), m_arm, 2700, False, True, FULL_ONLY, "closer", "Arm foot (forearm pivot)"))
         anchor_body = leaf_body.name
         anchor_pos = [float(shoe[0]), float(shoe[1]), z_arm]
@@ -435,9 +474,11 @@ def _add_arm_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys
                                                          [pfx + "closer_shoe_pin", pfx + "closer_arm_fore_geom", "pin through the forearm tip"], [pfx + "closer_elbow_pin", pfx + "closer_shoe_pin", "pins"],
                                                          [pfx + "closer_pinion_shaft", pfx + "closer_body*", "shaft in the body"], [pfx + "closer_pinion_shaft", pfx + "closer_concealed*", "spindle in the concealed body"],
                                                          [pfx + "closer_pinion_shaft", "auto_operator_header", "spindle in the header"], [pfx + "closer_hold_magnet", pfx + "closer_arm_main_geom", "hold-open unit on the arm"],
-                                                         [pfx + "closer_shoe_pin", pfx + "closer_hold_magnet", "pin"], [pfx + "closer_shoe", pfx + "closer_shoe_plate", "foot on its plate"]])
+                                                         [pfx + "closer_shoe_pin", pfx + "closer_hold_magnet", "pin"], [pfx + "closer_shoe", pfx + "closer_shoe_plate", "foot on its plate"],
+                                                         [pfx + "closer_pinion_shaft", pfx + "closer_arm_main_geom", "arm keyed on the spindle"]])
     if mech in ("rack_pinion_regular_arm", "rack_pinion_parallel_arm") and cl.kind == "electromagnetic_hold":
-        arm1.geoms.append(box(pfx + "closer_hold_magnet", (L1 * 0.45, 0, ARM_HALF_T + 0.012), (0.045, 0.014, 0.012), m_body, 2000, False, True, FULL_ONLY, "closer", "Electromagnetic hold-open unit"))
+        zmag = (ARM_HALF_T + 0.012) if mech == "rack_pinion_regular_arm" else -(ARM_HALF_T + 0.012)
+        arm1.geoms.append(box(pfx + "closer_hold_magnet", (L1 * 0.45, 0, zmag), (0.045, 0.014, 0.012), m_body, 2000, False, True, FULL_ONLY, "closer", "Electromagnetic hold-open unit"))
     # ---- calibration ---------------------------------------------------------------------------------------
     pinion_p, reduced, table = _calibrate_arm(pc, spec, phys, thetas, q, dq, max_open)
     kp = pinion_p["spring_stiffness_Nm_per_rad"]
@@ -473,13 +514,17 @@ def _add_arm_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys
                            "pinion": {"body": arm1.name, "joint": name_pin, "parent": parent_name if pinion_on_leaf else "world"},
                            "elbow": {"body": arm2.name, "joint": name_elb},
                            "anchor": {"body": anchor_body, "pos": [float(x) for x in anchor_pos]},
-                           "equality": pfx + "closer_arm_connect", "axis": [0.0, 0.0, float(pin_axis_sign)], "L1": float(L1), "L2": float(L2), "elbow_sign": int(sign),
+                           "equality": pfx + "closer_arm_connect", "axis": [0.0, 0.0, 1.0], "L1": float(L1), "L2": float(L2), "elbow_sign": int(sign),
                            "arm_dir0": [1.0, 0.0, 0.0], "fore_dir0": [1.0, 0.0, 0.0],
                            "note": "elbow = P + a*ex + elbow_sign*h*ey with ex = unit(anchor - P) projected on the plane normal to `axis`, ey = axis x ex, a = (L1^2 - L2^2 + d^2)/(2d), h = sqrt(L1^2 - a^2); P = pinion joint anchor in world"})
     if cl.kind in ("auto_operator_low_energy", "auto_operator_full"):
         mot = pc.get("motor", {})
         ratio_mean = float(np.mean(dq))
-        tau_p = float(mot.get("max_torque_Nm", 60.0)) / max(ratio_mean, 0.3)
+        fric_ = float(phys.get("hinge", {}).get("coulomb_torque_Nm", 0.0)) + float(phys.get("hinge", {}).get("stick_torque_Nm", 0.0))
+        tau_need = 1.4 * (float(pc["spring_preload_Nm"]) + float(pc["spring_stiffness_Nm_per_rad"]) * max_open + fric_)     # door-level torque to hold the leaf open against spring + friction
+        mot["max_torque_Nm"] = max(float(mot.get("max_torque_Nm", 60.0)), tau_need)
+        mot["note_sizing"] = "motor torque = max(spec, 1.4 x (closing spring at max opening + hinge friction)) so the operator can hold the leaf open"
+        tau_p = float(mot["max_torque_Nm"]) / max(ratio_mean, 0.3)
         q_max = float(q[-1])
         model.meta.setdefault("actuators", []).append({"name": pfx + "swing_operator", "joint": name_pin, "kind": "position", "kp": float(tau_p / 0.35), "kv": float(0.25 * tau_p / 0.35),
                                                       "forcerange": (-tau_p, tau_p), "ctrlrange": (0.0, q_max), "tiers": ["full"], "door_joint": leaf_body.joint.name,
@@ -514,24 +559,31 @@ def _add_telescoping(model: Model, world: Body, leaf_body: Body, spec: dict, phy
     rot_sign = u * v
     face = -v                                                        # the side the leaf swings away from (device extends on opening)
     if both_ways:
-        face = 1.0
+        # a double-acting gate cannot carry a side-mounted strut (it would be in the swing of one direction)
+        model.meta.setdefault("notes", []).append(f"{pfx}closer: double-acting leaf, spring modelled at the hinge line")
+        pc["mechanism_note"] = "double-acting leaf: closer spring acts at the hinge line (no strut)"
+        _fallback_door_law(leaf_body, phys, pfx)
+        return None
     stroke = float(ov.get("stroke_m", tpl["stroke_m"]))
     length = float(ov.get("length_m", tpl["length_m"]))
     r_tube, r_rod = tpl["r_tube"], tpl["r_rod"]
     z_s = float(ov.get("mount_height_m", z_top - 0.09))
     # jamb / post bracket pivot (world) and the leaf bracket pivot (leaf frame): searched so the stroke covers the range
-    if is_gate:
-        ps = jamb_t
-        y_b_mag = ps / 2 + 0.018
-        x_post_c = x_hinge_axis - u * ps / 2                                    # post centre (world x)
-        post_candidates = [x_post_c + u * dx for dx in (-0.0, 0.02)]
-    else:
-        y_b_mag = abs(yw - v * depth / 2) + 0.02
-        post_candidates = [x_hinge_axis - u * jamb_t / 2]
+    from .common import frame_jamb_thickness
+    ps = frame_jamb_thickness(spec)                                          # real post size / jamb thickness
+    # everything the tube could sweep past on the device side (post, jamb, wall, casing, fence): the bracket pivot
+    # stands r_tube + 12 mm further out, 30 mm past the jamb / post reveal into the opening (an angle bracket)
+    far = ps / 2 if is_gate else abs(yw - v * depth / 2)
+    for g in world.geoms:
+        if g.name.startswith("wall_") or (g.name.startswith(("post_hinge", "jamb_hinge", "casing_", "stud_", "fence_")) and abs(g.pos[0] - (x_hinge_axis - u * ps / 2)) < 1.2):
+            ext = g.size[1] if g.type == "box" else g.size[0]
+            far = max(far, face * g.pos[1] + ext)
+    y_b_mag = far + r_tube + 0.012
+    post_candidates = [x_hinge_axis + u * 0.03]
     y_leaf_mag = t / 2 + 0.028
     best = None
     for xb in post_candidates:
-        for reach in np.arange(0.20, min(0.60, W - 0.08) + 1e-9, 0.02):
+        for reach in np.arange(0.16, min(0.60, W - 0.08) + 1e-9, 0.02):
             A_l = np.array([hinge[0] + u * reach, face * y_leaf_mag])
             B_w = np.array([xb - x_hinge_axis, face * y_b_mag])              # in the leaf-closed frame (= world shifted by x_hinge_axis)
             thetas = np.linspace(0.0, max_open, 25)
@@ -545,27 +597,30 @@ def _add_telescoping(model: Model, world: Body, leaf_body: Body, spec: dict, phy
                 continue
             # moment arm of the force line about the hinge at closed (closing power) - prefer larger
             dvec = (A_l - B_w) / max(ds[0], 1e-9)
-            arm = abs(float(np.cross(A_l - hinge, dvec)))
+            r_ = A_l - hinge
+            arm = abs(float(r_[0] * dvec[1] - r_[1] * dvec[0]))
             score = -arm + 0.4 * ext
             if best is None or score < best["score"]:
                 best = {"score": score, "xb": xb, "reach": reach, "A_l": A_l, "B_w": B_w, "ds": ds, "thetas": thetas, "arm": arm}
     if best is None:
         model.meta.setdefault("notes", []).append(f"{pfx}closer: no strut placement covers the door range within the stroke; closer left on the door joint")
         pc["mechanism_note"] = "no feasible strut placement; closer torque left on the door joint"
+        _fallback_door_law(leaf_body, phys, pfx)
         return None
     A_l, B_w, ds, thetas = best["A_l"], best["B_w"], best["ds"], best["thetas"]
     d0 = float(ds[0])
     mat = mat_from_material(model, "aluminum" if cl.kind == "pneumatic" else ("steel_galvanized" if cl.id == "gate_spring" else "black_matte_metal"), "mat_strut")
     # brackets
     B_world = np.array([best["xb"], face * y_b_mag, z_s])
-    if is_gate:
-        world.geoms.append(box(pfx + "closer_post_bracket", (best["xb"], face * (jamb_t / 2 + 0.006), z_s), (0.02, 0.006, 0.02), mat, 7800, False, True, FULL_ONLY, "closer", "Post bracket"))
-        world.geoms.append(box(pfx + "closer_post_bracket_arm", (best["xb"], face * (jamb_t / 2 + 0.012 + (y_b_mag - jamb_t / 2 - 0.012) / 2), z_s - 0.012), (0.012, (y_b_mag - jamb_t / 2 - 0.012) / 2 + 0.004, 0.004), mat, 7800, False, True, FULL_ONLY, "closer", "Bracket ear"))
-    else:
-        yf = yw - v * depth / 2
-        world.geoms.append(box(pfx + "closer_jamb_bracket", (best["xb"], yf + face * 0.006, z_s), (0.02, 0.006, 0.02), mat, 7800, False, True, FULL_ONLY, "closer", "Jamb bracket"))
-        y_piv = face * y_b_mag
-        world.geoms.append(box(pfx + "closer_jamb_bracket_arm", (best["xb"], (yf + face * 0.012 + y_piv) / 2, z_s - 0.012), (0.012, abs(y_piv - yf - face * 0.012) / 2 + 0.004, 0.004), mat, 7800, False, True, FULL_ONLY, "closer", "Bracket ear"))
+    # angle bracket: plate on the post / jamb face (at the reveal), ear around the corner out to the pivot
+    y_face_dev = face * (ps / 2 if is_gate else abs(yw - v * depth / 2))
+    x_rev = x_hinge_axis                                                     # jamb / post reveal (opening edge)
+    world.geoms.append(box(pfx + "closer_jamb_bracket", (x_rev - u * 0.012, y_face_dev + face * 0.003, z_s), (0.012, 0.003, 0.02), mat, 7800, False, True, FULL_ONLY, "closer", "Bracket plate (jamb / post face)"))
+    y_piv = face * y_b_mag
+    world.geoms.append(box(pfx + "closer_jamb_bracket_arm", ((x_rev - u * 0.012 + best["xb"]) / 2, (y_face_dev + y_piv) / 2, z_s - 0.012), (abs(best["xb"] - x_rev + u * 0.012) / 2 + 0.004, abs(y_piv - y_face_dev) / 2 + 0.004, 0.004), mat, 7800, False, True, FULL_ONLY, "closer", "Bracket ear (to the pivot)"))
+    model.meta.setdefault("clearance_allow", []).extend([[pfx + "closer_jamb_bracket*", "post_*", "bracket on the post"], [pfx + "closer_jamb_bracket*", "jamb_*", "bracket on the jamb"], [pfx + "closer_jamb_bracket*", "stop_*", "bracket beside the stop"],
+                                                         [pfx + "closer_base_eye", pfx + "closer_jamb_bracket*", "pivot eye on the bracket"], [pfx + "closer_tube", pfx + "closer_jamb_bracket*", "tube end on the bracket"],
+                                                         [pfx + "closer_leaf_bracket*", pfx + "closer_rod_eye", "rod eye on the door bracket"], [pfx + "closer_rod_geom", pfx + "closer_leaf_bracket*", "rod end on the door bracket"]])
     leaf_body.geoms.append(box(pfx + "closer_leaf_bracket", (A_l[0], face * (t / 2 + 0.004), z_s), (0.02, 0.004, 0.02), mat, 7800, False, True, FULL_ONLY, "closer", "Door bracket"))
     leaf_body.geoms.append(box(pfx + "closer_leaf_bracket_arm", (A_l[0], face * (t / 2 + 0.008 + (y_leaf_mag - t / 2 - 0.008) / 2), z_s - 0.012), (0.012, (y_leaf_mag - t / 2 - 0.008) / 2 + 0.004, 0.004), mat, 7800, False, True, FULL_ONLY, "closer", "Bracket ear"))
     # bodies: cylinder hinged at the bracket, rod sliding along its axis
@@ -592,6 +647,17 @@ def _add_telescoping(model: Model, world: Body, leaf_body: Body, spec: dict, phy
     c_close, c_open = float(strut["damping_close_Ns_per_m"]), float(strut["damping_open_Ns_per_m"])
     s_ext = ds - d0
     dsdth = np.gradient(s_ext, thetas)
+    # the spring must realise the door-level design closing moment at 0 deg (friction + latch) through the strut's
+    # moment arm: F(0) * ds/dtheta(0) = tau0; the rate follows the design opening moment at 90 deg where possible
+    r0 = max(float(dsdth[0]), 0.03)
+    F0 = max(F0, float(pc["spring_preload_Nm"]) / r0)
+    i90 = int(np.argmin(np.abs(thetas - min(math.radians(90), max_open))))
+    tau90 = float(pc["spring_preload_Nm"]) + float(pc["spring_stiffness_Nm_per_rad"]) * float(thetas[i90])
+    if s_ext[i90] > 0.02 and dsdth[i90] > 0.02:
+        kN = float(min(max(kN, (tau90 / dsdth[i90] - F0) / s_ext[i90]), 3000.0))
+    kN = max(kN, 30.0)
+    strut["spring_force_closed_N"], strut["spring_rate_N_per_m"] = F0, kN
+    strut["note_sizing"] = "spring force at closed = design closing moment / strut moment arm (installer tension setting); rate from the 90 deg opening moment"
     F = F0 + kN * s_ext                                       # tension pulling the rod in (closing)
     tau_full = F * dsdth
     rod.joint.stiffness = kN
@@ -667,8 +733,13 @@ def _add_pivot_device(model: Model, world: Body, leaf_body: Body, spec: dict, ph
         l, w, h = cl.body_size
         world.geoms.append(box(pfx + "floor_spring_box", (xw + u * (l / 2 - 0.04), yp, -h / 2 - 0.004), (l / 2, w / 2, h / 2), m_, 7900, False, True, FULL_ONLY, "closer", "Floor spring body (in the floor box)"))
         world.geoms.append(box(pfx + "floor_spring_cover", (xw + u * (l / 2 - 0.04), yp, 0.002), (l / 2 + 0.02, w / 2 + 0.02, 0.002), m_, 7900, False, True, FULL_SIMPLE, "closer", "Floor spring cover plate"))
-        leaf_body.geoms.append(cyl(pfx + "floor_spring_spindle", (float(jt_.pos[0]), yp, max(z_bot / 2, 0.004)), 0.011, max(z_bot / 2, 0.004), m_, (0, 0, 1), 7900, False, True, FULL_ONLY, "closer", "Floor spring spindle"))
-        leaf_body.geoms.append(box(pfx + "floor_spring_shoe", (float(jt_.pos[0]) + u * 0.03, yp, z_bot + 0.02), (0.05, min(t / 2 + 0.002, 0.03), 0.02), m_, 7900, False, True, FULL_ONLY, "closer", "Bottom arm / pivot shoe"))
+        r_sp = float(min(0.011, max(0.004, abs(jt_.pos[0]) - 0.0015)))              # the spindle must stay inside the jamb reveal
+        leaf_body.geoms.append(cyl(pfx + "floor_spring_spindle", (float(jt_.pos[0]), yp, (0.004 + z_bot) / 2), r_sp, max((z_bot - 0.004) / 2, 0.002), m_, (0, 0, 1), 7900, False, True, FULL_ONLY, "closer", "Floor spring spindle"))
+        _, _, x_far = _leaf_extent(leaf_body)
+        x_edge0 = float(jt_.pos[0]) if abs(jt_.pos[1]) < 1e-6 else (0.006 * u if abs(jt_.pos[0]) < 0.02 else float(jt_.pos[0]))
+        leaf_body.geoms.append(box(pfx + "floor_spring_shoe", (x_edge0 + u * 0.05, 0.0, z_bot + 0.02), (0.05, min(t / 2 - 0.001, 0.03), 0.019), m_, 7900, False, True, FULL_ONLY, "closer", "Bottom arm (mortised into the leaf bottom)"))
+        model.meta.setdefault("clearance_allow", []).extend([[pfx + "floor_spring_spindle", pfx + "floor_spring_cover", "spindle through the cover plate"], [pfx + "floor_spring_spindle", "threshold*", "spindle through the threshold"],
+                                                             [pfx + "floor_spring_spindle", pfx + "floor_spring_shoe", "spindle into the bottom arm"], [pfx + "floor_spring_spindle", "seal_*", "spindle at the seal line"]])
         hold = st.get("hold_open_deg", 0.0)
         max_open = math.radians(spec["kinematics"].get("max_open_deg") or 90)
         tau0, k = float(pc["spring_preload_Nm"]), float(pc["spring_stiffness_Nm_per_rad"])
@@ -738,13 +809,14 @@ def add_gas_strut(model: Model, world: Body, leaf_body: Body, spec: dict, phys: 
     stroke = float(ov.get("stroke_m", tpl["stroke_m"]))
     max_open = math.radians(spec["kinematics"].get("max_open_deg", 90))
     x_s = W / 2 - 0.07
-    zsign = 1.0 if ceiling else -1.0          # the strut lives above a ceiling hatch (attic side), below a floor hatch (pit side)
+    zsign = -1.0                              # the strut hangs below the leaf: pit side of a floor hatch, room side of a ceiling hatch
     mat = mat_from_material(model, "stainless", "mat_strut")
     # search the bracket (base, in the leaf-closed frame = world offset by the hinge) and the tip (leaf frame)
     best = None
-    for tip_y in np.arange(0.14, min(0.42, Ho - 0.12), 0.02):
-        for base_y in np.arange(0.10, 0.55, 0.03):
-            for base_z in np.arange(0.16, 0.42, 0.03):
+    base_ys = np.arange(0.06, 0.55, 0.03)
+    for tip_y in np.arange(0.12, min(0.50, Ho - 0.12), 0.02):
+        for base_y in base_ys:
+            for base_z in np.arange(0.12, 0.52, 0.03):
                 A_l = np.array([-tip_y, zsign * (t / 2 + 0.012)])                 # (y, z) in the leaf frame
                 B_l = np.array([-base_y, zsign * base_z])
                 thetas = np.linspace(0.0, max_open, 25)
@@ -756,10 +828,10 @@ def add_gas_strut(model: Model, world: Body, leaf_body: Body, spec: dict, phys: 
                 ds = np.array(ds)
                 ext = ds.max() - ds.min()
                 d0 = ds[0]
-                if ext > stroke - 0.01 or d0 > 0.60 or d0 < 0.22 or ds.argmax() < len(ds) - 3:
+                if ext > stroke - 0.01 or d0 > 0.66 or d0 < 0.24 or ds.argmax() < len(ds) - 3:
                     continue
                 dvec = (A_l - B_l) / max(d0, 1e-9)
-                arm = abs(float(np.cross(A_l, dvec)))
+                arm = abs(float(A_l[0] * dvec[1] - A_l[1] * dvec[0]))
                 score = -arm
                 if best is None or score < best["score"]:
                     best = {"score": score, "A_l": A_l, "B_l": B_l, "ds": ds, "thetas": thetas, "arm": arm, "tip_y": tip_y, "base_y": base_y, "base_z": base_z}
@@ -772,11 +844,15 @@ def add_gas_strut(model: Model, world: Body, leaf_body: Body, spec: dict, phys: 
     B_w = hinge_w + np.array([x_s, B_l[0], B_l[1]])
     # mount: pit wall + bracket below a floor hatch, post on the curb above a ceiling hatch
     if ceiling:
-        world.geoms.append(box("strut_post", (B_w[0], hinge_w[1] - 0.05, (zf + 0.04 + B_w[2]) / 2), (0.02, 0.02, (B_w[2] - zf - 0.04) / 2 + 0.01), mat, 7800, False, True, FULL_ONLY, "closer", "Strut mounting post (curb)"))
-        world.geoms.append(box("strut_post_arm", (B_w[0], (hinge_w[1] - 0.05 + B_w[1]) / 2, B_w[2]), (0.012, abs(B_w[1] - hinge_w[1] + 0.05) / 2 + 0.01, 0.008), mat, 7800, False, True, FULL_ONLY, "closer", "Strut bracket arm"))
+        # bracket plate on the ceiling beside the curb, drop arm down to the pivot (attic-hatch struts are visible from the room)
+        yb_ = B_w[1]
+        world.geoms.append(box("strut_post", (B_w[0], yb_, (zf - 0.10 + B_w[2]) / 2), (0.02, 0.02, abs(zf - 0.10 - B_w[2]) / 2 + 0.005), mat, 7800, False, True, FULL_ONLY, "closer", "Strut drop bracket (ceiling)"))
+        world.geoms.append(box("strut_post_plate", (B_w[0], yb_, zf - 0.10 - 0.004), (0.045, 0.045, 0.004), mat, 7800, False, True, FULL_ONLY, "closer", "Strut bracket plate (ceiling)"))
+        model.meta.setdefault("clearance_allow", []).extend([["strut_post*", "ceil_*", "bracket on the ceiling"], ["strut_post*", "curb_*", "bracket beside the curb"], ["strut_base_eye", "strut_post*", "eye on the bracket"], ["strut_tube", "strut_post*", "tube end at the bracket"]])
     else:
         world.geoms.append(box("pit_wall_r", (W / 2 + 0.06, 0.0, -0.75), (0.02, Ho / 2 + 0.06, 0.75), mat_rgba(model, "mat_pit_wall", (0.35, 0.35, 0.35, 1), 0.9), 2400, True, True, FULL_ONLY, "floor", "Pit wall"))
         world.geoms.append(box("strut_bracket", (W / 2 + 0.03 + 0.005, B_w[1], B_w[2]), (0.025, 0.02, 0.02), mat, 7800, False, True, FULL_ONLY, "closer", "Strut bracket (pit wall)"))
+        model.meta.setdefault("clearance_allow", []).extend([["strut_bracket", "pit_wall*", "bracket on the pit wall"], ["strut_base_eye", "strut_bracket", "eye on the bracket"], ["strut_tube", "strut_bracket", "tube end at the bracket"], ["pit_wall*", "floor*", "pit wall under the floor"], ["pit_wall*", "curb_*", "pit wall under the curb"]])
     leaf_body.geoms.append(box("strut_leaf_bracket", (x_s, A_l[0], zsign * (t / 2 + 0.004)), (0.02, 0.02, 0.004), mat, 7800, False, True, FULL_ONLY, "closer", "Strut bracket (leaf)"))
     r_tube, r_rod = tpl["r_tube"], tpl["r_rod"]
     dir0 = np.array([0.0, A_l[0] - B_l[0], A_l[1] - B_l[1]])
@@ -855,13 +931,14 @@ def add_sliding_operator(model: Model, world: Body, leaf_body: Body, spec: dict,
         return
     mat = mat_from_material(model, "aluminum_dark", "mat_operator")
     belt = mat_from_material(model, "rubber", "mat_belt")
-    z_h = Ho + jamb_t + 0.04
+    z_belt = Ho + jamb_t * 0.5                                # inside the track header, below the wall header
     x_motor = -s_open * (Wo / 2 + 0.25)
-    world.geoms.append(box(f"{name}_drive_unit", (x_motor, y_leaf, z_h + 0.03), (0.12, 0.05, 0.05), mat, 1500, False, True, FULL_ONLY, "closer", "Operator drive unit (motor + gearbox)"))
+    world.geoms.append(box(f"{name}_drive_unit", (x_motor, y_leaf, Ho + jamb_t - 0.02), (0.12, 0.05, 0.03), mat, 1500, False, True, FULL_ONLY, "closer", "Operator drive unit (motor + gearbox)"))
     for sx in (-1, 1):
-        world.geoms.append(cyl(f"{name}_pulley_{'r' if sx > 0 else 'l'}", (sx * (Wo / 2 + travel / 2 + 0.05), y_leaf, z_h - 0.02), 0.03, 0.006, mat, (0, 1, 0), 2700, False, True, FULL_ONLY, "closer", "Belt pulley"))
-    world.geoms.append(box(f"{name}_belt", (0.0, y_leaf, z_h - 0.02), (Wo / 2 + travel / 2 + 0.05, 0.0015, 0.006), belt, 1200, False, True, FULL_ONLY, "closer", "Toothed belt"))
+        world.geoms.append(cyl(f"{name}_pulley_{'r' if sx > 0 else 'l'}", (sx * (Wo / 2 + travel / 2 + 0.05), y_leaf, z_belt), 0.012, 0.006, mat, (0, 1, 0), 2700, False, True, FULL_ONLY, "closer", "Belt pulley"))
+    world.geoms.append(box(f"{name}_belt", (0.0, y_leaf, z_belt), (Wo / 2 + travel / 2 + 0.05, 0.0015, 0.005), belt, 1200, False, True, FULL_ONLY, "closer", "Toothed belt"))
     clamp_x = 0.0
-    leaf_body.geoms.append(box(f"{name}_belt_clamp", (clamp_x, y_leaf - float(leaf_body.pos[1]) if abs(y_leaf) > 1e-9 else 0.0, z_h - 0.02 - float(leaf_body.pos[2])), (0.03, 0.006, 0.012), mat, 2700, False, True, FULL_ONLY, "closer", "Belt clamp (carriage)"))
-    model.meta.setdefault("clearance_allow", []).extend([[f"{name}_belt_clamp", f"{name}_belt", "clamp grips the belt"], [f"{name}_belt_clamp", "track_header*", "clamp inside the header"], [f"{name}_belt", "track_header*", "belt inside the header"]])
+    leaf_body.geoms.append(box(f"{name}_belt_clamp", (clamp_x, 0.0, z_belt - float(leaf_body.pos[2])), (0.03, 0.006, 0.009), mat, 2700, False, True, FULL_ONLY, "closer", "Belt clamp (carriage)"))
+    model.meta.setdefault("clearance_allow", []).extend([[f"{name}_belt_clamp", "*_belt", "clamp grips the belt"], [f"{name}_belt_clamp", "track_header*", "clamp inside the header"], [f"{name}_belt", "track_header*", "belt inside the header"],
+                                                         [f"{name}_belt_clamp", "*_pulley_*", "clamp at the pulley"], [f"{name}_belt_clamp", "*hanger*", "clamp on the hanger"], [f"{name}_belt_clamp", "*_drive_unit", "clamp at the drive"]])
     pc.setdefault("mechanism_params", {}).update({"joint": leaf_body.joint.name if leaf_body.joint else None, "geometry": {"drive_unit_at_x_m": x_motor, "belt_run_m": float(Wo + travel + 0.1), "source": "ANSI/BHMA A156.10 sliding operator: belt drive, breakout / manual push when unpowered"}})
