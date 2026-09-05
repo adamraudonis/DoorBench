@@ -3,6 +3,7 @@ import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { buildScene, geomMesh, type BuiltScene } from './scene';
 import type { GeomJ, ModelJ } from './types';
 import { frameAt } from './referenceMotion';
+import {fetchReadOnly,ReadRetryBudget} from './readOnlyFetch';
 
 export interface WebFile {path:string;sha256:string;bytes:number;json_sha256?:string}
 export const SOURCE_SCENARIOS=['open_and_traverse','unlock_and_traverse','locked_recognize'] as const;
@@ -74,9 +75,26 @@ async function boundedBytes(stream:ReadableStream<Uint8Array>|null,limit:number)
   catch(e){await reader.cancel();throw e;}finally{reader.releaseLock();}
   return new Blob(chunks).arrayBuffer();
 }
-export async function fetchPlannedClip(entry:MotionEntry,indexURL:string,signal?:AbortSignal) {
+export async function fetchPlannedClip(entry:MotionEntry,indexURL:string,outerSignal?:AbortSignal) {
+  outerSignal?.throwIfAborted();
+  const controller=new AbortController(),abort=()=>controller.abort(outerSignal?.reason);
+  outerSignal?.addEventListener('abort',abort,{once:true});
+  try {
+    const result=await loadPlannedClip(entry,indexURL,controller.signal);
+    controller.signal.throwIfAborted();return result;
+  } catch(error) {
+    // A clip requires every verified source. Stop sibling requests and retry
+    // timers after the first terminal failure, preserving that original error.
+    controller.abort(error);throw error;
+  } finally {
+    outerSignal?.removeEventListener('abort',abort);
+  }
+}
+
+async function loadPlannedClip(entry:MotionEntry,indexURL:string,signal:AbortSignal) {
   require(entry.status==='accepted_kinematic'&&entry.clip,'This attempt is not accepted for playback');
-  const response=await fetch(artifactURL(entry.clip.path,indexURL),{signal});require(response.ok,`Motion download failed (${response.status})`);
+  const budget=new ReadRetryBudget();
+  const response=await fetchReadOnly(artifactURL(entry.clip.path,indexURL),{signal},budget);require(response.ok,`Motion download failed (${response.status})`);
   const bytes=await boundedBytes(response.body,MAX_DECODED);const digest=await sha256(bytes);let raw:ArrayBuffer;
   if(digest===entry.clip.sha256){require(bytes.byteLength===entry.clip.bytes&&bytes.byteLength<=MAX_PACKED,'Motion compressed size mismatch');raw=await boundedBytes(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip')),MAX_DECODED);}
   else {require(digest===entry.clip.json_sha256,'Motion file checksum mismatch');raw=bytes;} // Hosts may decode Content-Encoding.
@@ -85,7 +103,7 @@ export async function fetchPlannedClip(entry:MotionEntry,indexURL:string,signal?
   const files=new Map<string,ArrayBuffer>();
   await Promise.all([...Object.entries(clip.source_sha256).map(([name,hash])=>[`doors/${entry.door_id}/${name}`,hash]),...Object.entries(clip.native_resources_sha256??{})].map(async([path,hash])=>{
     require(/^(doors\/[A-Za-z0-9_.-]+\/(model.json|spec.json|door.xml)|hardware\/[A-Za-z0-9_.-]+\.obj)$/.test(path)&&HASH.test(hash),'Unsafe source resource');
-    const r=await fetch(`./assets/${path}`,{signal,cache:'no-cache'});require(r.ok,`Cannot verify ${path}`);const data=await boundedBytes(r.body,MAX_SOURCE);require(await sha256(data)===hash,`Motion does not match served ${path}`);files.set(path,data);
+    const r=await fetchReadOnly(`./assets/${path}`,{signal,cache:'no-cache'},budget);require(r.ok,`Cannot verify ${path} (${r.status})`);const data=await boundedBytes(r.body,MAX_SOURCE);require(await sha256(data)===hash,`Motion does not match served ${path}`);files.set(path,data);
   }));
   const model=JSON.parse(new TextDecoder().decode(files.get(`doors/${entry.door_id}/model.json`)!)) as ModelJ;
   for(const body of model.bodies)require(clip.native.body_names.includes(body.name)||(body.name==='world_env'&&clip.native.body_names.includes('world')),'Snapshot lacks a source body');
