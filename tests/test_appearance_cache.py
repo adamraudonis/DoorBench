@@ -61,7 +61,7 @@ def test_valid_resume_verifies_artifact_and_skips_worker(tmp_path, monkeypatch):
     assert calls == []
 
 
-@pytest.mark.parametrize('damage', ['stale_job', 'truncated_metadata', 'missing_image', 'changed_image'])
+@pytest.mark.parametrize('damage', ['stale_job', 'truncated_metadata', 'missing_image', 'changed_image', 'null_hashes', 'list_hashes'])
 def test_invalid_cache_is_a_miss_and_rerenders(tmp_path, monkeypatch, damage):
     out, dest, job, metadata = _fixture(tmp_path)
     if damage == 'stale_job':
@@ -71,6 +71,9 @@ def test_invalid_cache_is_a_miss_and_rerenders(tmp_path, monkeypatch, damage):
         (dest / 'render.json').write_text('{"job_sha256":')
     elif damage == 'missing_image':
         (dest / 'rgb.png').unlink()
+    elif damage in ('null_hashes', 'list_hashes'):
+        metadata['artifact_sha256'] = None if damage == 'null_hashes' else []
+        (dest / 'render.json').write_text(json.dumps(metadata))
     else:
         (dest / 'rgb.png').write_bytes(b'truncated or different PNG')
     calls = _mock_worker(monkeypatch, out)

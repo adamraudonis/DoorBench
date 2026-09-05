@@ -113,7 +113,8 @@ def run_jobs(jobs, out, *, blender=None, resume=False):
                 old = {}
             def artifact_ok(filename):
                 artifact = Path(job['out_dir'])/filename
-                return artifact.is_file() and hashlib.sha256(artifact.read_bytes()).hexdigest() == old.get('artifact_sha256',{}).get(filename)
+                hashes = old.get('artifact_sha256')
+                return isinstance(hashes,dict) and artifact.is_file() and hashlib.sha256(artifact.read_bytes()).hexdigest() == hashes.get(filename)
             image_ok = job['validate_only'] or artifact_ok('rgb.png')
             blend_ok = not job['save_blend'] or artifact_ok('scene.blend')
             if old.get('job_sha256') == job['job_sha256'] and image_ok and blend_ok:

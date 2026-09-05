@@ -19,8 +19,16 @@ from doorbench.appearance.blender_details import build_details
 
 
 def reset_scene():
-    bpy.ops.object.select_all(action='SELECT')
-    bpy.ops.object.delete(use_global=False)
+    """Clear worker-owned scene data while retaining reusable texture images.
+
+    Operator deletion only unlinks objects from the scene. A material's Object
+    texture-coordinate reference can retain its mesh object, producing an
+    object -> mesh -> material -> object cycle that never reaches users == 0.
+    Explicit datablock removal breaks those references before orphan cleanup.
+    """
+    for obj in list(bpy.data.objects):
+        bpy.data.objects.remove(obj, do_unlink=True)
+    bpy.context.scene.world = None
     for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.materials, bpy.data.cameras, bpy.data.lights, bpy.data.worlds):
         for block in list(datablocks):
             if block.users == 0:
