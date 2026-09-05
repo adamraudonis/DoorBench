@@ -136,9 +136,48 @@ class Attachment:
         self.static = self.c.static                     # per geom: its body is welded to the world
         self.rbound = self.c.rbound                     # planes already widened to 1e6
         self.ir_body = {b["name"]: b for b in self.ir["bodies"]}
+        self.half = self._local_half()
         self.mj.mj_forward(m, self.d)
 
     # ---- distance helpers -------------------------------------------------------------------------------
+    def _local_half(self) -> np.ndarray:
+        """Half-extents of every geom in its own frame (for the world-AABB overlap test)."""
+        m, mujoco = self.m, self.mj
+        out = np.zeros((m.ngeom, 3))
+        for g in range(m.ngeom):
+            t = int(m.geom_type[g])
+            s = np.asarray(m.geom_size[g], dtype=float)
+            if t == int(mujoco.mjtGeom.mjGEOM_BOX):
+                out[g] = s
+            elif t == int(mujoco.mjtGeom.mjGEOM_SPHERE):
+                out[g] = s[0]
+            elif t == int(mujoco.mjtGeom.mjGEOM_CAPSULE):
+                out[g] = (s[0], s[0], s[1] + s[0])
+            elif t == int(mujoco.mjtGeom.mjGEOM_CYLINDER):
+                out[g] = (s[0], s[0], s[1])
+            elif t == int(mujoco.mjtGeom.mjGEOM_ELLIPSOID):
+                out[g] = s
+            elif t == int(mujoco.mjtGeom.mjGEOM_MESH) and int(m.geom_dataid[g]) >= 0:
+                mid = int(m.geom_dataid[g])
+                v = np.asarray(m.mesh_vert[m.mesh_vertadr[mid]:m.mesh_vertadr[mid] + m.mesh_vertnum[mid]]).reshape(-1, 3)
+                out[g] = np.abs(v).max(axis=0) if len(v) else 0.0
+            else:
+                out[g] = float(self.rbound[g]) if self.rbound[g] < 1e5 else 1e6
+        return out
+
+    def _aabb_overlap(self, i: int, j: int) -> bool:
+        """Do the two geoms' world AABBs overlap?
+
+        ``mj_geomDistance`` does NOT return a negative number for every intersecting primitive pair: a capsule that
+        passes THROUGH a box (a latch pin in its housing) reads +4 mm, which would make the gate call a part that is
+        buried in its housing "detached".  An AABB overlap is conservative in the direction that matters here - a
+        part whose bounding box overlaps another's is not a part hanging in the air - so it clamps the query."""
+        d = self.d
+        ci, cj = np.asarray(d.geom_xpos[i]), np.asarray(d.geom_xpos[j])
+        hi = np.abs(np.asarray(d.geom_xmat[i]).reshape(3, 3)) @ self.half[i]
+        hj = np.abs(np.asarray(d.geom_xmat[j]).reshape(3, 3)) @ self.half[j]
+        return bool(np.all(np.abs(ci - cj) < hi + hj))
+
     def _pairs_within(self, ids_a: Sequence[int], ids_b: Sequence[int], cutoff: float, symmetric: bool = False):
         """Yield (i, j, signed distance) for every pair whose bounding spheres are within ``cutoff``."""
         m, d, mujoco = self.m, self.d, self.mj
@@ -153,6 +192,8 @@ class Attachment:
                 if j == i or (symmetric and j < i):
                     continue
                 dist = float(mujoco.mj_geomDistance(m, d, int(i), j, cutoff, None))
+                if dist > 0 and self._aabb_overlap(int(i), j):
+                    dist = 0.0
                 if dist < cutoff:
                     yield int(i), j, dist
 
@@ -411,9 +452,12 @@ class Attachment:
             if et not in (int(mujoco.mjtEq.mjEQ_CONNECT), int(mujoco.mjtEq.mjEQ_WELD)) or not m.eq_active0[e]:
                 continue
             a, b = int(m.eq_obj1id[e]), int(m.eq_obj2id[e])
-            pa = np.asarray(d.xpos[a]) + np.asarray(d.xmat[a]).reshape(3, 3) @ np.asarray(m.eq_data[e][:3])
-            pb = np.asarray(d.xpos[b]) + np.asarray(d.xmat[b]).reshape(3, 3) @ np.asarray(m.eq_data[e][3:6])
-            sep = float(np.linalg.norm(pa - pb))
+            # MuJoCo's own residual for this equality (the first three rows of its constraint block are the
+            # position violation for both connect and weld); reading eq_data directly would need the per-type
+            # anchor layout and gets welds wrong.
+            rows = [k for k in range(d.nefc) if int(d.efc_type[k]) == int(mujoco.mjtConstraint.mjCNSTR_EQUALITY)
+                    and int(d.efc_id[k]) == e]
+            sep = float(np.linalg.norm(np.asarray(d.efc_pos)[rows[:3]])) if rows else 0.0
             if sep > TOL_EQ:
                 name = mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_EQUALITY, e) or f"eq{e}"
                 self._finding(out, "equality_anchor", "TOL_EQ", TOL_EQ, sep, [name, self.bname[a], self.bname[b]],

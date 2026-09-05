@@ -356,6 +356,7 @@ def add_frame(model: Model, spec: dict, v: float, world: Body, with_stop=True, s
             t_leaf = spec["leaf"]["thickness"]
             brace_proud = 0.022 if spec["leaf"]["panel_style"] in ("plank_z_brace", "plank_x_brace", "board_batten") else 0.0
             world.geoms.append(box("gate_stop", (sx - u * 0.02, -v * (t_leaf / 2 + 0.012 + brace_proud), gc + min(0.25, spec["leaf"]["height"] * 0.3)), (0.02, 0.012, 0.06), mat, dens_p, True, True, ALL_TIERS, "frame", "Gate stop block"))
+            model.meta.setdefault("_brace_pending", []).append({"geom": "gate_stop", "axes": ["x", "y"], "label": "Gate stop post bracket"})
         return {"jamb_t": ps, "depth": ps, "hx": hx, "sx": sx, "mat": mat}
     dens = M.MATERIALS[fr["material"]].density if M.MATERIALS[fr["material"]].family != "metal" else 300.0
     depth = wt if fr["kind"] != "aluminum_storefront" else max(0.114, wt)
@@ -624,19 +625,43 @@ def add_hinge_visuals(model: Model, world: Body, leaf_body: Body, spec: dict, hi
         return
     hm = mat_from_material(model, "steel_galvanized" if hg.bearing != "rusty" else "steel_rusty", "mat_hinge")
     if hg.kind in ("pivot_offset", "pivot_center", "pivot_center_heavy", "gravity_pivot") or spec["kinematics"].get("both_ways"):
-        # floor & top pivots
+        # floor & top pivots, and the fittings they turn in: without the static half the leaf hangs on nothing and
+        # walks away from every static part as it swings
+        wp = body_world_pos(model, leaf_body)
         for zz, nm in ((z0 - 0.005, "bottom"), (z0 + Hh + 0.01, "top")):
-            leaf_body.geoms.append(cyl(f"pivot_{nm}", (hinge_pos_xy[0], hinge_pos_xy[1], zz if nm == "bottom" else z0 + Hh + 0.004), 0.014, 0.004, hm, (0, 0, 1), 7850, False, True, FULL_ONLY, "hinge", "Pivot"))
+            z_leaf = zz if nm == "bottom" else z0 + Hh + 0.004
+            leaf_body.geoms.append(cyl(f"pivot_{nm}", (hinge_pos_xy[0], hinge_pos_xy[1], z_leaf), 0.014, 0.004, hm, (0, 0, 1), 7850, False, True, FULL_ONLY, "hinge", "Pivot"))
+            xw_, yw_ = wp[0] + hinge_pos_xy[0], wp[1] + hinge_pos_xy[1]
+            if nm == "bottom":
+                # floor pivot box, sunk into the floor and reaching up to the leaf's pivot pin
+                z_lo, z_hi = -0.01, z_leaf + 0.003
+                world.geoms.append(box("pivot_bottom_socket", (xw_, yw_, (z_lo + z_hi) / 2), (0.035, 0.035, (z_hi - z_lo) / 2), hm, 7850, False, True, FULL_SIMPLE, "hinge", "Floor pivot socket"))
+            else:
+                # head pivot bracket, down from the structure above to the leaf's top pivot
+                face = mount_face_z(world, xw_, yw_, 0.035, 0.035, z_leaf)
+                z_lo_ = z_leaf + 0.004      # sits ON the pin's top face, not around it
+                if face is not None and face - z_lo_ < 0.30 and face > z_lo_ + 0.002:
+                    world.geoms.append(box("pivot_top_bracket", (xw_, yw_, (z_lo_ + face) / 2), (0.035, 0.035, (face - z_lo_) / 2), hm, 7850, False, True, FULL_SIMPLE, "hinge", "Head pivot bracket"))
         return
     if hg.kind == "continuous":
-        leaf_body.geoms.append(cyl("hinge_continuous", (hinge_pos_xy[0], hinge_pos_xy[1], z0 + Hh / 2), hg.pin_radius * 1.6, Hh / 2 - 0.01, hm, (0, 0, 1), 2700, False, True, FULL_SIMPLE, "hinge", "Continuous hinge"))
+        leaf_body.geoms.append(cyl("hinge_continuous", (hinge_pos_xy[0], hinge_pos_xy[1], z0 + Hh / 2), hg.pin_radius * 1.6 + 0.004, Hh / 2 - 0.01, hm, (0, 0, 1), 2700, False, True, FULL_SIMPLE, "hinge", "Continuous hinge"))
         return
     if hg.kind == "strap":
         key, mesh = MESH.strap_hinge_mesh(length=hg.size[0], width=hg.size[1], thickness=0.006)
         zs = [z0 + 0.15, z0 + Hh - 0.15] if n == 2 else [z0 + 0.15, z0 + Hh / 2, z0 + Hh - 0.15]
+        wp = body_world_pos(model, leaf_body)
+        y_face = v * (spec["leaf"]["thickness"] / 2 + 0.003)
+        y_pin_ = float(hinge_pos_xy[1])
         for k, zz in enumerate(zs):
             q = q_axis_x_to((u, 0, 0))
-            leaf_body.geoms.append(mesh_geom(f"hinge_strap_{k}", key, mesh, (hinge_pos_xy[0], v * (spec["leaf"]["thickness"] / 2 + 0.003), zz), q, hm, 7850, False, FULL_SIMPLE, "hinge", "Strap hinge"))
+            leaf_body.geoms.append(mesh_geom(f"hinge_strap_{k}", key, mesh, (hinge_pos_xy[0], y_face, zz), q, hm, 7850, False, FULL_SIMPLE, "hinge", "Strap hinge"))
+            # the strap's eye drops over a pintle screwed to the post: the eye is ON the swing axis (the strap
+            # plate lies on the gate face, 50 mm away, and swings away from the post without it)
+            leaf_body.geoms.append(cyl(f"hinge_strap_eye_{k}", (hinge_pos_xy[0], y_pin_, zz), 0.011, 0.012, hm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "hinge", "Strap eye"))
+            leaf_body.geoms.append(box(f"hinge_strap_neck_{k}", (hinge_pos_xy[0], (y_pin_ + y_face) / 2, zz), (0.012, abs(y_pin_ - y_face) / 2 + 0.004, 0.006), hm, 7850, False, True, FULL_SIMPLE, "hinge", "Strap eye neck"))
+            world.geoms.append(cyl(f"hinge_pintle_{k}", (wp[0] + hinge_pos_xy[0], wp[1] + y_pin_, wp[2] + zz - 0.026), 0.008, 0.02, hm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "hinge", "Pintle"))
+            # the post it is screwed to may not exist yet (a gate builds its posts after the leaf): braced at the end
+            model.meta.setdefault("_brace_pending", []).append({"geom": f"hinge_pintle_{k}", "axes": ["y", "x"], "label": "Pintle post strap"})
         return
     hh = hg.size[0]
     if n == 2:
@@ -661,6 +686,7 @@ def add_hinge_visuals(model: Model, world: Body, leaf_body: Body, spec: dict, hi
         keyj, meshj = MESH.hinge_jamb_mesh(height=hh, radius=hg.pin_radius * 1.5, leaf_w=leaf_w_, leaf_t=0.003)
         wp = body_world_pos(model, leaf_body)
         world.geoms.append(mesh_geom(f"hinge_{k}_jamb", keyj, meshj, (wp[0] + hinge_pos_xy[0], wp[1] + hinge_pos_xy[1], wp[2] + zz), q, hm, 7850, False, FULL_SIMPLE, "hinge", f"Hinge {k + 1} jamb plate"))
+        z_jamb_lo = float(geom_local_aabb(world.geoms[-1])[0][2])
         if stand > 0.012:
             # gooseneck hinge: a foot welded flat on the leaf face, a strap rising from it to the pin, and a matching
             # strap on the bulkhead - offset in z like knuckles so the two never foul each other through the swing
@@ -675,11 +701,12 @@ def add_hinge_visuals(model: Model, world: Body, leaf_body: Body, spec: dict, hi
                                        ((foot[1] - foot[0]) / 2, (y_mid + 0.002 - y_lo) / 2, hh * 0.2), hm, 7850, False, True, FULL_SIMPLE, "hinge", f"Hinge {k + 1} lug foot"))
             leaf_body.geoms.append(box(f"hinge_{k}_lug", (u * (strap[0] + strap[1]) / 2, vd * (y_mid + y_hi) / 2, zz + hh * 0.22),
                                        ((strap[1] - strap[0]) / 2, (y_hi - y_mid) / 2, hh * 0.2), hm, 7850, False, True, FULL_SIMPLE, "hinge", f"Hinge {k + 1} lug (leaf)"))
-            face = mount_face(world, wp[0] + hinge_pos_xy[0], wp[2] + zz, 0.012, hh * 0.2, vd, default=t_leaf / 2)
-            gap = abs(float(hinge_pos_xy[1])) - 0.007 - face      # stop under the knuckle, not through it
+            face = max(mount_face(world, wp[0] + hinge_pos_xy[0], wp[2] + zz, 0.012, hh * 0.2, vd, default=t_leaf / 2, skip_semantics=("hinge",)),
+                       t_leaf / 2 + 0.002)     # never down into the leaf's own hinge plate
+            gap = abs(float(hinge_pos_xy[1])) - max(0.004, hg.pin_radius * 1.5 - 0.005) - face   # up to the knuckle's surface, not through the barrel
             if gap > 0.004:
-                world.geoms.append(box(f"hinge_{k}_jamb_lug", (wp[0] + hinge_pos_xy[0], wp[1] + vd * (face + gap / 2), wp[2] + zz - hh * 0.22),
-                                       (0.010, gap / 2, hh * 0.2), hm, 7850, False, True, FULL_SIMPLE, "hinge", f"Hinge {k + 1} lug (frame)"))
+                world.geoms.append(box(f"hinge_{k}_jamb_lug", (wp[0] + hinge_pos_xy[0], wp[1] + vd * (face + gap / 2), z_jamb_lo - 0.018),
+                                       (0.010, gap / 2, 0.02), hm, 7850, False, True, FULL_SIMPLE, "hinge", f"Hinge {k + 1} lug (frame)"))
 
 
 # ---------------------------------------------------------------------------
@@ -1356,7 +1383,8 @@ def face_proud(body: Body, v_face: float, half_t: float, x_lo: float, x_hi: floa
     return max(0.0, out)
 
 
-def mount_face(world: Body, x: float, z: float, hx: float, hz: float, v: float, default: float = 0.0) -> float:
+def mount_face(world: Body, x: float, z: float, hx: float, hz: float, v: float, default: float = 0.0,
+               skip_semantics: tuple = ()) -> float:
     """Distance along +v from the door plane (y = 0) to the frontmost STATIC surface that covers the footprint
     (x +- hx, z +- hz).
 
@@ -1366,10 +1394,11 @@ def mount_face(world: Body, x: float, z: float, hx: float, hz: float, v: float, 
     (meta["wall_y"]).  Only axis-aligned boxes are considered (every frame member is one)."""
     best = default
     for g in world.geoms:
-        if g.type != "box" or abs(float(g.quat[0]) - 1.0) > 1e-9:
-            continue
-        px, py, pz = (float(c) for c in g.pos)
-        sx, sy, sz = (float(s) for s in g.size[:3])
+        if g.semantic in skip_semantics:
+            continue                               # the part's own family is not what carries it
+        glo, ghi = geom_local_aabb(g)              # AABB: a gate post is a cylinder, a head a box
+        px, py, pz = ((float(glo[k]) + float(ghi[k])) / 2 for k in range(3))
+        sx, sy, sz = ((float(ghi[k]) - float(glo[k])) / 2 for k in range(3))
         if abs(px - x) > sx + hx or abs(pz - z) > sz + hz:
             continue
         best = max(best, v * py + sy)
@@ -1461,9 +1490,47 @@ def add_bumper_stop(model: Model, world: Body, leaf_body: Body, spec: dict, u: f
         + ("" if mount == "wall" else "  A wall bumper cannot reach a leaf that stops perpendicular to its own wall, so the floor riser real doors use there is modelled instead."))
 
 
+def brace_pending(model: Model):
+    """Bracket every part the builders parked in ``meta["_brace_pending"]``.
+
+    Some hardware is placed before the member it is screwed to exists (a gate builds its posts after its leaf), so
+    the builder records the part and this runs once the world is complete."""
+    world = next((b for b in model.bodies if b.static), None)
+    if world is None:
+        return
+    done = set()
+    for e in model.meta.pop("_brace_pending", []):
+        if e["geom"] in done:
+            continue                    # a pair of leaves parks the same name twice; brace each geom once
+        done.add(e["geom"])
+        for i, g in enumerate([x for x in list(world.geoms) if x.name == e["geom"]]):
+            d0 = 1.0 if float(g.pos[1]) > 0 else -1.0      # the structure is usually toward the wall plane
+            for d in ([float(e["d"])] if e.get("d") else (d0, -d0)):
+                if brace_to_structure(world, g, d, g.material, name=f"{g.name}_strap_{i}", semantic=g.semantic,
+                                      label=e.get("label", "Mounting bracket"), tiers=FULL_SIMPLE, span=0.8,
+                                      axes=tuple(e.get("axes", ("y", "x")))) is not None:
+                    break
+
+
+def mount_face_z(world: Body, x: float, y: float, hx: float, hy: float, z_from: float):
+    """Z of the LOWEST static box face above ``z_from`` over the footprint (x +- hx, y +- hy), or None."""
+    best = None
+    for o in world.geoms:
+        if o.type != "box" or abs(float(o.quat[0]) - 1.0) > 1e-9:
+            continue
+        px, py, pz = (float(c) for c in o.pos)
+        sx, sy, sz = (float(q) for q in o.size[:3])
+        if abs(px - x) > sx + hx or abs(py - y) > sy + hy:
+            continue
+        lo = pz - sz
+        if lo > z_from + 0.002 and (best is None or lo < best):
+            best = lo
+    return best
+
+
 def brace_to_structure(world: Body, g: Geom, d: float, mat, name: str | None = None, semantic: str = "frame",
                        label: str = "Mounting bracket", tiers=FULL_SIMPLE, span: float = 0.6, max_gap: float = 0.25,
-                       axes: tuple = ("y", "x", "z")):
+                       axes: tuple = ("y", "x", "z"), pad: float = 0.02, reach: float = 0.06):
     """Bracket the static geom ``g`` back to the structure it stands off, in the ``d`` (+-1) sense of each axis tried.
 
     Surface-mounted hardware - a keeper on a barn-door jamb, an EXIT sign over the head, a drop-bolt housing on a
@@ -1477,19 +1544,22 @@ def brace_to_structure(world: Body, g: Geom, d: float, mat, name: str | None = N
     for ax in axes:
         a = {"x": 0, "y": 1, "z": 2}[ax]
         o1, o2 = [k for k in range(3) if k != a]
-        s1, s2 = max(0.02, half[o1] * span), max(0.02, half[o2] * span)
+        s1, s2 = max(pad, half[o1] * span), max(pad, half[o2] * span)
         f_part = d * ctr[a] - half[a]                # the part's BACK face along +d (the bracket stops there)
-        best = None
+        best, best_box = None, None
         for o in world.geoms:
-            if o is g or o.type != "box" or abs(float(o.quat[0]) - 1.0) > 1e-9:
+            if o is g:
                 continue
-            p_ = [float(c) for c in o.pos]
-            sz = [float(q) for q in o.size[:3]]
+            olo, ohi = geom_local_aabb(o)          # AABB: a post is a cylinder, a keeper plate a box
+            p_ = [(float(olo[k]) + float(ohi[k])) / 2 for k in range(3)]
+            sz = [(float(ohi[k]) - float(olo[k])) / 2 for k in range(3)]
+            if all(abs(p_[k] - ctr[k]) <= sz[k] + half[k] + 0.002 for k in range(3)):
+                continue                           # already touching the part: its own island, not what carries it
             if abs(p_[o1] - ctr[o1]) > sz[o1] + s1 or abs(p_[o2] - ctr[o2]) > sz[o2] + s2:
                 continue
             f = d * p_[a] + sz[a]
             if f <= f_part + 1e-9 and (best is None or f > best):
-                best = f
+                best, best_box = f, (p_, sz)
         if best is None:
             continue
         gap = f_part - best
@@ -1499,6 +1569,16 @@ def brace_to_structure(world: Body, g: Geom, d: float, mat, name: str | None = N
         pos[a] = d * (best + gap / 2)
         hsz = [max(0.005, half[k] * span) for k in range(3)]
         hsz[a] = gap / 2 + 0.0005
+        # reach sideways where the support is offset from the part's own footprint (a gate stop that overhangs its
+        # post): the bracket is an angle, not a plug
+        for k in (o1, o2):
+            plo, phi = pos[k] - hsz[k], pos[k] + hsz[k]
+            slo, shi = best_box[0][k] - best_box[1][k], best_box[0][k] + best_box[1][k]
+            if 0 < slo - phi <= reach:
+                phi = slo + 0.004
+            elif 0 < plo - shi <= reach:
+                plo = shi - 0.004
+            pos[k], hsz[k] = (plo + phi) / 2, (phi - plo) / 2
         br = box(name or f"{g.name}_bracket", tuple(pos), tuple(hsz), mat, 7850, False, True, tiers, semantic, label)
         world.geoms.append(br)
         return br
@@ -1511,6 +1591,8 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
         if cl.kind == "pneumatic":
             m = mat_from_material(model, "aluminum", "mat_closer")
             leaf_body.geoms.append(cyl("closer_pneumatic", (u * 0.25, v * (t / 2 + 0.03), Hh * 0.6), 0.015, 0.16, m, (1, 0, 0), 2700, False, True, FULL_SIMPLE, "closer", "Pneumatic closer"))
+            for k_, dx_ in enumerate((-0.15, 0.15)):
+                leaf_body.geoms.append(box(f"closer_pneumatic_bracket_{k_}", (u * (0.25 + dx_), v * (t / 2 + 0.016), Hh * 0.6), (0.008, 0.016, 0.018), m, 2700, False, True, FULL_SIMPLE, "closer", "Closer mounting bracket"))
         return
     m = mat_from_material(model, "aluminum_dark" if cl.kind != "floor_spring" else "stainless", "mat_closer")
     l, w, h = cl.body_size
@@ -1525,6 +1607,7 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
         world.geoms.append(box("auto_operator_header", (0, -v * (t / 2 + w / 2 + 0.01), Hh + jamb_t + h / 2 + 0.01), (min(l / 2, Wo / 2 + jamb_t), w / 2, h / 2), m, 1500, True, True, FULL_SIMPLE, "closer", "Automatic operator header"))
         # arm to the leaf (visual)
         leaf_body.geoms.append(box("auto_operator_arm", (u * 0.25, -v * (t / 2 + 0.03), Hh - 0.02), (0.22, 0.008, 0.008), m, 2700, False, True, FULL_ONLY, "closer", "Operator arm"))
+        leaf_body.geoms.append(box("auto_operator_arm_shoe", (u * 0.44, -v * (t / 2 + 0.016), Hh - 0.02), (0.03, 0.016, 0.014), m, 2700, False, True, FULL_ONLY, "closer", "Operator arm door shoe"))
         return
     # surface closer: regular arm, body on pull face (+v side) near top, pinion at x_p from hinge
     x_p = u * 0.30
@@ -1549,7 +1632,7 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
     # the shoe is bolted to the surface that is really there above the opening (head face, or casing where trim
     # stands proud of it) - taking +-wall_thickness/2 off the origin put it up to 133 mm out in front of the frame
     face_v = max(t / 2 + 0.005, v * float(model.meta.get("wall_y", 0.0)) + depth_ / 2,
-                 mount_face(world, x_hinge_axis + u * 0.10, pin_z, 0.030, 0.014, v))
+                 mount_face(world, x_hinge_axis + u * 0.10, pin_z, 0.030, 0.014, v, skip_semantics=("closer",)))
     y_face = v * face_v
     pin_y = v * max(t / 2 + h / 2, face_v + 0.035)           # pinion inside the closer body, clear of the head/casing face
     leaf_body.geoms.append(cyl("closer_pinion_shaft", (x_p, pin_y, (zc + pin_z) / 2), 0.008, (pin_z - zc) / 2, m, (0, 0, 1), 2700, False, True, FULL_ONLY, "closer", "Pinion shaft"))
@@ -1672,6 +1755,9 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
         key, mesh = MESH.wreath_mesh(r=min(0.2, W * 0.25))
         wm = mat_rgba(model, "mat_wreath", (0.12, 0.30, 0.12, 1), 0.95)
         leaf_body.geoms.append(mesh_geom("wreath", key, mesh, (x0 + u * W / 2, -1.0 * t / 2, z0 + Hh * 0.78), q_face(-1.0, u), wm, 200, False, FULL_ONLY, "decor", "Wreath"))
+        # the hook it hangs on (a wreath 7 mm off the door face with nothing behind it reads as floating)
+        leaf_body.geoms.append(cyl("wreath_hook", (x0 + u * W / 2, -1.0 * (t / 2 + 0.007), z0 + Hh * 0.78 + min(0.2, W * 0.25) - 0.012),
+                                   0.004, 0.008, mat_from_material(model, "brass", "mat_wreath_hook"), (0, 1, 0), 8500, False, True, FULL_ONLY, "decor", "Wreath hook"))
     if "coat_hook" in ex:
         key, mesh = MESH.coat_hook_mesh()
         hm = mat_from_material(model, "chrome", "mat_hook")

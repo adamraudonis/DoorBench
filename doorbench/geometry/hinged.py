@@ -264,6 +264,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
             tp.joint = Joint(f"{leaf_name}_thumbpiece_hinge", "hinge", (-1, 0, 0), (0, 0, 0.02), (0.0, opm.travel), damping=0.02, frictionloss=0.02, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Thumb piece (press in)")
             tm = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
             tp.geoms.append(C.box(f"{leaf_name}_thumbpiece_geom", (0, 0, 0), (0.018, 0.004, 0.02), tm, 3000, True, True, FULL_SIMPLE, "operator", "Thumb piece"))
+            tp.geoms.append(C.box(f"{leaf_name}_thumbpiece_boss", (0, 0.012, 0), (0.010, 0.012, 0.006), tm, 3000, False, True, FULL_SIMPLE, "operator", "Thumb piece pivot boss"))
             tp.sites.append(Site(f"{leaf_name}_thumb_push", (0, -0.005, 0.01), QUAT_ID, 0.01, "push"))
             model.add_body(tp)
             if lt.throw > 0:
@@ -291,9 +292,10 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         thumb = Body(f"{leaf_name}_thumb", leaf_body.name, (x_edge - u * 0.08, -1.0 * t / 2, hz + 0.095), QUAT_ID, None, [], [], ALL_TIERS, "operator", "Thumb press")
         thumb.joint = Joint(f"{leaf_name}_thumb_hinge", "hinge", (1, 0, 0), (0, 0, 0), (0.0, opm.travel), damping=0.02, frictionloss=0.05, stiffness=opm.spring_rate, springref=-opm.spring_torque_preload / max(opm.spring_rate, 1e-6), role="operator", label="Thumb press (+ = pad pressed down)")
         thumb.geoms.append(C.box(f"{leaf_name}_thumb_geom", (0, -0.020, 0.0), (0.015, 0.014, 0.003), mat, 7000, True, True, ALL_TIERS, "operator", "Thumb pad"))
-        thumb.geoms.append(C.box(f"{leaf_name}_thumb_boss", (0, -0.006, 0.0), (0.012, 0.006, 0.008), mat, 7000, False, True, FULL_SIMPLE, "operator", "Pivot boss"))
+        thumb.geoms.append(C.box(f"{leaf_name}_thumb_boss", (0, -0.004, -0.005), (0.012, 0.008, 0.013), mat, 7000, False, True, FULL_SIMPLE, "operator", "Pivot boss"))
         thumb.geoms.append(C.box(f"{leaf_name}_thumb_lifter", (0, (0.002 + t + 0.010) / 2, -0.017), (0.004, (t + 0.008) / 2, 0.004), mat, 7000, False, True, FULL_SIMPLE, "operator", "Lifter tang (through the door, under the latch bar)"))
         thumb.sites.append(Site(f"{leaf_name}_thumb_push", (0, -0.024, 0.005), QUAT_ID, 0.01, "push"))
+        model.meta.setdefault("clearance_allow", []).append([f"{leaf_name}_thumb_boss", f"{leaf_name}_suffolk_grip", "the thumb's pivot boss turns inside the grip plate's top"])
         model.add_body(thumb)
         # latch bar on the far face at the thumb-press height (a Suffolk latch bar pivots level with the thumb press)
         bar_y = 1.0 * (t / 2 + 0.012)
@@ -395,7 +397,8 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         sx_w = u * (Wo / 2)
         pin = Body(f"{leaf_name}_pin", None, (x_pin_w, y_pin, hz), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Lift pin")
         pin.joint = Joint(f"{leaf_name}_pin_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, opm.travel + 0.03), damping=1.0, frictionloss=0.2, stiffness=60.0, springref=-1.0 / 60.0, role="operator", label="Lift pin (+ = lifted; weak return spring, magnet-assisted drop)")
-        pin.geoms.append(Geom(f"{leaf_name}_pin_geom", "capsule", (0.006, 0.03), (0, 0, -0.02), (1, 0, 0, 0), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "latch", "Latch pin"))
+        # one rod: the shaft runs from the striker cup all the way up into the knob (it used to stop 27 mm short)
+        pin.geoms.append(Geom(f"{leaf_name}_pin_geom", "capsule", (0.006, 0.0525), (0, 0, 0.0025), (1, 0, 0, 0), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "latch", "Latch pin"))
         pin.geoms.append(Geom(f"{leaf_name}_pin_knob", "capsule", (0.012, 0.01), (0, 0, 0.065), (1, 0, 0, 0), mat, True, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Lift knob"))
         pin.sites.append(Site(f"{leaf_name}_grip_pin", (0, 0, 0.065), QUAT_ID, 0.012, "grip"))
         model.add_body(pin)
@@ -409,6 +412,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         for k, (zc_, hz_) in enumerate(((hz + 0.024, 0.010), (hz - 0.006, 0.006))):
             world.geoms.append(C.box(f"{leaf_name}_pin_bracket{'' if k == 0 else '_2'}", ((xb0 + xb1) / 2, y_pin, zc_), (abs(xb1 - xb0) / 2, hd, hz_), mat, 1800, False, True, FULL_SIMPLE if k == 0 else FULL_ONLY, "latch", "Housing bracket to the post"))
         world.geoms.append(C.box(f"{leaf_name}_pin_post_plate", (sx_w + u * 0.003, y_pin, hz + 0.01), (0.003, hd + 0.006, 0.05), mat, 1800, False, True, FULL_ONLY, "latch", "Post mounting plate"))
+        model.meta.setdefault("_brace_pending", []).append({"geom": f"{leaf_name}_pin_post_plate", "axes": ["y", "x"], "label": "Latch post plate standoff"})
         model.meta.setdefault("clearance_allow", []).extend([[f"{leaf_name}_pin_geom", f"{leaf_name}_pin_housing", "pin slides inside its housing"], [f"{leaf_name}_pin_knob", f"{leaf_name}_pin_housing", "knob seats on the housing"], [f"{leaf_name}_pin_geom", f"{leaf_name}_pin_bracket*", "pin passes the bracket"]])
         # striker cup on the gate (leaf-local): walls +-y, floor, bracket to the face, approach ramp on the -v side
         km = C.mat_from_material(model, "steel_galvanized", "mat_keeper")
@@ -577,9 +581,11 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         p0 = np.array([x_edge - u * 0.05, f_c * (t / 2 + 0.008), z_c])
         p1 = np.array([x_edge + u * 0.012, y_track, z_c - 0.012])
         n_l = 6
+        # links long enough to meet each other: a fixed 12 mm link left a chain of six beads with 24 mm of air between
+        half_l = float(np.linalg.norm(p1 - p0)) / (2 * n_l) + 0.001
         for k in range(n_l):
             a_ = p0 + (p1 - p0) * (k + 0.5) / n_l
-            leaf_body.geoms.append(Geom(f"{leaf_name}_chain_{k}", "capsule", (0.003, 0.006), tuple(a_), tuple(quat_z_to(p1 - p0)), cm, False, True, 8500.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_ONLY, "lock", "Chain link"))
+            leaf_body.geoms.append(Geom(f"{leaf_name}_chain_{k}", "capsule", (0.003, half_l), tuple(a_), tuple(quat_z_to(p1 - p0)), cm, False, True, 8500.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_ONLY, "lock", "Chain link"))
         # the links are drawn rigid with the leaf (a real chain hangs slack): they may pass the track / jamb face
         model.meta.setdefault("clearance_allow", []).extend([[f"{leaf_name}_chain_*", f"{leaf_name}_chain_track", "chain end in its track"], [f"{leaf_name}_chain_*", "jamb_*", "slack chain vs jamb"], [f"{leaf_name}_chain_*", "stop_*", "slack chain vs stop"], [f"{leaf_name}_chain_*", "seal_*", "slack chain vs seal"], [f"{leaf_name}_chain_*", "casing_*", "slack chain vs casing"], [f"{leaf_name}_chain_*", "stud_*", "slack chain vs stud"]])
     if lk.kind == "swing_bar_guard" and engaged:

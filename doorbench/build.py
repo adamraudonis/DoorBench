@@ -61,6 +61,8 @@ def build_model(spec: dict, phys: dict | None = None) -> Model:
         GO.build_horizontal(spec, phys, model)
     else:
         raise ValueError(f"unknown family {fam}")
+    from .geometry.common import brace_pending
+    brace_pending(model)          # parts placed before the member they are screwed to existed
     if fam == "automatic_swing":
         act = spec["kinematics"].get("actuator", {})
         model.meta.setdefault("actuators", []).append({"name": "swing_operator", "joint": model.meta["primary_joint"], "kind": "position", "kp": 150.0, "kv": 40.0, "forcerange": (-act.get("max_torque_Nm", 60), act.get("max_torque_Nm", 60)), "ctrlrange": (0.0, 1.6)})

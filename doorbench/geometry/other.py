@@ -281,6 +281,7 @@ def build_sliding(spec, phys, model: Model):
                 model.meta["operator_joint"] = td.joint.name
                 td.geoms.append(C.box(f"{name}_teardrop_top", (-dir_ * 0.04, 0, -0.005), (0.04, 0.004, 0.006), lm, 7800, True, True, FULL_SIMPLE, "latch", "Teardrop bar"))
                 td.geoms.append(C.box(f"{name}_teardrop_end", (-dir_ * 0.078, 0, -0.03), (0.005, 0.004, 0.03), lm, 7800, True, True, FULL_SIMPLE, "latch", "Teardrop end"))
+                td.geoms.append(C.cyl(f"{name}_teardrop_boss", (0, 0.006, 0), 0.008, 0.008, lm, (0, 1, 0), 7800, False, True, FULL_SIMPLE, "latch", "Teardrop pivot boss"))
                 td.sites.append(Site(f"{name}_teardrop_grip", (-dir_ * 0.078, -0.01, -0.05), QUAT_ID, 0.01, "grip"))
                 model.add_body(td)
                 world.geoms.append(C.box(f"{name}_teardrop_keeper_post", (xc + x_latch_edge - dir_ * 0.005, yl - (t / 2 + 0.01), hz + 0.45 - 0.034), (0.005, 0.006, 0.018), lm, 7800, True, True, FULL_SIMPLE, "latch", "Keeper post"))
@@ -406,13 +407,19 @@ def build_sliding(spec, phys, model: Model):
     # after the frame exists.
     hw_ = C.mat_from_material(model, "stainless", "mat_hook")
     for g_ in [g for g in pockets_keeper if isinstance(g, Geom)]:
-        C.brace_to_structure(world, g_, -1.0 if g_.pos[0] > 0 else 1.0, hw_, name=f"{g_.name}_arm",
-                             semantic=g_.semantic, label="Keeper jamb bracket", tiers=FULL_SIMPLE, span=0.8, axes=("x",))
+        # a barn door's keeper stands off the wall AND inboard of the jamb: an angle bracket reaches both ways
+        C.brace_to_structure(world, g_, 1.0 if g_.pos[1] > 0 else -1.0, hw_, name=f"{g_.name}_arm",
+                             semantic=g_.semantic, label="Keeper jamb bracket", tiers=FULL_SIMPLE, span=0.8,
+                             axes=("y", "x"), pad=0.09)
+    for g_ in [g for g in list(world.geoms) if fnmatch.fnmatch(g.name, "*_electric_bolt_housing")]:
+        # a drop-bolt solenoid hangs from the header above the leaf: bracketed UP, never back through the leaf's path
+        C.brace_to_structure(world, g_, -1.0, hw_, name=f"{g_.name}_hanger", semantic=g_.semantic,
+                             label="Solenoid header hanger", tiers=FULL_SIMPLE, span=0.8, axes=("z",), reach=0.0)
     for g_ in [g for g in list(world.geoms) if any(fnmatch.fnmatch(g.name, pat) for pat in
-               ("*_hook_keeper", "*_electric_bolt_housing", "track_header", "*_slide_keeper", "*_bolt_keeper"))]:
+               ("*_hook_keeper", "track_header", "*_slide_keeper", "*_bolt_keeper"))]:
         C.brace_to_structure(world, g_, 1.0 if g_.pos[1] > 0 else -1.0, hw_, name=f"{g_.name}_bracket",
                              semantic=g_.semantic, label="Standoff mounting bracket", tiers=FULL_SIMPLE, span=0.8,
-                             axes=("y", "x"))    # never downwards: a bracket under a bolt housing is in the bolt's way
+                             axes=("y", "x"), reach=0.0)   # never downwards, and never sideways into the leaf's path
     _sites(world, Ho)
     model.meta.update({"primary_joint": bodies[0].joint.name, "secondary_joint": bodies[1].joint.name if len(bodies) > 1 else None, "handle_height": spec["operator"]["height"], "opens_toward": "left" if opens_left else "right"})
     if "operator_joint" not in model.meta:
@@ -507,6 +514,7 @@ def build_folding(spec, phys, model: Model):
                     mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
                     b.geoms.append(C.mesh_geom(f"{name}_knob", key, mesh, (u * (x_b - 0.05), -t / 2, hz), C.q_face(-1.0, u), mat, 3000, False, ALL_TIERS, "operator", "Bifold knob"))
                     b.geoms.append(C.sphere(f"{name}_knob_col", (u * (x_b - 0.05), -(t / 2 + 0.03), hz), 0.016, mat, 3000, True, ALL_TIERS, "operator", "Knob grip"))
+                    b.geoms.append(C.cyl(f"{name}_knob_rose", (u * (x_b - 0.05), -(t / 2 + 0.005), hz), 0.022, 0.005, mat, (0, 1, 0), 3000, False, True, ALL_TIERS, "operator", "Knob rose"))
                     b.sites.append(Site(f"{name}_grip", (u * (x_b - 0.05), -(t / 2 + 0.03), hz), QUAT_ID, 0.012, "grip"))
                 else:
                     C.add_pull(model, b, opm, u, u * (x_b - 0.06), hz, t, -1.0, name=f"{name}_pull")
