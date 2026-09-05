@@ -26,10 +26,24 @@ Conventions
     configuration); ``doorbench:zero_offset`` on a joint is the MJCF ``ref`` offset (DoorBench q = usd_q + offset).
   * Positive joint values mean "opening" / "actuating" (as in the MJCF).
   * Drives are ``force`` drives with UsdPhysics units (angular stiffness in N*m/deg); Isaac Lab reads them back in
-    N*m/rad.  Coulomb joint friction is exported as ``physxJointAxis:<axis>:staticFrictionEffort`` /
-    ``dynamicFrictionEffort`` (PhysX >= 5.6 / Isaac Sim >= 5.0, torque or force units) and, for older PhysX, as the
-    legacy unitless ``physxJoint:jointFriction`` coefficient (Coulomb torque divided by an estimate of the joint
-    reaction force).
+    N*m/rad.  Coulomb joint friction is exported as ``physxJointAxis:angular|linear:staticFrictionEffort`` /
+    ``dynamicFrictionEffort`` (PhysX >= 5.6 / Isaac Sim >= 5.0, torque or force units) - the instance name of the
+    per-axis API is ``angular`` on a RevoluteJoint and ``linear`` on a PrismaticJoint (the same tokens as
+    ``PhysicsDriveAPI``); ``rotX`` / ``transX`` are D6 tokens that the PhysX USD parser silently ignores on single-DoF
+    joints (round 1 of the Isaac parity gate: friction read back 0.0 on every joint).  The legacy load-dependent
+    ``physxJoint:jointFriction`` coefficient is authored as 0 so friction is not applied twice; the value the old
+    formula would give is kept in ``doorbench:legacy_friction_coeff``.
+  * MJCF position servos of automatic doors (``meta.actuators``: force = clip(kp (ctrl - q) - kv v, forcerange))
+    are the same law as a PhysX PD drive.  When the servo joint carries no passive spring of its own the servo is
+    folded into the joint drive (stiffness += kp, damping += kv, targetPosition = ctrl, maxForce = forcerange);
+    ``doorbench:servo_in_drive`` marks such joints so runners / environments do not emulate the servo a second time.
+    Joints with both a spring and a servo keep the spring in the drive (one drive per axis) and are emulated.
+  * ``physxRigidBody:maxAngularVelocity`` is authored explicitly at 100 rad/s (5729.58 deg/s, the PhysX default,
+    in the degrees-per-second unit of the schema): MuJoCo has no velocity cap and a 100 deg/s cap (as a value
+    meant in rad/s would read) clamps every door leaf at 1.75 rad/s.
+  * Rising (helical) hinges couple a vertical slide to the hinge (``rise = c1 * hinge``); the canonical RL file
+    locks the riser, so ``doorbench:rl["rise_coupling"]`` carries the equivalent gravity closing torque
+    ``-m g c1`` that the environment applies on the door joint (docs/ISAAC_LAB.md, parameter mapping).
 """
 from __future__ import annotations
 
@@ -42,6 +56,11 @@ import numpy as np
 from ..ir import Model, Body, Geom, quat_to_mat, quat_mul, quat_conj, quat_rotate, mat_to_quat, quat_from_axis_angle
 
 G_ACC = 9.81
+DEG = 180.0 / math.pi
+# PhysX rigid-body angular velocity cap (schema unit: degrees / second).  100 rad/s is the PhysX default; MuJoCo has
+# no cap at all, so the cap must stay far above any door motion (the fastest leaf in the dataset, a pet flap under
+# the QA push, reaches ~65 rad/s).  Isaac Lab's RigidBodyPropertiesCfg.max_angular_velocity uses the same unit.
+MAX_ANGULAR_VELOCITY_DEG_S = 100.0 * DEG
 # canonical structure of door_rl.usda
 RL_LINKS = ("base", "carriage", "leaf", "operator_pivot", "operator", "latch", "carriage2", "leaf2")
 RL_JOINTS = (
@@ -92,8 +111,79 @@ def _quat_x_to(direction):
 
 
 def _axis_instance(jtype: str) -> str:
-    """PhysX per-axis schema instance name for a joint whose axis token is X."""
+    """D6-style axis token for a joint whose axis is X (used by ``PhysxMimicJointAPI``, whose parser expects it)."""
     return "rotX" if jtype in ("hinge", "revolute") else "transX"
+
+
+def _dof_instance(jtype: str) -> str:
+    """Instance name of the per-DoF APIs (``PhysicsDriveAPI``, ``PhysxJointAxisAPI``, ``PhysxLimitAPI``, ``JointStateAPI``)
+    on a single-DoF joint: ``angular`` on a RevoluteJoint, ``linear`` on a PrismaticJoint."""
+    return "angular" if jtype in ("hinge", "revolute") else "linear"
+
+
+def servo_for_joint(actuators, joint_name: str):
+    """The MJCF position actuator (``meta.actuators`` entry) driving ``joint_name``, or None."""
+    for a in actuators or []:
+        if a.get("joint") == joint_name and a.get("kind", "position") == "position":
+            return a
+    return None
+
+
+def servo_drive_params(jt, servo: dict | None):
+    """How an MJCF position servo maps onto the single PhysX drive of its joint.
+
+    MuJoCo: f = clip(kp (ctrl - q) - kv v, forcerange) plus the joint's own passive spring / damper, both integrated
+    implicitly (implicitfast).  PhysX: f = clip(k (target - q) + d (v_target - v), maxForce), one drive per axis.
+    * joint without a passive spring (automatic sliders, elevators): the drive IS the servo - k = kp, d = kv + damping,
+      target = ctrl (MJCF coordinates), maxForce = forcerange.  The passive viscous term (2-8 N*s/m) is clipped
+      together with the servo; at 0.5 m/s that is < 3 % of the 150 N saturation force.
+    * joint with its own spring (automatic swing operators on a closer): folding both into one clipped drive would
+      clip the closer spring with the servo's forcerange, so the drive keeps the spring and the servo stays a
+      feed-forward emulation (``in_drive`` False).
+    Returns None when nothing is folded, else {"kp", "kv", "force_limit", "ctrl", "stiffness", "damping", "target"} in SI
+    (target in USD coordinates = ctrl - modeled_at).
+    """
+    if servo is None or float(jt.stiffness or 0.0) > 0.0:
+        return None
+    kp, kv = float(servo.get("kp", 0.0)), float(servo.get("kv", 0.0))
+    fr = servo.get("forcerange", (-1e6, 1e6))
+    lim = float(max(abs(float(fr[0])), abs(float(fr[1]))))
+    ctrl = float(servo.get("ctrl", 0.0))
+    return {"kp": kp, "kv": kv, "force_limit": lim, "ctrl": ctrl, "stiffness": kp, "damping": kv + float(jt.damping or 0.0),
+            "target": ctrl - float(jt.modeled_at or 0.0), "name": servo.get("name")}
+
+
+def rise_coupling_info(model: Model, primary, tier: str, wt: dict):
+    """Rising / helical hinge: ``rise = c1 * hinge`` between a vertical slide carrying the leaf and the leaf's hinge.
+
+    The coupling costs gravitational work m g dz per opening angle, i.e. a constant closing torque -m g c1 on the
+    hinge (m = everything the riser carries).  Returned so consumers that cannot represent the screw joint (the
+    canonical RL articulation locks the riser; PhysX drops translational mimic joints) apply the torque instead."""
+    if primary is None or primary.joint is None or primary.joint.type != "hinge":
+        return None
+    chain = []
+    n = primary.parent
+    while n is not None:
+        b = model.body(n)
+        if b.static:
+            break
+        chain.append(b)
+        n = b.parent
+    for riser in chain:
+        rj = riser.joint
+        if rj is None or rj.type != "slide":
+            continue
+        for q in model.equalities:
+            if q.kind == "joint" and q.a == rj.name and q.b == primary.joint.name and tier in q.tiers:
+                c1 = float(q.polycoeff[1])
+                pos, quat = wt[riser.name]
+                axis_w = quat_rotate(quat, np.asarray(rj.axis, float) / np.linalg.norm(rj.axis))
+                m, _ = _subtree_mass(model, riser.name, tier, wt)
+                dz = float(axis_w[2]) * c1                    # vertical lift per radian of opening
+                return {"rise_joint": rj.name, "hinge_joint": primary.joint.name, "coeff_m_per_rad": c1, "lift_m_per_rad": dz,
+                        "carried_mass_kg": float(m), "gravity_torque_Nm": float(-m * G_ACC * dz), "label": q.label,
+                        "note": "constant closing torque -m*g*dz/dq of the helical hinge; apply on the hinge when the rise joint is not simulated"}
+    return None
 
 
 def _f(x):
@@ -292,6 +382,8 @@ class _Writer:
         massapi.CreatePrincipalAxesAttr(_q(Gf, q))
         prim.CreateAttribute("physxRigidBody:maxDepenetrationVelocity", Sdf.ValueTypeNames.Float).Set(5.0)
         prim.CreateAttribute("physxRigidBody:sleepThreshold", Sdf.ValueTypeNames.Float).Set(0.0)
+        # degrees / second (schema unit): 100 rad/s, the PhysX default; MuJoCo has no cap
+        prim.CreateAttribute("physxRigidBody:maxAngularVelocity", Sdf.ValueTypeNames.Float).Set(float(MAX_ANGULAR_VELOCITY_DEG_S))
         if semantic:
             prim.CreateAttribute("doorbench:semantic", Sdf.ValueTypeNames.String).Set(semantic)
         if label:
@@ -342,11 +434,19 @@ class _Writer:
         return p
 
     def add_dof_joint(self, path, jtype, body0_path, body1_path, pos0, rot0, pos1, rot1, lo, hi, *, stiffness=0.0, damping=0.0,
-                      target=0.0, frictionloss=0.0, armature=0.0, reaction_force=None, max_force=1e6, extra=None):
+                      target=0.0, frictionloss=0.0, armature=0.0, reaction_force=None, max_force=1e6, extra=None, servo=None):
         """Revolute (jtype 'hinge'/'revolute') or Prismatic joint with limits, drive and PhysX friction.
 
         All inputs in SI (rad, m, N*m/rad, N/m); converted to UsdPhysics units here.  The joint frame X axis is the
         joint axis (rot0/rot1 rotate X onto it).
+
+        MuJoCo -> PhysX mapping (docs/ISAAC_LAB.md):
+          stiffness / springref  -> force drive stiffness / targetPosition (per degree on revolute joints)
+          damping                -> drive damping (both implicit)
+          frictionloss           -> PhysxJointAxisAPI:angular|linear static == dynamic friction effort (MuJoCo's
+                                    frictionloss is one Coulomb bound for stick and slip); legacy coefficient 0
+          armature               -> joint armature (added to the joint-space inertia in both engines)
+          servo (``servo_drive_params``) -> the drive itself: stiffness / damping / target / maxForce
         """
         UsdPhysics, Sdf, Gf = self.UsdPhysics, self.Sdf, self.Gf
         revolute = jtype in ("hinge", "revolute")
@@ -359,36 +459,52 @@ class _Writer:
         j.CreateLocalRot0Attr(_q(Gf, rot0))
         j.CreateLocalPos1Attr(_v3(Gf, pos1))
         j.CreateLocalRot1Attr(_q(Gf, rot1))
-        conv = (180.0 / math.pi) if revolute else 1.0
+        conv = DEG if revolute else 1.0
         j.CreateLowerLimitAttr(float(lo * conv))
         j.CreateUpperLimitAttr(float(hi * conv))
         prim = j.GetPrim()
+        inst = _dof_instance(jtype)
+        if servo is not None:
+            # MJCF position servo folded into the drive (see servo_drive_params): the joint has no spring of its own
+            stiffness, damping, target, max_force = servo["stiffness"], servo["damping"], servo["target"], servo["force_limit"]
         # drive: spring (stiffness) + damping in UsdPhysics units (per degree for angular drives)
-        drv = UsdPhysics.DriveAPI.Apply(prim, "angular" if revolute else "linear")
+        drv = UsdPhysics.DriveAPI.Apply(prim, inst)
         drv.CreateTypeAttr("force")
         drv.CreateStiffnessAttr(float(stiffness / conv))
         drv.CreateDampingAttr(float(damping / conv))
         drv.CreateTargetPositionAttr(float(target * conv))
         drv.CreateTargetVelocityAttr(0.0)
         drv.CreateMaxForceAttr(float(max_force))
-        # PhysX joint attributes
+        # PhysX joint attributes.  The per-axis API of PhysX >= 5.6 carries Coulomb friction as efforts (N*m / N,
+        # load independent like MuJoCo's frictionloss) and the armature; its instance name on a single-DoF joint is
+        # the drive's ("angular" / "linear").  The legacy PhysxJointAPI coefficient (friction = coeff * |joint
+        # reaction force|) stays authored at 0 so PhysX never applies friction twice; ``physxJoint:armature`` is the
+        # fallback for parsers without the axis API.
         prim.AddAppliedSchema("PhysxJointAPI")
         prim.CreateAttribute("physxJoint:armature", Sdf.ValueTypeNames.Float).Set(float(armature))
-        # legacy (PhysX < 5.6) unitless coefficient: friction = coeff * |joint reaction force|
-        coeff = 0.0
+        prim.CreateAttribute("physxJoint:jointFriction", Sdf.ValueTypeNames.Float).Set(0.0)
+        legacy = 0.0
         if frictionloss > 0:
-            coeff = float(frictionloss) / max(float(reaction_force or 0.0), 1.0)
-        prim.CreateAttribute("physxJoint:jointFriction", Sdf.ValueTypeNames.Float).Set(float(min(coeff, 10.0)))
-        inst = "rotX" if revolute else "transX"
+            legacy = float(min(float(frictionloss) / max(float(reaction_force or 0.0), 1.0), 10.0))
+        prim.CreateAttribute("doorbench:legacy_friction_coeff", Sdf.ValueTypeNames.Float).Set(legacy)
         prim.AddAppliedSchema(f"PhysxJointAxisAPI:{inst}")
         prim.CreateAttribute(f"physxJointAxis:{inst}:staticFrictionEffort", Sdf.ValueTypeNames.Float).Set(float(frictionloss))
         prim.CreateAttribute(f"physxJointAxis:{inst}:dynamicFrictionEffort", Sdf.ValueTypeNames.Float).Set(float(frictionloss))
         prim.CreateAttribute(f"physxJointAxis:{inst}:viscousFrictionCoefficient", Sdf.ValueTypeNames.Float).Set(0.0)
         prim.CreateAttribute(f"physxJointAxis:{inst}:armature", Sdf.ValueTypeNames.Float).Set(float(armature))
         prim.CreateAttribute("doorbench:friction_effort", Sdf.ValueTypeNames.Float).Set(float(frictionloss))
+        prim.CreateAttribute("doorbench:armature_si", Sdf.ValueTypeNames.Float).Set(float(armature))
         prim.CreateAttribute("doorbench:stiffness_si", Sdf.ValueTypeNames.Float).Set(float(stiffness))
         prim.CreateAttribute("doorbench:damping_si", Sdf.ValueTypeNames.Float).Set(float(damping))
         prim.CreateAttribute("doorbench:target_si", Sdf.ValueTypeNames.Float).Set(float(target))
+        prim.CreateAttribute("doorbench:servo_in_drive", Sdf.ValueTypeNames.Bool).Set(servo is not None)
+        if servo is not None:
+            prim.CreateAttribute("doorbench:servo_kp_si", Sdf.ValueTypeNames.Float).Set(float(servo["kp"]))
+            prim.CreateAttribute("doorbench:servo_kv_si", Sdf.ValueTypeNames.Float).Set(float(servo["kv"]))
+            prim.CreateAttribute("doorbench:servo_force_limit", Sdf.ValueTypeNames.Float).Set(float(servo["force_limit"]))
+            prim.CreateAttribute("doorbench:servo_ctrl", Sdf.ValueTypeNames.Float).Set(float(servo["ctrl"]))
+            if servo.get("name"):
+                prim.CreateAttribute("doorbench:servo_name", Sdf.ValueTypeNames.String).Set(str(servo["name"]))
         for k, v in (extra or {}).items():
             t = {bool: Sdf.ValueTypeNames.Bool, int: Sdf.ValueTypeNames.Int, float: Sdf.ValueTypeNames.Float}.get(type(v), Sdf.ValueTypeNames.String)
             prim.CreateAttribute(f"doorbench:{k}", t).Set(v if t != Sdf.ValueTypeNames.String else str(v))
@@ -526,6 +642,7 @@ def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full",
     # --- joints
     joint_paths = {}
     joint_types = {}
+    servo_joints = {}
     for b in bodies:
         if b.static:
             continue
@@ -566,9 +683,12 @@ def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full",
             extra["ratchet_one_way"] = True
         if jt.notes:
             extra["notes"] = jt.notes
+        servo = servo_drive_params(jt, servo_for_joint(model.meta.get("actuators"), jt.name))
         W.add_dof_joint(jp, jt.type, body0, body_paths[b.name], p0, q0, jpos, qa, lo, hi,
                         stiffness=float(jt.stiffness), damping=float(jt.damping), target=(float(jt.springref - jt.modeled_at) if jt.stiffness else 0.0),
-                        frictionloss=float(jt.frictionloss), armature=float(jt.armature), reaction_force=_reaction_estimate(model, b, tier, wt), extra=extra)
+                        frictionloss=float(jt.frictionloss), armature=float(jt.armature), reaction_force=_reaction_estimate(model, b, tier, wt), extra=extra, servo=servo)
+        if servo is not None:
+            servo_joints[jt.name] = {k: servo[k] for k in ("kp", "kv", "force_limit", "ctrl")}
         joint_paths[jt.name] = jp
         joint_types[jt.name] = jt.type
     # --- couplings: mimic joints (bilateral polynomial equalities) + JSON for everything else
@@ -606,6 +726,13 @@ def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full",
     meta = {k: v for k, v in model.meta.items() if k not in ("notes",)}
     meta["usd_layout"] = "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)"
     meta["joints"] = {name: str(p) for name, p in joint_paths.items()}
+    # physics mapping notes for runners (docs/ISAAC_LAB.md): servos folded into drives, rising-hinge gravity torque
+    meta["servo_in_drive"] = servo_joints
+    if meta.get("actuators"):
+        meta["actuators"] = [dict(a, in_drive=a.get("joint") in servo_joints) for a in meta["actuators"]]
+    primary = next((b for b in bodies if b.joint is not None and b.joint.name == model.meta.get("primary_joint")), None)
+    meta["rise_coupling"] = rise_coupling_info(model, primary, tier, wt)
+    meta["max_angular_velocity_deg_s"] = float(MAX_ANGULAR_VELOCITY_DEG_S)
     W.set_json(W.root.GetPrim(), "doorbench:meta", meta)
     return W.save()
 
@@ -934,6 +1061,7 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
         return pos0, rot0, pos1, rot1
 
     joint_meta = {}
+    servo_slots = {}          # MJCF joint -> canonical joint whose drive carries the position servo
 
     def write_dof(name, jtype, parent, child, anchor_w, axis_w, src: Body | None, active: bool, reaction=None):
         pos0, rot0, pos1, rot1 = joint_frames(parent, child, anchor_w, axis_w)
@@ -954,13 +1082,20 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
                 extra["backcheck_damping"] = float(jt.backcheck_damping or 0.0)
             if jt.ratchet_one_way:
                 extra["ratchet_one_way"] = True
+            servo = servo_drive_params(jt, servo_for_joint(meta.get("actuators"), jt.name))
             W.add_dof_joint(joints_path.AppendChild(name), jtype, link_paths[parent], link_paths[child], pos0, rot0, pos1, rot1, lo, hi,
                             stiffness=float(jt.stiffness), damping=float(jt.damping), target=(float(jt.springref - jt.modeled_at) if jt.stiffness else 0.0),
-                            frictionloss=float(jt.frictionloss), armature=float(jt.armature), reaction_force=reaction, extra=extra)
+                            frictionloss=float(jt.frictionloss), armature=float(jt.armature), reaction_force=reaction, extra=extra, servo=servo)
             joint_meta[name] = {"active": True, "type": jtype, "source": jt.name, "role": jt.role, "range": [float(lo), float(hi)], "stiffness": float(jt.stiffness),
                                 "damping": float(jt.damping), "target": (float(jt.springref - jt.modeled_at) if jt.stiffness else 0.0), "friction": float(jt.frictionloss),
+                                "armature": float(jt.armature),
                                 "damping_closing": jt.damping_closing, "damping_opening": jt.damping_opening, "backcheck_angle": jt.backcheck_angle, "backcheck_damping": jt.backcheck_damping,
                                 "ratchet_one_way": bool(jt.ratchet_one_way), "label": jt.label}
+            if servo is not None:
+                # the drive carries the servo: gains / target the environment will read back from PhysX
+                joint_meta[name]["servo"] = {k: servo[k] for k in ("kp", "kv", "force_limit", "ctrl")}
+                joint_meta[name]["drive"] = {"stiffness": servo["stiffness"], "damping": servo["damping"], "target": servo["target"], "max_force": servo["force_limit"]}
+                servo_slots[jt.name] = name
         else:
             lo, hi = (-math.radians(LOCK_RANGE_DEG), math.radians(LOCK_RANGE_DEG)) if revolute else (-LOCK_RANGE_M, LOCK_RANGE_M)
             W.add_dof_joint(joints_path.AppendChild(name), jtype, link_paths[parent], link_paths[child], pos0, rot0, pos1, rot1, lo, hi,
@@ -1029,9 +1164,17 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
         "lock": {"model": spec.get("lock", {}).get("model"), "engaged": bool(spec.get("lock", {}).get("engaged")), "robot_side_release": bool(spec.get("lock", {}).get("robot_side_release", True))},
         "closer": spec.get("closer", {}).get("model"), "operator": spec.get("operator", {}).get("model"), "latch": spec.get("latch", {}).get("model"),
         "damage": {k: phys.get("damage", {}).get(k) for k in ("leaf_dent_force_N", "glass_break_force_N", "operator_yield_torque_Nm", "slam_velocity_rad_s", "frame_impact_force_N")},
-        "actuators": meta.get("actuators", []), "welded_static": static_extra, "omitted": omitted, "notes": notes,
+        # position servos: ``in_drive`` = the canonical joint's PhysX drive already IS the servo (kp / kv / forcerange),
+        # the environment only moves its position target; otherwise it has to emulate the servo as feed-forward effort
+        "actuators": [dict(a, slot=servo_slots.get(a.get("joint")), in_drive=a.get("joint") in servo_slots) for a in meta.get("actuators", [])],
+        # rising / helical hinge: the riser is locked in this file -> apply the gravity closing torque on the door joint
+        "rise_coupling": rise_coupling_info(model, primary, tier, wt),
+        "max_angular_velocity_deg_s": float(MAX_ANGULAR_VELOCITY_DEG_S),
+        "welded_static": static_extra, "omitted": omitted, "notes": notes,
         "mass_kg": float(_subtree_mass(model, primary.name, tier, wt)[0]),
     }
+    if rl["rise_coupling"] is not None:
+        notes.append(f"rising hinge {rl['rise_coupling']['rise_joint']} locked: apply gravity closing torque {rl['rise_coupling']['gravity_torque_Nm']:.3f} N*m on {rl['door_joint']}")
     W.set_json(W.root.GetPrim(), "doorbench:rl", rl)
     W.set_json(W.root.GetPrim(), "doorbench:meta", {k: v for k, v in meta.items() if k not in ("notes",)})
     return W.save()

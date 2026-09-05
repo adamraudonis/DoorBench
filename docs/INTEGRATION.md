@@ -25,7 +25,10 @@ m = mujoco.MjModel.from_xml_path("assets/doors/db0002_swing_single/door.xml")   
   mass properties; collision shapes are boxes/capsules/spheres + convex-hull meshes referenced from
   `assets/hardware/*.usdc`; revolute/prismatic joints have limits, force drives carrying closer / latch / return
   springs (`stiffness`, `damping`, `targetPosition`), armature and Coulomb friction as
-  `physxJointAxis:<axis>:staticFrictionEffort` (N·m / N; legacy `physxJoint:jointFriction` coefficient for old PhysX).
+  `physxJointAxis:angular|linear:staticFrictionEffort` (N·m / N, PhysX ≥ 5.6; the legacy load-dependent
+  `physxJoint:jointFriction` coefficient is authored 0). MJCF position servos of spring-less joints (automatic
+  sliders) are the PhysX drive itself (`doorbench:servo_in_drive`); see `docs/ISAAC_LAB.md` for the full
+  MuJoCo → PhysX parameter mapping.
 * `door_rl.usda` (canonical): the same 8 links / 7 joints for every door (`door_slide`, `door_hinge`,
   `operator_hinge`, `operator_slide`, `latch_slide`, `leaf2_slide`, `leaf2_hinge`; unused slots locked) so Isaac Lab's
   `MultiUsdFileCfg` can put a different door in every environment; `doorbench:rl` on the root describes the live

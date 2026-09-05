@@ -10,9 +10,14 @@ Checks per file (door.usda = full articulation, door_rl.usda = canonical 7-DoF R
   joints       Revolute/Prismatic joints: limits present, lower <= upper (strictly lower < upper unless the joint is a
                locked RL slot), local frames consistent (anchor and axis computed through body0 and body1 coincide),
                unit quaternions, drive (force type) present with finite stiffness/damping, PhysX joint-axis friction
-               efforts present and >= 0
-  vs model.json  full USD: joint names == model.json joint names; limits, spring stiffness, damping, spring target and
-               Coulomb friction match the IR (unit conversion checked); rl USD: exactly the canonical joints/links
+               efforts present and >= 0 on the ``angular`` (revolute) / ``linear`` (prismatic) instance of
+               PhysxJointAxisAPI - the only instance names the PhysX USD parser reads on single-DoF joints - and the
+               legacy load-dependent ``physxJoint:jointFriction`` coefficient authored as 0 (no double friction);
+               links carry ``physxRigidBody:maxAngularVelocity`` >= 1000 deg/s (a 100 deg/s cap clamps a leaf at 1.75 rad/s)
+  vs model.json  full USD: joint names == model.json joint names; limits, spring stiffness, damping, spring target,
+               armature and Coulomb friction match the IR (unit conversion checked); MJCF position servos folded into
+               the drive (``doorbench:servo_in_drive``) add kp / kv to the gains and set maxForce = forcerange;
+               rl USD: exactly the canonical joints/links
   collision    every collision geom of model.json (in tier) exists with PhysicsCollisionAPI; mesh colliders have
                MeshCollisionAPI convexHull; collision prims carry a physics material binding that resolves
   meshes       every reference resolves to an existing assets/hardware/*.usdc containing the referenced Mesh prim
@@ -186,6 +191,14 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
             qn = np.linalg.norm(_gfq(pa))
             if abs(qn - 1) > 1e-3:
                 R.err(f"{name}: principal axes quaternion norm {qn}")
+        # PhysX caps the angular velocity of every link (schema unit deg/s).  MuJoCo has no cap; anything below
+        # 1000 deg/s (17 rad/s) would clamp door leaves in the protocol's free swings (3-5 rad/s reach the cap's
+        # numerical neighbourhood at 100 deg/s; pet flaps reach 65 rad/s).
+        mav = p.GetAttribute("physxRigidBody:maxAngularVelocity")
+        if not (mav.IsValid() and mav.HasAuthoredValue()):
+            R.err(f"{name}: physxRigidBody:maxAngularVelocity not authored")
+        elif float(mav.Get()) < 1000.0:
+            R.err(f"{name}: physxRigidBody:maxAngularVelocity {float(mav.Get()):.1f} deg/s caps the link at {math.radians(float(mav.Get())):.2f} rad/s")
         if root is not None and not str(p.GetPath()).startswith(str(root.GetPath())):
             R.err(f"{name}: rigid body outside the articulation root")
     R.stats["n_rigid_bodies"] = len(bodies)
@@ -270,19 +283,39 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
             R.err(f"{jname}: negative drive gains {st} {dm}")
         if p.GetAttribute(f"drive:{drive}:physics:type").Get() != "force":
             R.err(f"{jname}: drive type must be force")
-        inst = "rotX" if is_rev else "transX"
+        # per-axis PhysX API: instance name == the drive's ("angular" / "linear"); rotX / transX are D6 tokens that the
+        # PhysX USD parser ignores on single-DoF joints (round-1 parity: friction read back 0 on every joint)
+        inst = drive
         applied = _applied_schemas(p)
         if f"PhysxJointAxisAPI:{inst}" not in applied:
             R.err(f"{jname}: PhysxJointAxisAPI:{inst} not applied")
+        for bad in ("PhysxJointAxisAPI:rotX", "PhysxJointAxisAPI:transX", "PhysxJointAxisAPI:rotY", "PhysxJointAxisAPI:rotZ", "PhysxJointAxisAPI:transY", "PhysxJointAxisAPI:transZ"):
+            if bad in applied:
+                R.err(f"{jname}: {bad} applied on a single-DoF joint (PhysX reads only the {inst} instance)")
         if "PhysxJointAPI" not in applied:
             R.warn(f"{jname}: PhysxJointAPI not applied")
         fe = p.GetAttribute(f"physxJointAxis:{inst}:staticFrictionEffort").Get()
         fd = p.GetAttribute(f"physxJointAxis:{inst}:dynamicFrictionEffort").Get()
         if fe is None or fd is None or float(fe) < 0 or float(fd) < 0 or float(fd) > float(fe) + 1e-9:
             R.err(f"{jname}: friction efforts static={fe} dynamic={fd}")
+        arm = p.GetAttribute(f"physxJointAxis:{inst}:armature").Get()
+        if arm is None or float(arm) < 0:
+            R.err(f"{jname}: per-axis armature {arm}")
         jf = p.GetAttribute("physxJoint:jointFriction").Get()
         if jf is None or float(jf) < 0:
             R.err(f"{jname}: legacy jointFriction {jf}")
+        elif float(jf) > 0:
+            R.err(f"{jname}: legacy physxJoint:jointFriction {jf} must be 0 (the Coulomb efforts carry the friction; the coefficient would add load-dependent friction on top)")
+        # MJCF position servo folded into the drive: gains / limit must be self-consistent
+        if p.GetAttribute("doorbench:servo_in_drive").IsValid() and bool(p.GetAttribute("doorbench:servo_in_drive").Get()):
+            conv = 180.0 / math.pi if is_rev else 1.0
+            kp = p.GetAttribute("doorbench:servo_kp_si").Get()
+            lim = p.GetAttribute("doorbench:servo_force_limit").Get()
+            mf = p.GetAttribute(f"drive:{drive}:physics:maxForce").Get()
+            if kp is None or lim is None or mf is None or abs(float(mf) - float(lim)) > 1e-6 * max(1.0, float(lim)):
+                R.err(f"{jname}: servo in drive but maxForce {mf} != forcerange {lim}")
+            if st is not None and kp is not None and float(st) * conv < float(kp) - 1e-6:
+                R.err(f"{jname}: servo in drive but drive stiffness {float(st) * conv:.4g} < kp {kp}")
         # mimic joints
         for sch in applied:
             if sch.startswith("PhysxMimicJointAPI:"):
@@ -399,19 +432,41 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
                 drive = "angular" if rev else "linear"
                 st = float(p.GetAttribute(f"drive:{drive}:physics:stiffness").Get()) * conv
                 dm = float(p.GetAttribute(f"drive:{drive}:physics:damping").Get()) * conv
-                if abs(st - float(jt["stiffness"])) > 1e-3 * max(1.0, abs(jt["stiffness"])):
-                    R.err(f"{jn}: drive stiffness {st:.4g} != IR {jt['stiffness']:.4g} (SI)")
-                if abs(dm - float(jt["damping"])) > 1e-3 * max(1.0, abs(jt["damping"])):
-                    R.err(f"{jn}: drive damping {dm:.4g} != IR {jt['damping']:.4g} (SI)")
-                if jt["stiffness"]:
+                # MJCF position servo (meta.actuators) folded into the drive: k = kp (+ spring), d = kv + damping,
+                # target = ctrl, maxForce = forcerange; only for joints without a spring of their own
+                servo = next((a for a in (model_json.get("meta", {}).get("actuators") or []) if a.get("joint") == jn and a.get("kind", "position") == "position"), None)
+                in_drive = bool(p.GetAttribute("doorbench:servo_in_drive").Get()) if p.GetAttribute("doorbench:servo_in_drive").IsValid() else False
+                if in_drive and servo is None:
+                    R.err(f"{jn}: doorbench:servo_in_drive without an actuator in model.json")
+                if servo is not None and not in_drive and not jt["stiffness"]:
+                    R.err(f"{jn}: spring-less servo joint not folded into the drive")
+                if servo is not None and in_drive and jt["stiffness"]:
+                    R.err(f"{jn}: servo folded into a drive that also carries a spring (forcerange would clip the spring)")
+                want_k = float(jt["stiffness"]) + (float(servo.get("kp", 0.0)) if in_drive else 0.0)
+                want_d = float(jt["damping"]) + (float(servo.get("kv", 0.0)) if in_drive else 0.0)
+                if abs(st - want_k) > 1e-3 * max(1.0, abs(want_k)):
+                    R.err(f"{jn}: drive stiffness {st:.4g} != IR {want_k:.4g} (SI)")
+                if abs(dm - want_d) > 1e-3 * max(1.0, abs(want_d)):
+                    R.err(f"{jn}: drive damping {dm:.4g} != IR {want_d:.4g} (SI)")
+                if jt["stiffness"] or in_drive:
                     tgt = float(p.GetAttribute(f"drive:{drive}:physics:targetPosition").Get()) / conv
-                    want = jt["springref"] - jt["modeled_at"]
+                    want = (jt["springref"] - jt["modeled_at"]) if jt["stiffness"] else (float(servo.get("ctrl", 0.0)) - jt["modeled_at"])
                     if abs(tgt - want) > 1e-4 * max(1.0, abs(want)):
-                        R.err(f"{jn}: spring target {tgt:.4g} != IR {want:.4g}")
-                inst = "rotX" if rev else "transX"
+                        R.err(f"{jn}: drive target {tgt:.4g} != IR {want:.4g}")
+                if in_drive:
+                    mf = float(p.GetAttribute(f"drive:{drive}:physics:maxForce").Get())
+                    fr = servo.get("forcerange", [-1e6, 1e6])
+                    lim = max(abs(float(fr[0])), abs(float(fr[1])))
+                    if abs(mf - lim) > 1e-6 * max(1.0, lim):
+                        R.err(f"{jn}: servo drive maxForce {mf} != forcerange {lim}")
+                inst = drive
                 fe = float(p.GetAttribute(f"physxJointAxis:{inst}:staticFrictionEffort").Get())
                 if abs(fe - float(jt["frictionloss"])) > 1e-5 * max(1.0, abs(jt["frictionloss"])):
                     R.err(f"{jn}: friction effort {fe} != IR {jt['frictionloss']}")
+                for an in (f"physxJointAxis:{inst}:armature", "physxJoint:armature"):
+                    arm = p.GetAttribute(an).Get()
+                    if arm is None or abs(float(arm) - float(jt.get("armature") or 0.0)) > 1e-5 * max(1.0, abs(float(jt.get("armature") or 0.0))):
+                        R.err(f"{jn}: {an} {arm} != IR armature {jt.get('armature')}")
                 if jt["stiffness"] > 0 and st <= 0:
                     R.err(f"{jn}: spring in the IR but no drive stiffness")
             # collision geoms of moving + static bodies
@@ -459,6 +514,38 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
                 for cj, info in rl_meta.get("joints", {}).items():
                     if info.get("active") and info.get("source") not in mj_joints:
                         R.err(f"{cj}: source joint {info.get('source')} not in model.json")
+                    if info.get("active") and cj in joints:
+                        src = mj_joints.get(info.get("source"), {})
+                        conv = 180.0 / math.pi if cj.endswith("hinge") else 1.0
+                        fe = joints[cj].GetAttribute(f"physxJointAxis:{'angular' if cj.endswith('hinge') else 'linear'}:staticFrictionEffort").Get()
+                        if fe is None or abs(float(fe) - float(src.get("frictionloss") or 0.0)) > 1e-5 * max(1.0, abs(float(src.get("frictionloss") or 0.0))):
+                            R.err(f"{cj}: friction effort {fe} != IR {src.get('frictionloss')} ({info.get('source')})")
+                        in_drive = joints[cj].GetAttribute("doorbench:servo_in_drive").Get() if joints[cj].GetAttribute("doorbench:servo_in_drive").IsValid() else False
+                        if bool(in_drive) != bool(info.get("servo")):
+                            R.err(f"{cj}: servo_in_drive {in_drive} but rl meta servo {info.get('servo')}")
+                        if info.get("servo"):
+                            st = float(joints[cj].GetAttribute(f"drive:{'angular' if cj.endswith('hinge') else 'linear'}:physics:stiffness").Get()) * conv
+                            if abs(st - float(info["servo"]["kp"]) - float(src.get("stiffness") or 0.0)) > 1e-3 * max(1.0, float(info["servo"]["kp"])):
+                                R.err(f"{cj}: servo drive stiffness {st:.4g} != kp {info['servo']['kp']}")
+                # actuators: in_drive flags must match the joint prims
+                slot_of = {info.get("source"): cj for cj, info in rl_meta.get("joints", {}).items() if info.get("active")}
+                for a in rl_meta.get("actuators") or []:
+                    slot = slot_of.get(a.get("joint"))
+                    in_drive = bool(joints[slot].GetAttribute("doorbench:servo_in_drive").Get()) if (slot in joints and joints[slot].GetAttribute("doorbench:servo_in_drive").IsValid()) else False
+                    if bool(a.get("in_drive")) != in_drive or (a.get("in_drive") and a.get("slot") != slot):
+                        R.err(f"actuator {a.get('name')}: in_drive {a.get('in_drive')} / slot {a.get('slot')} inconsistent with the {slot} prim")
+                # rising / helical hinge: the locked riser is replaced by a gravity closing torque on the door joint
+                rc = rl_meta.get("rise_coupling")
+                if rc is not None:
+                    src = mj_joints.get(rc.get("rise_joint"))
+                    if src is None or src.get("type") != "slide":
+                        R.err(f"rise_coupling: rise joint {rc.get('rise_joint')} not a slide joint of model.json")
+                    if not (math.isfinite(float(rc.get("gravity_torque_Nm", float('nan')))) and float(rc.get("carried_mass_kg", 0.0)) > 0 and float(rc.get("coeff_m_per_rad", 0.0)) > 0):
+                        R.err(f"rise_coupling: implausible values {rc}")
+                    elif abs(float(rc["gravity_torque_Nm"]) + float(rc["carried_mass_kg"]) * 9.81 * float(rc["lift_m_per_rad"])) > 1e-6:
+                        R.err("rise_coupling: gravity torque != -m g dz/dq")
+                    if rc.get("hinge_joint") != rl_meta.get("primary_joint") or rl_meta.get("door_joint") != "door_hinge":
+                        R.err("rise_coupling: not on the primary hinge")
             R.stats["slots"] = rl_meta.get("slots") if rl_meta else None
     R.stats["time_s"] = round(time.time() - t0, 3)
     return {"ok": not R.errors, "errors": R.errors, "warnings": R.warnings, "stats": R.stats}

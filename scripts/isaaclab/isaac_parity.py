@@ -26,8 +26,18 @@ Isaac-side mechanics (see the module docstring of protocol.py and isaaclab/STATU
     their origin, fences and floor-hatch decks extend up to 9.9 m: the 6 m grid of the first probe let neighbours
     collide) on a ground plane sized to the grid; batches group doors with the same phase schedule so idle phases
     are not stepped
-  * automatic doors: the MJCF position servo (kp, kv, forcerange; ctrl = 0) is applied as a clipped feed-forward
-    effort (--no-servo to disable)
+  * automatic doors: the MJCF position servo (kp, kv, forcerange; ctrl = 0) IS the PhysX drive of spring-less servo
+    joints (``doorbench:servo_in_drive``, exporter folds kp / kv / forcerange into stiffness / damping / maxForce);
+    servo joints that also carry a spring (automatic swing operators on a closer) get the servo as a clipped
+    feed-forward effort (--no-servo disables only that emulation)
+  * Coulomb joint friction: the exporter's PhysxJointAxisAPI:angular|linear efforts are read back through Isaac Lab
+    (``joint_friction_coeff`` = static friction effort on Isaac Sim >= 5); a mismatch > 1 % is a structure error, and
+    when ``write_joint_friction_coefficient_to_sim`` exists the runner first writes the authored efforts and re-reads
+    (emulation ``joint_friction_written``) so the physics never runs without friction
+  * every link's ``physxRigidBody:maxAngularVelocity`` must be >= 1000 deg/s after Isaac Lab applied the cfg
+    (round 1 ran at 100 deg/s = 1.75 rad/s and clamped every leaf)
+  * rising / helical hinges (cold_storage, stall): door_rl.usda locks the riser, so the runner applies the gravity
+    closing torque -m g dz/dq from ``doorbench:rl["rise_coupling"]`` on the door joint (emulation ``rise_gravity_torque``)
   * env-released welds (maglocks, delayed egress) are NOT exported to USD: by default the door is left free and the
     verdict classifies the hold-phase disagreement as EXPORT_WELD_MISSING; --emulate-weld pins the primary joint
     during ``hold`` instead
@@ -184,11 +194,24 @@ class DoorHandle:
         # ---- joint prims: zero offsets, spring targets, source joints
         root = sim.stage.GetPrimAtPath(art.cfg.prim_path)
         prim_info = {}
+        self.link_max_ang_vel = {}
+        self.rl_meta = None
         for prim in Usd.PrimRange(root):
             if prim.IsA(UsdPhysics.RevoluteJoint) or prim.IsA(UsdPhysics.PrismaticJoint):
                 g = lambda a, d=None: (prim.GetAttribute(a).Get() if prim.HasAttribute(a) else d)
                 prim_info[prim.GetName()] = {"zero_offset": float(g("doorbench:zero_offset", 0.0) or 0.0), "target_si": float(g("doorbench:target_si", 0.0) or 0.0),
-                                             "source": g("doorbench:source_joint", None), "friction": g("doorbench:friction_effort", None)}
+                                             "source": g("doorbench:source_joint", None), "friction": g("doorbench:friction_effort", None),
+                                             "armature": g("doorbench:armature_si", None), "servo_in_drive": bool(g("doorbench:servo_in_drive", False)),
+                                             "servo_kp": float(g("doorbench:servo_kp_si", 0.0) or 0.0), "servo_kv": float(g("doorbench:servo_kv_si", 0.0) or 0.0),
+                                             "servo_ctrl": float(g("doorbench:servo_ctrl", 0.0) or 0.0)}
+            elif prim.HasAPI(UsdPhysics.RigidBodyAPI):
+                a = prim.GetAttribute("physxRigidBody:maxAngularVelocity")
+                self.link_max_ang_vel[prim.GetName()] = float(a.Get()) if (a and a.IsValid() and a.Get() is not None) else None
+            elif prim.HasAttribute("doorbench:rl"):
+                try:
+                    self.rl_meta = json.loads(prim.GetAttribute("doorbench:rl").Get())
+                except Exception:
+                    self.rl_meta = None
         self.prim_info = prim_info
         self.offset = np.zeros(self.nj)
         target = np.zeros(self.nj)
@@ -230,9 +253,21 @@ class DoorHandle:
         self.latch_target = LATCH_TARGET
         self.emulations = ["spring_targets_restored", "latch_clamp+target" if self.latch_target else "latch_clamp"]
         self.friction_readback = None
-        self.servo = bool(inputs["flags"]["automatic"]) and not args_cli.no_servo
+        # MJCF joints whose position servo is already the PhysX drive (spring-less servo joints, see usd.py): no
+        # feed-forward emulation for them; the remaining servo joints (spring + servo) are emulated unless --no-servo
+        self.servo_in_drive = {src for src, i in self.map.items() if prim_info.get(self.jn[i], {}).get("servo_in_drive")}
+        emulated_servos = [a["joint"] for a in inputs["coupling"].get("actuators", []) if a.get("joint") in self.map and a["joint"] not in self.servo_in_drive]
+        self.servo = bool(inputs["flags"]["automatic"]) and not args_cli.no_servo and bool(emulated_servos)
+        if self.servo_in_drive:
+            self.emulations.append("servo_in_drive")
         if self.servo:
             self.emulations.append("servo_emulated")
+        # rising / helical hinge in the canonical file: riser locked -> constant gravity closing torque on the door joint
+        self.rise_torque = 0.0
+        rc = (self.rl_meta or {}).get("rise_coupling") if kind == "rl" else None
+        if rc and rc.get("gravity_torque_Nm") is not None and math.isfinite(float(rc["gravity_torque_Nm"])):
+            self.rise_torque = float(rc["gravity_torque_Nm"])
+            self.emulations.append("rise_gravity_torque")
         self.weld = bool(args_cli.emulate_weld and inputs["flags"]["env_release_only"] and inputs["flags"]["has_weld"])
         if self.weld:
             self.emulations.append("weld_pinned_hold")
@@ -257,28 +292,84 @@ class DoorHandle:
                 errors.append(f"joint names differ from model.json: {sorted(set(self.jn) ^ set(self.inputs['joints']))[:6]}")
             for src, i in self.map.items():
                 j = self.inputs["joints"][src]
+                pi = self.prim_info.get(self.jn[i], {})
                 if j["range"] is not None:
                     lo, hi = j["range"][0] - j["modeled_at"], j["range"][1] - j["modeled_at"]
                     if abs(lim[i][0] - lo) > 2e-3 or abs(lim[i][1] - hi) > 2e-3:
                         errors.append(f"{src}: limits {[float(x) for x in lim[i]]} != IR {[lo, hi]}")
-                if abs(st[i] - j["stiffness"]) > 1e-2 * max(1.0, abs(j["stiffness"])):
-                    errors.append(f"{src}: stiffness {st[i]:.4g} != IR {j['stiffness']:.4g}")
-                if abs(dp[i] - j["damping"]) > 1e-2 * max(1.0, abs(j["damping"])):
-                    warnings.append(f"{src}: damping {dp[i]:.4g} != IR {j['damping']:.4g}")
-                tgt = (j["springref"] - j["modeled_at"]) if j["stiffness"] > 0 else 0.0
+                # a spring-less servo joint carries its MJCF position servo in the drive (k = kp, d = kv + damping)
+                want_k = j["stiffness"] + (pi.get("servo_kp", 0.0) if src in self.servo_in_drive else 0.0)
+                want_d = j["damping"] + (pi.get("servo_kv", 0.0) if src in self.servo_in_drive else 0.0)
+                if abs(st[i] - want_k) > 1e-2 * max(1.0, abs(want_k)):
+                    errors.append(f"{src}: stiffness {st[i]:.4g} != IR {want_k:.4g}")
+                if abs(dp[i] - want_d) > 1e-2 * max(1.0, abs(want_d)):
+                    warnings.append(f"{src}: damping {dp[i]:.4g} != IR {want_d:.4g}")
+                tgt = (j["springref"] - j["modeled_at"]) if j["stiffness"] > 0 else ((pi.get("servo_ctrl", 0.0) - j["modeled_at"]) if src in self.servo_in_drive else 0.0)
                 if abs(float(self.spring_target[0, i]) - tgt) > 1e-3:
                     errors.append(f"{src}: spring target {float(self.spring_target[0, i]):.4g} != IR {tgt:.4g}")
                 if abs(self.offset[i] - j["modeled_at"]) > 1e-6:
                     errors.append(f"{src}: zero_offset {self.offset[i]} != modeled_at {j['modeled_at']}")
-            # read-back of what PhysX holds (informational: joint_friction_coeff is the legacy unitless coefficient,
-            # the Coulomb efforts of PhysxJointAxisAPI are not exposed by Isaac Lab 2.3)
-            fr = getattr(self.art.data, "joint_friction_coeff", None)
-            if fr is not None:
-                self.friction_readback = {n: float(fr[0, i]) for n, i in self.map.items()}
+            # Coulomb friction read-back.  Isaac Lab on Isaac Sim >= 5 exposes PhysX's static friction effort as
+            # joint_friction_coeff (round 1 read 0.0 on every joint: the efforts were authored on the rotX / transX
+            # instance that the parser ignores).  A mismatch is corrected through the Isaac Lab write API when it
+            # exists (so the physics never runs without friction) and is a structure error when it persists.
+            self.friction_readback = self._read_friction()
+            if self.friction_readback is not None:
+                bad = self._friction_mismatch(self.friction_readback)
+                if bad and hasattr(self.art, "write_joint_friction_coefficient_to_sim"):
+                    self._write_friction()
+                    self.friction_readback = self._read_friction()
+                    bad2 = self._friction_mismatch(self.friction_readback or {})
+                    warnings.append(f"friction efforts not parsed from the USD ({bad[:3]}); written through Isaac Lab" + ("" if not bad2 else f", still off: {bad2[:3]}"))
+                    if bad2:
+                        errors.append(f"joint friction {bad2[:4]}")
+                elif bad:
+                    errors.append(f"joint friction {bad[:4]}")
+            arm = getattr(self.art.data, "joint_armature", None)
+            if arm is None:
+                arm = getattr(self.art.data, "default_joint_armature", None)
+            self.armature_readback = {n: float(arm[0, i]) for n, i in self.map.items()} if arm is not None else None
+            if self.armature_readback:
+                for n, i in self.map.items():
+                    want = float(self.inputs["joints"][n]["armature"])
+                    if abs(self.armature_readback[n] - want) > 1e-2 * max(1e-3, want):
+                        warnings.append(f"{n}: armature {self.armature_readback[n]:.4g} != IR {want:.4g}")
+            # PhysX angular velocity cap on the links (deg/s); Isaac Lab writes the cfg value onto the prims at spawn
+            low = {n: v for n, v in self.link_max_ang_vel.items() if v is not None and v < 1000.0}
+            if low:
+                errors.append(f"links capped below 1000 deg/s (17 rad/s): {dict(list(low.items())[:3])} - MuJoCo has no cap; check DOOR_RIGID_PROPS.max_angular_velocity (deg/s)")
         except Exception as e:
             errors.append(f"structure check: {type(e).__name__}: {e}")
         return {"status": "fail" if errors else "pass", "errors": errors, "warnings": warnings, "mapped_joints": sorted(self.map),
-                "friction_coeff_readback": self.friction_readback, "friction_effort_authored": {n: self.prim_info.get(self.jn[i], {}).get("friction") for n, i in self.map.items()}}
+                "friction_coeff_readback": self.friction_readback, "friction_effort_authored": {n: self.prim_info.get(self.jn[i], {}).get("friction") for n, i in self.map.items()},
+                "armature_readback": getattr(self, "armature_readback", None), "servo_in_drive": sorted(self.servo_in_drive), "rise_gravity_torque_Nm": self.rise_torque,
+                "link_max_angular_velocity_deg_s": self.link_max_ang_vel}
+
+    def _read_friction(self):
+        fr = getattr(self.art.data, "joint_friction_coeff", None)
+        if fr is None:
+            return None
+        return {n: float(fr[0, i]) for n, i in self.map.items()}
+
+    def _friction_mismatch(self, readback: dict) -> list:
+        bad = []
+        for n, i in self.map.items():
+            want = float(self.inputs["joints"][n]["frictionloss"])
+            got = readback.get(n)
+            if got is None or abs(got - want) > 1e-2 * max(1e-3, want):
+                bad.append(f"{n}: {got} != {want:.4g}")
+        return bad
+
+    def _write_friction(self):
+        """Author the MuJoCo Coulomb bound as PhysX static == dynamic friction effort (viscous 0) on every mapped joint."""
+        static = torch.zeros(1, self.nj, device=self.dev)
+        for n, i in self.map.items():
+            static[0, i] = float(self.inputs["joints"][n]["frictionloss"])
+        try:
+            self.art.write_joint_friction_coefficient_to_sim(static, joint_dynamic_friction_coeff=static.clone(), joint_viscous_friction_coeff=torch.zeros_like(static))
+        except TypeError:
+            self.art.write_joint_friction_coefficient_to_sim(static)
+        self.emulations.append("joint_friction_written")
 
     def check_pose0(self, ref: dict) -> dict:
         """Informational frame check: PhysX link origins vs MuJoCo body origins (d.xpos) at the initial state (full kind).
@@ -360,13 +451,17 @@ class DoorHandle:
         eff = P.phase_efforts(self.inputs, phase, t, qm, kind=self.pkind) if active else {}
         if self.servo:
             for n, f in P.servo_effort(self.inputs, qm, {n: float(v[i]) for n, i in self.map.items()}).items():
-                eff[n] = eff.get(n, 0.0) + f
+                if n not in self.servo_in_drive:          # spring-less servo joints: the PhysX drive already is the servo
+                    eff[n] = eff.get(n, 0.0) + f
         effort = self._effort
         effort.zero_()
         for n, f in eff.items():
             i = self.map.get(n)
             if i is not None:
                 effort[0, i] = float(f)
+        if self.rise_torque:
+            # helical hinge: the canonical file locks the riser; MuJoCo's rise coupling costs m g dz per rad of opening
+            effort[0, self.pj] += float(self.rise_torque)
         # one-sided tendons (latch bolt >= scale * operator).  MuJoCo enforces them as a stiff constraint; here the
         # joint state is clamped to the tendon minimum every step and (clamp+target) the latch drive target follows
         # that minimum while the tendon pulls (q_min above the joint's lower range end), otherwise the 300 N/m latch

@@ -59,22 +59,26 @@ class DoorMechanismAction(ActionTerm):
         op_q = jp[ar, st.latch_op_j]
         retract = (st.latch_scale * op_q).clamp_min(0.0) * st.has_latch.float()
         targets[:, st.latch_j] = targets[:, st.latch_j] + retract
-        # automatic doors: servo to open while the agent is within sensor range of the door plane (either side)
+        # automatic doors: servo to open while the agent is within sensor range of the door plane (either side).
+        # Spring-less servo joints already carry kp / kv / forcerange in their PhysX drive (doorbench:servo_in_drive,
+        # rl actuators[*].in_drive) - only the target moves; the others (servo + closer spring) get the servo gains
+        # written once (the spring's own drive gains are replaced, as before).
         if bool(st.auto.any()):
             if not st.applied_auto_gains:
-                ids = torch.nonzero(st.auto).flatten()
-                kp = torch.zeros(len(ids), st.num_joints, device=st.device)
-                kv = torch.zeros(len(ids), st.num_joints, device=st.device)
-                rows = torch.arange(len(ids), device=st.device)
-                kp[rows, st.door_j[ids]] = st.auto_kp[ids]
-                kv[rows, st.door_j[ids]] = st.auto_kv[ids]
-                kp[rows, st.sec_j[ids]] = torch.where(st.has_sec[ids], st.auto_kp[ids], torch.zeros_like(st.auto_kp[ids]))
-                kv[rows, st.sec_j[ids]] = torch.where(st.has_sec[ids], st.auto_kv[ids], torch.zeros_like(st.auto_kv[ids]))
-                # keep the USD gains where we do not override them
-                kp = torch.where(kp > 0, kp, door.data.joint_stiffness[ids])
-                kv = torch.where(kv > 0, kv, door.data.joint_damping[ids])
-                door.write_joint_stiffness_to_sim(kp, env_ids=ids)
-                door.write_joint_damping_to_sim(kv, env_ids=ids)
+                ids = torch.nonzero(st.auto & ~st.auto_in_drive).flatten()
+                if len(ids):
+                    kp = torch.zeros(len(ids), st.num_joints, device=st.device)
+                    kv = torch.zeros(len(ids), st.num_joints, device=st.device)
+                    rows = torch.arange(len(ids), device=st.device)
+                    kp[rows, st.door_j[ids]] = st.auto_kp[ids]
+                    kv[rows, st.door_j[ids]] = st.auto_kv[ids]
+                    kp[rows, st.sec_j[ids]] = torch.where(st.has_sec[ids], st.auto_kp[ids], torch.zeros_like(st.auto_kp[ids]))
+                    kv[rows, st.sec_j[ids]] = torch.where(st.has_sec[ids], st.auto_kv[ids], torch.zeros_like(st.auto_kv[ids]))
+                    # keep the USD gains where we do not override them
+                    kp = torch.where(kp > 0, kp, door.data.joint_stiffness[ids])
+                    kv = torch.where(kv > 0, kv, door.data.joint_damping[ids])
+                    door.write_joint_stiffness_to_sim(kp, env_ids=ids)
+                    door.write_joint_damping_to_sim(kv, env_ids=ids)
                 st.applied_auto_gains = True
             near = (st.base_w - st.env_origins - st.pass_plane)[:, :2].norm(dim=-1) < st.auto_range
             desired = torch.where(near & st.auto, st.auto_open, torch.zeros_like(st.auto_open))
@@ -90,6 +94,9 @@ class DoorMechanismAction(ActionTerm):
         b_dir = torch.where(v < 0, st.b_close, st.b_open)
         b_dir = b_dir + torch.where((v > 0) & (q > st.backcheck_angle), st.backcheck_damping, torch.zeros_like(b_dir))
         extra = torch.where(st.has_closer, -(b_dir - st.b_base) * v, torch.zeros_like(v))
+        # rising / helical hinge: the riser is locked in door_rl.usda; MuJoCo's rise coupling costs m g dz per radian
+        # of opening, i.e. a constant closing torque on the door joint (0 for every other door)
+        extra = extra + st.rise_torque
         self._effort.zero_()
         self._effort[ar, st.door_j] = extra
         door.set_joint_effort_target(self._effort)
