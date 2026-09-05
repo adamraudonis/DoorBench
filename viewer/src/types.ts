@@ -177,6 +177,10 @@ export interface BenchmarkSummary {
   has_human: boolean;
 }
 
+/** Isaac parity badge (scripts/merge_isaac_results.py): ok = grade A or B in every tested USD kind, fail = a status
+ *  disagreement or not comparable, untested = not yet run in Isaac Sim. */
+export type IsaacParityStatus = "ok" | "fail" | "untested";
+
 export interface ManifestDoor {
   id: string;
   index: number;
@@ -207,6 +211,8 @@ export interface ManifestDoor {
   files: Record<string, any>;
   physics_summary: Record<string, number | boolean | null>;
   benchmark?: BenchmarkSummary | null;
+  isaac_parity?: IsaacParityStatus;          // MuJoCo vs Isaac Sim / PhysX parity gate (docs/ISAAC_PARITY.md)
+  isaac_parity_grade?: string | null;        // A | B | C | X (worst tested USD kind)
   error?: string;
 }
 
@@ -218,6 +224,7 @@ export interface Manifest {
   n_signed_off: number;
   families: string[];
   doors: ManifestDoor[];
+  isaac_parity?: { version: string; date: string; commit: string | null; n_ok: number; n_fail: number; n_untested: number };
 }
 
 export const FAMILY_LABELS: Record<string, string> = {

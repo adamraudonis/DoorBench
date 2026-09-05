@@ -27,6 +27,11 @@ export function DoorCard({ d }: { d: ManifestDoor }) {
           {d.benchmark?.has_human && <span className="chip">human scenario</span>}
           <span className="chip">L{d.difficulty}</span>
           <span className={"chip " + (d.signed_off ? "ok" : "bad")}>{d.signed_off ? "signed off" : "needs review"}</span>
+          {d.isaac_parity && d.isaac_parity !== "untested" && (
+            <span className={"chip res " + (d.isaac_parity === "ok" ? "ok" : "bad")} title={`Isaac parity gate: MuJoCo vs Isaac Sim / PhysX behave ${d.isaac_parity === "ok" ? "the same" : "differently"} (grade ${d.isaac_parity_grade ?? "?"}; see the door page)`}>
+              Isaac {d.isaac_parity === "ok" ? "parity" : "mismatch"}{d.isaac_parity_grade ? ` ${d.isaac_parity_grade}` : ""}
+            </span>
+          )}
           <BaselineBadges id={d.id} />
         </div>
       </div>
@@ -44,9 +49,11 @@ export function Catalogue({ manifest, query }: { manifest: Manifest; query: stri
   const [task, setTask] = useState("");
   const [scenario, setScenario] = useState("");
   const [signed, setSigned] = useState("");
+  const [parity, setParity] = useState(params.get("parity") ?? "");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("index");
   const doors = manifest.doors.filter((d) => !d.error);
+  const hasParity = !!manifest.isaac_parity || doors.some((d) => d.isaac_parity);
   const opts = useMemo(() => ({
     operator: uniq(doors.map((d) => d.operator)), lock: uniq(doors.map((d) => d.lock)), closer: uniq(doors.map((d) => d.closer)),
     condition: uniq(doors.map((d) => d.condition)), task: uniq(doors.map((d) => d.task)),
@@ -57,12 +64,13 @@ export function Catalogue({ manifest, query }: { manifest: Manifest; query: stri
     let xs = doors.filter((d) =>
       (!family || d.family === family) && (!operator || d.operator === operator) && (!lock || d.lock === lock) && (!closer || (closer === "any" ? d.closer !== "none" : d.closer === closer)) &&
       (!condition || d.condition === condition) && (!task || d.task === task) && (!scenario || (d.benchmark?.scenarios ?? []).includes(scenario)) && (!signed || (signed === "yes") === d.signed_off) &&
+      (!parity || (d.isaac_parity ?? "untested") === parity) &&
       (!q || [d.id, d.use_case, d.family, d.context, d.leaf.slab, d.leaf.panel_style, d.operator, d.lock, d.hinge, ...d.tags, ...d.extras].join(" ").toLowerCase().includes(q)));
     const key: Record<string, (d: ManifestDoor) => number | string> = { index: (d) => d.index, mass: (d) => d.mass_kg, difficulty: (d) => d.difficulty, width: (d) => d.leaf.width, family: (d) => d.family };
     const f = key[sort] ?? key.index;
     xs = [...xs].sort((a, b) => (f(a) < f(b) ? -1 : f(a) > f(b) ? 1 : 0));
     return xs;
-  }, [doors, family, operator, lock, closer, condition, task, scenario, signed, search, sort]);
+  }, [doors, family, operator, lock, closer, condition, task, scenario, signed, parity, search, sort]);
   const sel = (v: string, set: (s: string) => void, list: string[], label: string) => (
     <select value={v} onChange={(e) => set(e.target.value)}><option value="">{label}</option>{list.map((x) => <option key={x} value={x}>{x.replace(/_/g, " ")}</option>)}</select>
   );
@@ -78,6 +86,11 @@ export function Catalogue({ manifest, query }: { manifest: Manifest; query: stri
         {sel(task, setTask, opts.task, "Any task")}
         {opts.scenario.length > 0 && sel(scenario, setScenario, opts.scenario, "Any scenario")}
         <select value={signed} onChange={(e) => setSigned(e.target.value)}><option value="">QA: all</option><option value="yes">signed off</option><option value="no">needs review</option></select>
+        {hasParity && (
+          <select value={parity} onChange={(e) => setParity(e.target.value)} title="Isaac parity gate: does the door behave the same in Isaac Sim / PhysX as in MuJoCo? (docs/ISAAC_PARITY.md)">
+            <option value="">Isaac parity: all</option><option value="ok">parity ok</option><option value="fail">mismatch</option><option value="untested">untested</option>
+          </select>
+        )}
         <select value={sort} onChange={(e) => setSort(e.target.value)}><option value="index">Sort: id</option><option value="family">Sort: type</option><option value="mass">Sort: mass</option><option value="difficulty">Sort: difficulty</option><option value="width">Sort: width</option></select>
         <span className="count">{filtered.length} / {doors.length}</span>
       </div>
