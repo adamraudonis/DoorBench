@@ -5,7 +5,7 @@ import path from "node:path";
 
 // Dev-only: serve ../assets at /assets (the generated dataset) and ../results at /results (benchmark results) in place.
 function serveAssets(): Plugin {
-  const roots: Record<string, string> = { "/assets/": path.resolve(import.meta.dirname, "..", "assets"), "/results/": path.resolve(import.meta.dirname, "..", "results") };
+  const roots: Record<string, string> = { "/assets/": path.resolve(import.meta.dirname, "..", "assets"), "/results/": path.resolve(import.meta.dirname, "..", "results"), "/appearance/": path.resolve(import.meta.dirname, "..", "out", "appearance") };
   const types: Record<string, string> = { ".json": "application/json", ".obj": "text/plain", ".jpg": "image/jpeg", ".png": "image/png", ".xml": "text/xml", ".urdf": "text/xml", ".usda": "text/plain", ".glb": "model/gltf-binary", ".md": "text/markdown" };
   return {
     name: "serve-assets",
@@ -16,7 +16,7 @@ function serveAssets(): Plugin {
         const root = roots[prefix];
         const rel = decodeURIComponent(req.url.split("?")[0].slice(prefix.length));
         const file = path.join(root, rel);
-        if (!file.startsWith(root) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return next();
+        if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return next();
         res.setHeader("Content-Type", types[path.extname(file)] ?? "application/octet-stream");
         res.setHeader("Cache-Control", "no-cache");
         fs.createReadStream(file).pipe(res);

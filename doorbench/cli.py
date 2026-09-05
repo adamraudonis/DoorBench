@@ -20,9 +20,14 @@ import sys
 
 
 def main(argv=None):
+    args = sys.argv[1:] if argv is None else list(argv)
+    if args and args[0] == "appearance":
+        from .appearance.pipeline import main as appearance_main
+        return appearance_main(args[1:])
     from .benchmark import runner as R
     ap = argparse.ArgumentParser(prog="doorbench")
     sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("appearance", help="Blender photo rendering and interchangeable appearance recipes")
     p = sub.add_parser("list"); p.add_argument("--family"); p.add_argument("--task"); p.add_argument("--assets", default="assets")
     p = sub.add_parser("show"); p.add_argument("door_id"); p.add_argument("--assets", default="assets")
     p = sub.add_parser("build"); p.add_argument("door_id"); p.add_argument("--out", default="out/build"); p.add_argument("--formats", default="mjcf,urdf,usd,json")
