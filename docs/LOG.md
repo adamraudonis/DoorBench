@@ -142,6 +142,30 @@ disagreement into concrete bugs, several of them one-liners with dataset-wide re
 Lesson: a second engine is a measuring instrument. Most of what it flags is the instrument or the adapter, so
 triage before fixing; but the residue is real, and nothing else had found it.
 
+**Round-3 fixes and a new defect class (2026-09-05).** Four agents implemented the triage. In the USD export:
+env-release welds became real breakable `FixedJoint`s (a mag-locked door was swinging 1.1-1.8 rad open in PhysX
+while MuJoCo held it at 1e-6), self-collision was switched on with MuJoCo's exact filtered-pair set mirrored into
+`PhysxFilteredPairsAPI` (latches that hold one leaf against another were passing through), and the 181
+translational couplings PhysX cannot represent as mimic joints (thumbturn-to-deadbolt, dogs-to-bolts, cremone,
+helical risers) became explicit metadata plus a bilateral emulation that applies the reaction force on the driver
+instead of writing the driven joint kinematically. The canonical RL export now records its weld decisions as
+ground truth instead of letting the protocol guess. In the protocol: a staleness gate (a PhysX record whose
+inputs hash predates the reference is graded X and published as untested, never as a verdict), a rebound waiver,
+a sampling-invariant latch arrival speed, and a QA push scaled to the leaf's own weight moment, which took a
+0.14 kg pet flap off a 60 N*m push that made PhysX explode within six steps.
+
+The most valuable output was a defect class nobody had named: **zero running clearance**. Parts authored exactly
+touching pass a penetration-based gate, because MuJoCo at margin 0 sees no force, but PhysX resolves contacts
+inside its contact offset, and a real door has running clearance anyway. A sweep over every moving-vs-static pair
+found **139 of 1000 doors, 229 pairs**: turnstile rotor columns flush on the cage roof and the floor, folding-panel
+heels scraping the pivot jamb through the fold, bypass leaves flush on the jamb, hinged leaves raked by the frame's
+reveal past 90 degrees, roll-up bottom bars flush on the floor, hatch lids raking the curb. All fixed in the
+generator, with `running_clearance` now part of sign-off and seals, gaskets and bumpers allow-listed by semantics.
+
+The verifier that merged the three branches found four more bugs in them: enabling self-collision made a thumbturn
+collide with its own deadbolt housing, the filtered pairs were authored one-sided, the mimic offset mixed MJCF and
+USD joint frames, and one branch had committed regenerated assets against instruction.
+
 **Working with agents.** Seven parallel Fable agents in git worktrees is productive until the account's usage
 limit hits, which kills all of them at once and twice cost partial work. Rules that now hold: commit early and
 often on the agent branch; the main session owns `TASKS.md`, `README.md`, credentials and merges; agents write
