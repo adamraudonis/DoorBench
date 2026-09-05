@@ -191,6 +191,11 @@ def jam_sweep(m, d, pj: int, push: float, thr_free: float, duration_s: float = F
 # ---------------------------------------------------------------------------
 OPERATOR_RETURN_LIMIT_S = {"spring": 0.6, "gravity": 2.0}   # s to be back at rest after release
 OPERATOR_RETURN_MAX_BOUNCES = 1     # one clack against the rest stop is real hardware; more is chatter
+OPERATOR_REBOUND_TOL_FACTOR = 3.0   # ... and that one clack may not lift the handle back out by more than 3 x the
+OPERATOR_REBOUND_FRACTION = 0.05    #     rest tolerance / 5 % of the travel: a critically damped handle settles, an
+#                                         undamped one comes home and springs 6 deg back up, which reads as chatter
+#                                         even though it only leaves the band once (worst real door: 0.09 x travel on
+#                                         a 6 mm screen-latch button, which is 0.5 mm and well inside 3 x tolerance)
 OPERATOR_DETENT_HOLD = 0.8          # a detent operator must still be at >= 80 % of where the hand left it
 OPERATOR_DRIVE_RAMP_S = 0.25        # the hand takes this long to turn the handle to full travel
 OPERATOR_DRIVE_HOLD_S = 0.15        # ... and holds it there this long, so it is released from rest
@@ -380,7 +385,8 @@ def operator_release_checks(m, d, phys: dict, pj: int, mass_kg: float | None = N
                 out[tag] = t
                 continue
             good = (t["t_return_s"] is not None and t["t_return_s"] <= lim
-                    and abs(t["residual"]) < tol and t["bounces"] <= OPERATOR_RETURN_MAX_BOUNCES)
+                    and abs(t["residual"]) < tol and t["bounces"] <= OPERATOR_RETURN_MAX_BOUNCES
+                    and t["rebound"] <= max(OPERATOR_REBOUND_TOL_FACTOR * tol, OPERATOR_REBOUND_FRACTION * span))
             out[tag] = t
             out[f"{tag}_ok"] = bool(good)
             ok = ok and good

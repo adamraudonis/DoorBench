@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import type { ModelJ } from "./types";
-import { activeLeaf, boltJointsFor, openClosePhases, sliderReaction, type JointLike } from "./doorLogic";
+import { activeLeaf, boltJointsFor, easeFor, gravityEase, openClosePhases, operatorReturnPhase, returnLabel, sliderReaction, springEase, type JointLike } from "./doorLogic";
 
 const ASSETS = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "assets", "doors");
 
@@ -96,5 +96,92 @@ describe.skipIf(!have)("open / close sequencing", () => {
     const { phases } = openClosePhases(d.model, d.joints);
     expect(phases.map((p) => p.joint)).toEqual([op, "leaf_slide", op]);
     expect(phases[0].to).toBeCloseTo(0.08);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Operator snap-back (docs/PHYSICS.md "Operator return")
+// ---------------------------------------------------------------------------
+describe("operator release profile", () => {
+  test("springEase starts slowly, arrives at rest, and is monotone", () => {
+    for (const shape of [0.2, 0.5, 0.9, 1.0]) {
+      expect(springEase(0, shape)).toBeCloseTo(0, 6);
+      expect(springEase(1, shape)).toBeCloseTo(1, 3);
+      let prev = -1;
+      for (let s = 0; s <= 1.0001; s += 0.05) {
+        const e = springEase(s, shape);
+        expect(e).toBeGreaterThanOrEqual(prev - 1e-9);
+        prev = e;
+      }
+      expect(springEase(0.1, shape)).toBeLessThan(0.2);   // a released handle does not jump: it accelerates
+    }
+  });
+
+  test("a hard spring accelerates the whole way; a soft one is already coasting at half time", () => {
+    // shape = how much of the spring's pull is used up before the rest stop.  Small = the equilibrium sits far past
+    // the stop, so the handle is still accelerating when it slams home; 1 = it decays onto the stop asymptotically.
+    expect(springEase(0.5, 0.2)).toBeLessThan(0.5);
+    expect(springEase(0.5, 1.0)).toBeGreaterThan(0.5);
+    expect(springEase(0.5, 0.2)).toBeLessThan(springEase(0.5, 1.0));
+  });
+
+  test("gravityEase is a constant-acceleration fall", () => {
+    expect(gravityEase(0)).toBe(0);
+    expect(gravityEase(0.5)).toBeCloseTo(0.25, 6);
+    expect(gravityEase(1)).toBe(1);
+  });
+
+  test("easeFor falls back to the ease-in-out used by every other phase", () => {
+    const ph = { joint: "j", from: 0, to: 1, dur: 100 };
+    expect(easeFor(ph, 0.5)).toBeCloseTo(0.5, 6);
+    expect(easeFor({ ...ph, ease: "spring" as const, shape: 0.5 }, 1)).toBeCloseTo(1, 3);
+  });
+});
+
+describe.skipIf(!have)("operator snap-back against real doors", () => {
+  test("a sprung knob returns to its rest stop with the derived spring profile", () => {
+    const d = load("db0002_swing_single")!;
+    const op = "leaf_handle_hinge";
+    d.joints.get(op)!.q = 0.8;
+    const ph = operatorReturnPhase(d.model, d.joints, op)!;
+    expect(ph).not.toBeNull();
+    expect(ph.joint).toBe(op);
+    expect(ph.to).toBe(0);
+    expect(ph.ease).toBe("spring");
+    expect(ph.dur).toBeGreaterThan(150);
+    expect(ph.dur).toBeLessThan(700);
+    expect(returnLabel(d.model, op)).toContain("spring return");
+  });
+
+  test("a released operator already at rest has nothing to animate", () => {
+    const d = load("db0002_swing_single")!;
+    expect(operatorReturnPhase(d.model, d.joints, "leaf_handle_hinge")).toBeNull();
+  });
+
+  test("open / close releases the handle with the spring profile, not a linear slide", () => {
+    const d = load("db0002_swing_single")!;
+    const { phases } = openClosePhases(d.model, d.joints);
+    const release = phases[phases.length - 1];
+    expect(release.joint).toBe("leaf_handle_hinge");
+    expect(release.ease).toBe("spring");
+    expect(release.to).toBe(0);
+  });
+
+  test("a handwheel is a detent operator: it stays where it is put and says so", () => {
+    const d = load("db0179_vault");
+    if (!d) return;
+    const wheel = "wheel_hinge";
+    d.joints.get(wheel)!.q = 3.0;
+    expect(operatorReturnPhase(d.model, d.joints, wheel)).toBeNull();
+    expect(returnLabel(d.model, wheel)).toContain("stays where put");
+  });
+
+  test("a ring pull returns under gravity, to wherever gravity puts it", () => {
+    const d = load("db0380_hatch_floor");
+    if (!d) return;
+    d.joints.get("ring_hinge")!.q = 1.4;
+    const ph = operatorReturnPhase(d.model, d.joints, "ring_hinge")!;
+    expect(ph.ease).toBe("gravity");
+    expect(returnLabel(d.model, "ring_hinge")).toContain("gravity return");
   });
 });

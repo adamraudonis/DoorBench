@@ -75,6 +75,22 @@ def _gravity_moment_fn(axis_unit, mass, com_rel, hinge: bool, g_dir):
     return tau
 
 
+def _over_centre(tau_g_fn, lo: float, hi: float, n: int = 400):
+    """The angle at which an unsprung part's own weight moment stops restoring and starts carrying it further open
+    (the over-centre point), or None if it never does inside the range."""
+    step = (hi - lo) / n
+    prev = tau_g_fn(lo)
+    if prev > 0:
+        return None                  # already over centre at rest (a ring hanging off a ceiling hatch)
+    for i in range(1, n + 1):
+        q = lo + i * step
+        cur = tau_g_fn(q)
+        if cur > 0:
+            return q - step * 0.5
+        prev = cur
+    return None
+
+
 def _gravity_rest(tau_g_fn, lo: float, hi: float, q0: float, n: int = 400) -> float:
     """Where a part with no spring settles after being released at ``q0``: the first stable equilibrium of its own
     weight moment in the direction it starts moving, clamped to the joint range.
@@ -157,6 +173,18 @@ def tune_operator_returns(model: Model, spec: dict, phys: dict) -> dict:
                                          f"plus 2 x {fl_cat:.2f} bearing friction")
         elif j.return_kind == "gravity":
             lo = float(j.range[0]) if j.range else 0.0
+            # An unsprung part goes over centre if you lift it far enough: past that angle its own weight carries it
+            # ON, and a ring pull left standing vertically against its stop balances there for ever.  A real ring on a
+            # staple would simply flop over the other way, which a one-sided joint range cannot represent, so the
+            # travel stops just short of the over-centre angle and the part always falls back.
+            q_over = _over_centre(tau_g_fn, lo, lo + travel) if j.range else None
+            if q_over is not None:
+                hi_new = max(lo + 0.05 * travel, q_over - 0.02 * travel)
+                rec["travel_clamped"] = (f"travel {travel:.3f} -> {hi_new - lo:.3f}: beyond {q_over:.3f} rad the part's "
+                                         "own weight carries it over centre and it would balance against its stop")
+                j.range = (lo, hi_new)
+                travel = hi_new - lo
+                rec["travel"] = travel
             q0 = lo + P.GRAVITY_DRIVE_FRACTION * travel
             k_equiv = abs(tau_g0) / max(travel, 1e-6)
             j.stiffness, j.springref = 0.0, 0.0
