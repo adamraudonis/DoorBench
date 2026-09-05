@@ -74,6 +74,12 @@ class ScriptedHandPolicy(Policy):
         # hardware entry (a Simplex button needs ~19 N, a Schlage dome ~5 N); on a mechanical lock the lever turn
         # that follows (self.ops) is what checks the combination
         kpm = meta.get("keypad") or {}
+        if kpm.get("clutch_joint") in self.joints and kpm.get("clutch_open_rad"):
+            # the outside trim is BLOCKED to the lock's free play until the code frees the clutch; model.json
+            # records that locked range, so the hand would only ever turn it 3 deg.  An oracle knows the lever's
+            # real travel: aim for that, and the turn works the moment the code is accepted.
+            rng = self.joints[kpm["clutch_joint"]].get("range") or [0.0, 0.0]
+            self.joints[kpm["clutch_joint"]]["range"] = [float(rng[0]), float(kpm["clutch_open_rad"])]
         by_label = {b["label"]: b["joint"] for b in kpm.get("buttons", [])}
         code = kpm.get("code") or info["lock"].get("code") or ""
         self.key_force = 1.6 * float(kpm.get("press_force_N", 3.0))

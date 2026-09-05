@@ -283,3 +283,36 @@ def test_scenario_of_a_mechanical_lock_says_so(built):
     assert sc["lock"]["code_kind"] == "set"
     assert sc["lock"]["code_timeout_s"] is None and sc["lock"]["lockout_s"] is None
     assert "any order" in sc["lock"]["note"]
+
+
+def test_gate_catches_a_keypad_that_releases_nothing(tmp_path_factory, specs):
+    """The gate has teeth: with the clutch left engaged (the old behaviour - the keypad was a decoration and the
+    lever opened the door on its own) `keypad_code_works` must fail."""
+    import re
+
+    import mujoco
+
+    from doorbench.qa import qa_push
+
+    did = "db0526_swing_single"
+    root = str(tmp_path_factory.mktemp("broken"))
+    spec = specs[did]
+    summary = export_door(spec, os.path.join(root, "doors"), os.path.join(root, "hardware"), formats=("mjcf", "json"))
+    path = summary["files"]["mjcf"]["full"]
+    xml = open(path).read()
+    broken = re.sub(r'(name="leaf_handle_out_hinge"[^>]*?range=")[^"]*(")', r"\g<1>0 0.87\g<2>", xml)
+    assert broken != xml
+    bad_path = os.path.join(os.path.dirname(path), "door_broken.xml")
+    with open(bad_path, "w") as f:
+        f.write(broken)
+    m = mujoco.MjModel.from_xml_path(bad_path)
+    model_json = json.load(open(os.path.join(root, "doors", did, "model.json")))
+    meta = model_json["meta"]
+    phys = derive(spec)
+    pj = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, meta["primary_joint"])
+    oj = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, meta["operator_joint"])
+    push = qa_push(m, mujoco.MjData(m), pj, phys["mass"]["total_kg"], spec["leaf"]["width"])["push"]
+    res = run_keypad_qa(m, spec, meta, phys, push, oj, pj)
+    assert res["ok"] is False
+    assert res["checks"]["wrong_holds"] is False
+    assert res["metrics"]["opened_after_wrong_rad"] > math.radians(10)
