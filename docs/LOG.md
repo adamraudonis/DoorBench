@@ -166,6 +166,21 @@ The verifier that merged the three branches found four more bugs in them: enabli
 collide with its own deadbolt housing, the filtered pairs were authored one-sided, the mimic offset mixed MJCF and
 USD joint frames, and one branch had committed regenerated assets against instruction.
 
+**Parity round 3 (2026-09-05): the gate closes.** With the export, protocol and geometry fixes in, the same
+protocol over all 1000 doors and both USD kinds gives strict metric parity on **905/1000** doors (full fidelity)
+and **872/1000** (canonical rl), against **27 and 32** in round 2; same-verdict agreement is 958 and 971, nothing
+is stale, and 952 doors carry an `isaac_parity: ok` badge. Every settle, operate, release, relatch and closer
+phase now agrees on every door in the full kind; what remains is 42 doors of disagreement concentrated in a few
+named classes: sliding singles and swing pairs whose latch still lets go under the hold push in PhysX
+(PHYSX_HOLD_FAIL, 36), cold-storage rising-hinge drift (16), six doors whose env-release weld is still not seen,
+and a handful of canonical-articulation and metric residues.
+
+The arc is worth recording: the first probe looked like "half the doors do not open in PhysX". Almost none of that
+was true. It was a fixed 60 N*m push below the door's load, spring targets zeroed every step, a latch coupling the
+validator never applied, an angular-velocity cap read in the wrong unit, and friction efforts written with a token
+the USD parser ignores. Underneath those five instrument errors sat perhaps forty real defects, which is what the
+exercise was for.
+
 **Working with agents.** Seven parallel Fable agents in git worktrees is productive until the account's usage
 limit hits, which kills all of them at once and twice cost partial work. Rules that now hold: commit early and
 often on the agent branch; the main session owns `TASKS.md`, `README.md`, credentials and merges; agents write
