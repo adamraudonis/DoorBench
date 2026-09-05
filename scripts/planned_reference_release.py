@@ -492,6 +492,33 @@ def verify_remote(api, repo, commit, files):
     # LFS SHA-256. Only read-only verification is retried, never publication.
     # A global retry/sleep budget also bounds failures spread across many batches.
     names = sorted(files)
+    if callable(getattr(api, 'list_repo_tree', None)):
+        # The Hub's POST paths-info endpoint can remain queue-limited while its
+        # paginated GET tree endpoint is healthy. Both expose the same immutable
+        # Git-blob/LFS proof. Cache one complete tree and reuse the existing
+        # byte/hash verifier; never treat a listing alone as checksum success.
+        original_api = api
+        directory = os.path.commonpath([str(Path(name).parent) for name in names])
+        class TreeProof:
+            info = None
+            entries = None
+            def repo_info(self, *args, **kwargs):
+                if self.info is None:
+                    info = original_api.repo_info(*args, **kwargs)
+                    require(info.sha == commit, 'Remote tree revision differs from the uploaded commit')
+                    self.info = info
+                return self.info
+            def get_paths_info(self, repo_id, paths, **kwargs):
+                if self.entries is None:
+                    entries = {}
+                    for entry in original_api.list_repo_tree(repo_id, path_in_repo=directory,
+                            recursive=True, repo_type='dataset', revision=commit):
+                        if not hasattr(entry, 'blob_id'): continue  # directory
+                        require(entry.path not in entries, 'Duplicate file in remote release tree')
+                        entries[entry.path] = entry
+                    self.entries = entries
+                return [self.entries[name] for name in paths if name in self.entries]
+        api = TreeProof()
     retries = 0
     slept = 0.0
     for offset in range(0, len(names), 20):
