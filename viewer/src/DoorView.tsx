@@ -7,7 +7,7 @@ import { FAMILY_LABELS } from "./types";
 import { buildScene, type BuiltScene, type JointHandle } from "./scene";
 import { buildEvaluationOverlay, type EvalOverlay } from "./evaluation";
 import { GLOSSARY, REWARD_LABELS, type GlossaryEntry } from "./glossary";
-import { activeLeaf, isLocked, openClosePhases, parsePoseQuery, sliderReaction, type Phase } from "./doorLogic";
+import { activeLeaf, isLocked, isSwingPair, openClosePhases, parsePoseQuery, sliderReaction, type Phase } from "./doorLogic";
 import { ASSETS } from "./App";
 import { BaselineBadges } from "./ResultBadges";
 import { AppearancePanel } from "./Appearance";
@@ -401,7 +401,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
     queue.current = [{ joint, from: h.q, to, dur: 900 }];
   };
 
-  /** Physically honest open / close: work the operator (retract the bolt through its coupling), move the leaf, release. */
+  /** Kinematic mechanism preview: work each operator, move the free leaves, release. */
   const openClose = () => {
     const b = built.current;
     if (!b || !model) return;
@@ -416,9 +416,10 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
     if (!b || !model) return;
     pauseReference();
     queue.current = [];
-    b.setJoint(h.name, q);
     const r = sliderReaction(model, b.joints, h.name, q);
-    if (r.operatorTo != null && operator) b.setJoint(operator, r.operatorTo);
+    if (r.blocked) { if (r.note) toast(r.note); return; }
+    if (r.operatorTo != null && r.operator) b.setJoint(r.operator, r.operatorTo);
+    b.setJoint(h.name, q);
     if (r.mirror) b.setJoint(r.mirror.joint, r.mirror.q);
     if (r.note) toast(r.note);
     b.solveLoops();
@@ -470,7 +471,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
       <div className="viewport">
         <div className="scene-mount" ref={mountRef} />
         <div className="hud">
-          {primaryH && <button className="primary" onClick={openClose} title="Actuates the operator (retracts the latch), moves the leaf, releases the operator">Open / close door</button>}
+          {primaryH && <button className="primary" onClick={openClose} title="Kinematic mechanism preview: retracts each leaf's latch, moves the free leaves, and releases the operators. Secured leaves stay locked.">{model && isSwingPair(model) ? "Open / close pair" : "Open / close door"}</button>}
           {opH && <button onClick={() => animate(operator, opH.range ? (opH.q > (opH.range[0] + opH.range[1]) / 2 ? opH.range[0] : opH.range[1]) : opH.q + 1)}>Actuate operator</button>}
           <button onClick={() => { pauseReference(); const b = built.current; queue.current = []; if (b) { for (const h of b.joints.values()) b.setJoint(h.name, h.modeledAt); b.solveLoops(); } force((x) => x + 1); }}>Reset</button>
           <button className={diagnostic ? "active" : ""} aria-pressed={diagnostic} title="Brown door, gold mechanisms, neutral surroundings; glass remains transparent" onClick={() => setDiagnostic(v=>!v)}>Mechanism contrast</button>
@@ -480,6 +481,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
           {showEval && scenarios.length > 1 && (
             <select aria-label="Scenario" value={scenIdx} onChange={(e) => setScenIdx(parseInt(e.target.value))}><ScenarioOptions scenarios={scenarios} /></select>
           )}
+          {model && isSwingPair(model) && <p className="pair-preview-note">Mechanism preview · operates each leaf’s hardware, including inside panic bars. Robot access depends on the approach side.</p>}
         </div>
         {!referenceBlocked && (<div className="reference-player" data-review-shortcuts="off">
           <div className="reference-heading"><strong>Original illustrative reference</strong><span>Recorded MuJoCo door · kinematic figure</span></div>
