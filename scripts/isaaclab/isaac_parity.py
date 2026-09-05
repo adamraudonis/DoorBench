@@ -314,7 +314,8 @@ class DoorHandle:
             i = self.map.get(n)
             if i is not None and q[i] < qmin - 1e-6:
                 self._write_joint(i, qmin - self.offset[i])
-                self.cur["clamps"] += 1
+                if self.cur is not None:        # idle doors (phase not applicable) are clamped too but not recorded
+                    self.cur["clamps"] += 1
         if phase == "release" and active and self.q_hold is not None:
             self._write_joint(self.pj, self.q_hold - self.offset[self.pj])
         if phase == "hold" and self.weld:

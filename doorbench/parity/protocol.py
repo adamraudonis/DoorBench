@@ -683,12 +683,12 @@ def _phase_codes(inputs: dict, phase: str, expected: str, s_mj: str, s_px: str, 
     mj_over = {v["joint"]: v["over"] for v in (m_mj.get("limit_violations") or [])}
     if any(v["over"] > 2.0 * mj_over.get(v["joint"], 0.0) for v in (m_px.get("limit_violations") or [])):
         codes.append("LIMIT_VIOLATION")
-    if s_mj == "fail":
+    info = expected.endswith("_info")
+    base = expected[:-5] if info else expected
+    if s_mj == "fail" and not info:          # an informational phase has no reference verdict (qa.py never tested it)
         codes.append("MUJOCO_FAIL")
     if s_mj == s_px:
         return codes
-    info = expected.endswith("_info")
-    base = expected[:-5] if info else expected
     if info:
         codes.append("INFO_DISAGREE")
         return codes
