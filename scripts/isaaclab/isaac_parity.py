@@ -18,8 +18,14 @@ Isaac-side mechanics (see the module docstring of protocol.py and isaaclab/STATU
   * robot actions only through set_joint_effort_target (PhysX joint actuation force == MuJoCo qfrc_applied);
     N*m on revolute, N on prismatic joints
   * the one-sided MJCF latch tendon (bolt >= scale * operator) has no PhysX counterpart: kinematic clamp of the
-    latch joint state each step (write_joint_state_to_sim), identical to the tendon limit
+    latch joint state each step (write_joint_state_to_sim), identical to the tendon limit; by default the latch
+    drive target is raised to the same minimum while the tendon pulls (--latch-mode clamp+target), otherwise the
+    300 N/m latch spring re-extends the bolt by ~2.5 mm every 1/120 s step between clamps (--latch-mode clamp)
   * ``release`` pins the primary joint each step (as qa.py writes qpos / qvel)
+  * doors of a batch sit on a centred grid with --spacing 20,14 m (gate leaves sweep / slide up to 8.2 m from
+    their origin, fences and floor-hatch decks extend up to 9.9 m: the 6 m grid of the first probe let neighbours
+    collide) on a ground plane sized to the grid; batches group doors with the same phase schedule so idle phases
+    are not stepped
   * automatic doors: the MJCF position servo (kp, kv, forcerange; ctrl = 0) is applied as a clipped feed-forward
     effort (--no-servo to disable)
   * env-released welds (maglocks, delayed egress) are NOT exported to USD: by default the door is left free and the
@@ -60,7 +66,12 @@ parser.add_argument("--iters", type=str, default="16,4", help="solver position,v
 parser.add_argument("--emulate-weld", action="store_true", help="pin env-released welded doors during the hold phase")
 parser.add_argument("--no-servo", action="store_true", help="do not emulate the MJCF position servo of automatic doors")
 parser.add_argument("--force", action="store_true", help="re-run doors already present in the output file")
+parser.add_argument("--retry-errors", action="store_true", help="re-run doors whose previous record is a spawn / inspect / batch error")
 parser.add_argument("--tag", type=str, default="", help="suffix for the output files (e.g. _dt240)")
+parser.add_argument("--spacing", type=str, default="20,14", help="x,y grid spacing in metres between the doors of a batch (moving parts reach up to 8.2 m in x / 5.6 m in y, static fences and decks up to 9.9 m / 6.6 m)")
+parser.add_argument("--latch-mode", type=str, default="clamp+target", choices=["clamp", "clamp+target"],
+                    help="one-sided latch tendon emulation: kinematic clamp only, or clamp + latch drive target raised to the tendon minimum (default)")
+parser.add_argument("--no-group", action="store_true", help="keep the --doors order instead of grouping doors with the same phase schedule into batches")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 app_launcher = AppLauncher(args_cli)
@@ -82,7 +93,11 @@ from doorbench.parity import protocol as P  # noqa: E402
 RL_JOINTS = {"door_slide", "door_hinge", "operator_hinge", "operator_slide", "latch_slide", "leaf2_slide", "leaf2_hinge"}
 DT = 1.0 / float(args_cli.hz)
 SAMPLE_EVERY = max(1, int(round(1.0 / (P.SAMPLE_HZ * DT))))
+if abs(SAMPLE_EVERY * DT * P.SAMPLE_HZ - 1.0) > 1e-6:
+    print(f"[parity] WARNING: {args_cli.hz} Hz is not a multiple of the {P.SAMPLE_HZ} Hz sample grid; curves are sampled every {SAMPLE_EVERY} steps ({1.0 / (SAMPLE_EVERY * DT):.2f} Hz)")
 POS_ITERS, VEL_ITERS = (int(x) for x in args_cli.iters.split(","))
+X_SPACING, Y_SPACING = (float(x) for x in args_cli.spacing.split(","))
+LATCH_TARGET = args_cli.latch_mode == "clamp+target"
 ENGINE = {"isaac_sim": None, "isaac_lab": None, "physx_dt": DT, "solver_iterations": [POS_ITERS, VEL_ITERS]}
 try:
     import isaaclab
@@ -106,11 +121,25 @@ def _art_props():
         return p
 
 
-def _door_cfg(door_id: str, kind: str, k: int) -> ArticulationCfg:
+def _grid(n: int) -> list[tuple[float, float, float]]:
+    """Door origins for a batch of ``n``: a centred grid, square-ish in metres, spaced X_SPACING x Y_SPACING.
+
+    Doors slide along x and swing toward y.  Over the dataset the moving parts reach up to 8.2 m in x (gate leaves:
+    3.6-4.8 m of travel, 4 m swing sweeps) and 5.6 m in y, static fences / walls / hatch decks extend up to 9.9 m in
+    x and 6.6 m in y (floor slabs excluded: static vs static never collides), so the 6 m grid of
+    validate_usd_isaacsim.py let gate leaves run into the neighbouring door's walls; 20 x 14 m keeps every pair apart
+    (worst pairing 18.1 m in x, 12.3 m in y).
+    """
+    cols = max(1, int(math.ceil(math.sqrt(n * Y_SPACING / X_SPACING))))
+    rows = int(math.ceil(n / cols))
+    return [(X_SPACING * (k % cols - (cols - 1) / 2.0), Y_SPACING * (k // cols - (rows - 1) / 2.0), 0.0) for k in range(n)]
+
+
+def _door_cfg(door_id: str, kind: str, k: int, origin: tuple[float, float, float]) -> ArticulationCfg:
     return ArticulationCfg(
         prim_path=f"/World/Doors/door_{k:03d}",
         spawn=sim_utils.UsdFileCfg(usd_path=D.usd_path(door_id, canonical=(kind == "rl")), activate_contact_sensors=False, rigid_props=DOOR_RIGID_PROPS, articulation_props=_art_props()),
-        init_state=ArticulationCfg.InitialStateCfg(pos=(6.0 * (k % 10), 6.0 * (k // 10), 0.0)),
+        init_state=ArticulationCfg.InitialStateCfg(pos=origin),
         actuators=DOOR_ACTUATORS,
         articulation_root_prim_path="/Articulation",
     )
@@ -189,10 +218,18 @@ class DoorHandle:
         if self.pj is None:
             raise RuntimeError(f"primary joint {inputs['primary_joint']} not present in the {kind} articulation ({self.jn})")
         self.spring_target = torch.tensor(target, dtype=torch.float32, device=self.dev).unsqueeze(0)
+        self.spring_target_np = np.array(target, dtype=float)
         self.zero = torch.zeros(1, self.nj, device=self.dev)
+        self._effort = torch.zeros(1, self.nj, device=self.dev)
+        self._target = self.spring_target.clone()
+        self._cache = None          # (step id, q_db, v) read after the last sim step, shared by post_step and pre_step
         self.env_origin = np.array(art.cfg.init_state.pos, dtype=float)
-        self.q0_usd = np.zeros(self.nj)
-        self.emulations = ["spring_targets_restored", "latch_clamp"]
+        self.q0_usd = np.zeros(self.nj)     # USD joint zero == the authored pose == MJCF qpos0 (initial == modeled_at for every joint)
+        # tendon-driven joints (latch bolts): lower range end in DoorBench coordinates, for the drive-target emulation
+        self.range_lo = {n: (inputs["joints"][n]["range"][0] if inputs["joints"][n]["range"] else -math.inf) for n in self.map}
+        self.latch_target = LATCH_TARGET
+        self.emulations = ["spring_targets_restored", "latch_clamp+target" if self.latch_target else "latch_clamp"]
+        self.friction_readback = None
         self.servo = bool(inputs["flags"]["automatic"]) and not args_cli.no_servo
         if self.servo:
             self.emulations.append("servo_emulated")
@@ -233,17 +270,26 @@ class DoorHandle:
                     errors.append(f"{src}: spring target {float(self.spring_target[0, i]):.4g} != IR {tgt:.4g}")
                 if abs(self.offset[i] - j["modeled_at"]) > 1e-6:
                     errors.append(f"{src}: zero_offset {self.offset[i]} != modeled_at {j['modeled_at']}")
+            # read-back of what PhysX holds (informational: joint_friction_coeff is the legacy unitless coefficient,
+            # the Coulomb efforts of PhysxJointAxisAPI are not exposed by Isaac Lab 2.3)
             fr = getattr(self.art.data, "joint_friction_coeff", None)
             if fr is not None:
-                self.friction_readback = [float(x) for x in fr[0].cpu().numpy()]
+                self.friction_readback = {n: float(fr[0, i]) for n, i in self.map.items()}
         except Exception as e:
             errors.append(f"structure check: {type(e).__name__}: {e}")
-        return {"status": "fail" if errors else "pass", "errors": errors, "warnings": warnings, "mapped_joints": sorted(self.map)}
+        return {"status": "fail" if errors else "pass", "errors": errors, "warnings": warnings, "mapped_joints": sorted(self.map),
+                "friction_coeff_readback": self.friction_readback, "friction_effort_authored": {n: self.prim_info.get(self.jn[i], {}).get("friction") for n, i in self.map.items()}}
 
     def check_pose0(self, ref: dict) -> dict:
-        """Informational frame check: PhysX link origins vs MuJoCo body origins at the initial state (full kind)."""
+        """Informational frame check: PhysX link origins vs MuJoCo body origins (d.xpos) at the initial state (full kind).
+
+        Isaac Lab 2.3: ``body_pos_w`` is the centre-of-mass frame (== body_com_pos_w); the link (prim) frame that
+        matches MuJoCo's body origin is ``body_link_pos_w``."""
         try:
-            pos = self.art.data.body_pos_w[0].cpu().numpy() - self.env_origin
+            data = self.art.data
+            frame = "link" if hasattr(data, "body_link_pos_w") else "com"
+            pos_t = data.body_link_pos_w if frame == "link" else data.body_pos_w
+            pos = pos_t[0].cpu().numpy() - self.env_origin
             names = list(self.art.body_names)
             worst = (0.0, None)
             n = 0
@@ -253,13 +299,24 @@ class DoorHandle:
                     n += 1
                     if e > worst[0]:
                         worst = (e, b)
-            return {"n_bodies": n, "max_err_m": worst[0], "worst_body": worst[1]}
+            return {"n_bodies": n, "max_err_m": worst[0], "worst_body": worst[1], "frame": frame}
         except Exception as e:
             return {"error": f"{type(e).__name__}: {e}"}
 
     # ------------------------------------------------------------------
     def q_db(self) -> np.ndarray:
         return self.art.data.joint_pos[0].cpu().numpy() + self.offset
+
+    def state(self, step: int | None = None) -> tuple[np.ndarray, np.ndarray]:
+        """(q in DoorBench coordinates, joint velocities) from the articulation data; one GPU -> CPU read per step
+        (post_step caches it for the following pre_step)."""
+        if step is not None and self._cache is not None and self._cache[0] == step:
+            return self._cache[1], self._cache[2]
+        q = self.q_db()
+        v = self.art.data.joint_vel[0].cpu().numpy()
+        if step is not None:
+            self._cache = (step, q, v)
+        return q, v
 
     def qmap(self, q: np.ndarray) -> dict:
         return {n: float(q[i]) for n, i in self.map.items()}
@@ -281,6 +338,7 @@ class DoorHandle:
         except Exception:
             pass
         self.art.update(DT)
+        self._cache = None
 
     def duration(self, phase: str) -> float:
         return P.phase_duration(self.inputs, phase, self.pkind)
@@ -289,50 +347,70 @@ class DoorHandle:
         return not self.sched[phase].startswith("na:")
 
     def begin(self, phase: str):
-        q = self.q_db()
-        self.cur = {"phase": phase, "t": [0.0], "q": {n: [float(q[i])] for n, i in self.map.items()}, "v": {self.inputs["primary_joint"]: [float(self.art.data.joint_vel[0, self.pj])]},
-                    "qmin": q.copy(), "qmax": q.copy(), "vmax": np.zeros(self.nj), "finite": True, "warnings": [], "clamps": 0}
+        q, v = self.state(0)
+        self.cur = {"phase": phase, "t": [0.0], "q": {n: [float(q[i])] for n, i in self.map.items()}, "v": {self.inputs["primary_joint"]: [float(v[self.pj])]},
+                    "qmin": q.copy(), "qmax": q.copy(), "vmax": np.zeros(self.nj), "finite": True, "warnings": [], "clamps": 0, "target_raised": 0}
         if phase == "release":
             self.q_hold = float(q[self.pj])
 
-    def pre_step(self, phase: str, t: float, active: bool):
+    def pre_step(self, phase: str, t: float, active: bool, step: int | None = None):
         art = self.art
-        q = self.q_db()
-        v = art.data.joint_vel[0].cpu().numpy()
+        q, v = self.state(step)
         qm = self.qmap(q)
         eff = P.phase_efforts(self.inputs, phase, t, qm, kind=self.pkind) if active else {}
         if self.servo:
             for n, f in P.servo_effort(self.inputs, qm, {n: float(v[i]) for n, i in self.map.items()}).items():
                 eff[n] = eff.get(n, 0.0) + f
-        effort = torch.zeros(1, self.nj, device=self.dev)
+        effort = self._effort
+        effort.zero_()
         for n, f in eff.items():
             i = self.map.get(n)
             if i is not None:
                 effort[0, i] = float(f)
-        # one-sided tendons (latch bolt >= scale * operator): kinematic clamp
+        # one-sided tendons (latch bolt >= scale * operator).  MuJoCo enforces them as a stiff constraint; here the
+        # joint state is clamped to the tendon minimum every step and (clamp+target) the latch drive target follows
+        # that minimum while the tendon pulls (q_min above the joint's lower range end), otherwise the 300 N/m latch
+        # spring pulling toward its -8 mm springref re-extends a 0.04 kg bolt by ~2.5 mm within one 1/120 s step and
+        # the recorded retraction chatters below the tendon minimum (MuJoCo: none).  Once the operator returns the
+        # minimum falls back to the range end and the drive target to the springref, so the bolt re-extends as in
+        # MuJoCo (release / relatch).
+        target = self.spring_target
+        raised = False
         for n, qmin in P.tendon_min_positions(self.inputs, qm).items():
             i = self.map.get(n)
-            if i is not None and q[i] < qmin - 1e-6:
-                self._write_joint(i, qmin - self.offset[i])
+            if i is None:
+                continue
+            q_usd_min = qmin - self.offset[i]
+            if self.latch_target and qmin > self.range_lo[n] + 1e-4 and q_usd_min > self.spring_target_np[i]:
+                if not raised:
+                    target = self._target
+                    target.copy_(self.spring_target)
+                    raised = True
+                target[0, i] = float(q_usd_min)
+            if q[i] < qmin - 1e-6:
+                self._write_joint(i, q_usd_min)
                 if self.cur is not None:        # idle doors (phase not applicable) are clamped too but not recorded
                     self.cur["clamps"] += 1
+        if raised and self.cur is not None:
+            self.cur["target_raised"] += 1
         if phase == "release" and active and self.q_hold is not None:
             self._write_joint(self.pj, self.q_hold - self.offset[self.pj])
         if phase == "hold" and self.weld:
             self._write_joint(self.pj, self.q0_usd[self.pj])
-        art.set_joint_position_target(self.spring_target)
+        art.set_joint_position_target(target)
         art.set_joint_velocity_target(self.zero)
         art.set_joint_effort_target(effort)
         art.write_data_to_sim()
 
     def _write_joint(self, i: int, q_usd: float):
+        """Kinematic write of one joint (position, zero velocity); the other joints keep the values of the last read."""
         ids = torch.tensor([i], device=self.dev)
         pos = torch.tensor([[q_usd]], dtype=torch.float32, device=self.dev)
         self.art.write_joint_state_to_sim(pos, torch.zeros_like(pos), joint_ids=ids)
+        self._cache = None
 
     def post_step(self, k: int, t: float):
-        q = self.q_db()
-        v = self.art.data.joint_vel[0].cpu().numpy()
+        q, v = self.state(k)
         c = self.cur
         np.minimum(c["qmin"], q, out=c["qmin"]); np.maximum(c["qmax"], q, out=c["qmax"]); np.maximum(c["vmax"], np.abs(v), out=c["vmax"])
         if not (np.isfinite(q).all() and np.isfinite(v).all()):
@@ -353,6 +431,7 @@ class DoorHandle:
         expected = self.sched[phase]
         metrics = P.phase_metrics(self.inputs, phase, curve, self.ctx)
         metrics["latch_clamps"] = c["clamps"]
+        metrics["latch_target_raised_steps"] = c["target_raised"]
         if "rl_locked_slot_max_abs" in curve:
             metrics["rl_locked_slot_max_abs"] = curve["rl_locked_slot_max_abs"]
         status = P.phase_status(self.inputs, phase, expected, metrics)
@@ -375,15 +454,21 @@ class DoorHandle:
 
 def run_batch(ids: list[str], kind: str, device: str, inputs_by_id: dict, pose0_by_id: dict) -> dict:
     rows = {}
-    with build_simulation_context(device=device, dt=DT, gravity_enabled=True, add_ground_plane=True, auto_add_lighting=False) as sim:
+    origins = _grid(len(ids))
+    with build_simulation_context(device=device, dt=DT, gravity_enabled=True, add_ground_plane=False, auto_add_lighting=False) as sim:
         # headless: Isaac Lab's timeline-STOP callback loops render() forever when the context exits (and sim.reset()
         # re-arms its _disable_app_control_on_stop_handle flag), so drop the subscription itself.
         if getattr(sim, "_app_control_on_stop_handle", None) is not None:
             sim._app_control_on_stop_handle.unsubscribe(); sim._app_control_on_stop_handle = None
+        # ground plane sized to the grid (the default of build_simulation_context is 100 x 100 m; door_rl.usda has no
+        # floor slab of its own, so every door must sit on this plane).  Same spawner call as add_ground_plane=True.
+        span = max(max(abs(o[0]) for o in origins), max(abs(o[1]) for o in origins))
+        ground = sim_utils.GroundPlaneCfg(size=(2.0 * span + 100.0, 2.0 * span + 100.0))
+        ground.func("/World/defaultGroundPlane", ground)
         arts = []
         for k, did in enumerate(ids):
             try:
-                arts.append(Articulation(_door_cfg(did, kind, k)))
+                arts.append(Articulation(_door_cfg(did, kind, k, origins[k])))
             except Exception as e:
                 arts.append(None)
                 rows[did] = {"door_id": did, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "load_error": f"spawn: {type(e).__name__}: {e}", "ok": False, "phases": {}}
@@ -416,21 +501,34 @@ def run_batch(ids: list[str], kind: str, device: str, inputs_by_id: dict, pose0_
                         h.reset(P.phase_initial_state(h.inputs, phase))
                     except Exception as e:
                         h.errors.append(f"reset {phase}: {type(e).__name__}: {e}")
+            started = []
             for h in applicable:
-                h.begin(phase)
+                try:
+                    h.begin(phase)
+                    started.append(h)
+                except Exception as e:
+                    h.errors.append(f"begin {phase}: {type(e).__name__}: {e}")
+                    h.phases[phase] = {"expected": h.sched[phase], "status": "fail", "metrics": {"finite": False}, "informational": False}
+            applicable = started
+            if not applicable:
+                continue
             n_steps = max(int(round(h.duration(phase) / DT)) for h in applicable)
             durs = {id(h): h.duration(phase) for h in applicable}
             for k in range(n_steps):
                 t = k * DT
                 for h in live:
                     try:
-                        h.pre_step(phase, t, active=(h in applicable and t < durs.get(id(h), 0.0) - 1e-9))
+                        h.pre_step(phase, t, active=(h in applicable and t < durs.get(id(h), 0.0) - 1e-9), step=k)
                     except Exception as e:
                         if len(h.errors) < 5:
                             h.errors.append(f"{phase} step {k}: {type(e).__name__}: {e}")
                 sim.step()
                 for h in live:
-                    h.art.update(DT)
+                    try:
+                        h.art.update(DT)
+                    except Exception as e:
+                        if len(h.errors) < 5:
+                            h.errors.append(f"{phase} update {k}: {type(e).__name__}: {e}")
                 for h in applicable:
                     try:
                         h.post_step(k + 1, (k + 1) * DT)
@@ -450,6 +548,14 @@ def run_batch(ids: list[str], kind: str, device: str, inputs_by_id: dict, pose0_
             except Exception as e:
                 rows[h.door_id] = {"door_id": h.door_id, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "load_error": f"record: {type(e).__name__}: {e}", "ok": False, "phases": {}}
     return rows
+
+
+def _schedule_key(inputs: dict | None, pkind: str) -> tuple:
+    """Batch-grouping key: which phases apply (and whether the hold phase is the 6 s free push)."""
+    if not inputs:
+        return ("~",)
+    sched = inputs["schedule"][pkind]
+    return tuple(("" if sched[p].startswith("na:") else ("free" if (p == "hold" and sched[p] != "hold") else "x")) for p in P.PHASES)
 
 
 def select_ids(spec: str) -> list[str]:
@@ -478,9 +584,16 @@ def main():
                 prev = json.load(f)
             if prev.get("meta", {}).get("protocol_version") == P.PROTOCOL_VERSION:
                 doors = prev.get("doors", {})
-        todo = [i for i in ids if i not in doors or args_cli.force]
+        todo = [i for i in ids if i not in doors or args_cli.force or (args_cli.retry_errors and doors[i].get("load_error"))]
+        if not args_cli.no_group:
+            # batches step every phase any of their doors needs (a closer door adds 12 s to the whole batch): group
+            # doors with the same applicable phases / hold duration so idle stepping is minimal; order otherwise kept
+            pkind = "usd_rl" if kind == "rl" else "usd_full"
+            order = {i: k for k, i in enumerate(todo)}
+            todo.sort(key=lambda i: (_schedule_key(inputs_by_id.get(i), pkind), order[i]))
         n_batches = math.ceil(len(todo) / args_cli.batch)
-        print(f"[parity] {kind}: {len(todo)} doors to run ({len(ids) - len(todo)} already in {out}), {n_batches} batches of {args_cli.batch}, dt 1/{args_cli.hz}, iters {POS_ITERS}/{VEL_ITERS}")
+        print(f"[parity] {kind}: {len(todo)} doors to run ({len(ids) - len(todo)} already in {out}), {n_batches} batches of {args_cli.batch}, dt 1/{args_cli.hz}, iters {POS_ITERS}/{VEL_ITERS}, "
+              f"grid {X_SPACING:g} x {Y_SPACING:g} m, latch {args_cli.latch_mode}")
         for b in range(n_batches):
             batch = todo[b * args_cli.batch: (b + 1) * args_cli.batch]
             print(f"[parity] {kind} batch {b + 1}/{n_batches}: {len(batch)} doors ({batch[0]} .. {batch[-1]})", flush=True)
@@ -493,7 +606,8 @@ def main():
                 rows = {i: {"door_id": i, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "load_error": f"batch exception: {type(e).__name__}: {e}", "ok": False, "phases": {}} for i in batch}
             doors.update(rows)
             meta = {"protocol_version": P.PROTOCOL_VERSION, "sim": "physx", "kind": kind, "engine": ENGINE, "dt": DT, "sample_hz": P.SAMPLE_HZ, "generated": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                    "n_doors": len(doors), "options": {"emulate_weld": args_cli.emulate_weld, "servo": not args_cli.no_servo, "inputs": args_cli.inputs, "batch": args_cli.batch}}
+                    "n_doors": len(doors), "options": {"emulate_weld": args_cli.emulate_weld, "servo": not args_cli.no_servo, "inputs": args_cli.inputs, "batch": args_cli.batch,
+                                                       "spacing_m": [X_SPACING, Y_SPACING], "latch_mode": args_cli.latch_mode, "grouped": not args_cli.no_group}}
             tmp = out + ".tmp"
             with open(tmp, "w") as f:
                 json.dump({"meta": meta, "doors": doors}, f)

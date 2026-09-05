@@ -52,8 +52,15 @@ mimic equalities, welds, loop closures, MJCF servos) and the expected outcome pe
 * **spring targets restored every step** — Isaac Lab zero-initialises position targets, which erased every USD spring
   preload in the first probe (closer doors opened under 60 N·m, levers sagged under gravity); the runner writes
   `doorbench:target_si` each step and applies efforts only through `set_joint_effort_target`
-* **latch clamp** — the one-sided MJCF tendon `bolt ≥ scale · operator` has no PhysX counterpart; the latch joint
-  state is clamped to the tendon minimum every step (`write_joint_state_to_sim`)
+* **latch clamp (+ target)** — the one-sided MJCF tendon `bolt ≥ scale · operator` has no PhysX counterpart; the latch
+  joint state is clamped to the tendon minimum every step (`write_joint_state_to_sim`) and, by default
+  (`--latch-mode clamp+target`), the latch drive target follows that minimum while the tendon pulls — otherwise the
+  300 N/m latch spring re-extends a 0.04 kg bolt by ~2.5 mm within one 1/120 s step and the recorded retraction
+  chatters below the tendon minimum (the strike gap is 3 mm); `--latch-mode clamp` keeps the pure clamp
+* **batch layout** — the doors of a batch sit on a centred 20 × 14 m grid (`--spacing`) on a ground plane sized to
+  the grid: gate leaves sweep / slide up to 8.2 m from their origin and fences / floor-hatch decks extend up to
+  9.9 m, so the 6 m grid of the first probe let neighbouring doors collide; batches group doors with the same phase
+  schedule (`--no-group` to keep the `--doors` order) so a batch does not step 12 s of `closer` for one door
 * **servo emulated** — MJCF position actuators of automatic doors (`ctrl = 0`) as clipped feed-forward effort
 * **weld pinned hold** (opt-in `--emulate-weld`) — mag locks / delayed egress are MuJoCo `<weld>` equalities not
   exported to USD; by default the door is left free and the verdict reports `EXPORT_WELD_MISSING`
@@ -107,6 +114,12 @@ Grades per door and kind: **A** all phases agree within tolerance, **B** statuse
   contains it), e.g. 311 N·m on db0012 — kept, because the gate must reproduce qa.json; doors with `rest_angle_deg`
   (10 stall doors) pass `hold` / `operate` trivially since they start open.
 * PhysX side: written against Isaac Lab 2.3.2, **not executed on this machine** (no NVIDIA GPU).  First run:
-  `bash isaaclab/cloud/parity.sh --limit 40`, then `scripts/parity_compare.py`.
+  `bash isaaclab/cloud/parity.sh --limit 40`, then `scripts/parity_compare.py`.  Expect roughly 5-7 min per batch of
+  20 doors (up to ~4200 physics steps per batch with a per-door Python loop) — about 8-10 h for 1000 doors × 2 kinds;
+  `--retry-errors` re-runs doors whose record is a spawn / batch error, everything else is resumable.
+* Known limits of the PhysX emulation (to verify on the first GPU run): joint Coulomb friction is authored twice in
+  the USD (`physxJointAxis:*:staticFrictionEffort` and the legacy `physxJoint:jointFriction` coefficient; Isaac Lab
+  exposes only the latter as `joint_friction_coeff`, recorded in `structure.friction_coeff_readback`); mimic-joint
+  gearing units for revolute→prismatic couplings; `PhysxJointAxisAPI` friction efforts being honoured at all.
 * Planned: write `isaac_parity` into each door's qa.json, a viewer badge, and fixing the export gaps the gate finds
   (latch tendon and welds as native PhysX constraints where possible).

@@ -5,9 +5,12 @@
 #   bash isaaclab/cloud/parity.sh                        # all doors, both USD kinds -> results/parity/isaac_full.json, isaac_rl.json
 #   bash isaaclab/cloud/parity.sh --limit 40 --which full
 #   bash isaaclab/cloud/parity.sh --hz 240 --iters 32,8 --tag _dt240   # solver-sensitivity rerun
+#   bash isaaclab/cloud/parity.sh --retry-errors           # re-run doors whose record is a spawn / batch error
+#   bash isaaclab/cloud/parity.sh --latch-mode clamp       # pure kinematic latch clamp (default clamp+target)
 #   python scripts/parity_compare.py                     # verdicts -> results/parity/compare.json + summary
 #
-# Env overrides: PARITY_DOORS (all), PARITY_BATCH (20).  Extra arguments are passed to scripts/isaaclab/isaac_parity.py.
+# Env overrides: PARITY_DOORS (all), PARITY_BATCH (20).  Extra arguments are passed to scripts/isaaclab/isaac_parity.py
+# (--spacing 20,14 grid, --no-group, --emulate-weld, --no-servo, --force, --tag ...).
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_env.sh"
 mkdir -p results/parity logs
