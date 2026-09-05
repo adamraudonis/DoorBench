@@ -1195,9 +1195,41 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
     arm2.quat = tuple(quat_from_axis_angle([0, 0, 1], th2))
     arm2.geoms.append(box("closer_arm_fore_geom", ((L2 - 0.035) / 2, 0, 0), ((L2 - 0.035) / 2, 0.007, 0.004), m, 2700, False, True, FULL_ONLY, "closer", "Forearm"))
     model.add_body(arm2)
-    # bracket on frame (world), and connect constraint between forearm tip and bracket
-    world.geoms.append(box("closer_bracket", (x_hinge_axis + bx, by, pin_z + 0.0), (0.03, 0.02, 0.012), m, 2700, False, True, FULL_ONLY, "closer", "Closer soffit bracket"))
-    model.equalities.append(Equality("connect", pfx + "closer_arm_connect", arm2.name, "world", (0, 0, 0, 0, 0), (L2, 0, 0), FULL_ONLY, "Closer forearm pinned to frame bracket"))
+    # A cam-lift leaf raises both arms. A fixed planar shoe would oppose that rise,
+    # so use a vertical shoe in a frame-mounted guide. Its translation is
+    # passive: the connect constraint carries it with the arm, without cancelling
+    # the helical hinge's gravity load or inventing another closing spring.
+    rise_coupling = next((e for e in model.equalities if e.kind == "joint"
+                          and e.b == leaf_body.joint.name and e.a.endswith("_rise")), None)
+    anchor_body = "world"
+    if rise_coupling is not None:
+        max_rise = max(0.0, rise_coupling.polycoeff[1] * leaf_body.joint.range[1])
+        stroke = max_rise + 0.002  # 2 mm assembly/end-travel allowance beyond the cam rise
+        anchor_body = pfx + "closer_shoe"
+        shoe = Body(anchor_body, None, (x_hinge_axis + bx, by, pin_z), QUAT_ID, None, [], [], FULL_ONLY, "closer", "Vertically sliding closer shoe")
+        shoe.joint = Joint(pfx + "closer_shoe_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, stroke),
+                           damping=0.1, frictionloss=0.0, role="mechanism", robot_interactive=False,
+                           label="Closer shoe lift (passive cam-lift accommodation)")
+        shoe.geoms.append(box("closer_shoe_block", (0, 0, 0), (0.0195, 0.010, 0.008), m, 2700, False, True, FULL_ONLY, "closer", "Sliding shoe block"))
+        # Continue the forearm to a visible pin; the ordinary fixed-shoe
+        # arm drawing ends 35 mm short and would float beside this smaller shoe.
+        arm2.geoms.append(box("closer_shoe_neck", (L2 - 0.0175, 0, 0), (0.0175, 0.003, 0.003), m, 2700, False, True, FULL_ONLY, "closer", "Forearm clevis neck"))
+        arm2.geoms.append(cyl("closer_shoe_pivot", (L2, 0, 0), 0.005, 0.011, m, (0, 0, 1), 2700, False, True, FULL_ONLY, "closer", "Shoe pivot pin"))
+        model.meta.setdefault("clearance_allow", []).extend([
+            ["closer_shoe_pivot", "closer_shoe_block", "pivot pin occupies the sliding shoe's bore"],
+            ["closer_shoe_neck", "closer_shoe_block", "forearm clevis enters the shoe around its pivot"],
+        ])
+        model.add_body(shoe)
+        center_z = pin_z + stroke / 2
+        world.geoms.append(box("closer_bracket", (x_hinge_axis + bx, by - v * 0.014, center_z),
+                               (0.032, 0.004, stroke / 2 + 0.018), m, 2700, False, True, FULL_ONLY, "closer", "Slotted shoe mounting plate"))
+        for side in (-1, 1):
+            world.geoms.append(box(f"closer_shoe_guide_{side:+d}", (x_hinge_axis + bx + side * 0.026, by, center_z),
+                                   (0.006, 0.016, stroke / 2 + 0.018), m, 2700, False, True, FULL_ONLY, "closer", "Shoe guide (0.5 mm running clearance)"))
+        model.meta.setdefault("notes", []).append("Cam-lift closer has a passive vertically sliding frame shoe; retaining lips/end caps are not modeled, and hydraulic torque remains the joint-level closer approximation.")
+    else:
+        world.geoms.append(box("closer_bracket", (x_hinge_axis + bx, by, pin_z), (0.03, 0.02, 0.012), m, 2700, False, True, FULL_ONLY, "closer", "Closer soffit bracket"))
+    model.equalities.append(Equality("connect", pfx + "closer_arm_connect", arm2.name, anchor_body, (0, 0, 0, 0, 0), (L2, 0, 0), FULL_ONLY, "Closer forearm pinned to frame shoe"))
     model.contact_excludes += [(arm1.name, leaf_body.name), (arm2.name, leaf_body.name), (arm1.name, arm2.name)]
 
 

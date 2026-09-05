@@ -35,6 +35,13 @@ the symmetric opening value natively and the environment applies the asymmetric 
 Spring hinges, floor springs, pneumatic screen closers, gate springs, gas struts and torsion-spring counterbalances
 have their own models.
 
+Cam-lift cold-room doors with an overhead arm closer use a passive vertically sliding shoe in a frame-mounted
+guide, with 2 mm travel allowance beyond the specified cam rise. The shoe follows the forearm through the point
+connection; it adds no spring and preserves the hinge's gravitational return work. The full-tier linkage gate
+checks endpoint separation below 1 mm while prescribing the rise coupling. This corrects the previously incompatible
+fixed planar shoe; the closer torque itself remains the joint-level approximation described above. No manufacturer's
+installation or full-mechanism torque calibration is claimed for this generic slotted-shoe assembly.
+
 ## Latches and locks
 
 * Spring latches (BHMA A156.2): 12.7 mm (Grade 3) or 19 mm (Grade 1 deadlatch) throw, 3.5–8 N spring preload;
