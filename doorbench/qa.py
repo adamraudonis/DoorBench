@@ -2,6 +2,10 @@
 
 Checks (all tiers where applicable):
   load        MJCF loads in MuJoCo (full / simple / minimal)
+  clearance   geometric gate: nothing interpenetrates anywhere in the travel (doorbench/clearance.py)
+  running_clearance  geometric gate: no moving collider ever TOUCHES static structure - every structural
+              moving/static pair keeps a real running clearance at rest and through the sweep (seals, bearings,
+              latches and stops are allow-listed by semantics; see clearance.required_gap)
   settle      1 s free simulation: no warnings, no deep initial penetrations, primary joint drift small
   hold        latched door resists a strong opening torque/force (if it has a latch/lock, or is a locked rotor / bolted flap)
   free_opens  a leaf that nothing holds (no latch, no lock; every free-swing family) must move past a threshold under
@@ -168,15 +172,25 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
             metrics[f"load_{tier}_error"] = str(e)[:300]
     if "full" not in models:
         return {"checks": checks, "metrics": metrics, "signed_off": False, "time_s": time.time() - t0}
-    # ---- deterministic kinematic clearance gate (all geometry collidable, every joint swept)
+    # ---- deterministic kinematic clearance gates (all geometry collidable, every joint swept)
+    #   clearance          nothing INTERPENETRATES anywhere in the travel
+    #   running_clearance  and nothing TOUCHES either: every moving collider keeps its running clearance from the
+    #                      static structure (3 mm at jambs / head, 6 mm over the floor, 10 mm on a rotor), because a
+    #                      0.000 m touch is free in MuJoCo at margin 0 and a jam in PhysX inside its contact offset
     try:
         from .clearance import run_clearance
         cl = run_clearance(door_dir, "full")
         checks["clearance"] = bool(cl["ok"])
         metrics["clearance_n_failures"] = cl["n_failures"]
         metrics["clearance_failures"] = cl["failures"][:10]
+        rc = cl["running"]
+        checks["running_clearance"] = bool(rc["ok"])
+        metrics["running_clearance_n_failures"] = rc["n_failures"]
+        metrics["running_clearance_failures"] = rc["failures"][:10]
+        metrics["running_clearance_n_pairs"] = rc.get("n_pairs", 0)
     except Exception as e:
         checks["clearance"] = False
+        checks["running_clearance"] = False
         metrics["clearance_error"] = str(e)[:200]
     m = models["full"]
     # Full-travel rail span plus actual tread contact where rollers are modeled.
