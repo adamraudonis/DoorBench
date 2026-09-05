@@ -1,5 +1,7 @@
 # Planned reference style: controlled turn-step experiment
 
+**Track stopped after owner review.** The procedural figure does not meet the required natural human-motion style. These unadopted measurements are retained as historical evidence. New work follows the [human-first reference plan](../HUMAN_REFERENCE.md).
+
 **Result, 2026-09-05:** increasing the maximum turn of one foot swing from 20° to 30° produced **11 independent passes out of 12 candidates**. The stall candidate failed clearance and stance checks. The passing candidates were shorter in aggregate, but every changed passing candidate had at least one higher final-clock joint-jerk peak. **There is no global adoption or naturalness claim.** The completed v2 corpus and its generator remain unchanged.
 
 ## Controls and scope
@@ -83,7 +85,7 @@ The 30° option is worth retaining as an **unadopted experiment with per-candida
 
 The explicit manual `db0193` schedule retains the same hasp/withdrawal/pull roles; the padlock was already unengaged, so this is not a new necessary-unlocking claim. The powered case retains zero hand contact and no trigger/motor-causality claim. All source outcomes remain separate from the new actor's completion evidence. See [scope and limitations](planned-reference-scope.md).
 
-**Separate pelvis-continuity pilot:** its result is reserved for a later update. This experiment includes no temporal prior, landing-weight ramp, pelvis-height cap, rig/contact change or posthoc pose smoothing. Results from a separate pilot must not be attributed to turn30.
+**Separate pelvis-continuity pilot:** two candidates passed kinematic checks and reduced some landing spikes, with mixed whole-clip jerk changes. Neither was adopted. Its broader run was stopped after the owner's review; no further tuning is planned. This turn-step experiment itself includes no temporal prior, landing-weight ramp, pelvis-height cap, rig/contact change or posthoc pose smoothing.
 
 ## Evidence and provenance
 

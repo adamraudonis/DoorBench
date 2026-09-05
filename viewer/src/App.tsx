@@ -7,6 +7,7 @@ import { About } from "./About";
 import { Results } from "./Results";
 import { Review } from "./Review";
 import { MotionLab } from "./MotionLab";
+import { HumanReference } from "./HumanReference";
 import { DATASET, Icon, REPOSITORY, SiteFooter } from "./SiteUI";
 
 export const ASSETS = "./assets";
@@ -35,6 +36,7 @@ export function App() {
     if (h.startsWith("/about")) return { page: "about" };
     if (h.startsWith("/results")) return { page: "results" };
     if (h.startsWith("/motions")) return { page: "motions" };
+    if (h.split("?")[0] === "/human-reference") return { page: "human-reference" };
     if (h.startsWith("/review")) return { page: "review" };
     return { page: "catalogue", query: h.includes("?") ? h.split("?")[1] : "" };
   }, [hash]);
@@ -52,8 +54,8 @@ export function App() {
         <div className="header-links"><a className="header-code" href={REPOSITORY} target="_blank" rel="noreferrer">GitHub <Icon name="external" size={13} /></a><a className="source-link" href={DATASET} target="_blank" rel="noreferrer">Get the dataset <Icon name="external" size={15} /></a></div>
       </header>
       <main id="main-content" tabIndex={-1} className={`content content-${route.page}`}>
-        {err && <div className="empty-state"><Icon name="door" size={36} /><h1>The catalogue couldn’t load.</h1><p>Refresh the page to try again. If you’re running locally, generate the dataset first.</p><code>{err}</code><button onClick={() => window.location.reload()}>Try again</button></div>}
-        {!manifest && !err && <div className="loading"><span className="loading-dot" />Loading the door collection…</div>}
+        {route.page !== "human-reference" && err && <div className="empty-state"><Icon name="door" size={36} /><h1>The catalogue couldn’t load.</h1><p>Refresh the page to try again. If you’re running locally, generate the dataset first.</p><code>{err}</code><button onClick={() => window.location.reload()}>Try again</button></div>}
+        {route.page !== "human-reference" && !manifest && !err && <div className="loading"><span className="loading-dot" />Loading the door collection…</div>}
         {manifest && route.page === "catalogue" && <Catalogue manifest={manifest} query={route.query ?? ""} />}
         {manifest && route.page === "families" && <Families manifest={manifest} />}
         {manifest && route.page === "door" && <DoorView manifest={manifest} id={route.id!} query={route.query ?? ""} />}
@@ -61,7 +63,8 @@ export function App() {
         {manifest && route.page === "results" && <Results manifest={manifest} />}
         {manifest && route.page === "review" && <Review manifest={manifest} />}
         {manifest && route.page === "motions" && <MotionLab manifest={manifest} />}
-        {manifest && !["door", "review"].includes(route.page) && <SiteFooter />}
+        {route.page === "human-reference" && <HumanReference />}
+        {manifest && !["door", "review", "human-reference"].includes(route.page) && <SiteFooter />}
       </main>
     </div>
   );

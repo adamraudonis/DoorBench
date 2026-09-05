@@ -1,5 +1,7 @@
 # Second constrained-motion corpus: local preview
 
+**Superseded after visual review.** The owner rejected the slow procedural style on September 5. Incremental tuning of this rig is stopped; this prepared bundle is not selected for publication. Work now follows the [human-first reference plan](../HUMAN_REFERENCE.md). The measurements below remain a historical kinematic study.
+
 The complete second run adds **47 accepted traversals without losing any previous acceptance**. It contains **108 traversals and 51 locked-door checks**, with 357 rejected candidates and 484 unresolved cases across the same 1,000 doors. There were no worker failures. This revision is prepared locally as `planned-v2026.09.05.2`; it has **not been uploaded to Hugging Face**. The public Motion Lab still serves [the first supplement](planned-reference-release.md).
 
 | Result | First run | Second run |
@@ -32,7 +34,7 @@ The review records bent knees, flat-footed walking, long segmented timing, occlu
 
 ## Reproduce and inspect
 
-The completed corpus is `out/reference-planned-corpus-v2`; the prepared release is `out/planned-release/planned-v2026.09.05.2`. [Preparation and publication](planned-reference-release.md) are separate operations. Hugging Face updates are batched at most once per day; local experiments and source/website updates can continue between dataset releases.
+The completed corpus is `out/reference-planned-corpus-v2`; the preserved, unpublished bundle is `out/planned-release/planned-v2026.09.05.2`. [Preparation and publication](planned-reference-release.md) are separate operations. This bundle was rejected on style and is not queued for the next daily release.
 
 ```sh
 .venv/bin/python scripts/compare_planned_reference_corpora.py \

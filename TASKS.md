@@ -82,7 +82,7 @@ a collaborating agent; current release agents use explicitly separated file owne
 
 The owner explicitly authorizes README and task-board updates, public Hugging Face publication, master push and website deployment. Existing Isaac/RunPod parity work remains with its current agent; its running GPU node is not used by this release.
 
-September 5 release cadence: batch Hugging Face updates at most once per day. Continue local validation, previews and source/website work between uploads; no daily upload is required. The second planned-motion revision is prepared locally and remains unpublished.
+September 5 release cadence: batch Hugging Face updates at most once per day. Continue local validation, previews and source/website work between uploads; no daily upload is required. The second planned-motion revision remains unpublished and is not selected for release after the owner rejected its procedural style.
 
 | # | Task | Status | Owner | Acceptance / evidence |
 |---|------|--------|-------|-----------------------|
@@ -96,13 +96,27 @@ September 5 release cadence: batch Hugging Face updates at most once per day. Co
 
 ## Feasible, natural reference motion — owner request, September 5, 2026
 
+**Direction superseded:** the owner rejected the slow procedural robot style. Stop incremental old-rig tuning and scaling. Retain this table as the kinematic study's history; the active human-first tasks follow below.
+
 | id | task | status | owner | evidence |
 |---|---|---|---|---|
 | M1 | Research current human-object animation, retargeting and constrained whole-body planning | done | main + research agents | Primary papers, executable code and redistribution rights; docs/research/motion-generation.md and kinematic-planning.md |
 | M2 | Independent all-door feasibility audit and strict acceptance criteria | done | agent:physics_audit | All 1000 earlier overlays audited; independent original-rig/source/FK/contact/clearance/derivative/route validator, plus all-door mechanism requirement inventory. Kinematics remain separate from causal operation and timed benchmark success. |
-| M3 | Contact-aware whole-body planner and natural motion primitives | doing | main | Complete v2 includes 12 accepted powered wait/traverse and two manual hasp-to-pull schedules, plus held-native interpolation checks. A separate stepping experiment shortened many clips but failed one of twelve candidates and increased some joint-jerk peaks; no default change. Natural timing and broader manipulation remain unfinished. |
-| M4 | Blender visual inspection and representative comparison across all motion families | doing | main | Personally inspected phase samples of all 159 v2 accepted clips in 28 Blender overview sheets; exact sampled transforms checked. Local needs-work notes bind each browser clip hash. Timing, flat feet and mechanism sequencing need work; no full-motion visual approval. docs/research/planned-reference-v2.md |
-| M5 | Generate and validate improved references across every door; publish a separately versioned result when gates pass | doing | main | V2 all-1000 run complete: 108 traversals, 51 locked checks, 357 rejected, 484 unresolved, no execution failures. Adds 47 acceptances and loses none. Bundle prepared and verified locally; publication held for next daily batch. Public baseline remains planned-v2026.09.05. Frozen native inputs preserved. docs/research/planned-reference-v2.md |
+| M3 | Contact-aware whole-body planner and natural motion primitives | stopped | main | Kinematic study preserved, but procedural style rejected by owner. Turn-step and pelvis-continuity experiments were not adopted. Human-first work replaces further tuning. |
+| M4 | Blender visual inspection and representative comparison across all motion families | stopped | main | All 159 v2 clips received phase inspection and needs-work notes; no full-motion visual approval. Owner's full-playback review rejected the style. docs/research/planned-reference-v2.md |
+| M5 | Generate and validate improved references across every door; publish a separately versioned result when gates pass | stopped | main | V2 all-1000 run complete: 108 traversals, 51 locked checks, 357 rejected, 484 unresolved. Bundle remains local and is not selected for publication after style review. Public baseline remains unchanged. |
 | M6 | Motion Lab playback, per-clip human review and immutable experimental downloads | done | main + release agents | Live at master ac7f399d1 / Pages 33983441770. All 112 baseline clips verified; bounded 429/503 recovery, failed-request cancellation and manual retry verified in Chrome. Desktop/mobile review and contrast pass. Visual approval remains separate from kinematic acceptance. |
-| M7 | Oriented grasps, bimanual actions and causal manipulation coverage | todo | main | All-door requirement inventory identifies rotation, multiple locks, credentials, powered operators and closer handling; docs/research/planned-reference-scope.md. Current position-only hand proxies do not certify these mechanisms. |
+| M7 | Oriented grasps, bimanual actions and causal manipulation coverage | superseded | main | Requirements move to the human-first pipeline below. The old position-only hand proxies do not certify these mechanisms. |
 | M8 | Repair native mechanism defects exposed by the motion audit | doing | main | Corrected both paddle types in the generator: face-mounted rocker pivots, surface contact frames and explicit cam coupling. All 11 doors / 13 paired assemblies pass isolated clearance sweeps. A new native asset revision and reduced-USD mechanism work remain; released motion inputs are unchanged. docs/research/paddle-mechanics.md |
+
+## Human demonstrations before robot retargeting — owner correction, September 5, 2026
+
+The goal is smooth, natural simulated humans opening doors, then independently retargeting those demonstrations to humanoid robots. A nicer mesh or more kinematic passes does not satisfy the style requirement. See docs/HUMAN_REFERENCE.md.
+
+| id | task | status | owner | acceptance / evidence |
+|---|---|---|---|---|
+| H1 | Stop old procedural tuning and withhold its v2 bundle | done | main | Own batch workers stopped; no new candidates or HF publication. Completed experiments preserved; no default adoption. |
+| H2 | Realistic reusable Blender human with fingers, toes, skinning and clothing | done | main + diversity_audit | CC0 MakeHuman character built and personally inspected in Blender: 163 bones, clothing, packed textures, zero unweighted vertices. Exact rest/calibration metadata retained; static asset approval does not certify motion. |
+| H3 | Obtain natural human door-interaction motion and exact scene registration | doing | main + sliding_track_fix + physics_audit | CeTI lever/push body-and-finger capture transferred at original 7.61-second timing; door inference remains pending. MeLLO measured human/door marker sample preserved separately. Exact db0002 knob/pull and db0668 lever/push geometry documented; neither is automatically equivalent to the captured apparatus. |
+| H4 | One convincing complete human door-opening performance | doing | main | Actual 7.61-second captured-human Blender video and local render/3D inspector built. Separate leg-fit v2 passes all762 sampled rendered shoe-floor checks and61 crossing samples; source clock/pelvis/upperbody retained. Original transfer and rejected first correction preserved. Door/grasp fitting, full-body/dynamics checks and complete interaction acceptance remain outstanding. Scale only after this succeeds. |
+| H5 | Validated diverse human corpus and downstream robot retargeting | todo | main | Human performance stays the source; each robot gets independent reach/contact/collision/control checks. Ground-truth claims require explicit supporting evidence. |

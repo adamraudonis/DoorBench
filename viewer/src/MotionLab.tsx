@@ -7,9 +7,10 @@ import { artifactURL,buildPlannedPlayer,buildVerifiedDoor,fetchPlannedClip,motio
 import type { BuiltScene } from './scene';
 import {MotionVisualReviewPanel} from './MotionVisualReview';
 import {fetchReadOnly} from './readOnlyFetch';
+import {DOCS} from './SiteUI';
 import './MotionLab.css';
 
-const labels:Record<string,string>={accepted_kinematic:'Accepted',rejected:'Rejected',unresolved:'Unresolved'};
+const labels:Record<string,string>={accepted_kinematic:'Kinematic pass',rejected:'Rejected',unresolved:'Unresolved'};
 const human=(value:string)=>value.replaceAll('_',' ');
 function reason(entry:MotionEntry) {
   const failures=Object.entries(entry.failure_counts??{}).sort((a,b)=>b[1]-a[1]);
@@ -40,7 +41,7 @@ export function MotionLab({manifest}:{manifest:Manifest}) {
   const acceptedTasks=useMemo(()=>{const accepted=index?.doors.filter(d=>d.status==='accepted_kinematic')??[];return {traversal:accepted.filter(d=>d.source_scenario==='open_and_traverse'||d.source_scenario==='unlock_and_traverse').length,locked:accepted.filter(d=>d.source_scenario==='locked_recognize').length};},[index]);
   const counts=useMemo(()=>index?.doors.reduce((a,d)=>({...a,[d.status]:(a[d.status]??0)+1}),{} as Record<string,number>)??{},[index]);
   return <section className="motion-lab">
-    <header className="motion-heading"><div><div className="eyebrow">Articulated reference motions</div><div className="motion-title-row"><h1>Motion Lab</h1>{import.meta.env.DEV&&<span className="motion-local-preview">Local preview</span>}</div><p>Inspect the original adult rig through each door interaction. Explore accepted motion and see why other attempts need work.</p></div><button onClick={()=>setRevision(r=>r+1)}>Refresh status</button></header>
+    <header className="motion-heading"><div><div className="eyebrow">Kinematic research archive</div><div className="motion-title-row"><h1>Motion Lab</h1>{import.meta.env.DEV&&<span className="motion-local-preview">Local preview</span>}</div><p>Inspect the procedural rig and its recorded checks. This study is retained for diagnosis; natural human reference development now starts from captured performances.</p><p className="motion-human-link"><a href={import.meta.env.DEV?'#/human-reference':`${DOCS}/HUMAN_REFERENCE.md`}>{import.meta.env.DEV?'View the captured-human preview':'Follow the human reference work'} →</a></p></div><button onClick={()=>setRevision(r=>r+1)}>Refresh status</button></header>
     <div className="motion-scope"><strong>Sampled kinematic checks only.</strong> Accepted motion passed geometry, contact, joint-limit, speed, acceleration and task-evidence checks. Task evidence combines the actor route with the declared source outcome. Door motion follows the source recording; acceptance does not certify balance, causal operation, mechanism semantics, original benchmark timing or natural appearance.</div>
     {error&&<div className="motion-error" role="alert">{error} <button onClick={()=>setRevision(r=>r+1)}>Retry</button></div>}
     {!index&&!error&&<div className="loading"><span className="loading-dot"/>Loading motion status…</div>}
