@@ -317,6 +317,15 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
                                        name=f"{leaf_name}_handle_out", cylinder_face=None, button_face=None, spindle=False)
             out_joint = ob.joint.name
             ob.joint.notes = "keypad clutch: blocked to the lock's free play until the code is entered" if engaged else "keypad clutch engaged (lock not thrown)"
+            # The outside trim has no spindle of its own (spindle=False): it rides on the INSIDE handle's spindle,
+            # which is exactly what a clutched lockset is - the spindle runs through the outside hub and the clutch
+            # decides whether that hub grips it.  The spindle therefore passes through the outside lever's hub.
+            model.meta.setdefault("clearance_allow", []).extend([
+                [f"{leaf_name}_handle_out_lever_*", f"{leaf_name}_handle_spindle", "the clutched outside lever rides on the spindle running through its hub"],
+                [f"{leaf_name}_handle_out_knob_*", f"{leaf_name}_handle_spindle", "the clutched outside knob rides on the spindle running through its hub"],
+                [f"{leaf_name}_handle_out_hub_col_*", f"{leaf_name}_handle_spindle", "the clutched outside hub is bored for the spindle"],
+                [f"{leaf_name}_handle_out_rose_*", f"{leaf_name}_handle_spindle", "the spindle passes through the rose"],
+            ])
     elif opm.kind in ("pull", "flush_pull", "ring_pull", "push_plate", "handleset"):
         for f in (faces if opm.kind != "handleset" else [-1.0]):
             C.add_pull(model, leaf_body, opm, u, x_edge - u * 0.105, hz, t, f, name=f"{leaf_name}_{opm.kind}")
@@ -774,6 +783,8 @@ def build_swing_double(spec, phys, model: Model):
         for sgn, nm in ((-1, "l"), (1, "r")):
             world.geoms.append(C.box(f"stop_{nm}", (sgn * (Wo / 2 - 0.015), ys, Ho / 2), (0.015, sd / 2, Ho / 2), mat, dens, semantic="frame", label="Stop"))
         world.geoms.append(C.box("stop_head", (0, ys, Ho - 0.015), (Wo / 2, sd / 2, 0.015), mat, dens, semantic="frame", label="Stop (head)"))
+    # the sill: a pair used to get no threshold at all, so a bottom shoot bolt's floor strike floated on nothing
+    C.add_threshold(model, spec, world.geoms, y_wall, Wo, jamb_t, depth, mat)
     if mullion:
         # center mullion: one strike half-column per leaf (lipped / ramped pockets from pair["pockets"])
         mw = 0.05
@@ -1021,6 +1032,9 @@ def build_ship(spec, phys, model: Model):
         z_gear = max(0.14, Hh / 2 - 0.26)
         zs = [zd for _, zd, _ in positions]
         z_lo, z_hi = min(min(zs) - 0.10, z_gear - 0.05), max(max(zs) + 0.10, z_gear + 0.05)
+        # the gearbox is BOLTED to the door: a base plate off the face carries it, or the housing is an island 23 mm
+        # off the slab with the torque tube hanging on it (which is what the attachment gate found on all 4 of them)
+        lb.geoms.append(C.box("wheel_gearbox_mount", (u * (0.004 + W / 2), -1.0 * (t / 2 + 0.0115), z_gear), (0.05, 0.0125, 0.045), mat, 7800, False, True, FULL_SIMPLE, "mechanism", "Gearbox mounting plate (bolted to the door face)"))
         lb.geoms.append(C.box("wheel_gearbox", (u * (0.004 + W / 2), -1.0 * (t / 2 + 0.045), z_gear), (0.05, 0.022, 0.045), mat, 7800, False, True, FULL_SIMPLE, "mechanism", "Dogging gearbox (the wheel drives the push rods)"))
         for tag, x_rod in (("r", u * (0.004 + W - 0.11)), ("l", u * (0.004 + 0.11))):
             rb = Body(f"linkage_rod_{tag}", lb.name, (x_rod, 0, 0), QUAT_ID, None, [], [], FULL_SIMPLE, "mechanism", f"Dogging push rod ({tag})")

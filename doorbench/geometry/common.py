@@ -328,6 +328,25 @@ def add_head(geoms, name, x0, x1, yw, depth, z0, thick, mat, dens, head_pockets=
             geoms.append(box(f"{name}_{k}" if hp else name, ((a + b) / 2, yw, z0 + thick / 2), ((b - a) / 2, depth / 2, thick / 2), mat, dens, semantic="frame", label=label))
 
 
+def add_threshold(model: Model, spec: dict, geoms: list, yw: float, Wo: float, jamb_t: float, depth: float, mat) -> None:
+    """The sill the door closes over.  Split out of add_frame because build_swing_pair builds its own frame inline:
+    a PAIR with a saddle threshold used to get no sill at all, which left the bottom shoot bolt's floor strike -
+    placed on the saddle top by FLOOR_STRIKE_TOP - floating 13 mm above the floor on all 26 of them."""
+    op = spec["opening"]
+    thr = op.get("threshold", "none")
+    if thr in ("saddle", "sill"):
+        tm = mat_from_material(model, "aluminum", "mat_threshold")
+        geoms.append(box("threshold", (0, yw, 0.0065), (Wo / 2 + jamb_t, depth / 2, 0.0065), tm, 2700, semantic="frame", label="Threshold saddle (13 mm)", friction=(0.5, 0.005, 0.0001)))
+    elif thr == "ada_ramp":
+        tm = mat_from_material(model, "aluminum", "mat_threshold")
+        geoms.append(box("threshold", (0, yw, 0.004), (Wo / 2 + jamb_t, depth / 2 + 0.05, 0.004), tm, 2700, semantic="frame", label="Low-profile ADA threshold"))
+    elif thr == "coaming":
+        sh = op.get("sill_height", 0.3)
+        geoms.append(box("coaming", (0, 0, sh / 2), (Wo / 2 + jamb_t, 0.01, sh / 2), mat, 7850, semantic="frame", label="Raised sill / coaming"))
+    elif thr == "sill_step":
+        geoms.append(box("sill_step", (0, 0, 0.02), (Wo / 2 + jamb_t, depth / 2, 0.02), mat, 7850, semantic="frame", label="Vault sill"))
+
+
 def add_frame(model: Model, spec: dict, v: float, world: Body, with_stop=True, strike_pockets=None, u=1.0, head_pockets=None):
     """Door frame (jambs + head + stop + optional casing + threshold) as static geoms on `world`.
     strike_pockets: list of (z_center, pocket_h, pocket_w_y, pocket_depth_x) on the strike jamb (x = -u side... the
@@ -424,18 +443,7 @@ def add_frame(model: Model, spec: dict, v: float, world: Body, with_stop=True, s
             geoms.append(box(f"casing_r_{'p' if sgn > 0 else 'n'}", (Wo / 2 + jamb_t + cw / 2 - 0.005, yc, Ho / 2), (cw / 2, ct / 2, Ho / 2 + jamb_t / 2), mat, dens, False, True, FULL_ONLY, "decor", "Casing"))
             geoms.append(box(f"casing_h_{'p' if sgn > 0 else 'n'}", (0, yc, Ho + jamb_t + cw / 2 - 0.005), (Wo / 2 + jamb_t + cw - 0.005, ct / 2, cw / 2), mat, dens, False, True, FULL_ONLY, "decor", "Casing"))
     # threshold
-    thr = op.get("threshold", "none")
-    if thr in ("saddle", "sill"):
-        tm = mat_from_material(model, "aluminum", "mat_threshold")
-        geoms.append(box("threshold", (0, yw, 0.0065), (Wo / 2 + jamb_t, depth / 2, 0.0065), tm, 2700, semantic="frame", label="Threshold saddle (13 mm)", friction=(0.5, 0.005, 0.0001)))
-    elif thr == "ada_ramp":
-        tm = mat_from_material(model, "aluminum", "mat_threshold")
-        geoms.append(box("threshold", (0, yw, 0.004), (Wo / 2 + jamb_t, depth / 2 + 0.05, 0.004), tm, 2700, semantic="frame", label="Low-profile ADA threshold"))
-    elif thr == "coaming":
-        sh = op.get("sill_height", 0.3)
-        geoms.append(box("coaming", (0, 0, sh / 2), (Wo / 2 + jamb_t, 0.01, sh / 2), mat, 7850, semantic="frame", label="Raised sill / coaming"))
-    elif thr == "sill_step":
-        geoms.append(box("sill_step", (0, 0, 0.02), (Wo / 2 + jamb_t, depth / 2, 0.02), mat, 7850, semantic="frame", label="Vault sill"))
+    add_threshold(model, spec, geoms, yw, Wo, jamb_t, depth, mat)
     world.geoms += geoms
     return {"jamb_t": jamb_t, "depth": depth, "hx": hx, "sx": sx, "mat": mat}
 

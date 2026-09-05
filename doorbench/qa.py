@@ -203,6 +203,9 @@ FREE_SWING_FAMILIES = ("saloon", "strip_curtain", "pet_door", "turnstile_tripod"
 JAM_FORCE_N = 20.0       # N; largest contact normal force static geometry may exert on a moving part while a free door is pushed
 #                          (all 147 free-swing doors read exactly 0 N after the 2026-09 fixes: a free leaf is carried by its joint;
 #                          20 N already means a leaf resting on the floor or scraping a jamb without stalling - a visible defect)
+CLOSE_RATE_RAD_S = 1.5   # rad/s; how fast QA is allowed to swing a leaf shut (~1.3 m/s at the edge of a 0.85 m leaf,
+#                          a firm human close).  Above ~2.5 rad/s the leaf moves further per 2 ms step than the frame
+#                          stop is thick and tunnels through it, which wedges the latch bolt outside its strike.
 FREE_PUSH_S = 6.0        # s; a free door is pushed for up to this long (stops once past thr_free after MIN_PUSH_S)
 MIN_PUSH_S = 1.0
 
@@ -664,10 +667,20 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
                     checks["latch_returns"] = bool(_q(m, d, bj) < 0.006 or opened < math.radians(3))
                 # relatch: drive closed (only for hinged doors that actually opened)
                 if is_hinge and opened > math.radians(5):
+                    # Close it at a HUMAN closing speed.  The constant closing torque below accelerates a leaf that
+                    # opened 120 deg to ~4.6 rad/s, which is 3 m/s at the leaf edge, i.e. 6 mm of travel per 2 ms
+                    # step: the slab tunnels through the frame stop before the contact solver can react and the
+                    # latch bolt is left wedged against the OUTSIDE of its strike box (measured on db0002: the leaf
+                    # settles 0.54 deg past closed, 6.6 mm inside the stop, with the bolt held 8.4 mm retracted).
+                    # That is an integration artifact, not a latch that failed, so the closing rate is capped at a
+                    # hand's ~1.3 m/s at the leaf edge.  The latch still has to catch and then hold the full QA
+                    # re-push, which is what the check measures.
                     for _ in range(3000):
                         d.qfrc_applied[:] = 0
                         d.qfrc_applied[m.jnt_dofadr[pj]] = -min(0.5 * push, 1.5 * (bias + fl + preload) + 40.0)
                         mujoco.mj_step(m, d)
+                        if d.qvel[m.jnt_dofadr[pj]] < -CLOSE_RATE_RAD_S:
+                            d.qvel[m.jnt_dofadr[pj]] = -CLOSE_RATE_RAD_S
                     closed = _q(m, d, pj)
                     for _ in range(500):
                         d.qfrc_applied[:] = 0
