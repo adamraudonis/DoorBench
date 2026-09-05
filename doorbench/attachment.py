@@ -20,7 +20,10 @@ Rules (each finding carries ``rule``, the named tolerance it broke, and the meas
   body_detached       At rest, every non-world body must be within TOL_BODY (3 mm) of what carries it: the geoms of
                       its nearest ancestor body that has any, the body it is pinned to by a connect/weld equality,
                       or - for a body hung directly off the world - the static geometry it is mounted to.  A hinged
-                      leaf is attached through its hinge knuckles, a slider through its hangers/rollers.
+                      leaf is attached through its hinge knuckles, a slider through its hangers/rollers; a body
+                      carried by a RUNNING fit (it slides, or its nearest neighbour is a track/guide/roller) is
+                      attached at TOL_BODY_GUIDED instead, because the running-clearance gate requires it to keep a
+                      gap there and the two gates would otherwise contradict each other.
   static_detached     Every static geom must be connected, through a chain of static geoms with gaps <= TOL_STATIC
                       (3 mm), to the structural root (the component holding the floor).  Jamb plates, keepers,
                       strikes, stops, bumpers, shoes, brackets and tracks all have to land on the frame, wall, floor
@@ -29,8 +32,8 @@ Rules (each finding carries ``rule``, the named tolerance it broke, and the meas
                       its range (a body's distance to its parent can only change when its OWN joint moves) and the
                       worst sample must still satisfy TOL_BODY.  A hinge whose knuckles part company at 90 deg, a
                       bolt that leaves its housing, a roller that runs off the end of its rail.
-  equality_anchor     Every connect/weld equality must be authored closed: the two anchor points must coincide
-                      within TOL_EQ (1 mm) in the shipped pose.  (Whether the loop can FOLLOW the leaf through its
+  equality_anchor     Every connect/weld equality must be authored closed: MuJoCo's own residual for it must be
+                      below TOL_EQ (1 mm) in the shipped pose.  (Whether the loop can FOLLOW the leaf through its
                       travel is the business of ``checks["linkage_feasibility"]`` / doorbench/linkage_qa.py, which
                       solves the loop's own mechanism joints with least-squares; this is the cheap authored-pose
                       half of the same requirement and needs no solve.)
@@ -95,11 +98,6 @@ STOP_STRIKE = 0.003      # m; a stop the leaf never reaches is decoration.  Ever
 DUP_EPS = 1e-6           # m / rad; two geoms closer than this in size AND pose are the same geom twice.
 SEARCH = 1.5             # m; how far a finding looks to report "the nearest thing is X, that far away".
 
-# geoms whose *semantic* means they are not structure at all and cannot be expected to carry anything; they still
-# have to BE attached, they just never count as the thing something else is attached to.
-_NEVER_SUPPORT = ()
-
-
 def _load_allow(meta: dict) -> List[Tuple[str, str]]:
     """``meta["attachment_allow"]`` -> [(rule glob, name glob)] (the trailing reason is documentation)."""
     out = []
@@ -135,7 +133,6 @@ class Attachment:
         self.gbody = np.asarray(m.geom_bodyid)
         self.static = self.c.static                     # per geom: its body is welded to the world
         self.rbound = self.c.rbound                     # planes already widened to 1e6
-        self.ir_body = {b["name"]: b for b in self.ir["bodies"]}
         self.half = self._local_half()
         self.mj.mj_forward(m, self.d)
 
