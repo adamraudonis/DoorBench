@@ -1,16 +1,16 @@
 import {describe,it,expect} from 'bun:test';
 import * as THREE from 'three';
-import {artifactURL,buildPlannedPlayer,fetchPlannedClip,sha256,validateMotionIndex,validatePlannedClip,type PlannedClip,type MotionEntry} from './plannedReferenceMotion';
+import {artifactURL,buildPlannedPlayer,fetchPlannedClip,motionTaskDetail,motionTaskLabel,sha256,validateMotionIndex,validatePlannedClip,type PlannedClip,type MotionEntry} from './plannedReferenceMotion';
 import {buildScene} from './scene';
 import type {ModelJ} from './types';
 
 function fixture(){
   const names=Array.from({length:16},(_,i)=>`actor_${i}`),pose=(x:number,y:number,z:number)=>[x,y,z,1,0,0,0];
   const native=[pose(0,0,0).concat(pose(1,2,0),pose(1,3,1)),pose(0,0,0).concat([2,1,0,Math.SQRT1_2,0,0,Math.SQRT1_2],pose(1,1,1))];
-  const clip={schema:'doorbench.planned-reference-web.v1',door_id:'fixture',status:'accepted_kinematic',scope:'sampled',identity_sha256:'a'.repeat(64),duration:1,times:[0,1],native_time:[0,.2],phases:['approach','operate'],foot_contact:[[1,1],[1,0]],hand_contact:[[0,0],[0,1]],native_resources_sha256:{},
+  const clip={schema:'doorbench.planned-reference-web.v1',door_id:'fixture',status:'accepted_kinematic',source_scenario:'open_and_traverse',scope:'sampled',identity_sha256:'a'.repeat(64),duration:1,times:[0,1],native_time:[0,.2],phases:['approach','operate'],foot_contact:[[1,1],[1,0]],hand_contact:[[0,0],[0,1]],native_resources_sha256:{},
     source_sha256:{'model.json':'b'.repeat(64),'spec.json':'c'.repeat(64),'door.xml':'d'.repeat(64)},
     native:{body_names:['world','leaf','handle'],poses:native},actor:{body_names:names,poses:[names.flatMap((_,i)=>pose(i*.1,-1,1)),names.flatMap((_,i)=>pose(i*.1,-.5,1))],geometries:names.map(name=>({name:`${name}_geom`,body_name:name,type:'sphere',size:[.03,0,0],pos:[0,0,0],quat_wxyz:[1,0,0,0]}))}} as PlannedClip;
-  const entry={door_id:'fixture',family:'swing_single',status:'accepted_kinematic',identity_sha256:clip.identity_sha256,clip:{path:'clips/fixture.json.gz',sha256:'e'.repeat(64),json_sha256:'f'.repeat(64),bytes:10,duration:1,frames:2},audits:{}} as MotionEntry;
+  const entry={door_id:'fixture',family:'swing_single',status:'accepted_kinematic',source_scenario:clip.source_scenario,identity_sha256:clip.identity_sha256,clip:{path:'clips/fixture.json.gz',sha256:'e'.repeat(64),json_sha256:'f'.repeat(64),bytes:10,duration:1,frames:2},audits:{}} as MotionEntry;
   return {clip,entry};
 }
 const model={name:'fixture',tier:'full',materials:{wood:{rgba:[.5,.3,.1,1]}},equalities:[],tendons:[],meta:{},bodies:[
@@ -49,6 +49,14 @@ describe('planned motion source and articulation',()=>{
   it('restores original door materials after brown/gold mode',async()=>{
     const built=await buildScene(model);const mesh=built.root.getObjectByName('leaf_geom') as THREE.Mesh;const original=mesh.material;
     built.setDiagnostic(true);expect(mesh.material).not.toBe(original);built.setDiagnostic(false);expect(mesh.material).toBe(original);built.dispose();
+  });
+  it('labels locked checks separately using the bound source scenario, never phase names',()=>{
+    const {clip,entry}=fixture();clip.source_scenario='locked_recognize';entry.source_scenario='locked_recognize';clip.phases=['traverse','traverse'];
+    expect(validatePlannedClip(clip,entry).source_scenario).toBe('locked_recognize');
+    expect(motionTaskLabel(clip.source_scenario)).toBe('Locked-door check');expect(motionTaskDetail(clip.source_scenario)).toContain('does not traverse');
+    expect(motionTaskLabel('unlock_and_traverse')).toBe('Traversal reference');expect(motionTaskDetail('unlock_and_traverse')).toContain('not independently certified');
+    expect(()=>validatePlannedClip(clip,{...entry,source_scenario:'open_and_traverse'})).toThrow('scenario');
+    expect(()=>validateMotionIndex({schema:'doorbench.planned-reference-web-index.v1',manifest_sha256:'a'.repeat(64),doors:[{...entry,source_scenario:undefined}]} as any)).toThrow('scenario');
   });
   it('verifies compressed bytes and served source hashes before returning playable data',async()=>{
     const {clip,entry}=fixture();const encode=(s:string)=>new TextEncoder().encode(s).buffer;

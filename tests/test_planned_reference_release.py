@@ -124,7 +124,7 @@ def bundle(corpus, tmp_path):
         (out/name).write_text('public support file\n')
     manifest = {'schema': release.SCHEMA, 'experimental': True, 'release': 'planned-test-v1', 'repo_id': release.BASE_REPO,
                 'path_in_repo': release.prefix('planned-test-v1'), 'complete_corpus': True, 'doors': 1000,
-                'counts': web['counts'], 'corpus_index_sha256': web['corpus_index_sha256'],
+                'counts': web['counts'], 'accepted_scenarios':release.accepted_scenario_counts(web['doors']),'corpus_index_sha256': web['corpus_index_sha256'],
                 'generator': {'sha256': web['generator_sha256']}, 'native_dependency': native,
                 'archives': archives, 'browser_compatibility': release.browser_compatibility(web, out/'web')}
     write(out/'release.json', manifest); refresh(out)
@@ -142,6 +142,7 @@ def refresh(folder):
 def test_research_archive_exact_original_bytes_and_accepted_only(bundle):
     out, root, _ = bundle; manifest, files = release.release_files(out)
     assert manifest['counts'] == {'accepted_kinematic': 1, 'unresolved': 999}
+    assert manifest['accepted_scenarios']=={'locked_recognize':1}
     archive = next(iter(manifest['archives'].values()))
     with tarfile.open(out/archive['path'], 'r:gz') as stream:
         assert set(stream.getnames()) == {f'accepted/fixture/{name}' for name in ['clip.json', 'trajectory.npz', 'validation.json', 'actor.xml']}
@@ -165,12 +166,14 @@ def test_prepared_support_and_index_changes_block_publication(bundle, name):
     with pytest.raises(ValueError, match='file changed'): release.release_files(out)
 
 
-@pytest.mark.parametrize('change', ['missing_row', 'nonaccepted_clip', 'download_redirect', 'extra_member', 'wrong_rig', 'false_validation', 'duplicate_archive', 'native_manifest'])
+@pytest.mark.parametrize('change', ['missing_row', 'nonaccepted_clip', 'download_redirect', 'extra_member', 'wrong_rig', 'false_validation', 'duplicate_archive', 'native_manifest', 'source_scenario','scenario_counts'])
 def test_semantic_violations_fail_even_with_refreshed_file_checksums(bundle, change):
     out, _, _ = bundle; manifest = load(out/'release.json'); web = load(out/'web/index.json')
     archive_name = next(iter(manifest['archives'])); inventory = load(out/'research-inventory.json')
     row = web['doors'][0]
     if change == 'missing_row': web['doors'].pop()
+    elif change == 'scenario_counts':manifest['accepted_scenarios']={'open_and_traverse':1}
+    elif change == 'source_scenario': row['source_scenario']='open_and_traverse'
     elif change == 'native_manifest': web['manifest_sha256'] = '0'*64
     elif change == 'nonaccepted_clip': web['doors'][1]['clip'] = row['clip']
     elif change == 'download_redirect': row['research_download']['member_prefix'] = 'accepted/other/'
@@ -304,6 +307,28 @@ def test_publish_dry_run_never_loads_credentials_or_contacts_hub(bundle, monkeyp
     assert result['published'] is False
 
 
+@pytest.mark.parametrize('when',['upload','remote_verification','manifest_reformat'])
+def test_staging_mutation_during_publication_never_creates_tag_or_receipt(bundle,monkeypatch,when):
+    import huggingface_hub
+    folder,_,_=bundle;calls,_=mock_hub(monkeypatch,folder,published=False)
+    monkeypatch.setenv('HF_TOKEN','private-test-token')
+    if when=='upload':
+        original=huggingface_hub.HfApi.upload_folder
+        def changing_upload(self,**kwargs):
+            result=original(self,**kwargs);(folder/'README.md').write_text('changed during upload');return result
+        monkeypatch.setattr(huggingface_hub.HfApi,'upload_folder',changing_upload)
+    else:
+        def changing_verification(*args):
+            calls.append(('verified',[]))
+            if when=='manifest_reformat':(folder/'release.json').write_bytes((folder/'release.json').read_bytes()+b' ')
+            else:(folder/'README.md').write_text('changed during remote verification')
+        monkeypatch.setattr(release,'verify_remote',changing_verification)
+    with pytest.raises(ValueError,match='changed'):
+        release.publish(SimpleNamespace(folder=folder,token_file=None,dry_run=False))
+    assert not any(kind=='tag' for kind,_ in calls)
+    assert not (folder/'publication.json').exists()
+
+
 def test_prepare_dry_run_waits_for_active_corpus(complete, monkeypatch, tmp_path):
     scene, native = complete; monkeypatch.setattr(release, 'native_dependency', lambda _: native)
     args = SimpleNamespace(release='planned-test-v1', repo_id=release.BASE_REPO, corpus=scene['out'], assets=scene['assets'],
@@ -347,6 +372,9 @@ def test_local_prepare_runs_export_archive_and_browser_checks_without_publicatio
         assert not args.out.exists() and (tmp_path/'prepared.plan.json').exists()
     else:
         release.release_files(args.out)
+        assert result['accepted_scenarios']=={'locked_recognize':1}
+        readme=(args.out/'README.md').read_text()
+        assert '**0 traversal references**' in readme and '**1 locked-door checks**' in readme
         assert not (args.out/'publication.json').exists()
         assert not (args.out/'rig-sources').exists() and not list(tmp_path.glob('.planned-release-*'))
 

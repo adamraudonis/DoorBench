@@ -44,6 +44,8 @@ def test_roundtrip_exact_pose_export_deterministic_checksums_and_nonplayable_sta
         np.testing.assert_array_equal(poses[:,:,3:],arrays['actor_body_quat'])
         np.testing.assert_array_equal(clip['times'],arrays['actor_time'])
     assert index['doors'][1]['clip'] is None
+    assert index['doors'][0]['source_scenario']==clip['source_scenario']=='locked_recognize'
+    assert index['doors'][1]['source_scenario'] is None
     assert export_corpus(root,out,assets)==index
     for item in index['doors'][0]['audits'].values():assert sha(out/item['path'])==item['sha256']
 
@@ -119,3 +121,19 @@ def test_public_result_is_labeled_hash_bound_projection_without_local_paths(corp
 def test_missing_status_row_cannot_claim_all_door_coverage(corpus):
     root,out,assets=corpus;p=root/'index.json';index=json.loads(p.read_bytes());index['doors'].pop();write(p,index)
     with pytest.raises(ValueError,match='cover the source manifest'):export_corpus(root,out,assets)
+
+
+def test_scenario_comes_from_bound_source_outcome_never_from_phase_names(corpus):
+    root,out,assets=corpus;p=root/'index.json';index=json.loads(p.read_bytes());index['doors'][0]['source_outcome']={'scenario':'open_and_traverse'};write(p,index)
+    result=export_corpus(root,out,assets)
+    assert result['doors'][0]['source_scenario']=='locked_recognize'
+    assert result['doors'][0]['source_outcome']['scenario']=='locked_recognize'
+
+
+def test_conflicting_source_scenario_is_rejected_even_with_refreshed_artifact_hashes(corpus):
+    root,out,assets=corpus;directory=root/'fixture';clip=json.loads((directory/'clip.json').read_bytes());clip['proposal']['scenario']='open_and_traverse';write(directory/'clip.json',clip)
+    validation=json.loads((directory/'validation.json').read_bytes());validation['clip_sha256']=sha(directory/'clip.json');write(directory/'validation.json',validation)
+    result=json.loads((directory/'result.json').read_bytes())
+    for name in ['clip.json','validation.json']:result['artifacts'][name]=sha(directory/name)
+    write(directory/'result.json',result)
+    with pytest.raises(ValueError,match='source scenario'):export_corpus(root,out,assets)
