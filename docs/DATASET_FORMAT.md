@@ -76,6 +76,16 @@ The state machine (order / timeout / lockout for electronic keypads, button *set
 [BENCHMARK.md](BENCHMARK.md#code-locks-scenariolock).  The `keypad_code_works` QA gate presses every door's code
 with a programmatic finger and is part of sign-off.
 
+`python scripts/keypad_review.py` renders the entry frame by frame (right code vs wrong code):
+
+![keypad code entry](media/keypad_code_entry_db0526.jpg)
+![mechanical pushbutton lock](media/keypad_code_entry_db0166.jpg)
+
+The viewer's door page runs the same state machine, so the keypad can be worked by hand (click the buttons in the
+panel or on the keypad in the 3D view):
+
+![keypad panel in the viewer](media/keypad_viewer_panel.png)
+
 ## Format-specific notes
 
 * **MJCF** is the reference. Joint `ref` equals the authored geometry configuration; `qpos0` therefore is the spec's

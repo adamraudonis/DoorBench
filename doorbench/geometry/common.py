@@ -1228,9 +1228,9 @@ def keypad_meta_block(spec: dict, phys: dict, lk: H.LockModel, kp: H.KeypadModel
         "source": kp.source,
     }
     if kp.code_kind == "set":
-        out["note"] = "mechanical combination chamber: press the buttons of the code in any order, then turn the outside lever; turning it on a wrong set clears the chamber"
+        out["note"] = "mechanical combination chamber: press the buttons of the code in any order, then turn the outside lever; turning it on a wrong set clears the chamber and counts as a wrong attempt."
     else:
-        out["note"] = f"electronic keypad: the digits in order; a partial entry clears after {kp.timeout_s:.0f} s, {kp.max_attempts} wrong codes lock the keypad out for {kp.lockout_s:.0f} s"
+        out["note"] = f"electronic keypad: the digits in order; a partial entry clears after {kp.timeout_s:.0f} s, and {kp.max_attempts} wrong codes lock the keypad out for {kp.lockout_s:.0f} s."
     return out
 
 

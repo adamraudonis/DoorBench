@@ -247,10 +247,14 @@ export async function buildScene(model: ModelJ, opts: { showCollision?: boolean;
         if (d) { const [c0, c1] = c.polycoeff; setJoint(c.a, c0 + c1 * q, false); }
       }
     }
-    // one-sided tendon: bolt_q >= scale * handle_q  -> visualise bolt following the handle
+    // one-sided tendon: bolt_q >= scale * driver_q  -> visualise the bolt following whichever driver moved
+    // (a keypad lever set has two: the inside lever and the declutched outside trim)
     for (const t of tendons) {
-      const [[bolt, cb], [driver, cd]] = t.sites as [string, number][];
-      if (driver === name) {
+      const terms = t.sites as [string, number][];
+      if (terms.length < 2) continue;
+      const [bolt, cb] = terms[0];
+      for (const [driver, cd] of terms.slice(1)) {
+        if (driver !== name) continue;
         const d = joints.get(bolt);
         if (d) { const target = Math.max(0, (-cd / cb) * q); setJoint(bolt, Math.max(target, 0), false); }
       }
