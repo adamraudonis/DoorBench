@@ -1,9 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import type { Manifest } from "./types";
 import { Catalogue } from "./Catalogue";
 import { Families } from "./Families";
 import { DoorView } from "./DoorView";
 import { About } from "./About";
+
+// Physics playground (MuJoCo WebAssembly): its own chunk, fetched only on #/playground so the door page stays light.
+const Playground = lazy(() => import("./Playground").then((m) => ({ default: m.Playground })));
 
 export const ASSETS = "./assets";
 
@@ -27,6 +30,7 @@ export function App() {
   const route = useMemo(() => {
     const h = hash.replace(/^#/, "");
     if (h.startsWith("/door/")) return { page: "door", id: h.slice(6).split("?")[0], query: h.includes("?") ? h.split("?")[1] : "" };
+    if (h.startsWith("/playground")) return { page: "playground", id: h.slice("/playground".length).replace(/^\//, "").split("?")[0] || undefined, query: h.includes("?") ? h.split("?")[1] : "" };
     if (h.startsWith("/families")) return { page: "families" };
     if (h.startsWith("/about")) return { page: "about" };
     return { page: "catalogue", query: h.includes("?") ? h.split("?")[1] : "" };
@@ -38,6 +42,7 @@ export function App() {
         <nav>
           <a href="#/" className={route.page === "catalogue" ? "active" : ""}>Catalogue</a>
           <a href="#/families" className={route.page === "families" ? "active" : ""}>Door types</a>
+          <a href={route.page === "door" && route.id ? `#/playground/${route.id}` : "#/playground"} className={route.page === "playground" ? "active" : ""} title="Run the door in MuJoCo (WebAssembly) and tune its physical constants live">Physics playground</a>
           <a href="#/about" className={route.page === "about" ? "active" : ""}>About &amp; usage</a>
         </nav>
         <div className="spacer" />
@@ -50,6 +55,7 @@ export function App() {
         {manifest && route.page === "catalogue" && <Catalogue manifest={manifest} query={route.query ?? ""} />}
         {manifest && route.page === "families" && <Families manifest={manifest} />}
         {manifest && route.page === "door" && <DoorView manifest={manifest} id={route.id!} query={route.query ?? ""} />}
+        {manifest && route.page === "playground" && <Suspense fallback={<div className="loading">Loading the playground…</div>}><Playground manifest={manifest} id={route.id} query={route.query ?? ""} /></Suspense>}
         {manifest && route.page === "about" && <About manifest={manifest} />}
       </div>
     </div>
