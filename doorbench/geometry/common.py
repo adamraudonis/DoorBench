@@ -22,6 +22,7 @@ from . import meshes as MESH
 
 GAP = 0.003          # leaf-to-jamb clearance
 BOTTOM_CLEAR = 0.012
+LEAF_FACE_INSET = 0.020  # metres; this branch retains its original hinged-frame inset
 
 
 # ---------------------------------------------------------------------------

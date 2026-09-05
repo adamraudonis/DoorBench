@@ -116,7 +116,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
     jt_ = C.frame_jamb_thickness(spec)
     # the leaf hangs near the swing-side face of the jamb (inset ~20 mm) so it can fold back against the wall
     depth_ = op["wall_thickness"] if op["frame"]["kind"] != "aluminum_storefront" else max(0.114, op["wall_thickness"])
-    y_wall = -v * max(0.0, depth_ / 2 - t / 2 - 0.02) if not outdoor else 0.0
+    y_wall = -v * max(0.0, depth_ / 2 - t / 2 - C.LEAF_FACE_INSET) if not outdoor else 0.0
     hole_ = C.frame_hole(spec, u, jt_)
     world = pair["world"] if pair else C.add_floor_and_wall(model, spec, outdoor=outdoor, hole=hole_, y_wall=y_wall)
     fam = spec["family"]
