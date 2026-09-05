@@ -69,6 +69,7 @@ def _door_cfg(door_id: str, kind: str, k: int) -> ArticulationCfg:
 def validate_batch(ids: list[str], kind: str, device: str) -> list[dict]:
     rows = []
     with build_simulation_context(device=device, dt=DT, gravity_enabled=True, add_ground_plane=True, auto_add_lighting=True) as sim:
+        sim._disable_app_control_on_stop_handle = True   # headless: Isaac Lab's stop callback otherwise loops render() forever
         arts, metas = [], []
         for k, did in enumerate(ids):
             try:
