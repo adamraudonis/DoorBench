@@ -459,7 +459,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
           )}
         </div>
         <div className="reference-player" data-review-shortcuts="off">
-          <div className="reference-heading"><strong>Humanoid reference</strong><span>Recorded MuJoCo door · kinematic figure</span></div>
+          <div className="reference-heading"><strong>Original illustrative reference</strong><span>Recorded MuJoCo door · kinematic figure</span></div>
           {reference ? <>
             <div className="reference-controls">
               <button className="primary" disabled={!model || builtModel.current!==model} onClick={() => {
@@ -480,7 +480,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
               <a href="https://huggingface.co/datasets/adamraudonis/DoorBench" target="_blank" rel="noreferrer">Native trajectories ↗</a>
             </div>
           </> : <p>{referenceError || "Loading reference recording…"}</p>}
-          <p className="reference-note">Motion reference for retargeting and review. Generalized forces move the door; humanoid hand contact and balance have not been validated. Failed attempts are retained.</p>
+          <p className="reference-note">Generalized forces move the door; this original figure has known contact and clearance errors. <a href={`#/motions?door=${encodeURIComponent(id)}`}>Open Motion Lab for independently checked candidates and this door’s results →</a></p>
         </div>
         {showEval && scenario?.human && (
           <div className="timeline">

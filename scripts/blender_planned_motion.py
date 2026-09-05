@@ -307,7 +307,7 @@ def _status_card(scene, heading, detail, door_id):
         curve.materials.append(foreground)
 
 
-def build(job, clip, arrays, model, spec, mapping, out, render_time=None, image=None, input_hashes=None, verification=None):
+def build(job, clip, arrays, model, spec, mapping, out, render_time=None, image=None, input_hashes=None, verification=None, *, save_scene=True):
     import bpy
     from mathutils import Quaternion, Vector
     from doorbench.appearance.blender_worker import reset_scene, build_door, primitive, explicit_camera, transform
@@ -430,8 +430,9 @@ def build(job, clip, arrays, model, spec, mapping, out, render_time=None, image=
         image.parent.mkdir(parents=True, exist_ok=True)
         scene.render.image_settings.file_format = 'PNG'
         scene.render.filepath = str(image)
-    bpy.ops.file.pack_all()
-    bpy.ops.wm.save_as_mainfile(filepath=str(out))
+    if save_scene:
+        bpy.ops.file.pack_all()
+        bpy.ops.wm.save_as_mainfile(filepath=str(out))
     if image:
         bpy.ops.render.render(write_still=True)
     return metadata
