@@ -54,7 +54,7 @@ def test_inputs_spring_latch_knob_door():
     assert inp["forces"]["operator_effort"] == 4.0 and inp["forces"]["source"] == "qa.json"
     # qa_push of the door: 2 x static + a base sized by the leaf (12.50 kg x 0.762 m -> 46.7 N*m, under the 60 N*m cap)
     assert inp["forces"]["push"] == pytest.approx(47.085883, abs=1e-5)
-    assert inp["forces"]["push_base"] == pytest.approx(0.5 * 12.5013067296 * 9.81 * 0.762, abs=1e-6)
+    assert inp["push_base"] == pytest.approx(0.5 * 12.5013067296 * 9.81 * 0.762, abs=1e-6)
     assert inp["coupling"]["latch"]["scale"] == pytest.approx(0.015679, abs=1e-6) and inp["coupling"]["latch"]["operator_joint"] == "leaf_handle_hinge"
     sched = inp["schedule"]
     for kind in ("mjcf", "usd_full", "usd_rl"):

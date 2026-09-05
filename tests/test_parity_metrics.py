@@ -405,10 +405,10 @@ def test_report_metric_histograms_and_tolerance_derivations(tmp_path):
     _write_results(d)
     media = str(tmp_path / "media")
     summary, md = build_report(d, None, media, plots=True)
-    key = "full|operate_open|opened"
+    key = "full|operate_open|opened|hinge"          # hinge and slide bounds differ, so they are never pooled in one row
     assert summary["metric_stats"][key]["n"] == 20 and summary["metric_stats"][key]["median_abs"] == pytest.approx(0.02, abs=1e-6)
-    assert summary["metric_stats"][key]["plot"] == "media/parity/hist_full_operate_open_opened.png"
-    assert os.path.isfile(os.path.join(media, "hist_full_operate_open_opened.png"))
+    assert summary["metric_stats"][key]["plot"] == "media/parity/hist_full_operate_open_opened_hinge.png"
+    assert os.path.isfile(os.path.join(media, "hist_full_operate_open_opened_hinge.png"))
     assert "## Metric deltas" in md and "Delta histograms" in md
     # every tolerance that can decide a grade explains where it comes from
     assert "where the bound comes from" in md

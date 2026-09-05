@@ -943,9 +943,10 @@ def compare_kind(mj: dict | None, px: dict | None, ctx: dict, kind: str, variant
     if skew:
         classes.append({"code": "METRICS_VERSION_SKEW", "phase": None,
                         "detail": f"metrics {', '.join(skew)} not graded: mujoco {mj.get('metrics_version') or '1.0'} vs physx {px.get('metrics_version') or '1.0'}"})
+    nc = sorted({k for p in phases.values() for k in (p.get("not_comparable") or [])})
     return {"status": "compared" if grade != "X" else "not_comparable", "grade": grade, "ok": ok, "phases": phases, "classes": classes, "metrics": metrics,
             "curve_rmse_primary": rm, "errors": list(px.get("errors") or [])[:5], "is_hinge": is_hinge,
-            "not_comparable_metrics": sorted({k for p in phases.values() for k in (p.get("not_comparable") or [])})}
+            "not_comparable_metrics": nc, "skew_metrics": sorted(set(skew)), "initial_condition_metrics": sorted(set(nc) - set(skew))}
 
 
 def door_verdict(door_id: str, mj: dict | None, px_by_kind: dict[str, dict | None], ctx: dict, variants: dict[str, dict[str, dict]] | None = None) -> dict:
@@ -981,7 +982,8 @@ def door_verdict(door_id: str, mj: dict | None, px_by_kind: dict[str, dict | Non
     return {
         "door_id": door_id, "status": status, "ok": ok, "grade": grade, "family": ctx.get("family"), "kinematics": ctx.get("kin_type"),
         "hardware": {"latch": ctx.get("latch_kind"), "lock": ctx.get("lock_kind"), "closer": ctx.get("closer_kind"), "operator": ctx.get("operator_kind"), "lock_engaged": ctx.get("lock_engaged")},
-        "kinds": {k: {"status": v["status"], "grade": v["grade"], "ok": v["ok"],
+        "kinds": {k: {"status": v["status"], "grade": v["grade"], "ok": v["ok"], "stale": v.get("stale"),
+                      "skew_metrics": v.get("skew_metrics", []), "initial_condition_metrics": v.get("initial_condition_metrics", []),
                       "phases": {n: ("agree" if p["agree"] is True and p["within_tol"] is not False else "quant" if p["agree"] is True else "disagree" if p["agree"] is False else "na") for n, p in v["phases"].items()},
                       "classes": [c["code"] for c in v["classes"] if c["code"] != "UNTESTED"], "details": [f"{c['phase'] or '-'}: {c['detail']}" for c in v["classes"] if c["code"] != "UNTESTED"],
                       "metrics": v["metrics"], "errors": v.get("errors", [])} for k, v in kinds.items()},

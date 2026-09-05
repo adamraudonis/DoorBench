@@ -164,8 +164,14 @@ def read_rl_meta(door_dir: str) -> dict | None:
             return None
 
 
+# what ``inputs_hash`` covers: everything a runner *acts on*.  Diagnostics derived from these (how the push was sized,
+# wall times, notes) belong outside them - adding a derived field to a hashed dict would mark every existing record of
+# the dataset stale for no behavioural reason.
+HASHED_INPUT_KEYS = ("door_id", "joints", "forces", "thresholds", "coupling", "schedule", "flags")
+
+
 def inputs_hash(inputs: dict) -> str:
-    keep = {k: inputs[k] for k in ("door_id", "joints", "forces", "thresholds", "coupling", "schedule", "flags") if k in inputs}
+    keep = {k: inputs[k] for k in HASHED_INPUT_KEYS if k in inputs}
     return hashlib.sha1(json.dumps(keep, sort_keys=True, default=str).encode()).hexdigest()[:12]
 
 
@@ -290,7 +296,8 @@ def door_inputs(spec: dict, model_json: dict, forces: dict | None = None, qa: di
         "flags": flags,
         "forces": {"bias": bias, "frictionloss": fl, "preload": preload, "static": static, "push": push, "close_drive": min(0.5 * push, 1.5 * static + 40.0),
                    "operator_effort": _operator_effort(oj, joints[oj]["type"]) if oj else None, "locked_effort": (LOCKED_EFFORT["hinge"] if joints[oj]["type"] == "hinge" else LOCKED_EFFORT["slide"]) if oj else None,
-                   "thumbturn_effort": THUMBTURN_EFFORT, "dog_effort": DOG_EFFORT, "push_base": base, "source": src},
+                   "thumbturn_effort": THUMBTURN_EFFORT, "dog_effort": DOG_EFFORT, "source": src},
+        "push_base": base,      # derived from mass / width (doorbench.qa.push_base); reported, not hashed - see HASHED_INPUT_KEYS
         "thresholds": thresholds, "coupling": coupling, "rl": rl,
         "reference_qa": {k: qa["metrics"].get(k) for k in ("qa_push", "hold_displacement", "actuate_displacement", "operator_travel_reached", "bolt_after_release_m",
                                                             "relatch_closed_angle", "relatch_repush_angle", "closer_final_angle", "locked_displacement", "settle_drift")} if qa else None,

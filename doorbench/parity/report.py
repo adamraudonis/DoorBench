@@ -327,7 +327,8 @@ def build_report(results_dir: str, assets_dir: str | None, media_dir: str | None
     by_hw = {ax: {kind: _group_stats(vs) for kind, vs in sorted(groups.items())} for ax, groups in hw_groups.items()}
 
     # ---- offenders + plots
-    offenders = sorted([v for v in verdicts.values() if v["grade"] in ("B", "C", "X")], key=_severity)[:top_n]
+    # a stale door is withheld, not an offender: it has no comparison to show
+    offenders = sorted([v for v in verdicts.values() if v["grade"] in ("B", "C", "X") and v.get("status") != "stale"], key=_severity)[:top_n]
     for v in offenders:
         v["worst_phase"] = _worst_phase(v)
         v["plot"] = None
@@ -343,11 +344,12 @@ def build_report(results_dir: str, assets_dir: str | None, media_dir: str | None
     for did, v in verdicts.items():
         for k in R.KINDS:
             kv = (v.get("_kinds_full") or {}).get(k) or {}
+            unit = "hinge" if kv.get("is_hinge", True) else "slide"     # the two units have different bounds: never mixed in one row
             for ph, prow in (kv.get("phases") or {}).items():
                 for m, d in (prow.get("metric_deltas") or {}).items():
                     if d.get("ok") is None or isinstance(d.get("mj"), bool):
                         continue
-                    e = metric_stats.setdefault(f"{k}|{ph}|{m}", {"kind": k, "phase": ph, "metric": m, "tol": d.get("tol"), "deltas": [], "n_bad": 0, "worst": None})
+                    e = metric_stats.setdefault(f"{k}|{ph}|{m}|{unit}", {"kind": k, "phase": ph, "metric": m, "unit": unit, "tol": d.get("tol"), "deltas": [], "n_bad": 0, "worst": None})
                     e["deltas"].append(float(d["px"]) - float(d["mj"]))
                     if d["ok"] is False:
                         e["n_bad"] += 1
@@ -360,9 +362,9 @@ def build_report(results_dir: str, assets_dir: str | None, media_dir: str | None
         e["p95_abs"] = sorted(abs(x) for x in vals)[min(len(vals) - 1, int(0.95 * len(vals)))] if vals else None
         e["plot"] = None
         if plots and media_dir and e["n"] >= 12:
-            fn = f"hist_{e['kind']}_{e['phase']}_{e['metric']}.png"
+            fn = f"hist_{e['kind']}_{e['phase']}_{e['metric']}_{e['unit']}.png"
             try:
-                if plot_histogram(os.path.join(media_dir, fn), f"{e['kind']} {e['phase']}.{e['metric']}", vals, e["tol"]):
+                if plot_histogram(os.path.join(media_dir, fn), f"{e['kind']} {e['phase']}.{e['metric']} ({e['unit']})", vals, e["tol"]):
                     e["plot"] = f"media/parity/{fn}"
             except Exception as ex:
                 e["plot_error"] = f"{type(ex).__name__}: {ex}"
@@ -378,7 +380,9 @@ def build_report(results_dir: str, assets_dir: str | None, media_dir: str | None
                   "stale": {k: {"n": counts[k]["stale"], "doors": [d for d, v in verdicts.items() if v["kinds"][k]["status"] == "stale"][:200],
                                 "reason": next((v["kinds"][k].get("stale") for v in verdicts.values() if v["kinds"][k].get("stale")), None)} for k in R.KINDS},
                   "metrics_version_skew": {k: {"n": counts[k]["metrics_skew"],
-                                               "metrics": sorted({m for v in verdicts.values() for m in ((v.get("_kinds_full") or {}).get(k) or {}).get("not_comparable_metrics", [])})} for k in R.KINDS}}
+                                               "metrics": sorted({m for v in verdicts.values() for m in (v["kinds"][k].get("skew_metrics") or [])})} for k in R.KINDS},
+                  "initial_condition": {k: {"n": sum(1 for v in verdicts.values() if v["kinds"][k].get("initial_condition_metrics")),
+                                            "metrics": sorted({m for v in verdicts.values() for m in (v["kinds"][k].get("initial_condition_metrics") or [])})} for k in R.KINDS}}
     # which protocol produced the inputs (the runners write meta.protocol = {"name", "warning"?}; a legacy-probe adapter warns)
     metas = [("mujoco", mj_meta)] + [(f"isaac_{k}", px_meta.get(k, {})) for k in px_all]
     proto_names = {k: (m.get("protocol") if isinstance(m.get("protocol"), str) else (m.get("protocol") or {}).get("name")) for k, m in metas}
@@ -486,7 +490,7 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
     L.append("")
     stale_n = {k: (prov.get("stale") or {}).get(k, {}).get("n", 0) for k in R.KINDS}
     skew = {k: (prov.get("metrics_version_skew") or {}).get(k, {}) for k in R.KINDS}
-    if any(stale_n.values()) or any(v.get("n") for v in skew.values()):
+    if any(stale_n.values()) or any(v.get("n") for v in skew.values()) or any((prov.get("initial_condition") or {}).get(k, {}).get("n") for k in R.KINDS):
         L.append("> **Not comparable, and not counted as agreement.**")
         for k in R.KINDS:
             if stale_n.get(k):
@@ -499,6 +503,13 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
                 L.append(f"> * `{k}`: **{skew[k]['n']} doors** carry metrics whose *definition* changed between the two runs "
                          f"({', '.join('`%s`' % m for m in skew[k].get('metrics') or []) or 'see METRIC_DEF_CHANGED_IN'}). Those metrics are reported and **not graded** "
                          f"until the older side is re-run; every other metric of the door is compared as usual.")
+        ic = {k: (prov.get("initial_condition") or {}).get(k, {}) for k in R.KINDS}
+        for k in R.KINDS:
+            if ic.get(k, {}).get("n"):
+                L.append(f"> * `{k}`: **{ic[k]['n']} doors** entered the relatch phase at different angles in the two runs (it continues from operate, where a leaf that "
+                         f"coasts into its stop rebounds in MuJoCo and not in PhysX), so its *timing* metrics "
+                         f"({', '.join('`%s`' % m for m in ic[k].get('metrics') or [])}) measure two different experiments and are not graded. The phase's verdict "
+                         f"metrics - `relatch_closed_angle` and `relatch_repush_angle`, both end states - are graded as usual.")
         L.append("")
     proto = summary.get("protocol") or {}
     if proto.get("warning"):
@@ -546,6 +557,27 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
     L.extend(_tol_table())
     L.append("")
     L.append("</details>")
+    L.append("")
+    L.append("**When a delta is *not* graded.** Four cases, each of which would otherwise report the comparison rather than the door. None of them "
+             "loosens a bound: each one says the two numbers do not measure the same thing.")
+    L.append("")
+    L.append("1. **The two records are not the same door** (`inputs_hash` differs): grade **X**, published as untested. The hash covers the joints, the "
+             "adaptive push, the thresholds, the couplings, the schedule and the flags each runner was handed.")
+    L.append("2. **The metric's definition changed** between the two runs (`metrics_version`, `protocol.METRIC_DEF_CHANGED_IN`): reported, not graded, "
+             "until the older side is re-run. Metrics 1.1 redefined `arrival_speed` / `speed_at_latch` from *|v| at the 30 Hz sample nearest the crossing* "
+             "- which reads the post-impact velocity and lands either side of a millisecond-long impact at random - to the peak |v| over the 100 ms of approach.")
+    L.append("3. **Both runs coasted into the same joint stop**: the value at the end of the operate phase is then a rebound (MuJoCo's soft limit, "
+             "`solreflimit` 5 ms, returns about 17 % of the impact velocity; PhysX's articulation limit is inelastic), so `opened` is waived and "
+             "`q_primary_max` - the peak both leaves reach, and the quantity that says how far the door actually swung - is graded in its place.")
+    L.append("4. **The phase was entered from a different state**: `relatch` continues from `operate`, so when that rebound leaves the two leaves at "
+             "different angles its *timing* metrics compare two different experiments. Its verdict metrics (`relatch_closed_angle`, "
+             "`relatch_repush_angle`) are end states and stay graded.")
+    L.append("")
+    L.append("**The push the gate applies.** Both simulators drive the door joint with the sign-off QA's adaptive push: twice the static resistance at "
+             "rest (gravity bias + Coulomb friction + spring preload) plus a base sized by the leaf itself - `0.5 m g W`, half the moment gravity would "
+             "exert on the leaf if it lay horizontal, clamped to [2, 60] N*m for a hinge and [2, 80] N for a slide (`doorbench.qa.push_base`). A flat "
+             "60 N*m is what a person applies to a 20-100 kg door; on a 0.14-1.4 kg pet flap it is about 100x the mechanism's own scale, accelerates it "
+             "at ~2000 rad/s^2 and drives it to 30-85 rad/s in MuJoCo and to a non-finite state in PhysX.")
     L.append("")
     # ---- classes
     L.append("## Discrepancy classes")
@@ -605,11 +637,11 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
                  "them decide a grade **B**. A metric whose deltas pile up inside the band is solver noise; one whose deltas are spread far "
                  "wider is a behavioural difference the class table should already name.")
         L.append("")
-        L.append(r"| kind | phase | metric | n | median \|delta\| | p95 \|delta\| | tol | outside tol | worst door |")
-        L.append("|---|---|---|---|---|---|---|---|---|")
+        L.append(r"| kind | phase | metric | unit | n | median \|delta\| | p95 \|delta\| | tol | outside tol | worst door |")
+        L.append("|---|---|---|---|---|---|---|---|---|---|")
         for key, e in ms.items():
             w = e.get("worst") or {}
-            L.append(f"| `{e['kind']}` | `{e['phase']}` | `{e['metric']}` | {e['n']} | {_fmtn(e.get('median_abs'))} | {_fmtn(e.get('p95_abs'))} | "
+            L.append(f"| `{e['kind']}` | `{e['phase']}` | `{e['metric']}` | {e.get('unit', '-')} | {e['n']} | {_fmtn(e.get('median_abs'))} | {_fmtn(e.get('p95_abs'))} | "
                      f"{_fmtn(e.get('tol'))} | {e['n_bad']} | {('`%s` (%s)' % (w['door_id'], _fmtn(w['delta']))) if w else '-'} |")
         L.append("")
         plotted = [e for e in ms.values() if e.get("plot")]
@@ -617,7 +649,7 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
             L.append("<details><summary>Delta histograms (green = inside the tolerance band)</summary>")
             L.append("")
             for e in plotted:
-                L.append(f"![{e['kind']} {e['phase']}.{e['metric']}]({e['plot']})")
+                L.append(f"![{e['kind']} {e['phase']}.{e['metric']} {e.get('unit', '')}]({e['plot']})")
                 L.append("")
             L.append("</details>")
             L.append("")

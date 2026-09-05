@@ -61,9 +61,12 @@ def merge(summary: dict, assets_dir: str, check: bool = False, verbose: bool = T
     man_path = os.path.join(assets_dir, "manifest.json")
     manifest = _load_json(man_path) if os.path.exists(man_path) else None
     ids = [d["id"] for d in manifest["doors"] if d.get("id")] if manifest else sorted(doors)
-    stats = {"qa_written": 0, "qa_unchanged": 0, "qa_missing": 0, "manifest_changed": 0, "ok": 0, "fail": 0, "untested": 0, "stale": []}
+    stats = {"qa_written": 0, "qa_unchanged": 0, "qa_missing": 0, "manifest_changed": 0, "ok": 0, "fail": 0, "untested": 0, "stale": [], "stale_inputs": []}
     for did in ids:
         verdict = doors.get(did)
+        if (verdict or {}).get("status") == "stale":
+            # the Isaac run and the MuJoCo reference were not the same door: no verdict may be published for it
+            stats["stale_inputs"].append(did)
         block = qa_block(verdict, summary)
         status = R.manifest_status(verdict)
         stats[status] += 1
@@ -107,6 +110,10 @@ def merge(summary: dict, assets_dir: str, check: bool = False, verbose: bool = T
         verb = "would write" if check else "wrote"
         print(f"[merge-isaac] {verb} isaac_parity into {stats['qa_written']} qa.json ({stats['qa_unchanged']} unchanged, {stats['qa_missing']} missing); "
               f"manifest {'changed' if stats['manifest_changed'] else 'unchanged'}; doors ok {stats['ok']} fail {stats['fail']} untested {stats['untested']}")
+        if stats["stale_inputs"]:
+            print(f"[merge-isaac] WARNING: {len(stats['stale_inputs'])} doors have a STALE verdict (the Isaac run and the MuJoCo reference were produced from "
+                  f"different protocol inputs) and are published as `untested`, not as ok or fail: {', '.join(stats['stale_inputs'][:6])}"
+                  f"{' ...' if len(stats['stale_inputs']) > 6 else ''}. Re-run the Isaac side against the current dataset to restore them.")
     return stats
 
 
