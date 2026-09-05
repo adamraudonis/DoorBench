@@ -650,12 +650,36 @@ def add_hinge_visuals(model: Model, world: Body, leaf_body: Body, spec: dict, hi
     from ..ir import mat_to_quat
     # hinge local frame -> world: +x -> +u (into the door), +y -> -v (across the thickness), z -> -u*v (right-handed)
     q = mat_to_quat(np.array([[u, 0.0, 0.0], [0.0, -v, 0.0], [0.0, 0.0, -u * v]]))
+    # a hinge whose pin stands well off the leaf face is not mortised into anything - it is carried on welded lugs
+    # (a watertight door's pin sits 20 mm proud of an 8 mm plate: without the lugs both knuckles float in mid air)
+    t_leaf = float(spec["leaf"]["thickness"])
+    stand = abs(float(hinge_pos_xy[1])) - t_leaf / 2
+    vd = 1.0 if hinge_pos_xy[1] > 0 else -1.0
     for k, zz in enumerate(zs):
         leaf_body.geoms.append(mesh_geom(f"hinge_{k}", key, mesh, (hinge_pos_xy[0], hinge_pos_xy[1], zz), q, hm, 7850, False, FULL_SIMPLE, "hinge", f"Hinge {k + 1}"))
         # the frame-side plate is static (screwed to the jamb): it must not swing with the leaf
         keyj, meshj = MESH.hinge_jamb_mesh(height=hh, radius=hg.pin_radius * 1.5, leaf_w=leaf_w_, leaf_t=0.003)
         wp = body_world_pos(model, leaf_body)
         world.geoms.append(mesh_geom(f"hinge_{k}_jamb", keyj, meshj, (wp[0] + hinge_pos_xy[0], wp[1] + hinge_pos_xy[1], wp[2] + zz), q, hm, 7850, False, FULL_SIMPLE, "hinge", f"Hinge {k + 1} jamb plate"))
+        if stand > 0.012:
+            # gooseneck hinge: a foot welded flat on the leaf face, a strap rising from it to the pin, and a matching
+            # strap on the bulkhead - offset in z like knuckles so the two never foul each other through the swing
+            p_pin = u * float(hinge_pos_xy[0])
+            p_edge = min((u * lo[0] if u > 0 else -hi[0]) for lo, hi in
+                         (geom_local_aabb(g) for g in leaf_body.geoms if g.semantic in ("leaf", "glass")) ) if any(
+                         g.semantic in ("leaf", "glass") for g in leaf_body.geoms) else p_pin + 0.03
+            y_lo, y_mid, y_hi = t_leaf / 2, t_leaf / 2 + 0.35 * stand, abs(float(hinge_pos_xy[1])) + 0.006
+            foot = (p_edge + 0.002, p_edge + 0.042)
+            strap = (p_pin - 0.006, p_edge + 0.012)
+            leaf_body.geoms.append(box(f"hinge_{k}_lug_foot", (u * (foot[0] + foot[1]) / 2, vd * (y_lo + y_mid + 0.002) / 2, zz + hh * 0.22),
+                                       ((foot[1] - foot[0]) / 2, (y_mid + 0.002 - y_lo) / 2, hh * 0.2), hm, 7850, False, True, FULL_SIMPLE, "hinge", f"Hinge {k + 1} lug foot"))
+            leaf_body.geoms.append(box(f"hinge_{k}_lug", (u * (strap[0] + strap[1]) / 2, vd * (y_mid + y_hi) / 2, zz + hh * 0.22),
+                                       ((strap[1] - strap[0]) / 2, (y_hi - y_mid) / 2, hh * 0.2), hm, 7850, False, True, FULL_SIMPLE, "hinge", f"Hinge {k + 1} lug (leaf)"))
+            face = mount_face(world, wp[0] + hinge_pos_xy[0], wp[2] + zz, 0.012, hh * 0.2, vd, default=t_leaf / 2)
+            gap = abs(float(hinge_pos_xy[1])) - 0.007 - face      # stop under the knuckle, not through it
+            if gap > 0.004:
+                world.geoms.append(box(f"hinge_{k}_jamb_lug", (wp[0] + hinge_pos_xy[0], wp[1] + vd * (face + gap / 2), wp[2] + zz - hh * 0.22),
+                                       (0.010, gap / 2, hh * 0.2), hm, 7850, False, True, FULL_SIMPLE, "hinge", f"Hinge {k + 1} lug (frame)"))
 
 
 # ---------------------------------------------------------------------------

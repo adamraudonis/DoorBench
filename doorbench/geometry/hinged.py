@@ -804,6 +804,21 @@ def build_saloon(spec, phys, model: Model):
     return bodies
 
 
+def _dog_shaft(d, mat, t: float, v: float, edge_dir: float):
+    """The dog's shaft through the door and the crank out to its wedge.
+
+    A dog is a lever on a shaft that passes through the door; the wedge sits on a crank on that shaft.  Without them
+    the lever hung 9 mm off the door face and the wedge floated with nothing between it and the lever."""
+    wy = t / 2 + 0.034
+    # the shaft runs from the lever (always on the robot face) through the door to the wedge (on the sealing face):
+    # on a door whose two faces are the other way round those are OPPOSITE sides, and a shaft on one side only would
+    # leave the lever floating beside the wedge
+    lo = min(-(t / 2 + 0.012), -v * (t / 2 + 0.046), -t / 2 + 0.004)
+    hi = max(-(t / 2 + 0.012), -v * (t / 2 + 0.046), t / 2 - 0.004)
+    d.geoms.append(C.cyl(f"{d.name}_shaft", (0, (lo + hi) / 2, 0), 0.008, (hi - lo) / 2, mat, (0, 1, 0), 7800, False, True, ALL_TIERS, "lock", "Dog shaft"))
+    d.geoms.append(C.box(f"{d.name}_crank", (edge_dir * 0.026, -v * wy, 0), (0.026, 0.012, 0.018), mat, 7800, False, True, ALL_TIERS, "lock", "Dog crank"))
+
+
 def build_ship(spec, phys, model: Model):
     """Watertight door: heavy leaf on raised coaming, N dog levers (or wheel) wedging against frame cleats."""
     leaf = spec["leaf"]
@@ -854,13 +869,14 @@ def build_ship(spec, phys, model: Model):
         # wedge: box protruding beyond the leaf edge over the flange when dogged (pointing +edge_dir), lying on the -v face plane
         wy = t / 2 + 0.034
         d.geoms.append(C.box(f"dog_{k}_wedge", (edge_dir * 0.06, -v * wy, 0), (0.05, 0.012, 0.02), mat, 7800, True, True, ALL_TIERS, "lock", "Dog wedge"))
+        _dog_shaft(d, mat, t, v, edge_dir)
         model.add_body(d)
         dog_joints.append(d.joint.name)
         # frame cleat: block on the +v side of the wedge so the door can't open while dogged
         cx = hx + xd + edge_dir * 0.08
-        world.geoms.append(C.box(f"cleat_{k}", (cx, -v * (wy - 0.012 - 0.005 - 0.003), zd + sill), (0.02, 0.005, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Dog cleat"))
-        world.geoms.append(C.box(f"cleat_{k}_base", (cx, -v * (wy + 0.036), zd + sill), (0.02, 0.018, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat base"))
-        world.geoms.append(C.box(f"cleat_{k}_bridge", (cx + edge_dir * 0.045, -v * (wy + 0.008), zd + sill), (0.005, 0.03, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat bridge"))
+        world.geoms.append(C.box(f"cleat_{k}", (cx + edge_dir * 0.0075, -v * (wy - 0.012 - 0.005 - 0.003), zd + sill), (0.0275, 0.005, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Dog cleat"))
+        world.geoms.append(C.box(f"cleat_{k}_base", (cx + edge_dir * 0.0225, -v * (wy + 0.036), zd + sill), (0.0425, 0.018, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat base (welded to its bridge)"))
+        world.geoms.append(C.box(f"cleat_{k}_bridge", (cx + edge_dir * 0.043, -v * (wy + 0.008), zd + sill), (0.008, 0.03, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat bridge (welded to the cleat)"))
     if spec["kinematics"].get("wheel_dogging"):
         wm = H.OPERATORS["wheel_ship_hatch"]
         wb = C.add_rotary_operator(model, lb, spec, phys, wm, u, v, u * (0.004 + W / 2), Hh / 2, t, [-1.0, 1.0], None, name="wheel")
@@ -871,13 +887,17 @@ def build_ship(spec, phys, model: Model):
                 d.joint = Joint(f"dog_{k}_hinge", "hinge", (0, -edge_dir * u, 0), (0, 0, 0), (0.0, 1.5708), damping=0.5, frictionloss=0.5, role="lock", label=f"Dog {k + 1} (wheel-driven)", robot_interactive=False)
                 wy = t / 2 + 0.034
                 d.geoms.append(C.box(f"dog_{k}_wedge", (edge_dir * 0.06, -v * wy, 0), (0.05, 0.012, 0.02), mat, 7800, True, True, ALL_TIERS, "lock", "Dog wedge"))
+                _dog_shaft(d, mat, t, v, edge_dir)
                 model.add_body(d)
                 cx = hx + xd + edge_dir * 0.08
-                world.geoms.append(C.box(f"cleat_{k}", (cx, -v * (wy - 0.012 - 0.005 - 0.003), zd + sill), (0.02, 0.005, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Dog cleat"))
-                world.geoms.append(C.box(f"cleat_{k}_base", (cx, -v * (wy + 0.036), zd + sill), (0.02, 0.018, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat base"))
-                world.geoms.append(C.box(f"cleat_{k}_bridge", (cx + edge_dir * 0.045, -v * (wy + 0.008), zd + sill), (0.005, 0.03, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat bridge"))
+                world.geoms.append(C.box(f"cleat_{k}", (cx + edge_dir * 0.0075, -v * (wy - 0.012 - 0.005 - 0.003), zd + sill), (0.0275, 0.005, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Dog cleat"))
+                world.geoms.append(C.box(f"cleat_{k}_base", (cx + edge_dir * 0.0225, -v * (wy + 0.036), zd + sill), (0.0425, 0.018, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat base (welded to its bridge)"))
+                world.geoms.append(C.box(f"cleat_{k}_bridge", (cx + edge_dir * 0.043, -v * (wy + 0.008), zd + sill), (0.008, 0.03, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat bridge (welded to the cleat)"))
                 model.equalities.append(Equality("joint", f"wheel_dog_{k}", d.joint.name, wb.joint.name, (0, 1.5708 / wm.travel, 0, 0, 0), tiers=ALL_TIERS, label="dog = wheel * (90deg / wheel travel)"))
         model.meta["operator_joint"] = wb.joint.name
+    # no decorative rivet where a dog's shaft comes through the plate
+    dogs_ = [b for b in model.bodies if b.name.startswith("dog_") and b.parent == lb.name]
+    lb.geoms = [g for g in lb.geoms if not ("_rivet_" in g.name and any(abs(g.pos[0] - b.pos[0]) < 0.035 and abs(g.pos[2] - b.pos[2]) < 0.035 for b in dogs_))]
     C.add_hinge_visuals(model, world, lb, spec, (lb.joint.pos[0], y_pin), Hh, 0.004, v, u)
     if "warning_placard" in spec["extras"]:
         pm = C.mat_rgba(model, "mat_placard", (0.95, 0.75, 0.05, 1), 0.5)
@@ -959,6 +979,15 @@ def build_vault(spec, phys, model: Model):
         # crane hinge barrel on the pin, outside the wall face; arm on the leaf's swing face
         lb.geoms.append(C.cyl(f"hinge_{k}", (u * 0.006, y_pin, z), 0.04, 0.12, hm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "hinge", "Crane hinge"))
         lb.geoms.append(C.box(f"hinge_{k}_arm", (u * 0.116, v * (t / 2 + 0.04), z), (0.11, 0.04, 0.05), hm, 7850, False, True, FULL_SIMPLE, "hinge", "Hinge arm"))
+        # the barrel has to hang on something: frame brackets above and below it, bolted to the jamb face
+        xb_ = hx + u * 0.006
+        vdp = 1.0 if y_pin > 0 else -1.0
+        face_ = C.mount_face(world, xb_, z, 0.05, 0.24, vdp, default=-1e9)
+        y1_ = abs(y_pin) + 0.02
+        if -1e8 < face_ < y1_ - 0.004:
+            for dz in (-1, 1):
+                world.geoms.append(C.box(f"hinge_{k}_bracket_{'t' if dz > 0 else 'b'}", (xb_, vdp * (face_ + y1_) / 2, z + dz * 0.17),
+                                         (0.05, (y1_ - face_) / 2, 0.05), hm, 7850, False, True, FULL_SIMPLE, "hinge", "Crane hinge frame bracket"))
     world.sites.append(Site("approach_point", (0, -1.5, 0), QUAT_ID, 0.05, "approach"))
     world.sites.append(Site("goal_point", (0, 1.5, 0), QUAT_ID, 0.05, "goal"))
     world.sites.append(Site("door_plane_center", (0, 0, Ho / 2), QUAT_ID, 0.02, "pass_plane"))
