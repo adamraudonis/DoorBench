@@ -92,7 +92,10 @@ def solve_door(door_dir,recording_dir,out,*,fps=60,max_frames=None,gait_profile=
         raise ValueError('fps must be an integer from 10 to 60')
     if max_frames is not None and (type(max_frames) is not int or max_frames<2):
         raise ValueError('max_frames must be an integer of at least 2')
-    directory=Path(door_dir);out=Path(out)/directory.name;out.mkdir(parents=True,exist_ok=True)
+    directory=Path(door_dir)
+    from ..benchmark_eligibility import require_benchmark_eligible
+    require_benchmark_eligible(json.loads((directory/'spec.json').read_text()), operation='planned reference generation')
+    out=Path(out)/directory.name;out.mkdir(parents=True,exist_ok=True)
     guide=make_guide(directory,recording_dir,fps=fps,gait_profile=gait_profile)
     n=len(guide.time) if max_frames is None else min(len(guide.time),max_frames)
     # Optimize with an extra millimetre beyond the independent 3 mm gate. The
@@ -233,7 +236,8 @@ def main():
     if not 10<=a.fps<=60:p.error('fps must be10..60')
     if a.max_frames is not None and a.max_frames<2:p.error('max-frames must be at least 2')
     manifest=json.loads((Path(a.assets)/'manifest.json').read_text())
-    ids=[d['id'] for d in manifest['doors']] if a.doors=='all' else a.doors.split(',')
+    from ..benchmark.runner import select_doors
+    ids=[d['id'] for d in select_doors(manifest,a.doors)]
     failures=0
     for door_id in ids:
         try:solve_door(Path(a.assets)/'doors'/door_id,a.recordings,a.out,fps=a.fps,max_frames=a.max_frames,gait_profile=a.gait_profile)

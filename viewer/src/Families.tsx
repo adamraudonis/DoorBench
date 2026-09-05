@@ -41,10 +41,10 @@ const GROUPS: Record<string, string[]> = {
   "Swing & pivot": ["swing_single", "swing_double", "dutch", "saloon", "pivot", "automatic_swing"],
   "Slide & fold": ["sliding_single", "sliding_bypass", "bifold", "accordion", "automatic_sliding", "elevator"],
   "Rotate & lift": ["revolving", "turnstile_tripod", "turnstile_fullheight", "garage_sectional", "garage_tiltup", "rollup"],
-  "Specialized access": ["pet_door", "hatch_floor", "hatch_ceiling", "ship_watertight", "vault", "blast", "gate_swing", "gate_sliding", "baby_gate", "stall", "strip_curtain", "cold_storage"],
+  "Specialized access": ["hatch_floor", "hatch_ceiling", "ship_watertight", "vault", "blast", "gate_swing", "gate_sliding", "baby_gate", "stall", "strip_curtain", "cold_storage"],
 };
 
-export function Families({ manifest }: { manifest: Manifest }) {
+export function Families({ manifest, supplementaryCount = 0 }: { manifest: Manifest; supplementaryCount?: number }) {
   const appearance = useAppearance();
   const [group, setGroup] = useState("All families");
   const photos = useMemo(() => {
@@ -69,6 +69,7 @@ export function Families({ manifest }: { manifest: Manifest }) {
       const masses = ds.map((d) => d.mass_kg);
       return <a className="famcard" key={f} href={`#/?family=${f}`}><div className="family-image"><AppearanceThumb render={photos.get(rep.id)} fallback={thumbUrl(rep)} alt={`${FAMILY_LABELS[f] ?? f}: ${rep.use_case}`} /><span className="family-count">{ds.length} doors</span></div><div className="body"><div className="family-title"><h2>{FAMILY_LABELS[f] ?? f}</h2><Icon name="arrow" /></div><p>{DESC[f]}</p><div className="family-facts"><span><b>{ops}</b> {ops === 1 ? "operator" : "operators"}</span><span><b>{locks}</b> {locks === 1 ? "lock type" : "lock types"}</span><span><b>{formatMass(Math.min(...masses))}–{formatMass(Math.max(...masses))}</b> kg</span></div></div></a>;
     })}</div>
+    {supplementaryCount > 0 && <aside className="catalogue-note"><div><strong>Supplementary pet-door collection</strong><p>{supplementaryCount} standalone pet flaps are available separately for download. They are outside the robot and human benchmark.</p></div><a href="#/pets">Browse pet doors <Icon name="arrow" size={16} /></a></aside>}
     <aside className="catalogue-note"><Icon name="door" /><p>Each family contains different materials, dimensions, hardware, and conditions. These are simulation models with documented approximations.</p><a href="#/about">Read the methodology <Icon name="arrow" size={16} /></a></aside>
   </div>;
 }

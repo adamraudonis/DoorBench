@@ -4,6 +4,7 @@ import argparse, concurrent.futures, hashlib, json, subprocess, gzip, platform
 from collections import Counter
 from pathlib import Path
 import numpy as np
+from ..benchmark_eligibility import require_benchmark_eligible, collection_counts
 from .humanoid import JOINTS, BONES, fit_motion
 from ..benchmark.runner import Job, run_episode, load_manifest, select_doors
 
@@ -69,6 +70,8 @@ class Recorder:
 
 def record_one(args):
     door,assets,out,fps=args; out=Path(out); directory=Path(assets)/'doors'/door['id']
+    require_benchmark_eligible(door, operation='native reference recording')
+    require_benchmark_eligible(json.loads((directory/'spec.json').read_text()), operation='native reference recording')
     scenario=(door.get('benchmark') or {}).get('primary','open_and_traverse')
     rec=Recorder(fps)
     ep=run_episode(Job(door,str(directory),scenario,0,'full','scripted_hand',randomize=False),observer=rec)
@@ -125,10 +128,11 @@ def main():
             print(f"{len(rows)}/{len(doors)} {row['door_id']} {row.get('outcome',row.get('error'))}",flush=True)
     import mujoco
     index={'runtime':{'python':platform.python_version(),'numpy':np.__version__,'mujoco':mujoco.__version__},'schema':SCHEMA,'generator_commit':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
-           'generator_sha256':{str(f):digest(f) for f in [Path('doorbench/reference/record.py'),Path('doorbench/reference/humanoid.py'),Path('doorbench/benchmark/runner.py'),Path('doorbench/benchmark/baselines/scripted_hand.py')]},
+           'generator_sha256':{str(f):digest(f) for f in [Path('doorbench/benchmark_eligibility.py'),Path('doorbench/reference/record.py'),Path('doorbench/reference/humanoid.py'),Path('doorbench/benchmark/runner.py'),Path('doorbench/benchmark/baselines/scripted_hand.py')]},
            'manifest_sha256':digest(Path(a.assets)/'manifest.json'),'fps':a.fps,'seed':0,'tier':'full',
            'policy':'scripted_hand','embodiment':'kinematic humanoid reference over recorded door physics',
-           'scope':'one primary core scenario per door; failed attempts retained',
+           'scope':'one primary core scenario per benchmark-eligible door; supplementary pet doors excluded; failed attempts retained',
+           **collection_counts(manifest['doors']),
            'counts':dict(Counter(r.get('outcome','error') for r in rows)),'clips':rows}
     write_json(Path(a.out)/'index.json',index)
     print(json.dumps(index['counts']))

@@ -132,6 +132,8 @@ def smooth_body_guidance(guide, fps, sigma_seconds=.20):
 def make_guide(door_dir,recording_dir,*,fps=30,gait_profile='smooth'):
     from .gait import plan_walk
     door_dir=Path(door_dir);recording_dir=Path(recording_dir);door_id=door_dir.name
+    from ..benchmark_eligibility import require_benchmark_eligible
+    require_benchmark_eligible(json.loads((door_dir/'spec.json').read_text()), operation='planned reference generation')
     clip=json.loads((recording_dir/'clips'/f'{door_id}.json').read_text())
     with np.load(recording_dir/'trajectories'/f'{door_id}.npz',allow_pickle=False) as f:
         source={k:f[k].astype(float) for k in ['time','qpos','target','base','tau']}

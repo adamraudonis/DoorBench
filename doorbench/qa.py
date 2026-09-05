@@ -97,6 +97,10 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         checks["clearance"] = False
         metrics["clearance_error"] = str(e)[:200]
     m = models["full"]
+    from .baby_gate_qa import run_baby_gate_qa
+    headroom = run_baby_gate_qa(m, spec)
+    checks["baby_gate_headroom"] = bool(headroom["ok"])
+    metrics["baby_gate_headroom"] = headroom
     # Full-travel rail span plus actual tread contact where rollers are modeled.
     # The returned rail-only scope explicitly records incomplete suspension geometry.
     from .sliding_track_qa import run_sliding_track_qa

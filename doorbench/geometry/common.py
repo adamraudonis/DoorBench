@@ -158,7 +158,10 @@ def add_floor_and_wall(model: Model, spec: dict, wall_half_width=2.5, wall_heigh
         world.geoms.append(box("wall_left", ((x0 - wall_half_width) / 2, y_wall, wall_height / 2), ((x0 + wall_half_width) / 2, wt / 2, wall_height / 2), wall_mat, 800, semantic="wall", label="Wall"))
     if x1 < wall_half_width:
         world.geoms.append(box("wall_right", ((x1 + wall_half_width) / 2, y_wall, wall_height / 2), ((wall_half_width - x1) / 2, wt / 2, wall_height / 2), wall_mat, 800, semantic="wall", label="Wall"))
-    if z1 < wall_height:
+    # A child/pet safety gate divides a full-height passage. Its opening height
+    # describes the low gate, not a doorway lintel: keep the side walls but leave
+    # the space above it open, including callers supplying an explicit frame hole.
+    if z1 < wall_height and spec["family"] != "baby_gate":
         world.geoms.append(box("wall_header", ((x0 + x1) / 2, y_wall, (z1 + wall_height) / 2), ((x1 - x0) / 2, wt / 2, (wall_height - z1) / 2), wall_mat, 800, semantic="wall", label="Wall header"))
     return world
 

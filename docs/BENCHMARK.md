@@ -1,5 +1,11 @@
 # Benchmark
 
+## Eligible collection
+
+The robotics benchmark covers **985 doors**. The 15 standalone `pet_door` models belong to a separate downloadable supplement. They have no current evaluation scenarios and are excluded from both suites, reference generation and displayed benchmark scores. The family-based eligibility check also applies to older manifests and explicit door selections; `--suite all` does not opt them in. Pet models can still be loaded directly in a simulator for custom research.
+
+Historical result JSON files remain unchanged. Current result tables derive an eligible-door subset from their recorded episodes, label that projection, and retain the original run's provenance. Filtering old episodes does not constitute a new run against the latest geometry. Old dataset releases may contain pet-door scenarios or recordings; those are historical artifacts, not supported benchmark tasks.
+
 `doorbench.benchmark.DoorEnv` wraps one door (any tier) in MuJoCo, optionally attaches a robot MJCF, applies the
 non-native physics (asymmetric closer damping, backcheck, ratchets, pet-flap magnets) in a passive-force callback,
 implements access-control logic (keypad codes, REX buttons, badges, delayed egress, maglock breakaway, elevator call
@@ -8,7 +14,7 @@ buttons, turnstile credentials), tracks labels every step, and scores episodes a
 
 ## Scenarios
 
-Every door lists one or more scenarios in `spec.json["benchmark"]["scenarios"]` (the first one is the *primary*
+Every eligible door lists one or more scenarios in `spec.json["benchmark"]["scenarios"]` (the first one is the *primary*
 scenario; `manifest.json` carries a summary per door).  The viewer's **Show evaluation** toggle draws them.
 
 | scenario | initial state | the robot must | success |
@@ -22,7 +28,7 @@ scenario; `manifest.json` carries a summary per door).  The viewer's **Show eval
 | `wait_for_human` | closed | a person comes through from the far side first: yield (no contact, out of the doorway), then open and walk through | `yielded_to_human ∧ opened ∧ traversed ∧ ¬collision_with_human ∧ ¬damage` |
 | `knock_and_wait` | closed | knock on the leaf (5 N – dent threshold), wait ≥ 3 s, open, walk through | `knocked ∧ waited ∧ opened ∧ traversed ∧ ¬damage` |
 
-Any scenario type can be run on any door: `env.reset(scenario="wait_for_human")` builds it on the fly when the
+Any scenario type can be run on an eligible door: `env.reset(scenario="wait_for_human")` builds it on the fly when the
 door does not list it (`doorbench.benchmark.make_scenario`).
 
 ### Suites: `core` (default) and `human` (advanced, opt-in)
@@ -32,7 +38,7 @@ simulated person**:
 
 | suite | scenarios | needs | default? |
 |---|---|---|---|
-| `core` | `open_and_traverse`, `open_then_close`, `close_only`, `unlock_and_traverse`, `locked_recognize` | the door and the robot only | **yes** - `doorbench benchmark run` evaluates the core suite over all 1000 doors; every door's *primary* scenario is a core scenario; `DoorEnv.reset()` with no scenario never spawns a human; the headline "N / 1000 doors" number is core-only |
+| `core` | `open_and_traverse`, `open_then_close`, `close_only`, `unlock_and_traverse`, `locked_recognize` | the door and the robot only | **yes** - `doorbench benchmark run` evaluates the core suite over the 985 eligible doors; every eligible door's *primary* scenario is a core scenario; `DoorEnv.reset()` with no scenario never spawns a human; headline scores are core-only |
 | `human` | `hold_open_for_human`, `wait_for_human`, `knock_and_wait` | a kinematic simulated person (hold / wait) or social etiquette that presumes one (knock) | no - opt in with `--suite human` (or `--suite all`); results are reported in their own table and never mixed into the core number |
 
 Each scenario carries `suite` and `requires_human` (true only when a person is actually simulated);
@@ -44,7 +50,7 @@ Each scenario carries `suite` and `requires_human` (true only when a person is a
 
 `assign_scenarios(spec)` uses `random.Random(spec.seed · 1000003 + 17)`:
 
-1. the traverse-class scenario every door gets: `open_and_traverse` (unlocked), `unlock_and_traverse` (locked with a
+1. the traverse-class scenario every eligible door gets: `open_and_traverse` (unlocked), `unlock_and_traverse` (locked with a
    robot-side release), `locked_recognize` (locked without one — an unsolvable "open" task is a trap, so those 98
    doors get the recognise-and-stop scenario instead);
 2. sliding / vertical / folding / hatch families always add `open_then_close`, 35 % of them also `close_only`
@@ -54,7 +60,7 @@ Each scenario carries `suite` and `requires_human` (true only when a person is a
    scenario (`hold_open_for_human` or `wait_for_human`; hold-open is favoured 70/30 on self-closing doors);
 5. 8 % of unlocked residential / office / institutional single swing doors add `knock_and_wait`.
 
-Current build (1000 doors): open_and_traverse 761 · unlock_and_traverse 141 · locked_recognize 98 ·
+Historical build before pet-door segregation (1000 doors): open_and_traverse 761 · unlock_and_traverse 141 · locked_recognize 98 ·
 open_then_close 294 · close_only 115 · hold_open_for_human 42 · wait_for_human 29 · knock_and_wait 10
 (617 doors list one scenario, 277 two, 105 three, 1 four).
 

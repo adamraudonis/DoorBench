@@ -1,3 +1,4 @@
+import { isPetDoor } from "./collections";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { Manifest } from "./types";
 import { FAMILY_LABELS } from "./types";
@@ -30,7 +31,8 @@ function ReviewWorkspace({ manifest, dataset }: { manifest: Manifest; dataset: R
   const [reviews, setReviews] = useState<ReviewMap>(initial.reviews);
   const [storageError, setStorageError] = useState(initial.error);
   const [filters, setFilters] = useState<ReviewFilters>(EMPTY_FILTERS);
-  const doors = useMemo(() => [...manifest.doors].sort((a, b) => a.index - b.index || a.id.localeCompare(b.id)), [manifest]);
+  const [petReview, setPetReview] = useState(() => manifest.doors.some(d => isPetDoor(d) && d.id === new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("door")));
+  const doors = useMemo(() => manifest.doors.filter(d => isPetDoor(d) === petReview).sort((a, b) => a.index - b.index || a.id.localeCompare(b.id)), [manifest, petReview]);
   const [selectedId, setSelectedId] = useState(() => {
     const fromUrl = new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("door");
     if (doors.some((d) => d.id === fromUrl)) return fromUrl!;
@@ -183,7 +185,8 @@ function ReviewWorkspace({ manifest, dataset }: { manifest: Manifest; dataset: R
     </div>}
     <div className="review-filters">
       <label>Search<input type="search" placeholder="ID, hardware, use, notes…" value={filters.search} onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))} /></label>
-      <label>Family<select value={filters.family} onChange={(e) => setFilters((f) => ({ ...f, family: e.target.value }))}><option value="">All families</option>{manifest.families.map((f) => <option key={f} value={f}>{FAMILY_LABELS[f] ?? f}</option>)}</select></label>
+      <label>Collection<select aria-label="Review collection" value={petReview ? "pets" : "standard"} onChange={e => { const pets = e.target.value === "pets"; setPetReview(pets); setFilters(EMPTY_FILTERS); setSelectedId(manifest.doors.find(d => isPetDoor(d) === pets)?.id ?? ""); }}><option value="standard">Standard doors</option><option value="pets">Supplementary pet doors · asset review</option></select></label>
+      <label>Family<select value={filters.family} onChange={(e) => setFilters((f) => ({ ...f, family: e.target.value }))}><option value="">All families</option>{manifest.families.filter(f => (f === "pet_door") === petReview).map((f) => <option key={f} value={f}>{FAMILY_LABELS[f] ?? f}</option>)}</select></label>
       <label>Status<select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}><option value="">All statuses</option>{Object.entries(STATUS_LABELS).map(([s, label]) => <option key={s} value={s}>{label}</option>)}</select></label>
       <label>Issue<select value={filters.issue} onChange={(e) => setFilters((f) => ({ ...f, issue: e.target.value }))}><option value="">All issues</option>{Object.entries(ISSUE_LABELS).map(([i, label]) => <option key={i} value={i}>{label}</option>)}</select></label>
       <button onClick={() => setFilters(EMPTY_FILTERS)}>Clear filters</button><span>{queue.length} matching doors</span>

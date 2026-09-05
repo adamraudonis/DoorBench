@@ -39,6 +39,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from doorbench.benchmark_eligibility import is_benchmark_eligible, require_benchmark_eligible, collection_counts
+
 SCHEMA = 'doorbench.planned-reference-corpus.v1'
 RESULT_SCHEMA = 'doorbench.planned-reference-attempt.v1'
 STATUSES = ('unresolved', 'rejected', 'accepted_kinematic')
@@ -94,7 +96,7 @@ def generator_provenance(root=ROOT):
     """Pure Python inventory; plan-only never imports the solver or MuJoCo."""
     root = Path(root)
     paths = sorted((root/'doorbench/reference').glob('*.py'))
-    paths += [root/'scripts/validate_planned_reference.py',
+    paths += [root/'doorbench/benchmark_eligibility.py', root/'scripts/validate_planned_reference.py',
               root/'scripts/build_planned_reference_corpus.py', root/'pyproject.toml']
     if not paths or not (root/'doorbench/reference/solve.py').is_file():
         raise ValueError('Generator source inventory is missing solve.py')
@@ -180,9 +182,13 @@ def prepare_plan(assets, recordings, out, *, doors='all', fps=60, max_frames=Non
     inventory = manifest['doors']; ids = [row['id'] for row in inventory]
     if len(ids) != len(set(ids)) or any(not isinstance(x, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', x) for x in ids):
         raise ValueError('Dataset IDs must be unique safe directory names')
-    selected = ids if doors == 'all' else [x.strip() for x in doors.split(',')]
+    eligible_ids = [row['id'] for row in inventory if is_benchmark_eligible(row)]
+    selected = eligible_ids if doors == 'all' else [x.strip() for x in doors.split(',')]
     if not selected or len(selected) != len(set(selected)) or set(selected)-set(ids):
         raise ValueError('Requested doors must be unique IDs present in the asset manifest')
+    by_id = {row['id']: row for row in inventory}
+    for door_id in selected:
+        require_benchmark_eligible(by_id[door_id], operation='planned corpus selection')
     recording_index_path = recordings/'index.json'; recording_index_hash = sha(recording_index_path)
     recording_index = read_json(recording_index_path)
     if recording_index.get('schema') != 'doorbench.reference-motion.v1' or recording_index.get('manifest_sha256') != manifest_hash:
@@ -207,6 +213,7 @@ def prepare_plan(assets, recordings, out, *, doors='all', fps=60, max_frames=Non
         row = {'door_id': door_id, 'family': families[door_id], 'status': 'unresolved', 'action': 'run'}
         try:
             directory = assets/'doors'/door_id
+            require_benchmark_eligible(read_json(directory/'spec.json'), operation='planned corpus generation')
             sources = {name: cached_sha(directory/name) for name in SOURCE_FILES}
             native_clip = recordings/'clips'/f'{door_id}.json'
             native_trajectory = recordings/'trajectories'/f'{door_id}.npz'
@@ -254,11 +261,14 @@ def prepare_plan(assets, recordings, out, *, doors='all', fps=60, max_frames=Non
             generator_provenance(generator_root) != generator):
         raise ValueError('Manifest, native index or generator changed during inventory; prepare again after source freeze')
     return {'schema': SCHEMA, 'created_at': timestamp(), 'scope': SCOPE, 'selected_ids': selected,
+            **collection_counts(inventory),
             'manifest_sha256': manifest_hash, 'generator': generator, 'options': options,
             'execution': execution, 'rows': rows, 'out': str(out)}
 
 
 def verify_job(job):
+    require_benchmark_eligible(job, operation='planned corpus execution')
+    require_benchmark_eligible(read_json(Path(job['assets'])/'doors'/job['door_id']/'spec.json'), operation='planned corpus execution')
     for path, expected in job['inputs'].items():
         if sha(path) != expected:
             raise ValueError(f'Input changed since preparation: {path}')

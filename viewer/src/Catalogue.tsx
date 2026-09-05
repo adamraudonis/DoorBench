@@ -1,3 +1,4 @@
+import { isPetDoor } from "./collections";
 import React, { useEffect, useMemo, useState } from "react";
 import { FAMILY_LABELS, type Manifest, type ManifestDoor } from "./types";
 import { ASSETS } from "./App";
@@ -16,14 +17,14 @@ export function thumbUrl(d: ManifestDoor, which = "iso") {
 export function DoorCard({ d, appearance }: { d: ManifestDoor; appearance?: AppearanceRender }) {
   return <a className="card door-card" href={`#/door/${d.id}`}>
     <div className="card-image"><AppearanceThumb render={appearance} fallback={thumbUrl(d)} alt={d.use_case || d.id} /><span className="card-open" aria-hidden="true"><Icon name="arrow" /></span></div>
-    <div className="body"><div className="card-eyebrow"><span>{FAMILY_LABELS[d.family] ?? nice(d.family)}</span><span>L{d.difficulty}</span></div><h3>{d.use_case || nice(d.leaf.slab)}</h3><p className="card-material">{nice(d.leaf.slab)}</p>
+    <div className="body"><div className="card-eyebrow"><span>{FAMILY_LABELS[d.family] ?? nice(d.family)}</span>{!isPetDoor(d) && <span>L{d.difficulty}</span>}</div><h3>{d.use_case || nice(d.leaf.slab)}</h3><p className="card-material">{nice(d.leaf.slab)}</p>
       <div className="card-facts"><span>{d.leaf.width.toFixed(2)} × {d.leaf.height.toFixed(2)} <small>m</small></span><span>{formatMass(d.mass_kg)} <small>kg</small></span><span>{d.lock_engaged ? "Starts locked" : nice(d.operator)}</span></div>
       <div className="card-footer"><code>{d.id}</code><span className={`qa-indicator ${d.signed_off ? "passed" : "pending"}`} title={d.signed_off ? "Passed the automated generation QA gates. This is separate from a visual or physical review." : "One or more automated QA gates need attention."}><span />{d.signed_off ? "Automated QA" : "QA attention"}</span></div>
     </div>
   </a>;
 }
 
-export function Catalogue({ manifest, query }: { manifest: Manifest; query: string }) {
+export function Catalogue({ manifest, query, supplementaryCount = 0 }: { manifest: Manifest; query: string; supplementaryCount?: number }) {
   const appearance = useAppearance();
   const [imageMode, setImageMode] = useState("blender");
   const photoById = useMemo(() => {
@@ -77,6 +78,7 @@ export function Catalogue({ manifest, query }: { manifest: Manifest; query: stri
       <div className="collection-toolbar"><p aria-live="polite"><strong>{filtered.length.toLocaleString()}</strong> {hasFilters ? `of ${doors.length.toLocaleString()} doors` : "doors to explore"}{hasFilters && <button className="clear-filters" onClick={reset}>Clear filters <Icon name="close" size={12} /></button>}</p><div className="toolbar-right">{photoById.size > 0 && <div className="segmented" aria-label="Thumbnail style"><button aria-pressed={imageMode === "blender"} onClick={() => setImageMode("blender")}>Appearance</button><button aria-pressed={imageMode === "simulation"} onClick={() => setImageMode("simulation")}>Simulation</button></div>}<label className="sort-control"><span>Sort by</span><select aria-label="Sort doors" value={sort} onChange={(e) => setSort(e.target.value)}><option value="index">Door ID</option><option value="family">Door type</option><option value="mass">Mass</option><option value="difficulty">Difficulty</option><option value="width">Width</option></select></label></div></div>
     </section>
     {filtered.length > 0 ? <><div className="grid">{pageDoors.map((d) => <DoorCard key={d.id} d={d} appearance={imageMode === "blender" ? photoById.get(d.id) : undefined} />)}</div><div className="pagination"><span>Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length.toLocaleString()}</span><div><button disabled={currentPage === 1} onClick={() => goPage(currentPage - 1)}>Previous</button><label>Page <select aria-label="Catalogue page" value={currentPage} onChange={(e) => goPage(Number(e.target.value))}>{Array.from({ length: pageCount }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}</select> of {pageCount}</label><button disabled={currentPage === pageCount} onClick={() => goPage(currentPage + 1)}>Next <Icon name="arrow" size={15} /></button></div></div></> : <div className="empty-state"><Icon name="search" size={32} /><h3>No doors match these filters.</h3><p>Try another material, mechanism, or door type.</p><button onClick={reset}>Clear all filters</button></div>}
+    {supplementaryCount > 0 && <p className="supplementary-link">Separate supplementary collection: <a href="#/pets">{supplementaryCount} pet doors</a> · downloadable assets, excluded from benchmarks.</p>}
     <aside className="catalogue-note"><Icon name="check" size={18} /><p><strong>Inspect the details.</strong> Each door includes physical parameters, articulated geometry, and downloadable simulation files. Automated QA is separate from visual and physical review.</p><a href="#/review">Open review workspace <Icon name="arrow" size={16} /></a></aside>
   </div>;
 }

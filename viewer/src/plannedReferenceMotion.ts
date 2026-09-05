@@ -1,3 +1,4 @@
+import { isPetDoor, PET_COLLECTION_REASON } from "./collections";
 import * as THREE from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { buildScene, geomMesh, type BuiltScene } from './scene';
@@ -76,6 +77,7 @@ async function boundedBytes(stream:ReadableStream<Uint8Array>|null,limit:number)
   return new Blob(chunks).arrayBuffer();
 }
 export async function fetchPlannedClip(entry:MotionEntry,indexURL:string,outerSignal?:AbortSignal) {
+  if (isPetDoor(entry)) throw new Error(PET_COLLECTION_REASON);
   outerSignal?.throwIfAborted();
   const controller=new AbortController(),abort=()=>controller.abort(outerSignal?.reason);
   outerSignal?.addEventListener('abort',abort,{once:true});

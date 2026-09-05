@@ -21,7 +21,7 @@ import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg
 
-from .doors import door_usd_paths, select_ids, usd_path
+from .doors import door_usd_paths, select_ids, usd_path, require_eligible_ids
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 HAND_USD = os.path.join(DATA_DIR, "gantry_hand.usda")
@@ -54,6 +54,7 @@ def _door_spawn_kwargs():
 
 def door_cfg(door_id: str, prim_path: str = "{ENV_REGEX_NS}/Door", canonical: bool = True) -> ArticulationCfg:
     """ArticulationCfg for one door.  ``canonical=False`` loads the full-fidelity door.usda (its own joint names)."""
+    require_eligible_ids([door_id])
     return ArticulationCfg(
         prim_path=prim_path,
         spawn=sim_utils.UsdFileCfg(usd_path=usd_path(door_id, canonical=canonical), **_door_spawn_kwargs()),
@@ -73,6 +74,7 @@ def multi_door_cfg(ids: list[str] | str, seed: int = 0, random_choice: bool = Fa
     """
     if isinstance(ids, str):
         ids = select_ids(ids, seed=seed)
+    require_eligible_ids(list(ids))
     paths = door_usd_paths(list(ids), canonical=True)
     if shuffle:
         random.Random(seed).shuffle(paths)

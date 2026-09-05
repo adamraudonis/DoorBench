@@ -35,6 +35,12 @@ jobs:
             python3 scripts/verify_planned_reference_deployment.py --config deploy/planned-references.json --index-file "$RUNNER_TEMP/planned-reference-index.json" --assets-manifest site/assets/manifest.json
             cp deploy/planned-references.json site/planned-reference-deployment.json
           fi
+          # Apply reviewed source/render corrections only after verifying the
+          # historical snapshot. Revised doors cannot replay its stale motion.
+          if [ -f deploy/collection-update.json ]; then
+            python3 scripts/site_asset_patch.py restore --manifest deploy/collection-update.json --out site
+            cp deploy/collection-update.json site/collection-update.json
+          fi
           # benchmark results (leaderboard index + the full result files) for the Results page and the catalogue badges
           mkdir -p site/results
           cp results/*.json results/README.md site/results/ 2>/dev/null || true

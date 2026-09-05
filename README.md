@@ -6,6 +6,8 @@
 
 DoorBench combines 30 door families with operators, locks, closers and configurable materials. It includes detailed model specifications, simulation exports, benchmark scenarios, Blender appearances, and reference motion for studying door interactions.
 
+The robotics collection contains **985 doors**. The **15 [pet doors](https://adamraudonis.github.io/DoorBench/#/pets)** are a separate, downloadable supplement, excluded from evaluations and benchmark scores.
+
 - **Simulation:** full, simple and minimal MJCF/URDF; full and canonical USD; shared OBJ/USDC hardware meshes.
 - **Appearance:** 1,014 saved Blender renders, interchangeable finishes and lighting, CC0 textures, and available packed scenes.
 - **Door trajectories:** native scripted-hand recordings with explicit outcomes and tracking errors. Experimental figure overlays are retained for diagnosis; [natural human references](docs/HUMAN_REFERENCE.md) are in development.

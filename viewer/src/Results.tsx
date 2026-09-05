@@ -1,3 +1,4 @@
+import { isPetDoor, resultsRespectEligibility } from "./collections";
 import React, { useMemo, useState } from "react";
 import { FAMILY_LABELS, type Manifest } from "./types";
 import { DOCS, Icon, PageIntro } from "./SiteUI";
@@ -28,7 +29,7 @@ export function Results({ manifest }: { manifest: Manifest }) {
   const [suite, setSuite] = useState<Suite>("core");
   const [sel, setSel] = useState<string>("");
   const rows = useMemo(() => (idx ? sortRows(idx.results, suite) : []), [idx, suite]);
-  const doors = useMemo(() => manifest.doors.filter((d) => !d.error && (suite === "core" || (d.benchmark?.human?.length ?? 0) > 0)), [manifest, suite]);
+  const doors = useMemo(() => manifest.doors.filter((d) => !d.error && !isPetDoor(d) && (suite === "core" || (d.benchmark?.human?.length ?? 0) > 0)), [manifest, suite]);
   const total = suite === "core" ? idx?.n_doors_total ?? manifest.n_doors : idx?.n_doors_human ?? doors.length;
   const current: ResultEntry | undefined = rows.find((r) => r.file === sel) ?? rows[0];
   const cur: SuiteBlock | undefined = current?.suites[suite];
@@ -47,16 +48,18 @@ export function Results({ manifest }: { manifest: Manifest }) {
       </div>
     );
   }
+  if (!resultsRespectEligibility(idx, manifest)) return <div className="page-shell results"><PageIntro eyebrow="Recorded baselines" title="Results require the standard-door subset."><p>This archived index still includes supplementary assets or lacks verified eligibility metadata. Benchmark totals are hidden until the index is rebuilt from eligible source episodes.</p></PageIntro><p>Standalone pet doors are excluded from robot and human evaluation. <a href="#/pets">Their assets remain downloadable separately.</a></p></div>;
   const scenarios = (idx.suites?.[suite] ?? []).filter((s) => rows.some((r) => r.suites[suite]?.by_scenario[s]));
   const fams = families.map(([f]) => f);
   const locks = ["unlocked", "locked_releasable", "locked_no_release"].filter((k) => rows.some((r) => r.suites[suite]?.by_lock_state[k]));
   const g = (r: ResultEntry) => r.suites[suite]!;
-  const suiteTabs = <div className="suite-selector"><div className="category-tabs" aria-label="Benchmark suite"><button aria-pressed={suite === "core"} onClick={() => { setSuite("core"); setSel(""); }}>Core suite <span>Default</span></button><button aria-pressed={suite === "human"} onClick={() => { setSuite("human"); setSel(""); }}>Human suite <span>Opt-in</span></button></div><p>{suite === "core" ? "Door-and-robot tasks across the full collection. No simulated person." : `Shared-passage tasks with a simulated person, across ${idx.n_doors_human} eligible doors. Reported separately from core results.`}</p></div>;
+  const suiteTabs = <div className="suite-selector"><div className="category-tabs" aria-label="Benchmark suite"><button aria-pressed={suite === "core"} onClick={() => { setSuite("core"); setSel(""); }}>Core suite <span>Default</span></button><button aria-pressed={suite === "human"} onClick={() => { setSuite("human"); setSel(""); }}>Human suite <span>Opt-in</span></button></div><p>{suite === "core" ? "Door-and-robot tasks across the standard-door collection. Supplementary pet doors are excluded. No simulated person." : `Shared-passage tasks with a simulated person, across ${idx.n_doors_human} eligible doors. Reported separately from core results.`}</p></div>;
 
   return (
     <div className="results page-shell">
       <PageIntro eyebrow="Evaluation / recorded baselines" title="Measure the whole interaction." aside={<a className="button" href={`${DOCS}/SUBMITTING.md`} target="_blank" rel="noreferrer">Submit a run <Icon name="external" size={15} /></a>}><p>Compare policies across mechanisms, scenarios, and physical variation. A solved door means every assigned scenario, on every evaluation seed.</p></PageIntro>
       <aside className="historical-notice"><span className="notice-mark">i</span><div><strong>Historical results · earlier dataset revision</strong><p>These runs predate the current geometry repairs and Blender appearance update. Scores describe the original run commit, not the latest door assets. Each row links to its recorded metadata.</p></div></aside>
+      {rows.some(r => r.historical_subset?.applied) && <aside className="historical-notice"><span className="notice-mark">i</span><div><strong>Historical run · eligible-door subset</strong><p>Metrics were recomputed from original episodes after excluding standalone pet doors. This is not a new evaluation. Downloads retain the original run files; full-run wall time is unchanged.</p></div></aside>}
       {suiteTabs}
       <div className="result-summary">{rows.filter((r) => g(r).complete).map((r, i) => <button className={`result-stat ${r.file === current?.file ? "selected" : ""}`} key={r.file} onClick={() => setSel(r.file)}><span className="result-policy"><span className="rank">0{i + 1}</span>{r.policy.replace(/_/g, " ")}</span><strong>{g(r).doors_solved}<small> / {total}</small></strong><div className="summary-progress"><span style={{ width: `${total ? 100 * g(r).doors_solved / total : 0}%` }} /></div><span className="result-stat-footer">Doors solved <b>{pct(total ? g(r).doors_solved / total : 0)}</b></span></button>)}</div>
       <details className="evaluation-method"><summary>How to read these results</summary><p>A door counts as solved when the policy succeeds on every scenario assigned to that door in the chosen suite, on every seed, without damage. Seed 0 uses nominal parameters; later seeds randomize friction, damping, closer stiffness, mass, and start pose. A row marked “subset” did not evaluate the complete suite.</p><p>Episode success measures individual scenario-and-seed trials. It can be higher than the fraction of fully solved doors. Core and human suites use different task sets and are not combined.</p></details>
@@ -71,7 +74,7 @@ export function Results({ manifest }: { manifest: Manifest }) {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.file} className={r.file === current?.file ? "sel" : ""} onClick={() => setSel(r.file)}>
-                    <td><button className="table-policy" aria-pressed={r.file === current?.file} onClick={() => setSel(r.file)}>{r.policy.replace(/_/g, " ")}</button>{!g(r).complete && <span className="chip" style={{ marginLeft: 6 }} title={`door selection: ${r.door_selection ?? ""}`}>subset</span>}<div className="desc">{r.description}</div></td>
+                    <td><button className="table-policy" aria-pressed={r.file === current?.file} onClick={() => setSel(r.file)}>{r.policy.replace(/_/g, " ")}</button>{!g(r).complete && <span className="chip" style={{ marginLeft: 6 }} title={`door selection: ${r.door_selection ?? ""}`}>subset</span>}<div className="desc">{r.description}</div>{r.historical_subset?.applied && <div className="desc" title={r.historical_subset.note}>{r.historical_subset.excluded_n_doors} supplementary doors / {r.historical_subset.excluded_n_episodes} episodes excluded · historical subset</div>}</td>
                     <td>{r.embodiment.replace(/_/g, " + ")}</td>
                     <td>{r.simulator} {r.simulator_version ?? ""}</td>
                     <td>{r.tier}</td>

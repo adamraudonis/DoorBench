@@ -11,7 +11,7 @@ Every door lists its scenarios in `spec.json["benchmark"]` (`doorbench.benchmark
 
 * `core` (the default): `open_and_traverse`, `open_then_close`, `close_only`, `unlock_and_traverse`,
   `locked_recognize` - the door and the robot only, no simulated person anywhere.  Every door's primary scenario is
-  a core scenario, so `--suite core` covers all 1000 doors; the headline "N / 1000 doors" number is core-only.
+  a core scenario, so `--suite core` covers the 985 standard doors; the headline "N / 985 doors" number is core-only.
 * `human` (advanced, opt in with `--suite human` or `--suite all`): `hold_open_for_human`, `wait_for_human`,
   `knock_and_wait` - a kinematic person is simulated by DoorEnv (79 doors list one of these).
 
@@ -53,6 +53,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from ..benchmark_eligibility import is_benchmark_eligible, require_benchmark_eligible, collection_counts
 from .policy import Policy, load_policy_class, policy_meta, resolve_policy_spec
 from .scenarios import CORE_SCENARIOS, HUMAN_SCENARIOS, SCENARIO_DESCRIPTIONS, SCENARIO_SUITE, SCENARIO_TYPES, SUITES, scenarios_in_suite
 
@@ -76,18 +77,21 @@ def load_manifest(assets: str) -> dict:
 
 def select_doors(manifest: dict, arg: str) -> list[dict]:
     """all | family:<f>[,<f>] | difficulty:<n>[,<n>] | scenario:<s>[,<s>] | lock:locked|unlocked | first:<n> | every:<n>[:<offset>] | sample:<n>[:<seed>] | ids:<a,b> | <a,b> | @file"""
-    doors = [d for d in manifest["doors"] if not d.get("error")]
+    inventory = [d for d in manifest["doors"] if not d.get("error")]
+    doors = [d for d in inventory if is_benchmark_eligible(d)]
     arg = (arg or "all").strip()
     if arg == "all":
         return doors
     if arg.startswith("@"):
         with open(arg[1:]) as f:
             ids = [ln.strip() for ln in f if ln.strip() and not ln.startswith("#")]
-        return [d for d in doors if d["id"] in set(ids)]
+        return select_doors(manifest, "ids:" + ",".join(ids))
     if ":" in arg:
         kind, _, val = arg.partition(":")
         if kind == "family":
             fams = set(val.split(","))
+            for family in fams:
+                require_benchmark_eligible(family, operation="benchmark selection")
             return [d for d in doors if d["family"] in fams]
         if kind == "difficulty":
             lv = {int(x) for x in val.split(",")}
@@ -116,15 +120,19 @@ def select_doors(manifest: dict, arg: str) -> list[dict]:
         else:
             raise ValueError(f"unknown door selector {arg!r}")
     ids = [x.strip() for x in arg.split(",") if x.strip()]
-    by_id = {d["id"]: d for d in doors}
+    by_id = {d["id"]: d for d in inventory}
     missing = [i for i in ids if i not in by_id]
     if missing:
         raise KeyError(f"unknown door ids: {missing[:5]}")
+    for i in ids:
+        require_benchmark_eligible(by_id[i], operation="benchmark selection")
     return [by_id[i] for i in ids]
 
 
 def door_scenarios(door: dict, suite: str) -> list[str]:
     """The scenario names a manifest entry lists in `suite` ('core' | 'human' | 'all')."""
+    if not is_benchmark_eligible(door):
+        return []
     b = door.get("benchmark") or {}
     names = list(b.get("scenarios") or [b.get("primary") or "open_and_traverse"])
     return scenarios_in_suite(names, suite)
@@ -149,6 +157,8 @@ def parse_scenarios(arg: str | None, suite: str) -> list[str] | None:
 
 
 def scenarios_for(door: dict, suite: str, only: list[str] | None) -> list[str]:
+    if not is_benchmark_eligible(door):
+        return []
     if only == ["primary"]:
         b = door.get("benchmark") or {}
         return [b.get("primary") or door_scenarios(door, "core")[0]]
@@ -438,6 +448,9 @@ def run_episode(job: Job, observer=None) -> dict:
     Events are reset, step (after physics), and final. Recording does not change the policy or termination.
     Exceptions, including observer failures, become explicit error episodes.
     """
+    require_benchmark_eligible(job.door, operation="episode evaluation")
+    with open(os.path.join(job.door_dir, "spec.json")) as f:
+        require_benchmark_eligible(json.load(f), operation="episode evaluation")
     t_wall = time.time()
     _WARN["n"] = 0
     ep = {"door_id": job.door["id"], "family": job.door["family"], "difficulty": job.door.get("difficulty"), "scenario": job.scenario, "suite": job.suite, "seed": job.seed, "tier": job.tier,
@@ -686,79 +699,7 @@ def run_episode(job: Job, observer=None) -> dict:
 
 
 # ----------------------------------------------------------------------------------------------- aggregation
-def _mean(xs):
-    xs = [float(x) for x in xs if x is not None and math.isfinite(float(x))]
-    return round(sum(xs) / len(xs), 3) if xs else None
-
-
-def _median(xs):
-    xs = sorted(float(x) for x in xs if x is not None and math.isfinite(float(x)))
-    if not xs:
-        return None
-    n = len(xs)
-    return round(xs[n // 2] if n % 2 else 0.5 * (xs[n // 2 - 1] + xs[n // 2]), 3)
-
-
-def _group_stats(eps: list[dict]) -> dict:
-    by_door = {}
-    for e in eps:
-        by_door.setdefault(e["door_id"], []).append(bool(e["success"]))
-    n = len(eps)
-    ns = sum(1 for e in eps if e["success"])
-    pass_t = [e.get("time_to_pass") for e in eps if e["success"] and e.get("time_to_pass") is not None]
-    hc = [e.get("human_collision") for e in eps if e.get("human_collision") is not None]
-    out = {
-        "n_doors": len(by_door), "n_episodes": n, "n_success": ns, "success_rate": round(ns / n, 4) if n else 0.0,
-        "doors_solved": sum(1 for v in by_door.values() if all(v)), "doors_solved_any": sum(1 for v in by_door.values() if any(v)),
-        "damage_rate": round(sum(1 for e in eps if e.get("damage")) / n, 4) if n else 0.0,
-        "mean_return": _mean([e.get("episode_return") for e in eps]),
-        "mean_time_to_pass_s": _mean(pass_t), "median_time_to_pass_s": _median(pass_t),
-        "mean_time_to_open_s": _mean([e.get("time_to_open") for e in eps if e.get("time_to_open") is not None]),
-        "mean_max_leaf_force_N": _mean([e.get("max_leaf_force_N") for e in eps]),
-        "mean_energy_J": _mean([e.get("energy_J") for e in eps]),
-        "outcomes": {k: sum(1 for e in eps if e.get("outcome") == k) for k in OUTCOMES if any(e.get("outcome") == k for e in eps)},
-    }
-    if hc:
-        out["human_collision_rate"] = round(sum(1 for x in hc if x) / len(hc), 4)
-    return out
-
-
-def lock_state_of(door: dict) -> str:
-    if not door.get("lock_engaged"):
-        return "unlocked"
-    return "locked_releasable" if door.get("robot_side_release", True) else "locked_no_release"
-
-
-def aggregate_suite(suite: str, episodes: list[dict], doors_by_id: dict | None = None) -> dict:
-    """One table of the aggregate: every episode of `suite` (errors excluded from the rates, counted separately)."""
-    eps_all = [e for e in episodes if e.get("suite") == suite]
-    eps = [e for e in eps_all if e.get("outcome") != "error"] or eps_all
-    agg = {"suite": suite, "scenarios": sorted({e["scenario"] for e in eps_all}, key=SCENARIO_TYPES.index), **_group_stats(eps)}
-    agg["n_errors"] = sum(1 for e in eps_all if e.get("outcome") == "error")
-    agg["timeouts"] = sum(1 for e in eps_all if e.get("outcome") == "timeout")
-    agg["mean_wall_s"] = _mean([e.get("wall_s") for e in eps_all])
-    agg["mean_sim_time_s"] = _mean([e.get("sim_time") for e in eps])
-
-    def group(key, order=None):
-        g = {}
-        for e in eps:
-            g.setdefault(str(key(e)), []).append(e)
-        keys = sorted(g, key=(lambda k: order.index(k) if order and k in order else 10 ** 6) if order else None)
-        return {k: _group_stats(g[k]) for k in keys}
-    agg["by_family"] = group(lambda e: e["family"])
-    agg["by_difficulty"] = group(lambda e: e.get("difficulty"))
-    agg["by_scenario"] = group(lambda e: e.get("scenario"), list(SCENARIO_TYPES))
-    if doors_by_id:
-        agg["by_lock_state"] = group(lambda e: lock_state_of(doors_by_id.get(e["door_id"], {})), ["unlocked", "locked_releasable", "locked_no_release"])
-    if suite == "human":
-        agg["human_collision_rate"] = agg.get("human_collision_rate", 0.0)
-    return agg
-
-
-def aggregate(episodes: list[dict], doors_by_id: dict | None = None) -> dict:
-    """{suite: table}: core and human episodes are aggregated separately and never mixed."""
-    present = [s for s in SUITES if any(e.get("suite") == s for e in episodes)]
-    return {s: aggregate_suite(s, episodes, doors_by_id) for s in present}
+from ..result_aggregation import _mean, _median, _group_stats, lock_state_of, aggregate_suite, aggregate
 
 
 # ----------------------------------------------------------------------------------------------- run
@@ -878,7 +819,7 @@ def run_benchmark(policy_spec: str, doors: str = "all", seeds: int | list[int] =
         pass
     result = {
         "schema_version": SCHEMA_VERSION,
-        "benchmark": {"name": "DoorBench", "dataset_version": manifest.get("version"), "dataset_generated": manifest.get("generated"), "n_doors_total": manifest.get("n_doors", len(manifest["doors"])), **git_commit(root)},
+        "benchmark": {"name": "DoorBench", "dataset_version": manifest.get("version"), "dataset_generated": manifest.get("generated"), "n_doors_total": collection_counts(manifest["doors"])["n_doors_eligible"], **collection_counts(manifest["doors"]), **git_commit(root)},
         "policy": {**pmeta, "spec": policy_spec, "extra": extra},
         "run": {"date": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "label": label, "simulator": "mujoco", "simulator_version": mujoco.__version__, "tier": tier,
                 "suite": suite, "scenarios": [{"name": s, "suite": SCENARIO_SUITE[s], "description": SCENARIO_DESCRIPTIONS[s]} for s in scen_names], "scenario_filter": scenarios or "all",

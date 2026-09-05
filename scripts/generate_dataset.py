@@ -16,6 +16,7 @@ from multiprocessing import Pool
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from doorbench.benchmark_eligibility import benchmark_eligibility, collection_counts
 from doorbench.spec import generate_all
 from doorbench.build import export_door, build_model
 from doorbench import physics as P
@@ -48,6 +49,7 @@ def one(args):
             "operator": spec["operator"]["model"], "latch": spec["latch"]["model"], "lock": spec["lock"]["model"], "lock_engaged": spec["lock"].get("engaged", False),
             "robot_side_release": spec["lock"].get("robot_side_release", True), "closer": spec["closer"]["model"], "hinge": spec["hinge"]["model"], "condition": spec["condition"],
             "swing": "push" if spec["robot"].get("is_push") else "pull", "hinge_side": spec["hinge"]["side"], "extras": spec.get("extras", []), "tags": spec.get("tags", []),
+            "benchmark_eligibility": benchmark_eligibility(spec),
             "n_bodies": summ["n_bodies"], "n_joints": summ["n_joints"], "benchmark": summ.get("benchmark"), "signed_off": qa["signed_off"], "qa_failed": [k for k, v in qa["checks"].items() if not v],
             "thumbs": [os.path.relpath(t, out_root) for t in thumbs], "files": {k: ({kk: os.path.relpath(vv, out_root) for kk, vv in v.items()} if isinstance(v, dict) else (os.path.relpath(v, out_root) if isinstance(v, str) and os.path.exists(v) else v)) for k, v in summ["files"].items()},
             "physics_summary": {
@@ -134,6 +136,7 @@ def main():
     rows.sort(key=lambda r: r.get("index", 0))
     manifest = {
         "name": "DoorBench", "version": "0.1.0", "generated": time.strftime("%Y-%m-%dT%H:%M:%S"), "seed": a.seed, "n_doors": len(rows),
+        **collection_counts(rows),
         "n_signed_off": sum(1 for r in rows if r.get("signed_off")), "families": sorted({r["family"] for r in rows}), "doors": rows,
     }
     with open(os.path.join(a.out, "manifest.json"), "w") as f:

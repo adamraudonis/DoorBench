@@ -127,11 +127,21 @@ def test_free_dynamics_500_steps(door_id):
 
 
 @pytest.mark.parametrize("door_id", DOORS)
-def test_qa_hold_actuate_relatch(door_id):
+def test_qa_hold_actuate_relatch(door_id, tmp_path):
     """Re-runs the sign-off QA (doorbench.qa.run_qa) and asserts the physics checks it decided to run all pass."""
     spec = _load_json(door_id, "spec.json")
     meta = _load_json(door_id, "model.json")["meta"]
     dd = _door_dir(door_id)
+    if spec["family"] == "baby_gate":
+        # The newly enforced headroom gate must test the corrected generator,
+        # not certify an immutable older asset that still has an overhead lintel.
+        from doorbench.build import export_door
+        export_door(spec, str(tmp_path / "doors"), str(tmp_path / "hardware"))
+        dd = str(tmp_path / "doors" / door_id)
+        with open(os.path.join(dd, "spec.json")) as stream:
+            spec = json.load(stream)
+        with open(os.path.join(dd, "model.json")) as stream:
+            meta = json.load(stream)["meta"]
     files = {"mjcf": {t: os.path.join(dd, x) for t, x in TIERS.items()}, "urdf": {"full": os.path.join(dd, "door.urdf")}}
     try:
         import pxr  # noqa: F401
@@ -164,6 +174,11 @@ def test_qa_hold_actuate_relatch(door_id):
 
 @pytest.mark.parametrize("door_id", DOORS)
 def test_door_env_reset_step_labels(door_id):
+    from doorbench.benchmark_eligibility import is_benchmark_eligible, BenchmarkExcludedError
+    if not is_benchmark_eligible(_load_json(door_id, "spec.json")):
+        with pytest.raises(BenchmarkExcludedError, match="supplementary"):
+            DoorEnv(_door_dir(door_id), tier="full")
+        return  # Pet geometry/import/free-dynamics QA above remains enabled.
     env = DoorEnv(_door_dir(door_id), tier="full")
     try:
         obs = env.reset()
