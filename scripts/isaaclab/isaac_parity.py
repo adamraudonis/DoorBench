@@ -450,10 +450,21 @@ class DoorHandle:
         return out
 
     def _write_coupling_armature(self):
-        """Driver joints carry the inertia of everything they drive through an emulated coupling (c1^2 * I_driven).
+        """Prepare the emulated couplings: reflected inertia on the drivers, drive gains off on the driven joints.
 
-        MuJoCo's equality gives the driver that inertia for free; PhysX drops the mimic, so it is written into the
-        driver's armature - the exact equivalent of the constraint's inertial term ``-c1 * I_a * qdd_a``."""
+        MuJoCo's equality gives the driver the coupled part's inertia for free; PhysX drops the mimic, so
+        ``c1^2 * I_driven`` is written into the driver's armature - the exact equivalent of the constraint's inertial
+        term ``-c1 * I_a * qdd_a``.  The driven joint is no longer a free DoF (its state is written every step) and
+        its spring / damping are reflected onto the driver analytically, so its own PhysX drive is switched off; the
+        authored (default) gains are untouched, so the structure check still compares them against the IR."""
+        for c in self.couplings:
+            for name, val in (("write_joint_stiffness_to_sim", 0.0), ("write_joint_damping_to_sim", 0.0)):
+                fn = getattr(self.art, name, None)
+                if fn is not None:
+                    try:
+                        fn(torch.tensor([[val]], dtype=torch.float32, device=self.dev), joint_ids=torch.tensor([c["ia"]], device=self.dev))
+                    except Exception as e:
+                        self.errors.append(f"coupling {c['driven']}: {name} failed ({type(e).__name__}: {e})")
         extra = {}
         for jname, info in self.prim_info.items():
             if info.get("reflected_armature") and jname in self.jn:

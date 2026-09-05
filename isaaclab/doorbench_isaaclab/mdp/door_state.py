@@ -310,6 +310,16 @@ class DoorState:
             for slot, val in (m.get("coupling_reflected_armature") or {}).items():
                 if slot in self.j and float(val) > 0:
                     extra[(k, self.j[slot])] = float(val)
+        # a driven joint is no longer a free DoF (its state is written every step) and its spring / damping are
+        # reflected onto the driver analytically, so switch its own PhysX drive off (the authored gains stay)
+        if rows and hasattr(self.door, "write_joint_stiffness_to_sim"):
+            k = self.door.data.joint_stiffness.clone()
+            d = self.door.data.joint_damping.clone()
+            for r in rows:
+                k[r["env"], r["ia"]] = 0.0
+                d[r["env"], r["ia"]] = 0.0
+            self.door.write_joint_stiffness_to_sim(k)
+            self.door.write_joint_damping_to_sim(d)
         if extra and hasattr(self.door, "write_joint_armature_to_sim"):
             arm = getattr(self.door.data, "joint_armature", None)
             if arm is None:
