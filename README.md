@@ -15,6 +15,17 @@ The robotics collection contains **985 doors**. The **15 [pet doors](https://ada
 
 ![One barn door rendered with three material and room combinations](docs/review/blender/looks.jpg)
 
+## Scripted baseline
+
+The scripted-hand baseline was evaluated across **all 985 benchmark doors**, using three seeds for every assigned core scenario. It solved **849 / 985 doors (86.2%)**, with **3,727 / 4,182 successful episodes (89.1%)**. A solved door passed every scenario on every seed.
+
+<!-- Regenerate the overview with scripts/build_scripted_baseline_overview.py; update the adjacent historical score text if its source run changes. -->
+[![Scripted baseline across 985 doors: 849 solved every episode, 36 solved some, and 100 solved none. One square per door; supplementary pet doors excluded.](docs/review/scripted-baseline/overview.svg)](https://adamraudonis.github.io/DoorBench/#/results)
+
+**[Explore every door’s result](https://adamraudonis.github.io/DoorBench/#/results)** · [Per-family and per-scenario tables](results/README.md) · [Open a recorded scripted attempt](https://adamraudonis.github.io/DoorBench/#/door/db0079_sliding_single?reference=1)
+
+These historical September 4, 2026 results describe the earlier geometry revision, with the 15 pet doors excluded. The scripted policy applies joint forces with a synthetic robot base. Recorded replays are separate, one-seed attempts; see their [coverage and limitations](docs/REFERENCE_MOTIONS.md#scope-and-results).
+
 This is a research dataset with known construction and physics approximations. Automated QA is not physical or artistic certification. Read the [construction audit](docs/review/takeover/REVIEW.md) and [appearance review](docs/review/blender/REVIEW.md) before using it for training or evaluation.
 
 The [human reference project](docs/HUMAN_REFERENCE.md) aims to create natural simulated human demonstrations before retargeting them to robots. The earlier [kinematic experiments](docs/PLANNED_REFERENCE_MOTIONS.md) do not meet the human-motion quality target and are not ground-truth human demonstrations.
@@ -43,7 +54,5 @@ Use `DoorEnv` for benchmark scenarios and access-control behavior; loading MJCF 
 | Blender and vision data | [Appearance](docs/BLENDER_APPEARANCE.md), [state bridge](docs/BLENDER_VISION_STATE.md) |
 | Reference motion and review records | [Motion schema and replay](docs/REFERENCE_MOTIONS.md), [human review](docs/HUMAN_REVIEW.md) |
 | Humanoid experiments | [G1 demo](robot_demo/README.md), [Isaac Lab](docs/ISAAC_LAB.md), [current status](isaaclab/STATUS.md) |
-
-Historical baseline scores use earlier dataset versions and broader scenario/seed sweeps. They are not results for the new one-seed reference-motion corpus, and a rendered avatar does not establish humanoid task success.
 
 Code, generated doors and original reference motion are [MIT](LICENSE). Poly Haven textures retain CC0, including maps packed in Blender scenes. See [release licensing](docs/DATASET_RELEASE.md#provenance-and-licenses) and [CITATION.cff](CITATION.cff); record the release tag and checksum inventory when citing experimental data.
