@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path from "node:path";
+import { humanReferenceDev } from "./humanReferenceDev.ts";
 
 // Dev-only: serve ../assets at /assets (the generated dataset) and ../results at /results (benchmark results) in place.
 function serveAssets(): Plugin {
@@ -57,6 +58,6 @@ function saveSnapshots(): Plugin {
 
 export default defineConfig({
   base: "./",
-  plugins: [react(), serveAssets(), saveSnapshots()],
+  plugins: [react(), serveAssets(), saveSnapshots(), humanReferenceDev(path.resolve(import.meta.dirname, ".."), process.env.DOORBENCH_HUMAN_REFERENCE_ROOT)],
   build: { outDir: "dist", assetsDir: "static", emptyOutDir: true, chunkSizeWarningLimit: 1500 },
 });

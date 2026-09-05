@@ -8,14 +8,14 @@ DoorBench combines 30 door families with operators, locks, closers and configura
 
 - **Simulation:** full, simple and minimal MJCF/URDF; full and canonical USD; shared OBJ/USDC hardware meshes.
 - **Appearance:** 1,014 saved Blender renders, interchangeable finishes and lighting, CC0 textures, and available packed scenes.
-- **Reference motion:** native scripted-hand door trajectories with a procedural humanoid reference. Outcomes and tracking errors are explicit; the avatar is kinematic, not a dynamically controlled humanoid policy.
+- **Door trajectories:** native scripted-hand recordings with explicit outcomes and tracking errors. Experimental figure overlays are retained for diagnosis; [natural human references](docs/HUMAN_REFERENCE.md) are in development.
 - **Reproducibility:** versioned public downloads, per-file checksums, source provenance and deterministic generation.
 
 ![One barn door rendered with three material and room combinations](docs/review/blender/looks.jpg)
 
 This is a research dataset with known construction and physics approximations. Automated QA is not physical or artistic certification. Read the [construction audit](docs/review/takeover/REVIEW.md) and [appearance review](docs/review/blender/REVIEW.md) before using it for training or evaluation.
 
-The experimental [constrained motion pipeline](docs/PLANNED_REFERENCE_MOTIONS.md) adds fixed foot contacts, whole-body collision checks and independently verified actor routes. The public supplement has 61 accepted traversals and 51 locked-door checks; a [local second revision](docs/research/planned-reference-v2.md) raises traversal coverage to 108. Natural motion, causal operation and timed benchmark success remain unfinished.
+The [human reference project](docs/HUMAN_REFERENCE.md) aims to create natural simulated human demonstrations before retargeting them to robots. The earlier [kinematic experiments](docs/PLANNED_REFERENCE_MOTIONS.md) do not meet the human-motion quality target and are not ground-truth human demonstrations.
 
 ## Try a door
 
