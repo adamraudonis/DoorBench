@@ -87,9 +87,25 @@ Grades per door and kind: **A** all phases agree within tolerance, **B** statuse
 ## Status
 
 * MuJoCo reference: 1000/1000 doors pass every applicable phase and reproduce their qa.json metrics (`qa_push`,
-  `hold_displacement`, `actuate_displacement`, `closer_final_angle`, ...) to 1e-3.  Informational phases that fail in
-  MuJoCo: accordion / bifold / revolving free pushes (12 + 3 + 8 doors), cold-storage roller relatches (5) — families
-  qa.py never tested; they are reported, not graded.
+  `hold_displacement`, `actuate_displacement`, `closer_final_angle`, ...) to 1e-3.  Verified independently on a
+  seeded 61-door sample (2 per family): bit-identical records across worker counts, resumes and machines.
+* Informational phases that fail in MuJoCo (`mujoco_summary.json` → `informational_fails`; families qa.py never
+  pushed, so they are reported, not graded) — these are **door bugs the reference surfaced, not protocol bugs**:
+  * accordion, 12/12: the panel couplings alternate `panel_i = ∓2·panel_0` but every panel hinge is authored with range
+    `[-π, 0]`, so the even panels sit on their limit and the whole fold is kinematically locked (65 N·m moves the lead
+    hinge 0.0009 rad; `qfrc_constraint` absorbs the full push, contacts carry no force)
+  * revolving, 8/15: a wing stile touches `wall_header` at q0 (gap 0) and jams against it as the rotor turns
+    (8.6 kN contact normal force; 3 doors do not move at all, 5 crawl < 0.12 rad in 6 s; the other 7 turn normally)
+  * bifold, 3/30: the panel tops rub on `wall_header` (20–40 N normal force, zero gap) and the fold crawls ~0.1 rad in 6 s
+  * cold-storage roller relatches (5): correct — a roller latch does not hold a re-push
+* Behaviour that is *by construction* in both simulators and worth knowing when reading the metrics: closer doors run
+  with the symmetric MJCF damping (`damping_opening` + air), because the asymmetric `damping_closing` / backcheck live
+  only in `DoorEnv`'s passive callback and the USD carries them only as `doorbench:damping_closing` attributes — so
+  `closer_t_close` is 0.6–1.8 s (median 1.07 s over 263 doors) against `closing_time_est_s` of 2–5 s and `slam` never
+  fires; turnstile rotors have no indexing detent (`ratchet_deg` is spec-only), so a 68 N·m push spins a full-height
+  rotor 1.5 rev/s; the qa.py push counts a closer's spring preload twice (`bias` = |qfrc_bias − qfrc_passive| already
+  contains it), e.g. 311 N·m on db0012 — kept, because the gate must reproduce qa.json; doors with `rest_angle_deg`
+  (10 stall doors) pass `hold` / `operate` trivially since they start open.
 * PhysX side: written against Isaac Lab 2.3.2, **not executed on this machine** (no NVIDIA GPU).  First run:
   `bash isaaclab/cloud/parity.sh --limit 40`, then `scripts/parity_compare.py`.
 * Planned: write `isaac_parity` into each door's qa.json, a viewer badge, and fixing the export gaps the gate finds

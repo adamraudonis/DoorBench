@@ -162,6 +162,20 @@ def test_phase_duration_and_initial_state():
     assert st[auto["primary_joint"]] == pytest.approx(math.radians(60)) and st["leaf_latch_bolt_slide"] == 0.0
 
 
+def test_operator_travel_tolerance_uses_joint_range_when_larger():
+    gate = _inputs("db0434_gate_swing")         # fork gravity latch: hardware 'lift' travel 0.06 m, modelled as a 0..1.2 rad hinge
+    assert gate["thresholds"]["operator_travel"] == pytest.approx(0.06) and gate["joints"][gate["operator_joint"]]["range"] == [0.0, 1.2]
+    assert P.operator_span(gate) == pytest.approx(1.2)
+    assert P.metric_tolerances(gate, "operate")["operator_travel_reached"][0] == pytest.approx(0.12)
+    baby = _inputs("db0483_baby_gate")          # pin slide authored 0..50 mm, hardware travel 20 mm
+    assert P.operator_span(baby) == pytest.approx(0.05)
+    lever = _inputs("db0002_swing_single")      # lever: hardware travel and joint range agree
+    rng = lever["joints"][lever["operator_joint"]]["range"]
+    assert P.operator_span(lever) == pytest.approx(max(lever["thresholds"]["operator_travel"], rng[1] - rng[0]))
+    far = _inputs("db0011_automatic_swing")     # no operator joint (panic bar on the far side): the hardware travel stands
+    assert far["operator_joint"] is None and P.operator_span(far) == pytest.approx(far["thresholds"]["operator_travel"])
+
+
 # ---------------------------------------------------------------------------
 # verdict classification on synthetic records
 # ---------------------------------------------------------------------------

@@ -652,6 +652,18 @@ def _within(a, b, abs_tol: float, rel_tol: float = 0.0) -> bool:
     return d <= abs_tol or (rel_tol > 0 and d <= rel_tol * max(abs(a), abs(b)))
 
 
+def operator_span(inputs: dict) -> float:
+    """Operator travel used for tolerances: the hardware table's travel or, when the MJCF operator joint is authored
+    with a larger range (fork / lift latches modelled as 1.2 rad hinges, baby-gate pin slides with a 50 mm range), the
+    joint's range span.  ``thresholds.operator_travel`` alone would make the tolerance 0.006 rad on a fork lever."""
+    oj = inputs.get("operator_joint")
+    span = float(inputs["thresholds"].get("operator_travel") or 0.0)
+    rng = (inputs["joints"].get(oj) or {}).get("range") if oj else None
+    if rng:
+        span = max(span, float(rng[1] - rng[0]))
+    return span or 1.0
+
+
 def metric_tolerances(inputs: dict, phase: str) -> dict:
     """{metric: (abs_tol, rel_tol)} for the quantitative comparison of a phase (hinge / slide units)."""
     h = inputs["is_hinge"]
@@ -661,7 +673,7 @@ def metric_tolerances(inputs: dict, phase: str) -> dict:
     if phase == "hold":
         return {"hold_displacement": (0.01 if h else 0.003, 0.0), "t_free": (0.25, 0.3), "q_at_1s": (ang if h else lin, 0.2)}
     if phase == "operate":
-        return {"opened": (ang if h else lin, 0.2), "t_open": (0.3, 0.3), "operator_travel_reached": (0.1 * (inputs["thresholds"]["operator_travel"] or 1.0), 0.0),
+        return {"opened": (ang if h else lin, 0.2), "t_open": (0.3, 0.3), "operator_travel_reached": (0.1 * operator_span(inputs), 0.0),
                 "bolt_retract_max_m": (0.15 * (inputs["thresholds"]["latch_throw_m"] or 0.01), 0.0), "t_unlatch": (0.2, 0.0)}
     if phase == "release":
         return {"bolt_after_release_m": (0.002, 0.0), "t_bolt_return": (0.2, 0.0)}

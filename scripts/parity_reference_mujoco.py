@@ -66,14 +66,19 @@ def _work(args):
     door_id = os.path.basename(door_dir)
     try:
         rec = run_door(door_dir, dt=dt, cache_dir=cache_dir, force=force)
-        return door_id, compact_record(rec), None
+        lite = compact_record(rec)
+        lite.pop("cached", None)      # a resume detail, not a property of the door
+        return door_id, lite, None
     except Exception as e:  # never lose the run to one door
         return door_id, None, f"{type(e).__name__}: {e}"
 
 
+INFO_FAIL_METRICS = ("q_at_1s", "hold_displacement", "t_free", "relatch_closed_angle", "relatch_repush_angle", "bolt_after_release_m")
+
+
 def summarize(doors: dict, errors: dict) -> dict:
     fam_stat, phase_stat = {}, {p: {} for p in P.PHASES}
-    repro_bad, failing = [], []
+    repro_bad, failing, info_fail = [], [], []
     for did, r in doors.items():
         fam = r["inputs"]["family"]
         fam_stat.setdefault(fam, {"n": 0, "ok": 0})
@@ -81,6 +86,11 @@ def summarize(doors: dict, errors: dict) -> dict:
         fam_stat[fam]["ok"] += int(r["ok"])
         for p, row in r["phases"].items():
             phase_stat[p][row["status"]] = phase_stat[p].get(row["status"], 0) + 1
+            if row["status"] == "fail" and row.get("informational"):
+                # the reference itself says the door does not do what its family should (e.g. a revolving door that does
+                # not turn under the push): not graded, but the whole point of the gate is to surface these
+                info_fail.append({"door_id": did, "family": fam, "phase": p, "expected": row["expected"],
+                                  **{k: row["metrics"].get(k) for k in INFO_FAIL_METRICS if row["metrics"].get(k) is not None}})
         if not r["qa_reproduction"]["ok"]:
             repro_bad.append({"door_id": did, "mismatches": r["qa_reproduction"]["mismatches"]})
         if not r["ok"]:
@@ -88,7 +98,8 @@ def summarize(doors: dict, errors: dict) -> dict:
     n_lim = sum(1 for r in doors.values() if r["limits"]["violations"])
     return {"protocol_version": P.PROTOCOL_VERSION, "n_doors": len(doors), "n_ok": sum(1 for r in doors.values() if r["ok"]), "n_errors": len(errors), "errors": errors,
             "phases": phase_stat, "families": fam_stat, "qa_reproduction": {"n_compared": sum(1 for r in doors.values() if r["qa_reproduction"]["available"]), "mismatching_doors": repro_bad},
-            "doors_with_limit_overshoot": n_lim, "failing_doors": failing, "wall_time_s_total": round(sum(r.get("wall_time_s", 0) for r in doors.values()), 1)}
+            "doors_with_limit_overshoot": n_lim, "failing_doors": failing, "informational_fails": info_fail,
+            "wall_time_s_total": round(sum(r.get("wall_time_s", 0) for r in doors.values()), 1)}
 
 
 def main():
@@ -157,13 +168,19 @@ def main():
                     print(f"[parity-mujoco] {n_done}/{len(todo)} doors, {time.time() - t0:.0f} s")
     summ = flush()
     print(f"[parity-mujoco] {summ['n_ok']}/{summ['n_doors']} doors pass every applicable phase; {len(errors)} errors; "
-          f"qa reproduction mismatches: {len(summ['qa_reproduction']['mismatching_doors'])}; {time.time() - t0:.0f} s -> {args.out}")
+          f"qa reproduction mismatches: {len(summ['qa_reproduction']['mismatching_doors'])}; "
+          f"informational fails: {len(summ['informational_fails'])}; {time.time() - t0:.0f} s -> {args.out}")
     for p, st in summ["phases"].items():
         print(f"  {p:8s} {st}")
     for row in summ["failing_doors"][:15]:
         print(f"  FAIL {row['door_id']}: {list(row['failed'])}")
     for row in summ["qa_reproduction"]["mismatching_doors"][:10]:
         print(f"  QA-mismatch {row['door_id']}: {row['mismatches']}")
+    by_fam = {}
+    for row in summ["informational_fails"]:
+        by_fam.setdefault((row["family"], row["phase"], row["expected"]), []).append(row["door_id"])
+    for (fam, p, exp), ids in sorted(by_fam.items()):
+        print(f"  INFO-FAIL {fam}/{p} ({exp}): {len(ids)} doors, e.g. {ids[:4]}")
 
 
 if __name__ == "__main__":
