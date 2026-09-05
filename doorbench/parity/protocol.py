@@ -219,8 +219,8 @@ def door_inputs(spec: dict, model_json: dict, forces: dict | None = None, qa: di
     travel = float(P["range"][1] - P["range"][0]) if P["range"] else None
     chain_limit = math.asin(min(0.99, lk.chain_slack / max(W - 0.1, 0.2))) if (lk.chain_slack and is_hinge) else 0.0
     thr = 2.0 * DEG if is_hinge else 0.015
-    if flags["locked_rotor"] and P["range"] is not None:
-        thr = max(thr, float(P["range"][1]) + 1.0 * DEG)     # locked turnstiles: the rotor may move within its locked play
+    if (flags["locked_rotor"] or (flags["free_swing"] and flags["has_holding"])) and P["range"] is not None:
+        thr = max(thr, float(P["range"][1]) + 1.0 * DEG)     # locked turnstiles / bolted flaps: the leaf may move within its locked play
     thresholds = {
         "thr": thr, "thr_free": 10.0 * DEG if is_hinge else 0.05, "target": (min(20.0, 0.5 * max_open_deg) * DEG) if is_hinge else 0.05,
         "thr_locked": thr + chain_limit, "chain_limit_rad": chain_limit, "chain_engaged": bool(spec["lock"]["engaged"] and lk.kind in ("chain", "swing_bar_guard") and is_hinge),
@@ -290,16 +290,18 @@ def door_inputs(spec: dict, model_json: dict, forces: dict | None = None, qa: di
 # what the door is expected to do, per phase and file kind
 # ---------------------------------------------------------------------------
 def expected_outcomes(inputs: dict, kind: str = "mjcf") -> dict:
-    """{phase: expectation}.  Expectations: 'settle', 'hold', 'free_opens', 'free_opens_info', 'opens', 'stays_closed',
+    """{phase: expectation}.  Expectations: 'settle', 'hold', 'free_opens', 'opens', 'stays_closed',
     'bolt_returns', 'bolt_returns_info', 'relatches', 'relatches_info', 'closes', 'locked_holds', or 'na:<reason>'."""
     f, th = inputs["flags"], inputs["thresholds"]
     oj, bolt, is_hinge = inputs["operator_joint"], inputs["latch_bolt_joint"], inputs["is_hinge"]
     rl = inputs.get("rl") if kind == "usd_rl" else None
     exp = {"settle": "settle"}
     free_swing = f["free_swing"]
-    # ---- hold / free_opens
+    # ---- hold / free_opens (qa.py: every family is pushed; a leaf nothing holds must move, a locked rotor / bolted
+    # flap must not.  Free-swing doors used to be informational here - that is how 12 locked accordion folds and 10
+    # revolving doors jammed on the header shipped signed off.)
     if free_swing:
-        exp["hold"] = "hold" if f["locked_rotor"] else "free_opens_info"
+        exp["hold"] = "hold" if (f["locked_rotor"] or f["has_holding"]) else "free_opens"
     elif f["has_holding"]:
         exp["hold"] = "hold"
     else:
