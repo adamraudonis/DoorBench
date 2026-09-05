@@ -64,6 +64,36 @@ the joint's `angular` / `linear` axis (legacy load-dependent coefficient 0), arm
 (deg/s in the schema), position servos folded into the drive, and the gravity closing torque `−m·g·c₁` that stands in
 for a rising hinge's screw coupling in the canonical RL articulation.
 
+## Running clearance
+
+Real doors do not touch their frames: a leaf runs 3-5 mm clear at the jambs and head, 6-20 mm over the floor, and a
+revolving canopy or a full-height turnstile rotor runs 10-20 mm clear top and bottom.  Parts authored EXACTLY
+touching (0.000 m) are free in MuJoCo at margin 0 - no penetration, no force - but PhysX generates and resolves
+contacts inside its contact offset (the USD export sets `physxCollision:contactOffset` 5 mm), so a zero-gap part
+jams, drifts or explodes in Isaac Sim while the reference passes.  Two constants and two solved gaps keep the
+dataset off that boundary:
+
+| where | design value | source |
+| --- | --- | --- |
+| leaf edge to jamb / head / stop line | `geometry.common.GAP` = 3 mm | standard door reveal |
+| leaf face to frame's swing-side face | `geometry.common.LEAF_FACE_INSET` = 7 mm | the hinge knuckle radius: the pin lands ON the frame face, so the reveal arris stays inside the pin's clearance circle and the leaf can swing past 90 deg |
+| pivoted leaf heel (toilet partitions, centre-pivot doors) | `geometry.common.pivot_heel_gap(P, t)` | solves `P - hypot(P - gap, t/2) >= 3 mm` for the heel corner's swept circle |
+| bifold / accordion pivot panel heel | `folding.fold_jamb_gap(t)` | the same solve at `FOLD_PIVOT_IN`; the spec generator sizes the opening from it |
+| full-height turnstile rotor column | `geometry.other.ROTOR_RUN_CLEAR` = 15 mm | roof and floor running clearance |
+| revolving rotor to canopy ceiling | `geometry.other.REVOLVING_RUN_CLEAR` = 15 mm | wing-top brush seal gap |
+| roll-up curtain bottom | `geometry.other.ROLLUP_ASTRAGAL` = 12 mm | the rubber astragal seats on the floor, the steel bar does not |
+| bypass leaf to jamb, closed and fully open | `GAP` + `BYPASS_END_STOP` = 20 mm at the stroke end | the track end stop, not the jamb, ends the stroke |
+
+The `running_clearance` gate (`doorbench/clearance.py`, published as `qa.json → checks.running_clearance` and
+reported by `scripts/clearance_report.py`) enforces this: for every door it sweeps each leaf joint and measures, with
+`mj_geomDistance`, the smallest gap every MOVING collider ever reaches to every STATIC one.  A pair fails below
+3 mm (6 mm over the floor, `meta["running_clearance_min"]` where a model asks for more - 10 mm on a rotor).
+Contacts that exist by design are allow-listed from the geometry itself, not by tolerance: seals, hinges/bearings,
+latches and locks, closers, mechanisms and sensors by semantic; stops, bumpers, thresholds, keepers, strikes,
+rollers, glides and guides by name; running gear inside its own track; and, per model,
+`meta["running_clearance_allow"] = [[geom_a, geom_b, reason]]`.  Visual-only trim is out of scope - it is not a
+collider in either engine, and its overlap is the interpenetration gate's business.
+
 ## Compliance checks
 
 For each hinged door the simulated opening force at the handle is compared with ADA 2010 §404.2.9 (5 lbf interior),
