@@ -6,6 +6,8 @@ import math
 from ..ir import FULL_ONLY, FULL_SIMPLE, ALL_TIERS
 from . import common as C
 
+CARRIER_MIN_GAP = 0.03   # m; below this there is no room for a hanger: the leaf runs directly under its header
+
 
 def add_tracks(model, world, spec, leaf_defs, y_leaf, jamb_t, material):
     """Build a rail for each lane, retaining nominal travel when the lock limits q."""
@@ -122,3 +124,43 @@ def add_lane_floor_guides(model, world, body, spec, bottom_z, support, material)
             jaws.append(name)
             feet.append(name + "_foot")
         support["floor_guides"].append({"jaws": jaws, "feet": feet})
+
+
+def add_header_hangers(model, world, body, spec, zb, support, roller_material):
+    """Roller carriers from the leaf's top edge up to whatever it hangs from.
+
+    A top-hung leaf hangs from carriers running in the header above it.  The suspension used to be missing
+    entirely: the leaf hung 50-240 mm below its rail with nothing between the two.  The carrier is built up to the
+    LOWEST static surface above the leaf (its rail, or the frame head the rail sits in), and is skipped when that
+    surface is less than CARRIER_MIN_GAP away - a leaf that fills its opening up to the head runs directly under it
+    and is held by the opening, with no room for a visible carrier."""
+    W, Hh, t = (spec["leaf"][k] for k in ("width", "height", "thickness"))
+    rail = next((g for g in world.geoms if g.name == support["rail"]), None)
+    if rail is None:
+        return
+    z_top = zb + Hh
+    x_body, y_body = float(body.pos[0]), float(body.pos[1])
+    z_target = None
+    for o in world.geoms:
+        if o.type != "box" or abs(float(o.quat[0]) - 1.0) > 1e-9 or o.semantic in ("floor",):
+            continue
+        px, py, pz = (float(c) for c in o.pos)
+        sx, sy, sz = (float(q) for q in o.size[:3])
+        if abs(py - y_body) > sy + t / 2 + 0.01 or abs(px - x_body) > sx + W / 2:
+            continue
+        lo_z = pz - sz
+        if lo_z > z_top + 0.004 and (z_target is None or lo_z < z_target):
+            z_target = lo_z
+    if z_target is None or z_target - z_top < CARRIER_MIN_GAP:
+        return
+    y_rel = float(rail.pos[1]) - y_body
+    for k, xr in enumerate((-W / 2 + 0.12, W / 2 - 0.12)):
+        # carrier plate bolted to the top edge (4 mm clear of the header), wheel bearing on the header
+        z1 = z_target - 0.004
+        body.geoms.append(C.box(f"{body.name}_carrier_{k}", (xr, y_rel, (z_top - 0.06 + z1) / 2),
+                                (0.020, 0.005, (z1 - z_top + 0.06) / 2), roller_material, 7850, False, True,
+                                FULL_SIMPLE, "track", "Roller carrier"))
+        wheel = C.cyl(f"{body.name}_carrier_wheel_{k}", (xr, y_rel, z_target - 0.014), 0.014, 0.006, roller_material,
+                      (0, 1, 0), 7850, False, True, FULL_SIMPLE, "track", "Carrier wheel")
+        body.geoms.append(wheel)
+        support["rollers"].append(wheel.name)

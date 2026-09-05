@@ -1,6 +1,7 @@
 """Sliding, folding, rotor, vertical-lift and horizontal-hinge families."""
 from __future__ import annotations
 
+import fnmatch
 import math
 
 import numpy as np
@@ -13,7 +14,7 @@ from ..folding import (FOLD_TRACK_H, FOLD_TRACK_GAP, FOLD_FLOOR_GAP, FOLD_HINGE_
                        fold_coupling, fold_hinge_range, fold_lead_gap, fold_meeting_gap, fold_groups)
 from . import common as C
 from . import meshes as MESH
-from .sliding_tracks import add_tracks, add_barn_hangers, add_floor_guides, add_lane_floor_guides
+from .sliding_tracks import add_tracks, add_barn_hangers, add_header_hangers, add_floor_guides, add_lane_floor_guides
 
 
 def _sites(world, Ho, ya=-1.5, yg=1.5):
@@ -159,7 +160,14 @@ def build_sliding(spec, phys, model: Model):
         else:
             for sgn in (-1, 1):
                 xf = sgn * (Wo / 4 + Wo / 8)
-                world.geoms.append(C.box(f"sidelite_{'r' if sgn > 0 else 'l'}", (xf, 0.042, Ho / 2), (Wo / 8 - 0.02, 0.003, Ho / 2 - 0.05), gm, 2500, True, True, ALL_TIERS, "glass", "Sidelite"))
+                nm_sl = 'r' if sgn > 0 else 'l'
+                hw_ = Wo / 8 - 0.02
+                world.geoms.append(C.box(f"sidelite_{nm_sl}", (xf, 0.042, Ho / 2), (hw_, 0.003, Ho / 2 - 0.05), gm, 2500, True, True, ALL_TIERS, "glass", "Sidelite"))
+                # glazing frame: the pane is not floating in the opening, it is captured in stiles and rails
+                for sx in (-1, 1):
+                    world.geoms.append(C.box(f"sidelite_{nm_sl}_stile_{'p' if sx > 0 else 'n'}", (xf + sx * (hw_ + 0.02), 0.042, Ho / 2), (0.02, 0.012, Ho / 2), fm2, 1400, True, True, FULL_SIMPLE, "frame", "Sidelite stile"))
+                for zc_, lab_ in ((0.025, "sill"), (Ho - 0.025, "head")):
+                    world.geoms.append(C.box(f"sidelite_{nm_sl}_{lab_}", (xf, 0.042, zc_), (hw_ + 0.04, 0.012, 0.025), fm2, 1400, True, True, FULL_SIMPLE, "frame", f"Sidelite {lab_} rail"))
     # leaves
     bodies = []
     pockets_keeper = []
@@ -224,10 +232,16 @@ def build_sliding(spec, phys, model: Model):
         rm = C.mat_from_material(model, "steel_galvanized", "mat_roller")
         if track == "surface_flat_track":
             add_barn_hangers(model, world, b, spec, zb, track_defs[name], rm, tm)
-        elif track == "bottom_rolling":
-            for k, xr in enumerate((-W / 2 + 0.1, W / 2 - 0.1)):
-                # The rolling tread touches the rail top (24 mm); wheel is housed in the lower stile.
-                wheel = C.cyl(f"{name}_roller_{k}", (xr, 0, 0.024 + 0.015), 0.015, 0.008, rm, (0, 1, 0), 7850, False, True, FULL_ONLY, "track", "Roller")
+        elif track in ("top_hung", "top_hung_pocket", "top_hung_industrial", "top_hung_bypass", "auto_header", "elevator_hanger_track"):
+            add_header_hangers(model, world, b, spec, zb, track_defs[name], rm)
+        elif track in ("bottom_rolling", "bottom_rail", "cantilever"):
+            # the leaf rides its ground rail on wheels; on a gate the leaf is held clear of the ground, so the
+            # wheel has to be big enough to bridge from the rail top into the leaf's bottom rail
+            rail_g = next((g for g in world.geoms if g.name == track_defs[name]["rail"]), None)
+            z_rail = (float(rail_g.pos[2]) + float(rail_g.size[2])) if rail_g is not None else 0.024
+            r_w = max(0.015, (zb - z_rail) / 2 + 0.012)
+            for k, xr in enumerate((-W / 2 + 0.1 + r_w, W / 2 - 0.1 - r_w * 3)):
+                wheel = C.cyl(f"{name}_roller_{k}", (xr, 0, z_rail + r_w), r_w, 0.008, rm, (0, 1, 0), 7850, False, True, FULL_SIMPLE, "track", "Roller")
                 b.geoms.append(wheel)
                 track_defs[name]["rollers"].append(wheel.name)
         bodies.append(b)
@@ -271,6 +285,7 @@ def build_sliding(spec, phys, model: Model):
                 model.add_body(td)
                 world.geoms.append(C.box(f"{name}_teardrop_keeper_post", (xc + x_latch_edge - dir_ * 0.005, yl - (t / 2 + 0.01), hz + 0.45 - 0.034), (0.005, 0.006, 0.018), lm, 7800, True, True, FULL_SIMPLE, "latch", "Keeper post"))
                 world.geoms.append(C.box(f"{name}_teardrop_keeper_base", (xc + x_latch_edge - dir_ * 0.005, yl - (t / 2 + 0.024), hz + 0.45 - 0.03), (0.005, 0.008, 0.02), lm, 7800, False, True, FULL_ONLY, "latch", "Keeper base"))
+                pockets_keeper.append(world.geoms[-1])   # braced to the jamb beside it once the frame exists
         elif opm.kind in ("hook_lock_slider",):
             # exterior face passes the fixed panel: flush pull there, lever handle on the robot face only
             hb = C.add_rotary_operator(model, b, spec, phys, H.OPERATORS["lever_l_shape"], -dir_, 1.0, x_latch_edge + dir_ * 0.06, hz, t, [-1.0], None, name=f"{name}_handle")
@@ -385,6 +400,19 @@ def build_sliding(spec, phys, model: Model):
             world.geoms.append(C.box(f"car_wall_{'r' if sgn > 0 else 'l'}", (sgn * (Wo / 2 + 0.6), 1.2, Ho / 2 + 0.1), (0.02, 1.1, Ho / 2 + 0.1), sm, 7900, True, True, FULL_SIMPLE, "wall", "Car wall"))
         world.geoms.append(C.box("car_back", (0, 2.3, Ho / 2 + 0.1), (Wo / 2 + 0.6, 0.02, Ho / 2 + 0.1), sm, 7900, True, True, FULL_SIMPLE, "wall", "Car back wall"))
     C.add_extras(model, world, bodies[0], spec, 1.0, 1.0, -W / 2, 0.012, W, Hh, t, Wo, Ho)
+    # A surface-run door hangs in front of its wall, so the frame hardware it works against - keepers, bolt
+    # housings, the track header - is drawn out there with it.  Every one of those is really screwed to the wall on
+    # a standoff bracket; without them they hang in the air (a hook keeper 27 mm off the jamb).  Done once here,
+    # after the frame exists.
+    hw_ = C.mat_from_material(model, "stainless", "mat_hook")
+    for g_ in [g for g in pockets_keeper if isinstance(g, Geom)]:
+        C.brace_to_structure(world, g_, -1.0 if g_.pos[0] > 0 else 1.0, hw_, name=f"{g_.name}_arm",
+                             semantic=g_.semantic, label="Keeper jamb bracket", tiers=FULL_SIMPLE, span=0.8, axes=("x",))
+    for g_ in [g for g in list(world.geoms) if any(fnmatch.fnmatch(g.name, pat) for pat in
+               ("*_hook_keeper", "*_electric_bolt_housing", "track_header", "*_slide_keeper", "*_bolt_keeper"))]:
+        C.brace_to_structure(world, g_, 1.0 if g_.pos[1] > 0 else -1.0, hw_, name=f"{g_.name}_bracket",
+                             semantic=g_.semantic, label="Standoff mounting bracket", tiers=FULL_SIMPLE, span=0.8,
+                             axes=("y", "x"))    # never downwards: a bracket under a bolt housing is in the bolt's way
     _sites(world, Ho)
     model.meta.update({"primary_joint": bodies[0].joint.name, "secondary_joint": bodies[1].joint.name if len(bodies) > 1 else None, "handle_height": spec["operator"]["height"], "opens_toward": "left" if opens_left else "right"})
     if "operator_joint" not in model.meta:

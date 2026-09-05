@@ -560,6 +560,8 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         mm = C.mat_from_material(model, "aluminum_dark", "mat_maglock")
         # magnet on the frame on the side the leaf closes AGAINST (-v); armature plate on the leaf face touches it
         world.geoms.append(C.box(f"{leaf_name}_maglock_body", (hx + x_edge - u * 0.30, -v * (t / 2 + 0.035), Ho - 0.065), (0.125, 0.025, 0.02), mm, 2000, True, True, FULL_SIMPLE, "lock", "Electromagnetic lock"))
+        # a maglock hangs on its header bracket, not in mid air 45 mm under the soffit
+        world.geoms.append(C.box(f"{leaf_name}_maglock_bracket", (hx + x_edge - u * 0.30, -v * (t / 2 + 0.035), Ho - 0.0225), (0.09, 0.025, 0.0225), mm, 7850, False, True, FULL_SIMPLE, "lock", "Maglock header bracket"))
         leaf_body.geoms.append(C.box(f"{leaf_name}_maglock_armature", (x_edge - u * 0.30, -v * (t / 2 + 0.005), Ho - 0.065), (0.09, 0.005, 0.02), mm, 7800, False, True, FULL_SIMPLE, "lock", "Maglock armature plate"))
         model.meta.setdefault("breakable_welds", []).append({"name": f"{leaf_name}_maglock", "holding_force_N": H.LATCHES["mag_lock_1200" if "1200" in lk.name else "mag_lock_600"].holding_force})
     if lk.kind == "chain" and engaged:

@@ -1461,6 +1461,50 @@ def add_bumper_stop(model: Model, world: Body, leaf_body: Body, spec: dict, u: f
         + ("" if mount == "wall" else "  A wall bumper cannot reach a leaf that stops perpendicular to its own wall, so the floor riser real doors use there is modelled instead."))
 
 
+def brace_to_structure(world: Body, g: Geom, d: float, mat, name: str | None = None, semantic: str = "frame",
+                       label: str = "Mounting bracket", tiers=FULL_SIMPLE, span: float = 0.6, max_gap: float = 0.25,
+                       axes: tuple = ("y", "x", "z")):
+    """Bracket the static geom ``g`` back to the structure it stands off, in the ``d`` (+-1) sense of each axis tried.
+
+    Surface-mounted hardware - a keeper on a barn-door jamb, an EXIT sign over the head, a drop-bolt housing on a
+    gate post - is drawn where the door needs it, which is some way off the member it is really screwed to.  The
+    nearest static surface behind it is found (over the part's own footprint) and the gap is filled with the
+    bracket that would be there.  Axes are tried in order, so a part with a wall behind it gets a wall standoff and
+    one with only a jamb beside it gets a jamb bracket.  Returns the bracket geom, or None."""
+    lo, hi = geom_local_aabb(g)
+    half = [float(hi[k] - lo[k]) / 2 for k in range(3)]
+    ctr = [float(hi[k] + lo[k]) / 2 for k in range(3)]
+    for ax in axes:
+        a = {"x": 0, "y": 1, "z": 2}[ax]
+        o1, o2 = [k for k in range(3) if k != a]
+        s1, s2 = max(0.02, half[o1] * span), max(0.02, half[o2] * span)
+        f_part = d * ctr[a] - half[a]                # the part's BACK face along +d (the bracket stops there)
+        best = None
+        for o in world.geoms:
+            if o is g or o.type != "box" or abs(float(o.quat[0]) - 1.0) > 1e-9:
+                continue
+            p_ = [float(c) for c in o.pos]
+            sz = [float(q) for q in o.size[:3]]
+            if abs(p_[o1] - ctr[o1]) > sz[o1] + s1 or abs(p_[o2] - ctr[o2]) > sz[o2] + s2:
+                continue
+            f = d * p_[a] + sz[a]
+            if f <= f_part + 1e-9 and (best is None or f > best):
+                best = f
+        if best is None:
+            continue
+        gap = f_part - best
+        if gap <= 0.002 or gap > max_gap:
+            continue
+        pos = list(ctr)
+        pos[a] = d * (best + gap / 2)
+        hsz = [max(0.005, half[k] * span) for k in range(3)]
+        hsz[a] = gap / 2 + 0.0005
+        br = box(name or f"{g.name}_bracket", tuple(pos), tuple(hsz), mat, 7850, False, True, tiers, semantic, label)
+        world.geoms.append(br)
+        return br
+    return None
+
+
 def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dict, u: float, v: float, x_hinge_axis: float, Hh: float, t: float, Wo: float, jamb_t: float, tier_full_arms=True):
     cl = H.CLOSERS[spec["closer"]["model"]]
     if cl.kind in ("none", "spring_hinge", "gate", "gas_strut", "pneumatic"):
@@ -1637,6 +1681,8 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
         em = mat_rgba(model, "mat_exit_sign", (0.85, 0.1, 0.1, 1), 0.4)
         model.materials["mat_exit_sign"].emissive = (0.8, 0.05, 0.05)
         world.geoms.append(mesh_geom("exit_sign", key, mesh, (0, -v * 0.15, Ho + 0.30), QUAT_ID, em, 500, False, FULL_ONLY, "decor", "EXIT sign"))
+        brace_to_structure(world, world.geoms[-1], -v, mat_from_material(model, "aluminum", "mat_sign_bracket"),
+                           name="exit_sign_bracket", semantic="decor", label="EXIT sign back box", tiers=FULL_ONLY, span=0.35)
     if "push_pull_sign" in ex:
         sm = mat_from_material(model, "stainless", "mat_sign")
         leaf_body.geoms.append(box("sign_push", (x0 + u * W / 2, -v * (t / 2 + 0.001), z0 + 1.35), (0.06, 0.001, 0.03), sm, 7900, False, True, FULL_ONLY, "decor", "PUSH sign"))
@@ -1664,7 +1710,9 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
             for f in (-1, 1):
                 world.geoms.append(box(f"wave_sensor_{'p' if f > 0 else 'n'}", (xw, yw + f * (spec["opening"]["wall_thickness"] / 2 + 0.012), 1.05), (0.05, 0.012, 0.05), wm, 1000, True, True, FULL_SIMPLE, "sensor", "Wave-to-open / push plate sensor"))
         if "call_button" in ex:
-            cb = Body("call_button", "world_env", (xw, yw - (spec["opening"]["wall_thickness"] / 2 + 0.012), 1.05), QUAT_ID, None, [], [], FULL_SIMPLE, "sensor", "Elevator call button")
+            y_cp = yw - spec["opening"]["wall_thickness"] / 2
+            world.geoms.append(box("call_plate", (xw, y_cp - 0.003, 1.05), (0.03, 0.003, 0.05), wm, 1000, False, True, FULL_SIMPLE, "sensor", "Call button plate"))
+            cb = Body("call_button", "world_env", (xw, y_cp - 0.006, 1.05), QUAT_ID, None, [], [], FULL_SIMPLE, "sensor", "Elevator call button")
             cb.joint = Joint("call_button_slide", "slide", (0, 1, 0), (0, 0, 0), (0.0, 0.003), damping=1.0, stiffness=1500.0, springref=-0.003, role="lock", label="Call button (press)")
             cb.geoms.append(cyl("call_button_geom", (0, -0.003, 0), 0.015, 0.003, mat_rgba(model, "mat_callbtn", (0.9, 0.9, 0.9, 1), 0.3, 0.8), (0, 1, 0), 1000, True, True, FULL_SIMPLE, "lock", "Call button"))
             model.add_body(cb)

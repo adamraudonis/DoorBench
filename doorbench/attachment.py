@@ -168,16 +168,26 @@ class Attachment:
         n = self.gname[gid] or ""
         return self.c.sem.get(n, "") in GUIDE_SEM or any(fnmatch.fnmatch(n, p) for p in GUIDE_NAME)
 
-    def attach_dist(self, ids: Sequence[int], targets: Sequence[int]) -> Tuple[float, float, int, int]:
+    def attach_dist(self, ids: Sequence[int], targets: Sequence[int], guided: bool = False) -> Tuple[float, float, int, int]:
         """(effective gap, tolerance that applies, geom a, geom b) for a body against what carries it.
 
-        The closest target decides; if that target is a running fit the guided tolerance applies instead."""
-        best = (SEARCH, TOL_BODY, -1, -1)
+        The closest target decides; if that target is a running fit - or the body itself runs on one, which every
+        body on a SLIDE joint does (rollers in a rail, hangers on a bar, a panel in its head channel) - the guided
+        tolerance applies instead of the contact one."""
+        best = (SEARCH, TOL_BODY_GUIDED if guided else TOL_BODY, -1, -1)
         for i, j, dist in self._pairs_within(ids, targets, SEARCH):
-            tol = TOL_BODY_GUIDED if self.is_guide(j) or self.is_guide(i) else TOL_BODY
+            tol = TOL_BODY_GUIDED if guided or self.is_guide(j) or self.is_guide(i) else TOL_BODY
             if dist - tol < best[0] - best[1]:
                 best = (dist, tol, i, j)
         return best
+
+    def is_guided_body(self, bid: int) -> bool:
+        """A body carried by a running fit: it (or an ancestor it rides on) slides."""
+        m = self.m
+        for j in range(m.njnt):
+            if int(m.jnt_bodyid[j]) == bid and int(m.jnt_type[j]) == int(self.mj.mjtJoint.mjJNT_SLIDE):
+                return True
+        return False
 
     def _clusters(self, ids: Sequence[int], tol: float) -> List[List[int]]:
         """Connected components of ``ids`` under "signed distance <= tol"."""
@@ -322,7 +332,7 @@ class Attachment:
             targets = [t for t in targets if t not in ids]
             if not targets:
                 continue
-            dist, tol, i, j = self.attach_dist(ids, targets)
+            dist, tol, i, j = self.attach_dist(ids, targets, guided=self.is_guided_body(bid))
             worst[bid] = dist
             if dist > tol:
                 self._finding(out, "body_detached" if config == "rest" else "detached_in_motion",
@@ -359,6 +369,7 @@ class Attachment:
             targets = [t for t in targets if t not in ids]
             if not targets:
                 continue
+            guided_ = self.is_guided_body(bid)
             if m.jnt_limited[j]:
                 lo, hi = (float(x) for x in m.jnt_range[j])
             elif int(m.jnt_type[j]) == int(self.mj.mjtJoint.mjJNT_HINGE):
@@ -374,7 +385,7 @@ class Attachment:
                 q[m.jnt_qposadr[j]] = qv
                 self.d.qpos[:] = self.c.resolve(q)
                 self.mj.mj_forward(m, self.d)
-                dist, tol, ia, ja = self.attach_dist(ids, targets)
+                dist, tol, ia, ja = self.attach_dist(ids, targets, guided=guided_)
                 if dist - tol > worst[0] - worst[1]:
                     worst = (dist, tol, qv, ia, ja)
             dist, tol, qv, ia, ja = worst
