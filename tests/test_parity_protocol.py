@@ -18,6 +18,7 @@ import os
 
 import pytest
 
+from doorbench import qa as QA
 from doorbench.parity import protocol as P
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -51,7 +52,9 @@ def test_inputs_spring_latch_knob_door():
     assert inp["is_hinge"] and inp["primary_joint"] == "leaf_hinge" and inp["operator_joint"] == "leaf_handle_hinge" and inp["latch_bolt_joint"] == "leaf_latch_bolt_slide"
     assert inp["flags"]["spring_latch"] and inp["flags"]["has_holding"] and not inp["flags"]["lock_engaged"]
     assert inp["forces"]["operator_effort"] == 4.0 and inp["forces"]["source"] == "qa.json"
-    assert inp["forces"]["push"] == pytest.approx(60.360874, abs=1e-5)       # qa_push of the door
+    # qa_push of the door: 2 x static + a base sized by the leaf (12.50 kg x 0.762 m -> 46.7 N*m, under the 60 N*m cap)
+    assert inp["forces"]["push"] == pytest.approx(47.085883, abs=1e-5)
+    assert inp["forces"]["push_base"] == pytest.approx(0.5 * 12.5013067296 * 9.81 * 0.762, abs=1e-6)
     assert inp["coupling"]["latch"]["scale"] == pytest.approx(0.015679, abs=1e-6) and inp["coupling"]["latch"]["operator_joint"] == "leaf_handle_hinge"
     sched = inp["schedule"]
     for kind in ("mjcf", "usd_full", "usd_rl"):
@@ -103,7 +106,8 @@ def test_inputs_hash_stable_and_forces_override():
     b = P.door_inputs(spec, mj, qa=qa, rl_meta=rl)
     assert a["inputs_hash"] == b["inputs_hash"]
     c = P.door_inputs(spec, mj, forces={"bias": 0.0, "frictionloss": 0.180437, "preload": 0.0}, qa=qa, rl_meta=rl)
-    assert c["forces"]["source"] == "mujoco" and c["forces"]["push"] == pytest.approx(2 * 0.180437 + 60)
+    base = QA.push_base("hinge", spec["physics"]["mass"]["total_kg"], spec["leaf"]["width"])
+    assert c["forces"]["source"] == "mujoco" and c["forces"]["push"] == pytest.approx(2 * 0.180437 + base)
     d = P.door_inputs(spec, mj, rl_meta=rl)                     # no qa.json, no MuJoCo: model.json estimate
     assert d["forces"]["source"].startswith("model.json") and d["forces"]["bias"] is None
 

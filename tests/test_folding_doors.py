@@ -110,7 +110,7 @@ def test_accordion_folds_under_the_qa_push_and_signs_off(tmp_path, folding_specs
     # the qa.py free-swing push: the fold must move past 10 deg and then reach its stack stop, with no contact force
     flags = QA.door_flags(s)
     assert flags["free_swing"] and not flags["has_holding"]
-    push = QA.qa_push(m, d, pj)["push"]
+    push = QA.qa_push(m, d, pj, phys["mass"]["total_kg"], s["leaf"]["width"])["push"]     # the push qa.py actually applies to this leaf
     moved = QA.push_primary(m, d, pj, push, has_holding=False, thr_free=math.radians(10))
     assert moved > math.radians(10), moved
     for _ in range(1000):
