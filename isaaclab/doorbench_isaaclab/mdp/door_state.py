@@ -124,10 +124,19 @@ class DoorState:
         self.sec_c0 = f(lambda m: (m.get("secondary_coupling") or {}).get("coeff", [0.0, 0.0])[0])
         self.sec_c1 = f(lambda m: (m.get("secondary_coupling") or {}).get("coeff", [0.0, 0.0])[1])
         self.sec_driven = b(lambda m: (m.get("secondary_coupling") or {}).get("driven") == "secondary")
-        # automatic doors (position servo in the spec): kp, kv, open target, sensor range
+        # automatic doors (position servo in the spec): kp, kv, open target, sensor range.  ``in_drive``: the exporter
+        # folded the servo into the canonical joint's PhysX drive (spring-less servo joints) - the gains are already in
+        # the USD and only the position target moves; otherwise DoorMechanismAction writes kp / kv into the sim once.
         self.auto = b(lambda m: bool(m.get("actuators")))
         self.auto_kp = f(lambda m: (m.get("actuators") or [{}])[0].get("kp"), 0.0)
         self.auto_kv = f(lambda m: (m.get("actuators") or [{}])[0].get("kv"), 0.0)
+        self.auto_in_drive = b(lambda m: bool(m.get("actuators")) and all(a.get("in_drive") for a in m["actuators"]))
+        # rising / helical hinge (cold_storage, stall): the riser is locked in door_rl.usda, MuJoCo's rise coupling
+        # costs m g dz per radian of opening -> constant closing torque on the door joint (usd.py rise_coupling_info)
+        self.rise_torque = f(lambda m: (m.get("rise_coupling") or {}).get("gravity_torque_Nm"), 0.0)
+        # Coulomb joint friction: make sure PhysX holds the authored efforts (Isaac Sim >= 5 exposes the static effort
+        # as joint_friction_coeff; a parser that dropped the per-axis API would leave every joint frictionless)
+        self._ensure_joint_friction(metas)
         self.auto_open = f(lambda m: ((m.get("actuators") or [{}])[0].get("ctrlrange") or [0, 0])[1], 0.0)
         self.auto_speed = torch.where(self.is_hinge, torch.full((N,), 0.6, device=dev), torch.full((N,), 0.3, device=dev))
         self.auto_range = 1.8
@@ -169,6 +178,33 @@ class DoorState:
         self.applied_auto_gains = False
 
     # ------------------------------------------------------------------ helpers
+    def _ensure_joint_friction(self, metas: list[dict]):
+        """Write the IR Coulomb efforts (static == dynamic, viscous 0) when PhysX reads back something else.
+
+        The USD carries them as ``physxJointAxis:angular|linear:*FrictionEffort``; this is the belt to that braces
+        (Isaac Lab >= 2.3 ``write_joint_friction_coefficient_to_sim``).  Silently skipped on APIs that lack it."""
+        fr = getattr(self.door.data, "joint_friction_coeff", None)
+        if fr is None or not hasattr(self.door, "write_joint_friction_coefficient_to_sim"):
+            return
+        want = torch.zeros(self.N, self.num_joints, device=self.device)
+        for k, m in enumerate(metas):
+            for name, info in m.get("joints", {}).items():
+                if info.get("active"):
+                    want[k, self.j[name]] = float(info.get("friction") or 0.0)
+        if bool(((fr - want).abs() > 1e-2 * want.clamp_min(1e-3)).any()):
+            # MuJoCo frictionloss = one Coulomb bound for stick and slip -> static == dynamic effort, no viscous term;
+            # Isaac Lab 2.3 offers the dynamic / viscous writes either as keyword arguments or as separate methods
+            try:
+                self.door.write_joint_friction_coefficient_to_sim(want, joint_dynamic_friction_coeff=want.clone(), joint_viscous_friction_coeff=torch.zeros_like(want))
+                return
+            except TypeError:
+                pass
+            self.door.write_joint_friction_coefficient_to_sim(want)
+            for name, val in (("write_joint_dynamic_friction_coefficient_to_sim", want.clone()), ("write_joint_viscous_friction_coefficient_to_sim", torch.zeros_like(want))):
+                fn = getattr(self.door, name, None)
+                if fn is not None:
+                    fn(val)
+
     @staticmethod
     def _resolve_bodies(asset: Articulation, candidates):
         for pat in candidates:

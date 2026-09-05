@@ -56,6 +56,14 @@ installation or full-mechanism torque calibration is claimed for this generic sl
 * Armature (reflected inertia of internal mechanisms) is added to mechanism joints so the coupled constraints are
   well-conditioned in MuJoCo.
 
+## Isaac Sim / PhysX
+
+The MJCF is the reference simulation. `docs/ISAAC_LAB.md` ("MuJoCo → PhysX parameter mapping") derives every USD
+quantity from the same joint parameters: drive gains per degree, `frictionloss` as static = dynamic Coulomb effort on
+the joint's `angular` / `linear` axis (legacy load-dependent coefficient 0), armature, the 100 rad/s link velocity cap
+(deg/s in the schema), position servos folded into the drive, and the gravity closing torque `−m·g·c₁` that stands in
+for a rising hinge's screw coupling in the canonical RL articulation.
+
 ## Compliance checks
 
 For each hinged door the simulated opening force at the handle is compared with ADA 2010 §404.2.9 (5 lbf interior),

@@ -34,11 +34,17 @@ DOOR_ARTICULATION_PROPS = sim_utils.ArticulationRootPropertiesCfg(
     stabilization_threshold=0.0,
     fix_root_link=None,   # the USD already has base_fixed (FixedJoint to the world)
 )
+# Isaac Lab's max_angular_velocity is in DEGREES per second (physxRigidBody:maxAngularVelocity).  Round 1 of the
+# parity gate ran with 100.0 here - meant as rad/s, read as 100 deg/s = 1.75 rad/s - and every leaf, rotor and lever
+# plateaued at ~1.9 rad/s while MuJoCo (no cap) reached 3-5 rad/s.  100 rad/s is the PhysX default and stays above
+# the fastest door motion in the dataset (~65 rad/s, a pet flap under the QA push); the exporter authors the same
+# value on every link (doorbench.export.usd.MAX_ANGULAR_VELOCITY_DEG_S).
+MAX_ANGULAR_VELOCITY_DEG_S = 5729.5779513      # = 100 rad/s * 180 / pi
 DOOR_RIGID_PROPS = sim_utils.RigidBodyPropertiesCfg(
     disable_gravity=False,
     max_depenetration_velocity=5.0,
     max_linear_velocity=20.0,
-    max_angular_velocity=100.0,
+    max_angular_velocity=MAX_ANGULAR_VELOCITY_DEG_S,
 )
 # passive joints: gains come from the USD drives (None = use USD value)
 DOOR_ACTUATORS = {"passive": ImplicitActuatorCfg(joint_names_expr=[".*"], stiffness=None, damping=None)}

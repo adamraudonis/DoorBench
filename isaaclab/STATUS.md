@@ -7,7 +7,8 @@ exactly what was verified locally and what awaits the GPU run (task board I4).
 
 | what | result |
 |---|---|
-| USD export rewrite (`doorbench/export/usd.py`): default prim = door root, `Env` (static) + `Articulation` (fixed `base` link, single tree), PhysX applied schemas (`PhysxArticulationAPI`, `PhysxRigidBodyAPI`, `PhysxJointAPI`, `PhysxJointAxisAPI:rotX/transX` friction efforts, `PhysxCollisionAPI`, `PhysxConvexHullCollisionAPI`, `PhysxMimicJointAPI` with `rel referenceJoint`), `/PhysicsScene` outside the default prim, per-joint `doorbench:*` metadata | regenerated 1000 doors in 37 s (`scripts/generate_dataset.py --formats mjcf,urdf,usd,json`); MJCF / URDF / thumbnails byte-identical; `n_signed_off = 1000` (QA now also requires `usd_rl_opens`) |
+| USD export rewrite (`doorbench/export/usd.py`): default prim = door root, `Env` (static) + `Articulation` (fixed `base` link, single tree), PhysX applied schemas (`PhysxArticulationAPI`, `PhysxRigidBodyAPI`, `PhysxJointAPI`, `PhysxJointAxisAPI:angular/linear` friction efforts, `PhysxCollisionAPI`, `PhysxConvexHullCollisionAPI`, `PhysxMimicJointAPI` with `rel referenceJoint`), `/PhysicsScene` outside the default prim, per-joint `doorbench:*` metadata | regenerated 1000 doors in 37 s (`scripts/generate_dataset.py --formats mjcf,urdf,usd,json`); MJCF / URDF / thumbnails byte-identical; `n_signed_off = 1000` (QA now also requires `usd_rl_opens`) |
+| Physics-mapping fixes after parity round 1 (2026-09-05, `docs/ISAAC_LAB.md` "MuJoCo → PhysX parameter mapping"): per-axis friction API moved from the ignored `rotX`/`transX` instance to `angular`/`linear` (readback was 0.0 on all 1000 doors), legacy `physxJoint:jointFriction` authored 0 (was load-dependent, 7-10× on the turnstile columns), `DOOR_RIGID_PROPS.max_angular_velocity` 100 deg/s → 5729.58 deg/s (= 100 rad/s; every leaf had plateaued at 1.9 rad/s) and authored on every link, MJCF position servos of spring-less joints folded into the PhysX drive (`doorbench:servo_in_drive`), rising-hinge gravity torque in `doorbench:rl["rise_coupling"]` for the locked riser, armature on both APIs; runner / `DoorState` read the friction back and write it through Isaac Lab when PhysX disagrees | regenerated 1000 doors (MJCF byte-identical); static validator 1000/1000 with the new checks (instance names, legacy coefficient 0, `maxAngularVelocity` ≥ 1000 deg/s, servo drive consistency, rise coupling); `tests/test_usd_physics_mapping.py` (51 tests, exports one door per family without `assets/`) |
 | New canonical `door_rl.usda` (8 links / 7 joints for every door, `doorbench:rl` metadata) | 1000/1000 written; slot histogram in `assets/usd_validation.json` |
 | `scripts/isaaclab/validate_usd_static.py` over all 1000 doors, both files | **1000/1000 pass** — full: 3 618 joints, 4 650 rigid bodies, 21 719 colliders, 5 347 mesh references resolved, 0 warnings; rl: 7 000 joints, 8 000 rigid bodies, 20 600 colliders, 57 warnings (doors that cannot open by spec: jammed / interlocked / child-locked, and 35 doors without a handle site → leaf point used). Checks: stage metadata, single articulation root, fixed base, tree connectivity, mass/inertia > 0, joint frames consistent through body0/body1 (anchor & axis), limits, drives (gains, spring targets vs `model.json` within 1e-3), friction efforts == IR Coulomb values, collision APIs + physics materials, mesh references, JSON attributes, RL slot consistency |
 | `pytest -q tests/test_doorbench.py` | pass (6 tests) |
@@ -32,9 +33,11 @@ exactly what was verified locally and what awaits the GPU run (task board I4).
   installed Isaac Lab is not v2.3.x.
 * Training quality: reward weights follow the benchmark events + Isaac Lab's G1 regularisers but were never tuned.
 * `record_hero.py` (viewport render via `env.render()` with `--enable_cameras`), `eval_all_doors.py`.
-* PhysX semantics that only a run can confirm: mimic-joint gearing units; whether `PhysxJointAxisAPI` friction
-  efforts are honoured on articulation joints in Isaac Sim 5.1 (if not, hinge friction is absent: the legacy
-  coefficient is small by design).
+* PhysX semantics that only a run can confirm: mimic-joint gearing units. Joint friction is no longer an unknown:
+  Isaac Sim 5.1 reads the `PhysxJointAxisAPI` efforts only from the `angular` / `linear` instance (round 1 authored
+  `rotX` / `transX` and read back 0.0 everywhere); `isaac_parity.py` and `DoorState` now compare the read-back with
+  the IR and write the efforts through `write_joint_friction_coefficient_to_sim` if PhysX disagrees, so a parser
+  regression shows up as a structure error instead of a frictionless door.
 
 ## How to report back
 
