@@ -64,6 +64,8 @@ export interface BuiltScene {
   bounds: THREE.Box3;
   setJoint: (name: string, q: number, propagate?: boolean) => void;
   /** Re-solve every closed loop (connect equalities) for the current driver joints; no-op when nothing moved. */
+  setRecordedJoints: (names: string[], values: number[]) => void;
+  setDiagnostic: (enabled: boolean) => void;
   solveLoops: () => { changed: boolean; results: LoopResult[] };
   loopResults: LoopResult[];
   loopWarnings: string[];
@@ -257,11 +259,37 @@ export async function buildScene(model: ModelJ, opts: { showCollision?: boolean;
   for (const h of joints.values()) applyJoint(h);
   solveLoops();
 
+  const diagnosticMaterials = new Map<string, THREE.Material>();
+  function setDiagnostic(enabled: boolean) {
+    root.traverse(o => {
+      if (!(o instanceof THREE.Mesh) || o.userData.collision === true && o.material instanceof THREE.MeshBasicMaterial) return;
+      if (!o.userData.originalMaterial) o.userData.originalMaterial = o.material;
+      if (!enabled) { o.material = o.userData.originalMaterial; return; }
+      const semantic = o.userData.semantic || "leaf";
+      const hardware = ["hinge", "operator", "lock", "latch", "closer", "track", "mechanism", "sensor"].includes(semantic);
+      const slot = hardware ? "hardware" : ["wall", "floor", "frame", "glass", "seal"].includes(semantic) ? semantic : "leaf";
+      let material = diagnosticMaterials.get(slot);
+      if (!material) {
+        const colors: Record<string, number> = {hardware:0xe9b943,leaf:0x83502e,frame:0xb7afa2,wall:0xc9cbd0,floor:0x858b91,glass:0x99bec9,seal:0x44494d};
+        material = new THREE.MeshStandardMaterial({color:colors[slot],metalness:hardware?.30:0,roughness:hardware?.36:.72,
+          transparent:slot==="glass",opacity:slot==="glass"?.30:1,depthWrite:slot!=="glass",side:slot==="glass"?THREE.DoubleSide:THREE.FrontSide});
+        diagnosticMaterials.set(slot,material);
+      }
+      o.material = material;
+    });
+  }
+  function setRecordedJoints(names:string[], values:number[]) {
+    // Recorded native coordinates already include coupling and constraint solutions.
+    // Do not clamp solver overshoot or solve those constraints a second time.
+    names.forEach((name,i)=>{const h=joints.get(name);if(h&&Number.isFinite(values[i])){h.q=values[i];applyJoint(h);}});
+    loopsDirty=false;
+    root.updateMatrixWorld(true);
+  }
   const out: BuiltScene = {
-    root, joints, bodies, bounds, setJoint, solveLoops,
+    root, joints, bodies, bounds, setJoint, solveLoops, setDiagnostic, setRecordedJoints,
     get loopResults() { return built.loopResults!; },
     get loopWarnings() { return built.loopWarnings!; },
-    dispose: () => { root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); } }); for (const m of matCache.values()) m.dispose(); },
+    dispose: () => { root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); } }); for (const m of matCache.values()) m.dispose(); for(const m of diagnosticMaterials.values()) m.dispose(); },
   };
   return out;
 }

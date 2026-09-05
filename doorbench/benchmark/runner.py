@@ -432,8 +432,12 @@ def build_door_info(env, job: Job, sc: dict, budget: float, control_dt: float, l
     }
 
 
-def run_episode(job: Job) -> dict:
-    """One door x scenario x seed.  Returns the episode dict (never raises: errors become outcome 'error')."""
+def run_episode(job: Job, observer=None) -> dict:
+    """One episode. Optional observer(event, env, base, action) records read-only snapshots.
+
+    Events are reset, step (after physics), and final. Recording does not change the policy or termination.
+    Exceptions, including observer failures, become explicit error episodes.
+    """
     t_wall = time.time()
     _WARN["n"] = 0
     ep = {"door_id": job.door["id"], "family": job.door["family"], "difficulty": job.door.get("difficulty"), "scenario": job.scenario, "suite": job.suite, "seed": job.seed, "tier": job.tier,
@@ -549,6 +553,8 @@ def run_episode(job: Job) -> dict:
         step = 0
         done = False
         stopped_by_policy = False
+        if observer is not None:
+            observer("reset", env, base_pos().copy(), {"torque_limits": dict(limits)})
         while not done:
             t = float(d.time)
             if step % decim == 0:
@@ -594,6 +600,8 @@ def run_episode(job: Job) -> dict:
                 base.step(base_v, dt, clear_now())
             _, done = env.step(robot_base_pos=None if robot else base.pos)
             step += 1
+            if observer is not None:
+                observer("step", env, base_pos().copy(), action)
             t = float(d.time)
             # ---- termination
             if damaged_by_policy():
@@ -618,6 +626,8 @@ def run_episode(job: Job) -> dict:
                         break
                 else:
                     t_ok = None
+        if observer is not None:
+            observer("final", env, base_pos().copy(), action)
         # ---- finalize
         labels = env.labels().to_dict()
         for k in EVENT_FLAGS:

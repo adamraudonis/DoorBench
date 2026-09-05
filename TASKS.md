@@ -2,7 +2,7 @@
 
 Living tracker for everything in flight. One line per task, newest requests at the bottom of each section.
 Status: `todo` · `doing` · `review` · `done` · `blocked`. Owner `main` = the coordinating session; `agent:<name>` = a
-Fable subagent working in its own git worktree (merged by main).
+a collaborating agent; current release agents use explicitly separated file ownership.
 
 ## Quality gates (blocking for every release)
 
@@ -24,8 +24,8 @@ Fable subagent working in its own git worktree (merged by main).
 | # | Task | Status | Owner | Notes |
 |---|------|--------|-------|-------|
 | D1 | 1000 doors, 30 families, MJCF/URDF/USD, physics with provenance | done | main | |
-| D2 | Regenerate + redeploy after G2/G3 land | todo | main | `scripts/generate_dataset.py`, Pages workflow |
-| D3 | Photoreal Blender renders (Poly Haven CC0) | todo | — | later stage |
+| D2 | Regenerate + redeploy corrected geometry and Blender appearance | done | main | Master `85ee9b243`; Pages run 33948786229, checksum-pinned generated release; docs/WEBSITE_DEPLOYMENT.md |
+| D3 | Modular Blender appearance (Poly Haven CC0) and all-door visual screening | done | main | 1000 previews, 14 detailed renders, 3 packed scenes; docs/review/blender/REVIEW.md. Source geometry limitations remain documented. |
 | D4 | Mass consistency gate: simulated moving mass of every door must match `spec.physics.mass.total_kg` (found by agent:mujoco: 315/1000 differed by >25 %, e.g. dutch, pivot glass, turnstiles, revolving up to 10-20x) | done | main | `build.py` reconciles the leaf bodies' mass to the spec (total minus modelled hardware, by volume); `checks.mass` in qa.json; 1000/1000 within 5 % |
 | D5 | Keypad locks on doors without a keypad (db0233, db0086: `keypad_code_*` engaged, plain lever) | done | main | spec post-processing swaps in `lever_keypad` / `knob_keypad_deadbolt` |
 
@@ -75,4 +75,18 @@ Fable subagent working in its own git worktree (merged by main).
 | # | Task | Status | Owner | Notes |
 |---|------|--------|-------|-------|
 | P1 | Reflection on why the interpenetrations were not caught earlier (QA was force-driven and only saw collision geometry; never swept joint ranges; visual-only parts never checked; sign-off from distant thumbnails) | done | main | README "Why gate 1 exists" |
-| P2 | Keep this file current; merge agent worktrees; final regeneration + push | doing | main | |
+| P2 | Keep this file current; merge agent worktrees; final regeneration + push | done | main | |
+
+## Research release — owner request, September 4, 2026
+
+The owner explicitly authorizes README and task-board updates, public Hugging Face publication, master push and website deployment. Existing Isaac/RunPod parity work remains with its current agent; its running GPU node is not used by this release.
+
+| # | Task | Status | Owner | Acceptance / evidence |
+|---|------|--------|-------|-----------------------|
+| P1 | Public Hugging Face dataset release | done | agent:sliding_track_fix | Public/ungated adamraudonis/DoorBench v2026.09.05 at Hub 6e17f0f588bf81fec0f04b2a329b471488164366; all 1000 doors, appearance, textures, reference motions. Anonymous published-helper download verified 17,246 simulation files and MuJoCo load/step; docs/DATASET_RELEASE.md |
+| P2 | Concise human-readable README | done | agent:sliding_track_fix | Clear purpose, preview, quick start and links to detailed docs |
+| P3 | Professional responsive website | done | agent:diversity_audit | Cohesive navigation/catalogue/types/results/about, real renders, desktop/mobile visual verification |
+| P4 | Fast human review workspace | done | agent:physics_audit | Queue, keyboard review, per-mechanism findings, local persistence, validated import/export, source version scope |
+| P5 | Brown-door / gold-hardware diagnostic mode | done | main | Semantic material overrides, visible mechanisms, original appearance restored without modifying assets |
+| P6 | Every-door reference humanoid animation | done | main | 1000 primary-core seed-0 recordings: 879 success, 118 fail, 3 damaged. Native+actor arrays, fixed limb IK, reach flags, browser replay/source checks, animated Blender export; docs/REFERENCE_MOTIONS.md. Kinematic figure is not contact/balance certified. |
+| P7 | Verify and publish research release | doing | main | Relevant tests, all-door coverage/integrity checks, visual review, master merge and successful Pages deployment, public HF verification |

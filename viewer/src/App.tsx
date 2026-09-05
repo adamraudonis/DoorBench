@@ -5,6 +5,8 @@ import { Families } from "./Families";
 import { DoorView } from "./DoorView";
 import { About } from "./About";
 import { Results } from "./Results";
+import { Review } from "./Review";
+import { DATASET, Icon, REPOSITORY, SiteFooter } from "./SiteUI";
 
 export const ASSETS = "./assets";
 
@@ -31,31 +33,33 @@ export function App() {
     if (h.startsWith("/families")) return { page: "families" };
     if (h.startsWith("/about")) return { page: "about" };
     if (h.startsWith("/results")) return { page: "results" };
+    if (h.startsWith("/review")) return { page: "review" };
     return { page: "catalogue", query: h.includes("?") ? h.split("?")[1] : "" };
   }, [hash]);
+  useEffect(() => {
+    document.getElementById("main-content")?.scrollTo({ top: 0, behavior: "instant" });
+  }, [route.page, route.id]);
   return (
     <div className="app">
-      <div className="topbar">
-        <a className="brand" href="#/">DoorBench</a>
-        <nav>
-          <a href="#/" className={route.page === "catalogue" ? "active" : ""}>Catalogue</a>
-          <a href="#/families" className={route.page === "families" ? "active" : ""}>Door types</a>
-          <a href="#/results" className={route.page === "results" ? "active" : ""}>Results</a>
-          <a href="#/about" className={route.page === "about" ? "active" : ""}>About &amp; usage</a>
+      <a className="skip-link" href="#main-content" onClick={(e) => { e.preventDefault(); document.getElementById("main-content")?.focus(); }}>Skip to content</a>
+      <header className="topbar">
+        <a className="brand" href="#/" aria-label="DoorBench home"><span className="brand-mark"><Icon name="door" size={24} /></span>DoorBench<span className="brand-tag">RESEARCH</span></a>
+        <nav aria-label="Main navigation">
+          {[["catalogue", "#/", "Catalogue"], ["families", "#/families", "Door types"], ["results", "#/results", "Results"], ["review", "#/review", "Review"], ["about", "#/about", "About"]].map(([page, href, label]) => <a key={page} href={href} className={route.page === page ? "active" : ""} aria-current={route.page === page ? "page" : undefined}>{label}</a>)}
         </nav>
-        <div className="spacer" />
-        {manifest && <span style={{ color: "var(--muted)", fontSize: 12 }}>{manifest.n_doors} doors · {manifest.n_signed_off} automated QA passed · v{manifest.version}</span>}
-        <a href="https://github.com/adamraudonis/DoorBench" target="_blank" rel="noreferrer">GitHub</a>
-      </div>
-      <div className="content">
-        {err && <div className="err">Could not load manifest: {err}. Run <code>python scripts/generate_dataset.py</code> first.</div>}
-        {!manifest && !err && <div className="loading">Loading manifest…</div>}
+        <div className="header-links"><a className="header-code" href={REPOSITORY} target="_blank" rel="noreferrer">GitHub <Icon name="external" size={13} /></a><a className="source-link" href={DATASET} target="_blank" rel="noreferrer">Get the dataset <Icon name="external" size={15} /></a></div>
+      </header>
+      <main id="main-content" tabIndex={-1} className={`content content-${route.page}`}>
+        {err && <div className="empty-state"><Icon name="door" size={36} /><h1>The catalogue couldn’t load.</h1><p>Refresh the page to try again. If you’re running locally, generate the dataset first.</p><code>{err}</code><button onClick={() => window.location.reload()}>Try again</button></div>}
+        {!manifest && !err && <div className="loading"><span className="loading-dot" />Loading the door collection…</div>}
         {manifest && route.page === "catalogue" && <Catalogue manifest={manifest} query={route.query ?? ""} />}
         {manifest && route.page === "families" && <Families manifest={manifest} />}
         {manifest && route.page === "door" && <DoorView manifest={manifest} id={route.id!} query={route.query ?? ""} />}
         {manifest && route.page === "about" && <About manifest={manifest} />}
         {manifest && route.page === "results" && <Results manifest={manifest} />}
-      </div>
+        {manifest && route.page === "review" && <Review manifest={manifest} />}
+        {manifest && !["door", "review"].includes(route.page) && <SiteFooter />}
+      </main>
     </div>
   );
 }
