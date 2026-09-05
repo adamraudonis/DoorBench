@@ -4,6 +4,8 @@ DoorBench's new motion pipeline plans an original articulated adult around the r
 
 This is an experimental research component. **Kinematic acceptance does not establish grasp forces, dynamic balance, causal opening, or success within the original benchmark time limit.** Native door movement comes from the frozen scripted-hand recording. Read the [scope and mechanism review](research/planned-reference-scope.md) before treating these trajectories as demonstrations.
 
+The [first complete 1,000-door run](research/planned-reference-baseline.md) accepted 61 traversals and 51 locked-door checks, rejected 404 candidates, and left 484 cases unresolved. Its [experimental release format](research/planned-reference-release.md) preserves every door's status and serves only accepted trajectories for playback.
+
 ## Use it locally
 
 The reference extra pins the tested MuJoCo, Mink and DAQP versions. Download the original `assets` and `reference-motions` components following the [release guide](DATASET_RELEASE.md), or use the existing local corpus.
