@@ -59,6 +59,24 @@ The standard rig has a neutral head top of 1.68 m, a rigid 20 cm head, finite fe
 
 `actor_qpos` and native `qpos` are authoritative coordinates. Body poses, the 16 landmarks, feet, hand targets and contact masks support replay and inspection. `clip.json` records the original actor MJCF, geometry transforms, joint-coordinate mappings, source hashes, phases and timing metrics. No original generalized force or benchmark outcome is transferred to the new clock.
 
+## Review in Motion Lab
+
+The local Motion Lab provides playback, scrubbing, per-door failure reasons and
+a brown-door/gold-hardware inspection view. Export a completed corpus, then run
+the viewer as described in [human review](HUMAN_REVIEW.md):
+
+```sh
+.venv/bin/python scripts/export_planned_reference_web.py \
+  --corpus out/reference-planned-corpus --assets assets \
+  --out out/planned-reference-web
+```
+
+Open `#/motions` in the local viewer. Visual notes use the exact served clip
+checksum, so changing a motion does not transfer an old review to it. Pass,
+needs-work, issue tags and notes can be exported/imported locally. This review
+does not change the independent kinematic result. The left/right arrow keys
+navigate doors when a text or playback control is not focused.
+
 ## Inspect in Blender
 
 Prepare an appearance job as described in [Reference motions](REFERENCE_MOTIONS.md#animated-blender-scenes), then export the checked rig rather than the old overlay:
