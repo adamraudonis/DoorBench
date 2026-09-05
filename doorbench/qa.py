@@ -3,7 +3,9 @@
 Checks (all tiers where applicable):
   load        MJCF loads in MuJoCo (full / simple / minimal)
   settle      1 s free simulation: no warnings, no deep initial penetrations, primary joint drift small
-  hold        latched door resists a strong opening torque/force (if it has a latch/lock)
+  hold        latched door resists a strong opening torque/force (if it has a latch/lock, or is a locked rotor / bolted flap)
+  free_opens  a leaf that nothing holds (no latch, no lock; every free-swing family) must move past a threshold under
+              the same push - a leaf that stays shut is jammed by its own geometry or couplings
   actuate     driving the operator retracts the latch and the door opens (if robot-side release exists)
   return      releasing the operator lets the spring latch re-extend
   relatch     closing the door re-latches (spring latches with strike lip)
@@ -41,6 +43,36 @@ def _max_pen(m, d):
         if c.dist < worst[0]:
             worst = (float(c.dist), mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, c.geom1), mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_GEOM, c.geom2))
     return worst
+
+
+def qa_push(m, d, pj) -> dict:
+    """The adaptive QA push on the primary joint (N*m for hinges, N for slides): twice the static resistance at rest
+    (gravity bias + Coulomb friction + spring preload) plus a base effort, capped - a strong human / robot.
+    Mirrored by ``parity.protocol`` (PUSH_BASE / PUSH_CAP)."""
+    import mujoco
+    is_hinge = int(m.jnt_type[pj]) == int(mujoco.mjtJoint.mjJNT_HINGE)
+    dof = m.jnt_dofadr[pj]
+    mujoco.mj_resetData(m, d)
+    mujoco.mj_forward(m, d)
+    bias = abs(float(d.qfrc_bias[dof] - d.qfrc_passive[dof]))
+    fl = float(m.dof_frictionloss[dof])
+    preload = abs(float(m.jnt_stiffness[pj] * m.qpos_spring[m.jnt_qposadr[pj]])) if m.jnt_stiffness[pj] > 0 else 0.0
+    push = min(2.0 * (bias + fl + preload) + (60.0 if is_hinge else 80.0), 800.0 if is_hinge else 4000.0)
+    return {"push": push, "bias": bias, "frictionloss": fl, "preload": preload, "is_hinge": is_hinge}
+
+
+def push_primary(m, d, pj, push: float, has_holding: bool, thr_free: float) -> float:
+    """The ``hold`` / ``free_opens`` drive from the reset state: push for 1 s (a held leaf) or up to 6 s (a free leaf,
+    stopping once it is past ``thr_free``); returns the primary joint value at exit."""
+    import mujoco
+    mujoco.mj_resetData(m, d)
+    for k in range(500 if has_holding else 3000):
+        d.qfrc_applied[:] = 0
+        d.qfrc_applied[m.jnt_dofadr[pj]] = push
+        mujoco.mj_step(m, d)
+        if k >= 499 and not has_holding and _q(m, d, pj) > thr_free:
+            break   # heavy leaves (big gates, vault doors) need longer to accelerate
+    return _q(m, d, pj)
 
 
 SPRING_LATCH_KINDS = ("tubular_latch", "deadlatch", "mortise_latch", "rim_latch", "vertical_rods", "hook", "gravity_bar", "dogs", "multi_bolt", "electric_bolt")
@@ -133,35 +165,29 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
     flags = door_flags(spec)
     has_holding, env_release_only, free_swing = flags["has_holding"], flags["env_release_only"], flags["free_swing"]
     HINGE, SLIDE = int(mujoco.mjtJoint.mjJNT_HINGE), int(mujoco.mjtJoint.mjJNT_SLIDE)
-    if pj >= 0 and not free_swing and int(m.jnt_type[pj]) in (HINGE, SLIDE):
+    if pj >= 0 and int(m.jnt_type[pj]) in (HINGE, SLIDE):
         is_hinge = int(m.jnt_type[pj]) == HINGE
         mass = phys["mass"]["total_kg"]
         W = spec["leaf"]["width"]
         # adaptive push: gravity bias at rest + friction + spring preload, with margin (a strong human / robot)
         dof = m.jnt_dofadr[pj]
-        mujoco.mj_resetData(m, d)
-        mujoco.mj_forward(m, d)
-        bias = abs(float(d.qfrc_bias[dof] - d.qfrc_passive[dof]))
-        fl = float(m.dof_frictionloss[dof])
-        preload = abs(float(m.jnt_stiffness[pj] * m.qpos_spring[m.jnt_qposadr[pj]])) if m.jnt_stiffness[pj] > 0 else 0.0
-        push = 2.0 * (bias + fl + preload) + (60.0 if is_hinge else 80.0)
-        push = min(push, 800.0 if is_hinge else 4000.0)
+        pf = qa_push(m, d, pj)
+        push, bias, fl, preload = pf["push"], pf["bias"], pf["frictionloss"], pf["preload"]
         metrics["qa_push"] = push
-        mujoco.mj_resetData(m, d)
         thr = math.radians(2.0) if is_hinge else 0.015
         thr_free = math.radians(10) if is_hinge else 0.05
-        for k in range(500 if has_holding else 3000):
-            d.qfrc_applied[:] = 0
-            d.qfrc_applied[m.jnt_dofadr[pj]] = push
-            mujoco.mj_step(m, d)
-            if k >= 499 and not has_holding and _q(m, d, pj) > thr_free:
-                break   # heavy leaves (big gates, vault doors) need longer to accelerate
-        moved = _q(m, d, pj)
+        if free_swing and has_holding and m.jnt_limited[pj]:
+            thr = max(thr, float(m.jnt_range[pj][1]) + math.radians(1.0))   # locked rotor / bolted flap: play inside its locked range
+        moved = push_primary(m, d, pj, push, has_holding, thr_free)
         metrics["hold_displacement"] = moved
         if has_holding:
             checks["hold"] = bool(moved < thr)
         else:
+            # nothing holds this leaf (no latch / lock; the free-swing families: saloon, revolving, turnstile, bifold,
+            # accordion, bypass, pet flap, strip curtain) - the push must actually move it.  A leaf that stays shut is
+            # jammed by its own geometry or couplings (a fold whose driven hinges sit on a limit, a wing rubbing the header).
             checks["free_opens"] = bool(moved > thr_free)
+    if pj >= 0 and not free_swing and int(m.jnt_type[pj]) in (HINGE, SLIDE):
         # actuate operator (if any) with generous effort; for deadbolt/thumbturn drive it too
         can_release = flags["can_release"]
         if env_release_only:

@@ -87,9 +87,10 @@ def test_inputs_panic_far_side_saloon_revolving_maglock_turnstile():
     assert panic["operator_joint"] is None and panic["schedule"]["mjcf"]["operate"].startswith("na:no operator joint") and panic["schedule"]["mjcf"]["closer"] == "closes"
     assert panic["flags"]["automatic"] and panic["coupling"]["actuators"][0]["kp"] == 150.0
     saloon = _inputs("db0031_saloon")
-    assert saloon["flags"]["free_swing"] and saloon["schedule"]["mjcf"]["hold"] == "free_opens_info" and saloon["schedule"]["mjcf"]["closer"].startswith("na:")
+    # free-swing families are pushed like everything else: nothing holds the leaf, so it has to move (not informational)
+    assert saloon["flags"]["free_swing"] and saloon["schedule"]["mjcf"]["hold"] == "free_opens" and saloon["schedule"]["mjcf"]["closer"].startswith("na:")
     rev = _inputs("db0066_revolving")
-    assert rev["unlimited_joints"] == ["rotor_hinge"] and rev["schedule"]["mjcf"]["hold"] == "free_opens_info"
+    assert rev["unlimited_joints"] == ["rotor_hinge"] and rev["schedule"]["mjcf"]["hold"] == "free_opens"
     mag = _inputs("db0026_swing_single")          # maglock engaged: MuJoCo weld, nothing in the USD
     assert mag["flags"]["env_release_only"] and mag["flags"]["has_weld"] and mag["schedule"]["usd_full"]["hold"] == "hold"
     turn = _inputs("db0187_turnstile_fullheight")  # locked rotor: must hold within its locked play

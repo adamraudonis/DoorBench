@@ -9,6 +9,8 @@ from ..ir import (Body, Geom, Joint, Site, Equality, Tendon, Model, ALL_TIERS, F
                   quat_from_axis_angle, quat_z_to)
 from .. import materials as M
 from .. import hardware as H
+from ..folding import (FOLD_TRACK_H, FOLD_TRACK_GAP, FOLD_FLOOR_GAP, FOLD_HINGE_GAP, FOLD_PIVOT_MAX_DEG, FOLD_PIVOT_IN, FOLD_JAMB_GAP,
+                       fold_coupling, fold_hinge_range, fold_lead_gap, fold_meeting_gap, fold_groups)
 from . import common as C
 from . import meshes as MESH
 from .sliding_tracks import add_tracks, add_barn_hangers, add_floor_guides, add_lane_floor_guides
@@ -382,56 +384,92 @@ def build_sliding(spec, phys, model: Model):
 # Folding: bifold / accordion
 # ---------------------------------------------------------------------------
 def build_folding(spec, phys, model: Model):
+    """Bifold / accordion (concertina) door.
+
+    The real mechanism: panel 0 turns on a jamb pivot (top and bottom pins 35 mm in from its edge); every further
+    panel hangs on a piano / butt hinge along the previous panel's edge, and every second hinge line rides in the
+    top track on a glide.  A hinge lets two panels fold flat onto each other only when its axis lies on the pair of
+    faces that come together, so the axis alternates between the two faces of the door (+y / -y) from hinge to
+    hinge.  For equal panels the track makes the hinge angles q_k = -2 q0 (odd k) / +2 q0 (even k): the panels
+    zigzag, the on-track hinge lines stay on the track line and the lead edge travels along the track towards the
+    pivot jamb.  The couplings are joint equalities; the driven hinges get the half-turn range on the side the
+    coupling drives them to ([-pi, 0] odd / [0, pi] even) so their limits never fight the coupling.  With the axes
+    on the face planes the panels stack face to face at the fold without passing through each other; the pivot
+    stop (85 deg = a 170 deg fold) is the stack limit.  The panels hang FOLD_TRACK_GAP below the track, which is
+    mounted under the head jamb, and FOLD_FLOOR_GAP above the floor; panel edges stop FOLD_HINGE_GAP short of every
+    hinge axis, so no panel touches a neighbour, the track or the frame anywhere in the travel.
+    """
     leaf = spec["leaf"]
     W, Hh, t = leaf["width"], leaf["height"], leaf["thickness"]
     op = spec["opening"]
     Wo, Ho = op["width"], op["height"]
     n = leaf["count"]
     accordion = bool(spec["kinematics"].get("accordion"))
+    zb = FOLD_FLOOR_GAP
+    if zb + Hh + FOLD_TRACK_GAP > Ho - FOLD_TRACK_H + 1e-9:
+        raise ValueError(f"{spec['id']}: {Hh:.3f} m folding panels do not clear the top track in a {Ho:.3f} m opening "
+                         f"(need >= {zb + Hh + FOLD_TRACK_GAP + FOLD_TRACK_H:.3f} m)")
     world = C.add_floor_and_wall(model, spec)
     C.add_frame(model, spec, 1.0, world, with_stop=False, strike_pockets=None, u=1.0)
     tm = C.mat_from_material(model, "aluminum", "mat_track")
-    world.geoms.append(C.box("fold_track", (0, 0, max(Ho - 0.015, 0.02 + Hh + 0.017)), (Wo / 2, 0.02, 0.015), tm, 2700, False, True, FULL_SIMPLE, "track", "Top track"))
+    world.geoms.append(C.box("fold_track", (0, 0, Ho - FOLD_TRACK_H / 2), (Wo / 2, 0.02, FOLD_TRACK_H / 2), tm, 2700, False, True, FULL_SIMPLE, "track", "Top track"))
+    hg = H.HINGES[spec["hinge"]["model"]]
+    km = C.mat_from_material(model, "steel_galvanized" if hg.bearing != "rusty" else "steel_rusty", "mat_hinge")
     v = -1.0   # folds toward the robot
     rf = phys["roller"]
     bodies = []
     opm = H.OPERATORS[spec["operator"]["model"]]
-    zb = 0.02
-    groups = [(1.0, -Wo / 2)] if (not accordion and n == 2) or accordion else [(1.0, -Wo / 2), (-1.0, Wo / 2)]
-    per_group = n // len(groups)
+    q_max = math.radians(min(float(spec["kinematics"].get("max_open_deg") or FOLD_PIVOT_MAX_DEG), FOLD_PIVOT_MAX_DEG))
+    n_groups = fold_groups(n, accordion)
+    groups = [(1.0, -Wo / 2)] if n_groups == 1 else [(1.0, -Wo / 2), (-1.0, Wo / 2)]
+    per_group = n // n_groups
+    # Face-hinged zigzag: the lead edge first moves OUT along the track before it comes back (every panel link is
+    # tilted by its thickness), by fold_lead_excursion(); the closed lead gap swallows that (folding.fold_lead_gap) or
+    # the lead edge jams on the strike jamb a few degrees into the travel.  The spec sizes the opening for it.
     for gi, (u, hx) in enumerate(groups):
-        parent = None
         prev_name = None
+        # closed lead edge: the strike jamb (one stack) or the meeting line at the opening centre (two stacks, half a gap each)
+        x_lead = u * (Wo / 2 - fold_lead_gap(per_group, W, t)) if n_groups == 1 else -u * fold_meeting_gap(per_group, W, t)
         for k in range(per_group):
             name = f"panel_{gi}_{k}"
+            last = k == per_group - 1
             if k == 0:
                 b = Body(name, None, (hx, 0, 0), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Fold panel")
-                j = Joint(f"{name}_hinge", "hinge", (0, 0, u * v), (u * 0.035, 0, 0), (0.0, math.radians(spec["kinematics"].get("max_open_deg", 90) if not accordion else 85)), damping=rf["viscous_damping_N_s_per_m"] * 0.2 + 0.2, frictionloss=rf["coulomb_force_N"] * 0.3 + 0.1, armature=0.005, role="primary", label="Pivot panel (0 = closed, + = folding open)")
+                j = Joint(f"{name}_hinge", "hinge", (0, 0, u * v), (u * FOLD_PIVOT_IN, 0, 0), (0.0, q_max), damping=rf["viscous_damping_N_s_per_m"] * 0.2 + 0.2, frictionloss=rf["coulomb_force_N"] * 0.3 + 0.1, armature=0.005, role="primary", label="Pivot panel (0 = closed, + = folding open)")
+                x_a = FOLD_JAMB_GAP
             else:
-                b = Body(name, prev_name, (u * (W - 0.0), 0, 0), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Fold panel")
-                j = Joint(f"{name}_hinge", "hinge", (0, 0, u * v), (0, 0, 0), (-math.pi, 0.0), damping=0.2, frictionloss=0.1, armature=0.002, role="secondary", label="Panel-to-panel hinge (driven)", robot_interactive=False)
+                c = fold_coupling(k)
+                side = 1.0 if v * c > 0 else -1.0      # the panel swings to +/-y: the hinge axis is on that face of both panels
+                # child frame continues the parent's centre plane (slab centred at y = 0); the axis is on the closing face
+                b = Body(name, prev_name, (u * W, 0, 0), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Fold panel")
+                j = Joint(f"{name}_hinge", "hinge", (0, 0, u * v), (0, side * t / 2, 0), fold_hinge_range(k), damping=0.2, frictionloss=0.1, armature=0.002, role="secondary", label=f"Panel-to-panel hinge (track-driven, q = {c:+.0f} q_pivot)", robot_interactive=False)
+                x_a = FOLD_HINGE_GAP
             b.joint = j
             model.add_body(b)
-            C.add_leaf_geoms(model, b, spec, leaf, u, u * 0.005, zb, phys if k == 0 else None, name_prefix=name)
+            if last:
+                # the lead slab runs to the closed lead edge (the strike jamb / meeting line), no hinge there; the spec
+                # sizes the opening so this is ~W (mm rounding of W and Wo aside)
+                x_b = abs(x_lead - (hx + u * k * W))
+                if not 0.8 * W <= x_b <= W + 0.02:
+                    raise ValueError(f"{spec['id']}: lead panel would be {x_b:.3f} m for {W:.3f} m panels - the opening ({Wo:.3f} m) does not fit the stack")
+            else:
+                x_b = W - FOLD_HINGE_GAP
+            C.add_leaf_geoms(model, b, spec, leaf, u, u * x_a, zb, phys if k == 0 else None, name_prefix=name, W=x_b - x_a)
             if k > 0:
-                # alternating coupling: relative angle = -2 * previous relative? For equal panels on a track: q_k = -2*q_1 for k=1, then +2 q_1, -2 q_1...
-                sign = -2.0 if k % 2 == 1 else 2.0
-                model.equalities.append(Equality("joint", f"{name}_couple", j.name, f"panel_{gi}_0_hinge", (0, sign, 0, 0, 0), tiers=ALL_TIERS, label=f"q = {sign:+.0f} * q_pivot (track-guided fold)"))
-                model.contact_excludes.append((name, prev_name))
-                if k >= 2:
-                    model.contact_excludes.append((name, f"panel_{gi}_{k - 2}"))
-            if k == per_group - 1 or (accordion and k == per_group - 1):
-                # knob/pull on the free panel's leading edge
+                model.equalities.append(Equality("joint", f"{name}_couple", j.name, f"panel_{gi}_0_hinge", (0, c, 0, 0, 0), tiers=ALL_TIERS, label=f"q = {c:+.0f} * q_pivot (track-guided fold)"))
+                # piano-hinge knuckle on the axis (in the FOLD_HINGE_GAP between the two panel edges)
+                b.geoms.append(C.cyl(f"{name}_knuckle", (0, side * t / 2, zb + Hh / 2), 0.0045, Hh / 2 - 0.01, km, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "hinge", "Piano hinge knuckle"))
+            if last:
+                # knob/pull on the lead panel's robot-side face, near the lead edge
                 hz = spec["operator"]["height"]
                 if opm.kind == "knob":
                     key, mesh = MESH.knob_mesh(shape="round", diameter=0.03, depth=0.03, rose_diameter=0.0)
                     mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
-                    b.geoms.append(C.mesh_geom(f"{name}_knob", key, mesh, (u * (W - 0.05), -t / 2, hz), C.q_face(-1.0, u), mat, 3000, False, ALL_TIERS, "operator", "Bifold knob"))
-                    b.geoms.append(C.sphere(f"{name}_knob_col", (u * (W - 0.05), -(t / 2 + 0.03), hz), 0.016, mat, 3000, True, ALL_TIERS, "operator", "Knob grip"))
-                    b.sites.append(Site(f"{name}_grip", (u * (W - 0.05), -(t / 2 + 0.03), hz), QUAT_ID, 0.012, "grip"))
+                    b.geoms.append(C.mesh_geom(f"{name}_knob", key, mesh, (u * (x_b - 0.05), -t / 2, hz), C.q_face(-1.0, u), mat, 3000, False, ALL_TIERS, "operator", "Bifold knob"))
+                    b.geoms.append(C.sphere(f"{name}_knob_col", (u * (x_b - 0.05), -(t / 2 + 0.03), hz), 0.016, mat, 3000, True, ALL_TIERS, "operator", "Knob grip"))
+                    b.sites.append(Site(f"{name}_grip", (u * (x_b - 0.05), -(t / 2 + 0.03), hz), QUAT_ID, 0.012, "grip"))
                 else:
-                    C.add_pull(model, b, opm, u, u * (W - 0.06), hz, t, -1.0, name=f"{name}_pull")
-            # hinge visuals between panels
+                    C.add_pull(model, b, opm, u, u * (x_b - 0.06), hz, t, -1.0, name=f"{name}_pull")
             bodies.append(b)
             prev_name = name
     if H.LATCHES[spec["latch"]["model"]].kind == "magnetic":
@@ -677,13 +715,13 @@ def build_vertical(spec, phys, model: Model):
         bm = C.mat_from_material(model, "steel_galvanized", "mat_lockbar")
         for sgn in (-1, 1):
             bar = Body(f"lock_bar_{'r' if sgn > 0 else 'l'}", lb.name, (sgn * (W / 2 - 0.05), 0.03, hz), QUAT_ID, None, [], [], FULL_SIMPLE, "lock", "Lock bar")
-            eng = spec["lock"].get("engaged") and spec["lock"]["model"] == "keyed_cylinder"
             bar.joint = Joint(f"lock_bar_{'r' if sgn > 0 else 'l'}_slide", "slide", (-sgn, 0, 0), (0, 0, 0), (0.0, 0.03), damping=2.0, frictionloss=1.0, role="lock", label="Lock bar", robot_interactive=False, initial=0.0)
             bar.geoms.append(Geom(f"lock_bar_{'r' if sgn > 0 else 'l'}_geom", "capsule", (0.006, 0.05), (sgn * 0.04, 0, 0), tuple(quat_z_to((1, 0, 0))), bm, False, True, 7850.0, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, FULL_SIMPLE, "lock", "Lock bar (visual; engaged state locks the door joint)"))
             model.add_body(bar)
+            # the bars rest extended in the track slots (spring) and retract 30 mm over the handle's travel; the coupling
+            # is relative to qpos0, so an unlocked door must not start with the bars already retracted (it drove them
+            # to 60 mm against a 30 mm limit and locked the handle against its own coupling)
             model.equalities.append(Equality("joint", f"lock_bar_{'r' if sgn > 0 else 'l'}_couple", bar.joint.name, hb.joint.name, (0, 0.03 / opm.travel, 0, 0, 0), tiers=FULL_SIMPLE, label="lock bar = T-handle * 0.03/travel"))
-            if not eng:
-                bar.joint.initial = 0.03
     if spec["lock"].get("engaged") and spec["lock"]["model"] in ("garage_slide_lock", "padlock", "keyed_cylinder") and (not spec["lock"].get("robot_side_release") or spec["lock"]["model"] == "keyed_cylinder"):
         j.range = (0.0, 0.003)
         j.notes = f"{spec['lock']['model']}: locked (T-handle lock bars engaged; env unlock frees the joint)"
