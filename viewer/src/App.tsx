@@ -6,6 +6,7 @@ import { DoorView } from "./DoorView";
 import { About } from "./About";
 import { Results } from "./Results";
 import { Review } from "./Review";
+import { MotionLab } from "./MotionLab";
 import { DATASET, Icon, REPOSITORY, SiteFooter } from "./SiteUI";
 
 export const ASSETS = "./assets";
@@ -33,6 +34,7 @@ export function App() {
     if (h.startsWith("/families")) return { page: "families" };
     if (h.startsWith("/about")) return { page: "about" };
     if (h.startsWith("/results")) return { page: "results" };
+    if (h.startsWith("/motions")) return { page: "motions" };
     if (h.startsWith("/review")) return { page: "review" };
     return { page: "catalogue", query: h.includes("?") ? h.split("?")[1] : "" };
   }, [hash]);
@@ -45,7 +47,7 @@ export function App() {
       <header className="topbar">
         <a className="brand" href="#/" aria-label="DoorBench home"><span className="brand-mark"><Icon name="door" size={24} /></span>DoorBench<span className="brand-tag">RESEARCH</span></a>
         <nav aria-label="Main navigation">
-          {[["catalogue", "#/", "Catalogue"], ["families", "#/families", "Door types"], ["results", "#/results", "Results"], ["review", "#/review", "Review"], ["about", "#/about", "About"]].map(([page, href, label]) => <a key={page} href={href} className={route.page === page ? "active" : ""} aria-current={route.page === page ? "page" : undefined}>{label}</a>)}
+          {[["catalogue", "#/", "Catalogue"], ["families", "#/families", "Door types"], ["results", "#/results", "Results"], ["motions", "#/motions", "Motion Lab"], ["review", "#/review", "Review"], ["about", "#/about", "About"]].map(([page, href, label]) => <a key={page} href={href} className={route.page === page ? "active" : ""} aria-current={route.page === page ? "page" : undefined}>{label}</a>)}
         </nav>
         <div className="header-links"><a className="header-code" href={REPOSITORY} target="_blank" rel="noreferrer">GitHub <Icon name="external" size={13} /></a><a className="source-link" href={DATASET} target="_blank" rel="noreferrer">Get the dataset <Icon name="external" size={15} /></a></div>
       </header>
@@ -58,6 +60,7 @@ export function App() {
         {manifest && route.page === "about" && <About manifest={manifest} />}
         {manifest && route.page === "results" && <Results manifest={manifest} />}
         {manifest && route.page === "review" && <Review manifest={manifest} />}
+        {manifest && route.page === "motions" && <MotionLab manifest={manifest} />}
         {manifest && !["door", "review"].includes(route.page) && <SiteFooter />}
       </main>
     </div>
