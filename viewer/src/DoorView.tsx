@@ -519,7 +519,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
         {joints.map((h) => (
           <div className="joint" key={h.name}>
             <div className="lbl"><span className="name" title={h.loopSolved ? "solved by the closed-loop linkage: follows the door, not user-driven" : h.label}>{h.name}{h.name === primary ? " ★" : ""}{h.loopSolved ? " (linkage)" : !h.interactive ? " (driven)" : ""}{isLocked(h) && h.role === "operator" ? " 🔒" : ""}</span><span className="val">{h.type === "hinge" ? `${(h.q * 180 / Math.PI).toFixed(1)}°` : `${(h.q * 1000).toFixed(1)} mm`}</span></div>
-            <input type="range" min={h.range ? h.range[0] : -3.14} max={h.range ? h.range[1] : 3.14} step={0.001} value={h.q} aria-label={h.label || h.name} disabled={h.loopSolved}
+            <input type="range" min={h.range ? h.range[0] : -3.14} max={h.range ? h.range[1] : 3.14} step="any" value={h.q} aria-label={h.label || h.name} disabled={h.loopSolved}
               onChange={(e) => onSlider(h, parseFloat(e.target.value))} />
             <div style={{ fontSize: 11, color: "var(--muted)" }}>{h.label}</div>
           </div>

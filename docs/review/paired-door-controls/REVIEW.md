@@ -8,6 +8,8 @@ The controls provide a **kinematic mechanism preview**. They do not certify robo
 
 Each free leaf uses its own authored joint range, axis and operator descendants. Operator actuation retains the existing tendon/equality follower updates. Partial pairs open fully before toggling closed. Independent leaf sliders do not mirror the other leaf and respect the same lock and astragal dependencies.
 
+Inspection sliders accept continuous coordinates, including exact authored endpoints. A fixed 0.001 step could round DB0792's 1.5708 rad thumbturn limit down to 1.57, leaving its coupled deadbolt short of full withdrawal. The mechanical guard remains strict.
+
 Secured inactive leaves retain their 0–0.001 rad ranges. Active lock welds remain enforced. Independent thrown deadbolts must be withdrawn; fixed inaccessible bolts remain secured. Manually throwing an auxiliary barrel bolt also blocks its leaf until withdrawal. A French door's free A leaf remains operable while inactive B stays bolted closed.
 
 For an astragal attached to B, A opens first and B closes first. The slider guard requires the dependent endpoint within 1e-6 rad: a broad “nearly closed” tolerance is insufficient. With DB0871 at A=0 and B=0.015 rad, native contact geometry reports 14.08 mm slab/astragal penetration.
