@@ -19,6 +19,7 @@ import numpy as np
 
 SCHEMA='doorbench.planned-reference-web.v1'
 INDEX_SCHEMA='doorbench.planned-reference-web-index.v1'
+SOURCE_SCENARIOS={'open_and_traverse','unlock_and_traverse','locked_recognize'}
 SCOPE='Accepted clips passed independent sampled kinematic and task-evidence checks. Task evidence uses the actor route and declared source outcome; mechanism semantics are not independently certified. Playback interpolation is illustrative; no dynamics, balance, causal control or personal visual approval is certified.'
 
 def sha(data):return hashlib.sha256(data).hexdigest()
@@ -98,6 +99,8 @@ def export_accepted(directory,result,source_assets,out,files):
     require(clip.get('trajectory_sha256')==sha(files['trajectory.npz']),'Clip trajectory binding mismatch')
     outcome=result.get('source_outcome',{})
     require(outcome.get('success') is True and outcome.get('outcome')=='success' and not outcome.get('error') and clip.get('proposal',{}).get('source_outcome')==outcome,'Source success/proposal outcome binding mismatch')
+    scenario=outcome.get('scenario')
+    require(scenario in SOURCE_SCENARIOS and clip.get('proposal',{}).get('scenario')==scenario,'Missing or inconsistent bound source scenario')
     sources=result['provenance']['source_sha256']
     require(set(sources)=={'model.json','spec.json','door.xml'} and clip.get('source_sha256')==sources and validation.get('source_sha256')==sources,'Source bindings disagree')
     for name,digest in sources.items():require(sha((source_assets/'doors'/door_id/name).read_bytes())==digest,f'{door_id}: stale source {name}')
@@ -123,6 +126,7 @@ def export_accepted(directory,result,source_assets,out,files):
         require(len(clip['phases'])==n,'Phase count mismatch')
         for key in ['foot_contact','hand_contact']:require(arrays[key].shape==(n,2) and np.isin(arrays[key],[0,1]).all(),f'Invalid {key}')
         web={'schema':SCHEMA,'door_id':door_id,'status':'accepted_kinematic','scope':SCOPE,
+             'source_scenario':scenario,
              'source_sha256':sources,'native_resources_sha256':result['provenance'].get('native_resources_sha256',{}),
              'identity_sha256':result['identity_sha256'],'trajectory_sha256':sha(files['trajectory.npz']),
              'validation_sha256':sha(files['validation.json']),'duration':clip['duration'],'times':times.tolist(),
@@ -151,11 +155,17 @@ def export_corpus(corpus,out,assets='assets'):
         require(entry.get('status') in ['accepted_kinematic','rejected','unresolved'],'Unsupported attempt status')
         row={key:entry.get(key) for key in ['door_id','family','status','failure_counts','reason_code','source_outcome','identity_sha256']}
         row['reason']=public_text(entry.get('error',{}).get('message') if isinstance(entry.get('error'),dict) else entry.get('error'))
+        row['source_scenario']=None
         row['audits']={};row['clip']=None
         if entry.get('result'):
             result_path=checked_path(corpus,entry['result']);result_bytes=result_path.read_bytes();result=json.loads(result_bytes)
             require(result.get('door_id')==door_id and result.get('status')==entry['status'] and result.get('identity_sha256')==entry['identity_sha256'],'Corpus result/index mismatch; retry after the current snapshot finishes')
             require(result.get('provenance',{}).get('generator_sha256')==source['generator']['sha256'] and result.get('provenance',{}).get('manifest_sha256')==source['manifest_sha256'],'Result belongs to a different corpus generator or manifest')
+            outcome=result.get('source_outcome')
+            if isinstance(outcome,dict):
+                scenario=outcome.get('scenario');require(scenario is None or scenario in SOURCE_SCENARIOS,'Unsupported bound source scenario')
+                row['source_scenario']=scenario
+                row['source_outcome']={name:outcome.get(name) for name in ['scenario','success','outcome']}
             artifacts=verified_artifacts(result_path.parent,result)
             row['audits']['result.json']=audit(out,door_id,'result.json',encoded(public_result(result,result_bytes)))
             if entry['status']=='accepted_kinematic':

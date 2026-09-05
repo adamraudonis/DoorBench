@@ -5,11 +5,20 @@ import type { GeomJ, ModelJ } from './types';
 import { frameAt } from './referenceMotion';
 
 export interface WebFile {path:string;sha256:string;bytes:number;json_sha256?:string}
-export interface MotionEntry {door_id:string;family:string;status:string;reason?:string|null;reason_code?:string|null;failure_counts?:Record<string,number>|null;identity_sha256?:string;clip:(WebFile&{duration:number;frames:number})|null;audits:Record<string,WebFile>}
+export const SOURCE_SCENARIOS=['open_and_traverse','unlock_and_traverse','locked_recognize'] as const;
+export type SourceScenario=typeof SOURCE_SCENARIOS[number];
+export interface MotionEntry {door_id:string;family:string;status:string;source_scenario?:SourceScenario|null;reason?:string|null;reason_code?:string|null;failure_counts?:Record<string,number>|null;identity_sha256?:string;clip:(WebFile&{duration:number;frames:number})|null;audits:Record<string,WebFile>}
 export interface MotionIndex {schema:string;snapshot_id:string;updated_at:string;manifest_sha256:string;scope:string;doors:MotionEntry[];counts:Record<string,number>}
 export interface ActorGeom {name:string;body_name:string;type:'box'|'sphere'|'capsule'|'cylinder';size:number[];pos:number[];quat_wxyz:number[]}
 interface BodyFrames {body_names:string[];poses:number[][]}
-export interface PlannedClip {schema:string;door_id:string;status:string;scope:string;identity_sha256:string;source_sha256:Record<string,string>;native_resources_sha256:Record<string,string>;duration:number;times:number[];native_time:number[];phases:string[];foot_contact:number[][];hand_contact:number[][];native:BodyFrames;actor:BodyFrames&{geometries:ActorGeom[]}}
+export interface PlannedClip {schema:string;door_id:string;status:string;source_scenario:SourceScenario;scope:string;identity_sha256:string;source_sha256:Record<string,string>;native_resources_sha256:Record<string,string>;duration:number;times:number[];native_time:number[];phases:string[];foot_contact:number[][];hand_contact:number[][];native:BodyFrames;actor:BodyFrames&{geometries:ActorGeom[]}}
+export function motionTaskLabel(scenario:SourceScenario|null|undefined) {return scenario==='locked_recognize'?'Locked-door check':scenario==='open_and_traverse'||scenario==='unlock_and_traverse'?'Traversal reference':'Source task unavailable';}
+export function motionTaskDetail(scenario:SourceScenario|null|undefined) {
+  if(scenario==='locked_recognize')return 'This reference checks a locked door and does not traverse it. Recognition is declared by the source benchmark; it is not independently demonstrated by the actor.';
+  if(scenario==='unlock_and_traverse')return 'Source scenario: unlock and traverse. Door motion is prescribed from the source recording; actor unlocking and mechanism operation are not independently certified.';
+  if(scenario==='open_and_traverse')return 'Source scenario: open and traverse. Door motion is prescribed from the source recording; this is an actor route reference, not evidence of causal humanoid operation.';
+  return 'No bound source scenario is available for this attempt.';
+}
 const HASH=/^[a-f0-9]{64}$/;
 const MAX_PACKED=64*1024*1024,MAX_DECODED=256*1024*1024,MAX_SOURCE=32*1024*1024;
 const finite=(row:unknown,n:number):row is number[]=>Array.isArray(row)&&row.length===n&&row.every(x=>typeof x==='number'&&Number.isFinite(x));
@@ -25,8 +34,9 @@ export function validateMotionIndex(value:MotionIndex) {
   for(const row of value.doors) {
     require(/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(row.door_id)&&!ids.has(row.door_id),'Invalid or duplicate motion door ID');ids.add(row.door_id);
     require(['accepted_kinematic','rejected','unresolved'].includes(row.status)&&typeof row.family==='string','Invalid motion status');
+    require(row.source_scenario==null||SOURCE_SCENARIOS.includes(row.source_scenario),'Unsupported bound source scenario');
     require(row.status==='accepted_kinematic'?!!row.clip:!row.clip,'Only accepted clips may be playable');
-    if(row.clip)require(HASH.test(row.identity_sha256??'')&&HASH.test(row.clip.json_sha256??'')&&Number.isSafeInteger(row.clip.frames)&&row.clip.frames>=2&&row.clip.frames<=100000&&Number.isFinite(row.clip.duration)&&row.clip.duration>0&&row.clip.bytes<=MAX_PACKED,'Invalid accepted clip identity or size');
+    if(row.clip){require(SOURCE_SCENARIOS.includes(row.source_scenario as SourceScenario),'Accepted clip lacks a bound source scenario');require(HASH.test(row.identity_sha256??'')&&HASH.test(row.clip.json_sha256??'')&&Number.isSafeInteger(row.clip.frames)&&row.clip.frames>=2&&row.clip.frames<=100000&&Number.isFinite(row.clip.duration)&&row.clip.duration>0&&row.clip.bytes<=MAX_PACKED,'Invalid accepted clip identity or size');}
     for(const f of [...Object.values(row.audits??{}),...(row.clip?[row.clip]:[])]) {
       require(HASH.test(f.sha256)&&Number.isSafeInteger(f.bytes)&&f.bytes>0,'Invalid artifact checksum');artifactURL(f.path,'https://example.test/index.json');
     }
@@ -35,6 +45,7 @@ export function validateMotionIndex(value:MotionIndex) {
 }
 export function validatePlannedClip(c:PlannedClip,entry:MotionEntry) {
   require(c?.schema==='doorbench.planned-reference-web.v1'&&c.door_id===entry.door_id&&c.status==='accepted_kinematic'&&entry.status==='accepted_kinematic'&&HASH.test(c.identity_sha256)&&c.identity_sha256===entry.identity_sha256,'Clip identity or accepted status mismatch');
+  require(SOURCE_SCENARIOS.includes(c.source_scenario)&&c.source_scenario===entry.source_scenario,'Clip/index source scenario mismatch');
   const n=c.times?.length;
   require(n>=2&&n<=100000&&c.times[0]===0&&c.times.every((t,i)=>Number.isFinite(t)&&(i===0||t>c.times[i-1]))&&Math.abs(c.times[n-1]-c.duration)<1e-6,'Invalid motion timeline');
   require(n===entry.clip?.frames&&c.duration===entry.clip.duration,'Index/clip duration or frame count mismatch');

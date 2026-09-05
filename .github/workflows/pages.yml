@@ -16,6 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+      - name: Verify immutable MotionLab deployment configuration
+        if: ${{ hashFiles('deploy/planned-references.json') != '' }}
+        run: |
+          python3 scripts/verify_planned_reference_deployment.py --config deploy/planned-references.json --index-out "$RUNNER_TEMP/planned-reference-index.json" --github-env "$GITHUB_ENV"
       - name: Build viewer
         working-directory: viewer
         run: |
@@ -27,6 +31,10 @@ jobs:
           cp -r viewer/dist/* site/
           # Versioned release media are pinned by SHA-256; generated assets stay out of source commits.
           python3 scripts/site_assets.py restore --manifest deploy/site-assets.json --out site
+          if [ -f deploy/planned-references.json ]; then
+            python3 scripts/verify_planned_reference_deployment.py --config deploy/planned-references.json --index-file "$RUNNER_TEMP/planned-reference-index.json" --assets-manifest site/assets/manifest.json
+            cp deploy/planned-references.json site/planned-reference-deployment.json
+          fi
           # benchmark results (leaderboard index + the full result files) for the Results page and the catalogue badges
           mkdir -p site/results
           cp results/*.json results/README.md site/results/ 2>/dev/null || true

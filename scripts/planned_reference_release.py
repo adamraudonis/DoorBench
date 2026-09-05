@@ -271,6 +271,7 @@ def check_research_inventory(release, inventory, rows):
     """Check shard namespaces before even a subset can be extracted."""
     require(len(rows) == 1000 and len({row['door_id'] for row in rows}) == 1000, 'Research status coverage mismatch')
     require(dict(Counter(row['status'] for row in rows)) == release['counts'], 'Research status totals mismatch')
+    require(release.get('accepted_scenarios')==accepted_scenario_counts(rows),'Accepted source scenario counts mismatch')
     for row in rows:
         require(re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', row['door_id']) is not None, 'Unsafe research door ID')
         require(row['status'] in ('accepted_kinematic', 'rejected', 'unresolved'), 'Unsupported research status')
@@ -296,6 +297,16 @@ def check_research_inventory(release, inventory, rows):
             for member in ('clip.json', 'validation.json'):
                 require(all(row['audits'][member][key] == records[f'accepted/{door}/{member}'][key] for key in ('sha256', 'bytes')),
                         'Research archive differs from accepted browser audit')
+
+
+def accepted_scenario_counts(rows):
+    counts=Counter()
+    for row in rows:
+        if row['status']=='accepted_kinematic':
+            scenario=row.get('source_scenario')
+            require(scenario in ('open_and_traverse','unlock_and_traverse','locked_recognize'),'Accepted row lacks a supported bound source scenario')
+            counts[scenario]+=1
+    return dict(sorted(counts.items()))
 
 
 def release_files(folder):
@@ -341,6 +352,10 @@ def release_files(folder):
         clip = common.read(files['web/'+row['audits']['clip.json']['path']])
         validation = common.read(files['web/'+row['audits']['validation.json']['path']])
         members = inventory[Path(row['research_download']['archive']).name]
+        scenario=clip.get('proposal',{}).get('source_outcome',{}).get('scenario')
+        require(scenario in ('open_and_traverse','unlock_and_traverse','locked_recognize') and
+                row.get('source_scenario')==scenario==clip.get('proposal',{}).get('scenario'),
+                'Accepted source scenario differs from the bound source outcome')
         require(validation.get('accepted') is True and validation.get('kinematic_accepted') is True and
                 validation.get('status') == 'accepted_kinematic' and not validation.get('failure_counts') and
                 validation.get('task_completion', {}).get('evidence_pass') is True and
@@ -430,10 +445,16 @@ def prepare(args):
                 'A local planner failure, engine crash or timeout is unresolved, not a proof of human impossibility. '
                 'No pretrained human assets, SMPL models, third-party motion weights or textures are included.\n')
             counts = checked['counts']
+            scenarios=accepted_scenario_counts(web['doors'])
+            traversals=scenarios.get('open_and_traverse',0)+scenarios.get('unlock_and_traverse',0)
+            locked=scenarios.get('locked_recognize',0)
             (staging/'README.md').write_text(f'# DoorBench experimental planned references — {args.release}\n\n'
                 f'{SCOPE}\n\nAll 1,000 dataset doors retain a status and reason. '
                 f"Counts: {counts.get('accepted_kinematic', 0)} accepted kinematic, {counts.get('rejected', 0)} rejected, "
                 f"{counts.get('unresolved', 0)} unresolved. Only accepted rows have a playable clip or research trajectory download.\n\n"
+                f'Accepted entries comprise **{traversals} traversal references** and **{locked} locked-door checks**. '
+                'Locked-door checks do not traverse the doorway. Recognition is declared by the source benchmark, '
+                'not independently demonstrated by the new actor. Open/unlock mechanism semantics are also not certified.\n\n'
                 'Accepted archives contain exact clip JSON, NPZ, independent validation JSON, and actor MJCF derived verbatim from the clip. '
                 'Rejected/unresolved entries retain public reports and reasons; their trajectories and transient execution logs are omitted. '
                 'Public audit projections retain original hashes and redact local paths/tracebacks.\n\n'
@@ -447,7 +468,7 @@ def prepare(args):
             files = {p.relative_to(staging).as_posix(): {'sha256': common.sha256(p), 'bytes': p.stat().st_size, 'license': LICENSE}
                      for p in sorted(staging.rglob('*')) if p.is_file()}
             release = {'schema': SCHEMA, 'experimental': True, 'release': args.release, 'repo_id': args.repo_id,
-                       'path_in_repo': tag_prefix, 'complete_corpus': True, 'doors': len(web['doors']), 'counts': counts,
+                       'path_in_repo': tag_prefix, 'complete_corpus': True, 'doors': len(web['doors']), 'counts': counts,'accepted_scenarios':scenarios,
                        'scope': SCOPE, 'source_commit': args.source_commit, 'source_files_sha256': source_files,
                        'corpus_index_sha256': checked['index_sha256'], 'corpus_report_sha256': checked['report_sha256'],
                        'generator': checked['index']['generator'], 'native_dependency': native, 'archives': archives,
@@ -473,6 +494,12 @@ def verify_remote(api, repo, commit, files):
 
 def publish(args):
     release, local = release_files(args.folder)
+    release_sha256=common.sha256(Path(args.folder)/'release.json')
+    def unchanged_staging():
+        current,current_files=release_files(args.folder)
+        require(current==release and set(current_files)==set(local) and
+                common.sha256(Path(args.folder)/'release.json')==release_sha256,
+                'Prepared release changed during publication; no release tag may be created')
     if args.dry_run:
         return {'published': False, 'files': len(local), 'path_in_repo': release['path_in_repo']}
     from huggingface_hub import HfApi, hf_hub_download
@@ -493,15 +520,17 @@ def publish(args):
     else:
         commit = api.upload_folder(repo_id=repo, repo_type='dataset', folder_path=str(args.folder), path_in_repo=base,
                                    allow_patterns=list(local), commit_message=f'Experimental planned references {release["release"]}').oid
+    unchanged_staging()
     verify_remote(public, repo, commit, remote)
+    unchanged_staging()
     if not existing:
         api.create_tag(repo, repo_type='dataset', tag=release['release'], revision=commit,
                        tag_message=f'Experimental release inventory {release["files_sha256"]}')
     require(public.repo_info(repo, repo_type='dataset', revision=release['release']).sha == commit, 'Public release tag resolved to unexpected bytes')
     receipt = {'repo_id': repo, 'release': release['release'], 'commit': commit,
-               'counts': release['counts'], 'doors': release['doors'],
+               'counts': release['counts'], 'accepted_scenarios':release['accepted_scenarios'],'doors': release['doors'],
                'native_manifest_sha256': release['native_dependency']['manifest_sha256'],
-               'release_sha256': common.sha256(Path(args.folder)/'release.json'),
+               'release_sha256': release_sha256,
                'web_index_sha256': release['files']['web/index.json']['sha256'],
                'web_index_url': f'https://huggingface.co/datasets/{repo}/resolve/{commit}/{base}/web/index.json'}
     common.write_json(Path(args.folder)/'publication.json', receipt)
