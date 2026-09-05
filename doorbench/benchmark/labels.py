@@ -117,6 +117,16 @@ class LabelTracker:
         if lj and self.pj >= 0:
             under = [j for j in lj if self._under(model.jnt_bodyid[j], model.jnt_bodyid[self.pj])]
             lj = under or lj
+        # A door whose LATCH is its dogs / boltwork (watertight, vault, blast) has no role-"latch" joint at all: the
+        # parts that hold the leaf shut carry role "lock".  Without this the tracker reported latch_released on step 0
+        # of every watertight door - six dogs still thrown and the latch "released".
+        if not lj and (spec.get("latch", {}) or {}).get("model", "") and self.pj >= 0:
+            import re as _re
+            cand = [j for j in range(model.njnt)
+                    if _re.match(r"(dog_\d+_hinge|bolt_\d+_slide)$", mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j) or "")
+                    and model.jnt_range[j][1] - model.jnt_range[j][0] > 1e-6
+                    and self._under(model.jnt_bodyid[j], model.jnt_bodyid[self.pj])]
+            lj = cand
         self.latch_joints = lj or ([self.bj] if self.bj >= 0 else [])
         self.is_hinge = self.pj >= 0 and int(model.jnt_type[self.pj]) == int(mujoco.mjtJoint.mjJNT_HINGE)
         self.open_thr = math.radians(10) if self.is_hinge else 0.10

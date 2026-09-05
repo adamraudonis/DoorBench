@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import type { ModelJ } from "./types";
-import { activeLeaf, boltJointsFor, openClosePhases, sliderReaction, type JointLike } from "./doorLogic";
+import { activeLeaf, boltJointsFor, openClosePhases, operatorJoints, operatorsAreIndividual, sliderReaction, type JointLike } from "./doorLogic";
 
 const ASSETS = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "assets", "doors");
 
@@ -86,6 +86,49 @@ describe.skipIf(!have)("open / close sequencing", () => {
     expect(sliderReaction(d.model, d.joints, "leaf_hinge", 0.0).operatorTo).toBeNull();
     // a non-leaf joint never triggers it
     expect(sliderReaction(d.model, d.joints, "leaf_handle_hinge", 0.5).operatorTo).toBeNull();
+  });
+
+  test("individually dogged watertight door: every dog is undogged, then the leaf swings, then all are re-dogged", () => {
+    const d = load("db0168_ship_watertight")!;
+    expect(operatorsAreIndividual(d.model)).toBe(true);
+    const dogs = operatorJoints(d.model);
+    expect(dogs).toEqual(["dog_0_hinge", "dog_1_hinge", "dog_2_hinge", "dog_3_hinge", "dog_4_hinge", "dog_5_hinge"]);
+    const { phases, note } = openClosePhases(d.model, d.joints);
+    // 6 dogs released, the leaf, 6 dogs re-engaged
+    expect(phases.map((p) => p.joint)).toEqual([...dogs, "leaf_hinge", ...[...dogs].reverse()]);
+    for (const p of phases.slice(0, 6)) expect(p.to).toBeCloseTo(d.joints.get(p.joint)!.range![1]);
+    for (const p of phases.slice(7)) expect(p.to).toBe(0);
+    expect(phases[6].to).toBeCloseTo(d.joints.get("leaf_hinge")!.range![1]);
+    expect(note).toContain("6 latches released");
+    // dragging the leaf undogs ALL of them, not just the first
+    const r = sliderReaction(d.model, d.joints, "leaf_hinge", 0.4);
+    expect(r.operatorsTo.map((o) => o.joint)).toEqual(dogs);
+    expect(r.note).toContain("all 6 latches");
+  });
+
+  test("quick-acting watertight door: one handwheel, and the coupling moves every dog", () => {
+    const d = load("db0744_ship_watertight")!;
+    expect(operatorsAreIndividual(d.model)).toBe(false);
+    expect(operatorJoints(d.model)).toEqual(["wheel_hinge"]);
+    const driven = d.model.equalities.filter((e) => e.kind === "joint" && e.b === "wheel_hinge").map((e) => e.a);
+    expect(driven.filter((n) => n.startsWith("dog_")).length).toBeGreaterThanOrEqual(4);
+    expect(driven).toContain("linkage_rod_r_slide");
+    expect(boltJointsFor(d.model, "wheel_hinge")).toEqual(driven.filter((n) => n.startsWith("dog_")));
+    const { phases } = openClosePhases(d.model, d.joints);
+    expect(phases.map((p) => p.joint)).toEqual(["wheel_hinge", "leaf_hinge", "wheel_hinge"]);
+  });
+
+  test("blast door: both lever bolts are operators", () => {
+    const d = load("db0288_blast")!;
+    expect(operatorsAreIndividual(d.model)).toBe(true);
+    expect(operatorJoints(d.model)).toEqual(["dog_0_hinge", "dog_1_hinge"]);
+    expect(openClosePhases(d.model, d.joints).phases.map((p) => p.joint)).toEqual(["dog_0_hinge", "dog_1_hinge", "leaf_hinge", "dog_1_hinge", "dog_0_hinge"]);
+  });
+
+  test("single-operator doors list exactly one operator", () => {
+    const d = load("db0002_swing_single")!;
+    expect(operatorJoints(d.model)).toEqual(["leaf_handle_hinge"]);
+    expect(operatorsAreIndividual(d.model)).toBe(false);
   });
 
   test("slide-bolt gate: the operator is the bolt itself and is driven first", () => {

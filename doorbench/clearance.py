@@ -52,7 +52,10 @@ DEFAULT_ALLOW = [("*pushbutton_geom", "*pushbutton_housing"), ("*_pin_geom", "*_
                  ("*_device_case", "*_bolt_capsule"),
                  # a surface hasp plate lies flat across the door/frame joint (frame face modelled as a solid member)
                  ("*_hasp", "jamb_*"), ("*_hasp", "post_*"), ("*_hasp", "stop_*"), ("*_hasp", "seal_*"),
-                 ("*thumbturn_mesh", "*_escutcheon_*"), ("*cylinder_face", "*_escutcheon_*")]
+                 ("*thumbturn_mesh", "*_escutcheon_*"), ("*cylinder_face", "*_escutcheon_*"),
+                 # a push/pull paddle is a rocker on a fixed pivot pin: the arm root envelops the pin it turns on,
+                 # exactly like the hub does (the pin is 4 mm and the neck 8 mm across it)
+                 ("*_paddle_neck_*", "*_paddle_pin_*")]
 FRAME_LIKE = ("frame", "latch", "lock", "wall", "track")
 HARDWARE = ("operator", "latch", "lock", "mechanism", "closer", "track", "hinge")
 

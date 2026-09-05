@@ -159,6 +159,25 @@ def drive_operators(m, d, pj: int, op_ids: list, aux_ids: list, tt: int, push: f
     return _q(m, d, pj)
 
 
+def hold_with_one_point(m, d, pj: int, keep: int, release: list, push: float, steps: int = 1200) -> float:
+    """Push the leaf with exactly ONE lock point still engaged: every joint in ``release`` is driven to its retracted
+    end and the joint equalities that drive them are switched off, so the point under test is the only thing holding
+    the leaf.  Returns the primary joint at the end."""
+    import mujoco
+    SLIDE = int(mujoco.mjtJoint.mjJNT_SLIDE)
+    mujoco.mj_resetData(m, d)
+    for e in range(m.neq):
+        if int(m.eq_type[e]) == int(mujoco.mjtEq.mjEQ_JOINT) and int(m.eq_obj1id[e]) in release:
+            d.eq_active[e] = 0
+    for _ in range(steps):
+        d.qfrc_applied[:] = 0
+        for j in release:
+            d.qfrc_applied[m.jnt_dofadr[j]] = 200.0 if int(m.jnt_type[j]) == SLIDE else 30.0
+        d.qfrc_applied[m.jnt_dofadr[pj]] = push
+        mujoco.mj_step(m, d)
+    return _q(m, d, pj)
+
+
 SPRING_LATCH_KINDS = ("tubular_latch", "deadlatch", "mortise_latch", "rim_latch", "vertical_rods", "hook", "gravity_bar", "dogs", "multi_bolt", "electric_bolt")
 ENV_RELEASE_LOCK_KINDS = ("mag_lock", "delayed_egress", "card_reader", "electric_strike", "interlock")
 FREE_SWING_FAMILIES = ("saloon", "strip_curtain", "pet_door", "turnstile_tripod", "turnstile_fullheight", "revolving", "bifold", "accordion", "sliding_bypass")
@@ -468,6 +487,22 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         metrics["all_latches_full_displacement"] = full
         metrics["all_latches_thresholds"] = [thr_hold, target]
         checks["all_latches_release"] = bool(all(p < thr_hold for p in partial) and full > target)
+    # ---- rod_points_hold: a two-point rod mechanism throws a bolt into the head AND one into the floor - a cremone /
+    # espagnolette knob drives both its rods, a surface vertical rod exit device both of its latches.  Each of the two
+    # points has to hold the leaf ON ITS OWN, or the second rod is a drawn cylinder that latches nothing: which is
+    # exactly what both mechanisms were (the down rod and the bottom rod were visuals with no bolt behind them).
+    if pj >= 0 and int(m.jnt_type[pj]) == HINGE:
+        lname = (model_meta.get("primary_joint") or "").rsplit("_hinge", 1)[0]
+        push_r = float(metrics.get("qa_push") or 0.0)
+        for tag, a, b in (("vertical_rods", f"{lname}_top_latch_slide", f"{lname}_bottom_latch_slide"),
+                          ("cremone", f"{lname}_cremone_top_bolt_slide", f"{lname}_cremone_bottom_bolt_slide")):
+            ja, jb = _jid(m, a), _jid(m, b)
+            if ja < 0 or jb < 0 or push_r <= 0:
+                continue
+            top_only = hold_with_one_point(m, d, pj, ja, [jb], push_r)
+            bot_only = hold_with_one_point(m, d, pj, jb, [ja], push_r)
+            metrics["rod_points"] = {"mechanism": tag, "top_only_rad": top_only, "bottom_only_rad": bot_only, "joints": [a, b]}
+            checks["rod_points_hold"] = bool(max(top_only, bot_only) < math.radians(2.0))
     # ---- simple & minimal tiers settle
     for tier in ("simple", "minimal"):
         if tier in models:

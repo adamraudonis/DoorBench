@@ -139,6 +139,12 @@ class DoorEnv:
                     break
         # joint names by IR role (present in this tier): operators (both leaves of a pair) and lock / latch parts
         self.operator_joints = [j["name"] for b in self.model_json["bodies"] if (j := b.get("joint")) and j.get("role") == "operator" and self._jid(j["name"]) >= 0]
+        # multi-latch doors: every dog lever / lever bolt is an operator the robot has to work, and they carry the IR
+        # role "lock" (they ARE the lock), so take meta's list as authoritative and keep the role-derived ones after it
+        for n in (self.meta.get("operator_joints") or []):
+            if self._jid(n) >= 0 and n not in self.operator_joints:
+                self.operator_joints.append(n)
+        self.ojs = [self._jid(n) for n in (self.meta.get("operator_joints") or []) if self._jid(n) >= 0] or ([self.oj] if self.oj >= 0 else [])
         self.lock_joints = [j["name"] for b in self.model_json["bodies"] if (j := b.get("joint")) and j.get("role") == "lock" and self._jid(j["name"]) >= 0]
         self.latch_joints = [j["name"] for b in self.model_json["bodies"] if (j := b.get("joint")) and j.get("role") == "latch" and self._jid(j["name"]) >= 0]
         self._breakable = {w["name"]: w for w in self.meta.get("breakable_welds", [])}
@@ -398,11 +404,20 @@ class DoorEnv:
             lo, hi = m.jnt_range[self.oj]
             if hi - lo > 1e-6 and (d.qpos[m.jnt_qposadr[self.oj]] - lo) > 0.1 * (hi - lo):
                 self._fire("touch_handle")
-        if self.bj >= 0 and not env_driving and "unlatch" not in self._fired:
-            # bolt retracted by the operator (not pushed in by the strike lip while closing)
-            throw = m.jnt_range[self.bj][1]
-            op_ok = self.oj < 0 or (m.jnt_range[self.oj][1] - m.jnt_range[self.oj][0] < 1e-6) or (d.qpos[m.jnt_qposadr[self.oj]] - m.jnt_range[self.oj][0]) >= 0.5 * (m.jnt_range[self.oj][1] - m.jnt_range[self.oj][0])
-            if throw > 0 and d.qpos[m.jnt_qposadr[self.bj]] >= 0.8 * throw and op_ok:
+        if not env_driving and "unlatch" not in self._fired:
+            # every operator the door has must be worked, not just the first: a watertight door is unlatched when ALL
+            # of its dogs are turned, a blast door when both lever bolts are, a normal door when its one handle is.
+            def _worked(j):
+                lo, hi = m.jnt_range[j]
+                return hi - lo < 1e-6 or (d.qpos[m.jnt_qposadr[j]] - lo) >= 0.5 * (hi - lo)
+            op_ok = all(_worked(j) for j in self.ojs) if self.ojs else True
+            if self.bj >= 0:
+                # bolt retracted by the operator (not pushed in by the strike lip while closing)
+                throw = m.jnt_range[self.bj][1]
+                if throw > 0 and d.qpos[m.jnt_qposadr[self.bj]] >= 0.8 * throw and op_ok:
+                    self._fire("unlatch")
+            elif L.latch_released and op_ok and self.tracker.latch_joints:
+                # doors whose latch IS its dogs / boltwork have no single bolt joint; the tracker follows every part
                 self._fire("unlatch")
         if L.lock_released:
             self._fire("unlock")

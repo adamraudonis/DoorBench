@@ -20,6 +20,31 @@ def _uv(spec):
     return u, v
 
 
+# top of the sill / threshold the floor strike of a bottom shoot bolt stands on
+FLOOR_STRIKE_TOP = {"none": 0.0, "saddle": 0.013, "sill": 0.013, "sill_step": 0.045, "coaming": 0.0}
+# m; a retracted bottom shoot bolt has to clear a 25 mm floor dome stop, so it pulls up into its rod housing rather
+# than stopping flush with the leaf's bottom edge (which is how a cremone / SVR rod end actually retracts)
+FLOOR_RETRACT_Z = 0.030
+
+
+def bottom_shoot_bolt(spec) -> bool:
+    """True when this door's mechanism drives a bolt DOWN into the floor as well as up into the head: a cremone /
+    espagnolette knob (top and bottom rods off one gearbox) and a surface vertical rod exit device."""
+    return H.OPERATORS[spec["operator"]["model"]].kind == "cremone" or H.LATCHES[spec["latch"]["model"]].kind == "vertical_rods"
+
+
+def add_floor_strike(world, name: str, X: float, Y: float, sx: float, r: float, zb: float, z_base: float, mat) -> None:
+    """Surface floor strike for a bottom shoot bolt: a plate on the sill and three walls around the bolt.  The two
+    walls across the swing are what actually holds the leaf; the third closes the socket toward the leaf edge."""
+    top = zb - 0.003
+    h = max(0.004, (top - z_base - 0.0015) / 2)
+    zc = z_base + 0.0015 + h
+    world.geoms.append(C.box(f"{name}_plate", (X, Y, z_base + 0.00075), (r + 0.016, r + 0.016, 0.00075), mat, 7850, True, True, ALL_TIERS, "lock", "Floor strike plate"))
+    for s_, tag in ((1.0, "p"), (-1.0, "n")):
+        world.geoms.append(C.box(f"{name}_{tag}", (X, Y + s_ * (r + 0.005), zc), (r + 0.012, 0.004, h), mat, 7850, True, True, ALL_TIERS, "lock", "Floor socket wall"))
+    world.geoms.append(C.box(f"{name}_e", (X + sx * (r + 0.005), Y, zc), (0.004, r + 0.012, h), mat, 7850, True, True, ALL_TIERS, "lock", "Floor socket wall"))
+
+
 def hinge_joint(spec, phys, u, v, y_pin, name="door_hinge", both_ways=False, max_open_deg=None, tilt_deg=0.0, axis_override=None):
     kin = spec["kinematics"]
     mo = math.radians(max_open_deg if max_open_deg is not None else (kin.get("max_open_deg") or 90))
@@ -109,6 +134,16 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
             zb = max(zb, 0.017 if op.get("threshold") != "sill_step" else 0.045)
         else:
             zb = max(0.005, min(zb, Ho - Hh - 0.004))
+        if zb + Hh > Ho - 0.004:
+            Hh = Ho - 0.004 - zb
+            leaf = {**leaf, "height": Hh}
+    # A cremone / espagnolette knob and a surface vertical rod device shoot a bolt DOWN into a floor strike, so the
+    # leaf has to clear that strike: undercut = strike top + 16 mm.  Without it the bottom rod is a decoration - it
+    # was drawn on both mechanisms and latched nothing (the cremone knob threw only its head bolt, the SVR device
+    # only its top latch).
+    z_strike = FLOOR_STRIKE_TOP.get(op.get("threshold", "none"), 0.0) if bottom_shoot_bolt(spec) else None
+    if z_strike is not None and not op.get("outdoor"):
+        zb = max(zb, z_strike + 0.016)
         if zb + Hh > Ho - 0.004:
             Hh = Ho - 0.004 - zb
             leaf = {**leaf, "height": Hh}
@@ -241,6 +276,17 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
             model.equalities.append(Equality("joint", f"{leaf_name}_cremone_couple", sbolt.joint.name, hb.joint.name, (0, 0.02 / max(opm.travel, 1e-6), 0, 0, 0), tiers=FULL_SIMPLE, label="shoot bolt = knob * 0.02/travel"))
             model.meta.setdefault("clearance_allow", []).append([f"{leaf_name}_cremone_rod_up", f"{leaf_name}_cremone_top_bolt_geom", "the shoot bolt is the end of the rod"])
             head_pockets.append({"x": hx + x_r, "hx": 0.010, "w": 0.015, "depth": 0.026, "y": y_r})
+            # the DOWN rod ends in a shoot bolt too - a cremone/espagnolette is a two-point lock, and the down rod used
+            # to be a cylinder that latched nothing
+            z_base, z_ret = FLOOR_STRIKE_TOP.get(op.get("threshold", "none"), 0.0), max(zb, FLOOR_RETRACT_Z)
+            throw_b = max(0.006, z_ret - z_base - 0.004)
+            bbolt = Body(f"{leaf_name}_cremone_bottom_bolt", leaf_body.name, (x_r, y_r, z_ret), QUAT_ID, None, [], [], FULL_SIMPLE, "lock", "Cremone shoot bolt (bottom)")
+            bbolt.joint = Joint(f"{leaf_name}_cremone_bottom_bolt_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, throw_b), damping=2.0, frictionloss=0.5, role="lock", label="Shoot bolt (0 = thrown into the floor strike, + = retracted)", robot_interactive=False)
+            bbolt.geoms.append(C.box(f"{leaf_name}_cremone_bottom_bolt_geom", (0, 0, 0.03 - throw_b), (0.007, 0.007, 0.03), cm_, 7850, True, True, FULL_SIMPLE, "lock", "Shoot bolt"))
+            model.add_body(bbolt)
+            model.equalities.append(Equality("joint", f"{leaf_name}_cremone_bottom_couple", bbolt.joint.name, hb.joint.name, (0, throw_b / max(opm.travel, 1e-6), 0, 0, 0), tiers=FULL_SIMPLE, label="shoot bolt = knob * throw/travel"))
+            model.meta.setdefault("clearance_allow", []).append([f"{leaf_name}_cremone_rod_down", f"{leaf_name}_cremone_bottom_bolt_geom", "the shoot bolt is the end of the rod"])
+            add_floor_strike(world, f"{leaf_name}_cremone_floor_strike", hx + x_r, y_r, u, 0.007, zb, z_base, cm_)
     if lk.kind == "keypad_code" and not pair:
         # keypad / pushbutton unit above the handle on the outside face, whatever the operator
         z_min = None
@@ -462,6 +508,17 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         model.tendons.append(Tendon(f"{leaf_name}_top_latch_coupling", [(rb.joint.name, 1.0), (handle_joint, -scale)], (0.0, 10.0), tiers=ALL_TIERS, label="rod_q >= scale*bar_q (one-sided)"))
         model.tendons[-1].kind = "fixed"
         head_pockets.append({"x": hx + x_edge - u * 0.06, "hx": bw / 2 + 0.004, "w": bw + 0.003, "depth": rl.throw + 0.004})
+        # BOTTOM rod latch: a 9927 SVR is a two-point device and the bottom rod was drawn but latched nothing.  Same
+        # spring, same one-sided coupling to the bar, dropping into a floor strike instead of a head pocket.
+        z_base, z_ret = FLOOR_STRIKE_TOP.get(op.get("threshold", "none"), 0.0), max(zb, FLOOR_RETRACT_Z)
+        throw_b = max(0.006, z_ret - z_base - 0.004)
+        bb = Body(f"{leaf_name}_bottom_latch", leaf_body.name, (x_edge - u * 0.06, 0.0, z_ret), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Bottom rod latch")
+        bb.joint = Joint(f"{leaf_name}_bottom_latch_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, throw_b), damping=2.0, frictionloss=0.3, stiffness=rl.spring_rate, springref=-rl.spring_preload / rl.spring_rate, armature=1e-4, role="latch", label="Bottom rod latch (0 = extended down, + = retracted)", robot_interactive=False)
+        bb.geoms.append(Geom(f"{leaf_name}_bottom_latch_capsule", "capsule", (r, (throw_b + inside_) / 2 - r), (0, 0, (inside_ - throw_b) / 2), (1, 0, 0, 0), bm, True, True, 8500.0, None, (0.2, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "latch", "Bottom rod bolt"))
+        model.add_body(bb)
+        model.tendons.append(Tendon(f"{leaf_name}_bottom_latch_coupling", [(bb.joint.name, 1.0), (handle_joint, -scale * throw_b / max(rl.throw, 1e-6))], (0.0, 10.0), tiers=ALL_TIERS, label="rod_q >= scale*bar_q (one-sided)"))
+        model.tendons[-1].kind = "fixed"
+        add_floor_strike(world, f"{leaf_name}_bottom_strike", hx + x_edge - u * 0.06, 0.0, u, r, zb, z_base, bm)
     elif lt.kind == "gravity_bar" and opm.kind == "ring_pull":
         # latch bar lifted by... nothing on robot side except the ring; the bar is on the far side -> robot side must lift via a thumb? Use a simple gravity bar with a lift knob through the door.
         pass
