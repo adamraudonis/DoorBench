@@ -49,6 +49,10 @@ The pod we used came up in about 90 s: L40S 46 GB, 16 vCPU, 188 GB RAM, `$1.09/h
 
 ## 3. Install everything (one command, ~25 minutes, unattended)
 
+Verified end to end on 2026-09-04/05: a brand-new Secure Cloud L40S pod (driver 580.159) went from `create` to
+`BOOTSTRAP DONE` with only the commands below; Isaac Sim wheels via uv took ~7 min at 24 MB/s, Isaac Lab v2.3.2 +
+torch cu128 ~6 min, DoorBench + extension ~1 min, first headless Kit start ~5 min.
+
 ```bash
 python scripts/runpod_pod.py bootstrap       # scp scripts/pod_bootstrap.sh + run it in tmux; log: /workspace/bootstrap.log
 python scripts/runpod_pod.py ssh tail -f /workspace/bootstrap.log

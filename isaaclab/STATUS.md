@@ -19,7 +19,7 @@ exactly what was verified locally and what awaits the GPU run (task board I4).
 
 ## Not executed (needs the GPU box; run `bash isaaclab/cloud/validate.sh` first)
 
-* `isaaclab/cloud/setup.sh`, `Dockerfile`: follow NVIDIA's pip guide (isaacsim 5.1.0 wheels, Isaac Lab v2.3.0); untested.
+* `isaaclab/cloud/setup.sh` now wraps `scripts/pod_bootstrap.sh`, which was executed end to end on a RunPod L40S on 2026-09-04/05 (Isaac Sim 5.1.0 wheels via uv, Isaac Lab **v2.3.2**, `ISAACLAB_IMPORT_OK`); see `docs/RUNPOD.md`. `Dockerfile`: still untested.
 * `scripts/isaaclab/validate_usd_isaacsim.py`: Isaac Sim import of all doors (spawn, settle, actuate). This is the
   first thing to run; it tells whether PhysX parses the articulations as intended (fixed base, joint frames,
   friction efforts, mimic joints).
