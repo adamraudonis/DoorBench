@@ -11,6 +11,7 @@ from .. import materials as M
 from .. import hardware as H
 from . import common as C
 from . import meshes as MESH
+from .sliding_tracks import add_tracks, add_barn_hangers, add_floor_guides, add_lane_floor_guides
 
 
 def _sites(world, Ho, ya=-1.5, yg=1.5):
@@ -143,21 +144,6 @@ def build_sliding(spec, phys, model: Model):
             world.geoms.append(C.box(f"post_{'r' if sgn > 0 else 'l'}", (sgn * (Wo / 2 + 0.06), 0.08, (Hh + 0.1) / 2 + 0.1), (0.06, 0.06, (Hh + 0.1) / 2 + 0.1), pm, 7850, True, True, ALL_TIERS, "frame", "Gate post (beside the leaf path)"))
     # track hardware
     tm = C.mat_from_material(model, "black_matte_metal" if track == "surface_flat_track" else "aluminum", "mat_track")
-    if track == "surface_flat_track":
-        L = 2 * W + 0.1
-        world.geoms.append(C.box("flat_track", (0, y_leaf + 0.02, Ho + 0.12), (L / 2, 0.004, 0.02), tm, 7850, True, True, FULL_SIMPLE, "track", "Flat track"))
-        for k in range(int(L / 0.6) + 1):
-            world.geoms.append(C.cyl(f"track_standoff_{k}", (-L / 2 + k * 0.6, y_leaf + 0.03, Ho + 0.12), 0.012, 0.012, tm, (0, 1, 0), 7850, False, True, FULL_ONLY, "track", "Track standoff"))
-    elif track in ("top_hung_bypass", "top_hung", "top_hung_industrial", "auto_header", "elevator_hanger_track", "sectional_vertical_lift"):
-        world.geoms.append(C.box("track_header", (0, 0, Ho + jamb_t + 0.04), (Wo / 2 + W / 2 + 0.05, 0.04 if track != "auto_header" else 0.09, 0.04 if track != "auto_header" else 0.09), tm, 2700, True, True, FULL_SIMPLE, "track", "Track header"))
-    elif track == "bottom_rolling":
-        world.geoms.append(C.box("bottom_rail", (0, y_leaf, 0.012), (Wo / 2 + jamb_t, 0.02, 0.012), tm, 2700, True, True, ALL_TIERS, "track", "Bottom rail"))
-    elif track == "wood_groove_bottom":
-        wm2 = C.mat_from_material(model, "hinoki", "mat_shikii")
-        world.geoms.append(C.box("shikii", (0, 0, 0.012), (Wo / 2 + 0.05, 0.05, 0.012), wm2, 410, True, True, ALL_TIERS, "track", "Shikii (bottom rail)"))
-        world.geoms.append(C.box("kamoi", (0, 0, Ho + 0.03), (Wo / 2 + 0.05, 0.05, 0.03), wm2, 410, True, True, ALL_TIERS, "track", "Kamoi (head rail)"))
-    elif track in ("cantilever", "bottom_rail"):
-        world.geoms.append(C.box("gate_rail", (s_open * W / 2, y_leaf, 0.01), (W + 0.2, 0.03, 0.01), tm, 7850, True, True, ALL_TIERS, "track", "Rail"))
     # fixed panel (patio / auto sliding sidelites)
     if fixed_panel and fam in ("sliding_single", "automatic_sliding"):
         gm = C.mat_from_material(model, "glass_clear", "mat_fixed_glass")
@@ -195,6 +181,7 @@ def build_sliding(spec, phys, model: Model):
         leaf_defs = [("leaf", s_open, -s_open * (Wo / 4), y_leaf)]
     else:
         leaf_defs = [("leaf", s_open, 0.0, y_leaf)]
+    track_defs = add_tracks(model, world, spec, leaf_defs, y_leaf, jamb_t, tm)
     for name, dir_, xc, yl in leaf_defs:
         b = Body(name, None, (xc, yl, 0.0), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Sliding leaf")
         zb = 0.012 if track != "bottom_rolling" else 0.03
@@ -214,16 +201,21 @@ def build_sliding(spec, phys, model: Model):
         b.joint = j
         model.add_body(b)
         C.add_leaf_geoms(model, b, spec, leaf, 1.0, -W / 2, zb, phys, name_prefix=name)
+        if track_defs[name]["floor_guides_required"]:
+            track_defs[name]["guide_leaf_geoms"] = [g.name for g in b.geoms if g.semantic in ("leaf", "glass")]
+        if "floor_guide" in spec.get("extras", []) and track != "surface_flat_track":
+            add_lane_floor_guides(model, world, b, spec, zb, track_defs[name], tm)
         eb_pockets = spec["latch"]["model"] == "electric_bolt" and not center and fam != "sliding_bypass"
         # hangers / rollers (visual)
         rm = C.mat_from_material(model, "steel_galvanized", "mat_roller")
         if track == "surface_flat_track":
-            for k, xr in enumerate((-W / 2 + 0.12, W / 2 - 0.12)):
-                b.geoms.append(C.cyl(f"{name}_hanger_wheel_{k}", (xr, 0.0 + 0.0, zb + Hh + 0.12), 0.05, 0.01, rm, (0, 1, 0), 7850, False, True, FULL_SIMPLE, "track", "Hanger wheel"))
-                b.geoms.append(C.box(f"{name}_hanger_strap_{k}", (xr, -0.012, zb + Hh + 0.05), (0.02, 0.004, 0.07), rm, 7850, False, True, FULL_SIMPLE, "track", "Hanger strap"))
+            add_barn_hangers(model, world, b, spec, zb, track_defs[name], rm, tm)
         elif track == "bottom_rolling":
             for k, xr in enumerate((-W / 2 + 0.1, W / 2 - 0.1)):
-                b.geoms.append(C.cyl(f"{name}_roller_{k}", (xr, 0, zb + 0.009), 0.015, 0.008, rm, (0, 1, 0), 7850, False, True, FULL_ONLY, "track", "Roller"))
+                # The rolling tread touches the rail top (24 mm); wheel is housed in the lower stile.
+                wheel = C.cyl(f"{name}_roller_{k}", (xr, 0, 0.024 + 0.015), 0.015, 0.008, rm, (0, 1, 0), 7850, False, True, FULL_ONLY, "track", "Roller")
+                b.geoms.append(wheel)
+                track_defs[name]["rollers"].append(wheel.name)
         bodies.append(b)
         # operator(s)
         hz = spec["operator"]["height"]
@@ -366,10 +358,8 @@ def build_sliding(spec, phys, model: Model):
             C.add_keeper_ring(world.geoms, f"{nm_}_hook_keeper_plate", (latch_side * (Wo / 2), yc_, zc_), (-latch_side, 0, 0), (0, 0, 1), t / 2 + 0.006, 0.06, km_, bar=0.006, thick=0.001, tiers=FULL_SIMPLE, semantic="latch", label="Hook keeper plate")
     else:
         model.meta.pop("_jamb_keeper_plates", None)
-    # floor guide (barn)
-    if "floor_guide" in spec.get("extras", []):
-        for sy in (-1, 1):
-            world.geoms.append(C.box(f"floor_guide_{'p' if sy > 0 else 'n'}", (s_open * (Wo / 2 + 0.05), y_leaf + sy * (t / 2 + 0.016), 0.02), (0.03, 0.004, 0.02), tm, 7850, True, True, FULL_SIMPLE, "track", "Floor guide"))
+    if track == "surface_flat_track":
+        add_floor_guides(model, world, spec, s_open, y_leaf, tm, track_defs["leaf"])
     if center:
         model.equalities.append(Equality("joint", "center_couple", bodies[1].joint.name, bodies[0].joint.name, (0, 1.0, 0, 0, 0), tiers=ALL_TIERS, label="leaves move symmetrically"))
     if fam == "elevator":

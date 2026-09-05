@@ -65,6 +65,7 @@ export function Results({ manifest }: { manifest: Manifest }) {
     <div className="results">
       <div className="about" style={{ paddingBottom: 0 }}>
         <h1 style={{ margin: "8px 0" }}>Benchmark results</h1>
+        <p className="sub">Existing baseline scores were recorded before the current geometry repairs and Blender appearance update. See each run's commit and JSON for provenance.</p>
         <p style={{ color: "var(--muted)", marginTop: 0 }}>
           Every row is one run of a policy over the DoorBench doors, written by <code>doorbench benchmark run</code>, validated against <code>results/schema.json</code> and committed under <code>results/</code>.
           A door counts as <b>solved</b> when the policy succeeded on <b>every</b> scenario the door lists in the suite, on <b>every</b> seed, by the scenario's own criterion (e.g. opened ∧ traversed ∧ ¬damage) without damaging it.

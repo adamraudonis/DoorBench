@@ -112,29 +112,23 @@ describe.skipIf(!have)("closed-loop linkage solver", () => {
     for (const [, sep] of s3.worst) expect(sep).toBeLessThan(1e-3);
   });
 
-  test("rising-hinge cold storage: the coupled leaf_rise stays an input, the arm closes in its plane", () => {
+  test("rising-hinge cold storage: sliding shoe follows lift with a closed arm loop", () => {
     const model = load("db0188_cold_storage");
     const { worst, solver } = sweep(model);
     expect(solver.loops.length).toBe(1);
-    expect(solver.loops[0].type).toBe("two_bar");
+    expect(solver.loops[0].type).toBe("generic");
     expect(solver.coupled.has("leaf_rise")).toBe(true);
     expect(solver.owned.has("leaf_rise")).toBe(false);
     expect(solver.owned.has("closer_pinion")).toBe(true);
-    // the rising hinge lifts the whole closer with the leaf while the shoe stays on the frame: the planar arm cannot
-    // follow that lift, so the residual may be up to the rise itself (a limitation of the door model, see the report)
-    // but never more, and with the leaf flat the loop closes exactly
-    const rise = solver.art.joints.get("leaf_rise")!;
-    for (const [, sep] of worst) expect(sep).toBeLessThan(rise.range![1] + 1e-3);
-    const flat = new LoopSolver(model);
-    flat.setQ("leaf_hinge", 1.5); flat.setQ("leaf_rise", 0);
-    expect(flat.solve()[0].separation).toBeLessThan(1e-4);
+    expect(solver.owned.has("closer_shoe_slide")).toBe(true);
+    for (const [, sep] of worst) expect(sep).toBeLessThan(1e-3);
+    expect(Math.abs(solver.getQ("closer_shoe_slide") - solver.getQ("leaf_rise"))).toBeLessThan(1e-4);
   });
 
   test("every door with a connect loop closes it (< 1 mm) over the whole leaf travel", () => {
     // manifest -> only doors that can carry a mechanism loop (closer / operator), then whatever model.json declares
     const manifest = JSON.parse(readFileSync(path.join(ASSETS, "..", "manifest.json"), "utf8"));
     const failures: string[] = [];
-    const geometryNotes: string[] = [];
     let nLoops = 0, nDoors = 0;
     for (const d of manifest.doors as { id: string; closer: string; operator: string }[]) {
       let model: ModelJ;
@@ -143,19 +137,13 @@ describe.skipIf(!have)("closed-loop linkage solver", () => {
       nDoors++;
       const { solver, worst } = sweep(model, {}, 36);
       for (const w of solver.warnings) failures.push(`${d.id}: ${w}`);
-      // a rising hinge (slide joint coupled to the leaf angle) lifts the closer with the leaf while the shoe stays on the
-      // frame: no planar arm can follow that, so the residual up to the rise itself is a limitation of the door model
-      // (reported, not a solver failure); anything beyond it is
-      const rise = [...leafCouplings(model)].reduce((acc, [j]) => { const jt = solver.art.joints.get(j); return acc + (jt && jt.type === "slide" && jt.range ? jt.range[1] - jt.range[0] : 0); }, 0);
       for (const [name, sep] of worst) {
         nLoops++;
         expect(solver.owned.has(name)).toBe(false);
         for (const j of solver.coupled) expect(solver.owned.has(j)).toBe(false);
-        if (!(sep < 1e-3 + rise)) failures.push(`${d.id} ${name}: worst separation ${(sep * 1000).toFixed(2)} mm`);
-        else if (!(sep < 1e-3)) geometryNotes.push(`${d.id} ${name}: ${(sep * 1000).toFixed(1)} mm (rising hinge lifts the closer by up to ${(rise * 1000).toFixed(0)} mm)`);
+        if (!(sep < 1e-3)) failures.push(`${d.id} ${name}: worst separation ${(sep * 1000).toFixed(2)} mm`);
       }
     }
-    if (geometryNotes.length) console.log(`loops that cannot fully close because of the door geometry:\n  ${geometryNotes.join("\n  ")}`);
     expect(nDoors).toBeGreaterThan(0);
     expect(nLoops).toBeGreaterThanOrEqual(nDoors);
     expect(failures).toEqual([]);

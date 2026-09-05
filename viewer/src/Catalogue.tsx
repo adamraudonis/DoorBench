@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { FAMILY_LABELS, type Manifest, type ManifestDoor } from "./types";
 import { ASSETS } from "./App";
 import { BaselineBadges } from "./ResultBadges";
+import { AppearanceThumb, useAppearance, type AppearanceRender } from "./Appearance";
 
 function uniq(xs: string[]) { return Array.from(new Set(xs)).sort(); }
 
@@ -10,10 +11,10 @@ export function thumbUrl(d: ManifestDoor, which = "iso") {
   return t ? `${ASSETS}/doors/${t}` : "";
 }
 
-export function DoorCard({ d }: { d: ManifestDoor }) {
+export function DoorCard({ d, appearance }: { d: ManifestDoor; appearance?: AppearanceRender }) {
   return (
     <a className="card" href={`#/door/${d.id}`}>
-      <img src={thumbUrl(d)} loading="lazy" alt={d.use_case} />
+      <AppearanceThumb render={appearance} fallback={thumbUrl(d)} alt={d.use_case} />
       <div className="body">
         <div className="title"><span>{d.use_case || d.id}</span><span style={{ color: "var(--muted)", fontWeight: 400 }}>{d.mass_kg.toFixed(0)} kg</span></div>
         <div className="sub">{d.id} · {d.leaf.width.toFixed(2)}×{d.leaf.height.toFixed(2)} m · {d.leaf.slab.replace(/_/g, " ")}</div>
@@ -26,7 +27,7 @@ export function DoorCard({ d }: { d: ManifestDoor }) {
           <span className="chip">{d.task.replace(/_/g, " ")}</span>
           {d.benchmark?.has_human && <span className="chip">human scenario</span>}
           <span className="chip">L{d.difficulty}</span>
-          <span className={"chip " + (d.signed_off ? "ok" : "bad")}>{d.signed_off ? "signed off" : "needs review"}</span>
+          <span className={"chip " + (d.signed_off ? "ok" : "bad")}>{d.signed_off ? "automated QA passed" : "needs review"}</span>
           {d.isaac_parity && d.isaac_parity !== "untested" && (
             <span className={"chip res " + (d.isaac_parity === "ok" ? "ok" : "bad")} title={`Isaac parity gate: MuJoCo vs Isaac Sim / PhysX behave ${d.isaac_parity === "ok" ? "the same" : "differently"} (grade ${d.isaac_parity_grade ?? "?"}; see the door page)`}>
               Isaac {d.isaac_parity === "ok" ? "parity" : "mismatch"}{d.isaac_parity_grade ? ` ${d.isaac_parity_grade}` : ""}
@@ -40,6 +41,16 @@ export function DoorCard({ d }: { d: ManifestDoor }) {
 }
 
 export function Catalogue({ manifest, query }: { manifest: Manifest; query: string }) {
+  const appearance = useAppearance();
+  const [imageMode, setImageMode] = useState("blender");
+  const photoById = useMemo(() => {
+    const result = new Map<string, AppearanceRender>();
+    for (const r of appearance?.renders ?? []) {
+      const current = result.get(r.door_id);
+      if (r.image && (!current || (r.quality === "photo" && current.quality !== "photo"))) result.set(r.door_id, r);
+    }
+    return result;
+  }, [appearance]);
   const params = new URLSearchParams(query);
   const [family, setFamily] = useState(params.get("family") ?? "");
   const [operator, setOperator] = useState("");
@@ -85,16 +96,17 @@ export function Catalogue({ manifest, query }: { manifest: Manifest; query: stri
         {sel(condition, setCondition, opts.condition, "Any condition")}
         {sel(task, setTask, opts.task, "Any task")}
         {opts.scenario.length > 0 && sel(scenario, setScenario, opts.scenario, "Any scenario")}
-        <select value={signed} onChange={(e) => setSigned(e.target.value)}><option value="">QA: all</option><option value="yes">signed off</option><option value="no">needs review</option></select>
+        <select value={signed} onChange={(e) => setSigned(e.target.value)}><option value="">QA: all</option><option value="yes">automated QA passed</option><option value="no">needs review</option></select>
         {hasParity && (
           <select value={parity} onChange={(e) => setParity(e.target.value)} title="Isaac parity gate: does the door behave the same in Isaac Sim / PhysX as in MuJoCo? (docs/ISAAC_PARITY.md)">
             <option value="">Isaac parity: all</option><option value="ok">parity ok</option><option value="fail">mismatch</option><option value="untested">untested</option>
           </select>
         )}
         <select value={sort} onChange={(e) => setSort(e.target.value)}><option value="index">Sort: id</option><option value="family">Sort: type</option><option value="mass">Sort: mass</option><option value="difficulty">Sort: difficulty</option><option value="width">Sort: width</option></select>
+        {photoById.size > 0 && <select aria-label="Thumbnail rendering" value={imageMode} onChange={(e) => setImageMode(e.target.value)}><option value="blender">Blender renders ({photoById.size} available)</option><option value="simulation">Simulation thumbnails</option></select>}
         <span className="count">{filtered.length} / {doors.length}</span>
       </div>
-      <div className="grid">{filtered.map((d) => <DoorCard key={d.id} d={d} />)}</div>
+      <div className="grid">{filtered.map((d) => <DoorCard key={d.id} d={d} appearance={imageMode === "blender" ? photoById.get(d.id) : undefined} />)}</div>
     </div>
   );
 }

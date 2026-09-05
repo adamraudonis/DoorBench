@@ -9,6 +9,7 @@ import { GLOSSARY, REWARD_LABELS, type GlossaryEntry } from "./glossary";
 import { activeLeaf, isLocked, openClosePhases, parsePoseQuery, sliderReaction, type Phase } from "./doorLogic";
 import { ASSETS } from "./App";
 import { BaselineBadges } from "./ResultBadges";
+import { AppearancePanel } from "./Appearance";
 
 function fmt(x: any, digits = 3): string {
   if (x === null || x === undefined) return "–";
@@ -403,9 +404,10 @@ export function DoorView({ manifest, id, query = "" }: { manifest: Manifest; id:
       </div>
       <div className="side">
         <h2>{entry.use_case || entry.id}</h2>
+        <AppearancePanel id={id} />
         <div className="use">{entry.id} · <a href={`#/?family=${entry.family}`}>{FAMILY_LABELS[entry.family] ?? entry.family}</a> · {entry.context} · task: {nice(entry.task)} · difficulty {entry.difficulty}/5</div>
         <div style={{ marginTop: 6 }} className="chips">
-          <span className={"chip " + (entry.signed_off ? "ok" : "bad")}>{entry.signed_off ? "QA signed off" : "QA: " + (entry.qa_failed?.join(", ") || "needs review")}</span>
+          <span className={"chip " + (entry.signed_off ? "ok" : "bad")}>{entry.signed_off ? "Automated QA passed" : "QA: " + (entry.qa_failed?.join(", ") || "needs review")}</span>
           {parityStatus && parityStatus !== "untested" && (
             <span className={"chip res " + (parityStatus === "ok" ? "ok" : "bad")} title={parityStatus === "ok" ? `Isaac parity gate: behaves the same in Isaac Sim / PhysX as in MuJoCo (grade ${parityGrade}); details in the Isaac parity section` : `Isaac parity gate: behaves differently in Isaac Sim / PhysX than in MuJoCo (grade ${parityGrade ?? "X"}${ip?.classes?.length ? ": " + ip.classes.join(", ") : ""}); details in the Isaac parity section`}>
               Isaac {parityStatus === "ok" ? "parity" : "mismatch"}{parityGrade ? ` ${parityGrade}` : ""}

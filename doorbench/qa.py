@@ -97,6 +97,17 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         checks["clearance"] = False
         metrics["clearance_error"] = str(e)[:200]
     m = models["full"]
+    # Full-travel rail span plus actual tread contact where rollers are modeled.
+    # The returned rail-only scope explicitly records incomplete suspension geometry.
+    from .sliding_track_qa import run_sliding_track_qa
+    track_support = run_sliding_track_qa(m, model_meta)
+    checks["sliding_track_support"] = bool(track_support["ok"])
+    metrics["sliding_track_support"] = track_support
+    # Collision clearance alone cannot detect impossible closed-loop mechanisms.
+    from .linkage_qa import run_linkage_qa
+    linkage = run_linkage_qa(door_dir)
+    checks["linkage_feasibility"] = bool(linkage["ok"])
+    metrics["linkage_feasibility"] = linkage
     d = mujoco.MjData(m)
     # ---- mass gate: simulated moving mass must match the derived door mass (slab + glass + hardware)
     moving_mass = float(sum(m.body_mass[b] for b in range(1, m.nbody) if m.body_dofnum[b] > 0 or m.body_parentid[b] != 0))

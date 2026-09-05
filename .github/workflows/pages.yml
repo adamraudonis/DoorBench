@@ -21,19 +21,25 @@ jobs:
         run: |
           bun install --frozen-lockfile
           bun run build
-      - name: Assemble site (viewer + dataset assets)
+      - name: Assemble site (viewer + verified dataset and Blender renders)
         run: |
           mkdir -p site
           cp -r viewer/dist/* site/
-          mkdir -p site/assets
-          cp assets/manifest.json site/assets/
-          cp -r assets/hardware site/assets/hardware
-          rsync -a --include='*/' --include='model.json' --include='spec.json' --include='qa.json' --include='thumb_*.jpg' --include='door.xml' --include='door_simple.xml' --include='door_minimal.xml' --include='scene.xml' --include='door.urdf' --include='door.usda' --exclude='*' assets/doors/ site/assets/doors/
+          # Versioned release media are pinned by SHA-256; generated assets stay out of source commits.
+          python3 scripts/site_assets.py restore --manifest deploy/site-assets.json --out site
           # benchmark results (leaderboard index + the full result files) for the Results page and the catalogue badges
           mkdir -p site/results
           cp results/*.json results/README.md site/results/ 2>/dev/null || true
+          cp deploy/site-assets.json site/deployment.json
           touch site/.nojekyll
+          python3 -c 'from pathlib import Path; n=sum(p.stat().st_size for p in Path("site").rglob("*") if p.is_file()); print(f"Site payload: {n:,} bytes"); assert n < 950_000_000, "Site exceeds the publication size budget"'
           du -sh site
+      - name: Check viewer against the published dataset
+        working-directory: viewer
+        run: |
+          rsync -a ../site/assets/ ../assets/
+          bun run typecheck
+          bun test
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
