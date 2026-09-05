@@ -68,8 +68,11 @@ different doors can share one PhysX articulation view. Static validation 1000/10
   not a parking spot; terminate and re-create instead (the bootstrap is fully scripted, ~20 min).
 * The whole path (`scripts/runpod_pod.py create/wait/bootstrap`, `scripts/pod_bootstrap.sh`) was then executed
   end to end on a brand-new pod. `docs/RUNPOD.md` has the copy-paste steps and the troubleshooting table.
-* Open: the headless validation script spends tens of minutes on a 20-door batch with the GPU idle (CPU-bound
-  in Python); being profiled with periodic stack dumps (`faulthandler`), since `py-spy` cannot ptrace in the pod.
+* The headless validation script "hung" for tens of minutes per batch with the GPU idle. `py-spy` cannot ptrace in
+  the pod, so `faulthandler.dump_traceback_later` gave the stack: the batch had finished; the process was inside
+  Isaac Lab's timeline-stop callback, which loops `render()` until the timeline plays again unless
+  `sim._disable_app_control_on_stop_handle` is set. One line per script fixed it. Lesson: when a process is
+  "slow" with 0 % GPU and 100 % CPU, get a stack before theorising.
 
 **Working with agents.** Seven parallel Fable agents in git worktrees is productive until the account's usage
 limit hits, which kills all of them at once and twice cost partial work. Rules that now hold: commit early and
