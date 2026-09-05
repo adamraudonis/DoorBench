@@ -29,14 +29,16 @@ Two files per door, both validated by `scripts/isaaclab/validate_usd_static.py` 
 ### `door.usda` — full fidelity
 
 ```
-/<door_id>                        default prim; doorbench:door_id, doorbench:meta, doorbench:couplings (JSON)
+/<door_id>                        default prim; doorbench:door_id, doorbench:meta, doorbench:couplings,
+                                  doorbench:env_release, doorbench:filtered_pairs (JSON)
   /Looks                          UsdPreviewSurface materials + PhysicsMaterialAPI friction materials
   /Env                            static colliders: frame, walls, floor, strikes, stops + benchmark sites
   /Articulation                   PhysicsArticulationRootAPI + PhysxArticulationAPI (fixed base)
     /base                         fixed link; Joints/base_fixed = FixedJoint to the world (body0 unset)
     /<body> ...                   RigidBodyAPI + MassAPI (mass, COM, principal inertia) per moving body
     /Joints/<joint>               Revolute / Prismatic (limits, force drive = spring/closer, PhysxJointAxisAPI friction
-                                  efforts, armature) / Fixed; PhysxMimicJointAPI for polynomial couplings
+                                  efforts, armature) / Fixed; PhysxMimicJointAPI for ROTATIONAL polynomial couplings,
+                                  doorbench:coupling_* for the rest; breakable env-release FixedJoints (loop joints)
 /PhysicsScene                     outside the default prim (present standalone, dropped when referenced)
 ```
 
@@ -64,12 +66,42 @@ Two files per door, both validated by `scripts/isaaclab/validate_usd_static.py` 
   `doorbench:servo_in_drive = true`). Joints that also carry a closer spring (automatic swing operators) keep the
   spring in the drive and the servo remains a feed-forward emulation (one drive per axis; a shared `maxForce` would
   clip the closer with the servo's force range).
-* **Couplings.** Bilateral polynomial equalities (thumbturn → deadbolt, wheel → bolts, riser ← hinge) become
-  `PhysxMimicJointAPI` (`q_driven + gearing·q_driver + offset = 0`, radians / metres — PhysX-native units; verify on
-  the GPU box). The one-sided latch tendon (`bolt ≥ scale·operator`) is environment logic (`DoorMechanismAction`).
+* **Couplings.** Bilateral polynomial equalities (`q_driven = c₀ + c₁·q_driver`) get one of three treatments,
+  recorded in `doorbench:coupling_mode` on the driven joint prim and in `doorbench:couplings`:
+  * `mimic` — **rotational → rotational only** (187 equalities on 93 doors: hook ← handle, dog ← wheel, panel ←
+    pivot). `PhysxMimicJointAPI:rotX` with `referenceJoint`, `gearing = −c₁`, `offset = −c₀` (`q_driven + gearing·
+    q_driver + offset = 0`, radians). PhysX articulation mimic joints **support rotational axes only**: a mimic
+    authored on a prismatic joint, or one whose `referenceJointAxis` is prismatic, is parsed without an error and
+    then ignored — which is why the exporter no longer writes one.
+  * `emulated` — hinge → slide and slide → slide (181 equalities on 124 doors: thumbturn → deadbolt, wheel → shoot
+    bolts, dogs → bolts, cremone, helical riser ← hinge). No PhysX representation exists, so the driven joint prim
+    carries the whole law and both consumers apply it **bilaterally**, never as a bare kinematic write:
+    `doorbench:coupling_c0 / c1`, `coupling_driver` (+ `coupling_driver_joint` rel), `coupling_driven_inertia`
+    (the driven DOF's effective inertia: subtree mass for a slide, subtree inertia about the axis for a hinge),
+    `coupling_gravity_bias` (its constant generalised gravity force at the authored pose),
+    `coupling_reflected_inertia = c₁²·I_driven`, `coupling_chain_order`, and on the **driver**
+    `doorbench:coupling_reflected_armature` = Σ of the reflected inertias it drives.
+  * `servo` — both joints carry their own MJCF position servo in their PhysX drive (14 doors: the two leaves of an
+    automatic bi-parting slider or elevator). The drives already move them together; nothing is authored or emulated.
+
+  The one-sided latch tendon (`bolt ≥ scale·operator`) stays environment logic (`DoorMechanismAction`).
+* **Environment-released locks.** A mag lock / delayed egress / electric bolt / interlock is a MuJoCo `<weld>`
+  leaf → world. It is exported as a real breakable `UsdPhysics.FixedJoint` `base → leaf` under `Joints/<weld name>`
+  with `physics:excludeFromArticulation = true` (PhysX solves it as a maximal-coordinate **loop joint** between two
+  articulation links, so the articulation stays a tree with one parent per link), `physics:breakForce =
+  breakTorque = ` the latch model's `holding_force_N` (2670 N for a 600 lbf magnet, 5340 N for 1200 lbf) and
+  `physics:jointEnabled`, which the environment clears on badge / REX / delayed-egress timeout —
+  `mdp.release_env_lock`, the counterpart of `DoorEnv._lock_logic` setting `d.eq_active[eid] = 0`.
+  `doorbench:env_release` on the default prim names them (`doorbench:role = "env_release"` on the joint).
 * **Collision.** Primitives as Cube/Cylinder/Capsule/Sphere with `PhysicsCollisionAPI` + `PhysxCollisionAPI`;
   meshes referenced from `assets/hardware/*.usdc` with `MeshCollisionAPI approximation=convexHull` and
-  `PhysxConvexHullCollisionAPI`. Self-collisions are disabled (parent/child hardware overlaps by design).
+  `PhysxConvexHullCollisionAPI`. **Self-collision is enabled** (`physxArticulation:enabledSelfCollisions = true`):
+  PhysX then skips joint-adjacent link pairs, which is exactly MuJoCo's parent/child default, and every further pair
+  MuJoCo suppresses — same weld body, weld parent/child, `<contact><exclude>` — is authored as
+  `PhysxFilteredPairsAPI` (`physxFilteredPairs:filteredPairs`; 2091 pairs over the dataset, at most 18 on one door,
+  at most 185 extra broad-phase pairs). With self-collision off, any latch that holds one *moving* link against
+  another passed straight through in PhysX: swing pairs latched into the inactive leaf, gate and baby-gate lift
+  pins, sliding drop bolts.
 
 ### `door_rl.usda` — canonical articulation (multi-door RL)
 
@@ -88,10 +120,26 @@ door onto one fixed structure:
 | `carriage2` / `leaf2` | `leaf2_slide` / `leaf2_hinge` (base → …) | second leaf of pairs, saloons, bypass and bi-parting sliders |
 
 Unused joints are locked (±0.5 mm / ±0.05°, stiff drive). Every other moving part in the primary leaf's subtree
-(deadbolts, thumbturns, keypad keys, closer arms, folded panels …) is welded into `leaf` / `operator` at the initial
-state — engaged locks stay engaged (so `locked_recognize` doors stay locked), latch-like parts that would block the
-door are welded released. World-mounted parts (gate lift pins, REX buttons) become static; leaf-like panels beyond the
-second (strip curtains, accordions) are omitted. Slot statistics over the dataset:
+(deadbolts, thumbturns, keypad keys, closer arms, folded panels …) is welded into `leaf` / `operator`. **In which
+state** is decided per part and recorded, not guessed:
+
+| welded | when | example |
+|---|---|---|
+| **released** (joint moved to its travel end) | the part is latch hardware (`role == "latch"` or the body's semantic is `latch`), **or** the operator drives it through a bilateral equality / tendon (transitive closure from `meta.operator_joint`), **or** its lock is not engaged | hook bolts of a hook-slider, cremone shoot bolts on the espagnolette handle, dogs driven by a ship wheel, world-mounted lift pins |
+| **engaged** (initial state) | an engaged lock part with no canonical slot and no operator coupling — the robot would have to work it separately, which this file cannot represent | a thrown slide bolt, a keypad-locked deadbolt, a second dog with its own lever |
+
+Welding a hook or a cremone bolt engaged locked the door **by construction** while the protocol expected it to open
+(11 hook sliders, 2 cremone pairs and ~35 doors flagged `RL_CANON` in parity round 2). `doorbench:rl` records every
+decision — `welded` (all parts, with `role`, `semantic`, `shift`, `was_engaged`, `holding`, `reason`),
+`released_parts`, `released_holding`, `welded_engaged`, `operator_driven_joints` — and
+`doorbench.parity.protocol.expected_outcomes` reads that ground truth: a door whose only holding part is welded
+released gets `hold = "na:rl holding part welded released (…)"`, a door with a `welded_engaged` part gets
+`operate = "stays_closed"`. World-mounted parts (gate lift pins, REX buttons) become static; leaf-like panels beyond
+the second (strip curtains, accordions) are omitted.
+
+`door_rl.usda` carries the same self-collision setting, filtered pairs (at link level: `leaf`/`operator` is filtered
+because the handle is a child of the leaf in MuJoCo, `leaf`/`leaf2` is **not**, which is what latches a pair),
+env-release joints and coupling metadata as `door.usda`. Slot statistics over the dataset:
 
 ```
 347  door=hinge operator=hinge latch=slide          217  door=hinge (push plates, pulls, free-swinging)
@@ -104,9 +152,10 @@ coupling, thresholds (open 10° / 0.10 m, clear 60° / 0.55 m, closed 3°), grip
 approach / goal / pass-plane points, opening size, push/pull side, lock state, damage thresholds and automatic-door
 servo gains. `DoorState` reads it for every env after spawning — no dataset files are needed at run time.
 
-Limitations of the canonical file (by design, documented per door in `doorbench:rl["notes"]`): keypad / card /
-thumbturn unlocking is not possible (the lock parts are welded), bifold/accordion chains move as one panel, only two
-leaves per door, no loop-closure closer arms (they are visual).
+Limitations of the canonical file (by design, documented per door in `doorbench:rl["notes"]` and, per part, in
+`doorbench:rl["welded"]`): keypad / card / thumbturn unlocking is not possible (those lock parts are welded engaged
+and the door is expected to stay closed), bifold/accordion chains move as one panel, only two leaves per door, no
+loop-closure closer arms (they are visual).
 
 ### MuJoCo → PhysX parameter mapping
 
@@ -125,6 +174,11 @@ behaviour, not the nominal number.
 | `<position kp kv forcerange ctrl=0>` on a spring-less joint | `stiffness = kp`, `damping = kv + b`, `targetPosition = ctrl − ref`, `maxForce = |forcerange|`, `doorbench:servo_in_drive = true` | `f = clip(kp(ctrl−q) − kv·v, ±F)` is the PhysX PD drive law. The passive `b·v` (2–8 N·s/m) is clipped along with the servo: < 3 % of the 150 N saturation at 0.5 m/s. Environments move only the target (`set_joint_position_target`). |
 | `<position>` on a joint with its own spring (automatic swing + closer) | drive = spring; servo as feed-forward effort (`servo_effort`, `in_drive = false`) | one drive per axis: a shared `maxForce` would clip the closer spring with the servo's force range. |
 | no velocity cap | `physxRigidBody:maxAngularVelocity = 5729.58` deg/s (100 rad/s), Isaac Lab cfg `max_angular_velocity = 5729.58` | PhysX default; far above the fastest door motion (pet flap ≈ 65 rad/s under the QA push). The unit is deg/s in both places — 100.0 there clamps a leaf at 1.75 rad/s. |
+| `<equality joint>` `q_a = c₀ + c₁·q_b`, both **rotational** | `PhysxMimicJointAPI:rotX` on the driven joint (`gearing = −c₁`, `offset = −c₀`, `referenceJointAxis = rotX`) | PhysX articulation mimic joints are a linear relation between two joint axes — the same law, in radians. |
+| `<equality joint>` with a **prismatic** axis on either side | `doorbench:coupling_mode = "emulated"` + `coupling_c0/c1`, `coupling_driven_inertia`, `coupling_gravity_bias`, `coupling_reflected_inertia`, and `coupling_reflected_armature` on the driver | PhysX mimic joints support rotational axes only; a prismatic mimic is parsed and dropped. Consumers apply the constraint `c = q_a − c₀ − c₁q_b = 0` with its Lagrange force: the driven joint tracks `q_a`, `v_a = c₁v_b`, the driver gets `Q_b = c₁·τ_a^ext` (τ_a^ext = drive spring/damping + Coulomb bound + gravity bias, all authored on the driven prim) and the driver's armature absorbs the inertial term `−c₁²I_a·q̈_b`. A bare kinematic write leaves `Q_b = 0`: the driver loses the coupled part's weight and sags. |
+| `<equality joint>` between two joints that both carry a position servo | `doorbench:coupling_mode = "servo"`, nothing authored | both PhysX drives *are* the MJCF servos (same `kp`, `kv`, `forcerange`, same target), so they move the two leaves together as the equality does. |
+| `<equality weld>` leaf → world (mag lock, delayed egress, electric bolt, interlock) | `UsdPhysics.FixedJoint` `base → leaf`, `physics:excludeFromArticulation = true`, `breakForce = breakTorque = holding_force_N`, `physics:jointEnabled`, `doorbench:role = "env_release"` | MuJoCo activates / deactivates the weld with `d.eq_active` and breaks it when any constraint row exceeds the holding force (three force rows and three torque rows against the same number, `DoorEnv._lock_logic`), so PhysX gets the force on both channels. `excludeFromArticulation` keeps the articulation a tree; `mdp.release_env_lock` clears `jointEnabled`. |
+| MuJoCo contact filter (same weld body, weld parent/child, `<contact><exclude>`) | `physxArticulation:enabledSelfCollisions = true` + `PhysxFilteredPairsAPI` for every filtered pair | PhysX's self-collision skips joint-adjacent links only. With self-collision off (the round-2 setting) a latch holding one moving link against another never touched: swing pairs latched into the inactive leaf, lift pins, drop bolts. |
 | helical hinge: `<joint equality rise = c₁·hinge>` on a vertical riser slide | `door_rl.usda`: riser locked, `doorbench:rl["rise_coupling"] = {coeff_m_per_rad c₁, carried_mass_kg m, gravity_torque_Nm = −m·g·c₁}` | opening lifts the leaf by `c₁` m/rad, i.e. potential `m g c₁ q` → constant closing torque `−m g c₁` on the hinge (3.5 N·m on a 47 kg cold-room door, 1.2 N·m on a stall gravity hinge). `DoorMechanismAction` and the rl parity runner apply it as feed-forward effort; `door.usda` keeps the riser and its mimic joint (`doorbench:meta["rise_coupling"]` carries the same numbers for a runner that emulates the mimic kinematically, which loses this reaction). |
 
 ## 3. The environment
@@ -134,11 +188,17 @@ behaviour, not the nominal number.
   `Door/Articulation/leaf` and `.../operator` filtered by the agent's bodies. `env_spacing = 6 m` (walls are 5 m wide).
 * **Door physics at run time.** `DoorMechanismAction` (a 0-dim action term, runs every physics step) restores the
   USD spring targets (Isaac Lab otherwise writes zeros as drive targets), couples the latch bolt to the operator
-  (`bolt_target += scale·operator_q`), adds the asymmetric closer damping / backcheck and the rising-hinge gravity
-  torque (`rise_coupling`) as feed-forward effort, and servos automatic doors open while the agent is within 1.8 m of
+  (`bolt_target += scale·operator_q`), applies the `emulated` couplings bilaterally (`_apply_couplings`: the driven
+  joint tracks `q_a = c₀ + c₁q_b` and the driver takes the reaction `c₁·τ_a^ext`), adds the asymmetric closer damping
+  / backcheck and the rising-hinge gravity torque (`rise_coupling`, the same reaction for the one coupling whose
+  driven joint has no slot) as feed-forward effort, and servos automatic doors open while the agent is within 1.8 m of
   the door plane (moving only the drive target when the servo is already the drive, `actuators[*].in_drive`).
   `DoorState` verifies at start-up that PhysX holds the authored Coulomb efforts and writes them through
-  `write_joint_friction_coefficient_to_sim` if it does not.
+  `write_joint_friction_coefficient_to_sim` if it does not, and adds each driver's
+  `coupling_reflected_armature` to its armature.
+* **Environment-released locks.** `DoorState.set_env_lock(env_ids, enabled)` toggles `physics:jointEnabled` on the
+  breakable FixedJoint of a mag lock / delayed egress / electric bolt / interlock; `mdp.release_env_lock` is the
+  event term for badge / REX / timer, and `mdp.reset_door` re-engages the lock for the next episode.
 * **Labels.** `DoorState.update()` reproduces `doorbench/benchmark/labels.py`: touched (contact or tip within 10 cm
   of the grip point), operator actuated (≥ 70 % travel), latch released (≥ 80 %), opened / clear, passed through
   (base crosses the wall plane inside the opening), closed after, slammed (closing speed at the stop), damaged (agent
@@ -163,7 +223,16 @@ behaviour, not the nominal number.
 
 ## 5. Known unknowns for the first GPU run
 
-1. `PhysxMimicJointAPI` gearing units (rad vs deg) for the full `door.usda` couplings. (The joint friction and
+0. Three representations added after parity round 2 and checked statically only (`validate_usd_static.py`,
+   `tests/test_usd_export_fixes.py`), never yet stepped in PhysX: the env-release loop `FixedJoint`
+   (`excludeFromArticulation` between two articulation links, `breakForce` on both channels), self-collision with
+   `PhysxFilteredPairsAPI` (does PhysX read the union of both directions of the relationship? the exporter authors
+   one side per pair), and the bilateral coupling emulation (`write_joint_armature_to_sim` for the reflected
+   inertia + the per-step reaction). If PhysX rejects the loop joint inside an articulation, the fallback is
+   `--emulate-weld`; if it ignores the one-sided filtered pair, author both sides.
+1. `PhysxMimicJointAPI` gearing units (rad vs deg) for the `door.usda` couplings that stayed mimics (rotational →
+   rotational only now — the prismatic ones were being dropped silently and are emulated instead). (The joint
+   friction and
    velocity-cap unknowns of the first runs are settled: per-axis efforts must sit on the `angular` / `linear`
    instance and `max_angular_velocity` is deg/s — see the parameter-mapping table above; the parity runner now reads
    both back and fails the structure check when PhysX disagrees.)

@@ -455,10 +455,13 @@ def render_markdown(summary: dict, offenders: list[dict], results_dir: str) -> s
     # ---- N/A
     L.append("## Known not-comparable categories")
     L.append("")
-    L.append("* **Env-release locks** (mag lock, delayed egress, card reader, electric strike, interlock): MuJoCo holds them with a `<weld>` that has no PhysX counterpart; "
-             "the runner emulates the hold or marks the phase `na_env_logic`. A door that *opens* here in PhysX is class `EXPORT_WELD`.")
+    L.append("* **Env-release locks** (mag lock, delayed egress, card reader, electric strike, interlock): MuJoCo holds them with a `<weld>`; the USD carries the PhysX "
+             "counterpart since the export fix - a breakable `FixedJoint` base -> leaf with `physics:excludeFromArticulation` and `breakForce` = the holding force - so both "
+             "simulators must *hold*. A door that *opens* here in PhysX means the joint is missing or was not parsed (class `EXPORT_WELD`).")
     L.append("* **Panic doors with the robot outside and no far-side trim**: `operator_joint` is None, the exit device is welded in `door_rl.usda`; both simulators must *hold*.")
-    L.append("* **Welded releases in `door_rl.usda`** (thumbturns, aux bolts, extra dogs): the RL expectation for `operate_open` flips to 'stays closed'; a `full` / `rl` disagreement there is `RL_CANON`.")
+    L.append("* **Welded releases in `door_rl.usda`**: parts the operator retracts (hooks, cremone bolts, wheel-driven dogs) are welded RELEASED and the door must open; an "
+             "engaged lock with no canonical slot and no operator coupling (thumbturns, aux bolts, extra dogs) is welded ENGAGED and the RL expectation for `operate_open` "
+             "flips to 'stays closed'. The split is ground truth from `doorbench:rl[\"welded\"]`, not a guess; a `full` / `rl` disagreement there is `RL_CANON`.")
     L.append("* **Free-swing families** (saloon, bifold, accordion, bypass, pet door, strip curtain, revolving, turnstiles): no qa.py behavioural check exists, so their MuJoCo reference is itself unvalidated; their push phase is informational.")
     L.append("* **Closer-arm loop closures** (`connect` equalities) are not exported: the pinion / elbow joints swing freely in `door.usda` and are excluded from the limit check.")
     L.append("")

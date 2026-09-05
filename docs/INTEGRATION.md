@@ -33,9 +33,20 @@ m = mujoco.MjModel.from_xml_path("assets/doors/db0002_swing_single/door.xml")   
   `operator_hinge`, `operator_slide`, `latch_slide`, `leaf2_slide`, `leaf2_hinge`; unused slots locked) so Isaac Lab's
   `MultiUsdFileCfg` can put a different door in every environment; `doorbench:rl` on the root describes the live
   slots, thresholds, grip points and sites.
-* Couplings (thumbturn → deadbolt, wheel → bolts, riser ← hinge) are `PhysxMimicJointAPI` on the driven joint and JSON
-  in `doorbench:couplings`; the one-sided latch coupling, closer asymmetry and maglock breakaway are environment logic
-  (`doorbench_isaaclab.mdp.DoorMechanismAction` / `DoorEnv._lock_logic`).
+* Couplings are `PhysxMimicJointAPI` on the driven joint **only when both axes are rotational** (hook ← handle, dog ←
+  wheel): PhysX articulation mimic joints support rotational axes only and drop the rest silently.  Thumbturn →
+  deadbolt, wheel → bolts, cremone and riser ← hinge instead carry `doorbench:coupling_*` on the driven joint prim
+  (gearing, offset, the driven DOF's effective inertia, its passive law and gravity bias) plus
+  `doorbench:coupling_reflected_armature` on the driver, so a consumer applies them bilaterally — driven joint
+  tracked, reaction `c₁·τ_driven` on the driver.  Everything is also in `doorbench:couplings` (JSON).
+* Environment-released locks (mag lock, delayed egress, electric bolt, interlock) are breakable `UsdPhysics.FixedJoint`s
+  `base → leaf` with `physics:excludeFromArticulation`, `breakForce = breakTorque = holding_force_N` and
+  `physics:jointEnabled` (listed in `doorbench:env_release`); clear `jointEnabled` to release
+  (`doorbench_isaaclab.mdp.release_env_lock` / `DoorEnv._lock_logic`).  The one-sided latch coupling and the closer
+  asymmetry stay environment logic (`doorbench_isaaclab.mdp.DoorMechanismAction`).
+* Self-collision is **on** (`physxArticulation:enabledSelfCollisions`), with `PhysxFilteredPairsAPI` for every pair
+  MuJoCo suppresses (same weld body, weld parent/child, `<contact><exclude>`), so latches that hold one moving link
+  against another (swing pairs, lift pins, drop bolts) behave as in MuJoCo.
 * Ready-made Isaac Lab tasks, training / evaluation / hero-shot scripts and a one-command GPU-box setup:
   [docs/ISAAC_LAB.md](ISAAC_LAB.md), [isaaclab/README.md](../isaaclab/README.md). Static validation of every USD:
   `python scripts/isaaclab/validate_usd_static.py` (1000/1000 pass); Isaac Sim import validation:
