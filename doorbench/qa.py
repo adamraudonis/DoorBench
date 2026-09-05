@@ -82,7 +82,9 @@ def push_primary(m, d, pj, push: float, has_holding: bool, thr_free: float) -> f
 SPRING_LATCH_KINDS = ("tubular_latch", "deadlatch", "mortise_latch", "rim_latch", "vertical_rods", "hook", "gravity_bar", "dogs", "multi_bolt", "electric_bolt")
 ENV_RELEASE_LOCK_KINDS = ("mag_lock", "delayed_egress", "card_reader", "electric_strike", "interlock")
 FREE_SWING_FAMILIES = ("saloon", "strip_curtain", "pet_door", "turnstile_tripod", "turnstile_fullheight", "revolving", "bifold", "accordion", "sliding_bypass")
-JAM_FORCE_N = 200.0      # N; largest contact normal force static geometry may exert on a moving part while a free door is pushed
+JAM_FORCE_N = 20.0       # N; largest contact normal force static geometry may exert on a moving part while a free door is pushed
+#                          (all 147 free-swing doors read exactly 0 N after the 2026-09 fixes: a free leaf is carried by its joint;
+#                          20 N already means a leaf resting on the floor or scraping a jamb without stalling - a visible defect)
 FREE_PUSH_S = 6.0        # s; a free door is pushed for up to this long (stops once past thr_free after MIN_PUSH_S)
 MIN_PUSH_S = 1.0
 

@@ -130,6 +130,6 @@ geometric gate needs a dynamic twin; "gap 0.000" is a defect, not a pass.
 
 clearance (no interpenetration through every sweep) · mass (within 20 % of spec) · physics QA (opens, holds,
 latches, closer returns, hardware misuse limits) · jam gate for free-swing / rotary doors (`free_opens`: the push
-moves the primary joint; `no_jam`: < 200 N of static contact on any moving part while it does) · static USD
+moves the primary joint; `no_jam`: < 20 N of static contact on any moving part while it does - every free-swing door reads 0 N, so 200 N was far too loose to catch a leaf scraping without stalling) · static USD
 validation · benchmark block present · `usd_rl_opens`. In progress: attachment (nothing floats, mechanisms move),
 closer_linkage / closer_closes, operator_returns, rollers_on_track, keypad_code_works, vision review.

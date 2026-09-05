@@ -1,3 +1,5 @@
+import os
+import shutil
 import json
 from pathlib import Path
 import numpy as np
@@ -64,7 +66,7 @@ def test_anatomical_left_is_left_when_facing_positive_y():
     assert poses[0,10,0]<poses[0,13,0]  # left hip is negative X
 
 
-def test_recorder_is_strictly_read_only_at_fallback_family_torque_samples():
+def test_recorder_is_strictly_read_only_at_fallback_family_torque_samples(tmp_path):
     """A fallback-strength family previously ran live mj_forward inside the observer.
 
     Equal outcome summaries alone did not detect its qacc mutation. Guard the
@@ -72,7 +74,17 @@ def test_recorder_is_strictly_read_only_at_fallback_family_torque_samples():
     """
     root = Path(__file__).resolve().parents[1]
     door = next(d for d in load_manifest(str(root / "assets"))["doors"] if d["id"] == "db0004_bifold")
-    directory = root / "assets/doors" / door["id"]
+    # The fallback-strength path needs a door without a calibrated qa_push.  Since the free-swing families are pushed
+    # by the sign-off QA too (the jam gate), every shipped qa.json carries one: strip it from a scratch copy of the door
+    # (the MJCF resolves its meshes through ../../hardware, so the copy keeps the doors/<id> layout and links hardware).
+    scratch = tmp_path / "assets"
+    (scratch / "doors").mkdir(parents=True)
+    shutil.copytree(root / "assets/doors" / door["id"], scratch / "doors" / door["id"])
+    os.symlink(root / "assets/hardware", scratch / "hardware")
+    directory = scratch / "doors" / door["id"]
+    qa = json.loads((directory / "qa.json").read_text())
+    qa["metrics"].pop("qa_push", None)
+    (directory / "qa.json").write_text(json.dumps(qa))
     assert not json.loads((directory / "qa.json").read_text())["metrics"].get("qa_push")
     recorder = Recorder(20)
     guarded_torque_samples = []

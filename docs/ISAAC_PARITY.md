@@ -338,7 +338,7 @@ Door badge (`qa.json.isaac_parity.ok`; viewer chip *Isaac parity*): **26 ok** (g
 * **Env-release locks** (mag lock, delayed egress, card reader, electric strike, interlock): MuJoCo holds them with a `<weld>` that has no PhysX counterpart; the runner emulates the hold or marks the phase `na_env_logic`. A door that *opens* here in PhysX is class `EXPORT_WELD`.
 * **Panic doors with the robot outside and no far-side trim**: `operator_joint` is None, the exit device is welded in `door_rl.usda`; both simulators must *hold*.
 * **Welded releases in `door_rl.usda`** (thumbturns, aux bolts, extra dogs): the RL expectation for `operate_open` flips to 'stays closed'; a `full` / `rl` disagreement there is `RL_CANON`.
-* **Free-swing families** (saloon, bifold, accordion, bypass, pet door, strip curtain, revolving, turnstiles): no qa.py behavioural check exists, so their MuJoCo reference is itself unvalidated; their push phase is informational.
+* **Free-swing families** (saloon, bifold, accordion, bypass, pet door, strip curtain, revolving, turnstiles): their push is graded (`free_opens`, or `hold` for a locked rotor / bolted flap) and qa.py reproduces it (`free_opens` + `no_jam`); the `operate` phase stays not applicable (no operator releases anything).
 * **Closer-arm loop closures** (`connect` equalities) are not exported: the pinion / elbow joints swing freely in `door.usda` and are excluded from the limit check.
 
 ## Reproduce
@@ -364,7 +364,7 @@ Phases follow `doorbench.qa.run_qa` (the dataset sign-off) expressed in simulate
 | phase | drive | duration | expectation (from `qa.door_flags` + the RL slot metadata) |
 |---|---|---|---|
 | settle | none | 1 s | primary drift < 0.05 rad / 0.01 m, no MuJoCo warnings, initial penetration > -12 mm |
-| hold | adaptive push on the primary joint: `min(2(bias + friction + preload) + 60 N·m \| 80 N, 800 \| 4000)` | 1 s (holding) / ≤ 6 s (free) | `hold` (< 2°/15 mm) for latched / locked doors (locked rotors and bolted flaps: their locked play + 1°), `free_opens` (> 10°/5 cm) otherwise - free-swing families included, a leaf nothing holds must move; qa.py additionally grades them with the jam gate (`no_jam`: no static geometry may press on a moving part with > 200 N during the push - the check that caught the revolving wings jammed on the wall header) |
+| hold | adaptive push on the primary joint: `min(2(bias + friction + preload) + 60 N·m \| 80 N, 800 \| 4000)` | 1 s (holding) / ≤ 6 s (free) | `hold` (< 2°/15 mm) for latched / locked doors (locked rotors and bolted flaps: their locked play + 1°), `free_opens` (> 10°/5 cm) otherwise - free-swing families included, a leaf nothing holds must move; qa.py additionally grades them with the jam gate (`no_jam`: no static geometry may press on a moving part with > 20 N during the push - the check that caught the revolving wings jammed on the wall header) |
 | operate | thumbturn 2 N·m (t < 1.2 s), aux bolts 3 N·m / 60 N, dogs 14 N·m, operator 4 / 8 / 10 / 14 N·m or 120 N from 0.6 s, push from 1.2 s while q < 50° | 6.4 s | `opens` (> min(20°, ½ max_open) / 5 cm; chain guards inside the slack window); RL: `stays_closed` when the release parts are welded engaged |
 | release | none; primary joint pinned | 0.8 s | `bolt_returns` (< 6 mm) |
 | relatch | −min(½ push, 1.5·static + 40) for 6 s, then +push 1 s | 7 s | `relatches` (closed < 2°, re-push < 2.5°) |
@@ -425,15 +425,20 @@ Grades per door and kind: **A** all phases agree within tolerance, **B** statuse
 * MuJoCo reference: 1000/1000 doors pass every applicable phase and reproduce their qa.json metrics (`qa_push`,
   `hold_displacement`, `actuate_displacement`, `closer_final_angle`, ...) to 1e-3.  Verified independently on a
   seeded 61-door sample (2 per family): bit-identical records across worker counts, resumes and machines.
-* Informational phases that fail in MuJoCo (`mujoco_summary.json` → `informational_fails`; families qa.py never
-  pushed, so they are reported, not graded) — these are **door bugs the reference surfaced, not protocol bugs**:
-  * accordion, 12/12: the panel couplings alternate `panel_i = ∓2·panel_0` but every panel hinge is authored with range
-    `[-π, 0]`, so the even panels sit on their limit and the whole fold is kinematically locked (65 N·m moves the lead
-    hinge 0.0009 rad; `qfrc_constraint` absorbs the full push, contacts carry no force)
-  * revolving, 8/15: a wing stile touches `wall_header` at q0 (gap 0) and jams against it as the rotor turns
-    (8.6 kN contact normal force; 3 doors do not move at all, 5 crawl < 0.12 rad in 6 s; the other 7 turn normally)
-  * bifold, 3/30: the panel tops rub on `wall_header` (20–40 N normal force, zero gap) and the fold crawls ~0.1 rad in 6 s
-  * cold-storage roller relatches (5): correct — a roller latch does not hold a re-push
+* The free-swing push is graded (`hold`: `free_opens`), 1000/1000 pass.  The first reference run (2026-09-05), when
+  that phase was still informational, surfaced **door bugs, not protocol bugs**, all fixed since and each now behind
+  a deterministic gate (`clearance`'s `coupling:<joint>` sweep, qa.py's `free_opens` / `no_jam`):
+  * accordion, 12/12 were kinematically locked: the panel couplings alternate `panel_i = ∓2·panel_0` but every panel
+    hinge was authored with range `[-π, 0]`, so the even panels sat on their limit (65 N·m moved the lead hinge
+    0.0009 rad; `qfrc_constraint` absorbed the full push).  Now a face-hinged zigzag with coupling-consistent ranges:
+    the 65.7 N·m push passes 10° in 0.07-0.10 s and reaches the 85° stack stop within 1 s, `ncon = 0` throughout.
+  * revolving, 10/15 jammed: a wing stile touched `wall_header` at q0 (gap 0, degenerate contact normal, 8.6-17 kN);
+    3 did not move at all, 5 crawled < 0.12 rad in 6 s.  Now the rotor runs 15 mm under the canopy ceiling, the header
+    sits on the canopy 230 mm above the wing tips, wing tips keep a 14 mm brush gap to the drum: 0 N static contact.
+  * bifold 3/30, saloon 1/12, pet door 1/15: panel tops level with the head (20–40 N, crawled ~0.1 rad in 6 s),
+    a leaf standing on the floor, a flap whose pins sat level with the frame rail - fixed at the geometry; the one
+    pet door that still "holds" (db0892) is the bolted flap, which is now declared `meta.locked` and expected to hold.
+  * remaining `informational_fails`: cold-storage roller relatches (5): correct — a roller latch does not hold a re-push
 * Behaviour that is *by construction* in both simulators and worth knowing when reading the metrics: closer doors run
   with the symmetric MJCF damping (`damping_opening` + air), because the asymmetric `damping_closing` / backcheck live
   only in `DoorEnv`'s passive callback and the USD carries them only as `doorbench:damping_closing` attributes — so
