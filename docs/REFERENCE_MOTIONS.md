@@ -1,10 +1,10 @@
-# Reference humanoid motions
+# Recorded scripted door motions
 
-Every door has a deterministic recording of its **primary core scenario**, using seed 0 and the full MuJoCo model. Open a door in the [catalogue](https://adamraudonis.github.io/DoorBench/) and choose **Play reference**. Scrub the timeline, change speed, or enable **Mechanism contrast** to inspect brown doors with gold hardware.
+The archive contains deterministic recordings of the **primary core scenario** for all 985 standard doors, using seed 0 and the full MuJoCo model. **975 recordings currently match the published door geometry and can be replayed; the 10 revised baby-gate recordings are withheld pending regeneration.** Open a compatible door in the [catalogue](https://adamraudonis.github.io/DoorBench/) and choose **Play reference**. Scrub the timeline, change speed, or enable **Mechanism contrast** to inspect brown doors with gold hardware. Supplementary pet doors are excluded from evaluation and replay.
 
-The door moves under the existing `scripted_hand` policy in native MuJoCo. An original articulated figure follows a procedural approach, hardware operation and traversal reference. Its limbs keep fixed metric lengths; hand targets beyond reach are measured and shown in orange. It is useful for reviewing task sequences and starting retargeting work.
+The door moves under the existing `scripted_hand` policy in native MuJoCo. An original articulated figure follows a procedural approach, hardware operation and traversal reference. Its limbs keep fixed metric lengths; hand targets beyond reach are measured and shown in orange. Native trajectories support inspection of scripted task sequences. The earlier figure is retained for diagnosis; [natural human references](HUMAN_REFERENCE.md) are developed separately.
 
-**This is a kinematic motion reference, not a dynamically controlled humanoid baseline.** Generalized joint forces actuate the door. The figure does not generate those forces through physical hand contact; balance, collision avoidance, grip and actuator feasibility are not certified. Its display path differs from the benchmark's synthetic base. Hand release in the reference does not imply the oracle's generalized forces have ended. Failed attempts and damage remain in the dataset. Small pet openings and some overhead hardware are unsuitable for the fixed-size figure.
+**This is a kinematic motion reference, not a dynamically controlled humanoid baseline.** Generalized joint forces actuate the door. The figure does not generate those forces through physical hand contact; balance, collision avoidance, grip and actuator feasibility are not certified. Its display path differs from the benchmark's synthetic base. Hand release in the reference does not imply the oracle's generalized forces have ended. Failed attempts and damage remain in the dataset. Some overhead hardware is unsuitable for the fixed-size figure.
 
 ## Download and reproduce
 
@@ -49,6 +49,8 @@ The viewer interpolates recorded scalar coordinates and applies all recorded joi
 ## Scope and results
 
 This release records one primary scenario per door. It does not replace the benchmark's multi-scenario, multi-seed scores, and the optional human-interaction suite is separate. Outcome totals are in the released index. A successful door task does **not** certify humanoid contact feasibility. Source geometry issues are tracked in [the takeover review](review/takeover/REVIEW.md) and [Blender screening](review/blender/REVIEW.md).
+
+As checked on September 5, 2026, all 985 standard doors have archived recordings: 879 successful attempts and 106 failed attempts. These are archived one-seed outcomes; some successes are locked-door recognition, so they do not all represent doors opening. Only 975 clips match all current `spec.json`, `model.json` and `door.xml` hashes. The ten revised baby gates fail that source check and their old recordings are intentionally not played against the new geometry. The original archive retains its historical contents, including supplementary entries; the standard-door viewer excludes pet-door recordings.
 
 The avatar geometry and motion code are original DoorBench code under the repository MIT license; no third-party humanoid mesh or trained robot policy is redistributed in this component.
 
