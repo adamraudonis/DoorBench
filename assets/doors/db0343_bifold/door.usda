@@ -9,7 +9,7 @@ def Xform "db0343_bifold"
 {
     custom string doorbench:couplings = '[{"type": "mimic", "driven": "panel_0_1_hinge", "driver": "panel_0_0_hinge", "coeff": [0, -2.0, 0, 0, 0], "gearing": 2.0, "offset": -0.0, "label": "q = -2 * q_pivot (track-guided fold)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}]'
     custom string doorbench:door_id = "db0343_bifold"
-    custom string doorbench:meta = '{"door_id": "db0343_bifold", "family": "bifold", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "panel_0_0_hinge", "secondary_joint": null, "operator_joint": null, "handle_height": 1.0, "mass_reconciled_kg": 8.675360000000003, "scene_extent": 2.315, "cam_target_z": 1.21, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.402, -0.0475, 1.0], "handle_cam_pos": [0.5820000000000001, -0.8475, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"panel_0_0_hinge": "/db0343_bifold/Articulation/Joints/panel_0_0_hinge", "panel_0_1_hinge": "/db0343_bifold/Articulation/Joints/panel_0_1_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0343_bifold", "family": "bifold", "task": "open_and_traverse", "wall_y": 0.0, "primary_joint": "panel_0_0_hinge", "secondary_joint": null, "operator_joint": null, "handle_height": 1.0, "mass_reconciled_kg": 8.675360000000003, "scene_extent": 2.34125, "cam_target_z": 1.2275, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.40650000000000003, -0.0475, 1.0], "handle_cam_pos": [0.5865, -0.8475, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"panel_0_0_hinge": "/db0343_bifold/Articulation/Joints/panel_0_0_hinge", "panel_0_1_hinge": "/db0343_bifold/Articulation/Joints/panel_0_1_hinge"}}'
 
     def Scope "Looks"
     {
@@ -69,6 +69,21 @@ def Xform "db0343_bifold"
                 float inputs:metallic = 1
                 float inputs:opacity = 1
                 float inputs:roughness = 0.4
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_hinge"
+        {
+            token outputs:surface.connect = </db0343_bifold/Looks/mat_hinge/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
+                float inputs:metallic = 0.9
+                float inputs:opacity = 1
+                float inputs:roughness = 0.5
                 token outputs:surface
             }
         }
@@ -247,8 +262,8 @@ def Xform "db0343_bifold"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (2.038, 0.145, 3.02)
-                double3 xformOp:translate = (-1.481, 0, 1.51)
+                float3 xformOp:scale = (2.0375, 0.145, 3.055)
+                double3 xformOp:translate = (-1.48125, 0, 1.5275)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -267,8 +282,8 @@ def Xform "db0343_bifold"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (2.038, 0.145, 3.02)
-                double3 xformOp:translate = (1.481, 0, 1.51)
+                float3 xformOp:scale = (2.0375, 0.145, 3.055)
+                double3 xformOp:translate = (1.48125, 0, 1.5275)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -287,8 +302,8 @@ def Xform "db0343_bifold"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.924, 0.145, 0.6)
-                double3 xformOp:translate = (0, 0, 2.7199999999999998)
+                float3 xformOp:scale = (0.925, 0.145, 0.6)
+                double3 xformOp:translate = (0, 0, 2.755)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -307,8 +322,8 @@ def Xform "db0343_bifold"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.019, 0.145, 2.42)
-                double3 xformOp:translate = (-0.47150000000000003, 0, 1.21)
+                float3 xformOp:scale = (0.019, 0.145, 2.455)
+                double3 xformOp:translate = (-0.47200000000000003, 0, 1.2275)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -327,8 +342,8 @@ def Xform "db0343_bifold"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.019, 0.145, 2.42)
-                double3 xformOp:translate = (0.47150000000000003, 0, 1.21)
+                float3 xformOp:scale = (0.019, 0.145, 2.455)
+                double3 xformOp:translate = (0.47200000000000003, 0, 1.2275)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -347,8 +362,8 @@ def Xform "db0343_bifold"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.03, 0.145, 2.42)
-                double3 xformOp:translate = (0.496, 0, 1.21)
+                float3 xformOp:scale = (0.03, 0.145, 2.455)
+                double3 xformOp:translate = (0.49650000000000005, 0, 1.2275)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -367,8 +382,8 @@ def Xform "db0343_bifold"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.992, 0.145, 0.019)
-                double3 xformOp:translate = (0.014999999999999986, 0, 2.4295)
+                float3 xformOp:scale = (0.993, 0.145, 0.019)
+                double3 xformOp:translate = (0.015000000000000013, 0, 2.4645)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -387,8 +402,8 @@ def Xform "db0343_bifold"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.992, 0.145, 0.03)
-                double3 xformOp:translate = (0.014999999999999986, 0, 2.454)
+                float3 xformOp:scale = (0.993, 0.145, 0.03)
+                double3 xformOp:translate = (0.015000000000000013, 0, 2.4890000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -402,8 +417,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.07, 0.016, 2.439)
-                double3 xformOp:translate = (-0.511, -0.08049999999999999, 1.21)
+                float3 xformOp:scale = (0.07, 0.016, 2.474)
+                double3 xformOp:translate = (-0.5115000000000001, -0.08049999999999999, 1.2275)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -417,8 +432,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.07, 0.016, 2.439)
-                double3 xformOp:translate = (0.511, -0.08049999999999999, 1.21)
+                float3 xformOp:scale = (0.07, 0.016, 2.474)
+                double3 xformOp:translate = (0.5115000000000001, -0.08049999999999999, 1.2275)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -432,8 +447,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.092, 0.016, 0.07)
-                double3 xformOp:translate = (0, -0.08049999999999999, 2.4690000000000003)
+                float3 xformOp:scale = (1.093, 0.016, 0.07)
+                double3 xformOp:translate = (0, -0.08049999999999999, 2.5040000000000004)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -447,8 +462,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.07, 0.016, 2.439)
-                double3 xformOp:translate = (-0.511, 0.08049999999999999, 1.21)
+                float3 xformOp:scale = (0.07, 0.016, 2.474)
+                double3 xformOp:translate = (-0.5115000000000001, 0.08049999999999999, 1.2275)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -462,8 +477,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.07, 0.016, 2.439)
-                double3 xformOp:translate = (0.511, 0.08049999999999999, 1.21)
+                float3 xformOp:scale = (0.07, 0.016, 2.474)
+                double3 xformOp:translate = (0.5115000000000001, 0.08049999999999999, 1.2275)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -477,8 +492,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.092, 0.016, 0.07)
-                double3 xformOp:translate = (0, 0.08049999999999999, 2.4690000000000003)
+                float3 xformOp:scale = (1.093, 0.016, 0.07)
+                double3 xformOp:translate = (0, 0.08049999999999999, 2.5040000000000004)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -492,8 +507,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.924, 0.04, 0.03)
-                double3 xformOp:translate = (0, 0, 2.437)
+                float3 xformOp:scale = (0.925, 0.04, 0.03)
+                double3 xformOp:translate = (0, 0, 2.44)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -517,7 +532,7 @@ def Xform "db0343_bifold"
             {
                 custom string doorbench:site_role = "pass_plane"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0, 0, 1.21)
+                double3 xformOp:translate = (0, 0, 1.2275)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
@@ -570,14 +585,14 @@ def Xform "db0343_bifold"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0343_bifold/Articulation/base>
                 rel physics:body1 = </db0343_bifold/Articulation/panel_0_0>
-                point3f physics:localPos0 = (-0.427, 0, 0)
+                point3f physics:localPos0 = (-0.4275, 0, 0)
                 point3f physics:localPos1 = (0.035, 0, 0)
                 quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
                 quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
                 float physics:lowerLimit = 0
-                float physics:upperLimit = 90
+                float physics:upperLimit = 85
                 custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 0.008642519
+                custom float physxJoint:jointFriction = 0.009679898
                 custom float physxJointAxis:rotX:armature = 0.02
                 custom float physxJointAxis:rotX:dynamicFrictionEffort = 1.0953918
                 custom float physxJointAxis:rotX:staticFrictionEffort = 1.0953918
@@ -591,7 +606,7 @@ def Xform "db0343_bifold"
                 custom float doorbench:damping_si = 0.2
                 custom float doorbench:friction_effort = 0.1
                 custom float doorbench:initial = 0
-                custom string doorbench:label = "Panel-to-panel hinge (driven)"
+                custom string doorbench:label = "Panel-to-panel hinge (track-driven, q = -2 q_pivot)"
                 custom bool doorbench:limited = 1
                 custom string doorbench:mimic_label = "q = -2 * q_pivot (track-guided fold)"
                 custom bool doorbench:robot_interactive = 0
@@ -609,14 +624,14 @@ def Xform "db0343_bifold"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0343_bifold/Articulation/panel_0_0>
                 rel physics:body1 = </db0343_bifold/Articulation/panel_0_1>
-                point3f physics:localPos0 = (0.457, 0, 0)
-                point3f physics:localPos1 = (0, 0, 0)
+                point3f physics:localPos0 = (0.457, 0.0175, 0)
+                point3f physics:localPos1 = (0, 0.0175, 0)
                 quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
                 quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
                 float physics:lowerLimit = -180
                 float physics:upperLimit = 0
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.0017290426
+                custom float physxJoint:jointFriction = 0.002231532
                 custom float physxJointAxis:rotX:armature = 0.005
                 custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.1
                 custom float physxJointAxis:rotX:staticFrictionEffort = 0.1
@@ -651,14 +666,14 @@ def Xform "db0343_bifold"
         {
             custom string doorbench:label = "Fold panel"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.2335, 0, 1.2200199)
-            float3 physics:diagonalInertia = (0.07589132, 2.0815003, 2.1565063)
-            float physics:mass = 4.3358784
+            point3f physics:centerOfMass = (0.23, 0, 1.2200195)
+            float3 physics:diagonalInertia = (0.07262303, 2.0539339, 2.1256835)
+            float physics:mass = 4.2784476
             quatf physics:principalAxes = (0.49999997, 0.5, 0.5, -0.49999997)
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (-0.462, 0, 0)
+            double3 xformOp:translate = (-0.4625, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "panel_0_0_slab" (
@@ -676,8 +691,8 @@ def Xform "db0343_bifold"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.457, 0.035, 2.4)
-                double3 xformOp:translate = (0.2335, 0, 1.22)
+                float3 xformOp:scale = (0.45, 0.035, 2.4)
+                double3 xformOp:translate = (0.23, 0, 1.22)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -691,8 +706,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.30920000000000003)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.30920000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -706,8 +721,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.35960000000000003)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.35960000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -721,8 +736,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.41000000000000003)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.41000000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -736,8 +751,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.46040000000000003)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.46040000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -751,8 +766,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.5108)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.5108)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -766,8 +781,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.5612)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.5612)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -781,8 +796,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.6116)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.6116)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -796,8 +811,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.662)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.662)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -811,8 +826,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.7124)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.7124)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -826,8 +841,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.7628)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.7628)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -841,8 +856,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.8132)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.8132)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -856,8 +871,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.8636)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.8636)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -871,8 +886,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.914)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.914)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -886,8 +901,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.9644)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 0.9644)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -901,8 +916,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.0148000000000001)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.0148000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -916,8 +931,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.0652)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.0652)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -931,8 +946,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.1156000000000001)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.1156000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -946,8 +961,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.166)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.166)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -961,8 +976,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.2164000000000001)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.2164000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -976,8 +991,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.2668)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.2668)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -991,8 +1006,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.3172000000000001)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.3172000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1006,8 +1021,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.3676000000000001)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.3676000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1021,8 +1036,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.418)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.418)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1036,8 +1051,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.4684)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.4684)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1051,8 +1066,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.5188000000000001)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.5188000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1066,8 +1081,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.5692000000000002)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.5692000000000002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1081,8 +1096,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.6196)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.6196)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1096,8 +1111,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.67)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.67)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1111,8 +1126,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.7204000000000002)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.7204000000000002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1126,8 +1141,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.7708000000000002)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.7708000000000002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1141,8 +1156,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.8212)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.8212)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1156,8 +1171,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.8716)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.8716)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1171,8 +1186,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.922)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.922)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1186,8 +1201,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.9724000000000002)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 1.9724000000000002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1201,8 +1216,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 2.0228)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 2.0228)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1216,8 +1231,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 2.0732)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 2.0732)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1231,8 +1246,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 2.1236)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 2.1236)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1246,8 +1261,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 2.174)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 2.174)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1261,8 +1276,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 2.2244)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 2.2244)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1276,8 +1291,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_0_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 2.2748)
+                float3 xformOp:scale = (0.27, 0.004, 0.05292)
+                double3 xformOp:translate = (0.23, 0, 2.2748)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
         }
@@ -1288,14 +1303,14 @@ def Xform "db0343_bifold"
         {
             custom string doorbench:label = "Fold panel"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.3573346, -0.029942492, 1.064163)
-            float3 physics:diagonalInertia = (0.04746143, 0.6343664, 0.6797656)
-            float physics:mass = 4.339482
-            quatf physics:principalAxes = (0.48282987, 0.5443652, 0.44805187, -0.5194144)
+            point3f physics:centerOfMass = (0.038582694, 0.012424792, 1.2033426)
+            float3 physics:diagonalInertia = (0.06079307, 1.932721, 1.9932503)
+            float physics:mass = 4.3969126
+            quatf physics:principalAxes = (0.47013524, 0.535076, 0.4621634, -0.52827215)
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (-0.0050000000000000044, 0, 0)
+            double3 xformOp:translate = (-0.005500000000000005, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "panel_0_1_slab" (
@@ -1313,8 +1328,8 @@ def Xform "db0343_bifold"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.457, 0.035, 2.4)
-                double3 xformOp:translate = (0.2335, 0, 1.22)
+                float3 xformOp:scale = (0.46, 0.035, 2.4)
+                double3 xformOp:translate = (0.232, 0, 1.22)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1328,8 +1343,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.30920000000000003)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.30920000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1343,8 +1358,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.35960000000000003)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.35960000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1358,8 +1373,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.41000000000000003)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.41000000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1373,8 +1388,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.46040000000000003)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.46040000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1388,8 +1403,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.5108)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.5108)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1403,8 +1418,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.5612)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.5612)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1418,8 +1433,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.6116)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.6116)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1433,8 +1448,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.662)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.662)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1448,8 +1463,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.7124)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.7124)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1463,8 +1478,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.7628)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.7628)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1478,8 +1493,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.8132)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.8132)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1493,8 +1508,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.8636)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.8636)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1508,8 +1523,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.914)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.914)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1523,8 +1538,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 0.9644)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 0.9644)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1538,8 +1553,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.0148000000000001)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.0148000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1553,8 +1568,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.0652)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.0652)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1568,8 +1583,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.1156000000000001)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.1156000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1583,8 +1598,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.166)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.166)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1598,8 +1613,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.2164000000000001)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.2164000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1613,8 +1628,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.2668)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.2668)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1628,8 +1643,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.3172000000000001)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.3172000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1643,8 +1658,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.3676000000000001)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.3676000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1658,8 +1673,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.418)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.418)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1673,8 +1688,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.4684)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.4684)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1688,8 +1703,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.5188000000000001)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.5188000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1703,8 +1718,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.5692000000000002)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.5692000000000002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1718,8 +1733,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.6196)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.6196)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1733,8 +1748,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.67)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.67)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1748,8 +1763,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.7204000000000002)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.7204000000000002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1763,8 +1778,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.7708000000000002)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.7708000000000002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1778,8 +1793,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.8212)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.8212)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1793,8 +1808,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.8716)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.8716)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1808,8 +1823,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.922)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.922)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1823,8 +1838,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 1.9724000000000002)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 1.9724000000000002)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1838,8 +1853,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 2.0228)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 2.0228)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1853,8 +1868,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 2.0732)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 2.0732)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1868,8 +1883,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 2.1236)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 2.1236)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1883,8 +1898,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 2.174)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 2.174)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1898,8 +1913,8 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 2.2244)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 2.2244)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1913,9 +1928,25 @@ def Xform "db0343_bifold"
                 rel material:binding = </db0343_bifold/Looks/mat_panel_0_1_louver>
                 double size = 1
                 quatf xformOp:orient = (0.95371693, 0.3007058, 0, 0)
-                float3 xformOp:scale = (0.277, 0.004, 0.05292)
-                double3 xformOp:translate = (0.2335, 0, 2.2748)
+                float3 xformOp:scale = (0.28, 0.004, 0.05292)
+                double3 xformOp:translate = (0.232, 0, 2.2748)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "panel_0_1_knuckle" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Piano hinge knuckle"
+                custom string doorbench:semantic = "hinge"
+                double height = 2.38
+                rel material:binding = </db0343_bifold/Looks/mat_hinge>
+                double radius = 0.0045
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 0.0175, 1.22)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Xform "panel_0_1_knob" (
@@ -1928,7 +1959,7 @@ def Xform "db0343_bifold"
                 custom string doorbench:semantic = "operator"
                 rel material:binding = </db0343_bifold/Looks/mat_op_nickel_satin>
                 quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
-                double3 xformOp:translate = (0.40700000000000003, -0.0175, 1)
+                double3 xformOp:translate = (0.41200000000000003, -0.0175, 1)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -1947,7 +1978,7 @@ def Xform "db0343_bifold"
                 custom float physxCollision:restOffset = 0
                 double radius = 0.016
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.40700000000000003, -0.0475, 1)
+                double3 xformOp:translate = (0.41200000000000003, -0.0475, 1)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -1955,7 +1986,7 @@ def Xform "db0343_bifold"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.40700000000000003, -0.0475, 1)
+                double3 xformOp:translate = (0.41200000000000003, -0.0475, 1)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }

@@ -9,7 +9,7 @@ def Xform "db0381_accordion"
 {
     custom string doorbench:couplings = '[{"type": "mimic", "driven": "panel_0_1_hinge", "driver": "panel_0_0_hinge", "coeff": [0, -2.0, 0, 0, 0], "gearing": 2.0, "offset": -0.0, "label": "q = -2 * q_pivot (track-guided fold)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "mimic", "driven": "panel_0_2_hinge", "driver": "panel_0_0_hinge", "coeff": [0, 2.0, 0, 0, 0], "gearing": -2.0, "offset": -0.0, "label": "q = +2 * q_pivot (track-guided fold)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "mimic", "driven": "panel_0_3_hinge", "driver": "panel_0_0_hinge", "coeff": [0, -2.0, 0, 0, 0], "gearing": 2.0, "offset": -0.0, "label": "q = -2 * q_pivot (track-guided fold)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "mimic", "driven": "panel_0_4_hinge", "driver": "panel_0_0_hinge", "coeff": [0, 2.0, 0, 0, 0], "gearing": -2.0, "offset": -0.0, "label": "q = +2 * q_pivot (track-guided fold)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}, {"type": "mimic", "driven": "panel_0_5_hinge", "driver": "panel_0_0_hinge", "coeff": [0, -2.0, 0, 0, 0], "gearing": 2.0, "offset": -0.0, "label": "q = -2 * q_pivot (track-guided fold)", "note": "PhysxMimicJointAPI on the driven joint; q_driven + gearing*q_driver + offset = 0 in rad / m"}]'
     custom string doorbench:door_id = "db0381_accordion"
-    custom string doorbench:meta = '{"door_id": "db0381_accordion", "family": "accordion", "task": "traverse_open", "wall_y": 0.0, "primary_joint": "panel_0_0_hinge", "secondary_joint": null, "operator_joint": null, "handle_height": 1.0, "mass_reconciled_kg": 16.411968, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.8504999999999999, -0.066, 1.0], "handle_cam_pos": [1.0305, -0.8660000000000001, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"panel_0_0_hinge": "/db0381_accordion/Articulation/Joints/panel_0_0_hinge", "panel_0_1_hinge": "/db0381_accordion/Articulation/Joints/panel_0_1_hinge", "panel_0_2_hinge": "/db0381_accordion/Articulation/Joints/panel_0_2_hinge", "panel_0_3_hinge": "/db0381_accordion/Articulation/Joints/panel_0_3_hinge", "panel_0_4_hinge": "/db0381_accordion/Articulation/Joints/panel_0_4_hinge", "panel_0_5_hinge": "/db0381_accordion/Articulation/Joints/panel_0_5_hinge"}}'
+    custom string doorbench:meta = '{"door_id": "db0381_accordion", "family": "accordion", "task": "traverse_open", "wall_y": 0.0, "primary_joint": "panel_0_0_hinge", "secondary_joint": null, "operator_joint": null, "handle_height": 1.0, "mass_reconciled_kg": 16.411968, "scene_extent": 2.0652500000000003, "cam_target_z": 1.0435, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.8545, -0.066, 1.0], "handle_cam_pos": [1.0345, -0.8660000000000001, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"panel_0_0_hinge": "/db0381_accordion/Articulation/Joints/panel_0_0_hinge", "panel_0_1_hinge": "/db0381_accordion/Articulation/Joints/panel_0_1_hinge", "panel_0_2_hinge": "/db0381_accordion/Articulation/Joints/panel_0_2_hinge", "panel_0_3_hinge": "/db0381_accordion/Articulation/Joints/panel_0_3_hinge", "panel_0_4_hinge": "/db0381_accordion/Articulation/Joints/panel_0_4_hinge", "panel_0_5_hinge": "/db0381_accordion/Articulation/Joints/panel_0_5_hinge"}}'
 
     def Scope "Looks"
     {
@@ -69,6 +69,21 @@ def Xform "db0381_accordion"
                 float inputs:metallic = 1
                 float inputs:opacity = 1
                 float inputs:roughness = 0.4
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_hinge"
+        {
+            token outputs:surface.connect = </db0381_accordion/Looks/mat_hinge/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.65, 0.66, 0.68)
+                float inputs:metallic = 0.9
+                float inputs:opacity = 1
+                float inputs:roughness = 0.5
                 token outputs:surface
             }
         }
@@ -313,8 +328,8 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.5805, 0.145, 2.7)
-                double3 xformOp:translate = (-1.70975, 0, 1.35)
+                float3 xformOp:scale = (1.5795, 0.145, 2.7)
+                double3 xformOp:translate = (-1.71025, 0, 1.35)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -333,8 +348,8 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.5805, 0.145, 2.7)
-                double3 xformOp:translate = (1.70975, 0, 1.35)
+                float3 xformOp:scale = (1.5795, 0.145, 2.7)
+                double3 xformOp:translate = (1.71025, 0, 1.35)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -353,8 +368,8 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.839, 0.145, 0.648)
-                double3 xformOp:translate = (0, 0, 2.3760000000000003)
+                float3 xformOp:scale = (1.841, 0.145, 0.613)
+                double3 xformOp:translate = (0, 0, 2.3935000000000004)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -373,8 +388,8 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.019, 0.145, 2.052)
-                double3 xformOp:translate = (-0.9289999999999999, 0, 1.026)
+                float3 xformOp:scale = (0.019, 0.145, 2.087)
+                double3 xformOp:translate = (-0.9299999999999999, 0, 1.0435)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -393,8 +408,8 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.019, 0.145, 2.052)
-                double3 xformOp:translate = (0.9289999999999999, 0, 1.026)
+                float3 xformOp:scale = (0.019, 0.145, 2.087)
+                double3 xformOp:translate = (0.9299999999999999, 0, 1.0435)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -413,8 +428,8 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.03, 0.145, 2.052)
-                double3 xformOp:translate = (0.9535, 0, 1.026)
+                float3 xformOp:scale = (0.03, 0.145, 2.087)
+                double3 xformOp:translate = (0.9545, 0, 1.0435)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -433,8 +448,8 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.907, 0.145, 0.019)
-                double3 xformOp:translate = (0.015000000000000013, 0, 2.0615)
+                float3 xformOp:scale = (1.909, 0.145, 0.019)
+                double3 xformOp:translate = (0.015000000000000013, 0, 2.0965000000000003)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -453,8 +468,8 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.907, 0.145, 0.03)
-                double3 xformOp:translate = (0.015000000000000013, 0, 2.0860000000000003)
+                float3 xformOp:scale = (1.909, 0.145, 0.03)
+                double3 xformOp:translate = (0.015000000000000013, 0, 2.1210000000000004)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -468,8 +483,8 @@ def Xform "db0381_accordion"
                 rel material:binding = </db0381_accordion/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.07, 0.016, 2.071)
-                double3 xformOp:translate = (-0.9685, -0.08049999999999999, 1.026)
+                float3 xformOp:scale = (0.07, 0.016, 2.106)
+                double3 xformOp:translate = (-0.9695, -0.08049999999999999, 1.0435)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -483,8 +498,8 @@ def Xform "db0381_accordion"
                 rel material:binding = </db0381_accordion/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.07, 0.016, 2.071)
-                double3 xformOp:translate = (0.9685, -0.08049999999999999, 1.026)
+                float3 xformOp:scale = (0.07, 0.016, 2.106)
+                double3 xformOp:translate = (0.9695, -0.08049999999999999, 1.0435)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -498,8 +513,8 @@ def Xform "db0381_accordion"
                 rel material:binding = </db0381_accordion/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (2.007, 0.016, 0.07)
-                double3 xformOp:translate = (0, -0.08049999999999999, 2.1010000000000004)
+                float3 xformOp:scale = (2.009, 0.016, 0.07)
+                double3 xformOp:translate = (0, -0.08049999999999999, 2.1360000000000006)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -513,8 +528,8 @@ def Xform "db0381_accordion"
                 rel material:binding = </db0381_accordion/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.07, 0.016, 2.071)
-                double3 xformOp:translate = (-0.9685, 0.08049999999999999, 1.026)
+                float3 xformOp:scale = (0.07, 0.016, 2.106)
+                double3 xformOp:translate = (-0.9695, 0.08049999999999999, 1.0435)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -528,8 +543,8 @@ def Xform "db0381_accordion"
                 rel material:binding = </db0381_accordion/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.07, 0.016, 2.071)
-                double3 xformOp:translate = (0.9685, 0.08049999999999999, 1.026)
+                float3 xformOp:scale = (0.07, 0.016, 2.106)
+                double3 xformOp:translate = (0.9695, 0.08049999999999999, 1.0435)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -543,8 +558,8 @@ def Xform "db0381_accordion"
                 rel material:binding = </db0381_accordion/Looks/mat_frame>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (2.007, 0.016, 0.07)
-                double3 xformOp:translate = (0, 0.08049999999999999, 2.1010000000000004)
+                float3 xformOp:scale = (2.009, 0.016, 0.07)
+                double3 xformOp:translate = (0, 0.08049999999999999, 2.1360000000000006)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -558,8 +573,8 @@ def Xform "db0381_accordion"
                 rel material:binding = </db0381_accordion/Looks/mat_track>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.839, 0.04, 0.03)
-                double3 xformOp:translate = (0, 0, 2.069)
+                float3 xformOp:scale = (1.841, 0.04, 0.03)
+                double3 xformOp:translate = (0, 0, 2.072)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -583,7 +598,7 @@ def Xform "db0381_accordion"
             {
                 custom string doorbench:site_role = "pass_plane"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0, 0, 1.026)
+                double3 xformOp:translate = (0, 0, 1.0435)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
@@ -636,14 +651,14 @@ def Xform "db0381_accordion"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0381_accordion/Articulation/base>
                 rel physics:body1 = </db0381_accordion/Articulation/panel_0_0>
-                point3f physics:localPos0 = (-0.8845, 0, 0)
+                point3f physics:localPos0 = (-0.8855, 0, 0)
                 point3f physics:localPos1 = (0.035, 0, 0)
                 quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
                 quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 85
                 custom float physxJoint:armature = 0.02
-                custom float physxJoint:jointFriction = 0.01293927
+                custom float physxJoint:jointFriction = 0.0138627505
                 custom float physxJointAxis:rotX:armature = 0.02
                 custom float physxJointAxis:rotX:dynamicFrictionEffort = 3.9627142
                 custom float physxJointAxis:rotX:staticFrictionEffort = 3.9627142
@@ -657,7 +672,7 @@ def Xform "db0381_accordion"
                 custom float doorbench:damping_si = 0.2
                 custom float doorbench:friction_effort = 0.1
                 custom float doorbench:initial = 0
-                custom string doorbench:label = "Panel-to-panel hinge (driven)"
+                custom string doorbench:label = "Panel-to-panel hinge (track-driven, q = -2 q_pivot)"
                 custom bool doorbench:limited = 1
                 custom string doorbench:mimic_label = "q = -2 * q_pivot (track-guided fold)"
                 custom bool doorbench:robot_interactive = 0
@@ -675,14 +690,14 @@ def Xform "db0381_accordion"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0381_accordion/Articulation/panel_0_0>
                 rel physics:body1 = </db0381_accordion/Articulation/panel_0_1>
-                point3f physics:localPos0 = (0.305, 0, 0)
-                point3f physics:localPos1 = (0, 0, 0)
+                point3f physics:localPos0 = (0.305, 0.006, 0)
+                point3f physics:localPos1 = (0, 0.006, 0)
                 quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
                 quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
                 float physics:lowerLimit = -180
                 float physics:upperLimit = 0
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.00041668685
+                custom float physxJoint:jointFriction = 0.00045396463
                 custom float physxJointAxis:rotX:armature = 0.005
                 custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.1
                 custom float physxJointAxis:rotX:staticFrictionEffort = 0.1
@@ -700,7 +715,7 @@ def Xform "db0381_accordion"
                 custom float doorbench:damping_si = 0.2
                 custom float doorbench:friction_effort = 0.1
                 custom float doorbench:initial = 0
-                custom string doorbench:label = "Panel-to-panel hinge (driven)"
+                custom string doorbench:label = "Panel-to-panel hinge (track-driven, q = +2 q_pivot)"
                 custom bool doorbench:limited = 1
                 custom string doorbench:mimic_label = "q = +2 * q_pivot (track-guided fold)"
                 custom bool doorbench:robot_interactive = 0
@@ -718,14 +733,14 @@ def Xform "db0381_accordion"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0381_accordion/Articulation/panel_0_1>
                 rel physics:body1 = </db0381_accordion/Articulation/panel_0_2>
-                point3f physics:localPos0 = (0.305, 0, 0)
-                point3f physics:localPos1 = (0, 0, 0)
+                point3f physics:localPos0 = (0.305, -0.006, 0)
+                point3f physics:localPos1 = (0, -0.006, 0)
                 quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
                 quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
-                float physics:lowerLimit = -180
-                float physics:upperLimit = 0
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 180
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.0005673869
+                custom float physxJoint:jointFriction = 0.00062312547
                 custom float physxJointAxis:rotX:armature = 0.005
                 custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.1
                 custom float physxJointAxis:rotX:staticFrictionEffort = 0.1
@@ -743,7 +758,7 @@ def Xform "db0381_accordion"
                 custom float doorbench:damping_si = 0.2
                 custom float doorbench:friction_effort = 0.1
                 custom float doorbench:initial = 0
-                custom string doorbench:label = "Panel-to-panel hinge (driven)"
+                custom string doorbench:label = "Panel-to-panel hinge (track-driven, q = -2 q_pivot)"
                 custom bool doorbench:limited = 1
                 custom string doorbench:mimic_label = "q = -2 * q_pivot (track-guided fold)"
                 custom bool doorbench:robot_interactive = 0
@@ -761,14 +776,14 @@ def Xform "db0381_accordion"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0381_accordion/Articulation/panel_0_2>
                 rel physics:body1 = </db0381_accordion/Articulation/panel_0_3>
-                point3f physics:localPos0 = (0.305, 0, 0)
-                point3f physics:localPos1 = (0, 0, 0)
+                point3f physics:localPos0 = (0.305, 0.006, 0)
+                point3f physics:localPos1 = (0, 0.006, 0)
                 quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
                 quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
                 float physics:lowerLimit = -180
                 float physics:upperLimit = 0
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.00082872156
+                custom float physxJoint:jointFriction = 0.00091856986
                 custom float physxJointAxis:rotX:armature = 0.005
                 custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.1
                 custom float physxJointAxis:rotX:staticFrictionEffort = 0.1
@@ -786,7 +801,7 @@ def Xform "db0381_accordion"
                 custom float doorbench:damping_si = 0.2
                 custom float doorbench:friction_effort = 0.1
                 custom float doorbench:initial = 0
-                custom string doorbench:label = "Panel-to-panel hinge (driven)"
+                custom string doorbench:label = "Panel-to-panel hinge (track-driven, q = +2 q_pivot)"
                 custom bool doorbench:limited = 1
                 custom string doorbench:mimic_label = "q = +2 * q_pivot (track-guided fold)"
                 custom bool doorbench:robot_interactive = 0
@@ -804,14 +819,14 @@ def Xform "db0381_accordion"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0381_accordion/Articulation/panel_0_3>
                 rel physics:body1 = </db0381_accordion/Articulation/panel_0_4>
-                point3f physics:localPos0 = (0.305, 0, 0)
-                point3f physics:localPos1 = (0, 0, 0)
+                point3f physics:localPos0 = (0.305, -0.006, 0)
+                point3f physics:localPos1 = (0, -0.006, 0)
                 quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
                 quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
-                float physics:lowerLimit = -180
-                float physics:upperLimit = 0
+                float physics:lowerLimit = 0
+                float physics:upperLimit = 180
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.0013649149
+                custom float physxJoint:jointFriction = 0.0015293757
                 custom float physxJointAxis:rotX:armature = 0.005
                 custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.1
                 custom float physxJointAxis:rotX:staticFrictionEffort = 0.1
@@ -829,7 +844,7 @@ def Xform "db0381_accordion"
                 custom float doorbench:damping_si = 0.2
                 custom float doorbench:friction_effort = 0.1
                 custom float doorbench:initial = 0
-                custom string doorbench:label = "Panel-to-panel hinge (driven)"
+                custom string doorbench:label = "Panel-to-panel hinge (track-driven, q = -2 q_pivot)"
                 custom bool doorbench:limited = 1
                 custom string doorbench:mimic_label = "q = -2 * q_pivot (track-guided fold)"
                 custom bool doorbench:robot_interactive = 0
@@ -847,14 +862,14 @@ def Xform "db0381_accordion"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0381_accordion/Articulation/panel_0_4>
                 rel physics:body1 = </db0381_accordion/Articulation/panel_0_5>
-                point3f physics:localPos0 = (0.305, 0, 0)
-                point3f physics:localPos1 = (0, 0, 0)
+                point3f physics:localPos0 = (0.305, 0.006, 0)
+                point3f physics:localPos1 = (0, 0.006, 0)
                 quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
                 quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
                 float physics:lowerLimit = -180
                 float physics:upperLimit = 0
                 custom float physxJoint:armature = 0.005
-                custom float physxJoint:jointFriction = 0.0029327506
+                custom float physxJoint:jointFriction = 0.0033173282
                 custom float physxJointAxis:rotX:armature = 0.005
                 custom float physxJointAxis:rotX:dynamicFrictionEffort = 0.1
                 custom float physxJointAxis:rotX:staticFrictionEffort = 0.1
@@ -889,14 +904,14 @@ def Xform "db0381_accordion"
         {
             custom string doorbench:label = "Fold panel"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.1575, 0, 1.036)
-            float3 physics:diagonalInertia = (0.02116622, 0.9380683, 0.95916903)
-            float physics:mass = 2.7261713
+            point3f physics:centerOfMass = (0.154, 0, 1.036)
+            float3 physics:diagonalInertia = (0.01967658, 0.91343147, 0.9330443)
+            float physics:mass = 2.654573
             quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (-0.9195, 0, 0)
+            double3 xformOp:translate = (-0.9205, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "panel_0_0_slab" (
@@ -914,8 +929,8 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.305, 0.012, 2.032)
-                double3 xformOp:translate = (0.1575, 0, 1.036)
+                float3 xformOp:scale = (0.298, 0.012, 2.032)
+                double3 xformOp:translate = (0.154, 0, 1.036)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
         }
@@ -926,14 +941,14 @@ def Xform "db0381_accordion"
         {
             custom string doorbench:label = "Fold panel"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.1575, 0, 1.036)
-            float3 physics:diagonalInertia = (0.02116622, 0.9380683, 0.95916903)
-            float physics:mass = 2.7261713
-            quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            point3f physics:centerOfMass = (0.0011058798, 0.00595649, 1.036)
+            float3 physics:diagonalInertia = (0.00063447014, 0.9204448, 0.92105097)
+            float physics:mass = 2.728057
+            quatf physics:principalAxes = (0.50735974, 0.4925303, -0.50735974, 0.4925303)
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (-0.6145, 0, 0)
+            double3 xformOp:translate = (-0.6154999999999999, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "panel_0_1_slab" (
@@ -951,9 +966,25 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.305, 0.012, 2.032)
-                double3 xformOp:translate = (0.1575, 0, 1.036)
+                float3 xformOp:scale = (0.301, 0.012, 2.032)
+                double3 xformOp:translate = (0.1525, 0, 1.036)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "panel_0_1_knuckle" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Piano hinge knuckle"
+                custom string doorbench:semantic = "hinge"
+                double height = 2.012
+                rel material:binding = </db0381_accordion/Looks/mat_hinge>
+                double radius = 0.0045
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 0.006, 1.036)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
 
@@ -963,14 +994,14 @@ def Xform "db0381_accordion"
         {
             custom string doorbench:label = "Fold panel"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.1575, 0, 1.036)
-            float3 physics:diagonalInertia = (0.02116622, 0.9380683, 0.95916903)
-            float physics:mass = 2.7261713
-            quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            point3f physics:centerOfMass = (0.0011058798, -0.00595649, 1.036)
+            float3 physics:diagonalInertia = (0.00063447014, 0.9204448, 0.92105097)
+            float physics:mass = 2.728057
+            quatf physics:principalAxes = (0.4925303, 0.50735974, -0.4925303, 0.50735974)
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (-0.30950000000000005, 0, 0)
+            double3 xformOp:translate = (-0.31049999999999994, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "panel_0_2_slab" (
@@ -988,9 +1019,25 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.305, 0.012, 2.032)
-                double3 xformOp:translate = (0.1575, 0, 1.036)
+                float3 xformOp:scale = (0.301, 0.012, 2.032)
+                double3 xformOp:translate = (0.1525, 0, 1.036)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "panel_0_2_knuckle" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Piano hinge knuckle"
+                custom string doorbench:semantic = "hinge"
+                double height = 2.012
+                rel material:binding = </db0381_accordion/Looks/mat_hinge>
+                double radius = 0.0045
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, -0.006, 1.036)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
 
@@ -1000,14 +1047,14 @@ def Xform "db0381_accordion"
         {
             custom string doorbench:label = "Fold panel"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.1575, 0, 1.036)
-            float3 physics:diagonalInertia = (0.02116622, 0.9380683, 0.95916903)
-            float physics:mass = 2.7261713
-            quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            point3f physics:centerOfMass = (0.0011058798, 0.00595649, 1.036)
+            float3 physics:diagonalInertia = (0.00063447014, 0.9204448, 0.92105097)
+            float physics:mass = 2.728057
+            quatf physics:principalAxes = (0.50735974, 0.4925303, -0.50735974, 0.4925303)
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (-0.0045000000000000595, 0, 0)
+            double3 xformOp:translate = (-0.005499999999999949, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "panel_0_3_slab" (
@@ -1025,9 +1072,25 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.305, 0.012, 2.032)
-                double3 xformOp:translate = (0.1575, 0, 1.036)
+                float3 xformOp:scale = (0.301, 0.012, 2.032)
+                double3 xformOp:translate = (0.1525, 0, 1.036)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "panel_0_3_knuckle" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Piano hinge knuckle"
+                custom string doorbench:semantic = "hinge"
+                double height = 2.012
+                rel material:binding = </db0381_accordion/Looks/mat_hinge>
+                double radius = 0.0045
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 0.006, 1.036)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
 
@@ -1037,14 +1100,14 @@ def Xform "db0381_accordion"
         {
             custom string doorbench:label = "Fold panel"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.1575, 0, 1.036)
-            float3 physics:diagonalInertia = (0.02116622, 0.9380683, 0.95916903)
-            float physics:mass = 2.7261713
-            quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            point3f physics:centerOfMass = (0.0011058798, -0.00595649, 1.036)
+            float3 physics:diagonalInertia = (0.00063447014, 0.9204448, 0.92105097)
+            float physics:mass = 2.728057
+            quatf physics:principalAxes = (0.4925303, 0.50735974, -0.4925303, 0.50735974)
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (0.30049999999999993, 0, 0)
+            double3 xformOp:translate = (0.29950000000000004, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "panel_0_4_slab" (
@@ -1062,9 +1125,25 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.305, 0.012, 2.032)
-                double3 xformOp:translate = (0.1575, 0, 1.036)
+                float3 xformOp:scale = (0.301, 0.012, 2.032)
+                double3 xformOp:translate = (0.1525, 0, 1.036)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "panel_0_4_knuckle" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Piano hinge knuckle"
+                custom string doorbench:semantic = "hinge"
+                double height = 2.012
+                rel material:binding = </db0381_accordion/Looks/mat_hinge>
+                double radius = 0.0045
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, -0.006, 1.036)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }
 
@@ -1074,14 +1153,14 @@ def Xform "db0381_accordion"
         {
             custom string doorbench:label = "Fold panel"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.24357629, -0.055372737, 1.0005858)
-            float3 physics:diagonalInertia = (0.0020104132, 0.024675835, 0.025323981)
-            float physics:mass = 2.781112
-            quatf physics:principalAxes = (0.6931636, 0.12840144, -0.69686174, 0.13198878)
+            point3f physics:centerOfMass = (0.07769288, -0.013188675, 1.0249276)
+            float3 physics:diagonalInertia = (0.040684707, 0.6685755, 0.7085298)
+            float physics:mass = 2.8451672
+            quatf physics:principalAxes = (0.5553159, 0.43278342, -0.5591926, 0.43775153)
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (0.6054999999999999, 0, 0)
+            double3 xformOp:translate = (0.6045, 0, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "panel_0_5_slab" (
@@ -1099,9 +1178,25 @@ def Xform "db0381_accordion"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.305, 0.012, 2.032)
-                double3 xformOp:translate = (0.1575, 0, 1.036)
+                float3 xformOp:scale = (0.308, 0.012, 2.032)
+                double3 xformOp:translate = (0.15600000000000003, 0, 1.036)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "panel_0_5_knuckle" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Piano hinge knuckle"
+                custom string doorbench:semantic = "hinge"
+                double height = 2.012
+                rel material:binding = </db0381_accordion/Looks/mat_hinge>
+                double radius = 0.0045
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 0.006, 1.036)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Xform "panel_0_5_pull_n" (
@@ -1114,7 +1209,7 @@ def Xform "db0381_accordion"
                 custom string doorbench:semantic = "operator"
                 rel material:binding = </db0381_accordion/Looks/mat_op_stainless>
                 quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
-                double3 xformOp:translate = (0.245, -0.006, 1)
+                double3 xformOp:translate = (0.25000000000000006, -0.006, 1)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -1136,7 +1231,7 @@ def Xform "db0381_accordion"
                 uniform token purpose = "guide"
                 double radius = 0.0095
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.245, -0.066, 1)
+                double3 xformOp:translate = (0.25000000000000006, -0.066, 1)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -1144,7 +1239,7 @@ def Xform "db0381_accordion"
             {
                 custom string doorbench:site_role = "grip"
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0.245, -0.066, 1)
+                double3 xformOp:translate = (0.25000000000000006, -0.066, 1)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
         }

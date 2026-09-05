@@ -22,6 +22,7 @@
     <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
     <material name="mat_frame" rgba="0.82 0.7 0.5 1" specular="0.2" shininess="0.45" reflectance="0"/>
     <material name="mat_track" rgba="0.8 0.81 0.83 1" specular="0.8" shininess="0.6" reflectance="0.4"/>
+    <material name="mat_hinge" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
     <material name="mat_panel_0_0" rgba="0.2 0.21 0.23 1" specular="0.2" shininess="0.41" reflectance="0"/>
     <material name="mat_panel_0_0_louver" rgba="0.17 0.178 0.196 1" specular="0.2" shininess="0.4" reflectance="0"/>
     <material name="mat_panel_0_1" rgba="0.2 0.21 0.23 1" specular="0.2" shininess="0.41" reflectance="0"/>
@@ -32,129 +33,127 @@
   <worldbody>
     <light name="sun" pos="1.5 -2.5 4" dir="-0.3 0.5 -0.8" directional="true" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="true"/>
     <light name="fill" pos="-1.5 2.5 3" dir="0.3 -0.5 -0.7" directional="true" diffuse="0.35 0.35 0.4" castshadow="false"/>
-    <camera name="robot_view" pos="0 -2.89375 2.02025" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
-    <camera name="far_view" pos="0 2.89375 2.02025" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
-    <camera name="iso" pos="2.19925 -2.43075 2.48325" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
-    <camera name="detail_handle" pos="0.582 -0.8475 1.28" xyaxes="0.97561 0.219512 0 -0.070934 0.315262 0.94635" fovy="38"/>
+    <camera name="robot_view" pos="0 -2.926563 2.046937" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
+    <camera name="far_view" pos="0 2.926563 2.046937" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
+    <camera name="iso" pos="2.224187 -2.458313 2.515188" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
+    <camera name="detail_handle" pos="0.5865 -0.8475 1.28" xyaxes="0.97561 0.219512 0 -0.070934 0.315262 0.94635" fovy="38"/>
     <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
-    <geom name="wall_left" type="box" size="1.019 0.0725 1.51" pos="-1.481 0 1.51" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
-    <geom name="wall_right" type="box" size="1.019 0.0725 1.51" pos="1.481 0 1.51" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
-    <geom name="wall_header" type="box" size="0.462 0.0725 0.3" pos="0 0 2.72" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
-    <geom name="jamb_hinge" type="box" size="0.0095 0.0725 1.21" pos="-0.4715 0 1.21" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
-    <geom name="jamb_strike" type="box" size="0.0095 0.0725 1.21" pos="0.4715 0 1.21" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
-    <geom name="stud_strike" type="box" size="0.015 0.0725 1.21" pos="0.496 0 1.21" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="500"/>
-    <geom name="jamb_head" type="box" size="0.496 0.0725 0.0095" pos="0.015 0 2.4295" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
-    <geom name="head_stud" type="box" size="0.496 0.0725 0.015" pos="0.015 0 2.454" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="500"/>
-    <geom name="casing_l_n" type="box" size="0.035 0.008 1.2195" pos="-0.511 -0.0805 1.21" material="mat_frame" group="2" contype="0" conaffinity="0" density="400"/>
-    <geom name="casing_r_n" type="box" size="0.035 0.008 1.2195" pos="0.511 -0.0805 1.21" material="mat_frame" group="2" contype="0" conaffinity="0" density="400"/>
-    <geom name="casing_h_n" type="box" size="0.546 0.008 0.035" pos="0 -0.0805 2.469" material="mat_frame" group="2" contype="0" conaffinity="0" density="400"/>
-    <geom name="casing_l_p" type="box" size="0.035 0.008 1.2195" pos="-0.511 0.0805 1.21" material="mat_frame" group="2" contype="0" conaffinity="0" density="400"/>
-    <geom name="casing_r_p" type="box" size="0.035 0.008 1.2195" pos="0.511 0.0805 1.21" material="mat_frame" group="2" contype="0" conaffinity="0" density="400"/>
-    <geom name="casing_h_p" type="box" size="0.546 0.008 0.035" pos="0 0.0805 2.469" material="mat_frame" group="2" contype="0" conaffinity="0" density="400"/>
-    <geom name="fold_track" type="box" size="0.462 0.02 0.015" pos="0 0 2.437" material="mat_track" group="1" contype="0" conaffinity="0" density="2700"/>
+    <geom name="wall_left" type="box" size="1.01875 0.0725 1.5275" pos="-1.48125 0 1.5275" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_right" type="box" size="1.01875 0.0725 1.5275" pos="1.48125 0 1.5275" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="wall_header" type="box" size="0.4625 0.0725 0.3" pos="0 0 2.755" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="jamb_hinge" type="box" size="0.0095 0.0725 1.2275" pos="-0.472 0 1.2275" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
+    <geom name="jamb_strike" type="box" size="0.0095 0.0725 1.2275" pos="0.472 0 1.2275" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
+    <geom name="stud_strike" type="box" size="0.015 0.0725 1.2275" pos="0.4965 0 1.2275" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="500"/>
+    <geom name="jamb_head" type="box" size="0.4965 0.0725 0.0095" pos="0.015 0 2.4645" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="400"/>
+    <geom name="head_stud" type="box" size="0.4965 0.0725 0.015" pos="0.015 0 2.489" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="500"/>
+    <geom name="casing_l_n" type="box" size="0.035 0.008 1.237" pos="-0.5115 -0.0805 1.2275" material="mat_frame" group="2" contype="0" conaffinity="0" density="400"/>
+    <geom name="casing_r_n" type="box" size="0.035 0.008 1.237" pos="0.5115 -0.0805 1.2275" material="mat_frame" group="2" contype="0" conaffinity="0" density="400"/>
+    <geom name="casing_h_n" type="box" size="0.5465 0.008 0.035" pos="0 -0.0805 2.504" material="mat_frame" group="2" contype="0" conaffinity="0" density="400"/>
+    <geom name="casing_l_p" type="box" size="0.035 0.008 1.237" pos="-0.5115 0.0805 1.2275" material="mat_frame" group="2" contype="0" conaffinity="0" density="400"/>
+    <geom name="casing_r_p" type="box" size="0.035 0.008 1.237" pos="0.5115 0.0805 1.2275" material="mat_frame" group="2" contype="0" conaffinity="0" density="400"/>
+    <geom name="casing_h_p" type="box" size="0.5465 0.008 0.035" pos="0 0.0805 2.504" material="mat_frame" group="2" contype="0" conaffinity="0" density="400"/>
+    <geom name="fold_track" type="box" size="0.4625 0.02 0.015" pos="0 0 2.44" material="mat_track" group="1" contype="0" conaffinity="0" density="2700"/>
     <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="door_plane_center" pos="0 0 1.21" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <body name="panel_0_0" pos="-0.462 0 0">
-      <inertial pos="0.2335 0 1.22002" mass="4.335878" quat="0.5 0.5 0.5 -0.5" diaginertia="0.075891323 2.081500173 2.156506312"/>
-      <joint name="panel_0_0_hinge" type="hinge" axis="0 0 -1" pos="0.035 0 0" limited="true" range="0 1.570796" damping="0.686754" frictionloss="1.095392" armature="0.02"/>
-      <geom name="panel_0_0_slab" type="box" size="0.2285 0.0175 1.2" pos="0.2335 0 1.22" material="mat_panel_0_0" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
-      <geom name="panel_0_0_louver_0" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.3092" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_1" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.3596" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_2" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.41" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_3" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.4604" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_4" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.5108" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_5" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.5612" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_6" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.6116" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_7" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.662" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_8" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.7124" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_9" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.7628" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_10" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.8132" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_11" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.8636" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_12" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.914" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_13" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.9644" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_14" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.0148" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_15" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.0652" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_16" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.1156" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_17" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.166" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_18" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.2164" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_19" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.2668" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_20" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.3172" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_21" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.3676" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_22" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.418" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_23" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.4684" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_24" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.5188" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_25" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.5692" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_26" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.6196" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_27" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.67" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_28" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.7204" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_29" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.7708" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_30" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.8212" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_31" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.8716" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_32" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.922" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_33" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.9724" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_34" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 2.0228" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_35" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 2.0732" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_36" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 2.1236" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_37" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 2.174" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_38" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 2.2244" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="panel_0_0_louver_39" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 2.2748" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+    <site name="door_plane_center" pos="0 0 1.2275" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="panel_0_0" pos="-0.4625 0 0">
+      <inertial pos="0.23 0 1.220019" mass="4.278448" quat="0.5 0.5 0.5 -0.5" diaginertia="0.072623027 2.05393387 2.125683437"/>
+      <joint name="panel_0_0_hinge" type="hinge" axis="0 0 -1" pos="0.035 0 0" limited="true" range="0 1.48353" damping="0.686754" frictionloss="1.095392" armature="0.02"/>
+      <geom name="panel_0_0_slab" type="box" size="0.225 0.0175 1.2" pos="0.23 0 1.22" material="mat_panel_0_0" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
+      <geom name="panel_0_0_louver_0" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.3092" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_1" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.3596" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_2" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.41" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_3" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.4604" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_4" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.5108" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_5" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.5612" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_6" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.6116" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_7" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.662" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_8" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.7124" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_9" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.7628" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_10" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.8132" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_11" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.8636" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_12" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.914" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_13" type="box" size="0.135 0.002 0.02646" pos="0.23 0 0.9644" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_14" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.0148" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_15" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.0652" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_16" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.1156" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_17" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.166" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_18" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.2164" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_19" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.2668" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_20" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.3172" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_21" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.3676" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_22" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.418" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_23" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.4684" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_24" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.5188" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_25" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.5692" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_26" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.6196" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_27" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.67" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_28" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.7204" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_29" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.7708" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_30" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.8212" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_31" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.8716" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_32" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.922" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_33" type="box" size="0.135 0.002 0.02646" pos="0.23 0 1.9724" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_34" type="box" size="0.135 0.002 0.02646" pos="0.23 0 2.0228" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_35" type="box" size="0.135 0.002 0.02646" pos="0.23 0 2.0732" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_36" type="box" size="0.135 0.002 0.02646" pos="0.23 0 2.1236" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_37" type="box" size="0.135 0.002 0.02646" pos="0.23 0 2.174" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_38" type="box" size="0.135 0.002 0.02646" pos="0.23 0 2.2244" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="panel_0_0_louver_39" type="box" size="0.135 0.002 0.02646" pos="0.23 0 2.2748" quat="0.953717 0.300706 0 0" material="mat_panel_0_0_louver" group="1" contype="0" conaffinity="0" density="1"/>
       <body name="panel_0_1" pos="0.457 0 0">
-        <inertial pos="0.357335 -0.029942 1.064163" mass="4.339482" quat="0.48283 0.544365 0.448052 -0.519414" diaginertia="0.047461431 0.6343664 0.679765585"/>
-        <joint name="panel_0_1_hinge" type="hinge" axis="0 0 -1" limited="true" range="-3.141593 0" damping="0.2" frictionloss="0.1" armature="0.005"/>
-        <geom name="panel_0_1_slab" type="box" size="0.2285 0.0175 1.2" pos="0.2335 0 1.22" material="mat_panel_0_1" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
-        <geom name="panel_0_1_louver_0" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.3092" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_1" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.3596" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_2" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.41" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_3" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.4604" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_4" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.5108" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_5" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.5612" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_6" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.6116" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_7" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.662" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_8" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.7124" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_9" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.7628" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_10" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.8132" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_11" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.8636" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_12" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.914" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_13" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 0.9644" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_14" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.0148" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_15" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.0652" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_16" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.1156" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_17" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.166" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_18" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.2164" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_19" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.2668" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_20" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.3172" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_21" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.3676" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_22" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.418" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_23" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.4684" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_24" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.5188" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_25" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.5692" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_26" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.6196" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_27" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.67" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_28" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.7204" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_29" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.7708" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_30" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.8212" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_31" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.8716" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_32" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.922" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_33" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 1.9724" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_34" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 2.0228" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_35" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 2.0732" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_36" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 2.1236" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_37" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 2.174" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_38" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 2.2244" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_louver_39" type="box" size="0.1385 0.002 0.02646" pos="0.2335 0 2.2748" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
-        <geom name="panel_0_1_knob" type="mesh" mesh="knob_13f7a2a65f" pos="0.407 -0.0175 1" quat="0.707107 0.707107 0 0" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="3000"/>
-        <geom name="panel_0_1_knob_col" type="sphere" size="0.016" pos="0.407 -0.0475 1" material="mat_op_nickel_satin" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="3000"/>
-        <site name="panel_0_1_grip" pos="0.407 -0.0475 1" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+        <inertial pos="0.038583 0.012425 1.203343" mass="4.396912" quat="0.470135 0.535076 0.462163 -0.528272" diaginertia="0.060793068 1.932721055 1.993250262"/>
+        <joint name="panel_0_1_hinge" type="hinge" axis="0 0 -1" pos="0 0.0175 0" limited="true" range="-3.141593 0" damping="0.2" frictionloss="0.1" armature="0.005"/>
+        <geom name="panel_0_1_slab" type="box" size="0.23 0.0175 1.2" pos="0.232 0 1.22" material="mat_panel_0_1" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
+        <geom name="panel_0_1_louver_0" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.3092" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_1" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.3596" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_2" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.41" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_3" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.4604" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_4" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.5108" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_5" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.5612" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_6" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.6116" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_7" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.662" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_8" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.7124" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_9" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.7628" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_10" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.8132" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_11" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.8636" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_12" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.914" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_13" type="box" size="0.14 0.002 0.02646" pos="0.232 0 0.9644" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_14" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.0148" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_15" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.0652" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_16" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.1156" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_17" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.166" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_18" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.2164" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_19" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.2668" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_20" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.3172" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_21" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.3676" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_22" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.418" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_23" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.4684" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_24" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.5188" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_25" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.5692" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_26" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.6196" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_27" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.67" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_28" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.7204" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_29" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.7708" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_30" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.8212" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_31" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.8716" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_32" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.922" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_33" type="box" size="0.14 0.002 0.02646" pos="0.232 0 1.9724" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_34" type="box" size="0.14 0.002 0.02646" pos="0.232 0 2.0228" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_35" type="box" size="0.14 0.002 0.02646" pos="0.232 0 2.0732" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_36" type="box" size="0.14 0.002 0.02646" pos="0.232 0 2.1236" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_37" type="box" size="0.14 0.002 0.02646" pos="0.232 0 2.174" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_38" type="box" size="0.14 0.002 0.02646" pos="0.232 0 2.2244" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_louver_39" type="box" size="0.14 0.002 0.02646" pos="0.232 0 2.2748" quat="0.953717 0.300706 0 0" material="mat_panel_0_1_louver" group="1" contype="0" conaffinity="0" density="1"/>
+        <geom name="panel_0_1_knuckle" type="cylinder" size="0.0045 1.19" pos="0 0.0175 1.22" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
+        <geom name="panel_0_1_knob" type="mesh" mesh="knob_13f7a2a65f" pos="0.412 -0.0175 1" quat="0.707107 0.707107 0 0" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="3000"/>
+        <geom name="panel_0_1_knob_col" type="sphere" size="0.016" pos="0.412 -0.0475 1" material="mat_op_nickel_satin" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="3000"/>
+        <site name="panel_0_1_grip" pos="0.412 -0.0475 1" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
     </body>
   </worldbody>
   <equality>
     <joint name="panel_0_1_couple" joint1="panel_0_1_hinge" joint2="panel_0_0_hinge" polycoef="0 -2 0 0 0" active="true"/>
   </equality>
-  <contact>
-    <exclude body1="panel_0_1" body2="panel_0_0"/>
-  </contact>
   <sensor>
     <jointpos name="panel_0_0_hinge_pos" joint="panel_0_0_hinge"/>
     <jointvel name="panel_0_0_hinge_vel" joint="panel_0_0_hinge"/>
