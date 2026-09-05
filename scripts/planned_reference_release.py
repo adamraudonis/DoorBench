@@ -11,6 +11,8 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from contextlib import contextmanager
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 import gzip
 import hashlib
 import json
@@ -21,6 +23,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -486,10 +489,45 @@ def prepare(args):
 
 def verify_remote(api, repo, commit, files):
     # Hub metadata requests are bounded; the native helper compares Git blobs or
-    # LFS SHA-256. No large remote archive download is needed for this check.
+    # LFS SHA-256. Only read-only verification is retried, never publication.
+    # A global retry/sleep budget also bounds failures spread across many batches.
     names = sorted(files)
-    for offset in range(0, len(names), 100):
-        common.verify_public_files(api, repo, commit, {name: files[name] for name in names[offset:offset+100]})
+    retries = 0
+    slept = 0.0
+    for offset in range(0, len(names), 20):
+        batch = {name: files[name] for name in names[offset:offset+20]}
+        for attempt in range(6):
+            try:
+                common.verify_public_files(api, repo, commit, batch)
+                break
+            except Exception as exc:
+                response = getattr(exc, 'response', None)
+                if (getattr(response, 'status_code', None) not in (429, 503) or
+                        attempt == 5 or retries >= 12):
+                    raise
+                delay = float(2 ** (attempt+1))
+                value = response.headers.get('Retry-After')
+                if value:
+                    # Accept standard nonnegative delay-seconds or timezone-aware
+                    # HTTP dates. Malformed headers fall back to exponential delay.
+                    try:
+                        if re.fullmatch(r'[0-9]+', value.strip()):
+                            requested = float(value.strip())
+                        else:
+                            date = parsedate_to_datetime(value)
+                            if date.tzinfo is None:
+                                raise ValueError('Retry-After date needs a timezone')
+                            requested = max(0.0, (date-datetime.now(timezone.utc)).total_seconds())
+                        delay = max(delay, requested)
+                    except (TypeError, ValueError, OverflowError):
+                        pass
+                # Do not retry earlier than a long server-requested wait. Fail
+                # with the original HTTP error if it exceeds this bounded call.
+                if delay > 60 or slept+delay > 180:
+                    raise
+                retries += 1
+                slept += delay
+                time.sleep(delay)
 
 
 def publish(args):
