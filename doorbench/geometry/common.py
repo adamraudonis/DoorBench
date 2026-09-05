@@ -22,6 +22,48 @@ from . import meshes as MESH
 
 GAP = 0.003          # leaf-to-jamb clearance
 BOTTOM_CLEAR = 0.012
+HINGE_THROW_MAX = 0.050   # m; largest pin offset from the leaf face (a "swing clear" wide-throw butt hinge)
+LEAF_FACE_INSET = 0.007   # m; the leaf's swing-side face sits this far inside the frame's swing-side face, so the
+#                           hinge knuckle (one radius = 7 mm proud of the leaf) lands ON the frame face.  A door hung
+#                           deeper than its knuckle cannot swing past ~90 deg without the frame's reveal arris raking
+#                           across its face - the 20 mm inset used before did exactly that on 40 doors.
+
+
+def pivot_heel_gap(pivot_in: float, t: float, clear: float = 0.003) -> float:
+    """Gap a CENTRE-HUNG leaf's heel edge needs from the face it turns against (jamb reveal, pilaster, curb).
+
+    The leaf turns on an axis ``pivot_in`` inside that face and in the leaf's own centre plane, so its heel CORNER -
+    half a thickness off that plane - sweeps a circle of radius ``hypot(pivot_in - gap, t/2)``.  The corner therefore
+    clears the face by ``pivot_in - radius``, which a flat 6 mm gap left at 0.8 mm on the toilet partitions and
+    2.6 mm on the centre-pivot doors.  Solve the clearance instead:
+
+        pivot_in - hypot(pivot_in - gap, t/2) >= clear  <=>  gap >= pivot_in - sqrt((pivot_in - clear)^2 - (t/2)^2)
+
+    Returns 0.0 when the setback is too small for the thickness (pivot_in <= t/2 + clear): no heel gap can fix that,
+    the pivot itself has to move out, and the running-clearance gate is what says so.
+
+    (``folding.fold_jamb_gap`` is the same solve for bifold pivot panels; it lives there because the spec generator
+    sizes folding openings from it and must not import the geometry package.)"""
+    r2 = (pivot_in - clear) ** 2 - (t / 2.0) ** 2
+    return pivot_in - math.sqrt(r2) + 0.0005 if r2 > 0.0 else 0.0
+
+
+def hinge_throw(t: float, depth: float, y_wall: float, v: float, W: float, knuckle: float = 0.007, lead_gap: float = GAP) -> float:
+    """Hinge pin offset from the leaf's mid-plane on the swing side (the hinge's *throw*).
+
+    A butt hinge's knuckle stands one radius (7 mm) proud of the leaf face, and the leaf is hung so that face is
+    LEAF_FACE_INSET behind the frame's swing-side face - i.e. the pin sits ON that face.  That is what lets the leaf
+    swing past 90 deg: every point of the frame is then inside the pin's clearance circle (the jamb's reveal arris is
+    GAP from the pin, the leaf face 7 mm) and nothing can rake across the leaf.  Where the frame face still ends up
+    outside the pin (a leaf hung deeper than the knuckle in a thick frame), the throw is carried out to it, as a
+    WIDE-THROW (swing-clear) butt hinge does - but never further than the leading edge can afford: a throw beyond the
+    knuckle swings the LOCK edge hypot(W, throw + t/2) - W towards the strike jamb (and, on a pair, into the inactive
+    leaf's meeting stile) before it comes back, and only the leading gap is there to swallow it.  Capped at
+    HINGE_THROW_MAX, the widest catalogue hinge."""
+    face = v * y_wall + depth / 2          # the jamb's swing-side face, as a distance on the swing side
+    std = t / 2 + knuckle
+    lead = math.sqrt(max((W + max(lead_gap - 0.0005, 0.0)) ** 2 - W ** 2, 0.0)) - t / 2   # what the leading gap allows
+    return max(std, min(face, t / 2 + HINGE_THROW_MAX, lead))
 
 
 # ---------------------------------------------------------------------------
