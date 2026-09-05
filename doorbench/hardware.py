@@ -176,6 +176,21 @@ class OperatorModel:
     material: str
     source: str
     unlatches: bool = True    # does actuating retract a latch bolt
+    # What the operator does when the hand lets go (physics.operator_dynamics turns this into joint parameters):
+    #   spring   a return spring brings it back to rest (levers, knobs, paddles, exit-device pads, thumb pieces,
+    #            push buttons, lift latches) - spring_torque_preload / spring_rate above are that spring
+    #   gravity  no spring; the part's own weight returns it (gravity fork latch, teardrop latch, ring pulls)
+    #   detent   no spring; it stays where it is put, held by friction (handwheels, dogs, cremone knobs, slide
+    #            bolts, hasps, stall latches) - `detent_friction` is what holds it
+    #   none     no moving operator part at all (pulls, push plates, bare push face)
+    return_kind: str = "spring"
+    detent_friction: float = 0.0   # N*m (rotary) / N (linear) Coulomb friction that holds a `detent` operator put
+    return_note: str = ""          # why it returns (or does not), from the hardware catalogue
+
+    @property
+    def hold_friction(self) -> float:
+        """Coulomb friction that holds a non-sprung operator where it was left (N*m rotary / N linear)."""
+        return self.detent_friction if self.return_kind == "detent" else 0.0
 
     def to_dict(self):
         return asdict(self)
@@ -189,137 +204,192 @@ def _o(m: OperatorModel):
     return m
 
 
-# Levers (ADA compliant).  Return spring: typical lever set requires 0.4-1.2 N*m at start, ~2 N*m at full 55 deg.
-_o(OperatorModel("lever_straight", "Straight tubular lever (commercial Grade 1)", "lever", "rotate_normal", 0.96, 0.05, 0.45, 1.2, 22.2, 0.115, 25.0, 1.4, True,
-                 {"shape": "straight", "length": 0.125, "diameter": 0.019, "rose_diameter": 0.070, "return": False}, "nickel_satin", "Schlage ND series Rhodes lever; ANSI A156.2 Grade 1"))
-_o(OperatorModel("lever_return", "Return-to-door lever (hospital/ADA)", "lever", "rotate_normal", 0.96, 0.05, 0.45, 1.2, 22.2, 0.110, 25.0, 1.5, True,
-                 {"shape": "return", "length": 0.120, "diameter": 0.019, "rose_diameter": 0.070, "return": True}, "stainless", "Schlage ND Athens / Sparta return lever"))
-_o(OperatorModel("lever_curved", "Curved wave lever (residential)", "lever", "rotate_normal", 0.87, 0.08, 0.30, 0.9, 22.2, 0.105, 15.0, 1.0, True,
-                 {"shape": "wave", "length": 0.112, "diameter": 0.016, "rose_diameter": 0.066, "return": False}, "chrome", "Kwikset Halifax / Schlage Latitude"))
+# Levers (ADA compliant).  Return spring: ANSI/BHMA A156.2 requires the lever to return to horizontal when released,
+# so every lever set carries a return-spring cassette in the rose: Grade 1 commercial 0.5-0.7 N*m preload at rest and
+# ~1.7-2.0 N*m at full 55 deg; residential Grade 2/3 sets 0.3-0.5 N*m.  The preload is also what lifts the lever's own
+# weight: a lever hanging off horizontal is a failed set (A156.2 return test), so build.py raises the preload to
+# GRAVITY_MARGIN x the measured gravity moment of the modelled handle wherever the catalogue value is below it.
+_o(OperatorModel("lever_straight", "Straight tubular lever (commercial Grade 1)", "lever", "rotate_normal", 0.96, 0.05, 0.55, 1.2, 22.2, 0.115, 25.0, 1.4, True,
+                 {"shape": "straight", "length": 0.125, "diameter": 0.019, "rose_diameter": 0.070, "return": False}, "nickel_satin", "Schlage ND series Rhodes lever; ANSI A156.2 Grade 1 return-spring cassette",
+                 return_note="Grade 1 lever: spring cassette in the rose returns it to horizontal"))
+_o(OperatorModel("lever_return", "Return-to-door lever (hospital/ADA)", "lever", "rotate_normal", 0.96, 0.05, 0.70, 1.2, 22.2, 0.110, 25.0, 1.5, True,
+                 {"shape": "return", "length": 0.120, "diameter": 0.019, "rose_diameter": 0.070, "return": True}, "stainless", "Schlage ND Athens / Sparta return lever; Grade 1 return spring",
+                 return_note="Grade 1 return lever; the turned-back tail puts more mass off the spindle, so the spring is wound harder"))
+_o(OperatorModel("lever_curved", "Curved wave lever (residential)", "lever", "rotate_normal", 0.87, 0.08, 0.40, 0.9, 22.2, 0.105, 15.0, 1.0, True,
+                 {"shape": "wave", "length": 0.112, "diameter": 0.016, "rose_diameter": 0.066, "return": False}, "chrome", "Kwikset Halifax / Schlage Latitude",
+                 return_note="Grade 2/3 residential lever spring"))
 _o(OperatorModel("lever_l_shape", "L-shaped square lever (modern)", "lever", "rotate_normal", 0.87, 0.06, 0.35, 1.0, 22.2, 0.115, 18.0, 1.1, True,
-                 {"shape": "L", "length": 0.120, "diameter": 0.014, "rose_diameter": 0.060, "return": False, "square": True}, "black_matte_metal", "Emtek Hercules / Schlage Latitude square"))
-_o(OperatorModel("lever_mortise_escutcheon", "Mortise lever on long escutcheon plate", "lever", "rotate_normal", 0.70, 0.04, 0.50, 1.4, 22.2, 0.125, 30.0, 2.2, True,
-                 {"shape": "straight", "length": 0.130, "diameter": 0.020, "rose_diameter": 0.0, "escutcheon": (0.24, 0.045), "return": False}, "brass", "Sargent 8200 mortise lock w/ LE1 escutcheon"))
-_o(OperatorModel("lever_euro_backplate", "European lever on backplate (DIN 18255)", "lever", "rotate_normal", 0.65, 0.04, 0.40, 1.0, 22.2, 0.120, 25.0, 1.6, True,
-                 {"shape": "straight", "length": 0.130, "diameter": 0.019, "rose_diameter": 0.0, "escutcheon": (0.22, 0.040), "return": False}, "stainless", "Hoppe Amsterdam lever DIN backplate"))
-_o(OperatorModel("lever_loose", "Worn lever with excess play (loose spindle)", "lever", "rotate_normal", 0.96, 0.20, 0.20, 0.8, 22.2, 0.115, 12.0, 1.3, True,
-                 {"shape": "straight", "length": 0.125, "diameter": 0.019, "rose_diameter": 0.070, "return": False}, "brass_antique", "Aged lever, 11 deg free play"))
+                 {"shape": "L", "length": 0.120, "diameter": 0.014, "rose_diameter": 0.060, "return": False, "square": True}, "black_matte_metal", "Emtek Hercules / Schlage Latitude square",
+                 return_note="Grade 2 residential lever spring"))
+_o(OperatorModel("lever_mortise_escutcheon", "Mortise lever on long escutcheon plate", "lever", "rotate_normal", 0.70, 0.04, 0.60, 1.4, 22.2, 0.125, 30.0, 2.2, True,
+                 {"shape": "straight", "length": 0.130, "diameter": 0.020, "rose_diameter": 0.0, "escutcheon": (0.24, 0.045), "return": False}, "brass", "Sargent 8200 mortise lock w/ LE1 escutcheon",
+                 return_note="mortise lock hub spring (heavier than a cylindrical rose spring)"))
+_o(OperatorModel("lever_euro_backplate", "European lever on backplate (DIN 18255)", "lever", "rotate_normal", 0.65, 0.04, 0.50, 1.0, 22.2, 0.120, 25.0, 1.6, True,
+                 {"shape": "straight", "length": 0.130, "diameter": 0.019, "rose_diameter": 0.0, "escutcheon": (0.22, 0.040), "return": False}, "stainless", "Hoppe Amsterdam lever DIN backplate",
+                 return_note="DIN 18255 lever return spring in the backplate"))
+_o(OperatorModel("lever_loose", "Worn lever with excess play (loose spindle)", "lever", "rotate_normal", 0.96, 0.20, 0.45, 0.8, 22.2, 0.115, 12.0, 1.3, True,
+                 {"shape": "straight", "length": 0.125, "diameter": 0.019, "rose_diameter": 0.070, "return": False}, "brass_antique", "Aged lever, 11 deg free play",
+                 return_note="worn set: the wear is spindle play (dead travel 0.20 rad), not a dead spring - the cassette still returns it"))
 _o(OperatorModel("lever_keypad", "Electronic keypad lever set (residential)", "keypad_lever", "rotate_normal", 0.87, 0.06, 0.35, 1.0, 22.2, 0.110, 18.0, 1.6, True,
-                 {"shape": "wave", "length": 0.112, "diameter": 0.016, "rose_diameter": 0.070, "keypad": (0.070, 0.150), "return": False, "keys": 10}, "nickel_satin", "Schlage FE595 keypad lever"))
-_o(OperatorModel("lever_card_reader", "Lever w/ integrated card reader (hotel)", "card_lever", "rotate_normal", 0.87, 0.06, 0.40, 1.1, 22.2, 0.115, 20.0, 2.0, True,
-                 {"shape": "straight", "length": 0.120, "diameter": 0.019, "rose_diameter": 0.0, "escutcheon": (0.26, 0.075), "reader": True, "return": False}, "chrome", "Onity/dormakaba Saflok RFID"))
+                 {"shape": "wave", "length": 0.112, "diameter": 0.016, "rose_diameter": 0.070, "keypad": (0.070, 0.150), "return": False, "keys": 10}, "nickel_satin", "Schlage FE595 keypad lever",
+                 return_note="keypad lever set: the clutch releases but the return spring still centres the lever"))
+_o(OperatorModel("lever_card_reader", "Lever w/ integrated card reader (hotel)", "card_lever", "rotate_normal", 0.87, 0.06, 0.50, 1.1, 22.2, 0.115, 20.0, 2.0, True,
+                 {"shape": "straight", "length": 0.120, "diameter": 0.019, "rose_diameter": 0.0, "escutcheon": (0.26, 0.075), "reader": True, "return": False}, "chrome", "Onity/dormakaba Saflok RFID",
+                 return_note="hotel escutcheon lever; spring returns it whether or not the clutch engaged"))
 
-# Knobs (non-ADA).  Rotation 45-60 deg to retract latch.
+# Knobs (non-ADA).  Rotation 45-60 deg to retract latch; rose return spring 0.15-0.30 N*m (A156.2 Grade 2/3).
 _o(OperatorModel("knob_round", "Round knob (residential passage)", "knob", "rotate_normal", 0.87, 0.06, 0.25, 0.5, 22.2, 0.027, 12.0, 0.9, True,
-                 {"shape": "round", "diameter": 0.054, "depth": 0.060, "rose_diameter": 0.064}, "brass", "Kwikset Polo / Schlage Georgian; ANSI A156.2 Grade 2"))
+                 {"shape": "round", "diameter": 0.054, "depth": 0.060, "rose_diameter": 0.064}, "brass", "Kwikset Polo / Schlage Georgian; ANSI A156.2 Grade 2",
+                 return_note="knob rose spring; the knob is balanced on the spindle so the spring only has to beat bearing friction"))
 _o(OperatorModel("knob_round_privacy", "Round knob w/ privacy push-button (bath/bedroom)", "knob", "rotate_normal", 0.87, 0.06, 0.25, 0.5, 22.2, 0.027, 12.0, 0.9, True,
-                 {"shape": "round", "diameter": 0.054, "depth": 0.060, "rose_diameter": 0.064, "privacy_button": True}, "nickel_satin", "Kwikset Tylo privacy"))
+                 {"shape": "round", "diameter": 0.054, "depth": 0.060, "rose_diameter": 0.064, "privacy_button": True}, "nickel_satin", "Kwikset Tylo privacy",
+                 return_note="knob rose spring"))
 _o(OperatorModel("knob_egg", "Egg/oval knob", "knob", "rotate_normal", 0.87, 0.06, 0.25, 0.5, 22.2, 0.030, 12.0, 0.95, True,
-                 {"shape": "egg", "diameter": 0.056, "depth": 0.066, "rose_diameter": 0.064}, "bronze", "Baldwin egg knob"))
+                 {"shape": "egg", "diameter": 0.056, "depth": 0.066, "rose_diameter": 0.064}, "bronze", "Baldwin egg knob", return_note="knob rose spring"))
 _o(OperatorModel("knob_glass_antique", "Antique faceted glass knob (loose)", "knob", "rotate_normal", 0.80, 0.15, 0.15, 0.35, 22.2, 0.028, 6.0, 0.6, True,
-                 {"shape": "faceted", "diameter": 0.052, "depth": 0.058, "rose_diameter": 0.055}, "glass_clear", "Vintage 1920s glass knob w/ mortise lock"))
+                 {"shape": "faceted", "diameter": 0.052, "depth": 0.058, "rose_diameter": 0.055}, "glass_clear", "Vintage 1920s glass knob w/ mortise lock",
+                 return_note="tired mortise hub spring: weakest sprung set in the catalogue, still returns the knob"))
 _o(OperatorModel("knob_porcelain", "Porcelain knob (vintage)", "knob", "rotate_normal", 0.85, 0.10, 0.20, 0.4, 22.2, 0.028, 8.0, 0.6, True,
-                 {"shape": "round", "diameter": 0.055, "depth": 0.060, "rose_diameter": 0.055}, "hpl", "Vintage porcelain knob"))
+                 {"shape": "round", "diameter": 0.055, "depth": 0.060, "rose_diameter": 0.055}, "hpl", "Vintage porcelain knob", return_note="mortise hub spring"))
 _o(OperatorModel("knob_rim_lock", "Knob w/ surface-mounted rim lock (heritage)", "knob", "rotate_normal", 0.85, 0.08, 0.30, 0.6, 22.2, 0.028, 10.0, 1.6, True,
-                 {"shape": "round", "diameter": 0.050, "depth": 0.060, "rose_diameter": 0.050, "rim_box": (0.10, 0.16, 0.03)}, "cast_iron", "Carpenter rim lock"))
+                 {"shape": "round", "diameter": 0.050, "depth": 0.060, "rose_diameter": 0.050, "rim_box": (0.10, 0.16, 0.03)}, "cast_iron", "Carpenter rim lock",
+                 return_note="rim lock case spring (heavier follower than a tubular latch)"))
 _o(OperatorModel("knob_childproof", "Knob w/ child-proof cover (must squeeze to grip)", "knob", "rotate_normal", 0.87, 0.06, 0.25, 0.5, 22.2, 0.040, 8.0, 0.95, True,
-                 {"shape": "round", "diameter": 0.054, "depth": 0.060, "rose_diameter": 0.064, "childproof_cover": 0.082}, "pvc", "Safety 1st knob cover; grip slips unless squeezed"))
+                 {"shape": "round", "diameter": 0.054, "depth": 0.060, "rose_diameter": 0.064, "childproof_cover": 0.082}, "pvc", "Safety 1st knob cover; grip slips unless squeezed",
+                 return_note="knob rose spring (the cover free-spins and does not change the return)"))
 _o(OperatorModel("knob_keypad_deadbolt", "Knob + electronic keypad deadbolt above", "keypad_deadbolt", "rotate_normal", 0.87, 0.06, 0.25, 0.5, 22.2, 0.027, 12.0, 1.4, True,
-                 {"shape": "round", "diameter": 0.054, "depth": 0.060, "rose_diameter": 0.064, "keypad": (0.070, 0.150), "keys": 10}, "nickel_satin", "Schlage BE365 keypad deadbolt + passage knob"))
+                 {"shape": "round", "diameter": 0.054, "depth": 0.060, "rose_diameter": 0.064, "keypad": (0.070, 0.150), "keys": 10}, "nickel_satin", "Schlage BE365 keypad deadbolt + passage knob",
+                 return_note="passage knob rose spring (the deadbolt thumbturn above it stays where put)"))
 
-# Pulls / push plates (no latch)
+# Pulls / push plates: nothing moves relative to the leaf -> return_kind "none"
 _o(OperatorModel("pull_bar_offset", "Offset pull bar 1 in dia (storefront)", "pull", "none", 0.0, 0.0, 0.0, 0.0, 22.2, 0.075, 3000.0, 1.2, False,
-                 {"shape": "offset_bar", "length": 0.30, "diameter": 0.025, "standoff": 0.075}, "stainless", "Rockwood BF158 offset pull", unlatches=False))
+                 {"shape": "offset_bar", "length": 0.30, "diameter": 0.025, "standoff": 0.075}, "stainless", "Rockwood BF158 offset pull", unlatches=False, return_kind="none"))
 _o(OperatorModel("pull_d", "D-pull handle 200 mm", "pull", "none", 0.0, 0.0, 0.0, 0.0, 22.2, 0.060, 2000.0, 0.5, False,
-                 {"shape": "d_pull", "length": 0.20, "diameter": 0.019, "standoff": 0.060}, "stainless", "Ives 8103 straight pull", unlatches=False))
+                 {"shape": "d_pull", "length": 0.20, "diameter": 0.019, "standoff": 0.060}, "stainless", "Ives 8103 straight pull", unlatches=False, return_kind="none"))
 _o(OperatorModel("pull_ladder_full", "Full-height ladder pull (pivot/glass door)", "pull", "none", 0.0, 0.0, 0.0, 0.0, 22.2, 0.060, 4000.0, 6.0, True,
-                 {"shape": "ladder", "length": 1.80, "diameter": 0.032, "standoff": 0.065}, "stainless", "Back-to-back ladder pull 72 in", unlatches=False))
+                 {"shape": "ladder", "length": 1.80, "diameter": 0.032, "standoff": 0.065}, "stainless", "Back-to-back ladder pull 72 in", unlatches=False, return_kind="none"))
 _o(OperatorModel("pull_ring", "Ring pull (castle/gate)", "ring_pull", "rotate_horizontal", 1.2, 0.0, 0.0, 0.0, 22.2, 0.060, 3000.0, 0.8, False,
-                 {"shape": "ring", "ring_diameter": 0.12, "bar_diameter": 0.014}, "wrought_iron", "Iron ring pull on backplate", unlatches=False))
+                 {"shape": "ring", "ring_diameter": 0.12, "bar_diameter": 0.014}, "wrought_iron", "Iron ring pull on backplate", unlatches=False,
+                 return_kind="gravity", return_note="a loose iron ring on a staple has no spring: it swings back down under its own weight"))
 _o(OperatorModel("pull_flush_recessed", "Recessed flush pull (pocket / bypass door)", "flush_pull", "none", 0.0, 0.0, 0.0, 0.0, 22.2, 0.012, 500.0, 0.2, True,
-                 {"shape": "flush", "size": (0.05, 0.10), "depth": 0.012}, "nickel_satin", "Ives 221 flush pull", unlatches=False))
+                 {"shape": "flush", "size": (0.05, 0.10), "depth": 0.012}, "nickel_satin", "Ives 221 flush pull", unlatches=False, return_kind="none"))
 _o(OperatorModel("pull_finger_cup", "Round finger cup (bypass closet)", "flush_pull", "none", 0.0, 0.0, 0.0, 0.0, 22.2, 0.008, 300.0, 0.05, False,
-                 {"shape": "cup", "diameter": 0.055, "depth": 0.010}, "nickel_satin", "Finger pull cup 2-1/8 in", unlatches=False))
+                 {"shape": "cup", "diameter": 0.055, "depth": 0.010}, "nickel_satin", "Finger pull cup 2-1/8 in", unlatches=False, return_kind="none"))
 _o(OperatorModel("pull_barn_iron", "Flat-bar barn door pull (12 in)", "pull", "none", 0.0, 0.0, 0.0, 0.0, 22.2, 0.045, 3000.0, 0.7, True,
-                 {"shape": "flat_bar", "length": 0.30, "width": 0.032, "standoff": 0.045}, "black_matte_metal", "Rustic flat pull", unlatches=False))
+                 {"shape": "flat_bar", "length": 0.30, "width": 0.032, "standoff": 0.045}, "black_matte_metal", "Rustic flat pull", unlatches=False, return_kind="none"))
 _o(OperatorModel("push_plate", "Push plate 4x16 in (no latch)", "push_plate", "none", 0.0, 0.0, 0.0, 0.0, 22.2, 0.0, 5000.0, 0.4, False,
-                 {"shape": "plate", "size": (0.10, 0.40)}, "stainless", "Rockwood 70C push plate", unlatches=False))
-_o(OperatorModel("none", "No operator (push/pull on face)", "none", "none", 0.0, 0.0, 0.0, 0.0, 22.2, 0.0, 1e9, 0.0, False, {}, "steel", "", unlatches=False))
+                 {"shape": "plate", "size": (0.10, 0.40)}, "stainless", "Rockwood 70C push plate", unlatches=False, return_kind="none"))
+_o(OperatorModel("none", "No operator (push/pull on face)", "none", "none", 0.0, 0.0, 0.0, 0.0, 22.2, 0.0, 1e9, 0.0, False, {}, "steel", "", unlatches=False, return_kind="none"))
 _o(OperatorModel("pull_t_handle_garage", "T-handle w/ lock (garage / tilt-up)", "t_handle", "rotate_normal", 1.5708, 0.1, 0.3, 0.4, 22.2, 0.05, 15.0, 0.4, False,
-                 {"shape": "T", "length": 0.11, "diameter": 0.016}, "black_matte_metal", "Garage T-handle lock"))
+                 {"shape": "T", "length": 0.11, "diameter": 0.016}, "black_matte_metal", "Garage T-handle lock",
+                 return_note="the two lock-bar return springs push the bars back out and turn the T-handle upright with them"))
 _o(OperatorModel("pull_lift_garage", "Lift handle (garage exterior/interior step plate)", "pull", "none", 0.0, 0.0, 0.0, 0.0, 22.2, 0.05, 2000.0, 0.5, True,
-                 {"shape": "lift_handle", "length": 0.20, "width": 0.03, "standoff": 0.05}, "black_matte_metal", "Garage lift handle", unlatches=False))
+                 {"shape": "lift_handle", "length": 0.20, "width": 0.03, "standoff": 0.05}, "black_matte_metal", "Garage lift handle", unlatches=False, return_kind="none"))
 
-# Exit devices (UL 305).  Touch bar travel ~ 12-19 mm; unlatch <= 67 N (IBC); ADA egress <= 22 N.
+# Exit devices (UL 305).  Touch bar travel ~ 12-19 mm; unlatch <= 67 N (IBC); ADA egress <= 22 N.  The pad / crossbar
+# is spring returned: UL 305 requires the device to relatch by itself when the pad is released.
 _o(OperatorModel("panic_touchbar_rim", "Rim exit device, touch bar (Von Duprin 99 class)", "panic_touchbar", "push_in", 0.016, 0.002, 18.0, 1200.0, 66.7, 0.0, 800.0, 5.5, False,
-                 {"shape": "touchbar", "bar_length_frac": 0.65, "bar_height": 0.05, "bar_depth": 0.065, "rim_case": True}, "stainless", "Von Duprin 99 rim; 3/4 in pad travel; ~15 lbf unlatch"))
+                 {"shape": "touchbar", "bar_length_frac": 0.65, "bar_height": 0.05, "bar_depth": 0.065, "rim_case": True}, "stainless", "Von Duprin 99 rim; 3/4 in pad travel; ~15 lbf unlatch",
+                 return_note="UL 305 exit device: pad springs back out and relatches"))
 _o(OperatorModel("panic_touchbar_rim_light", "Rim exit device, touch bar, light spring (ADA-tuned)", "panic_touchbar", "push_in", 0.016, 0.002, 8.0, 700.0, 22.2, 0.0, 800.0, 5.0, False,
-                 {"shape": "touchbar", "bar_length_frac": 0.65, "bar_height": 0.05, "bar_depth": 0.065, "rim_case": True}, "aluminum", "Sargent 80 series w/ reduced spring tension"))
+                 {"shape": "touchbar", "bar_length_frac": 0.65, "bar_height": 0.05, "bar_depth": 0.065, "rim_case": True}, "aluminum", "Sargent 80 series w/ reduced spring tension",
+                 return_note="reduced-tension pad spring, still self-returning"))
 _o(OperatorModel("panic_touchbar_svr", "Surface vertical rod exit device (top & bottom latches)", "panic_touchbar", "push_in", 0.016, 0.002, 22.0, 1400.0, 66.7, 0.0, 800.0, 8.5, False,
-                 {"shape": "touchbar", "bar_length_frac": 0.65, "bar_height": 0.05, "bar_depth": 0.065, "vertical_rods": True}, "stainless", "Von Duprin 9927 SVR"))
+                 {"shape": "touchbar", "bar_length_frac": 0.65, "bar_height": 0.05, "bar_depth": 0.065, "vertical_rods": True}, "stainless", "Von Duprin 9927 SVR",
+                 return_note="pad spring plus the two rod latch springs"))
 _o(OperatorModel("panic_touchbar_mortise", "Mortise exit device w/ touch bar", "panic_touchbar", "push_in", 0.016, 0.002, 20.0, 1300.0, 66.7, 0.0, 800.0, 6.5, False,
-                 {"shape": "touchbar", "bar_length_frac": 0.60, "bar_height": 0.05, "bar_depth": 0.065, "rim_case": False}, "stainless", "Von Duprin 9975 mortise"))
+                 {"shape": "touchbar", "bar_length_frac": 0.60, "bar_height": 0.05, "bar_depth": 0.065, "rim_case": False}, "stainless", "Von Duprin 9975 mortise",
+                 return_note="pad spring plus the mortise lock hub spring"))
 _o(OperatorModel("panic_touchbar_stiff", "Old exit device, stiff/sticky (poor maintenance)", "panic_touchbar", "push_in", 0.016, 0.004, 45.0, 2500.0, 66.7, 0.0, 800.0, 6.0, False,
-                 {"shape": "touchbar", "bar_length_frac": 0.65, "bar_height": 0.05, "bar_depth": 0.065, "rim_case": True}, "steel_painted", "Aged exit device near code max 15 lbf"))
+                 {"shape": "touchbar", "bar_length_frac": 0.65, "bar_height": 0.05, "bar_depth": 0.065, "rim_case": True}, "steel_painted", "Aged exit device near code max 15 lbf",
+                 return_note="over-tensioned / gummed device: heavy spring, so it snaps back hard"))
 _o(OperatorModel("panic_crossbar", "Crossbar exit device (Von Duprin 88 class)", "panic_crossbar", "rotate_horizontal", 0.35, 0.03, 4.0, 12.0, 66.7, 0.06, 600.0, 6.0, False,
-                 {"shape": "crossbar", "bar_length_frac": 0.75, "bar_diameter": 0.025, "arm_length": 0.06}, "brass", "Von Duprin 88 crossbar; 20 deg arc"))
+                 {"shape": "crossbar", "bar_length_frac": 0.75, "bar_diameter": 0.025, "arm_length": 0.06}, "brass", "Von Duprin 88 crossbar; 20 deg arc",
+                 return_note="crossbar end-case springs throw the bar back out"))
 _o(OperatorModel("panic_touchbar_alarm", "Exit device w/ alarm & delayed egress (15 s)", "panic_touchbar", "push_in", 0.016, 0.002, 18.0, 1200.0, 66.7, 0.0, 800.0, 6.5, False,
-                 {"shape": "touchbar", "bar_length_frac": 0.65, "bar_height": 0.05, "bar_depth": 0.065, "rim_case": True, "alarm": True}, "stainless", "Von Duprin Chexit delayed egress"))
-_o(OperatorModel("paddle_push_pull", "Push/pull paddle (hospital latch)", "paddle", "rotate_horizontal", 0.40, 0.03, 0.6, 1.5, 22.2, 0.09, 30.0, 1.8, True,
-                 {"shape": "paddle", "size": (0.10, 0.18), "standoff": 0.045}, "stainless", "Glynn-Johnson HL6 hospital push/pull latch"))
-_o(OperatorModel("paddle_hospital_arm", "Hospital arm-pull paddle (elbow operated)", "paddle", "rotate_horizontal", 0.40, 0.03, 0.5, 1.2, 22.2, 0.12, 30.0, 2.0, True,
-                 {"shape": "paddle_arm", "size": (0.12, 0.22), "standoff": 0.06}, "stainless", "Rixson / Glynn-Johnson arm pull"))
+                 {"shape": "touchbar", "bar_length_frac": 0.65, "bar_height": 0.05, "bar_depth": 0.065, "rim_case": True, "alarm": True}, "stainless", "Von Duprin Chexit delayed egress",
+                 return_note="pad spring (the delay is in the electric lock, not the pad)"))
+_o(OperatorModel("paddle_push_pull", "Push/pull paddle (hospital latch)", "paddle", "rotate_horizontal", 0.40, 0.03, 1.5, 1.5, 22.2, 0.09, 30.0, 1.8, True,
+                 {"shape": "paddle", "size": (0.10, 0.18), "standoff": 0.045}, "stainless", "Glynn-Johnson HL6 hospital push/pull latch",
+                 return_note="latch hub spring returns the plate; it must also lift the plate's own weight (rocker on a horizontal pin)"))
+_o(OperatorModel("paddle_hospital_arm", "Hospital arm-pull paddle (elbow operated)", "paddle", "rotate_horizontal", 0.40, 0.03, 1.5, 1.2, 22.2, 0.12, 30.0, 2.0, True,
+                 {"shape": "paddle_arm", "size": (0.12, 0.22), "standoff": 0.06}, "stainless", "Rixson / Glynn-Johnson arm pull",
+                 return_note="arm-pull hub spring; long heavy plate, so the spring is wound harder still"))
 
 # Gate & rustic latches
 _o(OperatorModel("thumb_latch_suffolk", "Suffolk thumb latch (garden/cottage)", "thumb_latch", "rotate_horizontal", 0.30, 0.02, 0.3, 0.6, 22.2, 0.04, 20.0, 0.6, True,
-                 {"shape": "suffolk", "handle_length": 0.20, "bar_length": 0.18}, "wrought_iron", "Suffolk latch; thumb press lifts latch bar"))
-_o(OperatorModel("gate_latch_fork", "Fork gravity gate latch (chain-link)", "gate_latch_fork", "lift", 0.06, 0.005, 2.0, 40.0, 22.2, 0.04, 200.0, 0.6, False,
-                 {"shape": "fork", "length": 0.15}, "steel_galvanized", "Chain link fork latch; lift to release"))
+                 {"shape": "suffolk", "handle_length": 0.20, "bar_length": 0.18}, "wrought_iron", "Suffolk latch; thumb press lifts latch bar",
+                 return_note="the latch bar's own weight plus the thumb-piece spring push the thumb piece back up"))
+_o(OperatorModel("gate_latch_fork", "Fork gravity gate latch (chain-link)", "gate_latch_fork", "lift", 0.06, 0.005, 0.0, 0.0, 22.2, 0.04, 200.0, 0.6, False,
+                 {"shape": "fork", "length": 0.15}, "steel_galvanized", "Chain link fork latch; lift to release", return_kind="gravity",
+                 return_note="a gravity fork latch has no spring by definition: released, the fork drops back over the post under its own weight"))
 _o(OperatorModel("gate_latch_magnetic", "Magnetic pool gate latch (child safe, top-pull)", "lift_latch", "lift", 0.03, 0.002, 6.0, 150.0, 22.2, 0.03, 300.0, 0.9, False,
-                 {"shape": "magnalatch", "height": 0.20}, "black_matte_metal", "D&D MagnaLatch; 1.5 m mounting height"))
+                 {"shape": "magnalatch", "height": 0.20}, "black_matte_metal", "D&D MagnaLatch; 1.5 m mounting height",
+                 return_note="MagnaLatch: spring plus magnet drives the pin back down (child-safety requirement)"))
 _o(OperatorModel("hasp_padlock", "Hasp & staple w/ padlock", "hasp", "rotate_vertical", 1.5708, 0.0, 0.0, 0.0, 22.2, 0.03, 500.0, 0.5, False,
-                 {"shape": "hasp", "length": 0.11}, "steel_galvanized", "4.5 in hasp; padlock must be removed first", unlatches=False))
-_o(OperatorModel("slide_bolt_barrel", "Barrel bolt (slide bolt) 4 in", "slide_bolt_handle", "lift", 0.045, 0.0, 1.0, 20.0, 22.2, 0.02, 400.0, 0.2, False,
-                 {"shape": "barrel_bolt", "length": 0.10, "diameter": 0.012}, "brass", "Barrel bolt; slide to release"))
-_o(OperatorModel("slide_bolt_heavy", "Heavy gate slide bolt / drop bar", "slide_bolt_handle", "lift", 0.08, 0.0, 3.0, 40.0, 66.7, 0.05, 1500.0, 1.2, False,
-                 {"shape": "slide_bolt_heavy", "length": 0.30, "diameter": 0.02}, "steel_galvanized", "Cane bolt / slide bolt 12 in"))
-_o(OperatorModel("cane_bolt_drop", "Drop rod (cane bolt) for inactive gate leaf", "slide_bolt_handle", "lift", 0.10, 0.0, 4.0, 30.0, 66.7, 0.05, 1500.0, 1.0, False,
-                 {"shape": "cane_bolt", "length": 0.45, "diameter": 0.016}, "steel_galvanized", "Cane bolt"))
+                 {"shape": "hasp", "length": 0.11}, "steel_galvanized", "4.5 in hasp; padlock must be removed first", unlatches=False,
+                 return_kind="detent", detent_friction=0.3, return_note="a hasp strap stays wherever it is flipped: no spring, held by hinge friction"))
+# Slide bolts: no spring anywhere in the hardware; `detent_friction` (N) is the rod-in-guide friction that holds the
+# bolt where it was left (also used as the joint frictionloss by add_barrel_bolt).
+_o(OperatorModel("slide_bolt_barrel", "Barrel bolt (slide bolt) 4 in", "slide_bolt_handle", "lift", 0.045, 0.0, 0.0, 0.0, 22.2, 0.02, 400.0, 0.2, False,
+                 {"shape": "barrel_bolt", "length": 0.10, "diameter": 0.012}, "brass", "Barrel bolt; slide to release",
+                 return_kind="detent", detent_friction=1.0, return_note="a barrel bolt has no spring: it stays shot or stays drawn"))
+_o(OperatorModel("slide_bolt_heavy", "Heavy gate slide bolt / drop bar", "slide_bolt_handle", "lift", 0.08, 0.0, 0.0, 0.0, 66.7, 0.05, 1500.0, 1.2, False,
+                 {"shape": "slide_bolt_heavy", "length": 0.30, "diameter": 0.02}, "steel_galvanized", "Cane bolt / slide bolt 12 in",
+                 return_kind="detent", detent_friction=3.0, return_note="heavy gate bolt: no spring, stays where slid"))
+_o(OperatorModel("cane_bolt_drop", "Drop rod (cane bolt) for inactive gate leaf", "slide_bolt_handle", "lift", 0.10, 0.0, 0.0, 0.0, 66.7, 0.05, 1500.0, 1.0, False,
+                 {"shape": "cane_bolt", "length": 0.45, "diameter": 0.016}, "steel_galvanized", "Cane bolt",
+                 return_kind="detent", detent_friction=4.0, return_note="cane bolt: no spring, held up by its guide friction until dropped into the socket"))
 
 # Sliding-door hardware
-_o(OperatorModel("hook_lock_slider", "Patio slider handle w/ hook lock (thumb latch)", "hook_lock_slider", "rotate_normal", 1.0, 0.05, 0.3, 0.5, 22.2, 0.06, 15.0, 0.9, True,
-                 {"shape": "slider_handle", "length": 0.20, "hook": True}, "black_matte_metal", "Milgard/Andersen sliding door handle set"))
+_o(OperatorModel("hook_lock_slider", "Patio slider handle w/ hook lock (thumb latch)", "hook_lock_slider", "rotate_normal", 1.0, 0.05, 0.35, 1.0, 22.2, 0.06, 15.0, 0.9, True,
+                 {"shape": "slider_handle", "length": 0.20, "hook": True}, "black_matte_metal", "Milgard/Andersen sliding door handle set",
+                 return_note="the thumb latch of a gliding-door handle set is spring loaded and snaps back when released"))
 _o(OperatorModel("shoji_finger_pull", "Shoji recessed finger pull (hikite)", "flush_pull", "none", 0.0, 0.0, 0.0, 0.0, 22.2, 0.006, 40.0, 0.03, True,
-                 {"shape": "hikite", "size": (0.03, 0.08), "depth": 0.006}, "hinoki", "Traditional hikite", unlatches=False))
+                 {"shape": "hikite", "size": (0.03, 0.08), "depth": 0.006}, "hinoki", "Traditional hikite", unlatches=False, return_kind="none"))
 _o(OperatorModel("barn_privacy_hook", "Barn door pull + teardrop privacy latch", "pull", "none", 0.0, 0.0, 0.0, 0.0, 22.2, 0.045, 3000.0, 0.9, True,
-                 {"shape": "flat_bar", "length": 0.30, "width": 0.032, "standoff": 0.045, "teardrop_latch": True}, "black_matte_metal", "Teardrop latch", unlatches=False))
+                 {"shape": "flat_bar", "length": 0.30, "width": 0.032, "standoff": 0.045, "teardrop_latch": True}, "black_matte_metal", "Teardrop latch", unlatches=False,
+                 return_kind="gravity", return_note="the flat-bar pull does not move; the teardrop privacy latch beside it has no spring and drops back over its keeper under its own weight"))
 _o(OperatorModel("bifold_knob", "Bifold door knob (small)", "knob", "none", 0.0, 0.0, 0.0, 0.0, 22.2, 0.015, 40.0, 0.05, False,
-                 {"shape": "round", "diameter": 0.030, "depth": 0.030, "rose_diameter": 0.0}, "nickel_satin", "Bifold knob", unlatches=False))
-_o(OperatorModel("elevator_none", "No operator (automatic)", "none", "none", 0, 0, 0, 0, 22.2, 0, 1e9, 0, False, {}, "stainless", "", unlatches=False))
+                 {"shape": "round", "diameter": 0.030, "depth": 0.030, "rose_diameter": 0.0}, "nickel_satin", "Bifold knob", unlatches=False, return_kind="none"))
+_o(OperatorModel("elevator_none", "No operator (automatic)", "none", "none", 0, 0, 0, 0, 22.2, 0, 1e9, 0, False, {}, "stainless", "", unlatches=False, return_kind="none"))
 
-# Heavy/industrial
+# Heavy/industrial.  Handwheels, dogs and cremone knobs have NO return spring: they stay where they are put, held by
+# the friction of the boltwork / wedge cams / rod guides (`detent_friction`, N*m at the spindle).  A handwheel that
+# sprang back would undo its own boltwork.
 _o(OperatorModel("wheel_vault", "Vault door handwheel (multi-bolt)", "wheel", "rotate_normal", 6.2832, 0.1, 0.0, 0.0, 66.7, 0.20, 500.0, 6.0, False,
-                 {"shape": "spoked_wheel", "diameter": 0.40, "spokes": 5, "bar_diameter": 0.022}, "stainless", "Vault handwheel; 1-2 turns throws 4-8 bolts"))
+                 {"shape": "spoked_wheel", "diameter": 0.40, "spokes": 5, "bar_diameter": 0.022}, "stainless", "Vault handwheel; 1-2 turns throws 4-8 bolts",
+                 return_kind="detent", detent_friction=5.0, return_note="no spring: the boltwork friction holds the wheel wherever it is left (a sprung wheel would re-throw the bolts)"))
 _o(OperatorModel("wheel_ship_hatch", "Ship hatch handwheel (central dogging)", "wheel", "rotate_normal", 9.4248, 0.1, 0.0, 0.0, 66.7, 0.18, 500.0, 5.0, True,
-                 {"shape": "spoked_wheel", "diameter": 0.36, "spokes": 4, "bar_diameter": 0.020}, "brass", "Quick-acting watertight door wheel"))
-_o(OperatorModel("dog_lever", "Individual dog lever (watertight door)", "lever", "rotate_normal", 1.5708, 0.05, 1.5, 2.0, 66.7, 0.20, 200.0, 1.2, True,
-                 {"shape": "dog", "length": 0.22, "diameter": 0.025}, "steel_painted", "Watertight door dogs, 6-8 per door"))
-_o(OperatorModel("cold_storage_handle", "Cold storage door handle w/ inside release", "lever", "rotate_horizontal", 0.5, 0.03, 1.2, 2.5, 66.7, 0.15, 60.0, 2.5, True,
-                 {"shape": "safeguard", "length": 0.25}, "chrome", "Kason 58 SafeGuard latch w/ inside release"))
-_o(OperatorModel("cremone_bolt", "Cremone bolt (french door)", "cremone", "rotate_normal", 1.5708, 0.05, 0.4, 0.6, 22.2, 0.08, 20.0, 2.5, False,
-                 {"shape": "cremone", "rod_length": 1.6}, "brass", "Cremone bolt; rotating knob drives top/bottom rods"))
+                 {"shape": "spoked_wheel", "diameter": 0.36, "spokes": 4, "bar_diameter": 0.020}, "brass", "Quick-acting watertight door wheel",
+                 return_kind="detent", detent_friction=2.0, return_note="no spring: the dogging linkage is self-locking and holds the wheel where it is left"))
+_o(OperatorModel("dog_lever", "Individual dog lever (watertight door)", "lever", "rotate_normal", 1.5708, 0.05, 0.0, 0.0, 66.7, 0.20, 200.0, 1.2, True,
+                 {"shape": "dog", "length": 0.22, "diameter": 0.025}, "steel_painted", "Watertight door dogs, 6-8 per door",
+                 return_kind="detent", detent_friction=1.5, return_note="a dog is a wedge cam on a stiff spindle: it stays dogged or undogged, knocked over by hand or mallet"))
+_o(OperatorModel("cold_storage_handle", "Cold storage door handle w/ inside release", "lever", "rotate_horizontal", 0.5, 0.03, 2.4, 2.5, 66.7, 0.15, 60.0, 2.5, True,
+                 {"shape": "safeguard", "length": 0.25}, "chrome", "Kason 58 SafeGuard latch w/ inside release",
+                 return_note="Kason 58: the return spring has to lift a 2.5 kg chrome handle back to horizontal, so it is wound far harder than a lever rose spring"))
+_o(OperatorModel("cremone_bolt", "Cremone bolt (french door)", "cremone", "rotate_normal", 1.5708, 0.05, 0.0, 0.0, 22.2, 0.08, 20.0, 2.5, False,
+                 {"shape": "cremone", "rod_length": 1.6}, "brass", "Cremone bolt; rotating knob drives top/bottom rods",
+                 return_kind="detent", detent_friction=0.4, return_note="no spring: the knob stays where it is turned (rod friction in the guides) - the shoot bolts are what hold the door"))
 _o(OperatorModel("handleset_thumb", "Entry handleset w/ thumb latch (exterior) + knob (interior)", "handleset", "rotate_horizontal", 0.35, 0.03, 0.5, 1.2, 22.2, 0.05, 20.0, 1.9, True,
-                 {"shape": "handleset", "grip_length": 0.24, "plate": (0.30, 0.07)}, "bronze", "Kwikset Arlington / Schlage Camelot handleset"))
+                 {"shape": "handleset", "grip_length": 0.24, "plate": (0.30, 0.07)}, "bronze", "Kwikset Arlington / Schlage Camelot handleset",
+                 return_note="handleset thumb piece: spring in the latch hub lifts the thumb piece back"))
 _o(OperatorModel("push_button_screen", "Push-button screen door latch", "push_button_screen", "push_in", 0.006, 0.001, 3.0, 400.0, 22.2, 0.0, 50.0, 0.3, True,
-                 {"shape": "screen_latch", "size": (0.03, 0.08)}, "aluminum", "Wright Products push-button latch"))
+                 {"shape": "screen_latch", "size": (0.03, 0.08)}, "aluminum", "Wright Products push-button latch",
+                 return_note="button return spring in the latch case"))
 _o(OperatorModel("baby_gate_latch", "Baby gate lift-and-swing latch", "lift_latch", "lift", 0.02, 0.002, 8.0, 300.0, 22.2, 0.03, 200.0, 0.3, False,
-                 {"shape": "gate_latch", "size": (0.05, 0.12)}, "pvc", "Regalo / Munchkin pressure gate latch"))
-_o(OperatorModel("stall_slide_latch", "Toilet stall slide latch (indicator)", "slide_bolt_handle", "lift", 0.03, 0.0, 1.5, 30.0, 22.2, 0.02, 100.0, 0.2, True,
-                 {"shape": "stall_latch", "size": (0.03, 0.06)}, "stainless", "Bobrick partition slide latch"))
-_o(OperatorModel("turnstile_arm", "Tripod turnstile arm (push through)", "none", "none", 0, 0, 0, 0, 66.7, 0.45, 1e4, 0, False, {"shape": "tripod"}, "stainless", "Tripod turnstile", unlatches=False))
+                 {"shape": "gate_latch", "size": (0.05, 0.12)}, "pvc", "Regalo / Munchkin pressure gate latch",
+                 return_note="child-safety latch: a stiff spring drives the pin back down as soon as it is let go"))
+_o(OperatorModel("stall_slide_latch", "Toilet stall slide latch (indicator)", "slide_bolt_handle", "lift", 0.03, 0.0, 0.0, 0.0, 22.2, 0.02, 100.0, 0.2, True,
+                 {"shape": "stall_latch", "size": (0.03, 0.06)}, "stainless", "Bobrick partition slide latch",
+                 return_kind="detent", detent_friction=1.5, return_note="a stall slide latch has no spring: it stays where it is slid (that is what the occupied indicator reads)"))
+_o(OperatorModel("turnstile_arm", "Tripod turnstile arm (push through)", "none", "none", 0, 0, 0, 0, 66.7, 0.45, 1e4, 0, False, {"shape": "tripod"}, "stainless", "Tripod turnstile", unlatches=False, return_kind="none"))
 _o(OperatorModel("hatch_ring", "Recessed hatch ring pull", "ring_pull", "rotate_horizontal", 1.5708, 0.0, 0.0, 0.0, 66.7, 0.04, 3000.0, 0.4, False,
-                 {"shape": "recessed_ring", "ring_diameter": 0.08}, "steel_galvanized", "Flush hatch ring", unlatches=False))
-_o(OperatorModel("mail_slot", "Mail slot flap (spring)", "none", "rotate_horizontal", 1.2, 0.0, 0.2, 0.3, 22.2, 0.05, 20.0, 0.5, False, {"shape": "mail_slot", "size": (0.30, 0.08)}, "brass", "Letterbox plate", unlatches=False))
+                 {"shape": "recessed_ring", "ring_diameter": 0.08}, "steel_galvanized", "Flush hatch ring", unlatches=False,
+                 return_kind="gravity", return_note="no spring: the ring falls back to wherever gravity puts it - flat in its recess on a floor hatch, hanging down on a ceiling hatch"))
+_o(OperatorModel("mail_slot", "Mail slot flap (spring)", "none", "rotate_horizontal", 1.2, 0.0, 0.2, 0.3, 22.2, 0.05, 20.0, 0.5, False, {"shape": "mail_slot", "size": (0.30, 0.08)}, "brass", "Letterbox plate", unlatches=False,
+                 return_note="letterbox flap spring closes the flap"))
 
 
 # ---------------------------------------------------------------------------

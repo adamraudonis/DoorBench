@@ -263,7 +263,7 @@ def build_sliding(spec, phys, model: Model):
                 # teardrop latch on robot face at latch edge pivoting about y; hooks over a keeper on the jamb
                 lm = C.mat_from_material(model, "black_matte_metal", "mat_teardrop")
                 td = Body(f"{name}_teardrop", b.name, (x_latch_edge + dir_ * 0.06, -(t / 2 + 0.01), hz + 0.45), QUAT_ID, None, [], [], FULL_SIMPLE, "latch", "Teardrop latch")
-                td.joint = Joint(f"{name}_teardrop_hinge", "hinge", (0, dir_, 0), (0, 0, 0), (0.0, 1.4), damping=0.02, frictionloss=0.02, role="operator", label="Teardrop latch (0 = dropped over the keeper, + = lifted)", initial=0.0)
+                td.joint = Joint(f"{name}_teardrop_hinge", "hinge", (0, dir_, 0), (0, 0, 0), (0.0, 1.4), damping=0.02, frictionloss=0.02, role="operator", label="Teardrop latch (0 = dropped over the keeper, + = lifted; gravity return, no spring)", return_kind="gravity", operator_model=opm.id, initial=0.0)
                 model.meta["operator_joint"] = td.joint.name
                 td.geoms.append(C.box(f"{name}_teardrop_top", (-dir_ * 0.04, 0, -0.005), (0.04, 0.004, 0.006), lm, 7800, True, True, FULL_SIMPLE, "latch", "Teardrop bar"))
                 td.geoms.append(C.box(f"{name}_teardrop_end", (-dir_ * 0.078, 0, -0.03), (0.005, 0.004, 0.03), lm, 7800, True, True, FULL_SIMPLE, "latch", "Teardrop end"))
@@ -306,7 +306,7 @@ def build_sliding(spec, phys, model: Model):
             dia = opm.style_params.get("diameter", 0.02)
             xb = x_latch_edge + dir_ * 0.12
             L = zb + 0.30 - 0.026
-            sb, info = C.add_barrel_bolt(model, b, f"{name}_slide_bolt", (xb, -t / 2, zb), (0, 0, -1), (0, -1, 0), L, dia, 0.08, engaged, mat, protrusion=zb - 0.026, standoff=dia, role="lock", label="Drop bolt (0 = in floor socket, + = lifted)", frictionloss=opm.spring_torque_preload, damping=2.0, handle_at="rear", handle_len=0.06, joint_name=f"{name}_slide_bolt_slide", grip_site=f"{name}_grip_bolt")
+            sb, info = C.add_barrel_bolt(model, b, f"{name}_slide_bolt", (xb, -t / 2, zb), (0, 0, -1), (0, -1, 0), L, dia, 0.08, engaged, mat, protrusion=zb - 0.026, standoff=dia, role="lock", label="Drop bolt (0 = in floor socket, + = lifted)", frictionloss=opm.hold_friction, damping=2.0, handle_at="rear", handle_len=0.06, joint_name=f"{name}_slide_bolt_slide", grip_site=f"{name}_grip_bolt")
             km = C.mat_from_material(model, "steel_galvanized", "mat_keeper")
             yk = yl - (t / 2 + dia)
             for sx_ in (-1, 1):
@@ -866,7 +866,7 @@ def build_horizontal(spec, phys, model: Model):
             # recessed ring pull on the face the user reaches: top of a floor hatch, UNDERSIDE of a ceiling hatch
             fz = -1.0 if ceiling else 1.0
             ring = Body("ring", lb.name, (0, -Ho * 0.75, fz * t / 2), QUAT_ID, None, [], [], ALL_TIERS, "operator", "Ring pull")
-            ring.joint = Joint("ring_hinge", "hinge", (fz, 0, 0), (0, 0, 0), (0.0, 1.5708), damping=0.01, role="operator", label="Ring pull (flip out)")
+            ring.joint = Joint("ring_hinge", "hinge", (fz, 0, 0), (0, 0, 0), (0.0, 1.5708), damping=0.01, role="operator", label="Ring pull (flip out; gravity return, no spring)", return_kind="gravity", operator_model=opm.id)
             ring.geoms.append(Geom("ring_geom", "capsule", (0.006, 0.035), (0, 0.04, fz * 0.006), tuple(quat_z_to((1, 0, 0))), hm, True, True, 7800, None, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Ring"))
             ring.sites.append(Site("grip_ring", (0, 0.04, fz * 0.006), QUAT_ID, 0.01, "grip"))
             model.add_body(ring)

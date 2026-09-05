@@ -205,6 +205,87 @@ def latch_params(spec: dict) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Operator return dynamics: what the handle does when the hand lets go
+# ---------------------------------------------------------------------------
+OPERATOR_DAMPING_RATIO = 1.0      # critical: the handle comes home without ringing against its rest stop
+GRAVITY_DAMPING_RATIO = 0.6       # a ring on a staple / fork on a pin has no spring cassette to damp it, only its
+#                                   pin and the air: under-critical, so it still falls at a believable speed
+GRAVITY_DRIVE_FRACTION = 0.90     # a hand lifts a gravity latch this far; at 100 % a ring stands vertical, where its
+#                                   own weight moment is exactly zero and it balances (a real quirk, not a bug)
+GRAVITY_RETURN_TOL_FRACTION = 0.05  # "back at rest" for an unsprung part: within 5 % of the travel (no spring holds
+#                                     it hard against a stop, so the last millimetre is not meaningful)
+OPERATOR_GRAVITY_MARGIN = 1.35    # the return spring must beat the handle's own weight moment by this factor
+OPERATOR_BEARING_FRICTION = 0.02  # N*m base Coulomb friction of a spindle bearing (+0.02 per kg of hardware)
+OPERATOR_FRICTION_FRACTION = 0.25   # ... capped at this share of the restoring torque at rest, so friction can
+#                                     never park the handle short of its stop (that is a residual offset)
+ROTARY_MOTIONS = ("rotate_normal", "rotate_horizontal", "rotate_vertical")
+DETENT_DAMPING = {"hinge": 0.5, "slide": 2.0}
+
+
+def operator_return_time(I: float, k: float, preload: float, b: float, fl: float, grav, q0: float, tol: float,
+                         dt: float = 0.0005, t_max: float = 3.0, rest: float = 0.0) -> float | None:
+    """Time for a released operator to come home, from a 1-D integration of the joint alone.
+
+    Released at ``q0`` with the joint at rest, under the return spring ``-(preload + k*q)``, the gravity
+    moment ``grav`` of the handle itself (a constant or a callable of q; positive = toward actuation), viscous ``b`` and Coulomb ``fl``, with a
+    hard rest stop at q = 0.  Returns the time until ``|q| < tol`` (None if it never gets there).  This is the
+    number recorded as ``expected_return_time_s``; QA measures the real one in MuJoCo."""
+    if I <= 0 or q0 <= rest:
+        return 0.0
+    g_of = grav if callable(grav) else (lambda _q: grav)
+    q, w, t = q0, 0.0, 0.0
+    while t < t_max:
+        tau = g_of(q) - (preload + k * q) - b * w
+        if abs(w) < 1e-6:
+            tau -= math.copysign(min(fl, abs(tau)), tau)      # stiction: friction cancels the drive up to fl
+        else:
+            tau -= math.copysign(fl, w)
+        w += tau / I * dt
+        q += w * dt
+        t += dt
+        if q <= 0.0:
+            q, w = 0.0, 0.0        # the rest stop (joint limit); the spring holds it there
+        if abs(q - rest) < tol:
+            return round(t, 4)
+    return None
+
+
+def operator_dynamics(op: H.OperatorModel, preload_override: float | None = None) -> dict:
+    """Catalogue-level return behaviour of one operator, with units.
+
+    ``build.tune_operator_returns`` completes this per joint once the geometry is known (real rotational inertia,
+    gravity moment, near-critical damping, measured-in-1D return time) and writes the result back here under
+    ``joints``.  Units: rotary joints N*m, N*m/rad, N*m*s/rad, kg*m^2, rad; linear joints N, N/m, N*s/m, kg, m."""
+    rotary = op.motion in ROTARY_MOTIONS
+    kind = op.return_kind if op.motion != "none" or op.return_kind in ("gravity", "detent") else "none"
+    pre = op.spring_torque_preload if preload_override is None else preload_override
+    units = ({"preload": "N*m", "rate": "N*m/rad", "damping": "N*m*s/rad", "friction": "N*m", "inertia": "kg*m^2", "travel": "rad"}
+             if rotary else {"preload": "N", "rate": "N/m", "damping": "N*s/m", "friction": "N", "inertia": "kg", "travel": "m"})
+    return {
+        "model": op.id, "kind": op.kind, "motion": op.motion, "rotary": rotary,
+        "return_kind": kind, "return_note": op.return_note, "source": op.source,
+        "travel": op.travel, "dead_travel": op.dead_travel,
+        "spring_preload": pre if kind == "spring" else 0.0,
+        "spring_rate": op.spring_rate if kind == "spring" else 0.0,
+        "detent_friction": op.detent_friction if kind == "detent" else 0.0,
+        "damping_ratio": OPERATOR_DAMPING_RATIO if kind == "spring" else (GRAVITY_DAMPING_RATIO if kind == "gravity" else None),
+        "gravity_margin": OPERATOR_GRAVITY_MARGIN if kind == "spring" else None,
+        "units": units,
+        "joints": {},   # filled by build.tune_operator_returns: one entry per operator joint actually built
+        "formula": ("tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = "
+                    f"{OPERATOR_DAMPING_RATIO} (critical) and I the joint-space inertia (armature + the handle's own "
+                    "inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where "
+                    "the catalogue spring would not lift it; fl capped at "
+                    f"{OPERATOR_FRICTION_FRACTION:g} of the restoring torque at rest so it cannot park the handle short of rest"
+                    if kind == "spring" else
+                    "no spring: the part's own weight returns it; light bearing friction and near-critical damping only"
+                    if kind == "gravity" else
+                    "no spring: Coulomb friction detent_friction holds the part where it was left"
+                    if kind == "detent" else "no moving operator part"),
+    }
+
+
 def lock_params(spec: dict) -> dict:
     lk = H.LOCKS[spec["lock"]["model"]]
     engaged = bool(spec["lock"].get("engaged", False))
@@ -309,6 +390,8 @@ def derive(spec: dict) -> dict:
     if "roller" not in phys and spec["kinematics"].get("roller"):
         phys["roller"] = roller_friction(spec, m)
     phys["latch"] = latch_params(spec)
+    op_ = H.OPERATORS[spec["operator"]["model"]]
+    phys["operator"] = operator_dynamics(op_, preload_override=(max(op_.spring_torque_preload, 1.5) if op_.kind == "paddle" else None))
     phys["lock"] = lock_params(spec)
     phys["damage"] = damage_thresholds(spec, m)
     phys["compliance"] = compliance(spec, phys) if (kin.startswith("hinge") and spec["family"] not in ("pet_door", "hatch_floor", "hatch_ceiling")) else {}

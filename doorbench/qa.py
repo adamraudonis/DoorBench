@@ -12,6 +12,13 @@ Checks (all tiers where applicable):
               the same push - a leaf that stays shut is jammed by its own geometry or couplings
   actuate     driving the operator retracts the latch and the door opens (if robot-side release exists)
   return      releasing the operator lets the spring latch re-extend
+  operator_returns  every sprung operator (lever, knob, paddle, exit-device pad, thumb piece, push button) driven to
+              full travel and let go comes back to its rest stop with a damped spring motion - inside the tolerance
+              within 0.6 s, no residual offset, at most one clack - both with the door closed and with the leaf held
+              open so the latch is clear of its strike; gravity-returned parts (fork latches, teardrops, ring pulls)
+              must likewise settle where their own weight puts them, within 2 s
+  operator_holds    every detent operator (handwheels, dogs, cremone knobs, slide bolts, hasps, stall latches) has no
+              return spring in reality and must STAY where the hand left it
   relatch     closing the door re-latches (spring latches with strike lip)
   closer      self-closing doors return to closed from 60 deg
   free_opens  free-swing / rotary families (saloon, revolving, turnstiles, folding, bypass, flaps, strips): the QA push
@@ -179,6 +186,210 @@ def jam_sweep(m, d, pj: int, push: float, thr_free: float, duration_s: float = F
     return {"moved": float(d.qpos[qadr]), "t_free": t_free, "t_end": (k + 1) * dt, "peak_force_N": peak, "peak_pair": list(pair) if pair else None}
 
 
+# ---------------------------------------------------------------------------
+# Operator release behaviour: what the handle does when the hand lets go
+# ---------------------------------------------------------------------------
+OPERATOR_RETURN_LIMIT_S = {"spring": 0.6, "gravity": 2.0}   # s to be back at rest after release
+OPERATOR_RETURN_MAX_BOUNCES = 1     # one clack against the rest stop is real hardware; more is chatter
+OPERATOR_DETENT_HOLD = 0.8          # a detent operator must still be at >= 80 % of where the hand left it
+OPERATOR_DRIVE_RAMP_S = 0.25        # the hand takes this long to turn the handle to full travel
+OPERATOR_DRIVE_HOLD_S = 0.15        # ... and holds it there this long, so it is released from rest
+OPERATOR_OPEN_ANGLE = math.radians(30.0)   # leaf angle for the "latch unobstructed" repeat of the trial
+OPERATOR_OPEN_SLIDE = 0.15          # m
+
+
+def gravity_rest_in_pose(m, d, j: int, q0: float, n: int = 120) -> float:
+    """Where an unsprung operator settles from ``q0`` in the pose ``d`` is currently in: the first place its own
+    weight moment vanishes and reverses, walking in the direction it starts moving.  The rest of the model is left
+    exactly as it is (leaf angle included), so a ring on a ceiling hatch reads its hanging position and the same ring
+    on a floor hatch reads its recess."""
+    import mujoco
+    adr, dof = m.jnt_qposadr[j], m.jnt_dofadr[j]
+    lo, hi = float(m.jnt_range[j][0]), float(m.jnt_range[j][1])
+    qpos, qvel = d.qpos.copy(), d.qvel.copy()
+    d.qvel[:] = 0
+
+    def tau(q):
+        d.qpos[adr] = q
+        mujoco.mj_forward(m, d)
+        return -float(d.qfrc_bias[dof]) + float(d.qfrc_passive[dof])
+    step = (hi - lo) / n
+    q, prev, out = q0, tau(q0), lo
+    down = prev <= 0.0
+    for _ in range(n + 1):
+        nxt = q + (-step if down else step)
+        if nxt < lo or nxt > hi:
+            out = lo if nxt < lo else hi
+            break
+        cur = tau(nxt)
+        if (cur > 0) != (prev > 0):
+            out = 0.5 * (q + nxt)
+            break
+        q, prev, out = nxt, cur, nxt
+    d.qpos[:], d.qvel[:] = qpos, qvel
+    mujoco.mj_forward(m, d)
+    return out
+
+
+DOOR_OPEN_RAMP_S = 0.4      # the leaf is eased open, not teleported: a closer's arm linkage is a closed loop and a
+DOOR_OPEN_SETTLE_S = 0.2    # jump in the hinge angle violates its equality by a metre and detonates the model
+
+
+def _door_servo(m, d, pj: int, target: float, f_cap: float, omega: float = 40.0):
+    """A hand holding the leaf at ``target``: a critically damped PD on the primary joint, sized from that joint's own
+    inertia and saturated at ``f_cap`` (the same strong-human effort the ``hold`` gate uses).  A door is NOT held by
+    writing its qpos - the closer arm is a closed kinematic loop, and a jump in the hinge angle leaves the linkage
+    equality violated by centimetres, which the solver answers with an impulse that throws the exit-device pad clean
+    out of its own range."""
+    dofp = m.jnt_dofadr[pj]
+    I = max(float(m.dof_M0[dofp]), 1e-4)
+    tau = I * omega * omega * (target - float(d.qpos[m.jnt_qposadr[pj]])) - 2.0 * I * omega * float(d.qvel[dofp])
+    d.qfrc_applied[dofp] += float(np.clip(tau, -f_cap, f_cap))
+
+
+def operator_release_trial(m, d, j: int, pj: int, door_q, rest, tol: float,
+                           drive_fraction: float = 0.95, t_free: float = 2.2, f_cap: float = 200.0) -> dict:
+    """Turn one operator to ``drive_fraction`` of its travel, let go, and watch it come back.
+
+    The hand on the handle is kinematic (the joint is written to a ramped target and held there, the way
+    ``latch_returns`` holds the leaf), so the trial measures the release itself and not a servo's tuning.  With
+    ``door_q`` the sequence is the one a person actually performs: turn the handle, pull the leaf open against a hand
+    that holds it there (``_door_servo``), and only then let go of the handle - the case the owner asked about, where
+    the bolt is clear of its strike and nothing but the operator's own spring is left to bring the handle home.
+
+    ``rest`` may be a callable taking the settled MjData: a gravity-returned part settles wherever its own weight
+    puts it, and that is not the same place with the leaf open as with it shut.
+
+    Returns the time to first reach the rest band, the residual offset at the end, and the number of excursions back
+    out of the band after arriving (bounces)."""
+    import mujoco
+    adr, dof = m.jnt_qposadr[j], m.jnt_dofadr[j]
+    lo, hi = m.jnt_range[j]
+    span = float(hi - lo)
+    dt = float(m.opt.timestep)
+    target = lo + drive_fraction * span
+    open_door = door_q is not None and pj >= 0
+    mujoco.mj_resetData(m, d)
+    mujoco.mj_forward(m, d)
+
+    def hold_handle(k, n_ramp):
+        f = min(1.0, (k + 1) / n_ramp)
+        d.qpos[adr] = lo + f * (target - lo)
+        d.qvel[dof] = (target - lo) / OPERATOR_DRIVE_RAMP_S if f < 1.0 else 0.0
+
+    n_ramp = max(1, int(OPERATOR_DRIVE_RAMP_S / dt))
+    for k in range(n_ramp + int(OPERATOR_DRIVE_HOLD_S / dt)):
+        hold_handle(k, n_ramp)
+        d.qfrc_applied[:] = 0
+        mujoco.mj_step(m, d)
+    if open_door:
+        # handle still held: pull the leaf open and keep holding it there
+        q_start = float(d.qpos[m.jnt_qposadr[pj]])
+        n_open = max(1, int(DOOR_OPEN_RAMP_S / dt))
+        for k in range(n_open + int(DOOR_OPEN_SETTLE_S / dt)):
+            f = min(1.0, (k + 1) / n_open)
+            d.qpos[adr], d.qvel[dof] = target, 0.0
+            d.qfrc_applied[:] = 0
+            _door_servo(m, d, pj, q_start + f * (door_q - q_start), f_cap)
+            mujoco.mj_step(m, d)
+    reached = float(d.qpos[m.jnt_qposadr[pj]]) if pj >= 0 else 0.0
+    if open_door and abs(reached - q_start) < 0.6 * abs(door_q - q_start):
+        # the leaf would not come open against a hand-sized effort (it is locked, or its lock has no robot-side
+        # release): "handle released with the latch clear of its strike" does not apply to this door
+        return {"skipped": "the leaf does not open under a hand-sized effort (locked): latch-clear case not applicable",
+                "door_angle": reached, "door_target": door_q}
+    rest = float(rest(d)) if callable(rest) else float(rest)
+    q_drive = float(d.qpos[adr])
+    t_ret, bounces, inside_prev, peak_after = None, 0, False, 0.0
+    for k in range(int(t_free / dt)):
+        d.qfrc_applied[:] = 0
+        if open_door:
+            _door_servo(m, d, pj, door_q, f_cap)
+        mujoco.mj_step(m, d)
+        off = abs(float(d.qpos[adr]) - rest)
+        inside = off < tol
+        if t_ret is None and inside:
+            t_ret = (k + 1) * dt
+        if t_ret is not None:
+            peak_after = max(peak_after, off)
+            if inside_prev and not inside:
+                bounces += 1
+        inside_prev = inside
+    return {"driven_to": q_drive - lo, "travel": span, "rest": rest, "tolerance": tol,
+            "door_angle": float(d.qpos[m.jnt_qposadr[pj]]) if pj >= 0 else None,
+            "t_return_s": None if t_ret is None else round(float(t_ret), 3),
+            "residual": float(d.qpos[adr]) - rest, "bounces": bounces, "rebound": peak_after,
+            "held_fraction": (float(d.qpos[adr]) - lo) / (q_drive - lo) if q_drive - lo > 1e-9 else 1.0}
+
+
+def operator_release_checks(m, d, phys: dict, pj: int, mass_kg: float | None = None, width_m: float | None = None) -> dict:
+    """QA gates ``operator_returns`` (spring- and gravity-returned operators come home) and ``operator_holds``
+    (detent operators - handwheels, dogs, cremone knobs, slide bolts - stay where they are put).
+
+    Every sprung operator is tried twice: with the door closed, and with the leaf held open so the latch bolt is
+    clear of its strike and only the return spring acts on the handle."""
+    import mujoco
+    checks, metrics = {}, {}
+    door_open_q, f_cap = None, 200.0
+    if pj >= 0 and m.jnt_limited[pj]:
+        lo_p, hi_p = float(m.jnt_range[pj][0]), float(m.jnt_range[pj][1])
+        closed = float(m.qpos0[m.jnt_qposadr[pj]])       # a saloon door / baby gate rests mid-range, not at lo
+        want = OPERATOR_OPEN_ANGLE if int(m.jnt_type[pj]) == int(mujoco.mjtJoint.mjJNT_HINGE) else OPERATOR_OPEN_SLIDE
+        if hi_p - closed > 1.5 * want:
+            door_open_q = closed + want
+        f_cap = float(qa_push(m, d, pj, mass_kg, width_m)["push"])
+    for name, rec in (phys.get("operator", {}).get("joints") or {}).items():
+        kind = rec.get("return_kind")
+        if kind not in ("spring", "gravity", "detent"):
+            continue
+        j = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, name)
+        if j < 0 or not m.jnt_limited[j]:
+            continue
+        hinge = int(m.jnt_type[j]) == int(mujoco.mjtJoint.mjJNT_HINGE)
+        lo, hi = m.jnt_range[j]
+        span = float(hi - lo)
+        out = {"return_kind": kind, "operator_model": rec.get("operator_model"),
+               "expected_return_time_s": rec.get("expected_return_time_s")}
+        if span < (math.radians(1.5) if hinge else 0.002):
+            out["note"] = "range below the drive threshold (handle locked to its backlash); not driven"
+            metrics[name] = out
+            continue
+        if kind == "detent":
+            t = operator_release_trial(m, d, j, pj, None, rest=float(lo), tol=max(0.05 * span, 1e-4),
+                                       drive_fraction=0.9, t_free=1.5, f_cap=f_cap)
+            ok = t["held_fraction"] >= OPERATOR_DETENT_HOLD
+            out.update({"closed": t, "ok": bool(ok)})
+            checks["operator_holds"] = bool(checks.get("operator_holds", True) and ok)
+            metrics[name] = out
+            continue
+        tol = float(rec.get("return_tolerance") or max(0.01 * span, math.radians(0.25) if hinge else 2e-4))
+        frac = 0.95 if kind == "spring" else 0.90
+        if kind == "spring":
+            rest = float(lo)      # a return spring pulls the handle onto its rest stop, whatever the leaf is doing
+        else:
+            # an unsprung part settles wherever its own weight puts it, and that moves with the leaf: measure it in
+            # the pose the trial actually runs in (build.py records the closed-door value in spec.json)
+            rest = lambda dd, _j=j, _q0=lo + frac * span: gravity_rest_in_pose(m, dd, _j, _q0)
+        lim = OPERATOR_RETURN_LIMIT_S[kind]
+        ok = True
+        for tag, dq in (("closed", None), ("open", door_open_q)):
+            if tag == "open" and dq is None:
+                continue
+            t = operator_release_trial(m, d, j, pj, dq, rest=rest, tol=tol, drive_fraction=frac, f_cap=f_cap)
+            if t.get("skipped"):
+                out[tag] = t
+                continue
+            good = (t["t_return_s"] is not None and t["t_return_s"] <= lim
+                    and abs(t["residual"]) < tol and t["bounces"] <= OPERATOR_RETURN_MAX_BOUNCES)
+            out[tag] = t
+            out[f"{tag}_ok"] = bool(good)
+            ok = ok and good
+        out["ok"] = bool(ok)
+        checks["operator_returns"] = bool(checks.get("operator_returns", True) and ok)
+        metrics[name] = out
+    return {"checks": checks, "metrics": metrics}
+
+
 def door_flags(spec: dict) -> dict:
     """What the QA expects of a door, derived from its spec (shared with the tests).
 
@@ -268,6 +479,11 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
     settle_ok = not warn and pen0[0] > -0.012 and (drift < (0.05 if kin.startswith("hinge") or kin == "rotor" else 0.01) or bool(spec["kinematics"].get("rest_angle_deg")))
     checks["settle"] = bool(settle_ok)
     metrics.update({"initial_penetration_m": pen0[0], "initial_penetration_pair": [pen0[1], pen0[2]], "settle_drift": drift, "warnings": warn})
+    # ---- operator release behaviour: sprung / gravity operators come home, detent operators stay where put
+    rel = operator_release_checks(m, d, phys, pj, phys["mass"]["total_kg"], spec["leaf"]["width"])
+    checks.update(rel["checks"])
+    if rel["metrics"]:
+        metrics["operator_release"] = rel["metrics"]
     # ---- latch / lock behaviour (hinged & sliding single leaf with an operator joint)
     lk = H.LOCKS[spec["lock"]["model"]]
     lt = H.LATCHES[spec["latch"]["model"]]
