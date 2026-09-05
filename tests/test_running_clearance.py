@@ -262,3 +262,48 @@ def test_gate_is_published_with_the_penetration_gate(tmp_path, specs):
     import inspect
     import doorbench.qa as qa
     assert 'checks["running_clearance"]' in inspect.getsource(qa.run_qa)
+
+
+# ---------------------------------------------------------------------------
+# sensitivity of the gate, both ways (adversarial verification, 2026-09)
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("gap_mm,must_fail", [(0.0, True), (0.1, True), (0.5, True), (1.0, True), (2.0, True),
+                                              (2.9, True), (3.0, False), (5.0, False)])
+def test_structural_gap_sensitivity(gap_mm, must_fail, tmp_path):
+    """A structural running fit is caught all the way down to a fraction of a millimetre, and 3 mm passes.
+
+    The interesting number is 0.5 mm: too small to read as a design gap, far too big for PhysX to ignore inside its
+    5 mm contact offset, and invisible to the interpenetration gate (nothing overlaps).  The only slack between
+    fail and pass is ``RUN_EPS`` = 10 um of float noise on the comparison, four orders below the 3 mm it guards.
+    """
+    r = run_running_clearance(_write(tmp_path, jamb_x=0.55 + gap_mm / 1000.0))
+    flagged = [f for f in r["failures"] if f["static"] == "jamb" and f["moving"] == "leaf_slab"]
+    assert bool(flagged) is must_fail, (gap_mm, r["failures"][:3])
+    if flagged:
+        assert flagged[0]["gap"] == pytest.approx(gap_mm / 1000.0, abs=2e-5)
+        assert flagged[0]["required"] == RUN_MIN
+
+
+# name, model.json semantic, authored gap in metres (negative = pressed into the jamb), must the gate flag it?
+CONTACT_PARTS = [
+    ("leaf_weatherstrip", "seal", 0.0, False),      # seal semantic: meant to be in contact
+    ("leaf_brush_strip", "decor", 0.0, False),      # a brush strip mis-tagged as decor - the NAME has to save it
+    ("leaf_magnetic_catch", "decor", 0.0, False),   # a magnetic catch must touch its keeper or it holds nothing
+    ("leaf_gasket", "leaf", -0.001, False),         # a gasket squashed 1 mm into the jamb, tagged as leaf
+    ("leaf_sweep", "leaf", 0.0, False),
+    ("leaf_astragal", "leaf", 0.0, False),
+    ("leaf_bumper", "frame", 0.0, False),
+    ("leaf_edge_rail", "leaf", 0.0, True),          # CONTROL: a structural part on the jamb face IS a failure
+]
+
+
+@pytest.mark.parametrize("name,sem,gap,must_fail", CONTACT_PARTS)
+def test_parts_that_touch_by_design_are_not_false_positives(name, sem, gap, must_fail, tmp_path):
+    """Everything a real door keeps in contact may touch (and compress); a structural part in the same place fails."""
+    half = 0.005
+    cx = 1.0 - gap - half        # leaf-local x; world = local - 0.5, so the outer face lands on the jamb face at 0.50
+    extra = f'<geom name="{name}" type="box" size="{half} 0.002 0.05" pos="{cx} 0 1.0"/>'
+    r = run_running_clearance(_write(tmp_path, extra_leaf=extra,
+                                     leaf_geoms=[{"name": name, "semantic": sem, "collision": True}]))
+    flagged = [f for f in r["failures"] if f["moving"] == name]
+    assert bool(flagged) is must_fail, (name, sem, gap, r["failures"][:3])

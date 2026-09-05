@@ -724,6 +724,13 @@ def add_deadbolt(model: Model, leaf_body: Body, spec: dict, u: float, v: float, 
         tt.geoms.append(mesh_geom(f"{name}_thumbturn_mesh", key, mesh, (0, 0, 0), q_face(thumbturn_side, u), bm, 7100, True, tiers, "lock", "Thumbturn"))
         tt.geoms.append(box(f"{name}_thumbturn_col", (0, thumbturn_side * 0.02, 0), (0.006, 0.012, 0.016), bm, 7100, True, False, tiers, "lock", "Thumbturn collision"))
         model.add_body(tt)
+        # The thumbturn's spindle passes THROUGH the lock case to drive the bolt: `{name}_thumbturn_mesh` and
+        # `{name}_box` overlap by 2-5 mm at rest by construction (clearance.DEFAULT_ALLOW documents the same pair).
+        # MuJoCo resolves that overlap softly and PhysX - since self-collision was enabled on the articulation -
+        # resolves it rigidly, fighting the very equality below that makes the deadbolt work.  Excluding the pair
+        # keeps both engines free of a contact that no real lock has (the case is bored for the spindle), and the
+        # exporter mirrors the exclude into PhysxFilteredPairsAPI automatically.
+        model.contact_excludes.append((body.name, tt.name))
         eqs.append(Equality("joint", f"{name}_couple", f"{name}_slide", f"{name}_thumbturn_hinge", (0.0, throw / thumbturn_travel, 0, 0, 0), tiers=tiers, label="deadbolt = throw/travel * thumbturn"))
     if keyed_side is not None:
         key, mesh = MESH.cylinder_face_mesh()
