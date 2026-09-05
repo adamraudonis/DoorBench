@@ -1,0 +1,517 @@
+#!/usr/bin/env python
+"""Isaac Sim / PhysX side of the DoorBench parity gate (runs INSIDE the Isaac Lab python on a GPU box).
+
+  ./isaaclab.sh -p scripts/isaaclab/isaac_parity.py --doors all --which both --batch 20 --headless
+  ./isaaclab.sh -p scripts/isaaclab/isaac_parity.py --doors db0002_swing_single,db0021_swing_single --which full --headless
+  bash isaaclab/cloud/parity.sh --limit 40                       # wrapper (sources isaaclab/cloud/_env.sh)
+
+Runs the protocol of ``doorbench/parity/protocol.py`` - the same phases, efforts, thresholds and metric code as the
+MuJoCo reference (``scripts/parity_reference_mujoco.py``) - on door.usda (kind ``full``) and door_rl.usda (kind ``rl``),
+``batch`` doors per stage, each door its own Isaac Lab ``Articulation`` (spawning / reset / stop-handle fix as in
+validate_usd_isaacsim.py).  Per-door inputs (adaptive push etc.) are read from results/parity/mujoco.json when present
+so both simulators use identical numbers; otherwise they are derived from spec / model / qa.json.
+
+Isaac-side mechanics (see the module docstring of protocol.py and isaaclab/STATUS.md):
+  * the USD drives are the MuJoCo springs: gains untouched (ImplicitActuatorCfg stiffness=None / damping=None),
+    position targets restored to ``doorbench:target_si`` EVERY step (Isaac Lab zero-initialises them, which erased
+    all spring preloads in the first probe), velocity targets 0
+  * robot actions only through set_joint_effort_target (PhysX joint actuation force == MuJoCo qfrc_applied);
+    N*m on revolute, N on prismatic joints
+  * the one-sided MJCF latch tendon (bolt >= scale * operator) has no PhysX counterpart: kinematic clamp of the
+    latch joint state each step (write_joint_state_to_sim), identical to the tendon limit
+  * ``release`` pins the primary joint each step (as qa.py writes qpos / qvel)
+  * automatic doors: the MJCF position servo (kp, kv, forcerange; ctrl = 0) is applied as a clipped feed-forward
+    effort (--no-servo to disable)
+  * env-released welds (maglocks, delayed egress) are NOT exported to USD: by default the door is left free and the
+    verdict classifies the hold-phase disagreement as EXPORT_WELD_MISSING; --emulate-weld pins the primary joint
+    during ``hold`` instead
+Writes results/parity/isaac_full.json / isaac_rl.json ({"meta", "doors": {door_id: record}}), partial results after
+every batch, resumable (doors already present are skipped unless --force).  One door failing never kills a batch.
+
+*** NOT EXECUTED ON THIS MACHINE (Apple silicon, no NVIDIA GPU): written against the Isaac Lab 2.3.2 API. ***
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import os
+import sys
+import time
+import traceback
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _common import ROOT, ensure_extension_importable  # noqa: E402
+
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+
+from isaaclab.app import AppLauncher  # noqa: E402
+
+parser = argparse.ArgumentParser(description="DoorBench Isaac parity gate (PhysX side).")
+parser.add_argument("--doors", type=str, default="all", help="all | easy-100 | random-50 | family:a,b | one-per-family | id,id | @ids.txt")
+parser.add_argument("--limit", type=int, default=0)
+parser.add_argument("--which", type=str, default="both", choices=["rl", "full", "both"])
+parser.add_argument("--batch", type=int, default=20)
+parser.add_argument("--out-dir", type=str, default=os.path.join(ROOT, "results", "parity"))
+parser.add_argument("--inputs", type=str, default=os.path.join(ROOT, "results", "parity", "mujoco.json"), help="MuJoCo reference file (per-door inputs + pose0)")
+parser.add_argument("--hz", type=int, default=120, help="physics rate (120; 240 for the sensitivity rerun)")
+parser.add_argument("--iters", type=str, default="16,4", help="solver position,velocity iterations (32,8 for the sensitivity rerun)")
+parser.add_argument("--emulate-weld", action="store_true", help="pin env-released welded doors during the hold phase")
+parser.add_argument("--no-servo", action="store_true", help="do not emulate the MJCF position servo of automatic doors")
+parser.add_argument("--force", action="store_true", help="re-run doors already present in the output file")
+parser.add_argument("--tag", type=str, default="", help="suffix for the output files (e.g. _dt240)")
+AppLauncher.add_app_launcher_args(parser)
+args_cli = parser.parse_args()
+app_launcher = AppLauncher(args_cli)
+simulation_app = app_launcher.app
+
+import numpy as np  # noqa: E402
+import torch  # noqa: E402
+
+import isaaclab.sim as sim_utils  # noqa: E402
+from isaaclab.assets import Articulation, ArticulationCfg  # noqa: E402
+from isaaclab.sim import build_simulation_context  # noqa: E402
+
+ensure_extension_importable()
+from doorbench_isaaclab import doors as D  # noqa: E402
+from doorbench_isaaclab.assets import DOOR_ACTUATORS, DOOR_ARTICULATION_PROPS, DOOR_RIGID_PROPS  # noqa: E402
+
+from doorbench.parity import protocol as P  # noqa: E402
+
+RL_JOINTS = {"door_slide", "door_hinge", "operator_hinge", "operator_slide", "latch_slide", "leaf2_slide", "leaf2_hinge"}
+DT = 1.0 / float(args_cli.hz)
+SAMPLE_EVERY = max(1, int(round(1.0 / (P.SAMPLE_HZ * DT))))
+POS_ITERS, VEL_ITERS = (int(x) for x in args_cli.iters.split(","))
+ENGINE = {"isaac_sim": None, "isaac_lab": None, "physx_dt": DT, "solver_iterations": [POS_ITERS, VEL_ITERS]}
+try:
+    import isaaclab
+    ENGINE["isaac_lab"] = getattr(isaaclab, "__version__", None)
+except Exception:
+    pass
+try:
+    import isaacsim
+    ENGINE["isaac_sim"] = getattr(isaacsim, "__version__", None)
+except Exception:
+    pass
+
+
+def _art_props():
+    try:
+        return DOOR_ARTICULATION_PROPS.replace(solver_position_iteration_count=POS_ITERS, solver_velocity_iteration_count=VEL_ITERS)
+    except Exception:
+        import copy
+        p = copy.deepcopy(DOOR_ARTICULATION_PROPS)
+        p.solver_position_iteration_count, p.solver_velocity_iteration_count = POS_ITERS, VEL_ITERS
+        return p
+
+
+def _door_cfg(door_id: str, kind: str, k: int) -> ArticulationCfg:
+    return ArticulationCfg(
+        prim_path=f"/World/Doors/door_{k:03d}",
+        spawn=sim_utils.UsdFileCfg(usd_path=D.usd_path(door_id, canonical=(kind == "rl")), activate_contact_sensors=False, rigid_props=DOOR_RIGID_PROPS, articulation_props=_art_props()),
+        init_state=ArticulationCfg.InitialStateCfg(pos=(6.0 * (k % 10), 6.0 * (k // 10), 0.0)),
+        actuators=DOOR_ACTUATORS,
+        articulation_root_prim_path="/Articulation",
+    )
+
+
+def _load_inputs(path: str) -> tuple[dict, dict]:
+    """{door_id: inputs}, {door_id: pose0} from the MuJoCo reference file (empty when absent)."""
+    if not path or not os.path.isfile(path):
+        print(f"[parity] no MuJoCo reference at {path}: inputs derived from spec / model / qa.json (push from qa_push)")
+        return {}, {}
+    with open(path) as f:
+        ref = json.load(f)
+    doors = ref.get("doors", {})
+    return {k: v["inputs"] for k, v in doors.items() if "inputs" in v}, {k: v.get("pose0") for k, v in doors.items()}
+
+
+def _fallback_inputs(door_id: str) -> dict:
+    dd = D.door_dir(door_id)
+    with open(os.path.join(dd, "spec.json")) as f:
+        spec = json.load(f)
+    with open(os.path.join(dd, "model.json")) as f:
+        mj = json.load(f)
+    qa = None
+    if os.path.isfile(os.path.join(dd, "qa.json")):
+        with open(os.path.join(dd, "qa.json")) as f:
+            qa = json.load(f)
+    return P.door_inputs(spec, mj, qa=qa, rl_meta=P.read_rl_meta(dd))
+
+
+class DoorHandle:
+    """One spawned door: joint mapping (MJCF names -> articulation indices), offsets, spring targets, recording."""
+
+    def __init__(self, sim, art: Articulation, kind: str, door_id: str, inputs: dict, pose0_ref: dict | None):
+        from pxr import Usd, UsdPhysics
+
+        self.art, self.kind, self.door_id, self.inputs = art, kind, door_id, inputs
+        self.pkind = "usd_rl" if kind == "rl" else "usd_full"
+        self.sched = inputs["schedule"][self.pkind]
+        self.jn = list(art.joint_names)
+        self.nj = len(self.jn)
+        self.dev = art.device
+        # ---- joint prims: zero offsets, spring targets, source joints
+        root = sim.stage.GetPrimAtPath(art.cfg.prim_path)
+        prim_info = {}
+        for prim in Usd.PrimRange(root):
+            if prim.IsA(UsdPhysics.RevoluteJoint) or prim.IsA(UsdPhysics.PrismaticJoint):
+                g = lambda a, d=None: (prim.GetAttribute(a).Get() if prim.HasAttribute(a) else d)
+                prim_info[prim.GetName()] = {"zero_offset": float(g("doorbench:zero_offset", 0.0) or 0.0), "target_si": float(g("doorbench:target_si", 0.0) or 0.0),
+                                             "source": g("doorbench:source_joint", None), "friction": g("doorbench:friction_effort", None)}
+        self.prim_info = prim_info
+        self.offset = np.zeros(self.nj)
+        target = np.zeros(self.nj)
+        for i, n in enumerate(self.jn):
+            info = prim_info.get(n, {})
+            self.offset[i] = info.get("zero_offset", 0.0)
+            target[i] = info.get("target_si", 0.0)
+        # ---- MJCF joint name -> articulation index
+        self.map = {}
+        if kind == "full":
+            for i, n in enumerate(self.jn):
+                if n in inputs["joints"]:
+                    self.map[n] = i
+        else:
+            rl = inputs.get("rl") or {}
+            slot_of = dict(rl.get("slot_of") or {})
+            if not slot_of:   # derive from the prims' source joints
+                for n, info in prim_info.items():
+                    if info.get("source") and n in self.jn:
+                        slot_of[info["source"]] = n
+            for src, slot in slot_of.items():
+                if slot in self.jn and src in inputs["joints"]:
+                    self.map[src] = self.jn.index(slot)
+            self.locked_slots = [i for i, n in enumerate(self.jn) if i not in self.map.values()]
+        self.inv = {i: n for n, i in self.map.items()}
+        self.pj = self.map.get(inputs["primary_joint"])
+        if self.pj is None:
+            raise RuntimeError(f"primary joint {inputs['primary_joint']} not present in the {kind} articulation ({self.jn})")
+        self.spring_target = torch.tensor(target, dtype=torch.float32, device=self.dev).unsqueeze(0)
+        self.zero = torch.zeros(1, self.nj, device=self.dev)
+        self.env_origin = np.array(art.cfg.init_state.pos, dtype=float)
+        self.q0_usd = np.zeros(self.nj)
+        self.emulations = ["spring_targets_restored", "latch_clamp"]
+        self.servo = bool(inputs["flags"]["automatic"]) and not args_cli.no_servo
+        if self.servo:
+            self.emulations.append("servo_emulated")
+        self.weld = bool(args_cli.emulate_weld and inputs["flags"]["env_release_only"] and inputs["flags"]["has_weld"])
+        if self.weld:
+            self.emulations.append("weld_pinned_hold")
+        self.phases = {}
+        self.ctx = {}
+        self.q_hold = None
+        self.errors = []
+        self.structure = self.check_structure()
+        self.pose0 = self.check_pose0(pose0_ref) if (pose0_ref and kind == "full") else None
+        self.cur = None
+
+    # ------------------------------------------------------------------
+    def check_structure(self) -> dict:
+        errors, warnings = [], []
+        try:
+            lim = self.art.data.joint_pos_limits[0].cpu().numpy() if hasattr(self.art.data, "joint_pos_limits") else self.art.data.soft_joint_pos_limits[0].cpu().numpy()
+            st = self.art.data.default_joint_stiffness[0].cpu().numpy()
+            dp = self.art.data.default_joint_damping[0].cpu().numpy()
+            if self.kind == "rl" and set(self.jn) != RL_JOINTS:
+                errors.append(f"joint names {sorted(self.jn)} != canonical")
+            if self.kind == "full" and set(self.jn) != set(self.inputs["joints"]):
+                errors.append(f"joint names differ from model.json: {sorted(set(self.jn) ^ set(self.inputs['joints']))[:6]}")
+            for src, i in self.map.items():
+                j = self.inputs["joints"][src]
+                if j["range"] is not None:
+                    lo, hi = j["range"][0] - j["modeled_at"], j["range"][1] - j["modeled_at"]
+                    if abs(lim[i][0] - lo) > 2e-3 or abs(lim[i][1] - hi) > 2e-3:
+                        errors.append(f"{src}: limits {[float(x) for x in lim[i]]} != IR {[lo, hi]}")
+                if abs(st[i] - j["stiffness"]) > 1e-2 * max(1.0, abs(j["stiffness"])):
+                    errors.append(f"{src}: stiffness {st[i]:.4g} != IR {j['stiffness']:.4g}")
+                if abs(dp[i] - j["damping"]) > 1e-2 * max(1.0, abs(j["damping"])):
+                    warnings.append(f"{src}: damping {dp[i]:.4g} != IR {j['damping']:.4g}")
+                tgt = (j["springref"] - j["modeled_at"]) if j["stiffness"] > 0 else 0.0
+                if abs(float(self.spring_target[0, i]) - tgt) > 1e-3:
+                    errors.append(f"{src}: spring target {float(self.spring_target[0, i]):.4g} != IR {tgt:.4g}")
+                if abs(self.offset[i] - j["modeled_at"]) > 1e-6:
+                    errors.append(f"{src}: zero_offset {self.offset[i]} != modeled_at {j['modeled_at']}")
+            fr = getattr(self.art.data, "joint_friction_coeff", None)
+            if fr is not None:
+                self.friction_readback = [float(x) for x in fr[0].cpu().numpy()]
+        except Exception as e:
+            errors.append(f"structure check: {type(e).__name__}: {e}")
+        return {"status": "fail" if errors else "pass", "errors": errors, "warnings": warnings, "mapped_joints": sorted(self.map)}
+
+    def check_pose0(self, ref: dict) -> dict:
+        """Informational frame check: PhysX link origins vs MuJoCo body origins at the initial state (full kind)."""
+        try:
+            pos = self.art.data.body_pos_w[0].cpu().numpy() - self.env_origin
+            names = list(self.art.body_names)
+            worst = (0.0, None)
+            n = 0
+            for b, p in ref.get("bodies", {}).items():
+                if b in names:
+                    e = float(np.linalg.norm(pos[names.index(b)] - np.array(p)))
+                    n += 1
+                    if e > worst[0]:
+                        worst = (e, b)
+            return {"n_bodies": n, "max_err_m": worst[0], "worst_body": worst[1]}
+        except Exception as e:
+            return {"error": f"{type(e).__name__}: {e}"}
+
+    # ------------------------------------------------------------------
+    def q_db(self) -> np.ndarray:
+        return self.art.data.joint_pos[0].cpu().numpy() + self.offset
+
+    def qmap(self, q: np.ndarray) -> dict:
+        return {n: float(q[i]) for n, i in self.map.items()}
+
+    def reset(self, overrides: dict):
+        q = np.array(self.q0_usd)
+        for n, v in overrides.items():
+            i = self.map.get(n)
+            if i is not None:
+                q[i] = v - self.offset[i]
+        qt = torch.tensor(q, dtype=torch.float32, device=self.dev).unsqueeze(0)
+        self.art.write_joint_state_to_sim(qt, torch.zeros_like(qt))
+        self.art.set_joint_position_target(self.spring_target)
+        self.art.set_joint_velocity_target(self.zero)
+        self.art.set_joint_effort_target(self.zero)
+        self.art.write_data_to_sim()
+        try:
+            self.art.reset()
+        except Exception:
+            pass
+        self.art.update(DT)
+
+    def duration(self, phase: str) -> float:
+        return P.phase_duration(self.inputs, phase, self.pkind)
+
+    def applies(self, phase: str) -> bool:
+        return not self.sched[phase].startswith("na:")
+
+    def begin(self, phase: str):
+        q = self.q_db()
+        self.cur = {"phase": phase, "t": [0.0], "q": {n: [float(q[i])] for n, i in self.map.items()}, "v": {self.inputs["primary_joint"]: [float(self.art.data.joint_vel[0, self.pj])]},
+                    "qmin": q.copy(), "qmax": q.copy(), "vmax": np.zeros(self.nj), "finite": True, "warnings": [], "clamps": 0}
+        if phase == "release":
+            self.q_hold = float(q[self.pj])
+
+    def pre_step(self, phase: str, t: float, active: bool):
+        art = self.art
+        q = self.q_db()
+        v = art.data.joint_vel[0].cpu().numpy()
+        qm = self.qmap(q)
+        eff = P.phase_efforts(self.inputs, phase, t, qm, kind=self.pkind) if active else {}
+        if self.servo:
+            for n, f in P.servo_effort(self.inputs, qm, {n: float(v[i]) for n, i in self.map.items()}).items():
+                eff[n] = eff.get(n, 0.0) + f
+        effort = torch.zeros(1, self.nj, device=self.dev)
+        for n, f in eff.items():
+            i = self.map.get(n)
+            if i is not None:
+                effort[0, i] = float(f)
+        # one-sided tendons (latch bolt >= scale * operator): kinematic clamp
+        for n, qmin in P.tendon_min_positions(self.inputs, qm).items():
+            i = self.map.get(n)
+            if i is not None and q[i] < qmin - 1e-6:
+                self._write_joint(i, qmin - self.offset[i])
+                self.cur["clamps"] += 1
+        if phase == "release" and active and self.q_hold is not None:
+            self._write_joint(self.pj, self.q_hold - self.offset[self.pj])
+        if phase == "hold" and self.weld:
+            self._write_joint(self.pj, self.q0_usd[self.pj])
+        art.set_joint_position_target(self.spring_target)
+        art.set_joint_velocity_target(self.zero)
+        art.set_joint_effort_target(effort)
+        art.write_data_to_sim()
+
+    def _write_joint(self, i: int, q_usd: float):
+        ids = torch.tensor([i], device=self.dev)
+        pos = torch.tensor([[q_usd]], dtype=torch.float32, device=self.dev)
+        self.art.write_joint_state_to_sim(pos, torch.zeros_like(pos), joint_ids=ids)
+
+    def post_step(self, k: int, t: float):
+        q = self.q_db()
+        v = self.art.data.joint_vel[0].cpu().numpy()
+        c = self.cur
+        np.minimum(c["qmin"], q, out=c["qmin"]); np.maximum(c["qmax"], q, out=c["qmax"]); np.maximum(c["vmax"], np.abs(v), out=c["vmax"])
+        if not (np.isfinite(q).all() and np.isfinite(v).all()):
+            c["finite"] = False
+        if k % SAMPLE_EVERY == 0:
+            c["t"].append(round(t, 6))
+            for n, i in self.map.items():
+                c["q"][n].append(float(q[i]))
+            c["v"][self.inputs["primary_joint"]].append(float(v[self.pj]))
+
+    def finish(self, phase: str):
+        c = self.cur
+        curve = {"t": c["t"], "q": c["q"], "v": c["v"], "minmax": {n: [float(c["qmin"][i]), float(c["qmax"][i])] for n, i in self.map.items()},
+                 "vmax": {n: float(c["vmax"][i]) for n, i in self.map.items()}, "finite": c["finite"], "warnings": c["warnings"], "latch_clamps": c["clamps"]}
+        if self.kind == "rl":
+            q = self.q_db()
+            curve["rl_locked_slot_max_abs"] = float(max((abs(q[i] - self.q0_usd[i] - self.offset[i]) for i in self.locked_slots), default=0.0))
+        expected = self.sched[phase]
+        metrics = P.phase_metrics(self.inputs, phase, curve, self.ctx)
+        metrics["latch_clamps"] = c["clamps"]
+        if "rl_locked_slot_max_abs" in curve:
+            metrics["rl_locked_slot_max_abs"] = curve["rl_locked_slot_max_abs"]
+        status = P.phase_status(self.inputs, phase, expected, metrics)
+        if phase == "operate":
+            self.ctx["opened"] = metrics.get("opened")
+        self.phases[phase] = {"expected": expected, "status": status, "metrics": metrics, "informational": expected.endswith("_info"),
+                              "curve": {"t": [round(x, 4) for x in c["t"]], "q": {n: [round(x, 5) for x in arr] for n, arr in c["q"].items() if n in (self.inputs["primary_joint"], self.inputs["operator_joint"], self.inputs["latch_bolt_joint"])}, "hz": P.SAMPLE_HZ}}
+        self.cur = None
+
+    def record(self) -> dict:
+        for phase in P.PHASES:
+            if phase not in self.phases:
+                self.phases[phase] = {"expected": self.sched[phase], "status": "na", "metrics": {}, "informational": False}
+        return {"door_id": self.door_id, "sim": "physx", "kind": self.kind, "engine": ENGINE, "dt": DT, "protocol_version": P.PROTOCOL_VERSION, "inputs_hash": self.inputs.get("inputs_hash"),
+                "emulations_used": self.emulations, "structure": self.structure, "pose0": self.pose0, "phases": self.phases, "errors": self.errors,
+                "limits": {"violations": [dict(v, phase=p) for p, r in self.phases.items() for v in (r["metrics"].get("limit_violations") or [])]},
+                "sanity": {"finite": all(r["metrics"].get("finite", True) for r in self.phases.values() if r["metrics"]), "velocity_cap_hit": any(r["metrics"].get("velocity_cap_hit") for r in self.phases.values() if r["metrics"])},
+                "ok": self.structure["status"] == "pass" and all(r["status"] in ("pass", "skip", "na") or r.get("informational") for r in self.phases.values()) and not self.errors}
+
+
+def run_batch(ids: list[str], kind: str, device: str, inputs_by_id: dict, pose0_by_id: dict) -> dict:
+    rows = {}
+    with build_simulation_context(device=device, dt=DT, gravity_enabled=True, add_ground_plane=True, auto_add_lighting=False) as sim:
+        # headless: Isaac Lab's timeline-STOP callback loops render() forever when the context exits (and sim.reset()
+        # re-arms its _disable_app_control_on_stop_handle flag), so drop the subscription itself.
+        if getattr(sim, "_app_control_on_stop_handle", None) is not None:
+            sim._app_control_on_stop_handle.unsubscribe(); sim._app_control_on_stop_handle = None
+        arts = []
+        for k, did in enumerate(ids):
+            try:
+                arts.append(Articulation(_door_cfg(did, kind, k)))
+            except Exception as e:
+                arts.append(None)
+                rows[did] = {"door_id": did, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "load_error": f"spawn: {type(e).__name__}: {e}", "ok": False, "phases": {}}
+        sim.reset()
+        handles = []
+        for did, art in zip(ids, arts):
+            if art is None:
+                continue
+            try:
+                art.update(DT)
+                inputs = inputs_by_id.get(did) or _fallback_inputs(did)
+                handles.append(DoorHandle(sim, art, kind, did, inputs, pose0_by_id.get(did)))
+            except Exception as e:
+                rows[did] = {"door_id": did, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "load_error": f"inspect: {type(e).__name__}: {e}", "ok": False, "phases": {},
+                             "traceback": traceback.format_exc()[-1500:]}
+        live = list(handles)
+        for phase in P.PHASES:
+            applicable = [h for h in live if h.applies(phase)]
+            if phase == "relatch":   # qa.py: relatch only when the door opened past 5 deg
+                applicable = [h for h in applicable if (h.ctx.get("opened") or 0.0) > h.inputs["thresholds"]["relatch_min_open"]]
+                for h in live:
+                    if h.applies(phase) and h not in applicable:
+                        m = {"finite": True, "opened_before": h.ctx.get("opened"), "limit_violations": [], "warnings": []}
+                        h.phases[phase] = {"expected": h.sched[phase], "status": P.phase_status(h.inputs, phase, h.sched[phase], m), "metrics": m, "informational": False}
+            if not applicable:
+                continue
+            if P.PHASE_RESETS[phase]:
+                for h in live:
+                    try:
+                        h.reset(P.phase_initial_state(h.inputs, phase))
+                    except Exception as e:
+                        h.errors.append(f"reset {phase}: {type(e).__name__}: {e}")
+            for h in applicable:
+                h.begin(phase)
+            n_steps = max(int(round(h.duration(phase) / DT)) for h in applicable)
+            durs = {id(h): h.duration(phase) for h in applicable}
+            for k in range(n_steps):
+                t = k * DT
+                for h in live:
+                    try:
+                        h.pre_step(phase, t, active=(h in applicable and t < durs.get(id(h), 0.0) - 1e-9))
+                    except Exception as e:
+                        if len(h.errors) < 5:
+                            h.errors.append(f"{phase} step {k}: {type(e).__name__}: {e}")
+                sim.step()
+                for h in live:
+                    h.art.update(DT)
+                for h in applicable:
+                    try:
+                        h.post_step(k + 1, (k + 1) * DT)
+                    except Exception as e:
+                        if len(h.errors) < 5:
+                            h.errors.append(f"{phase} record {k}: {type(e).__name__}: {e}")
+            for h in applicable:
+                try:
+                    h.finish(phase)
+                except Exception as e:
+                    h.errors.append(f"{phase} finish: {type(e).__name__}: {e}")
+                    h.phases[phase] = {"expected": h.sched[phase], "status": "fail", "metrics": {"finite": False}, "informational": False}
+                    h.cur = None
+        for h in live:
+            try:
+                rows[h.door_id] = h.record()
+            except Exception as e:
+                rows[h.door_id] = {"door_id": h.door_id, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "load_error": f"record: {type(e).__name__}: {e}", "ok": False, "phases": {}}
+    return rows
+
+
+def select_ids(spec: str) -> list[str]:
+    if spec.startswith("one-per-family"):
+        reps = {}
+        for d in D.manifest()["doors"]:
+            reps.setdefault(d["family"], d["id"])
+        return sorted(reps.values())
+    return D.select_ids(spec)
+
+
+def main():
+    ids = select_ids(args_cli.doors)
+    if args_cli.limit:
+        ids = ids[: args_cli.limit]
+    kinds = ["rl", "full"] if args_cli.which == "both" else [args_cli.which]
+    device = args_cli.device or "cuda:0"
+    inputs_by_id, pose0_by_id = _load_inputs(args_cli.inputs)
+    os.makedirs(args_cli.out_dir, exist_ok=True)
+    t0 = time.time()
+    for kind in kinds:
+        out = os.path.join(args_cli.out_dir, f"isaac_{kind}{args_cli.tag}.json")
+        doors = {}
+        if os.path.isfile(out) and not args_cli.force:
+            with open(out) as f:
+                prev = json.load(f)
+            if prev.get("meta", {}).get("protocol_version") == P.PROTOCOL_VERSION:
+                doors = prev.get("doors", {})
+        todo = [i for i in ids if i not in doors or args_cli.force]
+        n_batches = math.ceil(len(todo) / args_cli.batch)
+        print(f"[parity] {kind}: {len(todo)} doors to run ({len(ids) - len(todo)} already in {out}), {n_batches} batches of {args_cli.batch}, dt 1/{args_cli.hz}, iters {POS_ITERS}/{VEL_ITERS}")
+        for b in range(n_batches):
+            batch = todo[b * args_cli.batch: (b + 1) * args_cli.batch]
+            print(f"[parity] {kind} batch {b + 1}/{n_batches}: {len(batch)} doors ({batch[0]} .. {batch[-1]})", flush=True)
+            tb = time.time()
+            try:
+                rows = run_batch(batch, kind, device, inputs_by_id, pose0_by_id)
+            except Exception as e:  # a crashing batch must not lose the report
+                print(f"[parity] {kind} batch {b + 1}: EXCEPTION {type(e).__name__}: {e}")
+                traceback.print_exc()
+                rows = {i: {"door_id": i, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "load_error": f"batch exception: {type(e).__name__}: {e}", "ok": False, "phases": {}} for i in batch}
+            doors.update(rows)
+            meta = {"protocol_version": P.PROTOCOL_VERSION, "sim": "physx", "kind": kind, "engine": ENGINE, "dt": DT, "sample_hz": P.SAMPLE_HZ, "generated": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "n_doors": len(doors), "options": {"emulate_weld": args_cli.emulate_weld, "servo": not args_cli.no_servo, "inputs": args_cli.inputs, "batch": args_cli.batch}}
+            tmp = out + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump({"meta": meta, "doors": doors}, f)
+            os.replace(tmp, out)
+            n_ok = sum(1 for r in rows.values() if r.get("ok"))
+            print(f"[parity] {kind} batch {b + 1}/{n_batches} done in {time.time() - tb:.0f} s: {n_ok}/{len(rows)} ok -> {out}", flush=True)
+        n_ok = sum(1 for r in doors.values() if r.get("ok"))
+        print(f"[parity] {kind}: {n_ok}/{len(doors)} doors pass every applicable phase ({time.time() - t0:.0f} s total)")
+        hist = {}
+        for r in doors.values():
+            if r.get("load_error"):
+                hist.setdefault("load_error", []).append(r["door_id"])
+            for p, row in r.get("phases", {}).items():
+                if row.get("status") == "fail" and not row.get("informational"):
+                    hist.setdefault(f"{p}:{row.get('expected')}", []).append(r["door_id"])
+        for k, v in sorted(hist.items(), key=lambda kv: -len(kv[1]))[:20]:
+            print(f"  x{len(v)} {k}  e.g. {v[:4]}")
+
+
+if __name__ == "__main__":
+    main()
+    simulation_app.close()
