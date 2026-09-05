@@ -1339,6 +1339,7 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
     # / ``welded_engaged``) so the parity protocol reads the ground truth rather than guessing from the spec.
     spec_lock = (spec or {}).get("lock", {}) if isinstance(spec, dict) else {}
     lock_engaged_spec = bool(spec_lock.get("engaged"))
+    robot_can_release = bool(spec_lock.get("robot_side_release", True))
     op_driven = operator_driven_joints(model, meta.get("operator_joint"), tier)
     leaf_normal_w = quat_rotate(leaf_quat, np.array([0.0, 1.0, 0.0]))
 
@@ -1364,10 +1365,16 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
         # button (presses into the face), a sensor or a decoration never does.
         holding = (engaged and b.semantic not in ("sensor", "decor")
                    and (role in ("latch", "lock") or b.semantic in ("latch", "lock")) and not _press_only(b))
-        if role == "latch" or b.semantic == "latch":
-            released, why = True, "latch hardware never blocks the canonical leaf"
+        if role == "latch":
+            released, why = True, "spring latch hardware never blocks the canonical leaf"
         elif role == "operator" and n in static_extra:
             released, why = True, "world-mounted operator welded static in its released state"
+        elif role == "lock" and lock_engaged_spec and not robot_can_release:
+            # no robot-side release (keyed outside only, padlock, multipoint with no inside trim): the robot cannot
+            # work the operator to retract this part, so the real door stays locked and so must the canonical one
+            released, why = False, "engaged lock with no robot-side release: welded engaged (the door must stay locked)"
+        elif b.semantic == "latch":
+            released, why = True, "latch hardware never blocks the canonical leaf"
         elif role == "lock" and jt.name in op_driven:
             released, why = True, f"lock part driven by the operator ({meta.get('operator_joint')}): retracts when the robot works the operator"
         elif role == "lock" and (not lock_engaged_spec or not engaged):

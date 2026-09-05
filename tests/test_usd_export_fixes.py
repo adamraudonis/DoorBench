@@ -57,6 +57,8 @@ PICKS = {
     "thumbturn": lambda s: s["lock"]["model"] == "deadbolt_single" and s["lock"].get("engaged"),
     "auto_slider": lambda s: s["family"] == "automatic_sliding",
     "keypad": lambda s: s["lock"]["model"].startswith("keypad") and s["lock"].get("engaged"),   # buttons, not bolts
+    # an engaged hook lock the robot cannot reach: the canonical file must keep it engaged
+    "no_release": lambda s: s["latch"]["model"] == "hook_slider" and s["lock"].get("engaged") and not s["lock"].get("robot_side_release", True),
 }
 
 
@@ -234,6 +236,19 @@ def test_press_only_is_geometric_not_by_name(doors):
                 assert w["press_only"] is False, (key, w)
             if w["role"] == "latch" and w["type"] == "slide":
                 assert w["press_only"] is False, (key, w)
+
+
+def test_no_robot_side_release_keeps_the_holding_part_engaged(doors):
+    """A hook / cremone bolt / lock bar the robot cannot reach (keyed outside only, padlock, no inside trim) must NOT
+    be welded released: the real door stays locked, so `locked_holds` must hold in the canonical file too."""
+    spec, dd, mj, full, rl, rlm = doors["no_release"]
+    assert spec["lock"]["engaged"] and not spec["lock"].get("robot_side_release", True)
+    assert rlm["welded_engaged"], "the engaged lock part must stay engaged"
+    assert any("no robot-side release" in w["reason"] for w in rlm["welded_engaged"])
+    assert not [w for w in rlm["released_parts"] if w["role"] == "lock"]
+    sched = _inputs(spec, mj, dd)["schedule"]
+    assert sched["usd_rl"]["hold"] == "hold"
+    assert sched["usd_rl"]["locked"] == sched["mjcf"]["locked"]
 
 
 def test_rl_keeps_an_engaged_lock_without_a_release_welded_shut(doors):

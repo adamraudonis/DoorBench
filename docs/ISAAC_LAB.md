@@ -125,8 +125,8 @@ state** is decided per part and recorded, not guessed:
 
 | welded | when | example |
 |---|---|---|
-| **released** (joint moved to its travel end) | the part is latch hardware (`role == "latch"` or the body's semantic is `latch`), **or** the operator drives it through a bilateral equality / tendon (transitive closure from `meta.operator_joint`), **or** its lock is not engaged | hook bolts of a hook-slider, cremone shoot bolts on the espagnolette handle, dogs driven by a ship wheel, world-mounted lift pins |
-| **engaged** (initial state) | an engaged lock part with no canonical slot and no operator coupling — the robot would have to work it separately, which this file cannot represent | a thrown slide bolt, a keypad-locked deadbolt, a second dog with its own lever |
+| **released** (joint moved to its travel end) | the part is a spring latch (`role == "latch"`), **or** — provided the spec grants a robot-side release — it is latch hardware by semantic, the operator drives it through a bilateral equality / tendon (transitive closure from `meta.operator_joint`), or its lock is not engaged | hook bolts of a hook-slider, cremone shoot bolts on the espagnolette handle, dogs driven by a ship wheel, world-mounted lift pins |
+| **engaged** (initial state) | an engaged lock part with no canonical slot and no operator coupling — the robot would have to work it separately, which this file cannot represent — **or** any engaged lock part of a door with `lock.robot_side_release = false` (keyed outside only, padlock, no inside trim): the real door stays locked, so `locked_holds` must hold here too | a thrown slide bolt, a keypad-locked deadbolt, a second dog with its own lever, the hook of an outside-keyed hook lock |
 
 `holding` marks the parts that can actually hold the leaf shut: engaged, with a `latch` / `lock` role or semantic,
 not a sensor or decoration, and **not press-only** — a slide whose axis is the leaf normal (keypad keys, REX and call
@@ -139,8 +139,8 @@ decision — `welded` (all parts, with `role`, `semantic`, `shift`, `was_engaged
 `released_parts`, `released_holding`, `welded_engaged`, `operator_driven_joints` — and
 `doorbench.parity.protocol.expected_outcomes` reads that ground truth and combines it with the joints the protocol
 itself works to release the door (`thumbturn_joint`, `aux_joints`, `dog_joints`): a door whose only holding part is
-welded released gets `hold = "na:rl holding part welded released (…)"` (21 doors: hook sliders, vault and blast
-bolt rings, ship dogs, cremone pairs, a garage lock bar), and a door where one of those release joints is welded
+welded released gets `hold = "na:rl holding part welded released (…)"` (15 doors: hook sliders, vault and blast
+bolt rings, ship dogs, cremone pairs), and a door where one of those release joints is welded
 **engaged** gets `operate = "stays_closed"` (`_rl_blocking`). World-mounted parts (gate lift pins, REX buttons) become static; leaf-like panels beyond
 the second (strip curtains, accordions) are omitted.
 

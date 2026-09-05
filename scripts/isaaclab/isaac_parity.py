@@ -83,7 +83,9 @@ parser.add_argument("--out-dir", type=str, default=os.path.join(ROOT, "results",
 parser.add_argument("--inputs", type=str, default=os.path.join(ROOT, "results", "parity", "mujoco.json"), help="MuJoCo reference file (per-door inputs + pose0)")
 parser.add_argument("--hz", type=int, default=120, help="physics rate (120; 240 for the sensitivity rerun)")
 parser.add_argument("--iters", type=str, default="16,4", help="solver position,velocity iterations (32,8 for the sensitivity rerun)")
-parser.add_argument("--emulate-weld", action="store_true", help="pin env-released welded doors during the hold phase")
+parser.add_argument("--emulate-weld", action="store_true",
+                    help="fallback for USDs exported before the env-release FixedJoint existed: pin the primary joint during the hold "
+                         "phase (ignored when the door carries a doorbench:role=env_release joint)")
 parser.add_argument("--no-servo", action="store_true", help="do not emulate the MJCF position servo of automatic doors")
 parser.add_argument("--force", action="store_true", help="re-run doors already present in the output file")
 parser.add_argument("--retry-errors", action="store_true", help="re-run doors whose previous record is a spawn / inspect / batch error")
