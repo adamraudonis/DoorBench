@@ -63,6 +63,11 @@ gravity and other loads; they are not accessibility certifications.
 - Full `door.usda` carries the follower's `PhysxMimicJointAPI` relation, with
   gearing −1, and oriented site Xforms. These authored properties were reopened
   and inspected with OpenUSD; no Isaac/PhysX simulation parity is claimed.
+  Rechecked against the publishing merge of `origin/master` through
+  `ed4e8281f`: both paddle axes are rotational, so this coupling remains in
+  `mimic` mode. The newer exporter's emulated bilateral path for unsupported
+  prismatic couplings does not replace the paddle cam. A focused test checks
+  the authored coupling mode and both native/USD coefficient pairs.
 - **Canonical `door_rl.usda` is not equivalent for these corrected paddles.**
   Its fixed slot reduction welds each follower into `leaf` or `leaf2`. All 13
   paired assemblies in the isolated export exhibit that limitation. It retains

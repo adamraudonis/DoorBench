@@ -170,6 +170,12 @@ def test_full_usd_preserves_cam_and_contact_frames(tmp_path):
     assert relation.GetTargets()[0].name == eq.b
     gearing = next(a for a in joint.GetAttributes() if a.GetName().endswith(":gearing"))
     assert gearing.Get() == -1.0
+    # The merged exporter emulates unsupported prismatic couplings, but both
+    # paddle axes are rotational and must retain the native mimic path.
+    couplings = json.loads(stage.GetDefaultPrim().GetAttribute("doorbench:couplings").Get())
+    cam = next(c for c in couplings if c.get("driven") == eq.a and c.get("driver") == eq.b)
+    assert cam["mode"] == cam["type"] == "mimic"
+    assert cam["coeff"] == cam["coeff_usd"] == [0, 1]
     for body in ir.bodies:
         for site in body.sites:
             prim = next(p for p in stage.Traverse() if p.GetName() == site.name)
