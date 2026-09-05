@@ -385,3 +385,102 @@ def test_standalone_download_cli_imports_without_repository(tmp_path):
     import subprocess
     result = subprocess.run([sys.executable, str(tmp_path/'download.py'), 'download', '--help'], cwd=tmp_path, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
+
+
+def hub_error(status, retry_after=None):
+    import httpx
+    from huggingface_hub.errors import HfHubHTTPError
+    response = httpx.Response(status, headers={} if retry_after is None else {'Retry-After': retry_after},
+                              request=httpx.Request('GET', 'https://huggingface.co/api/datasets/example/paths-info'))
+    return HfHubHTTPError('Mock metadata response', response=response)
+
+
+def test_remote_verification_retries_only_failed_twenty_path_batch(tmp_path, monkeypatch):
+    # Exercise the real Git-blob verifier after a transient paths-info failure.
+    files = {}
+    for i in range(43):
+        path = tmp_path/f'{i:03}.txt'; path.write_text(str(i)); files[path.name] = path
+    calls = []; sleeps = []; failure = hub_error(429, '7')
+    class API:
+        def repo_info(self, *args, **kwargs):
+            assert kwargs['revision'] == 'c'*40
+            return SimpleNamespace(private=False, gated=False)
+        def get_paths_info(self, repo, names, **kwargs):
+            calls.append(names)
+            if len(calls) == 2: raise failure
+            return [SimpleNamespace(path=name, size=files[name].stat().st_size, lfs=None,
+                    blob_id=hashlib.sha1(f'blob {files[name].stat().st_size}\0'.encode()+files[name].read_bytes()).hexdigest())
+                    for name in names]
+    monkeypatch.setattr(release.time, 'sleep', sleeps.append)
+    release.verify_remote(API(), 'owner/repo', 'c'*40, files)
+    assert [len(x) for x in calls] == [20, 20, 20, 3]
+    assert calls[1] == calls[2] and calls[0] != calls[1]
+    assert sleeps == [7]
+
+
+@pytest.mark.parametrize('status', [400, 401, 403, 404, 409, 500, 502, 504])
+def test_remote_verification_permanent_errors_propagate_without_sleep(monkeypatch, status):
+    failure = hub_error(status, '3'); calls = []; sleeps = []
+    def fail(*args): calls.append(args); raise failure
+    monkeypatch.setattr(release.common, 'verify_public_files', fail)
+    monkeypatch.setattr(release.time, 'sleep', sleeps.append)
+    with pytest.raises(type(failure)) as caught:
+        release.verify_remote(None, 'repo', 'commit', {'one': Path('unused')})
+    assert caught.value is failure and len(calls) == 1 and sleeps == []
+
+
+def test_remote_checksum_failure_is_never_retried(monkeypatch):
+    sleeps = []; failure = ValueError('Published checksum mismatch')
+    monkeypatch.setattr(release.common, 'verify_public_files', lambda *args: (_ for _ in ()).throw(failure))
+    monkeypatch.setattr(release.time, 'sleep', sleeps.append)
+    with pytest.raises(ValueError, match='checksum mismatch'):
+        release.verify_remote(None, 'repo', 'commit', {'one': Path('unused')})
+    assert sleeps == []
+
+
+@pytest.mark.parametrize('header', [None, 'invalid', '-1', 'NaN', 'Infinity'])
+def test_remote_503_uses_bounded_exponential_backoff(monkeypatch, header):
+    calls = []; sleeps = []; failure = hub_error(503, header)
+    def fail(*args): calls.append(args); raise failure
+    monkeypatch.setattr(release.common, 'verify_public_files', fail)
+    monkeypatch.setattr(release.time, 'sleep', sleeps.append)
+    with pytest.raises(type(failure)) as caught:
+        release.verify_remote(None, 'repo', 'commit', {'one': Path('unused')})
+    assert caught.value is failure and len(calls) == 6
+    assert sleeps == [2, 4, 8, 16, 32]
+
+
+def test_remote_retry_after_http_date_and_excessive_wait(monkeypatch):
+    from datetime import datetime, timezone, timedelta
+    from email.utils import format_datetime
+    now = datetime.now(timezone.utc)
+    header = format_datetime(now+timedelta(seconds=30), usegmt=True)
+    calls = []; sleeps = []
+    def verify(*args):
+        calls.append(args)
+        if len(calls) == 1: raise hub_error(429, header)
+    monkeypatch.setattr(release.common, 'verify_public_files', verify)
+    monkeypatch.setattr(release.time, 'sleep', sleeps.append)
+    release.verify_remote(None, 'repo', 'commit', {'one': Path('unused')})
+    assert len(sleeps) == 1 and 28 <= sleeps[0] <= 30
+    failure = hub_error(429, '99999999999999999')
+    monkeypatch.setattr(release.common, 'verify_public_files', lambda *args: (_ for _ in ()).throw(failure))
+    with pytest.raises(type(failure)) as caught:
+        release.verify_remote(None, 'repo', 'commit', {'one': Path('unused')})
+    assert caught.value is failure and len(sleeps) == 1
+
+
+@pytest.mark.parametrize('budget', ['sleep', 'retries'])
+def test_remote_retry_budget_spans_all_batches(monkeypatch, budget):
+    calls = []; sleeps = []; attempts = {}
+    failure = hub_error(429, '60' if budget == 'sleep' else None)
+    def verify(api, repo, commit, batch):
+        first = next(iter(batch)); attempts[first] = attempts.get(first, 0)+1; calls.append(first)
+        if attempts[first] <= (1 if budget == 'sleep' else 4): raise failure
+    monkeypatch.setattr(release.common, 'verify_public_files', verify)
+    monkeypatch.setattr(release.time, 'sleep', sleeps.append)
+    with pytest.raises(type(failure)) as caught:
+        release.verify_remote(None, 'repo', 'commit', {f'{i:03}': Path('unused') for i in range(100)})
+    assert caught.value is failure
+    if budget == 'sleep': assert sleeps == [60, 60, 60] and len(calls) == 7
+    else: assert sleeps == [2, 4, 8, 16]*3 and len(calls) == 16
