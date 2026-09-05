@@ -19,7 +19,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _common import ROOT, add_door_args, apply_door_args, ensure_extension_importable  # noqa: E402
+from _common import ROOT, add_door_args, apply_door_args, ensure_extension_importable, unwrap_obs  # noqa: E402
 
 from isaaclab.app import AppLauncher  # noqa: E402
 
@@ -76,9 +76,7 @@ def main():
         runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=base.device)
         runner.load(os.path.abspath(args_cli.checkpoint))
         policy = runner.get_inference_policy(device=base.device)
-    obs = env.get_observations()
-    if isinstance(obs, tuple):
-        obs = obs[0]
+    obs = unwrap_obs(env.get_observations())   # TensorDict in Isaac Lab v2.3.x
 
     def act():
         if policy is not None:

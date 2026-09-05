@@ -7,7 +7,9 @@
 Without --checkpoint the latest run of the task's experiment is used.  Exports the policy as TorchScript + ONNX
 into <run>/exported/.
 
-NOT EXECUTED ON THIS MACHINE (no NVIDIA GPU).
+Mirrors scripts/reinforcement_learning/rsl_rl/play.py of Isaac Lab **v2.3.2** (rsl-rl-lib 3.1.2): observations are a
+TensorDict, the observation normalizer lives on the policy module (``actor_obs_normalizer``), recurrent policies are
+reset on done.
 """
 from __future__ import annotations
 
@@ -16,7 +18,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _common import add_door_args, apply_door_args, ensure_extension_importable  # noqa: E402
+from _common import add_door_args, apply_door_args, ensure_extension_importable, policy_normalizer, rsl_rl_version_check, unwrap_obs  # noqa: E402
 
 from isaaclab.app import AppLauncher  # noqa: E402
 
@@ -48,6 +50,7 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper, expor
 from isaaclab_tasks.utils import get_checkpoint_path  # noqa: E402
 from isaaclab_tasks.utils.parse_cfg import load_cfg_from_registry, parse_env_cfg  # noqa: E402
 
+rsl_rl_version_check()
 ensure_extension_importable()
 import doorbench_isaaclab  # noqa: E402, F401
 
@@ -58,6 +61,8 @@ def main():
     apply_door_args(env_cfg, args_cli)
     if args_cli.seed is not None:
         env_cfg.seed = args_cli.seed
+    env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
+    agent_cfg.device = env_cfg.sim.device
     log_root_path = os.path.abspath(os.path.join("logs", "rsl_rl", agent_cfg.experiment_name))
     resume_path = None
     if not args_cli.random:
@@ -68,32 +73,36 @@ def main():
         log_dir = os.path.dirname(resume_path)
     else:
         log_dir = os.path.join(log_root_path, "random")
+    if hasattr(env_cfg, "log_dir"):
+        env_cfg.log_dir = log_dir
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
     if args_cli.video:
         env = gym.wrappers.RecordVideo(env, video_folder=os.path.join(log_dir, "videos", "play"), step_trigger=lambda step: step == 0, video_length=args_cli.video_length, disable_logger=True)
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
-    policy = None
+    policy, policy_nn = None, None
     if resume_path is not None:
         print(f"[INFO]: Loading model checkpoint from: {resume_path}")
         runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
         runner.load(resume_path)
         policy = runner.get_inference_policy(device=env.unwrapped.device)
+        policy_nn = runner.alg.policy
         export_dir = os.path.join(log_dir, "exported")
         try:
-            export_policy_as_jit(runner.alg.policy, normalizer=getattr(runner, "obs_normalizer", None), path=export_dir, filename="policy.pt")
-            export_policy_as_onnx(runner.alg.policy, normalizer=getattr(runner, "obs_normalizer", None), path=export_dir, filename="policy.onnx")
-        except Exception as e:  # export API differs between rsl-rl versions; not essential for playing
+            normalizer = policy_normalizer(policy_nn)
+            export_policy_as_jit(policy_nn, normalizer=normalizer, path=export_dir, filename="policy.pt")
+            export_policy_as_onnx(policy_nn, normalizer=normalizer, path=export_dir, filename="policy.onnx")
+        except Exception as e:  # export is not essential for playing (onnxscript missing on some platforms)
             print(f"[WARN] policy export skipped: {e}")
     dt = env.unwrapped.step_dt
-    obs = env.get_observations()
-    if isinstance(obs, tuple):  # older wrappers return (obs, extras)
-        obs = obs[0]
+    obs = unwrap_obs(env.get_observations())
     step = 0
     while simulation_app.is_running():
         t0 = time.time()
         with torch.inference_mode():
             actions = policy(obs) if policy is not None else torch.randn(env.num_envs, env.num_actions, device=env.unwrapped.device).clamp(-1, 1)
-            obs, _, _, _ = env.step(actions)
+            obs, _, dones, _ = env.step(actions)
+            if policy_nn is not None:
+                policy_nn.reset(dones)  # recurrent policies: clear hidden states of finished episodes
         step += 1
         if args_cli.video and step >= args_cli.video_length:
             break

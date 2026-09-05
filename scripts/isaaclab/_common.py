@@ -1,10 +1,24 @@
-"""Shared helpers for the Isaac Lab scripts (imported AFTER the AppLauncher started the simulator)."""
+"""Shared helpers for the Isaac Lab scripts (imported AFTER the AppLauncher started the simulator).
+
+Also carries the small compatibility layer for Isaac Lab **v2.3.2** / rsl-rl-lib 3.1.x:
+  * ``dump_pickle`` / ``load_pickle``: Isaac Lab removed ``isaaclab.utils.io.dump_pickle`` in isaaclab 0.47.0
+    ("Removed pickle utilities ... as pickle contains security vulnerabilities"); train.py still writes params/*.pkl
+    next to the yaml for our own tooling, so the helper lives here (plain ``pickle``, same file semantics).
+  * ``rsl_rl_version_check``: Isaac Lab's own rsl_rl scripts require rsl-rl-lib >= 3.0.1; warn early instead of
+    failing deep inside the runner.
+  * ``policy_normalizer``: rsl_rl 3.x keeps the observation normalizer on the policy module
+    (``actor_obs_normalizer`` / ``student_obs_normalizer``), not on the runner.
+  * ``unwrap_obs``: ``RslRlVecEnvWrapper.get_observations()`` returns a TensorDict in v2.3.x (older wrappers returned
+    ``(obs, extras)``).
+"""
 from __future__ import annotations
 
 import os
+import pickle
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+RSL_RL_MIN_VERSION = "3.0.1"   # scripts/reinforcement_learning/rsl_rl/train.py of Isaac Lab v2.3.2; v2.3.2 pins rsl-rl-lib==3.1.2
 
 
 def ensure_extension_importable():
@@ -31,3 +45,56 @@ def apply_door_args(env_cfg, args):
     n = len(env_cfg.scene.door.spawn.usd_path)
     print(f"[doorbench] {n} doors selected by --doors {args.doors!r} (round-robin over {env_cfg.scene.num_envs} envs)")
     return env_cfg
+
+
+# ------------------------------------------------------------------------------------ Isaac Lab v2.3.2 compatibility
+def dump_pickle(filename: str, data) -> str:
+    """Save ``data`` (a dict or a configclass object) as a pickle; appends ``.pkl`` and creates the directory, like the
+    ``isaaclab.utils.io.dump_pickle`` that Isaac Lab <= 0.46 shipped.  Returns the path written."""
+    if not filename.endswith("pkl"):
+        filename += ".pkl"
+    os.makedirs(os.path.dirname(filename) or ".", exist_ok=True)
+    with open(filename, "wb") as f:
+        pickle.dump(data, f)
+    return filename
+
+
+def load_pickle(filename: str):
+    """Load a pickle written by :func:`dump_pickle` (only for files this repo wrote itself)."""
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"File not found: {filename}")
+    with open(filename, "rb") as f:
+        return pickle.load(f)
+
+
+def rsl_rl_version_check(minimum: str = RSL_RL_MIN_VERSION) -> str | None:
+    """Installed rsl-rl-lib version (None if not installed); prints a warning when older than ``minimum``."""
+    try:
+        from importlib import metadata
+
+        installed = metadata.version("rsl-rl-lib")
+    except Exception:  # not installed / metadata missing
+        print(f"[WARN] rsl-rl-lib not found in this python; Isaac Lab v2.3.2 expects rsl-rl-lib>={minimum} (pip install rsl-rl-lib==3.1.2)")
+        return None
+
+    def key(v: str):
+        return tuple(int(p) if p.isdigit() else 0 for p in v.split("+")[0].split("."))
+
+    if key(installed) < key(minimum):
+        print(f"[WARN] rsl-rl-lib {installed} < {minimum}: the runner API (TensorDict observations, obs_groups) differs; "
+              f"install the version Isaac Lab v2.3.2 pins:  pip install rsl-rl-lib==3.1.2")
+    return installed
+
+
+def policy_normalizer(policy_nn):
+    """Observation normalizer of an rsl_rl 3.x policy module (None when normalization is off)."""
+    for name in ("actor_obs_normalizer", "student_obs_normalizer"):
+        norm = getattr(policy_nn, name, None)
+        if norm is not None:
+            return norm
+    return None
+
+
+def unwrap_obs(obs):
+    """``RslRlVecEnvWrapper.get_observations()`` -> TensorDict (v2.3.x); older wrappers returned ``(obs, extras)``."""
+    return obs[0] if isinstance(obs, tuple) else obs

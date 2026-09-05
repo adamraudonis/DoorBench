@@ -8,7 +8,7 @@
 #       doorbench-isaaclab bash isaaclab/cloud/train.sh --task DoorBench-Open-Hand-v0 --num_envs 1024 --max_iterations 300
 #
 # Base: NVIDIA's Isaac Sim 5.1.0 container (runs as a non-root user since 5.1; python at /isaac-sim/python.sh).
-# Isaac Lab v2.3.0 is installed on top with its own installer (uses /isaac-sim as the _isaac_sim symlink).
+# Isaac Lab v2.3.2 is installed on top with its own installer (uses /isaac-sim as the _isaac_sim symlink).
 # NOT BUILT/EXECUTED ON THE AUTHOR'S MACHINE (no NVIDIA GPU).
 FROM nvcr.io/nvidia/isaac-sim:5.1.0
 
@@ -18,8 +18,8 @@ ENV DEBIAN_FRONTEND=noninteractive OMNI_KIT_ACCEPT_EULA=YES ACCEPT_EULA=Y \
     ISAACLAB_PATH=/workspace/IsaacLab
 RUN apt-get update && apt-get install -y --no-install-recommends git git-lfs build-essential cmake ffmpeg libgl1 libglu1-mesa xvfb && rm -rf /var/lib/apt/lists/*
 
-# Isaac Lab v2.3.0 (+ rsl_rl)
-RUN git clone --depth 1 --branch v2.3.0 https://github.com/isaac-sim/IsaacLab.git ${ISAACLAB_DIR} && \
+# Isaac Lab v2.3.2 (+ rsl_rl)
+RUN git clone --depth 1 --branch v2.3.2 https://github.com/isaac-sim/IsaacLab.git ${ISAACLAB_DIR} && \
     ln -s /isaac-sim ${ISAACLAB_DIR}/_isaac_sim && \
     cd ${ISAACLAB_DIR} && ./isaaclab.sh --install rsl_rl
 
