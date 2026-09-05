@@ -1,6 +1,6 @@
 # Isaac parity gate
 
-_Report generated 2026-09-05T09:01:37 by `scripts/isaaclab/parity_report.py` from `results/parity/`, repository commit `a6061be27`. Dataset: 1000 doors, manifest version `0.1.0` generated 2026-09-05T08:43:59, reference run commit `a6061be27`._
+_Report generated 2026-09-05T09:07:03 by `scripts/isaaclab/parity_report.py` from `results/parity/`, repository commit `8a448597b`. Dataset: 1000 doors, manifest version `0.1.0` generated 2026-09-05T08:43:59, reference run commit `a6061be27`._
 
 ### Which runs this page compares
 
