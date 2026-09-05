@@ -69,7 +69,10 @@ def _door_cfg(door_id: str, kind: str, k: int) -> ArticulationCfg:
 def validate_batch(ids: list[str], kind: str, device: str) -> list[dict]:
     rows = []
     with build_simulation_context(device=device, dt=DT, gravity_enabled=True, add_ground_plane=True, auto_add_lighting=True) as sim:
-        sim._disable_app_control_on_stop_handle = True   # headless: Isaac Lab's stop callback otherwise loops render() forever
+        # headless: Isaac Lab's timeline-STOP callback loops render() forever when the context exits (and sim.reset()
+        # re-arms its _disable_app_control_on_stop_handle flag), so drop the subscription itself.
+        if getattr(sim, "_app_control_on_stop_handle", None) is not None:
+            sim._app_control_on_stop_handle.unsubscribe(); sim._app_control_on_stop_handle = None
         arts, metas = [], []
         for k, did in enumerate(ids):
             try:

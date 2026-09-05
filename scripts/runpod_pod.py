@@ -171,9 +171,12 @@ def cmd_start(a):
 def cmd_tensorboard(a):
     """Live training curves: start TensorBoard on the pod (rsl_rl writes logs/rsl_rl/<exp>/<run>) and tunnel it to http://localhost:6006."""
     st = _state()
-    remote = ("source /workspace/DoorBench/isaaclab/cloud/env.sh 2>/dev/null; cd /workspace/DoorBench; "
-              "pgrep -f 'tensorboard --logdir' >/dev/null || nohup tensorboard --logdir logs/rsl_rl --port 6006 --bind_all >/workspace/tensorboard.log 2>&1 & "
-              "sleep 2; echo 'TensorBoard on the pod: http://localhost:6006 (through this tunnel). Ctrl-C closes the tunnel.'; sleep 100000000")
+    remote = ("source /workspace/DoorBench/isaaclab/cloud/env.sh 2>/dev/null; cd /workspace/DoorBench; mkdir -p logs/rsl_rl; "
+              "pgrep -f '[t]ensorboard --logdir' >/dev/null || (nohup tensorboard --logdir logs/rsl_rl --port 6006 --bind_all >/workspace/tensorboard.log 2>&1 &); "
+              "for i in $(seq 1 30); do (echo > /dev/tcp/127.0.0.1/6006) 2>/dev/null && break; sleep 1; done; "
+              "if (echo > /dev/tcp/127.0.0.1/6006) 2>/dev/null; then echo 'TensorBoard is up: open http://localhost:%d (this tunnel). Curves appear once the train stage starts (logs/rsl_rl/<exp>/<run>). Ctrl-C closes the tunnel.'; "
+              "else echo 'TensorBoard did not start:'; tail -5 /workspace/tensorboard.log; fi; "
+              "n=$(ls logs/rsl_rl 2>/dev/null | wc -l); [ \"$n\" = 0 ] && echo 'note: no training runs logged yet (pipeline stage: '$(grep -E '^== ' logs/run_all.log 2>/dev/null | tail -1)')'; sleep 100000000" % a.port)
     os.execvp("ssh", _ssh_args() + ["-L", f"{a.port}:localhost:6006", remote])
 
 
