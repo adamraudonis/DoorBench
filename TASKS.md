@@ -82,7 +82,7 @@ The owner explicitly authorizes README and task-board updates, public Hugging Fa
 
 | # | Task | Status | Owner | Acceptance / evidence |
 |---|------|--------|-------|-----------------------|
-| P1 | Public Hugging Face dataset release | doing | agent:sliding_track_fix | All 1000 generated doors, exports, appearance, reference motions; checksums, licenses, versioned provenance, working download example |
+| P1 | Public Hugging Face dataset release | done | agent:sliding_track_fix | Public/ungated adamraudonis/DoorBench v2026.09.05 at Hub 6e17f0f588bf81fec0f04b2a329b471488164366; all 1000 doors, appearance, textures, reference motions. Anonymous published-helper download verified 17,246 simulation files and MuJoCo load/step; docs/DATASET_RELEASE.md |
 | P2 | Concise human-readable README | done | agent:sliding_track_fix | Clear purpose, preview, quick start and links to detailed docs |
 | P3 | Professional responsive website | done | agent:diversity_audit | Cohesive navigation/catalogue/types/results/about, real renders, desktop/mobile visual verification |
 | P4 | Fast human review workspace | done | agent:physics_audit | Queue, keyboard review, per-mechanism findings, local persistence, validated import/export, source version scope |

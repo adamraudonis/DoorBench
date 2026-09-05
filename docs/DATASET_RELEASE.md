@@ -33,7 +33,7 @@ env.step()
 print(env.labels().to_dict())
 ```
 
-For a local catalogue, place or link the downloaded `assets/` at the repository's `assets/`, and `appearance/` at `out/appearance/`, then start the viewer. The website's deployment uses its own checksummed distribution manifest; it is separate from this research download.
+For a local catalogue, place or link the downloaded `assets/` at the repository's `assets/`, `appearance/` at `out/appearance/`, and `reference-motions/` at `out/reference-motions/`, then start the viewer. The website's deployment uses its own checksummed distribution manifest; it is separate from this research download.
 
 ## Motion and training semantics
 
@@ -44,6 +44,8 @@ The [reference-motion guide](https://github.com/adamraudonis/DoorBench/blob/mast
 No train/test split is declared. Related procedural templates should be grouped to reduce geometry leakage. Historical benchmark tables span different assets/scenarios/seeds; the new reference corpus cannot be substituted for a rerun of that benchmark. Construction, appearance and camera limits are detailed in [the format guide](https://github.com/adamraudonis/DoorBench/blob/master/docs/DATASET_FORMAT.md), [state bridge](https://github.com/adamraudonis/DoorBench/blob/master/docs/BLENDER_VISION_STATE.md), and [review](https://github.com/adamraudonis/DoorBench/blob/master/docs/review/takeover/REVIEW.md).
 
 ## Provenance and licenses
+
+The published `v2026.09.05` release resolves to Hub commit `6e17f0f588bf81fec0f04b2a329b471488164366`, with source commit `54a5c7c771d8419c69bd94d432b0ff75a2016daa`. Its `release.json` SHA256 is `b9c809bd405d72d1d5bc96a1611370926c3b245c02b6d8e7459199f7af329a73`. Anonymous download of the published helper and all 17,246 simulation asset files was verified, including loading and stepping a downloaded door in MuJoCo.
 
 `release.json` identifies the release, generator commit, dataset/render manifest hashes, component archives and their counts. `inventory.json` records the SHA256, byte count, component and license of every archive member. It remains byte-identical to the release inventory for subset downloads; `installed.json` records which components were installed and their resolved Hub commit. Archive filenames include their inventory digest. Gzip/tar metadata and entry order are deterministic; unchanged inputs produce identical archives. Mutating a file while it is packed fails verification.
 
