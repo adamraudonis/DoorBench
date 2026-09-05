@@ -446,7 +446,9 @@ _k(LockModel("garage_slide_lock", "Garage inside slide lock engaged", "slide_bol
 # ---------------------------------------------------------------------------
 STOPS = {
     "none": {"name": "No stop (frame/hinge geometry limits only)", "max_open_deg": 180, "compliant": False},
-    "wall_bumper": {"name": "Wall bumper (rubber)", "max_open_deg": 90, "compliant": True},
+    # geometry.common.add_bumper_stop decides the mount from the leaf's own travel: a wall plate where the leaf
+    # folds back to the wall, the floor riser real doors use where it stops perpendicular to it (every door here)
+    "wall_bumper": {"name": "Rubber bumper stop (wall plate / floor riser)", "max_open_deg": 90, "compliant": True},
     "floor_dome": {"name": "Floor dome stop", "max_open_deg": 95, "compliant": True},
     "hinge_pin": {"name": "Hinge-pin stop", "max_open_deg": 100, "compliant": True},
     "overhead_90": {"name": "Overhead stop 90 deg", "max_open_deg": 90, "compliant": False},

@@ -280,3 +280,24 @@ def test_the_db0024_stop_is_mounted_and_struck(specs, tmp_path):
     findings = []
     a.check_stops(findings)
     assert findings == []
+
+
+def test_a_leaf_that_folds_back_to_the_wall_gets_a_wall_bumper(specs):
+    """The stop's mount is decided by the leaf's own travel, not by the name in the spec: at 90 deg the leaf stands
+    perpendicular to its wall and gets the floor riser (all 130 wall_bumper doors in the dataset), and a leaf that
+    folds back against the wall gets the wall plate and tip."""
+    base = next(s for s in specs.values() if s["kinematics"].get("stop") == "wall_bumper")
+    floor_model = build_model(base)
+    assert floor_model.meta["stops"][0]["mount"] == "floor"
+    folded = {**base, "kinematics": {**base["kinematics"], "max_open_deg": 180}}   # flat against the wall
+    wall_model = build_model(folded)
+    st = wall_model.meta["stops"][0]
+    assert st["mount"] == "wall", st
+    world = wall_model.body("world_env")
+    base_g = next(g for g in world.geoms if g.name == "door_stop_base")
+    tip = next(g for g in world.geoms if g.name == "door_stop_bumper")
+    # the plate is against the wall face and the tip reaches back from it to the leaf
+    wall_y = [g for g in world.geoms if g.name.startswith("wall_") and g.type == "box"]
+    face = max(abs(float(g.pos[1])) + float(g.size[1]) for g in wall_y)
+    assert abs(abs(float(base_g.pos[1])) + float(base_g.size[1]) - face) < 0.02, (base_g.pos, face)
+    assert float(tip.size[1]) > 0.005, "the rubber tip projects from the plate to the leaf"

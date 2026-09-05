@@ -1414,7 +1414,7 @@ def mount_face(world: Body, x: float, z: float, hx: float, hz: float, v: float, 
 STOP_TOUCH_GAP = 0.001     # m; the rubber tip is authored this far off the leaf face at the joint limit - the leaf
 #                            arrives ON its stop (a millimetre is invisible and keeps a permanent contact out of the
 #                            solver, which would otherwise sit in every settle / hold test)
-STOP_WALL_REACH = 0.10     # m; the longest wall bumper made (base plate + projecting rubber tip).  A leaf that stops
+STOP_WALL_REACH = 0.13     # m; the longest wall bumper made (the 4-4.5 in extended-projection type).  A leaf that stops
 #                            further than this from the wall behind it cannot be held by a wall bumper at all - at
 #                            90 deg the leaf stands perpendicular to its own wall and nothing on that wall can touch
 #                            it - so the stop is built as the floor-mounted riser bumper that real doors use there.
