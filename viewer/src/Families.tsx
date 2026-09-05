@@ -1,6 +1,7 @@
 import React from "react";
 import { FAMILY_LABELS, type Manifest } from "./types";
 import { thumbUrl } from "./Catalogue";
+import { CLASS_COLORS, useTaxonomy } from "./Hierarchy";
 
 const DESC: Record<string, string> = {
   swing_single: "Single hinged leaf: residential, commercial, fire/egress, institutional, industrial, detention, storefront glass, heritage.",
@@ -35,15 +36,20 @@ const DESC: Record<string, string> = {
   elevator: "Center- and side-opening landing doors with interlock and call button.",
 };
 
+/** Flat list of the 30 families (one card each).  The grouped view with variants and shared mechanisms is the
+ *  Hierarchy page; the two are cross-linked per family. */
 export function Families({ manifest }: { manifest: Manifest }) {
+  const { tax } = useTaxonomy();      // optional: adds the motion-class chip + hierarchy link when taxonomy.json is available
   const byFam = new Map<string, typeof manifest.doors>();
   for (const d of manifest.doors) { if (d.error) continue; if (!byFam.has(d.family)) byFam.set(d.family, []); byFam.get(d.family)!.push(d); }
   const fams = manifest.families.filter((f) => byFam.has(f)).sort((a, b) => byFam.get(b)!.length - byFam.get(a)!.length);
+  const classLabel = (f: string) => { const cid = tax?.motion_class_of[f]; return cid ? tax!.motion_classes.find((c) => c.id === cid)?.label ?? cid : null; };
   return (
     <div>
       <div className="about" style={{ paddingBottom: 0 }}>
         <h1 style={{ margin: "8px 0" }}>Door types</h1>
-        <p style={{ color: "var(--muted)", marginTop: 0 }}>{fams.length} kinematic families covering every human- or animal-passable door we could enumerate. Click a family to filter the catalogue; every door opens in the 3D viewer.</p>
+        <p style={{ color: "var(--muted)", marginTop: 0 }}>{fams.length} kinematic families covering every human- or animal-passable door we could enumerate, as a flat list sorted by count. Click a family to filter the catalogue; every door opens in the 3D viewer. Masses are per moving leaf.</p>
+        <p className="fam-intro-links"><a href="#/hierarchy">Hierarchy view: motion class → family → variant, with shared-mechanism relationships →</a></p>
       </div>
       <div className="families">
         {fams.map((f) => {
@@ -52,13 +58,22 @@ export function Families({ manifest }: { manifest: Manifest }) {
           const ops = new Set(ds.map((d) => d.operator)).size;
           const locks = new Set(ds.map((d) => d.lock)).size;
           const masses = ds.map((d) => d.mass_kg);
+          const cid = tax?.motion_class_of[f];
+          const nVar = tax?.motion_classes.flatMap((c) => c.families).find((x) => x.id === f)?.variants.length;
           return (
-            <a className="famcard" key={f} href={`#/?family=${f}`}>
+            <a className="famcard" key={f} href={`#/?family=${f}`} style={cid ? { borderLeft: `4px solid ${CLASS_COLORS[cid] ?? "var(--border)"}` } : undefined}>
               <img src={thumbUrl(rep)} loading="lazy" alt={f} />
               <div className="body">
                 <h3>{FAMILY_LABELS[f] ?? f} <span style={{ color: "var(--muted)", fontWeight: 400 }}>· {ds.length}</span></h3>
                 <p>{DESC[f]}</p>
-                <p>{ops} operator types · {locks} lock types · {Math.min(...masses).toFixed(0)}–{Math.max(...masses).toFixed(0)} kg · {ds.filter((d) => d.signed_off).length}/{ds.length} signed off</p>
+                <p>{ops} operator types · {locks} lock types · {Math.min(...masses).toFixed(0)}–{Math.max(...masses).toFixed(0)} kg per leaf · {ds.filter((d) => d.signed_off).length}/{ds.length} signed off</p>
+                {cid && (
+                  <div className="cls">
+                    <span className="hx-dot" style={{ background: CLASS_COLORS[cid], marginRight: 0 }} />
+                    <span>{classLabel(f)}{nVar ? ` · ${nVar} variant${nVar === 1 ? "" : "s"}` : ""}</span>
+                    <a href={`#/hierarchy?family=${f}`} onClick={(e) => e.stopPropagation()}>in hierarchy →</a>
+                  </div>
+                )}
               </div>
             </a>
           );

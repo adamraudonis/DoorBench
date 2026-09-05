@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Manifest } from "./types";
 import { Catalogue } from "./Catalogue";
 import { Families } from "./Families";
+import { Hierarchy } from "./Hierarchy";
 import { DoorView } from "./DoorView";
 import { About } from "./About";
 
@@ -26,10 +27,12 @@ export function App() {
   }, []);
   const route = useMemo(() => {
     const h = hash.replace(/^#/, "");
-    if (h.startsWith("/door/")) return { page: "door", id: h.slice(6).split("?")[0], query: h.includes("?") ? h.split("?")[1] : "" };
-    if (h.startsWith("/families")) return { page: "families" };
-    if (h.startsWith("/about")) return { page: "about" };
-    return { page: "catalogue", query: h.includes("?") ? h.split("?")[1] : "" };
+    const query = h.includes("?") ? h.split("?")[1] : "";
+    if (h.startsWith("/door/")) return { page: "door", id: h.slice(6).split("?")[0], query };
+    if (h.startsWith("/families")) return { page: "families", query };
+    if (h.startsWith("/hierarchy")) return { page: "hierarchy", query };
+    if (h.startsWith("/about")) return { page: "about", query };
+    return { page: "catalogue", query };
   }, [hash]);
   return (
     <div className="app">
@@ -38,6 +41,7 @@ export function App() {
         <nav>
           <a href="#/" className={route.page === "catalogue" ? "active" : ""}>Catalogue</a>
           <a href="#/families" className={route.page === "families" ? "active" : ""}>Door types</a>
+          <a href="#/hierarchy" className={route.page === "hierarchy" ? "active" : ""}>Hierarchy</a>
           <a href="#/about" className={route.page === "about" ? "active" : ""}>About &amp; usage</a>
         </nav>
         <div className="spacer" />
@@ -47,8 +51,9 @@ export function App() {
       <div className="content">
         {err && <div className="err">Could not load manifest: {err}. Run <code>python scripts/generate_dataset.py</code> first.</div>}
         {!manifest && !err && <div className="loading">Loading manifest…</div>}
-        {manifest && route.page === "catalogue" && <Catalogue manifest={manifest} query={route.query ?? ""} />}
+        {manifest && route.page === "catalogue" && <Catalogue key={route.query} manifest={manifest} query={route.query ?? ""} />}
         {manifest && route.page === "families" && <Families manifest={manifest} />}
+        {manifest && route.page === "hierarchy" && <Hierarchy query={route.query ?? ""} />}
         {manifest && route.page === "door" && <DoorView manifest={manifest} id={route.id!} query={route.query ?? ""} />}
         {manifest && route.page === "about" && <About manifest={manifest} />}
       </div>
