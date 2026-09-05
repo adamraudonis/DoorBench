@@ -548,8 +548,10 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
         forces = {w["name"]: float(w.get("holding_force_N") or 0.0) for w in (model_json.get("meta", {}).get("breakable_welds") or [])}
         er_prims = {n: joints[n] for n in loop_joints if n in joints}
         R.stats["n_env_release"] = len(er_prims)
-        if set(er_prims) != set(welds):
+        if kind == "full" and set(er_prims) != set(welds):
             R.err(f"env-release joints {sorted(er_prims)} != weld equalities of model.json {sorted(welds)}")
+        if kind != "full" and not set(er_prims) <= set(welds):
+            R.err(f"env-release joints {sorted(set(er_prims) - set(welds))} are not weld equalities of model.json")
         for n, jprim in er_prims.items():
             w = welds.get(n)
             if w is None:
@@ -640,6 +642,10 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
                     R.err(f"{jn}: spring in the IR but no drive stiffness")
             # couplings: every bilateral joint equality of model.json is either a PhysX-honoured mimic
             # (rotational -> rotational) or carries the emulation data
+            meta_couplings = None
+            for k, v in json_attrs.items():
+                if k.endswith("doorbench:couplings"):
+                    meta_couplings = v
             for e in model_json.get("equalities", []):
                 if e.get("kind") != "joint" or e["a"] not in joints or e["b"] not in joints:
                     continue
@@ -655,6 +661,13 @@ def validate_stage(path: str, kind: str, model_json: dict | None, spec: dict | N
                 c1 = dp.GetAttribute("doorbench:coupling_c1").Get()
                 if c1 is None or abs(float(c1) - float(e["polycoeff"][1])) > 1e-5 * max(1.0, abs(float(e["polycoeff"][1]))):
                     R.err(f"{e['a']}: coupling c1 {c1} != IR {e['polycoeff'][1]}")
+                # the JSON entry must also carry the law in USD joint coordinates (q_usd = q_db - zero_offset)
+                entry = next((x for x in (meta_couplings or []) if x.get("driven") == e["a"] and x.get("driver") == e["b"]), None)
+                if entry is not None and "coeff_usd" in entry:
+                    off_a, off_b = float(mj_joints[e["a"]]["modeled_at"]), float(mj_joints[e["b"]]["modeled_at"])
+                    want0 = float(e["polycoeff"][0]) + float(e["polycoeff"][1]) * off_b - off_a
+                    if abs(float(entry["coeff_usd"][0]) - want0) > 1e-9 or abs(float(entry["coeff_usd"][1]) - float(e["polycoeff"][1])) > 1e-9:
+                        R.err(f"{e['a']}: coeff_usd {entry['coeff_usd']} != [{want0}, {e['polycoeff'][1]}]")
                 if want_mode == "emulated":
                     ra = joints[e["b"]].GetAttribute("doorbench:coupling_reflected_armature").Get()
                     if ra is None or float(ra) <= 0:

@@ -423,6 +423,23 @@ def test_emulated_coupling_carries_the_bilateral_law(doors, key):
         assert meta["coupling_reflected_armature"][c["driver"]] > 0
 
 
+@pytest.mark.parametrize("key", list(PICKS))
+def test_coupling_law_is_also_given_in_usd_joint_coordinates(doors, key):
+    """PhysX reports joint positions in USD coordinates (q_usd = q_db - zero_offset); a consumer that applies the
+    IR coefficients to them would be off by the two offsets, so the exporter precomputes ``coeff_usd``."""
+    _, _, mj, full, _, rlm = doors[key]
+    ir = {b["joint"]["name"]: b["joint"] for b in mj["bodies"] if b.get("joint")}
+    meta = json.loads(full.GetDefaultPrim().GetAttribute("doorbench:meta").Get())
+    entries = [c for c in json.loads(full.GetDefaultPrim().GetAttribute("doorbench:couplings").Get()) if "coeff_usd" in c]
+    assert len(entries) == len([e for e in mj["equalities"] if e["kind"] == "joint"])
+    for c in entries:
+        c0, c1 = c["coeff"]
+        off_a, off_b = ir[c["driven"]]["modeled_at"], ir[c["driver"]]["modeled_at"]
+        assert c["coeff_usd"] == pytest.approx([c0 + c1 * off_b - off_a, c1], abs=1e-12)
+    for c in rlm.get("couplings", []):
+        assert "coeff_usd" in c and c["coeff_usd"][1] == pytest.approx(c["coeff"][1])
+
+
 def test_rise_coupling_reaction_equals_the_documented_closing_torque(doors):
     """The reaction a consumer applies on the driver is c1 * tau_driven_ext; for the helical hinge that is
     c1 * (-m g) = -m g dz/dq, the closing torque docs/ISAAC_LAB.md already specifies for the locked riser."""

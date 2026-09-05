@@ -292,7 +292,10 @@ class DoorState:
                 da, db = c.get("driven_slot"), c.get("driver_slot")
                 if da not in self.j or db not in self.j:
                     continue
-                rows.append({"env": k, "ia": self.j[da], "ib": self.j[db], "c0": float(c["coeff"][0]), "c1": float(c["coeff"][1]),
+                # PhysX joint positions are USD coordinates (q_usd = q_db - zero_offset); the exporter precomputes
+                # the same law in those coordinates as ``coeff_usd``
+                cu = c.get("coeff_usd") or c["coeff"]
+                rows.append({"env": k, "ia": self.j[da], "ib": self.j[db], "c0": float(cu[0]), "c1": float(cu[1]),
                              "k": float(c.get("driven_stiffness") or 0.0), "d": float(c.get("driven_damping") or 0.0),
                              "target": float(c.get("driven_target") or 0.0), "friction": float(c.get("driven_friction") or 0.0),
                              "bias": float(c.get("driven_gravity_bias") or 0.0), "eps": float(c.get("friction_vel_eps") or 1e-3),

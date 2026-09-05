@@ -843,6 +843,9 @@ def joint_couplings(model: Model, tier: str, joint_types: dict, wt: dict, body_o
             continue
         c0, c1 = float(q.polycoeff[0]), float(q.polycoeff[1])
         ja = ba.joint
+        bb = body_of_joint(q.b)
+        off_a = float(ja.modeled_at)
+        off_b = float(bb.joint.modeled_at) if (bb is not None and bb.joint is not None) else 0.0
         pos, quat = wt[ba.name]
         axis_w = quat_rotate(quat, np.asarray(ja.axis, float) / np.linalg.norm(ja.axis))
         anchor_w = pos + quat_rotate(quat, np.asarray(ja.pos, float))
@@ -855,6 +858,9 @@ def joint_couplings(model: Model, tier: str, joint_types: dict, wt: dict, body_o
             "driven": q.a, "driver": q.b, "driven_type": ta, "driver_type": tb,
             "mode": mode,
             "coeff": [c0, c1], "gearing": -c1, "offset": -c0, "label": q.label,
+            # the same law in USD joint coordinates (q_usd = q_db - zero_offset), which is what a consumer reads back
+            # from PhysX: q_a_usd = coeff_usd[0] + coeff_usd[1] * q_b_usd
+            "coeff_usd": [c0 + c1 * off_b - off_a, c1], "driven_zero_offset": off_a, "driver_zero_offset": off_b,
             "driven_inertia": I_a, "reflected_inertia": c1 * c1 * I_a,
             "driven_gravity_bias": bias,
             "driven_stiffness": float(ja.stiffness), "driven_damping": float(ja.damping),
