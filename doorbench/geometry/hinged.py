@@ -227,7 +227,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
             # down toward the sill (visual); rods and guides live on the swing-side face (no stop moulding there)
             f_r = v
             cm_ = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
-            y_r = f_r * (t / 2 + 0.012)
+            y_r = f_r * (t / 2 + 0.009)      # the rod runs in its guide loops, not 3 mm above them
             x_r = x_spindle - u * 0.045                       # rod beside the knob's backplate (clear of any thumbturn)
             z_top_r, z_bot_r = zb + Hh - 0.075, zb + 0.03
             leaf_body.geoms.append(C.cyl(f"{leaf_name}_cremone_rod_up", (x_r, y_r, (hz + 0.04 + z_top_r) / 2), 0.006, (z_top_r - hz - 0.04) / 2, cm_, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "lock", "Cremone rod (up)"))
@@ -351,7 +351,7 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         model.meta.setdefault("clearance_allow", []).extend([[f"{leaf_name}_fork_eye", f"{leaf_name}_fork_pin", "pivot pin through the fork eye"], [f"{leaf_name}_fork_arm", f"{leaf_name}_fork_pin", "pivot pin through the arm"]])
         if lk.kind == "padlock" and engaged:
             pm = C.mat_from_material(model, "brass", "mat_padlock")
-            leaf_body.geoms.append(C.box(f"{leaf_name}_fork_lug", (x_piv + u * 0.05, y_arm, hz - 0.024), (0.006, 0.004, 0.012), mat, 7800, False, True, FULL_SIMPLE, "lock", "Padlock lug"))
+            leaf_body.geoms.append(C.box(f"{leaf_name}_fork_lug", (x_piv + u * 0.05, y_arm / 2, hz - 0.024), (0.006, abs(y_arm) / 2 + 0.004, 0.012), mat, 7800, False, True, FULL_SIMPLE, "lock", "Padlock lug"))
             C.add_padlock(fork.geoms, f"{leaf_name}_fork_padlock", (u * 0.05, y_arm, 0.0), (0, 1, 0), (0, 0, -1), pm, ALL_TIERS, "lock", "Padlock (fork locked down)")
             fork.joint.range = (0.0, 0.001)
             model.meta.setdefault("clearance_allow", []).extend([[f"{leaf_name}_fork_padlock*", f"{leaf_name}_fork_arm", "shackle through the arm eye"], [f"{leaf_name}_fork_padlock*", f"{leaf_name}_fork_lug", "shackle through the lug"]])

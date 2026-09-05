@@ -289,10 +289,13 @@ def _strike_column(geoms, prefix, sx, u, v, jamb_t, ya, yb, z_top, pockets, mat,
             if v * (y_edge_p - yc) < pw / 2 + 0.004:
                 # pocket reaches the member's edge: add a keeper lip beyond the edge so the bolt is still captured
                 yp0, yp1 = sorted((yc + v * pw / 2, yc + v * (pw / 2 + 0.006)))
-                wt_ = min(jamb_t, 0.03)
+                wt_ = min(jamb_t, max(0.03, pd + 0.002))     # deep enough to meet the pocket back
             geoms.append(box(f"{tag}_wall_p", (sx + u * wt_ / 2, (yp0 + yp1) / 2, zc), (wt_ / 2, (yp1 - yp0) / 2, ph / 2), mat, dens, semantic="frame", label="Strike pocket wall"))
         back_t = max(jamb_t - pd, 0.004)
-        geoms.append(box(f"{tag}_back", (sx + u * (pd + back_t / 2), yc, zc), (back_t / 2, pw / 2, ph / 2), mat, dens, semantic="frame", label="Strike pocket back"))
+        b_pos, b_half = (sx + u * (pd + back_t / 2), yc, zc), (back_t / 2, pw / 2, ph / 2)
+        if not any(g.name.endswith("_back") and max(abs(a - b) for a, b in zip(g.pos, b_pos)) < 1e-6
+                   and max(abs(a - b) for a, b in zip(g.size, b_half)) < 1e-6 for g in geoms):
+            geoms.append(box(f"{tag}_back", b_pos, b_half, mat, dens, semantic="frame", label="Strike pocket back"))
     segs.append((zs[-1], z_top))
     for k, (a, b) in enumerate(segs):
         if b - a > 1e-4:
@@ -1508,7 +1511,8 @@ def brace_pending(model: Model):
             for d in ([float(e["d"])] if e.get("d") else (d0, -d0)):
                 if brace_to_structure(world, g, d, g.material, name=f"{g.name}_strap_{i}", semantic=g.semantic,
                                       label=e.get("label", "Mounting bracket"), tiers=FULL_SIMPLE, span=0.8,
-                                      axes=tuple(e.get("axes", ("y", "x")))) is not None:
+                                      axes=tuple(e.get("axes", ("y", "x"))), pad=float(e.get("pad", 0.02)),
+                                      reach=float(e.get("reach", 0.06))) is not None:
                     break
 
 
@@ -1780,6 +1784,9 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
         wm = mat_from_material(model, "black_matte_metal", "mat_wallreader")
         xw = u * (Wo / 2 + 0.25)
         yw = float(model.meta.get("wall_y", 0.0))
+        # keep the reader / button / sensor on the wall: a wide opening pushes this past the wall's own end
+        x_wall_max = max([abs(float(g.pos[0])) + float(g.size[0]) for g in world.geoms if g.name.startswith("wall_") and g.type == "box"] or [abs(xw) + 0.2])
+        xw = math.copysign(min(abs(xw), x_wall_max - 0.15), xw)
         if "keypad_reader_wall" in ex:
             world.geoms.append(box("wall_reader", (xw, yw - (spec["opening"]["wall_thickness"] / 2 + 0.015), 1.1), (0.04, 0.015, 0.06), wm, 1000, True, True, FULL_SIMPLE, "sensor", "Wall card/keypad reader"))
         if "rex_button" in ex:
@@ -1793,8 +1800,14 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
             model.add_body(rb)
             world.geoms.append(box("rex_plate", (xw, y_plate + 0.003, z_rex), (0.04, 0.003, 0.06), wm, 1000, False, True, FULL_SIMPLE, "sensor", "REX plate"))
         if "wave_sensor" in ex:
+            # a sliding door sweeps the wall beside its opening: its motion sensor goes over the head, as on the
+            # real thing, not at hand height where the leaf runs
+            z_ws = (Ho + 0.07) if spec["family"] in ("automatic_sliding", "sliding_single", "sliding_bypass", "elevator") else 1.05
+            x_ws = 0.0 if z_ws > 1.05 else xw
             for f in (-1, 1):
-                world.geoms.append(box(f"wave_sensor_{'p' if f > 0 else 'n'}", (xw, yw + f * (spec["opening"]["wall_thickness"] / 2 + 0.012), 1.05), (0.05, 0.012, 0.05), wm, 1000, True, True, FULL_SIMPLE, "sensor", "Wave-to-open / push plate sensor"))
+                world.geoms.append(box(f"wave_sensor_{'p' if f > 0 else 'n'}", (x_ws, yw + f * (spec["opening"]["wall_thickness"] / 2 + 0.012), z_ws), (0.05, 0.012, 0.05), wm, 1000, True, True, FULL_SIMPLE, "sensor", "Wave-to-open / push plate sensor"))
+                brace_to_structure(world, world.geoms[-1], float(f), wm, name=f"wave_sensor_{'p' if f > 0 else 'n'}_pad",
+                                   semantic="sensor", label="Sensor wall pad", tiers=FULL_SIMPLE, span=0.8, axes=("y",))
         if "call_button" in ex:
             y_cp = yw - spec["opening"]["wall_thickness"] / 2
             world.geoms.append(box("call_plate", (xw, y_cp - 0.003, 1.05), (0.03, 0.003, 0.05), wm, 1000, False, True, FULL_SIMPLE, "sensor", "Call button plate"))
