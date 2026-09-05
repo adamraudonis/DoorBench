@@ -945,8 +945,10 @@ def compare_door(inputs: dict, mj: dict | None, px: dict | None, kind: str = "us
     if skew:
         out["codes"] = [c for c in out["codes"] if c != "METRICS_VERSION_SKEW"] + ["METRICS_VERSION_SKEW"]
     out["grade"] = "C" if grade_c else ("B" if grade_b else "A")
-    if not out["codes"]:
-        out["codes"] = ["OK"]
+    # "OK" means every *comparable* thing agrees; a provenance code (a metric that could not be compared at all) is
+    # recorded alongside it rather than instead of it, so the summary still counts the doors that are at parity
+    if not [c for c in out["codes"] if c not in PROVENANCE_CODES]:
+        out["codes"] = ["OK"] + out["codes"]
     return out
 
 

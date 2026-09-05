@@ -245,7 +245,7 @@ def _group_stats(verdicts: list[dict]) -> dict:
                 if kv["grade"] in GRADES:
                     g[k][kv["grade"]] += 1
         for c in v.get("classes", []):
-            if c not in ("QUANT",):
+            if c not in ("QUANT", "METRICS_VERSION_SKEW"):   # a run-wide provenance fact, not a property of this family
                 cls[c] += 1
     g["top_classes"] = [f"{c} x{n}" for c, n in cls.most_common(3)]
     return g

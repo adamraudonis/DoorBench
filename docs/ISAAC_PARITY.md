@@ -1,6 +1,6 @@
 # Isaac parity gate
 
-_Report generated 2026-09-05T09:07:03 by `scripts/isaaclab/parity_report.py` from `results/parity/`, repository commit `8a448597b`. Dataset: 1000 doors, manifest version `0.1.0` generated 2026-09-05T08:43:59, reference run commit `a6061be27`._
+_Report generated 2026-09-05T09:08:04 by `scripts/isaaclab/parity_report.py` from `results/parity/`, repository commit `49b6612f1`. Dataset: 1000 doors, manifest version `0.1.0` generated 2026-09-05T08:43:59, reference run commit `a6061be27`._
 
 ### Which runs this page compares
 
@@ -168,35 +168,35 @@ Door badge (`qa.json.isaac_parity.ok`; viewer chip *Isaac parity*): **703 ok** (
 | family | doors | tested | ok | fail | full A / A+B | rl A / A+B | most frequent classes |
 |---|---|---|---|---|---|---|---|
 | accordion | 12 | 0 | 0 | 0 | 0 / 0 | 0 / 0 | STALE_INPUTS x12 |
-| automatic_sliding | 15 | 15 | 15 | 0 | 5 / 15 | 3 / 15 | METRICS_VERSION_SKEW x15 |
-| automatic_swing | 10 | 10 | 10 | 0 | 10 / 10 | 10 / 10 | METRICS_VERSION_SKEW x10 |
-| baby_gate | 10 | 2 | 0 | 2 | 0 / 0 | 2 / 2 | STALE_INPUTS x8, CONTACT_GEOMETRY x2, METRICS_VERSION_SKEW x2 |
-| bifold | 30 | 2 | 2 | 0 | 2 / 2 | 2 / 2 | STALE_INPUTS x28, METRICS_VERSION_SKEW x2 |
-| blast | 6 | 6 | 0 | 6 | 0 / 0 | 0 / 5 | EXPORT_COUPLING x6, METRICS_VERSION_SKEW x6 |
-| cold_storage | 15 | 15 | 15 | 0 | 0 / 15 | 4 / 15 | METRICS_VERSION_SKEW x15 |
-| dutch | 12 | 12 | 12 | 0 | 8 / 12 | 8 / 12 | METRICS_VERSION_SKEW x12 |
-| elevator | 8 | 8 | 8 | 0 | 8 / 8 | 8 / 8 | METRICS_VERSION_SKEW x8 |
-| garage_sectional | 18 | 18 | 18 | 0 | 18 / 18 | 17 / 18 | METRICS_VERSION_SKEW x18, VELOCITY_EXPLOSION x1 |
-| garage_tiltup | 7 | 7 | 7 | 0 | 7 / 7 | 7 / 7 | METRICS_VERSION_SKEW x7 |
-| gate_sliding | 10 | 8 | 8 | 0 | 5 / 8 | 4 / 8 | METRICS_VERSION_SKEW x8, STALE_INPUTS x2 |
-| gate_swing | 40 | 23 | 19 | 4 | 19 / 19 | 22 / 23 | METRICS_VERSION_SKEW x23, STALE_INPUTS x17, CONTACT_GEOMETRY x4 |
-| hatch_ceiling | 8 | 2 | 2 | 0 | 1 / 2 | 1 / 2 | STALE_INPUTS x6, METRICS_VERSION_SKEW x2 |
-| hatch_floor | 10 | 8 | 8 | 0 | 2 / 8 | 2 / 8 | METRICS_VERSION_SKEW x8, STALE_INPUTS x2 |
+| automatic_sliding | 15 | 15 | 15 | 0 | 5 / 15 | 3 / 15 | - |
+| automatic_swing | 10 | 10 | 10 | 0 | 10 / 10 | 10 / 10 | - |
+| baby_gate | 10 | 2 | 0 | 2 | 0 / 0 | 2 / 2 | STALE_INPUTS x8, CONTACT_GEOMETRY x2 |
+| bifold | 30 | 2 | 2 | 0 | 2 / 2 | 2 / 2 | STALE_INPUTS x28 |
+| blast | 6 | 6 | 0 | 6 | 0 / 0 | 0 / 5 | EXPORT_COUPLING x6 |
+| cold_storage | 15 | 15 | 15 | 0 | 0 / 15 | 4 / 15 | - |
+| dutch | 12 | 12 | 12 | 0 | 8 / 12 | 8 / 12 | - |
+| elevator | 8 | 8 | 8 | 0 | 8 / 8 | 8 / 8 | - |
+| garage_sectional | 18 | 18 | 18 | 0 | 18 / 18 | 17 / 18 | VELOCITY_EXPLOSION x1 |
+| garage_tiltup | 7 | 7 | 7 | 0 | 7 / 7 | 7 / 7 | - |
+| gate_sliding | 10 | 8 | 8 | 0 | 5 / 8 | 4 / 8 | STALE_INPUTS x2 |
+| gate_swing | 40 | 23 | 19 | 4 | 19 / 19 | 22 / 23 | STALE_INPUTS x17, CONTACT_GEOMETRY x4 |
+| hatch_ceiling | 8 | 2 | 2 | 0 | 1 / 2 | 1 / 2 | STALE_INPUTS x6 |
+| hatch_floor | 10 | 8 | 8 | 0 | 2 / 8 | 2 / 8 | STALE_INPUTS x2 |
 | pet_door | 15 | 0 | 0 | 0 | 0 / 0 | 0 / 0 | STALE_INPUTS x15 |
-| pivot | 20 | 20 | 19 | 1 | 14 / 19 | 14 / 19 | METRICS_VERSION_SKEW x20, EXPORT_WELD x1 |
-| revolving | 15 | 15 | 15 | 0 | 15 / 15 | 15 / 15 | METRICS_VERSION_SKEW x15 |
-| rollup | 15 | 15 | 15 | 0 | 15 / 15 | 14 / 15 | METRICS_VERSION_SKEW x15, VELOCITY_EXPLOSION x1 |
-| saloon | 12 | 4 | 4 | 0 | 4 / 4 | 4 / 4 | STALE_INPUTS x8, METRICS_VERSION_SKEW x4 |
-| ship_watertight | 10 | 10 | 10 | 0 | 2 / 10 | 0 / 10 | METRICS_VERSION_SKEW x10 |
-| sliding_bypass | 35 | 20 | 20 | 0 | 20 / 20 | 19 / 20 | METRICS_VERSION_SKEW x20, STALE_INPUTS x15 |
-| sliding_single | 100 | 81 | 67 | 14 | 76 / 78 | 52 / 70 | METRICS_VERSION_SKEW x81, STALE_INPUTS x19, EXPORT_COUPLING x11 |
-| stall | 15 | 11 | 11 | 0 | 5 / 11 | 5 / 11 | METRICS_VERSION_SKEW x11, STALE_INPUTS x4 |
+| pivot | 20 | 20 | 19 | 1 | 14 / 19 | 14 / 19 | EXPORT_WELD x1 |
+| revolving | 15 | 15 | 15 | 0 | 15 / 15 | 15 / 15 | - |
+| rollup | 15 | 15 | 15 | 0 | 15 / 15 | 14 / 15 | VELOCITY_EXPLOSION x1 |
+| saloon | 12 | 4 | 4 | 0 | 4 / 4 | 4 / 4 | STALE_INPUTS x8 |
+| ship_watertight | 10 | 10 | 10 | 0 | 2 / 10 | 0 / 10 | - |
+| sliding_bypass | 35 | 20 | 20 | 0 | 20 / 20 | 19 / 20 | STALE_INPUTS x15 |
+| sliding_single | 100 | 81 | 67 | 14 | 76 / 78 | 52 / 70 | STALE_INPUTS x19, EXPORT_COUPLING x11, RL_CANON x11 |
+| stall | 15 | 11 | 11 | 0 | 5 / 11 | 5 / 11 | STALE_INPUTS x4 |
 | strip_curtain | 8 | 0 | 0 | 0 | 0 / 0 | 0 / 0 | STALE_INPUTS x8 |
-| swing_double | 76 | 76 | 55 | 21 | 34 / 57 | 36 / 55 | METRICS_VERSION_SKEW x76, CONTACT_GEOMETRY x11, EXPORT_WELD x8 |
-| swing_single | 440 | 392 | 362 | 30 | 301 / 363 | 318 / 388 | METRICS_VERSION_SKEW x392, STALE_INPUTS x48, CONTACT_GEOMETRY x26 |
-| turnstile_fullheight | 10 | 1 | 1 | 0 | 1 / 1 | 0 / 1 | STALE_INPUTS x9, METRICS_VERSION_SKEW x1 |
+| swing_double | 76 | 76 | 55 | 21 | 34 / 57 | 36 / 55 | CONTACT_GEOMETRY x11, EXPORT_WELD x8, RL_CANON x3 |
+| swing_single | 440 | 392 | 362 | 30 | 301 / 363 | 318 / 388 | STALE_INPUTS x48, CONTACT_GEOMETRY x26, EXPORT_WELD x3 |
+| turnstile_fullheight | 10 | 1 | 1 | 0 | 1 / 1 | 0 / 1 | STALE_INPUTS x9 |
 | turnstile_tripod | 10 | 0 | 0 | 0 | 0 / 0 | 0 / 0 | STALE_INPUTS x10 |
-| vault | 8 | 8 | 0 | 8 | 0 / 0 | 0 / 2 | EXPORT_COUPLING x8, METRICS_VERSION_SKEW x8 |
+| vault | 8 | 8 | 0 | 8 | 0 / 0 | 0 / 2 | EXPORT_COUPLING x8 |
 
 ## By hardware
 
@@ -204,103 +204,103 @@ Door badge (`qa.json.isaac_parity.ok`; viewer chip *Isaac parity*): **703 ok** (
 
 | kind | tested | ok | fail | full A / A+B | rl A / A+B | most frequent classes |
 |---|---|---|---|---|---|---|
-| deadlatch | 88 | 84 | 4 | 65 / 84 | 66 / 88 | METRICS_VERSION_SKEW x88, CONTACT_GEOMETRY x4 |
-| dogs | 17 | 10 | 7 | 2 / 10 | 0 / 17 | METRICS_VERSION_SKEW x17, EXPORT_COUPLING x7 |
-| electric_bolt | 11 | 8 | 3 | 8 / 8 | 11 / 11 | METRICS_VERSION_SKEW x11, EXPORT_WELD x2, CONTACT_GEOMETRY x1 |
-| gravity_bar | 19 | 19 | 0 | 19 / 19 | 18 / 19 | METRICS_VERSION_SKEW x19, STALE_INPUTS x11 |
-| hook | 21 | 4 | 17 | 15 / 15 | 10 / 10 | METRICS_VERSION_SKEW x21, EXPORT_COUPLING x11, RL_CANON x11 |
-| magnetic | 16 | 16 | 0 | 4 / 16 | 8 / 16 | STALE_INPUTS x25, METRICS_VERSION_SKEW x16 |
-| mortise_latch | 74 | 68 | 6 | 55 / 68 | 57 / 74 | METRICS_VERSION_SKEW x74, CONTACT_GEOMETRY x6 |
-| multi_bolt | 7 | 0 | 7 | 0 / 0 | 0 / 0 | EXPORT_COUPLING x7, METRICS_VERSION_SKEW x7 |
-| none | 268 | 260 | 8 | 220 / 262 | 207 / 260 | METRICS_VERSION_SKEW x268, STALE_INPUTS x109, EXPORT_WELD x6 |
-| rim_latch | 42 | 41 | 1 | 39 / 42 | 37 / 41 | METRICS_VERSION_SKEW x42, EXPORT_COUPLING x1, RL_CANON x1 |
-| roller | 8 | 8 | 0 | 3 / 8 | 3 / 8 | METRICS_VERSION_SKEW x8 |
-| slide_bolt | 22 | 22 | 0 | 15 / 22 | 13 / 22 | METRICS_VERSION_SKEW x22, STALE_INPUTS x8 |
-| tubular_latch | 165 | 132 | 33 | 111 / 132 | 120 / 148 | METRICS_VERSION_SKEW x165, STALE_INPUTS x48, CONTACT_GEOMETRY x27 |
-| vertical_rods | 31 | 31 | 0 | 16 / 31 | 17 / 31 | METRICS_VERSION_SKEW x31 |
+| deadlatch | 88 | 84 | 4 | 65 / 84 | 66 / 88 | CONTACT_GEOMETRY x4 |
+| dogs | 17 | 10 | 7 | 2 / 10 | 0 / 17 | EXPORT_COUPLING x7 |
+| electric_bolt | 11 | 8 | 3 | 8 / 8 | 11 / 11 | EXPORT_WELD x2, CONTACT_GEOMETRY x1 |
+| gravity_bar | 19 | 19 | 0 | 19 / 19 | 18 / 19 | STALE_INPUTS x11 |
+| hook | 21 | 4 | 17 | 15 / 15 | 10 / 10 | EXPORT_COUPLING x11, RL_CANON x11, STALE_INPUTS x10 |
+| magnetic | 16 | 16 | 0 | 4 / 16 | 8 / 16 | STALE_INPUTS x25 |
+| mortise_latch | 74 | 68 | 6 | 55 / 68 | 57 / 74 | CONTACT_GEOMETRY x6 |
+| multi_bolt | 7 | 0 | 7 | 0 / 0 | 0 / 0 | EXPORT_COUPLING x7 |
+| none | 268 | 260 | 8 | 220 / 262 | 207 / 260 | STALE_INPUTS x109, EXPORT_WELD x6, VELOCITY_EXPLOSION x2 |
+| rim_latch | 42 | 41 | 1 | 39 / 42 | 37 / 41 | EXPORT_COUPLING x1, RL_CANON x1 |
+| roller | 8 | 8 | 0 | 3 / 8 | 3 / 8 | - |
+| slide_bolt | 22 | 22 | 0 | 15 / 22 | 13 / 22 | STALE_INPUTS x8 |
+| tubular_latch | 165 | 132 | 33 | 111 / 132 | 120 / 148 | STALE_INPUTS x48, CONTACT_GEOMETRY x27, EXPORT_WELD x6 |
+| vertical_rods | 31 | 31 | 0 | 16 / 31 | 17 / 31 | - |
 
 ### lock kind
 
 | kind | tested | ok | fail | full A / A+B | rl A / A+B | most frequent classes |
 |---|---|---|---|---|---|---|
-| card_reader | 20 | 20 | 0 | 17 / 20 | 17 / 20 | METRICS_VERSION_SKEW x20 |
-| chain | 4 | 4 | 0 | 3 / 4 | 3 / 4 | METRICS_VERSION_SKEW x4 |
-| child_lock_cover | 5 | 5 | 0 | 4 / 5 | 4 / 5 | METRICS_VERSION_SKEW x5, STALE_INPUTS x3 |
-| deadbolt_double | 6 | 6 | 0 | 4 / 6 | 4 / 6 | METRICS_VERSION_SKEW x6 |
-| deadbolt_single | 32 | 22 | 10 | 15 / 22 | 22 / 26 | METRICS_VERSION_SKEW x32, CONTACT_GEOMETRY x6, EXPORT_WELD x4 |
-| delayed_egress | 16 | 16 | 0 | 16 / 16 | 16 / 16 | METRICS_VERSION_SKEW x16 |
-| dogs | 17 | 10 | 7 | 2 / 10 | 0 / 17 | METRICS_VERSION_SKEW x17, EXPORT_COUPLING x7 |
-| electric_strike | 22 | 22 | 0 | 14 / 22 | 14 / 22 | METRICS_VERSION_SKEW x22, STALE_INPUTS x1 |
-| hook_lock | 22 | 18 | 4 | 21 / 22 | 16 / 18 | METRICS_VERSION_SKEW x22, STALE_INPUTS x6, EXPORT_COUPLING x4 |
-| interlock | 8 | 8 | 0 | 8 / 8 | 8 / 8 | METRICS_VERSION_SKEW x8 |
-| jam_stuck | 6 | 6 | 0 | 5 / 6 | 5 / 6 | METRICS_VERSION_SKEW x6, STALE_INPUTS x6 |
-| keyed_cylinder | 26 | 24 | 2 | 20 / 24 | 21 / 26 | METRICS_VERSION_SKEW x26, EXPORT_WELD x2 |
-| keypad_code | 28 | 18 | 10 | 15 / 18 | 20 / 28 | METRICS_VERSION_SKEW x28, CONTACT_GEOMETRY x10 |
-| mag_lock | 35 | 29 | 6 | 24 / 29 | 21 / 29 | METRICS_VERSION_SKEW x35, STALE_INPUTS x12, EXPORT_WELD x6 |
-| multipoint | 7 | 1 | 6 | 0 / 2 | 2 / 5 | METRICS_VERSION_SKEW x7, CONTACT_GEOMETRY x4, EXPORT_WELD x1 |
-| night_latch | 4 | 0 | 4 | 0 / 0 | 1 / 4 | CONTACT_GEOMETRY x4, METRICS_VERSION_SKEW x4 |
-| none | 398 | 378 | 20 | 301 / 384 | 291 / 385 | METRICS_VERSION_SKEW x398, STALE_INPUTS x146, CONTACT_GEOMETRY x14 |
-| padlock | 32 | 32 | 0 | 24 / 32 | 25 / 32 | METRICS_VERSION_SKEW x32, STALE_INPUTS x8, VELOCITY_EXPLOSION x1 |
-| privacy_button | 29 | 29 | 0 | 28 / 29 | 28 / 29 | METRICS_VERSION_SKEW x29, STALE_INPUTS x14 |
-| slide_bolt | 43 | 40 | 3 | 40 / 43 | 32 / 40 | METRICS_VERSION_SKEW x43, STALE_INPUTS x11, EXPORT_COUPLING x3 |
-| swing_bar_guard | 2 | 2 | 0 | 2 / 2 | 2 / 2 | METRICS_VERSION_SKEW x2 |
-| thumbturn_only | 20 | 13 | 7 | 9 / 13 | 15 / 17 | METRICS_VERSION_SKEW x20, CONTACT_GEOMETRY x6, STALE_INPUTS x4 |
-| vault_wheel | 7 | 0 | 7 | 0 / 0 | 0 / 0 | EXPORT_COUPLING x7, METRICS_VERSION_SKEW x7 |
+| card_reader | 20 | 20 | 0 | 17 / 20 | 17 / 20 | - |
+| chain | 4 | 4 | 0 | 3 / 4 | 3 / 4 | - |
+| child_lock_cover | 5 | 5 | 0 | 4 / 5 | 4 / 5 | STALE_INPUTS x3 |
+| deadbolt_double | 6 | 6 | 0 | 4 / 6 | 4 / 6 | - |
+| deadbolt_single | 32 | 22 | 10 | 15 / 22 | 22 / 26 | CONTACT_GEOMETRY x6, EXPORT_WELD x4, EXPORT_COUPLING x1 |
+| delayed_egress | 16 | 16 | 0 | 16 / 16 | 16 / 16 | - |
+| dogs | 17 | 10 | 7 | 2 / 10 | 0 / 17 | EXPORT_COUPLING x7 |
+| electric_strike | 22 | 22 | 0 | 14 / 22 | 14 / 22 | STALE_INPUTS x1 |
+| hook_lock | 22 | 18 | 4 | 21 / 22 | 16 / 18 | STALE_INPUTS x6, EXPORT_COUPLING x4, RL_CANON x4 |
+| interlock | 8 | 8 | 0 | 8 / 8 | 8 / 8 | - |
+| jam_stuck | 6 | 6 | 0 | 5 / 6 | 5 / 6 | STALE_INPUTS x6 |
+| keyed_cylinder | 26 | 24 | 2 | 20 / 24 | 21 / 26 | EXPORT_WELD x2 |
+| keypad_code | 28 | 18 | 10 | 15 / 18 | 20 / 28 | CONTACT_GEOMETRY x10 |
+| mag_lock | 35 | 29 | 6 | 24 / 29 | 21 / 29 | STALE_INPUTS x12, EXPORT_WELD x6 |
+| multipoint | 7 | 1 | 6 | 0 / 2 | 2 / 5 | CONTACT_GEOMETRY x4, EXPORT_WELD x1, PHYSICS_PARAM_FRICTION x1 |
+| night_latch | 4 | 0 | 4 | 0 / 0 | 1 / 4 | CONTACT_GEOMETRY x4 |
+| none | 398 | 378 | 20 | 301 / 384 | 291 / 385 | STALE_INPUTS x146, CONTACT_GEOMETRY x14, RL_CANON x6 |
+| padlock | 32 | 32 | 0 | 24 / 32 | 25 / 32 | STALE_INPUTS x8, VELOCITY_EXPLOSION x1 |
+| privacy_button | 29 | 29 | 0 | 28 / 29 | 28 / 29 | STALE_INPUTS x14 |
+| slide_bolt | 43 | 40 | 3 | 40 / 43 | 32 / 40 | STALE_INPUTS x11, EXPORT_COUPLING x3, RL_CANON x3 |
+| swing_bar_guard | 2 | 2 | 0 | 2 / 2 | 2 / 2 | - |
+| thumbturn_only | 20 | 13 | 7 | 9 / 13 | 15 / 17 | CONTACT_GEOMETRY x6, STALE_INPUTS x4, EXPORT_WELD x1 |
+| vault_wheel | 7 | 0 | 7 | 0 / 0 | 0 / 0 | EXPORT_COUPLING x7 |
 
 ### closer kind
 
 | kind | tested | ok | fail | full A / A+B | rl A / A+B | most frequent classes |
 |---|---|---|---|---|---|---|
-| auto_operator_full | 4 | 4 | 0 | 4 / 4 | 4 / 4 | METRICS_VERSION_SKEW x4 |
-| auto_operator_low_energy | 11 | 10 | 1 | 8 / 10 | 9 / 10 | METRICS_VERSION_SKEW x11, EXPORT_WELD x1 |
-| concealed_overhead | 21 | 19 | 2 | 15 / 19 | 15 / 19 | METRICS_VERSION_SKEW x21, EXPORT_WELD x2 |
-| electromagnetic_hold | 13 | 13 | 0 | 9 / 13 | 9 / 13 | METRICS_VERSION_SKEW x13 |
-| floor_spring | 28 | 26 | 2 | 15 / 26 | 17 / 27 | METRICS_VERSION_SKEW x28, CONTACT_GEOMETRY x1, EXPORT_WELD x1 |
-| gas_strut | 3 | 3 | 0 | 1 / 3 | 1 / 3 | STALE_INPUTS x5, METRICS_VERSION_SKEW x3 |
-| gate | 10 | 5 | 5 | 5 / 5 | 9 / 10 | STALE_INPUTS x12, METRICS_VERSION_SKEW x10, CONTACT_GEOMETRY x5 |
-| none | 488 | 418 | 70 | 364 / 431 | 343 / 450 | METRICS_VERSION_SKEW x488, STALE_INPUTS x179, CONTACT_GEOMETRY x34 |
-| pneumatic | 6 | 6 | 0 | 6 / 6 | 6 / 6 | METRICS_VERSION_SKEW x6 |
-| spring_hinge | 22 | 19 | 3 | 15 / 19 | 15 / 22 | METRICS_VERSION_SKEW x22, STALE_INPUTS x15, CONTACT_GEOMETRY x3 |
-| surface_overhead | 183 | 180 | 3 | 130 / 181 | 139 / 181 | METRICS_VERSION_SKEW x183, CONTACT_GEOMETRY x1, EXPORT_WELD x1 |
+| auto_operator_full | 4 | 4 | 0 | 4 / 4 | 4 / 4 | - |
+| auto_operator_low_energy | 11 | 10 | 1 | 8 / 10 | 9 / 10 | EXPORT_WELD x1 |
+| concealed_overhead | 21 | 19 | 2 | 15 / 19 | 15 / 19 | EXPORT_WELD x2 |
+| electromagnetic_hold | 13 | 13 | 0 | 9 / 13 | 9 / 13 | - |
+| floor_spring | 28 | 26 | 2 | 15 / 26 | 17 / 27 | CONTACT_GEOMETRY x1, EXPORT_WELD x1 |
+| gas_strut | 3 | 3 | 0 | 1 / 3 | 1 / 3 | STALE_INPUTS x5 |
+| gate | 10 | 5 | 5 | 5 / 5 | 9 / 10 | STALE_INPUTS x12, CONTACT_GEOMETRY x5 |
+| none | 488 | 418 | 70 | 364 / 431 | 343 / 450 | STALE_INPUTS x179, CONTACT_GEOMETRY x34, EXPORT_COUPLING x26 |
+| pneumatic | 6 | 6 | 0 | 6 / 6 | 6 / 6 | - |
+| spring_hinge | 22 | 19 | 3 | 15 / 19 | 15 / 22 | STALE_INPUTS x15, CONTACT_GEOMETRY x3 |
+| surface_overhead | 183 | 180 | 3 | 130 / 181 | 139 / 181 | CONTACT_GEOMETRY x1, EXPORT_WELD x1, EXPORT_COUPLING x1 |
 
 ### operator kind
 
 | kind | tested | ok | fail | full A / A+B | rl A / A+B | most frequent classes |
 |---|---|---|---|---|---|---|
-| card_lever | 20 | 20 | 0 | 15 / 20 | 15 / 20 | METRICS_VERSION_SKEW x20 |
-| cremone | 3 | 1 | 2 | 0 / 3 | 1 / 1 | METRICS_VERSION_SKEW x3, PHYSICS_PARAM_FRICTION x2, RL_CANON x2 |
-| flush_pull | 37 | 37 | 0 | 36 / 37 | 31 / 37 | METRICS_VERSION_SKEW x37, STALE_INPUTS x35 |
-| gate_latch_fork | 4 | 4 | 0 | 4 / 4 | 4 / 4 | STALE_INPUTS x8, METRICS_VERSION_SKEW x4 |
-| handleset | 13 | 8 | 5 | 0 / 8 | 0 / 10 | METRICS_VERSION_SKEW x13, CONTACT_GEOMETRY x4, EXPORT_WELD x1 |
-| hasp | 6 | 6 | 0 | 5 / 6 | 6 / 6 | METRICS_VERSION_SKEW x6, STALE_INPUTS x3 |
-| hook_lock_slider | 15 | 4 | 11 | 15 / 15 | 4 / 4 | METRICS_VERSION_SKEW x15, EXPORT_COUPLING x11, RL_CANON x11 |
-| keypad_deadbolt | 9 | 1 | 8 | 0 / 1 | 3 / 9 | METRICS_VERSION_SKEW x9, CONTACT_GEOMETRY x8 |
-| keypad_lever | 19 | 17 | 2 | 15 / 17 | 17 / 19 | METRICS_VERSION_SKEW x19, CONTACT_GEOMETRY x2 |
-| knob | 76 | 69 | 7 | 65 / 69 | 69 / 73 | METRICS_VERSION_SKEW x76, STALE_INPUTS x59, CONTACT_GEOMETRY x7 |
-| lever | 200 | 173 | 27 | 121 / 173 | 124 / 189 | METRICS_VERSION_SKEW x200, STALE_INPUTS x17, CONTACT_GEOMETRY x15 |
-| lift_latch | 6 | 0 | 6 | 0 / 0 | 6 / 6 | STALE_INPUTS x10, CONTACT_GEOMETRY x6, METRICS_VERSION_SKEW x6 |
-| none | 49 | 48 | 1 | 38 / 48 | 35 / 49 | STALE_INPUTS x53, METRICS_VERSION_SKEW x49, VELOCITY_EXPLOSION x1 |
-| paddle | 11 | 9 | 2 | 8 / 9 | 8 / 10 | METRICS_VERSION_SKEW x11, CONTACT_GEOMETRY x1, EXPORT_WELD x1 |
-| panic_crossbar | 6 | 6 | 0 | 6 / 6 | 6 / 6 | METRICS_VERSION_SKEW x6 |
-| panic_touchbar | 73 | 72 | 1 | 54 / 73 | 53 / 72 | METRICS_VERSION_SKEW x73, EXPORT_COUPLING x1, RL_CANON x1 |
-| pull | 142 | 136 | 6 | 113 / 136 | 110 / 138 | METRICS_VERSION_SKEW x142, STALE_INPUTS x14, EXPORT_WELD x6 |
-| push_button_screen | 7 | 7 | 0 | 6 / 7 | 7 / 7 | METRICS_VERSION_SKEW x7 |
-| push_plate | 24 | 23 | 1 | 22 / 23 | 23 / 23 | METRICS_VERSION_SKEW x24, EXPORT_WELD x1 |
-| ring_pull | 26 | 26 | 0 | 19 / 26 | 17 / 26 | METRICS_VERSION_SKEW x26, STALE_INPUTS x3 |
-| slide_bolt_handle | 13 | 13 | 0 | 11 / 13 | 11 / 13 | METRICS_VERSION_SKEW x13, STALE_INPUTS x6 |
-| t_handle | 10 | 10 | 0 | 10 / 10 | 9 / 10 | METRICS_VERSION_SKEW x10, VELOCITY_EXPLOSION x1 |
-| thumb_latch | 9 | 9 | 0 | 9 / 9 | 8 / 9 | METRICS_VERSION_SKEW x9, STALE_INPUTS x3 |
-| wheel | 11 | 4 | 7 | 0 / 4 | 0 / 4 | METRICS_VERSION_SKEW x11, EXPORT_COUPLING x7 |
+| card_lever | 20 | 20 | 0 | 15 / 20 | 15 / 20 | - |
+| cremone | 3 | 1 | 2 | 0 / 3 | 1 / 1 | PHYSICS_PARAM_FRICTION x2, RL_CANON x2 |
+| flush_pull | 37 | 37 | 0 | 36 / 37 | 31 / 37 | STALE_INPUTS x35 |
+| gate_latch_fork | 4 | 4 | 0 | 4 / 4 | 4 / 4 | STALE_INPUTS x8 |
+| handleset | 13 | 8 | 5 | 0 / 8 | 0 / 10 | CONTACT_GEOMETRY x4, EXPORT_WELD x1 |
+| hasp | 6 | 6 | 0 | 5 / 6 | 6 / 6 | STALE_INPUTS x3 |
+| hook_lock_slider | 15 | 4 | 11 | 15 / 15 | 4 / 4 | EXPORT_COUPLING x11, RL_CANON x11 |
+| keypad_deadbolt | 9 | 1 | 8 | 0 / 1 | 3 / 9 | CONTACT_GEOMETRY x8 |
+| keypad_lever | 19 | 17 | 2 | 15 / 17 | 17 / 19 | CONTACT_GEOMETRY x2 |
+| knob | 76 | 69 | 7 | 65 / 69 | 69 / 73 | STALE_INPUTS x59, CONTACT_GEOMETRY x7 |
+| lever | 200 | 173 | 27 | 121 / 173 | 124 / 189 | STALE_INPUTS x17, CONTACT_GEOMETRY x15, EXPORT_COUPLING x8 |
+| lift_latch | 6 | 0 | 6 | 0 / 0 | 6 / 6 | STALE_INPUTS x10, CONTACT_GEOMETRY x6 |
+| none | 49 | 48 | 1 | 38 / 48 | 35 / 49 | STALE_INPUTS x53, VELOCITY_EXPLOSION x1, CONTACT_GEOMETRY x1 |
+| paddle | 11 | 9 | 2 | 8 / 9 | 8 / 10 | CONTACT_GEOMETRY x1, EXPORT_WELD x1 |
+| panic_crossbar | 6 | 6 | 0 | 6 / 6 | 6 / 6 | - |
+| panic_touchbar | 73 | 72 | 1 | 54 / 73 | 53 / 72 | EXPORT_COUPLING x1, RL_CANON x1 |
+| pull | 142 | 136 | 6 | 113 / 136 | 110 / 138 | STALE_INPUTS x14, EXPORT_WELD x6 |
+| push_button_screen | 7 | 7 | 0 | 6 / 7 | 7 / 7 | - |
+| push_plate | 24 | 23 | 1 | 22 / 23 | 23 / 23 | EXPORT_WELD x1 |
+| ring_pull | 26 | 26 | 0 | 19 / 26 | 17 / 26 | STALE_INPUTS x3 |
+| slide_bolt_handle | 13 | 13 | 0 | 11 / 13 | 11 / 13 | STALE_INPUTS x6 |
+| t_handle | 10 | 10 | 0 | 10 / 10 | 9 / 10 | VELOCITY_EXPLOSION x1 |
+| thumb_latch | 9 | 9 | 0 | 9 / 9 | 8 / 9 | STALE_INPUTS x3 |
+| wheel | 11 | 4 | 7 | 0 / 4 | 0 / 4 | EXPORT_COUPLING x7 |
 
 ## By kinematics
 
 | kinematics | tested | ok | fail | full A / A+B | rl A / A+B | most frequent classes |
 |---|---|---|---|---|---|---|
-| hinge_horizontal | 17 | 17 | 0 | 10 / 17 | 10 / 17 | STALE_INPUTS x31, METRICS_VERSION_SKEW x17 |
-| hinge_vertical | 591 | 519 | 72 | 399 / 522 | 425 / 558 | METRICS_VERSION_SKEW x591, STALE_INPUTS x125, CONTACT_GEOMETRY x43 |
-| rotor | 16 | 16 | 0 | 16 / 16 | 15 / 16 | STALE_INPUTS x19, METRICS_VERSION_SKEW x16 |
-| slide_horizontal | 132 | 118 | 14 | 114 / 129 | 86 / 121 | METRICS_VERSION_SKEW x132, STALE_INPUTS x36, EXPORT_COUPLING x11 |
-| slide_vertical | 33 | 33 | 0 | 33 / 33 | 31 / 33 | METRICS_VERSION_SKEW x33, VELOCITY_EXPLOSION x2 |
+| hinge_horizontal | 17 | 17 | 0 | 10 / 17 | 10 / 17 | STALE_INPUTS x31 |
+| hinge_vertical | 591 | 519 | 72 | 399 / 522 | 425 / 558 | STALE_INPUTS x125, CONTACT_GEOMETRY x43, EXPORT_COUPLING x16 |
+| rotor | 16 | 16 | 0 | 16 / 16 | 15 / 16 | STALE_INPUTS x19 |
+| slide_horizontal | 132 | 118 | 14 | 114 / 129 | 86 / 121 | STALE_INPUTS x36, EXPORT_COUPLING x11, RL_CANON x11 |
+| slide_vertical | 33 | 33 | 0 | 33 / 33 | 31 / 33 | VELOCITY_EXPLOSION x2 |
 
 ## Metric deltas
 

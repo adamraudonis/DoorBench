@@ -439,3 +439,16 @@ def test_package_version_resolves_or_says_it_cannot():
     # every value is either a version string or None - never a silent empty string the report would print as blank
     for k, v in eng.items():
         assert v is None or (isinstance(v, str) and v), (k, v)
+
+
+def test_ok_is_still_reported_next_to_a_provenance_code():
+    """A door at parity whose arrival speed could not be compared is still a door at parity."""
+    inp = _inputs()
+    inp["schedule"] = {k: dict(v, relatch="relatches") for k, v in inp["schedule"].items()}
+    m = {"relatch_closed_angle": 0.0, "relatch_repush_angle": 0.001, "t_close": 0.6, "arrival_speed": 3.0, "opened_before": 1.6}
+    mj = _rec({"relatch": _ph("pass", m, expected="relatches")}, metrics_version="1.1")
+    px = _rec({"relatch": _ph("pass", dict(m, arrival_speed=0.02), expected="relatches")})
+    v = P.compare_door(inp, mj, px, kind="usd_full")
+    assert v["grade"] == "A" and v["codes"] == ["OK", "METRICS_VERSION_SKEW"]
+    s = P.summarize([v])
+    assert s["codes"]["OK"]["count"] == 1 and s["metrics_version_skew"]["n"] == 1 and s["stale"]["n"] == 0
