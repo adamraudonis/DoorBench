@@ -70,7 +70,20 @@ def push_base(unit: str, mass_kg: float | None = None, width_m: float | None = N
     ``0.5 * m * g * W`` is half the moment gravity would exert on the leaf if it lay horizontal: the effort scale of
     the mechanism itself, in the same units as the push (N*m about a hinge, and ``0.5 * m * g`` newtons on a slide,
     where there is no lever arm).  Clamped to [2, 60] N*m ([2, 80] N), so every door of 20 kg and up keeps exactly the
-    push it had, and only leaves too light to justify it get less."""
+    push it had, and only leaves too light to justify it get less.
+
+    Known approximation (verified 2026-09, 211 doors get a reduced base and none of them changes a QA verdict).
+    ``mass_kg`` is the whole leaf assembly and ``width_m`` the spec's leaf width, which is the gravity moment arm only
+    for a leaf hinged on a VERTICAL axis carrying its whole mass.  It is not the arm for the 48 ``hinge_horizontal``
+    doors, and on the 8 strip curtains it is wrong in both factors at once: the primary joint carries ONE 0.58 kg
+    strip whose COM hangs H/2 = 1.19 m below the hinge, so the physical moment is m_strip * g * H/2 = 6.7 N*m while
+    the formula returns 0.5 * m_curtain * g * W = 4.2 N*m - within a factor 1.6 because the two errors cancel.  The
+    obvious repair (subtree mass times the perpendicular distance from the axis to the subtree COM) is NOT correct
+    either: a revolving door or turnstile is balanced about its axis, that distance is 0, and the formula would
+    collapse to the 2 N*m floor on a 100 kg rotor.  Sizing a balanced rotor needs inertia, not gravity, so this is
+    left as is and documented rather than replaced with a formula that is wrong somewhere else.
+    Measured effect of the approximation: 18 doors differ by more than 5 % from the height-arm value, and on 10 of
+    them (hatches, pet flaps) the base is a small part of the push anyway (the bias term is 44-420 N*m)."""
     cap = PUSH_BASE_MAX["hinge" if unit == "hinge" else "slide"]
     if not mass_kg or mass_kg <= 0:
         return cap

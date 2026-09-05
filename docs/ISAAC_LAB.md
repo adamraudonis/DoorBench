@@ -233,12 +233,28 @@ behaviour, not the nominal number.
 ## 5. Known unknowns for the first GPU run
 
 0. Three representations added after parity round 2 and checked statically only (`validate_usd_static.py`,
-   `tests/test_usd_export_fixes.py`), never yet stepped in PhysX: the env-release loop `FixedJoint`
-   (`excludeFromArticulation` between two articulation links, `breakForce` on both channels), self-collision with
-   `PhysxFilteredPairsAPI` (does PhysX read the union of both directions of the relationship? the exporter authors
-   one side per pair), and the bilateral coupling emulation (`write_joint_armature_to_sim` for the reflected
-   inertia + the per-step reaction). If PhysX rejects the loop joint inside an articulation, the fallback is
-   `--emulate-weld`; if it ignores the one-sided filtered pair, author both sides.
+   `tests/test_usd_export_fixes.py`, `tests/test_self_collision_pairs.py`), never yet stepped in PhysX: the
+   env-release loop `FixedJoint` (`excludeFromArticulation` between two articulation links, `breakForce` on both
+   channels), self-collision with `PhysxFilteredPairsAPI`, and the bilateral coupling emulation
+   (`write_joint_armature_to_sim` for the reflected inertia + the per-step reaction). If PhysX rejects the loop
+   joint inside an articulation, the fallback is `--emulate-weld`.
+   *Resolved since:* the filtered-pair direction question is gone — the exporter now authors **both** directions of
+   every pair, so the union no longer has to be assumed (the duplicate target costs one line of USD per pair and the
+   dataset size is unchanged).  What the self-collision switch DID surface is that an authored overlap between two
+   moving links is now a live PhysX contact: measured over all 1000 doors (moving vs moving, colliders read from the
+   USD, PhysX's own parent/child skip and the authored filter applied), six doors started every episode with the
+   thumbturn 2-5 mm inside its own lock case.  That pair is a by-design pass-through and is excluded in both engines
+   now; `tests/test_self_collision_pairs.py` keeps the invariant (nothing interpenetrates at rest).  The remaining
+   moving-vs-moving contacts are genuine: a 0.6-0.8 mm lap of a compressible meeting-stile astragal on ten
+   `swing_double` doors, and strip curtains whose strips swing into each other, both of which MuJoCo also resolves.
+0b. **`release_env_lock` and Fabric.** `DoorState.set_env_lock` releases the mag lock by writing
+   `physics:jointEnabled = False` on the loop joint's prim. That reaches the solver only while the USD stage is the
+   source of truth; Isaac Lab's `SimulationCfg.use_fabric` defaults to **True**, in which case PhysX reads Fabric,
+   the write changes nothing and the attribute still reads back what we wrote — a silent no-op. `set_env_lock` now
+   prints a warning the first time it is asked to release with Fabric on (or when it cannot tell). This does **not**
+   affect the parity gate: no protocol phase releases a weld, and `isaac_parity.py` only checks the joint is present
+   and enabled. Fix on the pod, in order of preference: toggle the joint through the PhysX SDK, or set
+   `sim.use_fabric = False` on tasks that use `mdp.release_env_lock`.
 1. `PhysxMimicJointAPI` gearing units (rad vs deg) for the `door.usda` couplings that stayed mimics (rotational →
    rotational only now — the prismatic ones were being dropped silently and are emulated instead). (The joint
    friction and

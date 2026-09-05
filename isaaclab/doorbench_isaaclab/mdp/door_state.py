@@ -259,13 +259,48 @@ class DoorState:
         self.has_env_release = torch.tensor([bool(r) for r in self.env_release_joints], device=self.device)
         self.n_env_release = n
 
+    def _warn_if_usd_writes_do_not_reach_physx(self):
+        """A runtime write to ``physics:jointEnabled`` only reaches PhysX while the USD stage is the source of truth.
+
+        Isaac Lab's ``SimulationCfg.use_fabric`` defaults to True: physics state then lives in Fabric and the USD
+        stage is synchronised for rendering only, so setting an attribute on the prim changes nothing in the solver
+        and the mag lock would stay engaged for ever - silently, because the attribute reads back the value we
+        wrote.  This cannot be tested without Isaac Sim, so it is checked at the moment of use and says so out loud
+        instead of failing quietly.  Fixes, in order of preference: toggle the joint through the PhysX SDK, or set
+        ``sim.use_fabric = False`` on a task that uses ``mdp.release_env_lock``.
+        """
+        if getattr(self, "_env_lock_warned", False):
+            return
+        self._env_lock_warned = True
+        fabric = None
+        for owner in (getattr(self.env, "sim", None), getattr(self.env, "cfg", None)):
+            cfg = getattr(owner, "cfg", owner)
+            if cfg is not None and hasattr(cfg, "use_fabric"):
+                fabric = bool(cfg.use_fabric)
+                break
+            sim_cfg = getattr(cfg, "sim", None)
+            if sim_cfg is not None and hasattr(sim_cfg, "use_fabric"):
+                fabric = bool(sim_cfg.use_fabric)
+                break
+        if fabric is not False:
+            print(f"[doorbench] WARNING: releasing an environment lock writes physics:jointEnabled on the USD prim, "
+                  f"and this simulation runs with use_fabric={fabric} (None = could not tell). With Fabric on, PhysX "
+                  f"does not read that write and the {self.n_env_release} env-release joint(s) stay engaged. Verify "
+                  f"the leaf actually swings after mdp.release_env_lock, or set sim.use_fabric = False.")
+
     def set_env_lock(self, env_ids=None, enabled: bool = True):
         """Enable / disable the environment-released locks of those envs (``physics:jointEnabled``).
 
         Disabling is the release: badge presented, REX button pressed, delayed-egress timer expired, interlock
-        satisfied.  ``reset_door`` re-enables them so the next episode starts locked again."""
+        satisfied.  ``reset_door`` re-enables them so the next episode starts locked again.
+
+        See ``_warn_if_usd_writes_do_not_reach_physx``: whether this write reaches the solver depends on the sim
+        running without Fabric, which is the one thing about the env-release joint that no static check can settle.
+        """
         if not getattr(self, "n_env_release", 0):
             return
+        if not enabled:
+            self._warn_if_usd_writes_do_not_reach_physx()
         ids = range(self.N) if env_ids is None else [int(i) for i in env_ids]
         for k in ids:
             for prim, _ in self.env_release_joints[k]:
