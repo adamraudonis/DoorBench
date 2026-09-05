@@ -15,7 +15,10 @@ Other keys: chest, head, left_hand, left_elbow, right_elbow. Pose position_cost/
 position_tolerance_m/orientation_tolerance_rad may be supplied explicitly.
 
 Every solve uses a fixed native door pose. A trajectory planner must validate
-the moving door between states. Geometric feasibility is not dynamic balance.
+the moving door between states. Held-native steps without an active grip also
+check sampled geodesic clearance from the solve input to each candidate output.
+This is not continuous collision certification or dynamic balance; the final
+retimed trajectory still requires independent validation.
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -178,6 +181,10 @@ class DoorHumanoidIK:
         self.actor_dof_indices=self.rig.actor_dof_indices
         self.home_qpos=self.rig.home_qpos.copy();self.qpos=self.home_qpos.copy()
         self._native_qpos=self.qpos[self.native_qpos_indices].copy()
+        # set_door_state overwrites qpos. Keep the preceding solve's native pose
+        # separately so a moved door cannot be mistaken for a held interval.
+        self._last_solve_native=self._native_qpos.copy()
+        self._last_solve_grips=set()
         self.configuration=mink.Configuration(self.model,self.qpos)
         self.data=self.configuration.data
         self.clearance=float(clearance);self.max_iterations=max_iterations
@@ -207,6 +214,13 @@ class DoorHumanoidIK:
             if rootadr<=dof<rootadr+3:self._velocity[j]=.8
             elif rootadr+3<=dof<rootadr+6:self._velocity[j]=1.5
         self._freeze=mink.DofFreezingTask(self.model,self.rig.native_dof_indices.tolist()) if len(self.rig.native_dof_indices) else None
+        self._edge_data=mujoco.MjData(self.model)
+        self._edge_sample_limits=np.full(self.model.nv,.05)
+        for joint in range(self.model.njnt):
+            adr=int(self.model.jnt_dofadr[joint]);kind=self.model.jnt_type[joint]
+            if kind==mujoco.mjtJoint.mjJNT_SLIDE:self._edge_sample_limits[adr]=.01
+            elif kind==mujoco.mjtJoint.mjJNT_FREE:self._edge_sample_limits[adr:adr+3]=.01
+        self._root_dof=rootadr
 
     def set_door_state(self,qpos):
         q=np.asarray(qpos,float)
@@ -297,6 +311,30 @@ class DoorHumanoidIK:
                 if distance<bound:violations[(a,b)]=bound-distance
         return violations
 
+    def _edge_clear(self,start,end,dt):
+        """Sample exactly the validator's joint geodesic on a held native pose.
+
+        Thresholds match the independent validator's 25 ms, 1 cm translation,
+        and .05 rad rotation subdivision rules. Use the solver's stricter
+        clearance buffer. Retiming can introduce additional sample locations,
+        so this generation check cannot replace the final independent audit.
+        """
+        displacement=np.empty(self.model.nv)
+        mujoco.mj_differentiatePos(self.model,displacement,1.,start,end)
+        steps=max(2,math.ceil(dt/.025),
+            math.ceil(np.linalg.norm(displacement[self._root_dof:self._root_dof+3])/.01),
+            math.ceil(np.max(np.abs(displacement)/self._edge_sample_limits)))
+        if steps>1000:return False,0
+        data=self._edge_data
+        for sub in range(1,steps):
+            data.qpos[:]=start
+            mujoco.mj_integratePos(self.model,data.qpos,displacement,sub/steps)
+            mujoco.mj_kinematics(self.model,data)
+            distance,_=self._minimum(data,self._pairs)
+            ground,_=self._minimum(data,self._ground_pairs)
+            if distance<self.clearance-1e-5 or ground<-1e-5:return False,sub
+        return True,steps-1
+
     @staticmethod
     def _restoration_improves(before,after):
         # No newly invalid pair, no worsening existing violation, and genuine
@@ -358,9 +396,19 @@ class DoorHumanoidIK:
         if not math.isfinite(dt) or not 0<dt<=.5:raise ValueError('dt must be finite and in (0,.5] seconds')
         start=self._merge(previous_q);self.configuration.update(start)
         tasks,constraints,clean=self._targets(targets)
+        edge_scope=('held_native_without_grip' if np.array_equal(self._last_solve_native,self._native_qpos)
+            and not self._last_solve_grips and not self._grip_exclusions else 'skipped_moving_native_or_grip')
+        edge_samples=0;edge_rejections=0
         step_limit=_StepVelocityLimit(self.model,start,self.actor_dof_indices,self._velocity,dt)
         limits=[_ActorConfigurationLimit(self.model,self.actor_dof_indices),step_limit,*self._collision_limits]
         solver_error=None;iterations=0;restoration_steps=0;current_check=self.diagnostics(start)
+        # Restoring an already intersecting input is deliberately separate: an
+        # interval starting in collision cannot pass an edge clearance check.
+        if (current_check['min_noncontact_distance_m'] is not None and
+                current_check['min_noncontact_distance_m']<self.clearance-1e-5) or (
+                current_check['min_foot_ground_distance_m'] is not None and
+                current_check['min_foot_ground_distance_m']<-1e-5):
+            edge_scope='skipped_invalid_start'
         for iterations in range(1,self.max_iterations+1):
             old=self.configuration.q.copy()
             old_check=current_check
@@ -384,6 +432,12 @@ class DoorHumanoidIK:
                 if not collision_ok and restoring:
                     collision_ok=self._restoration_improves(old_violations,self._collision_violations(candidate))
                 if velocity_ok and check['joint_limit_violation_rad']<=1e-7 and collision_ok:
+                    if edge_scope=='held_native_without_grip':
+                        edge_ok,samples=self._edge_clear(start,candidate,dt)
+                        edge_samples+=samples
+                        if not edge_ok:
+                            edge_rejections+=1
+                            continue
                     accepted=True
                     if restoring:restoration_steps+=1
                     break
@@ -407,8 +461,11 @@ class DoorHumanoidIK:
         general=check['min_noncontact_distance_m'];ground=check['min_foot_ground_distance_m']
         feasible=foot_ok and check['joint_limit_violation_rad']<=1e-7 and (general is None or general>=self.clearance-1e-5) and (ground is None or ground>=-1e-5) and ratio<=1.0001
         check.update(iterations=iterations,restoration_steps=restoration_steps,solver_error=solver_error,target_residuals=residuals,converged=bool(converged),kinematically_feasible=bool(feasible),
+                     edge_clearance_scope=edge_scope,edge_clearance_samples=edge_samples,edge_clearance_rejections=edge_rejections,
                      max_velocity_limit_ratio=ratio,actor_velocity=velocities[self.actor_dof_indices].tolist(),
                      velocity_limits=self._velocity.tolist(),velocity_limit_scope='Per-axis free-root translation .8m/s, rotation1.5rad/s; hinge2.5rad/s; total step across all IK iterations.',
                      dimensions=DIMENSIONS.copy())
+        self._last_solve_native=self._native_qpos.copy()
+        self._last_solve_grips=self._grip_exclusions.copy()
         return IKResult(self.qpos.copy(),self.qpos[self.actor_qpos_indices].copy(),self._native_qpos.copy(),data.site_xpos[self._landmark_ids].copy(),
                         {k:self._pose(data,k) for k in ('left_foot','right_foot')},data.subtree_com[self.rig.actor_body_id].copy(),check,bool(feasible and converged and solver_error is None))

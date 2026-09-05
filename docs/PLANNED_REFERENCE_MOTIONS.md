@@ -41,6 +41,10 @@ slow; passing those checks does not establish natural timing.
 
 ## What is checked
 
+The next generator revision adds three conservative improvements. Eligible powered sources wait and traverse with both hands inactive; their source poses remain prescribed and sensor causality is unverified. Eligible already-unlocked sliding hasps use exact joint/body/site/geometry roles, with a held native pose during withdrawal, repositioning and re-reach. The solver also checks joint-space interpolation during intervals with an unchanged native pose and no active grip at either endpoint. Moving-door and grip intervals remain subject to the independent validator.
+
+These additions do not alter the published first baseline. Every new candidate must pass a fresh independent report; neither successful pilot status nor a stronger generation check is copied into acceptance.
+
 | Check | Evidence |
 |---|---|
 | Fixed original rig | 38 position coordinates, 37 degrees of freedom; unchanged link geometry and joint ranges |
