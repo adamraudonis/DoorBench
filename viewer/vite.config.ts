@@ -5,7 +5,7 @@ import path from "node:path";
 
 // Dev-only: serve ../assets at /assets (the generated dataset) and ../results at /results (benchmark results) in place.
 function serveAssets(): Plugin {
-  const roots: Record<string, string> = { "/reference-motions/": path.resolve(import.meta.dirname, "..", "out", "reference-motions"), "/assets/": path.resolve(import.meta.dirname, "..", "assets"), "/results/": path.resolve(import.meta.dirname, "..", "results"), "/appearance/": path.resolve(import.meta.dirname, "..", "out", "appearance") };
+  const roots: Record<string, string> = { "/planned-references/": path.resolve(import.meta.dirname, "..", "out", "planned-reference-web"), "/reference-motions/": path.resolve(import.meta.dirname, "..", "out", "reference-motions"), "/assets/": path.resolve(import.meta.dirname, "..", "assets"), "/results/": path.resolve(import.meta.dirname, "..", "results"), "/appearance/": path.resolve(import.meta.dirname, "..", "out", "appearance") };
   const types: Record<string, string> = { ".json": "application/json", ".obj": "text/plain", ".jpg": "image/jpeg", ".png": "image/png", ".xml": "text/xml", ".urdf": "text/xml", ".usda": "text/plain", ".glb": "model/gltf-binary", ".md": "text/markdown" };
   return {
     name: "serve-assets",
