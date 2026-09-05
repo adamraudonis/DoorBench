@@ -74,9 +74,9 @@ Render a door from Python (MuJoCo offscreen, used by every review script):
 | [operator-spring-return.md](operator-spring-return.md) | twist handles snap back with a spring | medium | `worktree-agent-a68f30762fa4dd816` |
 | [keypad-codes.md](keypad-codes.md) | keypad codes physically work (press buttons in order) | medium | `worktree-agent-a68f30762fa4dd816` |
 | [door-db0168-ship-dogs.md](door-db0168-ship-dogs.md) | ship watertight doors: all dogs actuate | small | new branch |
-| [door-db0079-sliding-track.md](door-db0079-sliding-track.md) | sliding rails long enough; rollers stay on the track | small | new branch |
+| ~~door-db0079-sliding-track.md~~ | DONE on master (Codex, commit 183fdde76: `doorbench/geometry/sliding_tracks.py`, QA `sliding_track_support`) | - | - |
 | [door-db0024-floating-stop.md](door-db0024-floating-stop.md) | wall/floor door stops must be mounted, nothing floats | small | new branch |
-| [door-cold-storage-rising-hinge-closer.md](door-cold-storage-rising-hinge-closer.md) | 5 rising-hinge doors whose closer loop cannot close | small | new branch |
+| ~~door-cold-storage-rising-hinge-closer.md~~ | DONE on master (Codex, commit 183fdde76: sliding shoe in a frame guide, QA `linkage_feasibility`) | - | - |
 | [taxonomy-hierarchy.md](taxonomy-hierarchy.md) | taxonomy audit + hierarchy page on the site | medium | `worktree-agent-aee1f839bfa6c01d1` |
 | [physics-playground.md](physics-playground.md) | MuJoCo-WASM playground to tune constants live in the browser | large | `worktree-agent-a0650dd8b52f7f671` |
 

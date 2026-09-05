@@ -84,6 +84,28 @@ every door in MuJoCo and in PhysX, compared per door, discrepancies classified i
 root, results published per door. Built by a scout -> build -> verify workflow rather than hand-written, because
 the mapping between two physics engines has too many failure modes for one pass.
 
+**Parallel takeover by a second agent (2026-09-04/05).** The owner handed the `handoffs/` briefs to another AI
+agent (OpenAI Codex) working in the main checkout on `codex/*` branches. It fixed the sliding tracks (168 doors;
+new gate `sliding_track_support`), the five rising-hinge closer loops (a passive vertically sliding shoe; gate
+`linkage_feasibility`), wrote a physics audit and a diversity audit (`docs/review/`), an inspection-atlas renderer,
+and a Blender photoreal catalogue. Two integration lessons: (1) its commits carried new geometry and QA checks but
+no regenerated assets, so master had new code on stale assets and 8 QA tests failed until the dataset was
+regenerated; (2) two agents in one checkout means commits land on whichever branch is checked out; this session
+now works only from a dedicated `master` worktree.
+
+**Parity gate built (2026-09-05).** A scout -> build -> verify workflow (8 agents) produced the gate:
+`doorbench/parity/protocol.py` (the QA protocol as data: settle, hold, operate + open, release, relatch, closer,
+locked, limits, sanity), a MuJoCo reference runner (1000 doors in 15 s, reproduces every qa.json metric within
+1e-3), an Isaac Lab runner, a comparator with discrepancy classes, a report generator and a merge into qa.json /
+the site badge. The scouts also explained the first probe: of the 20 "doors that do not open in PhysX", 6 were the
+operator->latch coupling that the USD only records as metadata (a real export gap), 9 were correctly held (locks,
+far-side panic bars), 4 were the validator's fixed 60 N push being below the door's load, and 1 is unexplained;
+all 6 settle drifts were the validator zeroing the spring targets every step; and one real export bug hid behind
+a PASS (mag-lock welds exported as JSON only, so a locked door swung open). Pushing every door in MuJoCo, which
+qa.py never did for free-swing families, also found two dataset defects: all 12 accordion doors are kinematically
+locked by a coupling sign vs joint-range mismatch, and 10 of 15 revolving doors jam a wing stile against the wall
+header. Both are being fixed with new gates.
+
 **Working with agents.** Seven parallel Fable agents in git worktrees is productive until the account's usage
 limit hits, which kills all of them at once and twice cost partial work. Rules that now hold: commit early and
 often on the agent branch; the main session owns `TASKS.md`, `README.md`, credentials and merges; agents write
