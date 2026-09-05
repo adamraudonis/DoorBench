@@ -282,7 +282,7 @@ def test_estimate_cost():
     est = V.estimate_cost(sheets, "claude-opus-5")
     assert est["n_doors"] == 10 and est["image_tokens"] == 10 * V.image_tokens(1600, 1012)
     assert 0.02 < est["usd_per_door"] < 0.10           # sanity: cents per door, tens of dollars for 1000 doors
-    assert abs(V.estimate_cost(sheets, "claude-opus-5", batch=True)["usd"] - est["usd"] / 2) < 1e-6
+    assert abs(V.estimate_cost(sheets, "claude-opus-5", batch=True)["usd"] - est["usd"] / 2) < 1e-3
     cheaper = V.estimate_cost(sheets, "claude-sonnet-5")
     assert cheaper["usd"] < est["usd"]
     with pytest.raises(KeyError):

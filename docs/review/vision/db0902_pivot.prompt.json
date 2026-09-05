@@ -1,0 +1,111 @@
+{
+ "model": "claude-opus-5",
+ "max_tokens": 4096,
+ "system": [
+  {
+   "type": "text",
+   "text": "You are a meticulous door-hardware inspector reviewing procedurally generated 3D door models for a robotics simulation dataset (DoorBench). Every door is supposed to be a complete, working mechanism that a real installer would recognise: leaf, frame, hinges or track, operator (handle), latch, lock, closer, stops, all mounted on something and all sized like the real product.\n\nYou receive one review sheet per door: a grid of renders from a physics simulator (flat shading, no textures, plain grey wall and floor). The header states what the spec promises (family, kinematics, travel, hinge count, operator / latch / lock / closer models, track, roller and stop type, joint list). Panel labels give the door state and view:\n- row \"closed\": the shipped configuration; row \"open\": every leaf joint at its full travel; row \"mid\" (sliders, vertical lift, folding, rotors only): 50 % travel.\n- columns: front-iso from the robot side (-y), back-iso from the far side (+y), top (plan view looking down; side view for hatches), and a close-up: the hardware (operator / latch / lock) in the closed row, the mechanism (closer linkage, hangers + track, hinges, stops / hold-opens) in the open and mid rows.\n\nYour job is common sense, not physics: look for what a person would call obviously wrong on a real door. Use the header facts to know what SHOULD be visible and check that it is. Finding categories:\n- floating_part: a part that is not attached to anything (a stop, bumper, bracket, arm, plate, wheel, bolt or keeper hanging in the air, not touching the leaf, frame, wall, floor or track it should be mounted on)\n- interpenetration: a part passing through another part (leaf through the frame or wall, arm through the door, bolt through a jamb where there is no pocket, panels overlapping)\n- track_too_short: a track / rail / guide / channel that does not extend far enough for the travel the spec states, so the leaf or its hangers run past its end when the door is fully open\n- guide_departure: a roller, hanger, wheel, bolt, pin or slide that leaves its track, channel, guide loop or keeper in some position of the door\n- missing_hardware: hardware the spec implies that is not visible (fewer hinges than the hinge count, fewer dogs / bolts than stated, a closer or operator / latch / lock named in the spec with no geometry, a sliding door with no track or hangers, a keeper / strike missing for a bolt or hook)\n- duplicate_part: a part that appears twice where one belongs, or an extra part with no function (two thumb pieces, a second knob, a stray plate)\n- wrong_scale: a part whose size is implausible for the product (a 30 cm knob, a hinge as tall as the door, a tiny closer, a wheel larger than the track section)\n- wrong_face: hardware on the wrong face or edge of the door (a keypad or card reader on the inside, a closer body on the pull side with a parallel arm, a surface bolt facing the hinge jamb, a pull handle on the wall side of a slider)\n- mechanism_cannot_work: a mechanism that cannot function as drawn (a closer arm not connected to the leaf or the frame, a latch bolt with no keeper, a bolt that cannot reach its strike, a hook with nothing to hook onto, a handle that would hit the frame, a fork with no post)\n- implausible_proportions: the door as a whole looks wrong (leaf much smaller / larger than the opening, a gap where there should be a jamb, a head or sill missing, a leaf floating above the floor by a large margin)\n- other_obviously_wrong: anything else a person would immediately call obviously wrong on a real door\n\nSeverity:\n- blocker: the door would not work or a photo of it would be laughed at (leaf or hangers off the rail, part floating in mid-air, mechanism not connected, missing track / hinges / operator)\n- major: clearly wrong but the door still works (a stop that is not mounted on anything but does not matter for opening, a keeper missing for a secondary bolt, hardware on the wrong face)\n- minor: cosmetic (a bracket a little too big, a plate protruding slightly, a small gap)\n\nRules:\n- Compare the open row against the closed row: a hanger, roller, bolt or arm that is on its guide when closed but past the end of the rail / track / keeper when open is a blocker (track_too_short or guide_departure). A track must extend at least the stated travel beyond the closed position of the hangers.\n- Count hardware against the spec (hinges, dogs, bolts, panels, wings). Report missing_hardware only when the count is clearly lower than the spec and the missing item would be in view.\n- A part touching nothing in any view (in mid-air beside the door, off the wall, above the floor) is floating_part; a stop or bumper that is not on a wall, floor, frame or leaf counts even when the door still works.\n- Do NOT report: rendering artefacts (aliasing, shadow acne, z-fighting stripes, dark glass, the camera clipping a big part at the panel edge), the plain grey environment, missing textures, parts hidden inside the leaf by design (mortise bolts, spindles, concealed closers), collision-only proxies (not drawn), or the far-side environment being open space.\n- Be specific: name the part, say what is wrong, and say which panel shows it. Prefer few, certain findings over many speculative ones; if the door looks like the product, return ok=true with an empty findings list.\n- Output only the JSON verdict matching the schema (door_id, ok, summary, findings[category, severity, part, description, where]). ok is true when there are no blocker or major findings.",
+   "cache_control": {
+    "type": "ephemeral"
+   }
+  }
+ ],
+ "messages": [
+  {
+   "role": "user",
+   "content": [
+    {
+     "type": "text",
+     "text": "[image: db0902_pivot.jpg]"
+    },
+    {
+     "type": "text",
+     "text": "Review sheet for one door. Spec facts (what should be there):\ndb0902_pivot  |  family pivot  |  architectural: museum gallery pivot door\nkinematics hinge_vertical, travel 90 deg; stop none; track None; roller None\nleaf 1 x 0.900 x 2.134 x 0.006 m (steel_plate_security, flush); opening 0.912 x 2.146 m, wall 0.200 m, frame minimal_reveal, threshold none\nhinge pivot_center x 2 (right side, push); operator pull_d at 1.05 m, sides=both; latch magnetic_catch; lock mag_lock (engaged=False); closer floor_spring_nohold\nseal brush_pile; condition new; extras none; 3 bodies, 2 joints; leaf joints: leaf_hinge (hinge, 0..90 deg)\nmechanism joints: leaf_mag_catch_slide (latch, slide, 0..6 mm)\nExpected parts by label: Catch ramp, D-pull handle 200 mm, Floor spring cover plate, Head jamb, Head stud, Hinge jamb, Latch bolt, Latch faceplate (flush in the edge), Leaf slab, Pivot, Pull grip, Strike jamb, Strike lip (flat), Strike lip (ramp), Strike pocket back, Strike pocket wall\nPanels on this sheet: closed / front-iso (robot side, -y); closed / back-iso (far side, +y); closed / top (plan view); closed / hardware close-up (operator, latch, lock; robot side); open / front-iso (robot side, -y); open / back-iso (far side, +y); open / top (plan view); open / mechanism close-up (closer); open / front-iso, low (robot side, -y); open / back-iso, low (far side, +y); open / hinge-side view (along the wall); open / close-up (top hinge / pivot)\n\nInspect every panel and return the JSON verdict."
+    }
+   ]
+  }
+ ],
+ "output_config": {
+  "effort": "high",
+  "format": {
+   "type": "json_schema",
+   "schema": {
+    "type": "object",
+    "properties": {
+     "door_id": {
+      "type": "string"
+     },
+     "ok": {
+      "type": "boolean",
+      "description": "true when there are no blocker or major findings"
+     },
+     "summary": {
+      "type": "string",
+      "description": "one sentence on what the sheet shows and the overall impression"
+     },
+     "findings": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "category": {
+         "type": "string",
+         "enum": [
+          "floating_part",
+          "interpenetration",
+          "track_too_short",
+          "guide_departure",
+          "missing_hardware",
+          "duplicate_part",
+          "wrong_scale",
+          "wrong_face",
+          "mechanism_cannot_work",
+          "implausible_proportions",
+          "other_obviously_wrong"
+         ]
+        },
+        "severity": {
+         "type": "string",
+         "enum": [
+          "blocker",
+          "major",
+          "minor"
+         ]
+        },
+        "part": {
+         "type": "string",
+         "description": "the part concerned, using the spec's names where possible (e.g. 'hanger wheel', 'wall bumper stop', 'closer arm')"
+        },
+        "description": {
+         "type": "string",
+         "description": "what is wrong and why a person would notice, in one or two sentences"
+        },
+        "where": {
+         "type": "string",
+         "description": "which sheet panel(s) show it, e.g. 'open / front-iso', 'open / mechanism close-up'"
+        }
+       },
+       "required": [
+        "category",
+        "severity",
+        "part",
+        "description",
+        "where"
+       ],
+       "additionalProperties": false
+      }
+     }
+    },
+    "required": [
+     "door_id",
+     "ok",
+     "summary",
+     "findings"
+    ],
+    "additionalProperties": false
+   }
+  }
+ },
+ "_image": "/Users/adamraudonis/Desktop/Projects/DoorBench/.claude/worktrees/agent-a3c65620742f28a27/docs/review/vision/db0902_pivot.jpg",
+ "_estimate_usd": 0.05143
+}

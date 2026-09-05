@@ -44,8 +44,8 @@ CATEGORIES = {
 }
 SEVERITIES = ("blocker", "major", "minor")
 SEVERITY_HELP = {
-    "blocker": "the door would not work or a photo of it would be laughed at (leaf or hangers off the rail, part floating in mid-air, mechanism not connected, missing track / hinges / operator)",
-    "major": "clearly wrong but the door still works (a stop that is not mounted on anything but does not matter for opening, a keeper missing for a secondary bolt, hardware on the wrong face)",
+    "blocker": "the door would not work or a photo of it would be laughed at (leaf or hangers off the rail, any part hanging in mid-air with nothing behind it - a stop, bumper, bracket, arm - a mechanism not connected, a missing track / hinges / operator)",
+    "major": "clearly wrong but the door still works and nothing floats (a keeper or strike missing for a bolt or hook, hardware on the wrong face, a part clearly the wrong size, an arm that could not reach)",
     "minor": "cosmetic (a bracket a little too big, a plate protruding slightly, a small gap)",
 }
 REVIEWER_API = "claude-api"
@@ -190,7 +190,7 @@ def facts_lines(f: dict) -> list:
 # ---------------------------------------------------------------------------------------------------------------------
 # sheet rendering
 # ---------------------------------------------------------------------------------------------------------------------
-HORIZONTAL_FAMILIES = ("hatch_floor", "hatch_ceiling", "pet_door", "strip_curtain", "garage_tiltup")
+HORIZONTAL_FAMILIES = ("hatch_floor", "hatch_ceiling")        # leaves that lie flat: cameras look down / up instead of across
 MID_STATE_KINEMATICS = ("slide_horizontal", "slide_vertical", "rotor")
 MID_STATE_FAMILIES = ("bifold", "accordion", "garage_tiltup", "revolving", "turnstile_tripod", "turnstile_fullheight")
 VIEW_COLUMNS = ("front-iso (robot side, -y)", "back-iso (far side, +y)", "top (plan view)", "close-up")
@@ -258,16 +258,27 @@ class SheetRenderer:
         resolved (bifold followers, closer arms, joined leaves follow)."""
         m = self.m
         q = m.qpos0.copy()
+        kin = self.spec["kinematics"]
+        self.forced_open = False
         for j in self.leaf_joint_ids():
             adr = m.jnt_qposadr[j]
             q0 = float(m.qpos0[adr])
+            is_hinge = int(m.jnt_type[j]) == int(self.mujoco.mjtJoint.mjJNT_HINGE)
             if m.jnt_limited[j]:
                 lo, hi = m.jnt_range[j]
                 if hi - lo < 1e-6:
                     continue
-                target = hi if abs(hi - q0) >= abs(lo - q0) else lo       # the limit farther from rest is "open"
+                if hi - lo < (0.05 if is_hinge else 0.006):
+                    # locked shut (engaged interlock / maglock / padlock: the builder clamps the range to ~0).  The
+                    # review wants to see the door open anyway - drive it through the spec's travel in the range's sign
+                    sgn = 1.0 if hi - q0 >= q0 - lo else -1.0
+                    travel = math.radians(kin.get("max_open_deg") or 90.0) if is_hinge else float(kin.get("travel_m") or 0.9)
+                    target = q0 + sgn * travel
+                    self.forced_open = True
+                else:
+                    target = hi if abs(hi - q0) >= abs(lo - q0) else lo       # the limit farther from rest is "open"
             else:
-                target = q0 + (1.2 if int(m.jnt_type[j]) == int(self.mujoco.mjtJoint.mjJNT_HINGE) else 1.0)
+                target = q0 + (1.2 if is_hinge else 1.0)
             q[adr] = q0 + frac * (target - q0)
         return self.gate.resolve(q)
 
@@ -456,7 +467,10 @@ class SheetRenderer:
         side -y); the iso views are 35 deg off-axis toward the hinge / latch edge so both faces of an open leaf show."""
         u = float(self.meta.get("u", 1.0) or 1.0)
         if self.horizontal:
-            return (90.0 - 30.0, -50.0), (-90.0 + 30.0, 35.0), (90.0, -8.0)
+            above, below = (90.0 - 30.0, -50.0), (-90.0 + 30.0, 35.0)
+            if self.spec["family"] == "hatch_ceiling":
+                return below, above, (90.0, -8.0)          # the robot stands under a ceiling hatch
+            return above, below, (90.0, -8.0)
         return (90.0 - u * 35.0, -22.0), (-90.0 + u * 35.0, -22.0), (90.0, -80.0)
 
     def render_sheet(self, out_path: str, quality: int = 78) -> dict:
@@ -482,8 +496,10 @@ class SheetRenderer:
         u = float(self.meta.get("u", 1.0) or 1.0)
         for row, (sname, frac) in enumerate(states):
             q = self.q_state(frac)
+            if self.forced_open and frac > 0:
+                sname = sname + " (forced: lock engaged)"
             c, r3, rp = self.scene_frame(q)
-            if sname == "open-low":
+            if sname.startswith("open-low"):
                 # hinged doors, third row: low camera (floor stops, thresholds, the gap under the leaf), then a view
                 # along the wall from the hinge side (hinges, closer, leaf-to-jamb gap), then the stops close-up
                 low_c = np.array([c[0], c[1], min(c[2], 0.9)])
@@ -504,7 +520,7 @@ class SheetRenderer:
                     (f"{sname} / {VIEW_COLUMNS[1]}", self.render_view(q, c, r3, *back)),
                     (f"{sname} / {VIEW_COLUMNS[2]}", self.render_view(q, c, rp if not self.horizontal else r3, *top)),
                 ]
-                if sname == "closed":
+                if sname.startswith("closed"):
                     hc, hr, side = self.hardware_target(q)
                     if self.horizontal:
                         az, el = 90.0, -55.0
@@ -517,12 +533,12 @@ class SheetRenderer:
                     # so rails read as lines and a wheel past the rail end is unmistakable; the mid row looks from
                     # higher up and the other angle
                     side = self._view_side or (-1.0 if mc[1] <= self.wall_y + 1e-6 else 1.0)
-                    if sname == "open":
+                    if sname.startswith("open"):
                         az, el = (90.0 - 18.0 * u, -12.0) if side < 0 else (-90.0 + 18.0 * u, -12.0)
                     else:
                         az, el = (90.0 + 30.0 * u, -38.0) if side < 0 else (-90.0 - 30.0 * u, -38.0)
                     if self.horizontal:
-                        az, el = (60.0, -40.0) if sname == "open" else (120.0, 30.0)
+                        az, el = (60.0, -40.0) if sname.startswith("open") else (120.0, 30.0)
                     if self._view_az is not None:
                         az, el = self._view_az, -18.0
                     cells.append((f"{sname} / mechanism close-up ({what})", self.render_view(q, mc, mr, az, el)))
