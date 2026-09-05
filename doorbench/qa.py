@@ -49,10 +49,40 @@ def _max_pen(m, d):
     return worst
 
 
-def qa_push(m, d, pj) -> dict:
+G = 9.81
+PUSH_BASE_MAX = {"hinge": 60.0, "slide": 80.0}   # N*m / N: a strong human or robot leaning on a full-size door leaf
+PUSH_BASE_MIN = 2.0                              # N*m / N: a cat on a flap - below this nothing would open at all
+PUSH_CAP = {"hinge": 800.0, "slide": 4000.0}
+
+
+def push_base(unit: str, mass_kg: float | None = None, width_m: float | None = None) -> float:
+    """Base term of the adaptive QA push, scaled by the leaf's own weight moment.
+
+    A flat 60 N*m is the effort a person applies to a 20-100 kg door leaf; on a 0.14-1.4 kg pet flap it is ~100x the
+    mechanism's own scale.  The flap's inertia about its hinge is ~m W^2 / 3, so 60 N*m accelerates it at some
+    2000 rad/s^2 and it reaches 30-85 rad/s (1700-4900 deg/s) before it hits its stop - MuJoCo only survives that
+    because its limits are soft, PhysX's articulation limit explodes within a few steps and the door reads NaN.
+
+    ``0.5 * m * g * W`` is half the moment gravity would exert on the leaf if it lay horizontal: the effort scale of
+    the mechanism itself, in the same units as the push (N*m about a hinge, and ``0.5 * m * g`` newtons on a slide,
+    where there is no lever arm).  Clamped to [2, 60] N*m ([2, 80] N), so every door of 20 kg and up keeps exactly the
+    push it had, and only leaves too light to justify it get less."""
+    cap = PUSH_BASE_MAX["hinge" if unit == "hinge" else "slide"]
+    if not mass_kg or mass_kg <= 0:
+        return cap
+    if unit == "hinge":
+        if not width_m or width_m <= 0:
+            return cap
+        scale = 0.5 * float(mass_kg) * G * float(width_m)
+    else:
+        scale = 0.5 * float(mass_kg) * G
+    return float(min(cap, max(PUSH_BASE_MIN, scale)))
+
+
+def qa_push(m, d, pj, mass_kg: float | None = None, width_m: float | None = None) -> dict:
     """The adaptive QA push on the primary joint (N*m for hinges, N for slides): twice the static resistance at rest
-    (gravity bias + Coulomb friction + spring preload) plus a base effort, capped - a strong human / robot.
-    Mirrored by ``parity.protocol`` (PUSH_BASE / PUSH_CAP)."""
+    (gravity bias + Coulomb friction + spring preload) plus a base effort sized by the leaf (``push_base``), capped -
+    a strong human / robot.  Mirrored by ``parity.protocol`` (which imports ``push_base`` / ``PUSH_CAP`` from here)."""
     import mujoco
     is_hinge = int(m.jnt_type[pj]) == int(mujoco.mjtJoint.mjJNT_HINGE)
     dof = m.jnt_dofadr[pj]
@@ -61,8 +91,10 @@ def qa_push(m, d, pj) -> dict:
     bias = abs(float(d.qfrc_bias[dof] - d.qfrc_passive[dof]))
     fl = float(m.dof_frictionloss[dof])
     preload = abs(float(m.jnt_stiffness[pj] * m.qpos_spring[m.jnt_qposadr[pj]])) if m.jnt_stiffness[pj] > 0 else 0.0
-    push = min(2.0 * (bias + fl + preload) + (60.0 if is_hinge else 80.0), 800.0 if is_hinge else 4000.0)
-    return {"push": push, "bias": bias, "frictionloss": fl, "preload": preload, "is_hinge": is_hinge}
+    unit = "hinge" if is_hinge else "slide"
+    base = push_base(unit, mass_kg, width_m)
+    push = min(2.0 * (bias + fl + preload) + base, PUSH_CAP[unit])
+    return {"push": push, "bias": bias, "frictionloss": fl, "preload": preload, "is_hinge": is_hinge, "push_base": base}
 
 
 def push_primary(m, d, pj, push: float, has_holding: bool, thr_free: float) -> float:
@@ -220,7 +252,7 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
     # panel in - must instead hold within its locked play)
     if pj >= 0 and free_swing and int(m.jnt_type[pj]) in (HINGE, SLIDE):
         is_hinge = int(m.jnt_type[pj]) == HINGE
-        push = qa_push(m, d, pj)["push"]
+        push = qa_push(m, d, pj, phys["mass"]["total_kg"], spec["leaf"]["width"])["push"]
         metrics["qa_push"] = push
         thr_free = math.radians(10) if is_hinge else 0.05
         lo, hi = (m.jnt_range[pj] if m.jnt_limited[pj] else (-math.inf, math.inf))
@@ -240,7 +272,7 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         W = spec["leaf"]["width"]
         # adaptive push: gravity bias at rest + friction + spring preload, with margin (a strong human / robot)
         dof = m.jnt_dofadr[pj]
-        pf = qa_push(m, d, pj)
+        pf = qa_push(m, d, pj, mass, W)
         push, bias, fl, preload = pf["push"], pf["bias"], pf["frictionloss"], pf["preload"]
         metrics["qa_push"] = push
         thr = math.radians(2.0) if is_hinge else 0.015

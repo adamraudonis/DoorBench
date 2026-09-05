@@ -112,6 +112,8 @@ def _unwrap(doc: Any) -> tuple[dict, dict]:
         if isinstance(doc.get(key), (dict, list)):
             inner, _ = _unwrap(doc[key])
             meta = {k: v for k, v in doc.items() if k != key}
+            if isinstance(meta.get("meta"), dict):
+                meta = meta.pop("meta") | meta      # {"meta": {...}, "doors": {...}}: flatten, so engine / versions / dates are readable
             return inner, meta
     # plain {door_id: record}: records are dicts and keys look like door ids (or at least not meta keys)
     meta_keys = {"meta", "engine", "generated", "commit", "dt", "version", "protocol", "inputs_hash", "sim", "kind"}
@@ -199,6 +201,13 @@ def normalize_record(rec: Any) -> dict:
         "metrics": dict(rec.get("metrics") or {}) if isinstance(rec.get("metrics"), dict) else {},
         "errors": [str(e) for e in errors],
         "engine": rec.get("engine"), "dt": rec.get("dt"),
+        # provenance: which door and which metric definitions this record describes.  Without inputs_hash the join
+        # below would happily compare a PhysX run of one dataset revision with a MuJoCo reference of another.
+        "inputs_hash": rec.get("inputs_hash") if isinstance(rec.get("inputs_hash"), str) else None,
+        "protocol_version": rec.get("protocol_version"),
+        "metrics_version": rec.get("metrics_version"),
+        "inputs": rec.get("inputs") if isinstance(rec.get("inputs"), dict) else {},
+        "load_error": rec.get("load_error"),
     }
 
 
@@ -328,6 +337,7 @@ TOLERANCES: dict[str, dict[str, float]] = {
     "actuate_displacement": {"abs_hinge": 0.1, "abs_slide": 0.05, "rel": 0.20},
     "t_open": {"abs_hinge": 0.3, "abs_slide": 0.3, "rel": 0.30},
     "t_open_bench": {"abs_hinge": 0.3, "abs_slide": 0.3, "rel": 0.30},
+    "q_primary_max": {"abs_hinge": 0.1, "abs_slide": 0.05, "rel": 0.20},
     "t_unlatch": {"abs_hinge": 0.2, "abs_slide": 0.2, "rel": 0.0},
     "operator_travel_reached": {"abs_hinge": 0.05, "abs_slide": 0.005, "rel": 0.10},
     "bolt_retract_max_frac": {"abs_hinge": 0.15, "abs_slide": 0.15, "rel": 0.0},
@@ -345,13 +355,68 @@ TOLERANCES: dict[str, dict[str, float]] = {
     "closer_final_angle": {"abs_hinge": math.radians(2.0), "abs_slide": 0.01, "rel": 0.0},
     "closer_t_close": {"abs_hinge": 0.5, "abs_slide": 0.5, "rel": 0.30},
     "peak_closing_speed": {"abs_hinge": 0.2, "abs_slide": 0.1, "rel": 0.30},
+    "speed_at_latch": {"abs_hinge": 0.2, "abs_slide": 0.1, "rel": 0.30},
     "curve_rmse_closer": {"abs_hinge": 0.1, "abs_slide": 0.05, "rel": 0.0},
     # locked
     "locked_displacement": {"abs_hinge": 0.01, "abs_slide": 0.003, "rel": 0.0},
 }
 DEFAULT_TOLERANCE = {"abs_hinge": 0.05, "abs_slide": 0.02, "rel": 0.20}
-# metrics that are informational only (never decide agreement)
-NON_GATING_METRICS = {"t_start_s", "duration_s", "wall_time_s", "n_steps", "steps", "dt", "push", "qa_push", "effort", "eff", "warnings", "pen0_pair"}
+
+# Where each bound comes from.  A tolerance is only legitimate when it is the size of a physical or numerical effect
+# that is *not* the behaviour under test; anything larger hides a discrepancy, anything smaller reports the solver.
+TOLERANCE_NOTES: dict[str, str] = {
+    "settle_drift": "the QA settle gate itself allows 0.05 rad / 0.01 m of drift in 1 s; the comparison bound is under half of that, so a door that would still sign off cannot disagree here",
+    "settle_drift_primary": "as settle_drift",
+    "settle_drift_operator": "as settle_drift",
+    "settle_drift_latch": "2 mm: a third of the 6 mm 'bolt has returned' threshold, so latch slop cannot be confused with a bolt that did not re-extend",
+    "pen0_m": "3 mm: PhysX's 5 mm contactOffset vs MuJoCo's margin-free contacts; the sign-off gate rejects anything past -12 mm",
+    "hold_displacement": "0.01 rad / 3 mm on a door that must stay shut: half the 2 deg / 15 mm 'held' threshold, plus the leaf's authored locked play where it has any. On a door that must swing open the quantity is q at the free-swing crossing and the q_at_1s bound applies instead",
+    "t_free": "0.25 s / 30 %: two 30 Hz samples plus the 1 s minimum push; the crossing time of a leaf accelerating from rest is dominated by the first tenth of a rad",
+    "q_at_1s": "0.1 rad / 5 cm, 20 %: a free leaf covers ~0.1 rad in one 30 Hz sample at its typical 3 rad/s, so this is sampling noise, not travel; the door's own locked play is added",
+    "opened": "0.1 rad / 5 cm, 20 %: as q_at_1s. Waived when both runs coasted into the same joint stop - MuJoCo's soft limit (solreflimit 0.005) returns ~17 % of the impact velocity and PhysX's articulation limit is inelastic, so the end-of-phase angle is a rebound; q_primary_max is graded instead",
+    "actuate_displacement": "as opened",
+    "q_primary_max": "0.1 rad / 5 cm, 20 %: the peak the leaf reaches, which both engines must agree on even when they bounce off the stop differently",
+    "t_open": "0.3 s / 30 %: the operator is worked from 0.6 s and the push starts at 1.2 s, so a 0.3 s spread is the width of the drive ramp, not a difference in whether the door opens",
+    "t_open_bench": "as t_open",
+    "t_unlatch": "0.2 s: six 30 Hz samples of bolt travel",
+    "operator_travel_reached": "10 % of the operator's own travel (the hardware table's travel, or the joint range when the MJCF authors a larger one)",
+    "bolt_retract_max_frac": "15 % of the throw: the latch is judged unlatched at 80 % of throw, so this cannot flip that verdict",
+    "curve_rmse_primary": "0.15 rad / 5 cm RMS over the operate phase: about the 0.1 rad per-sample bound sustained over the whole curve",
+    "bolt_after_release_m": "2 mm: a third of the 6 mm 'bolt returned' threshold",
+    "t_bolt_return": "0.2 s: six 30 Hz samples",
+    "operator_after_release_frac": "10 % of the operator travel, as operator_travel_reached",
+    "relatch_closed_angle": "1 deg / 5 mm: half the 2 deg 'closed' threshold of the relatch check",
+    "relatch_repush_angle": "1 deg / 5 mm: as relatch_closed_angle against the 2.5 deg re-push threshold",
+    "t_close": "0.5 s / 30 %: the closing drive is a constant effort from rest. Not compared when the two runs entered the phase at different angles - relatch continues from operate, and a leaf that starts 0.4 rad further open must take longer",
+    "arrival_speed": "0.2 rad/s / 0.1 m/s, 30 %: peak |v| over the 100 ms before the latch crossing (metrics 1.1). The 1.0 definition - |v| at the single sample nearest the crossing - was a sampling artefact and is never compared against 1.1",
+    "closer_final_angle": "2 deg / 1 cm: a third of the 6 deg 'closed by the closer' threshold",
+    "closer_t_close": "0.5 s / 30 %: a 12 s phase; the closer's own sweep takes 2-6 s",
+    "peak_closing_speed": "0.2 rad/s / 0.1 m/s, 30 %: the slam threshold of the damage model is 2-4 rad/s, so this cannot hide a slam",
+    "speed_at_latch": "as arrival_speed (same definition, same 100 ms window)",
+    "curve_rmse_closer": "0.1 rad / 5 cm RMS over the 12 s closer sweep",
+    "locked_displacement": "0.01 rad / 3 mm: half the 2 deg / 15 mm 'locked holds' threshold, plus the chain / guard slack where the lock has any",
+    "velocity_cap_hit_primary": "boolean: did the door joint leave the physical velocity range (15 rad/s / 6 m/s) in one run and not the other",
+    "settle_drift_joint": "per joint, over the joints the USD actually has: 0.02 rad / 5 mm, the same bound as settle_drift",
+}
+# metrics that are informational only (never decide agreement).  Three groups:
+#  * run bookkeeping - how long the phase ran and how many samples it produced.  The free-swing hold phase legitimately
+#    exits at different times in the two simulators (it stops once the leaf is past thr_free), which is what `t_free`
+#    measures; `t_end` / `n_samples` restate it as a spurious second and third disagreement.
+#  * peak velocities over a phase - `max_v_primary` / `max_v_any` are the inputs of the velocity-cap sanity check, not
+#    behaviour: the peak of an impact transient at 30 Hz sampling is chaotic in both engines (it decides nothing that
+#    `velocity_cap_hit`, which stays gating, does not already decide).
+#  * values carried between phases or restated in another unit - `opened_before` IS the operate phase's `opened`, and
+#    counting it again in release and relatch triples one disagreement; `bolt_retract_max_m` is
+#    `bolt_retract_max_frac` times the throw; `operator_travel_frac` is `operator_travel_reached` over the travel.
+NON_GATING_METRICS = {
+    "t_start_s", "duration_s", "wall_time_s", "n_steps", "steps", "dt", "push", "qa_push", "effort", "eff", "warnings", "pen0_pair",
+    "t_end", "n_samples", "max_v_primary", "max_v_any", "opened_before", "operator_travel_frac", "bolt_retract_max_m",
+    "latch_clamps", "latch_target_raised_steps", "rebounds", "settle_drift_other_joint", "primary_at_limit",
+    # aggregates over "every joint", which is not the same set of joints in the two files: door.usda drops the
+    # closer-arm loop-closure joints (MuJoCo spins those pinions at 75-119 rad/s while the leaf does 1.4), door_rl.usda
+    # keeps 8.  Both are replaced below by like-for-like comparisons on joints both files have.
+    "velocity_cap_hit", "settle_drift_other_max",
+}
 
 
 def tolerance_for(metric: str, is_hinge: bool) -> tuple[float, float]:
@@ -359,9 +424,10 @@ def tolerance_for(metric: str, is_hinge: bool) -> tuple[float, float]:
     return t["abs_hinge"] if is_hinge else t["abs_slide"], t["rel"]
 
 
-def metric_delta(metric: str, mj: Any, px: Any, is_hinge: bool, tol_key: str | None = None) -> dict | None:
+def metric_delta(metric: str, mj: Any, px: Any, is_hinge: bool, tol_key: str | None = None, extra_abs: float = 0.0) -> dict | None:
     """[mj, px, delta, tol, ok] for numeric metrics; None when either side is missing / non-numeric.  `tol_key` looks the
-    tolerance up under another name (a free-opening door's hold_displacement is judged like q_at_1s, not like a latched one)."""
+    tolerance up under another name (a free-opening door's hold_displacement is judged like q_at_1s, not like a latched
+    one); `extra_abs` widens the absolute bound by travel the door is authored to have (a locked leaf's play)."""
     if metric in NON_GATING_METRICS:
         return None
     if isinstance(mj, bool) or isinstance(px, bool):
@@ -372,6 +438,7 @@ def metric_delta(metric: str, mj: Any, px: Any, is_hinge: bool, tol_key: str | N
         return None
     a, b = float(mj), float(px)
     abs_tol, rel_tol = tolerance_for(tol_key or metric, is_hinge)
+    abs_tol += max(0.0, float(extra_abs or 0.0))
     d = abs(a - b)
     ok = d <= abs_tol or (rel_tol > 0 and d <= rel_tol * max(abs(a), abs(b)))
     return {"mj": a, "px": b, "delta": a - b, "tol": abs_tol, "ok": bool(ok)}
@@ -426,6 +493,15 @@ CLASS_INFO: dict[str, dict[str, str]] = {
     "LOAD_ERROR": {"label": "not comparable (load / spawn / structure)", "meaning": "the USD failed to spawn, or its joints / limits / gains do not match model.json, so no dynamic phase can be compared",
                    "root_cause": "export or Isaac Lab API problem", "fix": "see the runner's error text"},
     "UNTESTED": {"label": "untested", "meaning": "no Isaac result for this door and kind", "root_cause": "-", "fix": "run the Isaac runner on the GPU pod"},
+    "STALE_INPUTS": {"label": "not the same door", "meaning": "the two records were produced from different protocol inputs (inputs_hash differs), so nothing in them is comparable",
+                     "root_cause": "the dataset, the adaptive push, a threshold or a coupling changed between the MuJoCo reference run and the PhysX run",
+                     "fix": "re-run the older side against the current dataset; the verdict is withheld (untested), never published"},
+    "METRICS_VERSION_SKEW": {"label": "metric definitions differ", "meaning": "the two records agree on the door but were reduced by different metric formulas; the affected metrics are reported and not graded",
+                             "root_cause": "doorbench.parity.protocol.METRICS_VERSION was raised after one of the runs (see METRIC_DEF_CHANGED_IN)",
+                             "fix": "re-run the older side; the other metrics of the door are still compared"},
+    "VELOCITY_EXPLOSION": {"label": "run exploded", "meaning": "a joint left the physical velocity range in one simulator (velocity cap hit, non-finite state) - the drift or displacement it reports is the debris, not the behaviour",
+                           "root_cause": "rigid PhysX limits plus a heavy / stiff mechanism at 120 Hz, initial penetration, or an effort far above the mechanism's own scale",
+                           "fix": "dt <= 1/240; check the initial penetration and the applied effort against the leaf's inertia (doorbench.qa.push_base)"},
 }
 
 ENV_RELEASE_LOCK_KINDS = ("mag_lock", "delayed_egress", "card_reader", "electric_strike", "interlock")
@@ -516,8 +592,39 @@ def is_hinge_of(ctx: dict, *recs: dict | None) -> bool:
 # ---------------------------------------------------------------------------------------------------------------------
 # comparison
 
-def compare_phase(name: str, mj_ph: dict | None, px_ph: dict | None, is_hinge: bool) -> dict:
-    """One phase of one door: statuses, agreement, metric deltas."""
+def locked_play(inputs: dict | None, is_hinge: bool) -> float:
+    """Travel a *holding* leaf is authored to have: ``thresholds.thr`` above the plain latch slop (2 deg / 15 mm).
+
+    A locked turnstile rotor or a bolted pet flap may move inside its locked range while held; where in that window it
+    comes to rest is a solver detail (soft MuJoCo limit vs rigid PhysX limit), not behaviour."""
+    thr = ((inputs or {}).get("thresholds") or {}).get("thr")
+    if not _finite(thr):
+        return 0.0
+    return max(0.0, float(thr) - (math.radians(2.0) if is_hinge else 0.015))
+
+
+def _at_limit(inputs: dict | None, metrics: dict, is_hinge: bool) -> bool | None:
+    """Did the leaf reach its opening stop in this run?  From the runner's own flag, else from q_primary_max."""
+    v = metrics.get("primary_at_limit")
+    if isinstance(v, bool):
+        return v
+    joints, pj = (inputs or {}).get("joints") or {}, (inputs or {}).get("primary_joint")
+    rng = (joints.get(pj) or {}).get("range") if pj else None
+    q = metrics.get("q_primary_max")
+    if not rng or not _finite(q):
+        return None
+    tol = ((inputs or {}).get("thresholds") or {}).get("limit_tol") or {}
+    t = tol.get("hinge" if is_hinge else "slide", math.radians(2.0) if is_hinge else 0.01)
+    return abs(float(q) - float(rng[1])) <= float(t)
+
+
+def compare_phase(name: str, mj_ph: dict | None, px_ph: dict | None, is_hinge: bool, inputs: dict | None = None, skew: Iterable[str] = ()) -> dict:
+    """One phase of one door: statuses, agreement, metric deltas.
+
+    ``inputs`` is the reference record's protocol inputs (thresholds / joints), used to size the tolerances that depend
+    on the door rather than on the metric: the hold window of a leaf with locked play, and the operate phase's
+    end-of-phase angle when both runs coasted into the joint limit.  ``skew`` lists metrics whose *definition* differs
+    between the two records (see ``protocol.METRIC_DEF_CHANGED_IN``); those are reported but not graded."""
     mj_st = mj_ph["status"] if mj_ph else "missing"
     px_st = px_ph["status"] if px_ph else "missing"
     out: dict[str, Any] = {"mujoco": mj_st, "physx": px_st, "expected": (mj_ph or {}).get("expected") or (px_ph or {}).get("expected"),
@@ -531,12 +638,68 @@ def compare_phase(name: str, mj_ph: dict | None, px_ph: dict | None, is_hinge: b
     # a free-opening door's push phase compares displacements of tenths of a rad / m, not the latch slop
     hd_mj, hd_px = mm.get("hold_displacement"), pm.get("hold_displacement")
     free = name == "hold" and ("free" in str(out["expected"] or "").lower() or (_finite(hd_mj) and _finite(hd_px) and min(abs(float(hd_mj)), abs(float(hd_px))) > 0.1))
+    play = locked_play(inputs, is_hinge) if name in ("hold", "locked_holds") else 0.0
+    # both runs coasted into the same stop: what separates the end-of-phase angle is the bounce off the limit (MuJoCo's
+    # soft limit returns ~17 % of the impact velocity, PhysX's articulation limit is inelastic), and the peak both
+    # reach - q_primary_max, graded on its own - is the comparable quantity
+    rebound = name == "operate_open" and _at_limit(inputs, mm, is_hinge) is True and _at_limit(inputs, pm, is_hinge) is True
+    # relatch continues from operate: entering it at different angles (that same rebound) makes its timing metrics two
+    # different experiments.  Its verdict metrics - the closed angle and the re-push angle, both end states - stay graded.
+    not_like_for_like: set[str] = set()
+    if name == "relatch":
+        ob = metric_delta("opened", mm.get("opened_before"), pm.get("opened_before"), is_hinge)
+        if ob is not None and not ob["ok"]:
+            not_like_for_like = {"t_close", "arrival_speed"}
+    skew = set(skew)
     for k in sorted(set(mm) & set(pm)):
-        d = metric_delta(k, mm.get(k), pm.get(k), is_hinge, tol_key="q_at_1s" if free and k == "hold_displacement" else None)
-        if d is not None:
-            out["metric_deltas"][k] = d
-    out["within_tol"] = all(d["ok"] for d in out["metric_deltas"].values()) if out["metric_deltas"] else True
+        tol_key = "q_at_1s" if free and k == "hold_displacement" else None
+        d = metric_delta(k, mm.get(k), pm.get(k), is_hinge, tol_key=tol_key, extra_abs=play if k in ("hold_displacement", "q_at_1s", "locked_displacement") else 0.0)
+        if d is None:
+            continue
+        if k in skew:
+            d["ok"], d["not_comparable"] = None, "metric definition changed between the two runs; re-run the older side"
+        elif k in not_like_for_like:
+            d["ok"], d["not_comparable"] = None, f"phase entered at a different angle ({_fmt(mm.get('opened_before'))} vs {_fmt(pm.get('opened_before'))})"
+        elif not d["ok"] and rebound and k == "opened":
+            d["ok"], d["waived"] = True, "both runs reached the joint limit; graded on q_primary_max"
+        out["metric_deltas"][k] = d
+    _derived_deltas(out, name, mm, pm, inputs, is_hinge)
+    graded = [d for d in out["metric_deltas"].values() if d["ok"] is not None]
+    out["within_tol"] = all(d["ok"] for d in graded) if graded else True
+    out["not_comparable"] = sorted(k for k, d in out["metric_deltas"].items() if d["ok"] is None)
     return out
+
+
+def _derived_deltas(out: dict, name: str, mm: dict, pm: dict, inputs: dict | None, is_hinge: bool) -> None:
+    """Like-for-like replacements for the two metrics that aggregate over "every joint".
+
+    ``velocity_cap_hit`` is (primary over 15 rad/s **or any joint over 50**); the second half fires in MuJoCo alone on
+    128 closer doors because the USD has no closer-arm pinion to spin.  ``settle_drift_other_max`` is the largest drift
+    of any *other* joint, over the same unequal sets.  Both are re-derived here over what the two runs share: the
+    primary joint's own cap, and the per-joint drift of the joints PhysX actually recorded."""
+    def flag(key: str, a: bool, b: bool, detail: str) -> None:
+        out["metric_deltas"][key] = {"mj": a, "px": b, "delta": 0 if a == b else 1, "tol": 0, "ok": a == b, "detail": detail}
+
+    cap = ((inputs or {}).get("thresholds") or {}).get("v_cap_primary")
+    if _finite(cap) and _finite(mm.get("max_v_primary")) and _finite(pm.get("max_v_primary")):
+        a, b = float(mm["max_v_primary"]) > float(cap), float(pm["max_v_primary"]) > float(cap)
+        if a or b:
+            flag("velocity_cap_hit_primary", a, b, f"max |v| of the door joint: {_fmt(mm['max_v_primary'])} vs {_fmt(pm['max_v_primary'])} (cap {_fmt(cap)})")
+    if name == "settle":
+        dm, dp = mm.get("settle_drift_signed"), pm.get("settle_drift_signed")
+        if isinstance(dm, dict) and isinstance(dp, dict):
+            joints = ((inputs or {}).get("joints") or {})
+            unlimited = {j for j, v in joints.items() if isinstance(v, dict) and v.get("range") is None}
+            worst = None
+            for j, v in dp.items():          # MuJoCo records every joint, PhysX only the ones its file has
+                if j in unlimited or not _finite(v):
+                    continue
+                tol = 0.02 if (joints.get(j) or {}).get("type", "hinge") == "hinge" else 0.005
+                d = abs(float(v) - float(dm.get(j, 0.0)))
+                if d > tol and (worst is None or d > worst[1]):
+                    worst = (j, d, tol)
+            if worst is not None:
+                out["metric_deltas"]["settle_drift_joint"] = {"mj": dm.get(worst[0], 0.0), "px": dp[worst[0]], "delta": worst[1], "tol": worst[2], "ok": False, "detail": f"joint {worst[0]}"}
 
 
 def _phase_curve_rmse(mj: dict, px: dict, ctx: dict, phase: str, role: str) -> float | None:
@@ -589,8 +752,8 @@ def classify(phases: dict[str, dict], mj: dict, px: dict, ctx: dict, kind: str, 
         if name == "pose0":
             add("EXPORT_FRAME", name, "body / COM / joint anchor frames differ at q0")
         elif name == "settle":
-            add("PHYSICS_PARAM_PRELOAD" if px_fail else "PHYSICS_PARAM", name,
-                f"drift mujoco={_fmt(mm.get('settle_drift') or mm.get('settle_drift_primary'))} physx={_fmt(pm.get('settle_drift') or pm.get('settle_drift_primary'))}")
+            code, detail = _settle_class(mm, pm, mj.get("inputs") or {}, px_fail)
+            add(code, name, detail)
         elif name == "hold":
             expected = str(p.get("expected") or ("hold" if flags.get("has_holding", True) else "free_opens")).lower()
             if "free" in expected:
@@ -655,9 +818,55 @@ def classify(phases: dict[str, dict], mj: dict, px: dict, ctx: dict, kind: str, 
     if not out:
         quant = [n for n, p in phases.items() if p["within_tol"] is False]
         for n in quant:
-            worst = max(phases[n]["metric_deltas"].items(), key=lambda kv: 0 if kv[1]["ok"] else abs(kv[1]["delta"]) / max(kv[1]["tol"], 1e-9))
+            deltas = phases[n]["metric_deltas"]
+            if deltas.get("velocity_cap_hit_primary") and deltas["velocity_cap_hit_primary"]["ok"] is False:
+                d = deltas["velocity_cap_hit_primary"]
+                add("VELOCITY_EXPLOSION", n, f"the door joint leaves the physical velocity range in {'PhysX' if d['px'] else 'MuJoCo'}: {d.get('detail', '')}")
+                continue
+            worst = max(deltas.items(), key=lambda kv: 0 if kv[1]["ok"] is not False else abs(kv[1]["delta"]) / max(kv[1]["tol"], 1e-9))
             add("QUANT", n, f"{worst[0]}: mujoco {_fmt(worst[1]['mj'])} vs physx {_fmt(worst[1]['px'])} (tol {_fmt(worst[1]['tol'])})")
     return out
+
+
+def _settle_class(mm: dict, pm: dict, inputs: dict, px_fail: bool) -> tuple[str, str]:
+    """Why the free 1 s settle disagrees - read off the drifting joint instead of assumed.
+
+    ``PHYSICS_PARAM_PRELOAD`` (a spring target zeroed by the exporter) has a signature: the joint that drifts *has* a
+    spring, and it sags by about the distance from its spring target to zero.  Tagging every settle disagreement with
+    it hid the actual cause of five turnstile rotors - a joint with no spring at all (stiffness 0) whose rigid PhysX
+    limit exploded at 21-110000 rad/s and left the rotor tens of radians away."""
+    def num(m, *keys):
+        for k in keys:
+            if _finite(m.get(k)):
+                return float(m[k])
+        return None
+
+    d_mj, d_px = num(mm, "settle_drift", "settle_drift_primary"), num(pm, "settle_drift", "settle_drift_primary")
+    where = f"drift mujoco={_fmt(d_mj)} physx={_fmt(d_px)}"
+    joints = inputs.get("joints") or {}
+    # which joint actually moved differently (the runners record a signed per-joint drift)
+    sm, sp = mm.get("settle_drift_signed") or {}, pm.get("settle_drift_signed") or {}
+    worst, worst_d = inputs.get("primary_joint"), 0.0
+    for j in sp:
+        dd = abs(float(sp[j]) - float(sm.get(j, 0.0))) if _finite(sp[j]) else 0.0
+        if dd > worst_d:
+            worst, worst_d = j, dd
+    J = joints.get(worst) or {}
+    v_px, v_mj = num(pm, "max_v_primary"), num(mm, "max_v_primary")
+    cap = ((inputs.get("thresholds") or {}).get("v_cap_primary")) or 15.0
+    if pm.get("finite") is False or (d_px is not None and not math.isfinite(d_px)):
+        return "SANITY", f"PhysX state is not finite during settle ({where})"
+    if pm.get("velocity_cap_hit") is True or (v_px is not None and v_px > float(cap)):
+        return "VELOCITY_EXPLOSION", (f"{worst or 'primary'} reaches {_fmt(v_px)} rad|m/s in PhysX (MuJoCo {_fmt(v_mj)}, cap {_fmt(cap)}) "
+                                      f"and ends {_fmt(worst_d)} away; {where}")
+    k, ref = float(J.get("stiffness") or 0.0), abs(float(J.get("springref") or 0.0))
+    if px_fail and k > 0.0 and ref > 0.0 and worst_d <= 2.0 * ref:
+        return "PHYSICS_PARAM_PRELOAD", f"{worst} has a spring (k={_fmt(k)}, target {_fmt(J.get('springref'))} rad|m) and sags {_fmt(worst_d)} toward zero in PhysX; {where}"
+    if float(J.get("frictionloss") or 0.0) > 0.0:
+        return "PHYSICS_PARAM_FRICTION", f"{worst} drifts {_fmt(worst_d)} more in PhysX although MuJoCo holds it with frictionloss {_fmt(J.get('frictionloss'))}; {where}"
+    if _finite(mm.get("pen0_m")) and _finite(pm.get("pen0_m")) and abs(float(mm["pen0_m"]) - float(pm["pen0_m"])) > 0.003:
+        return "CONTACT_GEOMETRY", f"initial penetration {_fmt(mm.get('pen0_m'))} m (MuJoCo) vs {_fmt(pm.get('pen0_m'))} m (PhysX); {where}"
+    return "PHYSICS_PARAM", f"{worst or 'primary'} drifts {_fmt(worst_d)} more in PhysX with no spring, no friction and no penetration difference; {where}"
 
 
 def _fmt(x: Any) -> str:
@@ -674,16 +883,41 @@ def _fmt(x: Any) -> str:
     return f"{v:.4g}"
 
 
+def stale_reason(mj: dict | None, px: dict | None) -> str | None:
+    """Do these two records describe the same door?  ``inputs_hash`` covers the joints, the adaptive push, the
+    thresholds, the couplings, the schedule and the flags each runner was handed; joining across a mismatch attributes
+    export / physics differences to doors that were simply not the same door in the two runs."""
+    a, b = (mj or {}).get("inputs_hash"), (px or {}).get("inputs_hash")
+    if a and b and a != b:
+        return f"inputs_hash mujoco {a} != physx {b}"
+    return None
+
+
+def skewed_metrics(mj: dict | None, px: dict | None) -> list[str]:
+    """Metrics whose formula changed between the two records' ``metrics_version`` (protocol.METRIC_DEF_CHANGED_IN)."""
+    try:
+        from .protocol import skewed_metrics as _skew
+    except Exception:      # results.py must stay importable without the protocol module / its dependencies
+        return []
+    return _skew(mj, px)
+
+
 def compare_kind(mj: dict | None, px: dict | None, ctx: dict, kind: str, variants: dict[str, dict] | None = None) -> dict:
     """Compare one door's MuJoCo record with one Isaac kind -> {status, grade, ok, phases, classes, metrics, curve_rmse}."""
     if px is None:
         return {"status": "untested", "grade": None, "ok": None, "phases": {}, "classes": [{"code": "UNTESTED", "phase": None, "detail": "no Isaac result"}], "metrics": {}}
     if mj is None:
         return {"status": "no_reference", "grade": "X", "ok": None, "phases": {}, "classes": [{"code": "LOAD_ERROR", "phase": None, "detail": "no MuJoCo reference result"}], "metrics": {}}
+    stale = stale_reason(mj, px)
+    if stale:
+        return {"status": "stale", "grade": "X", "ok": None, "phases": {}, "metrics": {}, "stale": stale,
+                "classes": [{"code": "STALE_INPUTS", "phase": None, "detail": stale}], "errors": []}
+    skew = skewed_metrics(mj, px)
     is_hinge = is_hinge_of(ctx, mj, px)
     load_error = has_load_error(px)
+    inputs = mj.get("inputs") or px.get("inputs") or {}
     names = [p for p in PHASES if p in mj["phases"] or p in px["phases"]] + sorted((set(mj["phases"]) | set(px["phases"])) - set(PHASES))
-    phases = {n: compare_phase(n, mj["phases"].get(n), px["phases"].get(n), is_hinge) for n in names}
+    phases = {n: compare_phase(n, mj["phases"].get(n), px["phases"].get(n), is_hinge, inputs, skew) for n in names}
     # curve RMSE on the operate phase (primary joint) and the closer phase, gated like metrics
     rm = _phase_curve_rmse(mj, px, ctx, "operate_open", "primary")
     if rm is not None and "operate_open" in phases and phases["operate_open"]["agree"] is not None:
@@ -695,7 +929,8 @@ def compare_kind(mj: dict | None, px: dict | None, ctx: dict, kind: str, variant
     # sensitivity rerun (isaac_<kind>_<variant>.json): the discrepancy is solver-related if the finer run agrees
     if variants and grade in ("B", "C"):
         for vname, vrec in variants.items():
-            vph = {n: compare_phase(n, mj["phases"].get(n), vrec["phases"].get(n), is_hinge) for n in names if n in vrec["phases"] or n in mj["phases"]}
+            vph = {n: compare_phase(n, mj["phases"].get(n), vrec["phases"].get(n), is_hinge, inputs, skewed_metrics(mj, vrec))
+                   for n in names if n in vrec["phases"] or n in mj["phases"]}
             vg = grade_of(vph, has_load_error(vrec))
             if (grade == "C" and vg in ("A", "B")) or (grade == "B" and vg == "A"):
                 classes.append({"code": "SOLVER_SENSITIVITY", "phase": None, "detail": f"agrees in the {vname} rerun"})
@@ -705,8 +940,13 @@ def compare_kind(mj: dict | None, px: dict | None, ctx: dict, kind: str, variant
         for k, d in p["metric_deltas"].items():
             metrics[f"{n}.{k}"] = [d["mj"], d["px"], d["ok"]]
     ok = grade in ("A", "B")
+    if skew:
+        classes.append({"code": "METRICS_VERSION_SKEW", "phase": None,
+                        "detail": f"metrics {', '.join(skew)} not graded: mujoco {mj.get('metrics_version') or '1.0'} vs physx {px.get('metrics_version') or '1.0'}"})
+    nc = sorted({k for p in phases.values() for k in (p.get("not_comparable") or [])})
     return {"status": "compared" if grade != "X" else "not_comparable", "grade": grade, "ok": ok, "phases": phases, "classes": classes, "metrics": metrics,
-            "curve_rmse_primary": rm, "errors": list(px.get("errors") or [])[:5], "is_hinge": is_hinge}
+            "curve_rmse_primary": rm, "errors": list(px.get("errors") or [])[:5], "is_hinge": is_hinge,
+            "not_comparable_metrics": nc, "skew_metrics": sorted(set(skew)), "initial_condition_metrics": sorted(set(nc) - set(skew))}
 
 
 def door_verdict(door_id: str, mj: dict | None, px_by_kind: dict[str, dict | None], ctx: dict, variants: dict[str, dict[str, dict]] | None = None) -> dict:
@@ -733,28 +973,32 @@ def door_verdict(door_id: str, mj: dict | None, px_by_kind: dict[str, dict | Non
         status, ok = "untested", None
     elif mj is None:
         status, ok = "no_reference", None
+    elif any(kinds[k]["status"] == "stale" for k in tested):
+        status, ok = "stale", None      # withheld: the two records do not describe the same door
     else:
         status = "compared"
         ok = grade in ("A", "B")
-    primary = next((c for c in classes if c not in ("QUANT", "SOLVER_SENSITIVITY")), classes[0] if classes else "OK")
+    primary = next((c for c in classes if c not in ("QUANT", "SOLVER_SENSITIVITY", "METRICS_VERSION_SKEW")), classes[0] if classes else "OK")
     return {
         "door_id": door_id, "status": status, "ok": ok, "grade": grade, "family": ctx.get("family"), "kinematics": ctx.get("kin_type"),
         "hardware": {"latch": ctx.get("latch_kind"), "lock": ctx.get("lock_kind"), "closer": ctx.get("closer_kind"), "operator": ctx.get("operator_kind"), "lock_engaged": ctx.get("lock_engaged")},
-        "kinds": {k: {"status": v["status"], "grade": v["grade"], "ok": v["ok"],
+        "kinds": {k: {"status": v["status"], "grade": v["grade"], "ok": v["ok"], "stale": v.get("stale"),
+                      "skew_metrics": v.get("skew_metrics", []), "initial_condition_metrics": v.get("initial_condition_metrics", []),
                       "phases": {n: ("agree" if p["agree"] is True and p["within_tol"] is not False else "quant" if p["agree"] is True else "disagree" if p["agree"] is False else "na") for n, p in v["phases"].items()},
                       "classes": [c["code"] for c in v["classes"] if c["code"] != "UNTESTED"], "details": [f"{c['phase'] or '-'}: {c['detail']}" for c in v["classes"] if c["code"] != "UNTESTED"],
                       "metrics": v["metrics"], "errors": v.get("errors", [])} for k, v in kinds.items()},
-        "classes": classes, "primary_class": primary if status == "compared" else ("UNTESTED" if status == "untested" else "LOAD_ERROR"),
+        "classes": classes, "primary_class": primary if status == "compared" else ("UNTESTED" if status == "untested" else "STALE_INPUTS" if status == "stale" else "LOAD_ERROR"),
         "likely_root_cause": CLASS_INFO.get(primary, {}).get("root_cause", "-") if status == "compared" and primary != "OK" else "-",
         "_kinds_full": kinds,
     }
 
 
 def manifest_status(verdict: dict | None) -> str:
-    """qa.json / manifest badge value: ok (grade A or B) | fail (C or not comparable) | untested."""
-    if not verdict or verdict.get("status") == "untested":
-        return "untested"
-    if verdict.get("status") == "no_reference":
+    """qa.json / manifest badge value: ok (grade A or B) | fail (C or not comparable) | untested.
+
+    A *stale* verdict - the two runs were not the same door - is never published as ok or fail: it is untested until
+    the older side is re-run."""
+    if not verdict or verdict.get("status") in ("untested", "no_reference", "stale"):
         return "untested"
     return "ok" if verdict.get("ok") else "fail"
 

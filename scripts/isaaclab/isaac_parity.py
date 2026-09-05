@@ -67,7 +67,7 @@ import time
 import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _common import ROOT, ensure_extension_importable  # noqa: E402
+from _common import ROOT, ensure_extension_importable, package_version, simulator_engine  # noqa: E402
 
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
@@ -123,17 +123,10 @@ LATCH_TARGET = args_cli.latch_mode == "clamp+target"
 # smoothing velocity of the Coulomb term in an emulated coupling's reaction (rad/s or m/s); the exporter writes the
 # same number into doorbench:couplings["friction_vel_eps"]
 COUPLING_VEL_EPS = 1e-3
-ENGINE = {"isaac_sim": None, "isaac_lab": None, "physx_dt": DT, "solver_iterations": [POS_ITERS, VEL_ITERS]}
-try:
-    import isaaclab
-    ENGINE["isaac_lab"] = getattr(isaaclab, "__version__", None)
-except Exception:
-    pass
-try:
-    import isaacsim
-    ENGINE["isaac_sim"] = getattr(isaacsim, "__version__", None)
-except Exception:
-    pass
+ENGINE = simulator_engine() | {"physx_dt": DT, "solver_iterations": [POS_ITERS, VEL_ITERS]}
+if ENGINE["isaac_sim"] is None or ENGINE["isaac_lab"] is None:
+    print(f"[parity] WARNING: could not resolve the simulator version (isaac_sim={ENGINE['isaac_sim']}, isaac_lab={ENGINE['isaac_lab']}); "
+          f"the parity report will say so instead of claiming a version.")
 
 
 def _art_props():
@@ -708,7 +701,7 @@ class DoorHandle:
         for phase in P.PHASES:
             if phase not in self.phases:
                 self.phases[phase] = {"expected": self.sched[phase], "status": "na", "metrics": {}, "informational": False}
-        return {"door_id": self.door_id, "sim": "physx", "kind": self.kind, "engine": ENGINE, "dt": DT, "protocol_version": P.PROTOCOL_VERSION, "inputs_hash": self.inputs.get("inputs_hash"),
+        return {"door_id": self.door_id, "sim": "physx", "kind": self.kind, "engine": ENGINE, "dt": DT, "protocol_version": P.PROTOCOL_VERSION, "metrics_version": P.METRICS_VERSION, "inputs_hash": self.inputs.get("inputs_hash"),
                 "emulations_used": self.emulations, "structure": self.structure, "pose0": self.pose0, "phases": self.phases, "errors": self.errors,
                 "limits": {"violations": [dict(v, phase=p) for p, r in self.phases.items() for v in (r["metrics"].get("limit_violations") or [])]},
                 "sanity": {"finite": all(r["metrics"].get("finite", True) for r in self.phases.values() if r["metrics"]), "velocity_cap_hit": any(r["metrics"].get("velocity_cap_hit") for r in self.phases.values() if r["metrics"])},
@@ -734,7 +727,7 @@ def run_batch(ids: list[str], kind: str, device: str, inputs_by_id: dict, pose0_
                 arts.append(Articulation(_door_cfg(did, kind, k, origins[k])))
             except Exception as e:
                 arts.append(None)
-                rows[did] = {"door_id": did, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "load_error": f"spawn: {type(e).__name__}: {e}", "ok": False, "phases": {}}
+                rows[did] = {"door_id": did, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "metrics_version": P.METRICS_VERSION, "load_error": f"spawn: {type(e).__name__}: {e}", "ok": False, "phases": {}}
         sim.reset()
         handles = []
         for did, art in zip(ids, arts):
@@ -745,7 +738,7 @@ def run_batch(ids: list[str], kind: str, device: str, inputs_by_id: dict, pose0_
                 inputs = inputs_by_id.get(did) or _fallback_inputs(did)
                 handles.append(DoorHandle(sim, art, kind, did, inputs, pose0_by_id.get(did)))
             except Exception as e:
-                rows[did] = {"door_id": did, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "load_error": f"inspect: {type(e).__name__}: {e}", "ok": False, "phases": {},
+                rows[did] = {"door_id": did, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "metrics_version": P.METRICS_VERSION, "load_error": f"inspect: {type(e).__name__}: {e}", "ok": False, "phases": {},
                              "traceback": traceback.format_exc()[-1500:]}
         live = list(handles)
         for phase in P.PHASES:
@@ -809,7 +802,7 @@ def run_batch(ids: list[str], kind: str, device: str, inputs_by_id: dict, pose0_
             try:
                 rows[h.door_id] = h.record()
             except Exception as e:
-                rows[h.door_id] = {"door_id": h.door_id, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "load_error": f"record: {type(e).__name__}: {e}", "ok": False, "phases": {}}
+                rows[h.door_id] = {"door_id": h.door_id, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "metrics_version": P.METRICS_VERSION, "load_error": f"record: {type(e).__name__}: {e}", "ok": False, "phases": {}}
     return rows
 
 
@@ -845,7 +838,7 @@ def main():
         if os.path.isfile(out) and not args_cli.force:
             with open(out) as f:
                 prev = json.load(f)
-            if prev.get("meta", {}).get("protocol_version") == P.PROTOCOL_VERSION:
+            if prev.get("meta", {}).get("protocol_version") == P.PROTOCOL_VERSION and prev.get("meta", {}).get("metrics_version") == P.METRICS_VERSION:
                 doors = prev.get("doors", {})
         todo = [i for i in ids if i not in doors or args_cli.force or (args_cli.retry_errors and doors[i].get("load_error"))]
         if not args_cli.no_group:
@@ -866,9 +859,9 @@ def main():
             except Exception as e:  # a crashing batch must not lose the report
                 print(f"[parity] {kind} batch {b + 1}: EXCEPTION {type(e).__name__}: {e}")
                 traceback.print_exc()
-                rows = {i: {"door_id": i, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "load_error": f"batch exception: {type(e).__name__}: {e}", "ok": False, "phases": {}} for i in batch}
+                rows = {i: {"door_id": i, "sim": "physx", "kind": kind, "engine": ENGINE, "protocol_version": P.PROTOCOL_VERSION, "metrics_version": P.METRICS_VERSION, "load_error": f"batch exception: {type(e).__name__}: {e}", "ok": False, "phases": {}} for i in batch}
             doors.update(rows)
-            meta = {"protocol_version": P.PROTOCOL_VERSION, "sim": "physx", "kind": kind, "engine": ENGINE, "dt": DT, "sample_hz": P.SAMPLE_HZ, "generated": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            meta = {"protocol_version": P.PROTOCOL_VERSION, "metrics_version": P.METRICS_VERSION, "sim": "physx", "kind": kind, "engine": ENGINE, "dt": DT, "sample_hz": P.SAMPLE_HZ, "generated": time.strftime("%Y-%m-%dT%H:%M:%S"),
                     "n_doors": len(doors), "options": {"emulate_weld": args_cli.emulate_weld, "servo": not args_cli.no_servo, "inputs": args_cli.inputs, "batch": args_cli.batch,
                                                        "spacing_m": [X_SPACING, Y_SPACING], "latch_mode": args_cli.latch_mode, "grouped": not args_cli.no_group}}
             tmp = out + ".tmp"

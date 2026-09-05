@@ -32,6 +32,33 @@ from doorbench.parity import protocol as P  # noqa: E402
 from doorbench.parity.mujoco_runner import run_door, compact_record  # noqa: E402
 
 
+def _git_commit() -> str | None:
+    import subprocess
+    try:
+        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, stderr=subprocess.DEVNULL, text=True).strip()
+    except Exception:
+        return None
+
+
+def _mujoco_version() -> str | None:
+    try:
+        import mujoco
+        return mujoco.__version__
+    except Exception:
+        return None
+
+
+def _dataset_stamp(assets: str) -> dict:
+    """Which dataset the reference was measured on (the manifest's own stamp + its mtime), so a report can say so."""
+    try:
+        with open(os.path.join(assets, "manifest.json")) as f:
+            man = json.load(f)
+        return {"n_doors": man.get("n_doors"), "version": man.get("version"), "generated": man.get("generated"),
+                "manifest_mtime": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(os.path.getmtime(os.path.join(assets, "manifest.json"))))}
+    except Exception:
+        return {}
+
+
 def select_ids(spec: str, assets: str, seed: int = 0) -> list[str]:
     with open(os.path.join(assets, "manifest.json")) as f:
         man = json.load(f)
@@ -123,14 +150,16 @@ def main():
     if not args.no_resume and os.path.isfile(args.out):
         with open(args.out) as f:
             prev = json.load(f)
-        if prev.get("meta", {}).get("protocol_version") == P.PROTOCOL_VERSION:
+        if prev.get("meta", {}).get("protocol_version") == P.PROTOCOL_VERSION and prev.get("meta", {}).get("metrics_version") == P.METRICS_VERSION:
             doors = prev.get("doors", {})
     todo = [(os.path.join(args.assets, "doors", i), args.dt, args.cache, args.force) for i in ids]
     t0 = time.time()
     n_done = 0
 
     def flush():
-        meta = {"protocol_version": P.PROTOCOL_VERSION, "sim": "mujoco", "kind": "mjcf", "dt": args.dt, "generated": time.strftime("%Y-%m-%dT%H:%M:%S"), "n_doors": len(doors), "sample_hz": P.SAMPLE_HZ}
+        meta = {"protocol_version": P.PROTOCOL_VERSION, "metrics_version": P.METRICS_VERSION, "sim": "mujoco", "kind": "mjcf", "dt": args.dt,
+                "engine": {"mujoco": _mujoco_version()}, "generated": time.strftime("%Y-%m-%dT%H:%M:%S"), "n_doors": len(doors), "sample_hz": P.SAMPLE_HZ,
+                "commit": _git_commit(), "dataset": _dataset_stamp(args.assets)}
         tmp = args.out + ".tmp"
         with open(tmp, "w") as f:
             json.dump({"meta": meta, "doors": doors}, f)

@@ -32,9 +32,19 @@ import re
 from typing import Iterable
 
 from .. import hardware as H
-from ..qa import door_flags, FREE_SWING_FAMILIES
+from ..qa import door_flags, push_base, FREE_SWING_FAMILIES, PUSH_BASE_MAX, PUSH_BASE_MIN, PUSH_CAP
 
 PROTOCOL_VERSION = "1.0"
+# Version of the *metric definitions* (``phase_metrics``).  The protocol (schedule, efforts, expectations) is unchanged
+# at 1.0, so records of both versions describe the same experiment - but a metric whose formula changed cannot be
+# compared across the two, and ``compare_door`` refuses to instead of reporting a meaningless delta.
+METRICS_VERSION = "1.1"
+METRIC_DEF_CHANGED_IN = {
+    # 1.1: |v| at the single 30 Hz sample nearest the crossing -> peak |v| over the 100 ms of approach before it
+    "arrival_speed": "1.1",
+    "speed_at_latch": "1.1",
+}
+ARRIVAL_WINDOW_S = 0.1      # s of approach the arrival / latch speed is measured over
 SAMPLE_HZ = 30
 PHASES = ("settle", "hold", "operate", "release", "relatch", "closer", "locked")
 # phases that start from the reset state; the others continue from the previous phase
@@ -47,8 +57,9 @@ THUMBTURN_EFFORT, THUMBTURN_UNTIL_S = 2.0, 1.2
 AUX_EFFORT = {"hinge": 3.0, "slide": 60.0}
 DOG_EFFORT = 14.0
 OPERATOR_FROM_S, PUSH_FROM_S, PUSH_STOP_DEG = 0.6, 1.2, 50.0
-PUSH_BASE = {"hinge": 60.0, "slide": 80.0}
-PUSH_CAP = {"hinge": 800.0, "slide": 4000.0}
+# the adaptive push (base sized by the leaf's own weight moment, capped) lives in doorbench.qa: one definition, used
+# by the sign-off QA and by both parity runners
+PUSH_BASE_CAP, PUSH_BASE_FLOOR = PUSH_BASE_MAX, PUSH_BASE_MIN
 THUMBTURN_JOINTS = ("leaf_deadbolt_thumbturn_hinge", "leaf_a_deadbolt_thumbturn_hinge")
 AUX_JOINTS = ("leaf_aux_bolt_slide", "slide_latch_slide", "leaf_slide_bolt_slide", "leaf_pin_slide", "leaf_thumb_hinge", "hatch_bolt_slide",
               "join_bolt_slide", "garage_slide_lock_slide", "leaf_hook_thumbturn_hinge", "leaf_a_hook_thumbturn_hinge")
@@ -58,10 +69,13 @@ KINDS = ("mjcf", "usd_full", "usd_rl")
 
 # discrepancy / outcome codes (compare_door)
 CODES = ("OK", "MUJOCO_FAIL", "PHYSX_NO_OPEN", "PHYSX_HOLD_FAIL", "EXPORT_WELD_MISSING", "SETTLE_DRIFT", "LIMIT_VIOLATION", "NAN",
-         "CLOSER_NO_RETURN", "LATCH_NO_RETURN", "RELATCH_FAIL", "STRUCTURE_FAIL", "LOAD_FAIL", "METRIC_DELTA", "INFO_DISAGREE", "RL_CANON", "MISSING")
+         "CLOSER_NO_RETURN", "LATCH_NO_RETURN", "RELATCH_FAIL", "STRUCTURE_FAIL", "LOAD_FAIL", "METRIC_DELTA", "INFO_DISAGREE", "RL_CANON", "MISSING",
+         "STALE_INPUTS", "METRICS_VERSION_SKEW")
 # codes that make a door grade C (behavioural disagreement) vs B (quantitative)
 STATUS_CODES = {"MUJOCO_FAIL", "PHYSX_NO_OPEN", "PHYSX_HOLD_FAIL", "EXPORT_WELD_MISSING", "LIMIT_VIOLATION", "NAN", "CLOSER_NO_RETURN", "LATCH_NO_RETURN", "RELATCH_FAIL"}
 QUANT_CODES = {"SETTLE_DRIFT", "METRIC_DELTA", "INFO_DISAGREE"}
+# codes that say the two records do not describe the same experiment: not a discrepancy, a bookkeeping fact
+PROVENANCE_CODES = {"STALE_INPUTS", "METRICS_VERSION_SKEW"}
 
 DEG = math.pi / 180.0
 
@@ -150,8 +164,14 @@ def read_rl_meta(door_dir: str) -> dict | None:
             return None
 
 
+# what ``inputs_hash`` covers: everything a runner *acts on*.  Diagnostics derived from these (how the push was sized,
+# wall times, notes) belong outside them - adding a derived field to a hashed dict would mark every existing record of
+# the dataset stale for no behavioural reason.
+HASHED_INPUT_KEYS = ("door_id", "joints", "forces", "thresholds", "coupling", "schedule", "flags")
+
+
 def inputs_hash(inputs: dict) -> str:
-    keep = {k: inputs[k] for k in ("door_id", "joints", "forces", "thresholds", "coupling", "schedule", "flags") if k in inputs}
+    keep = {k: inputs[k] for k in HASHED_INPUT_KEYS if k in inputs}
     return hashlib.sha1(json.dumps(keep, sort_keys=True, default=str).encode()).hexdigest()[:12]
 
 
@@ -195,9 +215,11 @@ def door_inputs(spec: dict, model_json: dict, forces: dict | None = None, qa: di
         "closer_model": spec["closer"]["model"], "closer_preload_Nm": float(phys.get("closer", {}).get("spring_preload_Nm", 0.0) or 0.0),
     })
     # ---- forces (qa.py adaptive push)
+    W = float(spec["leaf"]["width"])
+    mass = float(phys.get("mass", {}).get("total_kg", 0.0) or 0.0)
     fl = P["frictionloss"]
     preload = abs(P["stiffness"] * P["springref"]) if P["stiffness"] > 0 else 0.0
-    base, cap = PUSH_BASE[unit], PUSH_CAP[unit]
+    base, cap = push_base(unit, mass, W), PUSH_CAP[unit]
     if forces is not None and forces.get("bias") is not None:
         # values from the compiled MJCF win (the XML rounds to 6 decimals; qa.py reads m.dof_frictionloss / m.qpos_spring)
         bias = float(forces["bias"])
@@ -214,7 +236,6 @@ def door_inputs(spec: dict, model_json: dict, forces: dict | None = None, qa: di
         push = min(2.0 * (fl + preload) + base, cap)
         src = "model.json (no gravity bias)"
     static = (bias or 0.0) + fl + preload
-    W = float(spec["leaf"]["width"])
     max_open_deg = float(kin.get("max_open_deg") or 90)
     travel = float(P["range"][1] - P["range"][0]) if P["range"] else None
     chain_limit = math.asin(min(0.99, lk.chain_slack / max(W - 0.1, 0.2))) if (lk.chain_slack and is_hinge) else 0.0
@@ -278,13 +299,14 @@ def door_inputs(spec: dict, model_json: dict, forces: dict | None = None, qa: di
               "env_release": [e.get("name") for e in rl_meta.get("env_release", [])]}
     inputs = {
         "protocol_version": PROTOCOL_VERSION, "door_id": spec["id"], "family": fam, "kinematics_type": kin.get("type"), "is_hinge": is_hinge, "unit": unit,
-        "max_open_deg": max_open_deg, "travel_m": travel, "leaf_width_m": W, "mass_kg": float(phys.get("mass", {}).get("total_kg", 0.0) or 0.0), "task": spec.get("task"),
+        "max_open_deg": max_open_deg, "travel_m": travel, "leaf_width_m": W, "mass_kg": mass, "task": spec.get("task"),
         "joints": joints, "primary_joint": pj, "operator_joint": oj, "secondary_joint": sj, "latch_bolt_joint": bolt, "latch_joints": latch_joints,
         "thumbturn_joint": thumbturn, "aux_joints": aux, "dog_joints": dogs, "unlimited_joints": unlimited,
         "flags": flags,
         "forces": {"bias": bias, "frictionloss": fl, "preload": preload, "static": static, "push": push, "close_drive": min(0.5 * push, 1.5 * static + 40.0),
                    "operator_effort": _operator_effort(oj, joints[oj]["type"]) if oj else None, "locked_effort": (LOCKED_EFFORT["hinge"] if joints[oj]["type"] == "hinge" else LOCKED_EFFORT["slide"]) if oj else None,
                    "thumbturn_effort": THUMBTURN_EFFORT, "dog_effort": DOG_EFFORT, "source": src},
+        "push_base": base,      # derived from mass / width (doorbench.qa.push_base); reported, not hashed - see HASHED_INPUT_KEYS
         "thresholds": thresholds, "coupling": coupling, "rl": rl,
         "reference_qa": {k: qa["metrics"].get(k) for k in ("qa_push", "hold_displacement", "actuate_displacement", "operator_travel_reached", "bolt_after_release_m",
                                                             "relatch_closed_angle", "relatch_repush_angle", "closer_final_angle", "locked_displacement", "settle_drift")} if qa else None,
@@ -516,6 +538,43 @@ def _finite(x) -> bool:
     return x is not None and isinstance(x, (int, float)) and math.isfinite(x)
 
 
+def approach_speed(curve: dict, joint: str, t_cross: float | None, closed_thr: float, window: float = ARRIVAL_WINDOW_S):
+    """Peak |v| of ``joint`` over the ``window`` seconds of approach *before* the crossing at ``t_cross``.
+
+    ``|v|`` at the single sample nearest the crossing (metrics 1.0) is a sampling artefact, not a measurement: the
+    crossing sample is the first one already inside the closed band, so it reads the post-impact velocity - either
+    ~0 (the leaf has stopped against the strike) or a rebound - and which of the two it lands on depends on where the
+    30 Hz grid happens to fall relative to an impact that lasts a few milliseconds.  The peak over the last 100 ms of
+    the approach is the speed the leaf actually arrives with and does not move when the grid does.  Both runners call
+    this, so MuJoCo (500 Hz stepping) and PhysX (120 Hz) are reduced by the same formula from the same 30 Hz curves.
+    """
+    ts = curve.get("t") or []
+    vs = (curve.get("v") or {}).get(joint)
+    qs = (curve.get("q") or {}).get(joint)
+    if not ts or not vs or t_cross is None:
+        return None
+    n = min(len(ts), len(vs))
+    idx = [i for i in range(n) if t_cross - window - 1e-9 <= ts[i] < t_cross - 1e-9]
+    if not idx:
+        # the crossing happens inside the first sample interval: fall back to the last sample still outside the
+        # closed band (or, failing that, the last sample before the crossing)
+        idx = [i for i in range(n) if ts[i] < t_cross - 1e-9 and (qs is None or i >= len(qs) or abs(qs[i]) >= closed_thr)][-1:]
+        if not idx:
+            idx = [i for i in range(n) if ts[i] < t_cross - 1e-9][-1:]
+    if not idx:
+        return None
+    return max(abs(float(vs[i])) for i in idx)
+
+
+def primary_at_limit(inputs: dict, q_max) -> bool | None:
+    """Did the leaf reach its opening stop (within the limit tolerance)?  None when the joint has no range."""
+    rng = (inputs["joints"].get(inputs["primary_joint"]) or {}).get("range")
+    if not rng:
+        return None
+    tol = inputs["thresholds"]["limit_tol"]["hinge" if inputs["is_hinge"] else "slide"]
+    return bool(_finite(q_max) and abs(float(q_max) - float(rng[1])) <= tol)
+
+
 def phase_metrics(inputs: dict, phase: str, curve: dict, ctx: dict | None = None) -> dict:
     """Metrics of one phase from its recorded curve.
 
@@ -566,6 +625,7 @@ def phase_metrics(inputs: dict, phase: str, curve: dict, ctx: dict | None = None
         m["t_open"] = _first_time(curve, pj, lambda x: x > th["target"])
         m["t_open_bench"] = _first_time(curve, pj, lambda x: x > th["open_thr_bench"])
         m["q_primary_max"] = float(max(qs[pj])) if pj in qs and qs[pj] else None
+        m["primary_at_limit"] = primary_at_limit(inputs, m["q_primary_max"])
     elif phase == "release":
         m["bolt_after_release_m"] = float(qs[bolt][-1]) if bolt in qs and qs[bolt] else None
         m["t_bolt_return"] = _first_time(curve, bolt, lambda x: x < th["bolt_return_m"]) if bolt in qs else None
@@ -577,10 +637,7 @@ def phase_metrics(inputs: dict, phase: str, curve: dict, ctx: dict | None = None
         m["relatch_closed_angle"] = _at(curve, pj, tc)
         m["relatch_repush_angle"] = float(qs[pj][-1]) if pj in qs and qs[pj] else None
         m["t_close"] = _first_time(curve, pj, lambda x: abs(x) < th["closed_thr"])
-        vs = (curve.get("v") or {}).get(pj)
-        if m["t_close"] is not None and vs:
-            k = min(range(len(ts)), key=lambda i: abs(ts[i] - m["t_close"]))
-            m["arrival_speed"] = abs(float(vs[k]))
+        m["arrival_speed"] = approach_speed(curve, pj, m["t_close"], th["closed_thr"])
         if bolt in qs and qs[bolt]:
             close_idx = [i for i, tt in enumerate(ts) if tt <= tc + 1e-9]
             m["bolt_min_during_close"] = float(min(qs[bolt][i] for i in close_idx)) if close_idx else None
@@ -593,9 +650,9 @@ def phase_metrics(inputs: dict, phase: str, curve: dict, ctx: dict | None = None
         if vs:
             m["peak_closing_speed"] = float(max(-x for x in vs))
             if m["closer_t_close"] is not None:
-                k = min(range(len(ts)), key=lambda i: abs(ts[i] - m["closer_t_close"]))
-                m["speed_at_latch"] = abs(float(vs[k]))
-                m["slam"] = bool(th["slam_velocity"] and m["speed_at_latch"] > th["slam_velocity"])
+                # same approach-speed definition as relatch: the sample at the crossing is post-impact
+                m["speed_at_latch"] = approach_speed(curve, pj, m["closer_t_close"], th["closed_thr"])
+                m["slam"] = bool(th["slam_velocity"] and (m["speed_at_latch"] or 0.0) > th["slam_velocity"])
             # rebounds: velocity sign changes from closing to opening after the first closing
             reb, prev = 0, None
             for x in vs:
@@ -699,16 +756,39 @@ def operator_span(inputs: dict) -> float:
     return span or 1.0
 
 
-def metric_tolerances(inputs: dict, phase: str) -> dict:
-    """{metric: (abs_tol, rel_tol)} for the quantitative comparison of a phase (hinge / slide units)."""
+def locked_play(inputs: dict) -> float:
+    """How far the leaf of a *holding* door may legitimately travel: the play its own hardware leaves it.
+
+    ``thresholds.thr`` is 2 deg / 15 mm for a latched leaf, but a locked turnstile rotor or a bolted pet flap is
+    authored with a range the leaf may move inside while "held" (``door_inputs`` raises ``thr`` to range[1] + 1 deg).
+    Inside that window the resting point is not a behavioural fact - MuJoCo's soft limit parks the leaf against one
+    end of it, PhysX's rigid limit against the other - so the comparison tolerance has to cover it."""
+    base = 2.0 * DEG if inputs["is_hinge"] else 0.015
+    return max(0.0, float(inputs["thresholds"]["thr"]) - base)
+
+
+def metric_tolerances(inputs: dict, phase: str, expected: str | None = None) -> dict:
+    """{metric: (abs_tol, rel_tol)} for the quantitative comparison of a phase (hinge / slide units).
+
+    ``expected`` is the phase expectation (``inputs["schedule"]["mjcf"][phase]`` when omitted): the hold phase measures
+    a different quantity for a door that must stay shut (latch slop, sub-degree) than for one that must swing open
+    (tenths of a rad), so it cannot use one tolerance for both."""
     h = inputs["is_hinge"]
     ang, lin = (0.1, 0.05)
     if phase == "settle":
         return {"settle_drift": (0.02 if h else 0.005, 0.0)}
     if phase == "hold":
-        return {"hold_displacement": (0.01 if h else 0.003, 0.0), "t_free": (0.25, 0.3), "q_at_1s": (ang if h else lin, 0.2)}
+        exp = expected or inputs["schedule"]["mjcf"]["hold"]
+        exp = exp[:-5] if exp.endswith("_info") else exp
+        play = locked_play(inputs)
+        free = (ang if h else lin, 0.2)
+        # a free door's hold_displacement is q at the free-swing crossing (tenths of a rad / m): the latched-door
+        # tolerance (0.01 rad / 3 mm) would call MuJoCo's soft-limit overshoot a discrepancy
+        hold_tol = free if exp != "hold" else ((0.01 if h else 0.003) + play, 0.0)
+        return {"hold_displacement": hold_tol, "t_free": (0.25, 0.3), "q_at_1s": (free[0] + play, free[1])}
     if phase == "operate":
-        return {"opened": (ang if h else lin, 0.2), "t_open": (0.3, 0.3), "operator_travel_reached": (0.1 * operator_span(inputs), 0.0),
+        return {"opened": (ang if h else lin, 0.2), "q_primary_max": (ang if h else lin, 0.2), "t_open": (0.3, 0.3),
+                "operator_travel_reached": (0.1 * operator_span(inputs), 0.0),
                 "bolt_retract_max_m": (0.15 * (inputs["thresholds"]["latch_throw_m"] or 0.01), 0.0), "t_unlatch": (0.2, 0.0)}
     if phase == "release":
         return {"bolt_after_release_m": (0.002, 0.0), "t_bolt_return": (0.2, 0.0)}
@@ -761,6 +841,41 @@ def _phase_codes(inputs: dict, phase: str, expected: str, s_mj: str, s_px: str, 
     return codes
 
 
+def _version_tuple(v) -> tuple:
+    try:
+        return tuple(int(x) for x in str(v or "1.0").split("."))
+    except ValueError:
+        return (1, 0)
+
+
+def skewed_metrics(mj: dict | None, px: dict | None) -> list:
+    """Metrics whose definition changed between the two records' ``metrics_version`` - not comparable, in either
+    direction, until the older side is re-run.  A record without the field predates the field: metrics 1.0."""
+    a, b = _version_tuple((mj or {}).get("metrics_version")), _version_tuple((px or {}).get("metrics_version"))
+    if a == b:
+        return []
+    lo = min(a, b)
+    return sorted(m for m, v in METRIC_DEF_CHANGED_IN.items() if _version_tuple(v) > lo)
+
+
+def stale_reason(inputs: dict, mj: dict | None, px: dict | None) -> str | None:
+    """Why these two records do not describe the same door, or None when they do.
+
+    ``inputs_hash`` covers the joints, forces (the adaptive push!), thresholds, couplings, schedule and flags a runner
+    was given.  Joining a PhysX run of one dataset revision with a MuJoCo reference of another silently attributes
+    export / physics differences to doors that were simply not the same door in the two runs, so a mismatch is a
+    hard X, never a discrepancy class."""
+    h_ref = inputs.get("inputs_hash")
+    h_mj, h_px = (mj or {}).get("inputs_hash"), (px or {}).get("inputs_hash")
+    if h_mj and h_px and h_mj != h_px:
+        return f"inputs_hash mujoco {h_mj} != physx {h_px}"
+    if h_ref and h_px and h_px != h_ref:
+        return f"inputs_hash physx {h_px} != current protocol inputs {h_ref}"
+    if h_ref and h_mj and h_mj != h_ref:
+        return f"inputs_hash mujoco {h_mj} != current protocol inputs {h_ref}"
+    return None
+
+
 def compare_door(inputs: dict, mj: dict | None, px: dict | None, kind: str = "usd_full") -> dict:
     """Verdict for one door and one USD kind.  ``mj`` / ``px`` are runner records: {"phases": {phase: {"status", "metrics",
     "expected"}}, "structure": {"status", ...}, "load_error": str | None}.  Returns per-phase agreement, codes, grade."""
@@ -770,9 +885,16 @@ def compare_door(inputs: dict, mj: dict | None, px: dict | None, kind: str = "us
         out["grade"] = "X"
         out["note"] = "missing " + ("mujoco" if mj is None else "physx") + " record"
         return out
+    stale = stale_reason(inputs, mj, px)
+    if stale:
+        out["codes"], out["grade"], out["note"], out["stale"] = ["STALE_INPUTS"], "X", stale, True
+        return out
     if px.get("load_error"):
         out["codes"], out["grade"], out["note"] = ["LOAD_FAIL"], "X", px["load_error"]
         return out
+    skew = skewed_metrics(mj, px)
+    if skew:
+        out["metrics_version"] = {"mujoco": mj.get("metrics_version") or "1.0", "physx": px.get("metrics_version") or "1.0", "not_comparable": skew}
     if (px.get("structure") or {}).get("status") == "fail":
         out["codes"].append("STRUCTURE_FAIL")
     exp_mj, exp_px = inputs["schedule"]["mjcf"], inputs["schedule"][kind]
@@ -797,12 +919,36 @@ def compare_door(inputs: dict, mj: dict | None, px: dict | None, kind: str = "us
             codes = [c for c in codes if c not in ("PHYSX_NO_OPEN", "PHYSX_HOLD_FAIL", "EXPORT_WELD_MISSING")] + (["RL_CANON"] if row["physx"] == "pass" else ["PHYSX_HOLD_FAIL" if e_px == "stays_closed" else "PHYSX_NO_OPEN"])
         agree = row["mujoco"] == row["physx"]
         if agree and row["mujoco"] == "pass" and e_px == e_mj:      # different expectations (RL welds) -> different numbers by construction
-            for name, (atol, rtol) in metric_tolerances(inputs, phase).items():
+            # the leaf coasts into its stop in both runs: the value at the end of the phase differs only by how each
+            # solver bounces off the limit (MuJoCo's soft limit returns ~17 % of the impact velocity, PhysX's
+            # articulation limit is inelastic), so the peak - which both reach - is the comparable quantity
+            rebound = phase == "operate" and bool(m_mj.get("primary_at_limit", primary_at_limit(inputs, m_mj.get("q_primary_max")))) \
+                and bool(m_px.get("primary_at_limit", primary_at_limit(inputs, m_px.get("q_primary_max"))))
+            # relatch continues from operate: when the two runs enter it from different angles (that same rebound off
+            # the stop), its *timing* metrics measure two different experiments.  The verdict metrics of the phase
+            # (relatch_closed_angle / relatch_repush_angle, both end states) stay graded.
+            not_like_for_like = set()
+            if phase == "relatch" and not _within(m_mj.get("opened_before"), m_px.get("opened_before"), 0.1 if inputs["is_hinge"] else 0.05, 0.2):
+                not_like_for_like = {"t_close", "arrival_speed"}
+            for name, (atol, rtol) in metric_tolerances(inputs, phase, e_mj).items():
                 a, b = m_mj.get(name), m_px.get(name)
                 if a is None and b is None:
                     continue
+                if name in skew or name in not_like_for_like:
+                    why = ("metric definition changed; re-run the older side" if name in skew else
+                           f"phase entered at a different angle (mujoco {m_mj.get('opened_before')}, physx {m_px.get('opened_before')})")
+                    row["deltas"][name] = {"mujoco": a, "physx": b, "delta": (None if (a is None or b is None) else float(b - a)),
+                                           "abs_tol": atol, "rel_tol": rtol, "ok": None, "not_comparable": why}
+                    if name in skew and "METRICS_VERSION_SKEW" not in codes:
+                        codes.append("METRICS_VERSION_SKEW")
+                    continue
                 ok = _within(a, b, atol, rtol)
+                waived = None
+                if not ok and name == "opened" and rebound:
+                    ok, waived = True, "both runs reached the joint limit; graded on q_primary_max"
                 row["deltas"][name] = {"mujoco": a, "physx": b, "delta": (None if (a is None or b is None) else float(b - a)), "abs_tol": atol, "rel_tol": rtol, "ok": ok}
+                if waived:
+                    row["deltas"][name]["waived"] = waived
                 if not ok and "METRIC_DELTA" not in codes:
                     codes.append("METRIC_DELTA")
             if phase == "settle":
@@ -829,17 +975,33 @@ def compare_door(inputs: dict, mj: dict | None, px: dict | None, kind: str = "us
             grade_c = True
         elif any(c in QUANT_CODES for c in codes):
             grade_b = True
+    if skew:
+        out["codes"] = [c for c in out["codes"] if c != "METRICS_VERSION_SKEW"] + ["METRICS_VERSION_SKEW"]
     out["grade"] = "C" if grade_c else ("B" if grade_b else "A")
-    if not out["codes"]:
-        out["codes"] = ["OK"]
+    # "OK" means every *comparable* thing agrees; a provenance code (a metric that could not be compared at all) is
+    # recorded alongside it rather than instead of it, so the summary still counts the doors that are at parity
+    if not [c for c in out["codes"] if c not in PROVENANCE_CODES]:
+        out["codes"] = ["OK"] + out["codes"]
     return out
 
 
 def summarize(compares: Iterable[dict]) -> dict:
     """Dataset-level counts from compare_door outputs: grades, codes, per phase agreement."""
     comps = list(compares)
-    s = {"n": len(comps), "grades": {}, "codes": {}, "phases": {p: {"agree": 0, "disagree": 0, "na": 0} for p in PHASES}, "worst": []}
+    s = {"n": len(comps), "grades": {}, "codes": {}, "phases": {p: {"agree": 0, "disagree": 0, "na": 0} for p in PHASES}, "worst": [],
+         "stale": {"n": 0, "doors": []}, "metrics_version_skew": {"n": 0, "metrics": [], "doors": []}}
     for c in comps:
+        if "STALE_INPUTS" in c["codes"]:
+            s["stale"]["n"] += 1
+            if len(s["stale"]["doors"]) < 200:
+                s["stale"]["doors"].append(c["door_id"])
+        if "METRICS_VERSION_SKEW" in c["codes"]:
+            s["metrics_version_skew"]["n"] += 1
+            for m in (c.get("metrics_version") or {}).get("not_comparable", []):
+                if m not in s["metrics_version_skew"]["metrics"]:
+                    s["metrics_version_skew"]["metrics"].append(m)
+            if len(s["metrics_version_skew"]["doors"]) < 200:
+                s["metrics_version_skew"]["doors"].append(c["door_id"])
         s["grades"][c["grade"]] = s["grades"].get(c["grade"], 0) + 1
         for code in c["codes"]:
             s["codes"].setdefault(code, {"count": 0, "examples": []})

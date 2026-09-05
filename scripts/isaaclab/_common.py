@@ -13,12 +13,70 @@ Also carries the small compatibility layer for Isaac Lab **v2.3.2** / rsl-rl-lib
 """
 from __future__ import annotations
 
+import importlib
 import os
 import pickle
+import platform
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 RSL_RL_MIN_VERSION = "3.0.1"   # scripts/reinforcement_learning/rsl_rl/train.py of Isaac Lab v2.3.2; v2.3.2 pins rsl-rl-lib==3.1.2
+
+
+def package_version(module: str, *dist_names: str) -> str | None:
+    """Version of an installed package, from whichever of the four places actually carries it.
+
+    ``isaaclab.__version__`` / ``isaacsim.__version__`` do not exist in Isaac Sim 5.1 + Isaac Lab 2.3, which is why
+    every parity record of rounds 1 and 2 says ``null`` for both.  The version does live in the distribution metadata,
+    in Isaac Sim's own ``get_version()`` and in the ``VERSION`` file next to the app - try all of them and, failing
+    that, say where the module was imported from, so the run is still identifiable.  Returns None only when the module
+    is not installed at all."""
+    try:
+        mod = importlib.import_module(module)
+    except Exception:
+        return None
+    v = getattr(mod, "__version__", None) or getattr(mod, "VERSION", None)
+    if isinstance(v, str) and v:
+        return v
+    for dist in (dist_names or (module,)):
+        try:
+            from importlib.metadata import version as _dist_version
+            return _dist_version(dist)
+        except Exception:
+            continue
+    if module == "isaacsim":
+        try:
+            from isaacsim.core.version import get_version
+            core = next((str(x) for x in get_version() if x), None)
+            if core:
+                return core
+        except Exception:
+            pass
+        for base in {os.path.dirname(os.path.dirname(getattr(mod, "__file__", "") or "")), os.environ.get("ISAAC_PATH", "")}:
+            vf = os.path.join(base, "VERSION") if base else ""
+            if vf and os.path.isfile(vf):
+                try:
+                    with open(vf) as f:
+                        return f.read().strip().splitlines()[0]
+                except OSError:
+                    pass
+    path = getattr(mod, "__file__", None)
+    # a namespace package with no __file__ carries no version and is usually not the package we meant (an empty
+    # directory of the right name on sys.path): report it as not installed rather than as an unknown version
+    return f"unknown (imported from {os.path.dirname(path)})" if path else None
+
+
+def simulator_engine() -> dict:
+    """The engine block every Isaac record carries: what actually produced the numbers.
+
+    A parity report that cannot name the simulator version is not reproducible, so this resolves the versions the hard
+    way and records the interpreter and platform alongside them."""
+    eng = {"isaac_sim": package_version("isaacsim", "isaacsim", "isaacsim-core"), "isaac_lab": package_version("isaaclab", "isaaclab"),
+           "python": platform.python_version(), "platform": platform.platform()}
+    torch_v = package_version("torch")
+    if torch_v:
+        eng["torch"] = torch_v
+    return eng
 
 
 def ensure_extension_importable():
