@@ -1,5 +1,7 @@
 # Handoff briefs
 
+**Start with [CONTINUE_HERE.md](CONTINUE_HERE.md)** — the state of the project as of 2026-09-05, what to do first, and everything an incoming agent needs. The per-task briefs below are still valid where their row in `TASKS.md` is not marked done.
+
 Each file in this folder is a self-contained task for an independent agent (human or AI). The tasks were
 started by agents that were stopped mid-way; their partial work is committed on the branch named in each brief
 and pushed to `origin`. Read this file first, then the brief.
