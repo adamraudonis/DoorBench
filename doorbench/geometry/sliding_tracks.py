@@ -141,21 +141,32 @@ def add_header_hangers(model, world, body, spec, zb, support, roller_material):
     z_rail_lo = float(rail.pos[2]) - float(rail.size[2])
     z_top = zb + Hh
     x_body, y_body = float(body.pos[0]), float(body.pos[1])
-    z_target = None
-    for o in world.geoms:
-        if o.type != "box" or abs(float(o.quat[0]) - 1.0) > 1e-9 or o.semantic in ("floor",):
-            continue
-        px, py, pz = (float(c) for c in o.pos)
-        sx, sy, sz = (float(q) for q in o.size[:3])
-        if abs(py - y_body) > sy + t / 2 + 0.01 or abs(px - x_body) > sx + W / 2:
-            continue
-        lo_z = pz - sz
-        if lo_z > z_top + 0.004 and (z_target is None or lo_z < z_target):
-            z_target = lo_z
-    if z_target is None or z_target - z_top < CARRIER_MIN_GAP:
-        return
     y_rel = float(rail.pos[1]) - y_body
+
+    def overhead(xw: float, yw: float):
+        """Lowest static surface directly over (xw, yw) - the one this carrier actually hangs on.
+
+        The search used to run over the leaf's whole footprint (body x +- W/2), which on an automatic sliding
+        pair let a SIDELITE's header 700 mm to one side qualify: every carrier was then built up to a surface
+        that was not above it and ended 50 mm short of anything (28 wheels over 14 doors).  A carrier hangs on
+        what is over the carrier."""
+        best = None
+        for o in world.geoms:
+            if o.type != "box" or abs(float(o.quat[0]) - 1.0) > 1e-9 or o.semantic in ("floor",):
+                continue
+            px, py, pz = (float(c) for c in o.pos)
+            sx, sy, sz = (float(q) for q in o.size[:3])
+            if abs(py - yw) > sy + t / 2 + 0.01 or abs(px - xw) > sx:
+                continue
+            lo_z = pz - sz
+            if lo_z > z_top + 0.004 and (best is None or lo_z < best):
+                best = lo_z
+        return best
+
     for k, xr in enumerate((-W / 2 + 0.12, W / 2 - 0.12)):
+        z_target = overhead(x_body + xr, y_body + y_rel)
+        if z_target is None or z_target - z_top < CARRIER_MIN_GAP:
+            continue
         # carrier plate bolted to the top edge (4 mm clear of the header), wheel bearing on the header
         z1 = z_target - 0.004
         body.geoms.append(C.box(f"{body.name}_carrier_{k}", (xr, y_rel, (z_top - 0.06 + z1) / 2),

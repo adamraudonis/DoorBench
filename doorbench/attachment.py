@@ -24,6 +24,9 @@ Rules (each finding carries ``rule``, the named tolerance it broke, and the meas
                       carried by a RUNNING fit (it slides, or its nearest neighbour is a track/guide/roller) is
                       attached at TOL_BODY_GUIDED instead, because the running-clearance gate requires it to keep a
                       gap there and the two gates would otherwise contradict each other.
+  running_gear_lands  a body that carries running gear (rollers, carriers, hangers, glides - semantic "track")
+                    hangs on THAT gear: at least one of those geoms reaches static structure within TOL_BODY_GUIDED.
+                    body_detached alone is satisfied by any neighbour that happens to be close.
   static_detached     Every static geom must be connected, through a chain of static geoms with gaps <= TOL_STATIC
                       (3 mm), to the structural root (the component holding the floor).  Jamb plates, keepers,
                       strikes, stops, bumpers, shoes, brackets and tracks all have to land on the frame, wall, floor
@@ -209,12 +212,14 @@ class Attachment:
     def attach_dist(self, ids: Sequence[int], targets: Sequence[int], guided: bool = False) -> Tuple[float, float, int, int]:
         """(effective gap, tolerance that applies, geom a, geom b) for a body against what carries it.
 
-        The closest target decides; if that target is a running fit - or the body itself runs on one, which every
-        body on a SLIDE joint does (rollers in a rail, hangers on a bar, a panel in its head channel) - the guided
-        tolerance applies instead of the contact one."""
+        The closest target decides.  The guided tolerance applies when THIS body is a running fit - it slides, or the
+        geom in question is its own running gear (a roller, a hanger, a glide).  Merely being near a rail does not
+        earn it: a PVC strip hangs from a clamp bolted to its rail and has to touch that clamp, and while the rail's
+        own semantic bought the 12 mm the strips hung 6 mm under it on nothing at all (80 doors).  ``guided`` is
+        passed by the caller for a body on a slide joint."""
         best = (SEARCH, TOL_BODY_GUIDED if guided else TOL_BODY, -1, -1)
         for i, j, dist in self._pairs_within(ids, targets, SEARCH):
-            tol = TOL_BODY_GUIDED if guided or self.is_guide(j) or self.is_guide(i) else TOL_BODY
+            tol = TOL_BODY_GUIDED if guided or self.is_guide(i) else TOL_BODY
             if dist - tol < best[0] - best[1]:
                 best = (dist, tol, i, j)
         return best
@@ -382,6 +387,36 @@ class Attachment:
                               body=self.bname[bid], config=config,
                               nearest=[self.gname[i], self.gname[j]] if j >= 0 else None)
         return worst
+
+    # ---- rule 3b: running gear lands on the structure it rides on ----------------------------------------
+    def check_running_gear(self, out: list):
+        """A moving body that CARRIES running gear must hang on it.
+
+        ``body_detached`` asks only that a body be within reach of *something*; a leaf whose roller carriers end
+        50 mm short of the header still passed it because an unrelated sidelite stile happened to be 7.5 mm away
+        (28 wheels over 14 automatic sliding doors were built that way).  Running gear - anything the model calls
+        semantic ``track``: carriers, wheels, hangers, glides, guides - exists to reach the rail, so at least one
+        geom of a body's gear has to be within the running-fit tolerance of static structure.  Bodies with no
+        running gear at all are not this rule's business (they are covered by ``body_detached``)."""
+        m = self.m
+        statics = [int(g) for g in np.flatnonzero(self.static)]
+        if not statics:
+            return
+        for bid in range(1, m.nbody):
+            if int(m.body_weldid[bid]) == 0:
+                continue
+            gear = [g for g in self.geoms_of(bid) if self.c.sem.get(self.gname[g], "") == "track"]
+            if not gear:
+                continue
+            dist, _tol, i, j = self.attach_dist(gear, statics, guided=True)
+            if dist > TOL_BODY_GUIDED and not self.allowed("running_gear_lands", [self.bname[bid]] + [self.gname[g] for g in gear]):
+                self._finding(out, "running_gear_lands", "TOL_BODY_GUIDED", TOL_BODY_GUIDED, dist,
+                              [self.bname[bid]] + [self.gname[g] for g in gear],
+                              f"the running gear of {self.bname[bid]} ({len(gear)} geom(s)) never reaches static structure: "
+                              f"the closest is {self.gname[i] if i >= 0 else '?'} at {dist * 1000:.1f} mm from "
+                              f"{self.gname[j] if j >= 0 else 'nothing in range'}",
+                              body=self.bname[bid],
+                              nearest=[self.gname[i], self.gname[j]] if j >= 0 else None)
 
     # ---- rule 4: still attached through the travel -------------------------------------------------------
     def check_motion(self, out: list, n_steps: int = 8):
@@ -563,6 +598,7 @@ class Attachment:
         self.check_static(findings)
         self.check_intra_body(findings)
         self.check_bodies(findings)
+        self.check_running_gear(findings)
         self.check_equalities(findings)
         self.check_motion(findings, n_steps)
         self.check_stops(findings)

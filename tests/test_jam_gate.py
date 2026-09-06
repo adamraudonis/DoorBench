@@ -48,12 +48,22 @@ def test_revolving_rotor_runs_clear_of_ceiling_and_header(specs):
             continue
         model = build_model(s)
         rotor, world = model.body("rotor"), model.body("world_env")
-        rotor_top = max(_z_extent(g)[1] for g in rotor.geoms if _z_extent(g))
-        rotor_bot = min(_z_extent(g)[0] for g in rotor.geoms if _z_extent(g))
+        # the pintles are BEARING hardware: they run inside their housings by design (hinge semantic, so
+        # clearance.required_gap asks nothing of them).  The rotor's structural envelope is everything else.
+        struct = [g for g in rotor.geoms if not g.name.startswith("rotor_pintle_")]
+        pintles = [g for g in rotor.geoms if g.name.startswith("rotor_pintle_")]
+        rotor_top = max(_z_extent(g)[1] for g in struct if _z_extent(g))
+        rotor_bot = min(_z_extent(g)[0] for g in struct if _z_extent(g))
         canopy = next(g for g in world.geoms if g.name == "drum_canopy")
         header = next(g for g in world.geoms if g.name == "wall_header")
         boss = next(g for g in world.geoms if g.name == "rotor_top_bearing")
         pivot = next(g for g in world.geoms if g.name == "rotor_floor_pivot")
+        # ... and the rotor really turns ON those bearings: a pintle reaches inside each housing
+        assert len(pintles) == 2, s["id"]
+        top_p = next(g for g in pintles if g.name.endswith("_t"))
+        bot_p = next(g for g in pintles if g.name.endswith("_b"))
+        assert _z_extent(top_p)[1] >= _z_extent(boss)[0], (s["id"], "top pintle must reach into its bearing housing")
+        assert _z_extent(bot_p)[0] <= _z_extent(pivot)[1], (s["id"], "bottom pintle must reach into the floor pivot")
         assert _z_extent(canopy)[0] - rotor_top >= REVOLVING_RUN_CLEAR - 1e-9, s["id"]
         assert _z_extent(header)[0] >= _z_extent(canopy)[1] - 1e-9, (s["id"], "header must sit on the canopy, not at wing height")
         assert _z_extent(boss)[0] - rotor_top >= 0.008 - 1e-9, s["id"]

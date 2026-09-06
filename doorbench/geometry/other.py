@@ -583,6 +583,14 @@ def build_folding(spec, phys, model: Model):
             else:
                 x_b = W - FOLD_HINGE_GAP
             C.add_leaf_geoms(model, b, spec, leaf, u, u * x_a, zb, phys if k == 0 else None, name_prefix=name, W=x_b - x_a)
+            if k == 0:
+                # top pivot pin: a bifold's pivot panel turns on a pin that runs up into the head track.  Without it
+                # the whole stack hung FOLD_TRACK_GAP (5 mm) under the track with nothing between the two.  The pin
+                # sits ON the hinge axis, so it does not move as the panel folds; it is hinge hardware, which is the
+                # semantic that lets a bearing carry a leaf with no running gap.
+                z_pin_lo, z_pin_hi = zb + Hh - 0.010, Ho - FOLD_TRACK_H + 0.006
+                b.geoms.append(C.cyl(f"{name}_pivot_pin", (u * FOLD_PIVOT_IN, 0, (z_pin_lo + z_pin_hi) / 2), 0.008, (z_pin_hi - z_pin_lo) / 2,
+                                     km, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "hinge", "Top pivot pin (runs in the head track)"))
             if k > 0:
                 model.equalities.append(Equality("joint", f"{name}_couple", j.name, f"panel_{gi}_0_hinge", (0, c, 0, 0, 0), tiers=ALL_TIERS, label=f"q = {c:+.0f} * q_pivot (track-guided fold)"))
                 # piano-hinge knuckle on the axis (in the FOLD_HINGE_GAP between the two panel edges)
@@ -654,14 +662,21 @@ def build_revolving(spec, phys, model: Model):
     world.geoms.append(C.cyl("drum_canopy", (0, 0, (z_ceiling + z_canopy_top) / 2), R + 0.08, (z_canopy_top - z_ceiling) / 2, fm, (0, 0, 1), 300, True, True, ALL_TIERS, "frame", "Canopy"))
     # top bearing boss on the ceiling and floor pivot boss on the floor ring: the shaft runs between them with the running clearance
     boss_h = 0.006
-    world.geoms.append(C.cyl("rotor_top_bearing", (0, 0, z_ceiling - boss_h / 2), 0.075, boss_h / 2, fm, (0, 0, 1), 2700, True, True, FULL_SIMPLE, "frame", "Top bearing housing"))
+    world.geoms.append(C.cyl("rotor_top_bearing", (0, 0, z_ceiling - boss_h / 2), 0.075, boss_h / 2, fm, (0, 0, 1), 2700, True, True, FULL_SIMPLE, "hinge", "Top bearing housing"))
     world.geoms.append(C.cyl("drum_floor_ring", (0, 0, 0.003), R + 0.08, 0.003, C.mat_from_material(model, "stainless", "mat_floor_ring"), (0, 0, 1), 7900, False, True, FULL_ONLY, "frame", "Floor ring"))
-    world.geoms.append(C.cyl("rotor_floor_pivot", (0, 0, 0.006 + boss_h / 2), 0.075, boss_h / 2, fm, (0, 0, 1), 2700, True, True, FULL_SIMPLE, "frame", "Floor pivot housing"))
+    world.geoms.append(C.cyl("rotor_floor_pivot", (0, 0, 0.006 + boss_h / 2), 0.075, boss_h / 2, fm, (0, 0, 1), 2700, True, True, FULL_SIMPLE, "hinge", "Floor pivot housing"))
     rotor = Body("rotor", None, (0, 0, 0), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Rotor")
     hf = phys["hinge"]
     rotor.joint = Joint("rotor_hinge", "hinge", (0, 0, 1), (0, 0, 0), None, damping=spec["kinematics"].get("speed_governor_damping", 30.0), frictionloss=hf["coulomb_torque_Nm"] + 2.0, armature=0.5, role="primary", label="Rotor (unbounded, + = CCW from above)")
     model.add_body(rotor)
     rotor.geoms.append(C.cyl("rotor_shaft", (0, 0, (z_bot + z_top) / 2), 0.06, (z_top - z_bot) / 2, fm, (0, 0, 1), 2700, True, True, ALL_TIERS, "leaf", "Center shaft"))
+    # The shaft used to STOP 8 mm short of each bearing housing so the rotor cleared them - which left the whole
+    # rotor hanging in the air between two bosses it never touched.  A revolving door turns ON those bearings, so
+    # the shaft now ends in a pintle that runs inside each housing; both are hinge hardware, which is exactly the
+    # semantic that lets a bearing carry a leaf without a running gap (clearance.required_gap / RUN_TOUCH_SEM).
+    for tag_, z_lo_, z_hi_ in (("b", 0.008, z_bot + 0.004), ("t", z_top - 0.004, z_ceiling - 0.002)):
+        if z_hi_ - z_lo_ > 0.002:
+            rotor.geoms.append(C.cyl(f"rotor_pintle_{tag_}", (0, 0, (z_lo_ + z_hi_) / 2), 0.03, (z_hi_ - z_lo_) / 2, fm, (0, 0, 1), 2700, False, True, FULL_SIMPLE, "hinge", "Rotor pintle (runs in its bearing)"))
     for k in range(wings):
         a = 2 * math.pi * k / wings
         q = quat_from_axis_angle([0, 0, 1], a)
@@ -1148,6 +1163,12 @@ def build_horizontal(spec, phys, model: Model):
             s = Body(f"strip_{k}", None, (x, y, Ho - 0.006), QUAT_ID, None, [], [], ALL_TIERS if k % 2 == 0 else FULL_SIMPLE, "leaf", f"Strip {k + 1}")
             s.joint = Joint(f"strip_{k}_hinge", "hinge", (1, 0, 0), (0, 0, 0), (-1.25, 1.25), damping=0.05, frictionloss=0.02, armature=1e-4, role="primary" if k == n // 2 else "secondary", label="Strip swings both ways")
             s.geoms.append(C.box(f"strip_{k}_geom", (0, 0, -Hh / 2), (sw / 2, t / 2, Hh / 2), gm, 1250, True, True, ALL_TIERS if k % 2 == 0 else FULL_SIMPLE, "leaf", "PVC strip", friction=(0.6, 0.005, 0.0001)))
+            # the hanger that actually holds the strip.  Without it every strip hung 6 mm under the rail with nothing
+            # in between - a real strip curtain is bolted to a mounting bracket screwed to the rail.  It is hinge
+            # hardware (it IS the pivot), so clearance lets it grip the strip's top edge and running clearance asks
+            # for no gap; the strip's top corners never leave a t/2 radius of the axis it is clamped on.
+            world.geoms.append(C.box(f"strip_{k}_hanger", (x, y, (Ho - 0.007 + Ho + 0.022) / 2), (sw / 2, t / 2 + 0.004, (0.029) / 2),
+                                     fm, 7900, False, True, ALL_TIERS if k % 2 == 0 else FULL_SIMPLE, "hinge", "Strip hanger bracket"))
             model.add_body(s)
             strips.append(s)
             if k > 0:

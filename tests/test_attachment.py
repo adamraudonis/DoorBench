@@ -26,6 +26,9 @@ from doorbench.spec import generate_all
 
 pytest.importorskip("mujoco")
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ASSETS = os.environ.get("DOORBENCH_ASSETS", os.path.join(ROOT, "assets"))
+
 
 # ---------------------------------------------------------------------------
 # synthetic fixtures: the smallest door that exhibits one defect
@@ -301,3 +304,76 @@ def test_a_leaf_that_folds_back_to_the_wall_gets_a_wall_bumper(specs):
     face = max(abs(float(g.pos[1])) + float(g.size[1]) for g in wall_y)
     assert abs(abs(float(base_g.pos[1])) + float(base_g.size[1]) - face) < 0.02, (base_g.pos, face)
     assert float(tip.size[1]) > 0.005, "the rubber tip projects from the plate to the leaf"
+
+
+# ---------------------------------------------------------------------------
+# rule running_gear_lands, and the three "held only by the 12 mm running-fit tolerance" classes it came from
+# (verify-doors: strips 6 mm under their rail on 80 doors, bifold stacks 5 mm under the fold track on 54,
+#  roller carriers 50 mm short of the header on 14 automatic sliding doors)
+# ---------------------------------------------------------------------------
+def _gear_fixture(tmp_path, wheel_z, name):
+    """A leaf on a slide joint whose only running gear is a wheel at ``wheel_z``, under a rail at z = 2.0."""
+    pz, ph = (0.88 + wheel_z - 0.008) / 2, (wheel_z - 0.008 - 0.88) / 2      # carrier plate: slab top -> wheel
+    bodies = (f'<body name="leaf" pos="0 -0.2 1"><joint name="j" type="slide" axis="1 0 0"/>'
+              f'<geom name="leaf_slab" type="box" size="0.4 0.02 0.9"/>'
+              f'<geom name="leaf_carrier_0" type="box" size="0.02 0.005 {ph}" pos="0 0 {pz}"/>'
+              f'<geom name="leaf_carrier_wheel_0" type="cylinder" size="0.014 0.006" pos="0 0 {wheel_z}" euler="90 0 0"/></body>')
+    world = '<geom name="rail" type="box" size="1.0 0.075 0.03" pos="0 -0.125 2.03"/>'
+    return _door(tmp_path, world=world, bodies=bodies, name=name,
+                 ir_bodies=[_ir("world_env", geoms=[("floor", "box", (3, 3, 0.05), (0, 0, -0.05), "floor"),
+                                                    ("wall", "box", (1, 0.05, 1.0), (0, 0, 1.0), "wall"),
+                                                    ("rail", "box", (1.0, 0.075, 0.03), (0, -0.125, 2.03), "track")]),
+                            _ir("leaf", joint=_jt("j", "slide", (1, 0, 0), (0.0, 0.8), "primary"),
+                                geoms=[("leaf_slab", "box", (0.4, 0.02, 0.9), (0, 0, 0), "leaf"),
+                                       ("leaf_carrier_0", "box", (0.02, 0.005, ph), (0, 0, pz), "track"),
+                                       ("leaf_carrier_wheel_0", "cylinder", (0.014, 0.006), (0, 0, wheel_z), "track")], mass=30.0)])
+
+
+def test_running_gear_that_lands_on_its_rail_passes(tmp_path):
+    """The wheel's top (1 + 0.986 + 0.014 = 2.000) meets the rail's underside at 2.000."""
+    res = run_attachment(_gear_fixture(tmp_path, 0.986, "gear_ok"))
+    assert res["ok"], res["findings"]
+
+
+def test_running_gear_that_ends_in_mid_air_is_caught(tmp_path):
+    """RULE running_gear_lands: the carrier stops 60 mm short of the rail.
+
+    body_detached alone cannot see this - the leaf slab is 20 mm from the wall, inside the running-fit tolerance -
+    which is exactly how 28 carrier wheels on 14 automatic sliding doors were built up to a SIDELITE's header
+    700 mm to one side and ended 50 mm from anything."""
+    res = run_attachment(_gear_fixture(tmp_path, 0.926, "gear_bad"))
+    assert not res["ok"] and res["by_rule"].get("running_gear_lands") == 1, res["findings"]
+    f = next(x for x in res["findings"] if x["rule"] == "running_gear_lands")
+    assert f["gap"] == pytest.approx(0.060, abs=1e-3) and f["tolerance_m"] == TOL_BODY_GUIDED
+
+
+def test_a_body_near_a_rail_still_has_to_touch_something(tmp_path):
+    """The guided tolerance is earned by the BODY, not by its neighbour.
+
+    A PVC strip hangs on a clamp bolted to its rail; it does not "run" on anything.  While the rail's own semantic
+    bought the 12 mm, every strip on all 80 strip-curtain doors hung 6 mm under the rail with nothing between."""
+    bodies = ('<body name="strip_0" pos="0 -0.2 2.0"><joint name="s" type="hinge" axis="1 0 0"/>'
+              '<geom name="strip_0_geom" type="box" size="0.1 0.002 0.9" pos="0 0 -0.906"/></body>')
+    world = '<geom name="hanger_rail" type="box" size="1.0 0.075 0.03" pos="0 -0.125 2.03"/>'
+    d = _door(tmp_path, world=world, bodies=bodies, name="strip_bad",
+              ir_bodies=[_ir("world_env", geoms=[("floor", "box", (3, 3, 0.05), (0, 0, -0.05), "floor"),
+                                                 ("wall", "box", (1, 0.05, 1.0), (0, 0, 1.0), "wall"),
+                                                 ("hanger_rail", "box", (1.0, 0.075, 0.03), (0, -0.125, 2.03), "track")]),
+                         _ir("strip_0", joint=_jt("s", "hinge", (1, 0, 0), (-1.25, 1.25), "primary"),
+                             geoms=[("strip_0_geom", "box", (0.1, 0.002, 0.9), (0, 0, -0.906), "leaf")], mass=1.0)])
+    res = run_attachment(d)
+    assert not res["ok"] and "body_detached" in res["by_rule"], res["findings"]
+    assert res["findings"][0]["tolerance_m"] == TOL_BODY
+
+
+def test_dataset_running_gear_all_lands():
+    """Every body in the shipped dataset that carries running gear reaches the structure it rides on."""
+    man = json.load(open(os.path.join(ASSETS, "manifest.json"))) if os.path.exists(os.path.join(ASSETS, "manifest.json")) else None
+    if man is None:
+        pytest.skip("no generated assets")
+    bad = []
+    for did in [d["id"] for d in man["doors"] if d["family"] in ("strip_curtain", "bifold", "accordion", "automatic_sliding", "revolving", "ship_watertight")]:
+        res = run_attachment(os.path.join(ASSETS, "doors", did))
+        if not res["ok"]:
+            bad.append((did, res["by_rule"]))
+    assert not bad, bad
