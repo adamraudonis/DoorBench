@@ -570,7 +570,8 @@ def build_swing_double(spec, phys, model: Model):
             if active:
                 sub = {**sub, "lock": {"model": "none", "engaged": False, "robot_side_release": True}}
         if not active:
-            # inactive leaf: fixed (flush bolts / cane bolt), operator only visual pull
+            # Independent inactive leaf: its physical bolts and fixed service
+            # pulls are installed after the complete frame is constructed.
             sub = {**sub, "operator": {**spec["operator"], "model": "none"}, "latch": {"model": "none"}, "lock": {"model": "none", "engaged": False, "robot_side_release": True}, "closer": {"model": "none", "en_size": None, "spring_adjust": 1.0}, "extras": [e for e in spec["extras"] if e in ("kick_plate",)]}
         pair.update({"u": u_, "v": v_, "hx": hx_})
         sub_phys = phys
@@ -586,10 +587,6 @@ def build_swing_double(spec, phys, model: Model):
                 device.joint.robot_interactive=side*(device.pos[1]+push.pos[1])>0
                 if not device.joint.robot_interactive:
                     device.joint.notes='Opposite-swing panic bar is on the far face; the fixed near-side pull does not release its latch'
-        if not active:
-            lb.joint.range = (0.0, 0.001)
-            lb.joint.label = "Inactive leaf (flush bolts engaged)"
-            lb.joint.notes = "inactive leaf held by flush bolts; set range to free it"
         res[name] = lb
     # frame: hinge jambs both sides, head; mullion or strike into inactive leaf
     fr = op["frame"]
@@ -620,7 +617,10 @@ def build_swing_double(spec, phys, model: Model):
         lb = res["leaf_b"]
         if astragal in ("T_astragal_on_inactive", "overlapping_astragal"):
             am = C.mat_from_material(model, "aluminum", "mat_astragal")
-            lb.geoms.append(C.box("astragal", (-(inset_ + W_leaf) - 0.004, -v * (t / 2 + 0.008), Hh / 2), (0.02, 0.008, Hh / 2 - 0.02), am, 2700, True, True, FULL_SIMPLE, "frame", "Astragal"))
+            lb.geoms.append(C.box("astragal", (-(inset_ + W_leaf) - 0.004, -v * (t / 2 + 0.008), Hh / 2), (0.02, 0.008, Hh / 2 - 0.02), am, 2700, True, True, ALL_TIERS if not both_active else FULL_SIMPLE, "frame", "Astragal"))
+    if not both_active:
+        from .paired_holds import add_inactive_holds
+        add_inactive_holds(model,world,res['leaf_b'],res['leaf_a'],spec,phys)
     world.sites.append(Site("approach_point", (0, -1.5, 0), QUAT_ID, 0.05, "approach"))
     world.sites.append(Site("goal_point", (0, 1.5, 0), QUAT_ID, 0.05, "goal"))
     world.sites.append(Site("door_plane_center", (0, 0, Ho / 2), QUAT_ID, 0.02, "pass_plane"))
@@ -831,9 +831,8 @@ def build_ship(spec, phys, model: Model):
         from .marine_linkage import add_marine_wheel_linkage
         add_marine_wheel_linkage(model, spec)
     if spec['kinematics'].get('stop') == 'hook_holdback':
-        model.meta.setdefault('mechanical_incomplete', []).append({
-            'component': 'hook_holdback',
-            'reason': 'Specified open-door retaining hook has no physical hook and keeper; dog component checks do not certify the whole door.'})
+        from .ship_holdback import add_ship_holdback
+        add_ship_holdback(model, spec)
     return lb
 
 

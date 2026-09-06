@@ -60,12 +60,15 @@ def _receiver(world,name,x,y,plane,direction,radius,material):
     return keepers,cut
 
 
-def _record(model,body,*,kind,leaf,primary,stroke,threshold,rod,site,grip,guides,keepers,stops,face,source):
+def _record(model,body,*,kind,leaf,primary,stroke,threshold,rod,site,grip,guides,keepers,stops,face,source,engage_site=None):
     row={'kind':kind,'leaf_body':leaf.name,'leaf_joint':leaf.joint.name,
          'primary_body':primary.name,'primary_joint':primary.joint.name,
          'joint':body.joint.name,'body':body.name,'site':site,'rod_geom':rod,'grip_geom':grip,
+         'engage_site':engage_site or site,
          'guide_geoms':guides,'keeper_geoms':keepers,'stop_geoms':stops,
          'travel_m':stroke,'withdrawn_threshold_m':threshold,'engaged_initial':True,
+         'nominal_joint_range_m':[0.,stroke],'joint_safety_range_m':list(body.joint.range),
+         'input_model':'opposed finger press faces' if kind=='flush_bolt' else 'wrapped cane grip',
          'guide_clearance_m':.00075,'force_cap_N':20.,'face':face,
          'accessible_from_robot':bool(body.joint.robot_interactive),
          'requires_primary_open_rad':.20 if kind=='flush_bolt' else 0.,
@@ -106,7 +109,7 @@ def _flush(model,world,leaf,primary,spec,material,x_edge,u,z_edge,plane,sign):
               (x+radius+.00075,radius+.00075,rz1+.001),name+'_shaft')
     mount=Body(name+'_housing',leaf.name,semantic='mechanism',label='Prepared flush-bolt edge housing')
     # Recessed finger opening with a real empty window in its faceplate.
-    op_z=z_edge-sign*.092;face_x=x_edge-u*.001
+    op_z=z_edge-sign*.110;face_x=x_edge-u*.001
     for side in(-1,1):
         mount.geoms.append(C.box(name+f'_face_side_{side}',(face_x,side*.01025,(za+zb)/2),
             (.001,.00225,(zb-za)/2),material,7900,tiers=ALL_TIERS,semantic='lock',label='Flush-bolt faceplate beside open finger window'))
@@ -140,14 +143,18 @@ def _flush(model,world,leaf,primary,spec,material,x_edge,u,z_edge,plane,sign):
     knob_x=u*.012;knob_z=op_z+sign*stroke/2
     rod.geoms.append(C.cyl(name+'_finger_stem',(u*.006,0,knob_z),.003,.006,material,(1,0,0),7900,True,True,ALL_TIERS,'operator','Finger tab directly welded to flush rod'))
     rod.geoms.append(C.sphere(name+'_finger_knob',(knob_x,0,knob_z),.006,material,7900,True,ALL_TIERS,'operator','Recessed flush-bolt finger knob'))
-    site=name+'_grip';rod.sites.append(Site(site,(knob_x+u*.006,0,knob_z),tuple(quat_z_to((u,0,0))),.005,'grip',ALL_TIERS))
+    # A finger reaches through the edge window and presses the actual upper
+    # or lower knob face. A 16 mm slot does not imply space for a pinch grasp.
+    site=name+'_grip';engage_site=name+'_engage_grip'
+    rod.sites.append(Site(site,(knob_x,0,knob_z+sign*.006),tuple(quat_z_to((0,0,sign))),.005,'grip',ALL_TIERS))
+    rod.sites.append(Site(engage_site,(knob_x,0,knob_z-sign*.006),tuple(quat_z_to((0,0,-sign))),.005,'grip',ALL_TIERS))
     _backed(model,mount);_backed(model,rod)
     keepers,_=_receiver(world,name+'_receiver',leaf.pos[0]+x,0,plane,sign,radius,material)
     for g in guides+keepers:_pair(model,name+'_rod',g)
     for g in stops:_pair(model,name+'_collar',g)
     return _record(model,rod,kind='flush_bolt',leaf=leaf,primary=primary,stroke=stroke,
-        threshold=abs(tip-z_edge)+.004,rod=name+'_rod',site=site,grip=name+'_finger_knob',
-        guides=guides,keepers=keepers,stops=stops,face=0,source=FLUSH_SOURCE)
+        threshold=abs(tip-plane)+(.006 if sign<0 else .003),rod=name+'_rod',site=site,grip=name+'_finger_knob',
+        guides=guides,keepers=keepers,stops=stops,face=0,source=FLUSH_SOURCE,engage_site=engage_site)
 
 
 def _stock_surface(leaf,x,z,face):
@@ -212,6 +219,41 @@ def _cane(model,world,leaf,primary,spec,material,x_edge,u,thickness):
         stops=sorted(set(stops)),face=face,source=CANE_SOURCE)
 
 
+def _pulls(model,leaf,spec,material,x_edge,u,z0,z1):
+    """Two fixed service pulls, with each mounting pad on actual stock."""
+    x=x_edge-u*.105;middle=min(1.0,z1-.25);rows=[]
+    for face in(-1,1):
+        points=[]
+        for wanted in(middle-.09,middle+.09):
+            for z in np.linspace(wanted-.045,wanted+.045,91):
+                values=[_stock_surface(leaf,x+dx,float(z)+dz,face)
+                        for dx in(-.016,0,.016)for dz in(-.016,0,.016)]
+                if max(values)-min(values)<1e-7:
+                    points.append((float(z),max(values)));break
+            else:raise ValueError('Inactive pull has no finite supported mounting pad')
+        low,high=points[0][0],points[1][0]
+        # Raised braces remain present. The clear grip is outside their actual
+        # surface, and its posts end on their own finite supported pads.
+        outside=max(_stock_surface(leaf,x,float(z),face)for z in np.linspace(low,high,41))
+        level=max(outside+.040,max(p[1]for p in points)+.040)
+        name=leaf.name+('_service_pull_p' if face>0 else '_service_pull_n')
+        body=Body(name,leaf.name,semantic='operator',label='Fixed inactive-leaf service pull')
+        for k,(z,surface)in enumerate(points):
+            body.geoms.append(C.cyl(name+f'_pad_{k}',(x,face*(surface+.002),z),.016,.002,material,
+                (0,1,0),7900,True,True,ALL_TIERS,'operator','Pull mounting pad on actual leaf stock'))
+            body.geoms.append(C.cyl(name+f'_post_{k}',(x,face*(surface+.004+level)/2,z),.007,
+                (level-surface-.004)/2,material,(0,1,0),7900,True,True,ALL_TIERS,'operator','Pull standoff bonded to pad and grip'))
+        geom=name+'_bar'
+        body.geoms.append(C.cyl(geom,(x,face*level,(low+high)/2),.008,(high-low)/2,
+            material,(0,0,1),7900,True,True,ALL_TIERS,'operator','180 mm class fixed pull'))
+        site=name+'_grip';body.sites.append(Site(site,(x,face*(level+.008),(low+high)/2),
+            tuple(quat_z_to((0,face,0))),.007,'grip',ALL_TIERS))
+        _backed(model,body)
+        rows.append({'site':site,'geom':geom,'body':body.name,'face':face,'leaf_joint':leaf.joint.name,
+                     'role':'fixed_pull','requires_holds_withdrawn':True})
+    model.meta['inactive_leaf_pulls']=rows
+
+
 def add_inactive_holds(model,world,leaf,primary,spec,phys):
     choice=spec['leaf']['inactive_leaf']['lock']
     if choice not in('flush_bolts','cane_bolt'):raise ValueError('Unsupported inactive-leaf holding hardware')
@@ -225,6 +267,7 @@ def add_inactive_holds(model,world,leaf,primary,spec,phys):
         _flush(model,world,leaf,primary,spec,material,x_edge,-1,z0,0.,-1)
     else:_cane(model,world,leaf,primary,spec,material,x_edge,-1,spec['leaf']['thickness'])
     _material_cut(model,phys,leaf,before)
+    _pulls(model,leaf,spec,material,x_edge,-1,z0,z1)
     for body in model.bodies:
         for geom in body.geoms:
             if geom.name.startswith(leaf.name+'_flush') or geom.name.startswith(leaf.name+'_cane'):

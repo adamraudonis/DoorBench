@@ -1246,6 +1246,9 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
     model.add_body(body)
     from .rotary_lockset import split_rotary_lockset
     split_rotary_lockset(model,leaf_body,body,spec,phys,op,u,t,faces)
+    if not independent_entry_trim(spec,op,faces):
+        from .rotary_shafts import defer_rotary_shaft
+        defer_rotary_shaft(model,body,op,u,t,faces)
     return body
 
 

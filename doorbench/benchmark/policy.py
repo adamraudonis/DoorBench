@@ -13,8 +13,9 @@ A policy is any Python class with two methods::
 
 An optional ``control_period(env)`` method returns the required control interval
 for a particular mechanism. An explicit job override takes precedence. The
-scripted chain-hoist contact controller uses the native integration interval;
-other scripted mechanisms use 4 ms. Episode records report the actual interval.
+scripted chain-guard, chain-hoist and inactive-leaf bolt contact controllers use
+the native integration interval; other scripted mechanisms use 4 ms. Episode
+records report the actual interval.
 
 Scenarios and suites
 --------------------

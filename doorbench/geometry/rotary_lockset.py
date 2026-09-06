@@ -51,7 +51,7 @@ def split_rotary_lockset(model,leaf,body,spec,phys,op,u,t,faces):
                 continue  # replace solid rotating rose by fixed bored support
             key=C.MESH.key_for('independent_trim_piece',source=geom.mesh_name,part=k)
             original_geoms.append(replace(geom,name=geom.name+'_part_'+str(k),mesh_name=key,mesh=part))
-    drivers={};backed=[mount.name];shaft_geoms=[];bearing_geoms=[]
+    drivers={};backed=[mount.name];shaft_geoms=[];bearing_geoms=[];surface_geoms={};plate_cuts=[]
     before=sum(g.mass() for g in leaf.geoms if g.semantic in ('leaf','glass'))
     cut=cut_stock(leaf,(x-.007,-t/2-.001,z-.007),(x+.007,t/2+.001,z+.007),name+'_split_shaft_bore')
     removed=before-sum(g.mass() for g in leaf.geoms if g.semantic in ('leaf','glass'))
@@ -70,6 +70,13 @@ def split_rotary_lockset(model,leaf,body,spec,phys,op,u,t,faces):
         driver.joint.range=(0.,op.travel)
         driver.joint.notes='Independent inside egress' if face==-outside else 'Exterior trim arrested by native catch contact when engaged'
         driver.joint.robot_interactive=face==approach
+        profile=None
+        if op.style_params.get('contact_profile'):
+            pieces=[g for g in driver.geoms if g.type=='mesh' and '_knob_' in g.name]
+            profile=max(pieces,key=lambda g:float(g.mesh.extents[0]*g.mesh.extents[1]))
+            for g in pieces:g.density=C.M.MATERIALS[op.material].density
+            proxy=next(g for g in driver.geoms if '_knob_col_' in g.name)
+            driver.geoms[driver.geoms.index(proxy)]=replace(profile,name=proxy.name,collision=True,visual=False,density=0.)
         # Two separate stubs end 1 mm apart. Their full-length bores are real,
         # and the external necks join the existing lever/knob hubs.
         end=t/2+.032;start=.0005
@@ -84,11 +91,20 @@ def split_rotary_lockset(model,leaf,body,spec,phys,op,u,t,faces):
         for site in driver.sites:
             if op.kind=='knob':
                 geom=next(g for g in driver.geoms if '_knob_col_' in g.name)
-                radius=geom.size[0];normal=np.array([-u*.8,face*.6,0.])
-                site.pos=tuple(np.asarray(geom.pos)+radius*normal)
-                opposite=np.array([u*.8,face*.6,0.])
-                opposing_sites.append(replace(site,name=site.name+'_opposed',
-                    pos=tuple(np.asarray(geom.pos)+radius*opposite),quat=tuple(quat_z_to(opposite)),size=.005))
+                surface_geoms[driver.joint.name]=geom.name
+                if profile is not None:
+                    radius=op.style_params['diameter']/2
+                    zc=op.style_params['depth']-1.5*radius+.9*radius
+                    points=[np.asarray(profile.pos)+C.quat_rotate(profile.quat,(sign*.95*radius,0,zc+.25*radius)) for sign in (-1,1)]
+                    normals=[np.asarray(C.quat_rotate(profile.quat,np.array([sign,0,.2])/math.sqrt(1.04))) for sign in (-1,1)]
+                    site.pos=tuple(points[0]);normal=normals[0]
+                    opposing_sites.append(replace(site,name=site.name+'_opposed',pos=tuple(points[1]),quat=tuple(quat_z_to(normals[1])),size=.005))
+                else:
+                    radius=geom.size[0];normal=np.array([-u*.8,face*.6,0.])
+                    site.pos=tuple(np.asarray(geom.pos)+radius*normal)
+                    opposite=np.array([u*.8,face*.6,0.])
+                    opposing_sites.append(replace(site,name=site.name+'_opposed',
+                        pos=tuple(np.asarray(geom.pos)+radius*opposite),quat=tuple(quat_z_to(opposite)),size=.005))
             else:
                 geom=next(g for g in driver.geoms if '_lever_col_' in g.name)
                 normal=np.array([0.,face,0.]);site.pos=(site.pos[0],geom.pos[1]+face*geom.size[0],0.)
@@ -105,6 +121,28 @@ def split_rotary_lockset(model,leaf,body,spec,phys,op,u,t,faces):
             first=len(mount.geoms)
             bearing_y(mount,driver.name+'_bearing',(0,lane,0),steel,inner=bore,outer=rose,half_length=half,semantic='mechanism')
             bearing_geoms.extend(g.name for g in mount.geoms[first:])
+        # A stationary long backplate is real stock, not a solid visual box
+        # through which the shaft may pass. Seat the bored journal directly
+        # on the leaf and cut a separate 1 mm reveal around it in the plate.
+        plate_name=name+'_escutcheon_'+tag
+        plate=next((g for g in leaf.geoms if g.name==plate_name),None)
+        if plate is not None:
+            half_opening=rose+.001
+            if min(plate.size[0],plate.size[2])<=half_opening:
+                raise ValueError('Escutcheon lacks stock around its journal opening')
+            leaf.geoms.remove(plate)
+            plate=replace(plate,pos=tuple(np.asarray(plate.pos)-body.pos),
+                collision=True,tiers=ALL_TIERS,density=C.M.MATERIALS[op.material].density,
+                mass_override=None,part_label='Prepared fixed escutcheon around independent shaft journal')
+            mount.geoms.append(plate)
+            original_mass=plate.mass()
+            preparation=cut_stock(mount,(-half_opening,-t/2-.004,-half_opening),
+                (half_opening,t/2+.004,half_opening),'journal_opening',names={plate_name})
+            pieces=[g for g in mount.geoms if g.name.startswith(plate_name+'_journal_opening_')]
+            plate_cuts.append({'original_geom':plate_name,'geoms':[g.name for g in pieces],
+                'journal_clearance_m':.001,'cut':preparation,
+                'original_mass_kg':original_mass,'remaining_mass_kg':sum(g.mass() for g in pieces),
+                'density_kg_m3':plate.density})
         driver.geoms.append(C.cyl(driver.name+'_retainer',(0,face*(t/2+.0105),0),bore+.002,.0015,
                 steel,(0,1,0),7850,True,True,ALL_TIERS,'mechanism','Retaining collar outside bearing shoulder'))
         drivers[face]=driver;backed.append(driver.name)
@@ -167,8 +205,11 @@ def split_rotary_lockset(model,leaf,body,spec,phys,op,u,t,faces):
          'catch_force_cap_N':8.,'released_by_default':not spec['lock']['engaged'],
          'credential_available':bool(spec['lock']['robot_side_release']),'lock_kind':H.LOCKS[spec['lock']['model']].kind,
          'guide_geoms':guides,'support_geom':name+'_catch_support','shaft_geoms':shaft_geoms,'bearing_geoms':bearing_geoms,
+         'escutcheon_preparations':plate_cuts,
          'operator_travel_rad':op.travel,'operator_force_cap_N':op.operable_force_limit,'native_stop_geoms':stop_names,
          'input_model':'opposed_surface_pair' if op.kind=='knob' else 'single_surface_force',
+         'input_surface_shape':'rounded_profile' if op.style_params.get('contact_profile') else 'proxy',
+         'input_surface_geoms':surface_geoms,
          'input_sites':{driver.joint.name:[site.name for site in driver.sites if site.role=='grip'] for driver in drivers.values()},
          'input_force_scope':'Per surface point; knob uses two equal/opposite tangential forces, total absolute cap twice the per-point cap. No free joint torque.',
          'scope':'Independent stub shafts and physical exterior catch. Concealed latch cams ideal and one-sided. Key insertion, tumbler coding and electronics are not simulated.'}

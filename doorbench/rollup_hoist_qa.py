@@ -11,6 +11,7 @@ import math
 from collections import OrderedDict
 import numpy as np
 from .rollup_hoist import compile_hoist,hoist_control
+from .hoist_speed_control import HoistSpeedState
 from .hoist_keeper import compile_keeper,begin_keeper_transition,keeper_transition_action,keeper_open_force
 
 _CACHE: OrderedDict[str,dict]=OrderedDict()
@@ -30,7 +31,7 @@ def run_rollup_hoist_qa(model,meta,*,phase_duration_s=4.):
     rules=compile_hoist(model,meta);keeper=compile_keeper(model,meta)
     binary=np.zeros(mujoco.mj_sizeModel(model),dtype=np.uint8);mujoco.mj_saveModel(model,buffer=binary)
     digest=hashlib.sha256(binary).hexdigest()
-    key=hashlib.sha256(digest.encode()+json.dumps({'version':2,'duration':phase_duration_s,'hoist':meta['rollup_hoist'],'curtain':meta['rollup_curtain']},sort_keys=True).encode()).hexdigest()
+    key=hashlib.sha256(digest.encode()+json.dumps({'version':3,'duration':phase_duration_s,'hoist':meta['rollup_hoist'],'curtain':meta['rollup_curtain']},sort_keys=True).encode()).hexdigest()
     if key in _CACHE:
         _CACHE.move_to_end(key);result=copy.deepcopy(_CACHE[key]);result['cache_hit']=True;return result
     data=mujoco.MjData(model);mujoco.mj_forward(model,data)
@@ -39,6 +40,7 @@ def run_rollup_hoist_qa(model,meta,*,phase_duration_s=4.):
     depth=0.;loop=0.;gear=0.;peak_force=0.;sites=set();contacts=set();trace=[];failures=[]
     next_sample=0.;phase='release';phase_start=0.;release_elapsed=None
     transition=begin_keeper_transition(model,data,rules,keeper,mode='release')
+    control_state=HoistSpeedState()
     for _ in range(math.ceil((2*phase_duration_s+15.)/model.opt.timestep)):
         mujoco.mj_forward(model,data);t=float(data.time)
         if phase=='release':
@@ -52,7 +54,7 @@ def run_rollup_hoist_qa(model,meta,*,phase_duration_s=4.):
         if phase=='return' and t-phase_start>=phase_duration_s:break
         if phase=='release':forces=action['site_forces']
         else:
-            control=hoist_control(model,data,rules,opening=phase=='opening',elapsed_s=t-phase_start)
+            control=hoist_control(model,data,rules,opening=phase=='opening',elapsed_s=t-phase_start,control_state=control_state)
             forces={control['site']:control['force_N'],**keeper_open_force(model,data,keeper)}
         data.qfrc_applied[:]=0
         for name,vector in forces.items():

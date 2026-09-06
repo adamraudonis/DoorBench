@@ -367,6 +367,15 @@ class Clearance:
         return self.resolve(q)
 
     def _operating_range(self,jname,lo,hi):
+        holder=self.meta.get('ship_holdback')
+        if holder:
+            if jname==holder['leaf_joint']:
+                if not hasattr(self,'_ship_holdback_open_stop'):
+                    from .geometry.ship_holdback import first_ship_holdback_stop_angle
+                    self._ship_holdback_open_stop=first_ship_holdback_stop_angle(self.m,self.meta)['angle_rad']
+                return 0.,self._ship_holdback_open_stop
+            if jname==holder['hook_joint']:
+                return tuple(holder['inspection_hook_range_rad'])
         for row in self.meta.get('rotary_locksets',[]):
             if jname==row['catch_joint']:return 0.,row['catch_stroke_m']
         if self.meta.get('vault_boltwork'):

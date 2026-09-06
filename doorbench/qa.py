@@ -489,7 +489,7 @@ def _run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict
 
     if model_meta.get('rotary_locksets'):
         from .rotary_lockset_qa import run_rotary_lockset_qa
-        rotary=run_rotary_lockset_qa(m,model_meta,cycles=2)
+        rotary=run_rotary_lockset_qa(m,model_meta,cycles=2,source_xml=files['mjcf']['full'])
         checks['rotary_lockset_operation']=bool(rotary['ok'])
         metrics['rotary_lockset_operation']=rotary
     if model_meta.get('vault_boltwork'):

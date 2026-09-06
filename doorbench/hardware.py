@@ -212,6 +212,9 @@ _o(OperatorModel("lever_card_reader", "Lever w/ integrated card reader (hotel)",
 # Knobs (non-ADA).  Rotation 45-60 deg to retract latch.
 _o(OperatorModel("knob_round", "Round knob (residential passage)", "knob", "rotate_normal", 0.87, 0.06, 0.25, 0.5, 22.2, 0.027, 12.0, 0.9, True,
                  {"shape": "round", "diameter": 0.054, "depth": 0.060, "rose_diameter": 0.064}, "brass", "Kwikset Polo / Schlage Georgian; ANSI A156.2 Grade 2"))
+_o(OperatorModel("knob_round_large", "76 mm rounded knob with independent entry trim", "knob", "rotate_normal", 0.87, 0.06, 0.25, 0.5, 22.2, 0.0361, 12.0, 0.9, True,
+                 {"shape": "round", "diameter": 0.076, "depth": 0.084, "rose_diameter": 0.070, "contact_profile": True}, "brass",
+                 "Original generic solid-brass profile; size precedent Croft 6344M 76 mm knob/70 mm rose (https://croft.co.uk/products/rounded-knob). Same source return spring and per-point force cap; actual material BOM replaces catalogue allowance."))
 _o(OperatorModel("knob_round_privacy", "Round knob w/ privacy push-button (bath/bedroom)", "knob", "rotate_normal", 0.87, 0.06, 0.25, 0.5, 22.2, 0.027, 12.0, 0.9, True,
                  {"shape": "round", "diameter": 0.054, "depth": 0.060, "rose_diameter": 0.064, "privacy_button": True}, "nickel_satin", "Kwikset Tylo privacy"))
 _o(OperatorModel("knob_egg", "Egg/oval knob", "knob", "rotate_normal", 0.87, 0.06, 0.25, 0.5, 22.2, 0.030, 12.0, 0.95, True,

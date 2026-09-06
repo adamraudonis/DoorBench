@@ -16,7 +16,15 @@ class SiteForces:
     def __init__(self, env, limits):
         self.env = env
         contacts = ContactSites(env)
+        self.contacts=contacts
         self.allowed = {sid for options in contacts.by_joint.values() for sid, _ in options}
+        self.site_force_caps={name:float(row['force_cap_N']) for row in env.meta.get('paired_leaf_holds',[])
+                              for name in (row['site'],row['engage_site'])}
+        self.site_force_caps.update({row['site']:50. for row in env.meta.get('inactive_leaf_pulls',[])})
+        self.press_sites={name for row in env.meta.get('paired_leaf_holds',[])if row['kind']=='flush_bolt'
+                          for name in(row['site'],row['engage_site'])}
+        if any(not np.isfinite(cap)or cap<=0 for cap in self.site_force_caps.values()):
+            raise ValueError('Invalid paired-leaf site force cap')
         self.wrench_limits=env.meta.get('site_wrench_limits_Nm',{})
         if any(env.mj.mj_name2id(env.m,env.mj.mjtObj.mjOBJ_SITE,name)<0 or
                not np.isfinite(value) or value<=0 for name,value in self.wrench_limits.items()):
@@ -56,8 +64,12 @@ class SiteForces:
             if force.shape != (3,) or not np.isfinite(force).all():
                 raise ValueError(f"Invalid world force for {name}")
             magnitude = float(np.linalg.norm(force))
-            if magnitude > self.max_force_N:
-                force = force * (self.max_force_N / magnitude)
+            force_cap=min(self.max_force_N,self.site_force_caps.get(name,self.max_force_N))
+            if magnitude > force_cap:
+                force = force * (force_cap / magnitude)
+            if name in self.press_sites:
+                inward=-data.site_xmat[sid].reshape(3,3)[:,2]
+                force=inward*max(0.,float(force@inward))
             torque=np.asarray((torques or {}).get(name,[0.,0.,0.]),dtype=float)
             if torque.shape!=(3,) or not np.isfinite(torque).all():
                 raise ValueError(f'Invalid world torque for {name}')
@@ -65,6 +77,8 @@ class SiteForces:
             magnitude=float(np.linalg.norm(torque))
             if magnitude and cap<=0:raise ValueError(f'No authored grasp-wrench permission: {name}')
             if magnitude>cap:torque=torque*(cap/magnitude)
+            if not self.contacts.available(sid,data):
+                force=np.zeros(3);torque=np.zeros(3)
             tau = np.zeros(m.nv)
             mj.mj_applyFT(m, data, force, torque, data.site_xpos[sid],
                           int(m.site_bodyid[sid]), tau)

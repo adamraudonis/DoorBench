@@ -88,8 +88,8 @@ def run_rotary_lockset_qa(native,metadata,cycles=2,*,source_xml=None):
                 for sid,applied in zip(candidates,forces):
                     mujoco.mj_applyFT(m,d,applied,np.zeros(3),d.site_xpos[sid],bid,d.qfrc_applied)
             mujoco.mj_step(m,d);warnings=np.maximum(warnings,d.warning.number)
-            for name in fixture.get('equality_names',[]):
-                mask=(d.efc_type==int(mujoco.mjtConstraint.mjCNSTR_EQUALITY))&(d.efc_id==m.equality(name).id)
+            for bench_name in fixture.get('equality_names',[]):
+                mask=(d.efc_type==int(mujoco.mjtConstraint.mjCNSTR_EQUALITY))&(d.efc_id==m.equality(bench_name).id)
                 bench_residual=max(bench_residual,float(np.linalg.norm(d.efc_pos[mask])))
             for ci,c in enumerate(d.contact):
                 depth=max(depth,-float(c.dist));names=(m.geom(c.geom1).name,m.geom(c.geom2).name)

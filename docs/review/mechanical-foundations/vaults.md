@@ -1,6 +1,6 @@
 # Vault and blast boltwork
 
-Production `build_vault` now builds supported crank-and-rod boltwork and frame-mounted crane journals. All 14 sources pass integrated QA, and all 42 native tier cases pass the continuous service and removal-control gates. Published assets and recordings have not been regenerated.
+Production `build_vault` now builds supported crank-and-rod boltwork and frame-mounted crane journals. All 14 sources pass integrated QA, and all 42 native tier cases pass the continuous service and removal-control gates. The corrected local assets and recordings have been regenerated for mechanical verification; the public deployment still contains the earlier versions.
 
 The 14 sources are DB0124, DB0179, DB0288, DB0352, DB0426, DB0458, DB0530, DB0623, DB0672, DB0748, DB0772, DB0913, DB0921 and DB0960. Seven use a handwheel and seven use two independently operated levers. All retain their original condition, hinge friction, task and credential declarations.
 
@@ -33,3 +33,9 @@ These checks establish the authored native load paths and service operation. The
 [Fort Knox's manufacturer catalogue](https://www.ftknox.com/wp-content/uploads/2017/05/Ft-Knox-2017-Catalog_Light_V6_Web_SM.pdf), printed pages 4–5, describes a 5:1 geared vault handle and ball-bearing hinges. It supports the general geared topology, not the dimensions or force law authored here. The PDF text was read; a successful diagram screenshot was not obtained.
 
 [US879229A](https://patents.google.com/patent/US879229A/en), the original crane-hinge patent description, identifies a journal, surrounding sleeve/bearing box and thrust support. [Kiesler Machine's vault-hinge documentation](https://www.kieslermachine.com/ca/vault-hinges/) provides contemporary manufacturer context for heavy vault hinges. These references inform a generic supported construction; this is not a reproduction of a rated product.
+
+## Frame fit follow-up
+
+Personal inspection of all 14 corrected closed frames confirmed continuous head and sill backing across the former gaps. This adds 14 reset-state inspections to the earlier 63 opening, closing and input close-ups; the image hashes and observations are in `out/mechanical-foundations/vault/native-view/frame-inspection/receipt.json`. These are diagnostic viewport captures, not new appearance renders.
+
+Fresh whole-door QA passes all 14 frame-fit sources. Native task recordings pass all 14 opening tasks, all 14 closing-only tasks and all 14 opening-then-closing tasks: **42/42**. Opening uses fixed pulls after actual bolt withdrawal; closing seats the leaf before throwing every bolt. The three validation indices are `0d636cb58f0a09ffde77cd9194fef72f7aba36cbc15cc0afa553966ea96733e9`, `59289d31dd2d78fb3e0aabbd17234bdd12cde80098da244572c98ce9cb322f00` and `378169c14b94ecbfb2b5680b67d1134c00ae99faff178bbf6000a1f65a651a70`. They establish file/state correspondence separately from the continuous mechanism gates. These are bounded scripted mechanism inputs; no embodied human ground truth is claimed.

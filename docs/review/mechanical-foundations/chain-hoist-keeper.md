@@ -55,4 +55,17 @@ Private full-implicit comparisons change only the native integrator, with origin
 
 MuJoCo documents that full implicit integration retains coupled Coriolis/centripetal derivatives omitted by `implicitfast`, and can benefit fast coupled pendulums. That is a reason for this isolated comparison, not proof of the warning's unique cause or permission to silently alter source models. [MuJoCo numerical integration](https://mujoco.readthedocs.io/en/latest/computation.html#numerical-integration).
 
-Exact private receipts are `hoist-keeper/closed-release-v3/initialize-{source,implicit}.json` and `pytest-halfstep/hoist0/db0419_rollup/keeper-open-initialization.json`. The all-six solver comparison under `hoist-keeper/initializer-six/` is still in progress. No all-six initialization success or production integrator promotion is claimed.
+Exact private receipts are `hoist-keeper/closed-release-v3/initialize-{source,implicit}.json` and `pytest-halfstep/hoist0/db0419_rollup/keeper-open-initialization.json`. The frozen algorithm-3 all-six comparison is complete in `out/mechanical-foundations/hoist-keeper/initializer-six/comparison.json`, with original helper sources retained under `source-frozen/` and all input/result hashes verified. It used MuJoCo 3.12.0, the legacy controller, 0.5 ms steps and a 60 native-second ceiling.
+
+| Door | Source integrator | Private full implicit |
+|---|---|---|
+| DB0258 | Global solver warning | Opening target not reached |
+| DB0313 | Opening target not reached | Native process crash |
+| DB0419 | Global solver warning | Sampled hands-free state passes; upper stops carry load |
+| DB0636 | Opening target not reached | Native process crash |
+| DB0754 | Global solver warning | Global solver warning |
+| DB0888 | Global solver warning | Contact tolerance failure |
+
+Thus none of the six source trials returns an accepted full-open state; one of six private full-implicit trials does. Combined counts are one sampled pass, nine native failures and two execution failures. The two crashes are bound to their actual worker PIDs (47420/48887) by macOS reports, with fault stacks beginning in `mj_Jdotv`. They are not physical infeasibility findings. Full implicit is not a universal warning or crash remedy and is not promoted by this comparison.
+
+Three near-open failures expose a separate legacy-controller defect. At rest its force is approximately −750 times the remaining height error: DB0258's 58.499 mm error predicts −43.874 N (recorded −43.832 N), while DB0313/0636's 21.102 mm error predicts and records −15.826 N. A finite supporting force therefore requires a persistent position error; more waiting cannot reach the unchanged 10 mm full-open gate. Load compensation is separate follow-up work. No target tolerance, contact limit or hand-force cap was widened.

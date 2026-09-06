@@ -230,6 +230,7 @@ def torque_limits(env, door_dir: str) -> dict[str, float]:
     far_side_lock = not bool(lock.get("robot_side_release", True))
     from .interactions import ContactSites
     contacts=ContactSites(env)
+    paired_holds={r['joint']:r for r in env.meta.get('paired_leaf_holds',[])}
     out = {}
     for b in env.model_json["bodies"]:
         j = b.get("joint")
@@ -248,7 +249,9 @@ def torque_limits(env, door_dir: str) -> dict[str, float]:
         elif role == "operator":
             lim = ((60.0 if "wheel" in name else 30.0) if hinge else 300.0) if operator_reachable(env.spec, name) else 0.0
         elif role == "lock":
-            if any(p in name for p in ENV_DRIVEN_LOCK_PARTS) or far_side_lock:
+            if name in paired_holds:
+                lim=paired_holds[name]['force_cap_N'] if paired_holds[name]['accessible_from_robot']else 0.
+            elif any(p in name for p in ENV_DRIVEN_LOCK_PARTS) or far_side_lock:
                 lim = 0.0
             elif "keypad_key_" in name:
                 lim = 30.0
@@ -261,7 +264,8 @@ def torque_limits(env, door_dir: str) -> dict[str, float]:
         # Generalized-force convenience cannot bypass an absent or far-face
         # input. Powered door actuators are driven separately by their actual
         # activation logic; passive transmitted loads remain in SiteForces.
-        out[name] = float(lim) if contacts.select(name) is not None else 0.0
+        has_input=contacts.potential(name) if name in paired_holds else contacts.select(name)is not None
+        out[name] = float(lim) if has_input else 0.0
     return out
 
 
@@ -583,6 +587,7 @@ def _run_episode(job: Job, observer, native_messages) -> dict:
         is_hinge = env.pj >= 0 and int(m.jnt_type[env.pj]) == HINGE
         jl = [(n, int(m.jnt_qposadr[env._jid(n)]), int(m.jnt_dofadr[env._jid(n)])) for n in info["joints"]]
         jdof = {n: dof for n, _, dof in jl}
+        conditional_dofs={jdof[r['joint']]:r['joint']for r in env.meta.get('paired_leaf_holds',[])if r['joint']in jdof}
         sl = [(n, mj.mj_name2id(m, mj.mjtObj.mjOBJ_SITE, n)) for n in info["sites"]]
         pq = int(m.jnt_qposadr[env.pj]) if env.pj >= 0 else -1
         pd_ = int(m.jnt_dofadr[env.pj]) if env.pj >= 0 else -1
@@ -701,11 +706,15 @@ def _run_episode(job: Job, observer, native_messages) -> dict:
                         prev[k] = True
             # ---- apply the action
             if torques:
+                applied_torque=False
                 for dof, tau in torques:
+                    if dof in conditional_dofs and site_forces.contacts.select(conditional_dofs[dof],d)is None:
+                        continue
                     d.qfrc_applied[dof] += tau
-                if env.tracker and not L.touched_door:
+                    applied_torque=True
+                if applied_torque and env.tracker and not L.touched_door:
                     env.tracker.mark_touch(d, operator=False)
-                if not L.touched_operator and any(n in env.operator_joints for n in tq):
+                if applied_torque and not L.touched_operator and any(n in env.operator_joints for n in tq):
                     env.tracker.mark_touch(d, operator=True)
             if not robot and (action.get("site_forces") or action.get('site_torques')):
                 force_tau = site_forces.generalized(d, action.get("site_forces"),action.get('site_torques'))

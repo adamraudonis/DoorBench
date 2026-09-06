@@ -59,7 +59,7 @@ class ContactSites:
                       for b in env.model_json['bodies'] if b.get('joint')}
         bodies = {b['name']: b for b in env.model_json['bodies']}
         names = {env.mj.mj_id2name(m, env.mj.mjtObj.mjOBJ_SITE, i): i for i in range(m.nsite)}
-        self.by_joint = {};self.access_paths={}
+        self.by_joint = {};self.access_paths={};self.dynamic_sites={}
         # Evaluate at reset. Face membership stays with the moving hardware.
         for b in bodies.values():
             chain, ancestor = [], b
@@ -141,9 +141,28 @@ class ContactSites:
             if guard['accessible_from_robot'] and site in names:
                 joint=guard.get('guard_joint') or guard['guard_joints'][-1]
                 self.by_joint.setdefault(joint,[]).append((names[site],'grip'))
+        for hold in env.meta.get('paired_leaf_holds',[]):
+            # Potential permission persists while the active leaf is closed;
+            # actual contact is checked again at every input application.
+            self.by_joint[hold['joint']]=[]
+            if not hold['accessible_from_robot']:continue
+            for name in dict.fromkeys((hold['site'],hold['engage_site'])):
+                sid=names[name];self.by_joint[hold['joint']].append((sid,'grip'))
+                self.dynamic_sites[sid]=hold
 
-    def select(self, joint):
-        options = self.by_joint.get(joint, [])
+    def available(self,site,data=None):
+        hold=self.dynamic_sites.get(site)
+        if hold is None:return True
+        if hold['requires_primary_open_rad']<=0:return True
+        data=self.env.d if data is None else data
+        j=self.env._jid(hold['primary_joint'])
+        return j>=0 and float(data.qpos[self.env.m.jnt_qposadr[j]])>=hold['requires_primary_open_rad']
+
+    def potential(self,joint):
+        return bool(self.by_joint.get(joint))
+
+    def select(self, joint, data=None):
+        options = [item for item in self.by_joint.get(joint, []) if self.available(item[0],data)]
         if not options:
             return None
         return min(options, key=lambda p: (p[1] != self.prefer, p[0]))[0]
@@ -152,7 +171,7 @@ class ContactSites:
         explicit = action.get('contact_site')
         if explicit:
             sid = self.env.mj.mj_name2id(self.env.m, self.env.mj.mjtObj.mjOBJ_SITE, explicit)
-            return action.get('contact_joint'), sid if sid >= 0 else None
+            return action.get('contact_joint'), sid if sid >= 0 and self.available(sid) else None
         torques = action.get('torques') or {}
         active = [(j, abs(float(t))) for j, t in torques.items() if abs(float(t)) > 1e-5]
         hardware = [(j, t) for j, t in active if self.roles.get(j) in ('operator', 'lock', 'latch')]

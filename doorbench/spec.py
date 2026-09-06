@@ -1512,6 +1512,11 @@ def generate_all(seed: int = 20260903) -> list[dict]:
             # lever egress; a fixed far pull cannot perform that operation.
             s['operator']['sides']='both'
             s['operator']['far_side']=None
+        if s['id'] in ('db0462_swing_single','db0592_swing_single','db0815_swing_single'):
+            # Actual larger grip geometry for the retained heavy latch load;
+            # preserve RNG, lock state, springs and per-surface force limit.
+            s['operator']['model']='knob_round_large'
+            s.setdefault('tags',[]).append('large_knob_for_latch_load')
         if s['family'] in ('vault', 'blast') and H.OPERATORS[s['operator']['model']].kind != 'wheel':
             # Preserve all random draws and credential/condition decisions.
             # These are two independent sliding bolts, not six marine dogs.

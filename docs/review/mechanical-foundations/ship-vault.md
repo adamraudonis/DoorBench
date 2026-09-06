@@ -1,6 +1,6 @@
 # Marine dogs, wheel transmissions and heavy boltwork
 
-The ten ship-door dogging mechanisms now have native load paths and pass their component checks. This is **not whole-door signoff**: all ten still declare an unmodeled `hook_holdback`. Fourteen vault/blast doors also remain explicitly incomplete pending actual bolt transmissions and crane-hinge journals. These limitations appear in `meta.mechanical_incomplete`, so a successful dogging check cannot promote the whole assembly.
+The ten ship-door dogging mechanisms now have native load paths and pass their component checks. This is **not whole-door signoff**: their required open-door holdbacks are tracked separately in [ship-holdbacks.md](ship-holdbacks.md). The original 14 vault/blast boltwork and crane defects were repaired and independently tested; see [vaults.md](vaults.md). Subsequent perimeter rebate and whole-door return work is tracked separately and does not establish an enclosure seal or security rating.
 
 ## Physical findings and correction
 
@@ -39,9 +39,9 @@ Reproduction:
 PYTHONPATH=. python -m pytest tests/test_marine_dog_mounts.py tests/test_marine_linkage.py --basetemp=out/marine-test
 ```
 
-## Remaining vault/blast defects
+## Historical vault/blast baseline defects
 
-Eight vault doors (0124, 0179, 0426, 0458, 0530, 0748, 0913, 0921) and six blast doors (0288, 0352, 0623, 0672, 0772, 0960) still have separate bolts coupled remotely to their operator. There are no physical tie rods/racks, shaft journals or bolt-guide bores; the bolt shafts pass into uncut leaf stock. Crane-hinge visuals have leaf-side arms but no frame journal. These are failures to repair, not accepted approximations. Only the three previously mislabeled operators 0124/0672/0960 were normalized to their actual heavy dog lever, after seeded generation without extra random draws.
+The earlier eight vault doors (0124, 0179, 0426, 0458, 0530, 0748, 0913, 0921) and six blast doors (0288, 0352, 0623, 0672, 0772, 0960) had separate bolts coupled remotely to their operator. Physical tie rods/racks, shaft journals and bolt-guide bores were absent; the bolt shafts passed into uncut leaf stock. Crane-hinge visuals had leaf-side arms but no frame journal. These baseline defects were repaired and tested as documented in [vaults.md](vaults.md); they are retained here as historical findings. The three previously mislabeled operators 0124/0672/0960 were normalized to their actual heavy dog lever, after seeded generation without extra random draws.
 
 ## Primary design references
 

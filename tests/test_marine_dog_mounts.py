@@ -76,7 +76,10 @@ def test_component_success_cannot_hide_other_required_unmodeled_mechanisms():
         if spec['family'] not in ('ship_watertight','vault','blast'):continue
         model=build_model(spec)
         flags={row['component'] for row in model.meta.get('mechanical_incomplete',[])}
-        if spec['family']=='ship_watertight':assert 'hook_holdback' in flags
+        if spec['family']=='ship_watertight':
+            assert 'hook_holdback' not in flags
+            assert model.meta['ship_holdback']['status']=='physical_spring_return_hook'
+            assert model.body('ship_holdback_hook').joint.name=='ship_holdback_release'
         else:
             assert not {'vault_bolt_transmission','vault_crane_hinge_mount'}&flags
             assert model.meta['vault_boltwork']['groups'] and model.meta['vault_crane_journals']
