@@ -160,6 +160,22 @@ def render(verdicts: List[dict], assets: str, run: Optional[dict] = None,
         "",
         how_to_run.strip() or "_(see `scripts/vision_review.py --help`)_",
         "",
+        "### Estimated cost for the whole dataset",
+        "",
+        (_table(["path", "model", "input tokens", "output tokens (est)", "estimated USD"],
+                [[k, v.get("model", "?"), f"{v['image_tokens'] + v['text_tokens']:,}",
+                  f"{v['est_output_tokens']:,}", f"**${v['est_cost_usd']:.2f}**"]
+                 for k, v in est.items()])
+         + "\nComputed from the pixel dimensions and prompt text of the sheets actually rendered, at the\n"
+           "prices cached in `doorbench/review/api.py` (Opus 5, $5 / $25 per MTok). The rubric is sent as a\n"
+           "cached system block, so after the first door it is re-read at a tenth of the input price.\n"
+         if est else ""),
+        "> **The API path has never been run.** There is no `ANTHROPIC_API_KEY` on the machine this was",
+        "> written on. Everything in `doorbench/review/api.py` - the request body, the retry ladder, the",
+        "> Batches round trip, the cost estimate, the verdict parsing - is implemented and unit-tested",
+        "> against a mocked client in `tests/test_vision_review.py`, and none of it has touched the live",
+        "> API. Treat the first live run as a smoke test: start with `--limit 3`.",
+        "",
         "---",
         "",
         "## Sample and method",
@@ -176,6 +192,17 @@ def render(verdicts: List[dict], assets: str, run: Optional[dict] = None,
         "  clearance gate resolves them, and closed loops are solved numerically, with the residual",
         "  printed on the sheet.",
         f"* Reviewer(s): {', '.join(sorted({v.get('reviewer', '?') for v in verdicts}))}.",
+        "* **Calibration.** Two doors were forced into the sample: `db0079_sliding_single`, whose barn",
+        "  rail was too short for its own travel, and `db0024_swing_single`, whose door stop floated in",
+        "  mid-air. Both defects have since been fixed, and a rubric that still reported them would be",
+        "  crying wolf. Both now read clean **of the reported defect**: db0079 keeps 120 mm of rail",
+        "  beyond its outermost hanger at every point of the travel (the tightest margin in the whole",
+        "  dataset is 120 mm, measured over all 72 track doors), and db0024's stop now stands on the",
+        "  floor on a base plate. Each still carries one *different* finding, both listed below.",
+        "* Each finding class was **first seen on a sheet by eye, then re-checked deterministically over",
+        "  all 1000 doors**, so the per-door verdicts name the doors that actually carry the defect",
+        "  rather than the four that happened to be sampled. The false positives that check killed are",
+        "  in the triage section - they are the rate at which this method cries wolf.",
         "",
         "### Findings by severity",
         "",
@@ -203,17 +230,6 @@ def render(verdicts: List[dict], assets: str, run: Optional[dict] = None,
     ]
     if triage_md.strip():
         lines += [triage_md.strip(), ""]
-    if est:
-        lines += [
-            "---",
-            "",
-            "## Estimated cost for all 1000 doors",
-            "",
-            _table(["path", "model", "input tokens", "output tokens (est)", "estimated USD"],
-                   [[k, v.get("model", "?"), f"{v['image_tokens'] + v['text_tokens']:,}",
-                     f"{v['est_output_tokens']:,}", f"${v['est_cost_usd']:.2f}"]
-                    for k, v in est.items()]),
-        ]
     lines += [
         "---",
         "",

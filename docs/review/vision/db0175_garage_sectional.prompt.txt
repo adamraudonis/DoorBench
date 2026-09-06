@@ -1,0 +1,155 @@
+=== SYSTEM ===
+You are reviewing one door from DoorBench, a dataset of 1000 articulated doors built for robot
+simulation.  Each door is generated from a specification by a procedural geometry pipeline, exported
+to MJCF / URDF / USD, and checked by deterministic gates that already prove: nothing interpenetrates
+through the joint sweeps beyond 2 mm, every moving part keeps running clearance from static geometry,
+every body touches what holds it within 3 mm, the leaf opens under a push and holds when latched, the
+mass is within 20 % of the specification, and the USD loads in PhysX with matching behaviour.
+
+Those gates measure.  They cannot see.  Your job is the part a person does in half a second from a
+photograph: decide whether this looks like the object the specification says it is, and whether the
+mechanism drawn could actually work.  The one finding that started this whole exercise was a barn-door
+rail that was not long enough for the door's travel, so at full open a hanger wheel would have run off
+the end of it - every gate passed that door, and it was obvious to a human at a glance.
+
+WHAT YOU ARE LOOKING AT
+A single review sheet, twelve numbered panels under a caption band:
+  panels 1-3   the door CLOSED, from three viewpoints (near/robot side, far side, hinge- or track-side)
+  panels 4-6   the same three viewpoints at MID-TRAVEL (50 % of the stated travel)
+  panels 7-9   the same three viewpoints FULLY OPEN
+  panel 10     hardware close-up, near face, door closed
+  panel 11     hardware close-up, far face, door closed
+  panel 12     mechanism close-up (hinges / track and rollers / closer arm), door fully open
+Each column of panels 1-9 uses ONE camera, so the three rows are the same shot at three points in the
+travel and can be compared directly.  Poses are kinematic: joints are placed, not simulated.
+
+The caption band, and the JSON that follows this rubric, state what the specification says SHOULD be
+there.  Use it to judge completeness: if the caption names a latch, a closer, three hinges or an
+operator on both faces, the sheet has to show them.
+
+blocker  the door is not usable as data: a mechanism that cannot work, a runner off its guide, a part
+         passing through another part, hardware that is simply absent.
+major    clearly wrong and a person would report it, but the door still functions: wrong face, wrong
+         scale, a duplicate part, a guide with no margin left at full open.
+minor    cosmetic or arguable: a plate slightly off centre, a proportion that reads a little odd.
+
+Do NOT report any of the following.  They are properties of the renderer, not of the door, and a
+report full of them is worthless:
+
+* Lighting, shadows, shading bands, JPEG artefacts, aliasing, low resolution, missing textures, flat
+  colours, or the fact that the scene is untextured / grey.
+* The wall, floor and sky being plain surfaces, or the wall being cut off by the frame of the panel.
+* A camera that crops part of the scene, or a close-up that shows only part of the door.
+* Parts hidden behind other parts.  You can only report something MISSING if the sheet gives you a
+  view where it would have to be visible - the near-face and far-face close-ups are that view for
+  door hardware.  If you cannot see the far side of a part, say nothing about it.
+* Screws, fasteners, keyholes, brand marks, wood grain, weatherstrip detail or other fine detail being
+  absent: this is a physics dataset, not a visualisation, and fine detail is deliberately not modelled.
+* The door being modelled from primitive boxes and cylinders rather than curved sheet metal.
+* A latch bolt shown retracted in the MID-TRAVEL and FULLY OPEN panels: those poses are rendered with
+  every releasable mechanism released, on purpose.
+* A panel labelled FORCED POSE showing a door the spec says is locked shut: that pose is an inspection
+  pose and is labelled as such.
+* Weatherstrip, gaskets, sweeps, bumpers and stops touching the leaf: they are meant to touch.
+
+CATEGORIES (use exactly these strings)
+  floating_part              a part hangs in space with nothing holding it - no bracket, no mount, no contact with the thing it is supposed to be bolted to
+  interpenetration           a part passes through another part: a bolt through a solid jamb, an arm through the leaf, a hinge knuckle buried in the frame
+  guide_too_short            a rail, track, channel, guide or slot is not long enough for the travel the spec states - at full open the runner reaches or passes its end
+  runner_off_guide           a roller, hanger, wheel, carrier, bolt or pin is not in / on the guide that is supposed to carry it, in at least one of the three poses
+  missing_hardware           the caption says a part is there and it is not visible anywhere on the sheet (a named latch with no bolt, an operator on 'both' sides present on only one, a stated hinge count larger than the number of hinges you can see)
+  duplicate_part             the same part appears twice, or more copies than the spec states
+  wrong_scale                a part is grossly the wrong size for what it is - a knob the size of a dinner plate, hinges longer than the leaf, a handle wider than the door
+  wrong_placement            hardware on the wrong face, on the hinge side instead of the latch side, upside down, mirrored, or at an impossible height
+  mechanism_cannot_work      the mechanism as drawn cannot do its job - a closer arm not connected to its shoe, a latch bolt with no keeper or strike, a handle that drives nothing, a dog with no cleat
+  implausible_proportions    the door reads wrong as an object: a 3 m tall cupboard door, a stile wider than the glazing, a frame thicker than the wall
+  pose_wrong                 the three poses do not tell a consistent story - the door hardly moves between closed and fully open, opens the wrong way, or the mid-travel pose is not between the other two
+  other_obviously_wrong      anything else a person would point at and call obviously wrong
+
+HOW TO ANSWER
+Work through the sheet before deciding.  Then reply with ONE JSON object and nothing else - no prose
+before or after it, no markdown fence:
+
+{"door_id": "<the id from the caption>",
+  "ok": <true if there is not a single finding, else false>,
+  "summary": "<one sentence: what this door is and whether it is right>",
+  "findings": [
+    {"category": "<one of the category strings>",
+      "severity": "blocker" | "major" | "minor",
+      "part": "<the part, named as concretely as the picture allows>",
+      "description": "<what is wrong, and what makes you sure>",
+      "where": "<panel numbers, e.g. 'panels 7, 9, 12'>",
+      "confidence": <0.0-1.0>}
+  ]}
+
+Report only what you can actually see.  An empty findings list is the correct answer for a door that
+is right, and most doors are right: do not invent a finding to look thorough.  Be specific - "the
+closer arm's forearm ends 15 cm short of the shoe on the frame, panels 7 and 12" is useful; "the
+hardware looks odd" is not.
+
+=== USER ===
+REVIEW SHEET for db0175_garage_sectional.
+
+Caption band, verbatim:
+  db0175_garage_sectional   family=garage_sectional   context=garage   use=townhouse garage door   condition=normal   task=open_only
+  KINEMATICS  slide_vertical, travel 2.080 m   |  swing=lift   hinge_side=bottom   |  track=sectional_vertical_lift   roller=garage_steel_dry   stop=track_end
+  HINGES      none x 0   |  OPERATOR none @ h=0.90 m, sides=both
+  LATCH       none   |  LOCK none (engaged=False, robot-side release=True)   |  CLOSER none
+  LEAF        2.740 x 2.130 x 0.050 m, garage_steel_insulated / sectional_long_windows, 75.6 kg   |  OPENING 2.790 x 2.180 m, wall 0.200 m, frame garage_jamb
+  SEAL        door_sweep   |  THRESHOLD none   |  EXTRAS none
+
+Panels:
+  [1] CLOSED - front-iso (robot side, -y)
+  [2] CLOSED - back-iso (far side, +y)
+  [3] CLOSED - track-side (leading edge)
+  [4] MID-TRAVEL (50 %) - front-iso (robot side, -y)
+  [5] MID-TRAVEL (50 %) - back-iso (far side, +y)
+  [6] MID-TRAVEL (50 %) - track-side (leading edge)
+  [7] FULLY OPEN - front-iso (robot side, -y)
+  [8] FULLY OPEN - back-iso (far side, +y)
+  [9] FULLY OPEN - track-side (leading edge)
+  [10] HARDWARE CLOSE-UP - near face (door closed, mechanism at rest)
+  [11] HARDWARE CLOSE-UP - far face (door closed, mechanism at rest)
+  [12] MECHANISM CLOSE-UP (track) - door FULLY OPEN
+
+What the specification says should be there:
+{
+ "closer": "none",
+ "condition": "normal",
+ "context": "garage",
+ "door_id": "db0175_garage_sectional",
+ "family": "garage_sectional",
+ "hinge_count": 0,
+ "hinge_model": "none",
+ "hinge_side": "bottom",
+ "kinematics": "slide_vertical",
+ "latch": "none",
+ "leaf_count": 1,
+ "leaf_w_h_t_m": [
+  2.74,
+  2.13,
+  0.05
+ ],
+ "lock": "none",
+ "lock_engaged": false,
+ "mass_kg": 75.64532268,
+ "n_operator_joints": 0,
+ "opening_w_h_m": [
+  2.79,
+  2.18
+ ],
+ "operator": "none",
+ "operator_coupling": "coupled",
+ "operator_height_m": 0.9,
+ "operator_sides": "both",
+ "panel_style": "sectional_long_windows",
+ "roller": "garage_steel_dry",
+ "seal": "door_sweep",
+ "slab": "garage_steel_insulated",
+ "stop": "track_end",
+ "threshold": "none",
+ "track": "sectional_vertical_lift",
+ "travel_m": 2.08
+}
+
+Reply with the JSON verdict object only.
