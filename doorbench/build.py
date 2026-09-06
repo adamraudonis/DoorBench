@@ -383,6 +383,8 @@ def build_model(spec: dict, phys: dict | None = None) -> Model:
         j.armature = max(j.armature, floor)
     op = spec["opening"]
     # Explicit physical panel budgets; duplicate proxies/decor never set allocation.
+    from .geometry.glazing import finish_glazing
+    finish_glazing(model, phys)
     from .mass_reconciliation import reconcile_moving_mass
     reconcile_moving_mass(model, phys)
     # A bidirectional lift lever must centre under its own actual weight.

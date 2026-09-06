@@ -191,7 +191,7 @@ def _add_stay(model,world,lid,spec,hinge_out,*,gas,locking,side=1):
         pin.joint=Joint('hatch_stay_release','slide',(1,0,0),(0,0,0),(0.,.016),
             damping=3.,stiffness=600.,springref=0.,armature=.002,role='operator',
             initial=.016,modeled_at=.016,label='Stay knob (+ = withdraw; support lid before releasing)')
-        pin.geoms.append(C.cyl('stay_lock_pin',(-.003,0,0),.0045,.012,steel,(1,0,0),7900,
+        pin.geoms.append(C.cyl('stay_lock_pin',(.003,0,0),.0045,.018,steel,(1,0,0),7900,
             True,True,ALL_TIERS,'lock','Spring-engaged transverse stay pin'))
         pin.geoms[-1].solref=(.004,1.)
         pin.geoms[-1].solimp=(.95,.999,.0001)
@@ -241,6 +241,21 @@ def add_hatch_pull(model,lid,spec,operator):
                 True,True,ALL_TIERS,'operator','Ring side'))
         ring.geoms.append(C.cyl('ring_grip_bar',(0,.056,0),.005,.035,steel,(1,0,0),7900,
             True,True,ALL_TIERS,'operator','Ring grip'))
+        # A real cross-pin carries the ring in two bored ears welded to the
+        # cup sides. Keep the 0.5 mm radial running clearance explicit.
+        ring.geoms.append(C.cyl('ring_pivot_pin',(0,0,0),.0035,.047,steel,(1,0,0),7900,
+            True,True,ALL_TIERS,'hinge','Ring cross-pin carried in cup bearing ears'))
+        for side in (-1,1):
+            for axis in (1,2):
+                for sign in (-1,1):
+                    center=[side*.044,y,z-face*.006];half=[.003,.0076,.0076]
+                    center[axis]+=sign*.0058;half[axis]=.0018
+                    lid.geoms.append(C.box(f'ring_bearing_{side}_{axis}_{sign}',tuple(center),tuple(half),
+                        steel,7900,semantic='hinge',label='Open ring pivot bearing ear'))
+            for sign in (-1,1):
+                lid.geoms.append(C.box(f'ring_bearing_mount_{side}_{sign}',
+                    (side*.049,y+sign*.0058,z-face*.006),(.003,.0018,.0076),steel,7900,
+                    semantic='hinge',label='Bearing ear welded to cup wall'))
         ring.sites.append(Site('grip_ring',(0,.056,0),QUAT_ID,.007,'grip'))
         model.add_body(ring);model.meta['operator_joint']='ring_hinge'
     else:

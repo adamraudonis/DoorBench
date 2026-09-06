@@ -49,11 +49,13 @@ def _bore_stock(leaf,lower,upper,suffix):
         if g.semantic not in ('leaf','glass'):continue
         a,b=geom_bounds(g)
         if np.any(np.minimum(b,hi)-np.maximum(a,lo)<=1e-9):continue
-        if g.type=='box' and not np.allclose(np.abs(quat_to_mat(g.quat)).sum(axis=0),1,atol=1e-9):angled.append(g)
+        if ((g.type=='box' and not np.allclose(np.abs(quat_to_mat(g.quat)).sum(axis=0),1,atol=1e-9))
+                or (g.type=='mesh' and g.mesh.is_convex)):angled.append(g)
     names={g.name for g in leaf.geoms if g.semantic in ('leaf','glass') and all(g is not other for other in angled)}
     result=cut_stock(leaf,lo,hi,suffix,names=names);result['rotated_box_preparations']=[]
     for g in angled:
-        vertices=np.asarray(trimesh.creation.box(extents=2*np.asarray(g.size)).vertices)@quat_to_mat(g.quat).T+g.pos
+        source_vertices=(trimesh.creation.box(extents=2*np.asarray(g.size)).vertices if g.type=='box' else g.mesh.vertices)
+        vertices=np.asarray(source_vertices)@quat_to_mat(g.quat).T+g.pos
         work=vertices;pieces=[]
         for axis in range(3):
             if not len(work):break
@@ -66,7 +68,7 @@ def _bore_stock(leaf,lower,upper,suffix):
             work=_clip(work,axis,hi[axis],True)
         if not len(work):continue  # AABB overlap alone is not a stock intersection.
         removed_volume=abs(float(trimesh.convex.convex_hull(work).volume))
-        leaf.geoms.remove(g);volume=float(np.prod(2*np.asarray(g.size)));outputs=[]
+        leaf.geoms.remove(g);volume=g.volume();outputs=[]
         for k,vertices in enumerate(pieces):
             mesh=trimesh.convex.convex_hull(vertices);v=abs(float(mesh.volume))
             key=C.MESH.key_for('rotary_brace_bore',source=g.name,vertices=np.asarray(mesh.vertices).round(12).tolist())
@@ -123,13 +125,15 @@ def _prepare(model,spec,phys,body,op,item):
     mount=model.add_body(Body(name+'_shaft_support',leaf.name,body.pos,semantic='mechanism',
         label='Fixed prepared through-shaft journals and escutcheon stock'))
     before=_stock_mass(leaf);cuts=[]
-    cuts.append(_bore_stock(leaf,(x-.007,-t/2-.001,z-.007),(x+.007,t/2+.001,z+.007),name+'_through_bore'))
+    stock_bounds=[geom_bounds(g) for g in leaf.geoms if g.semantic in ('leaf','glass')]
+    ymin=min(a[1] for a,b in stock_bounds)-.001;ymax=max(b[1] for a,b in stock_bounds)+.001
+    cuts.append(_bore_stock(leaf,(x-.007,ymin,z-.007),(x+.007,ymax,z+.007),name+'_through_bore'))
     # Existing cartridge standoffs are kept as supported physical stock. Their
     # former separate extension is covered by the continuous new steel shaft.
     standoffs=[v for row in model.meta.get('lock_stock',[]) for v in row.get('operator_standoffs',[]) if v['joint']==body.joint.name]
     extensions={v['shaft_geom'] for v in standoffs}
     body.geoms=[g for g in body.geoms if g.name!=name+'_spindle' and g.name not in extensions]
-    face_levels={f:t/2 for f in (-1.,1.)};piece_names={};profile_names=[]
+    face_levels={f:t/2 for f in (-1.,1.)};piece_names={};profile_names=[];fixed_cases=[]
     for geom in tuple(body.geoms):
         if geom.type!='mesh' or geom.part_label not in ('Lever','Knob','T-handle','Cremone knob'):continue
         face=1. if geom.name.endswith('_p') else -1.;face_levels[face]=face*geom.pos[1]
@@ -137,6 +141,12 @@ def _prepare(model,spec,phys,body,op,item):
         for k,part in enumerate(geom.mesh.split(only_watertight=False)):
             lo,hi=part.bounds
             if lo[2]>=-1e-6 and hi[2]<=.010001 and max(hi[0]-lo[0],hi[1]-lo[1])>.040:continue
+            if op.style_params.get('shape')=='safeguard' and np.allclose(hi-lo,(.06,.09,.04),atol=1e-9):
+                case=replace(geom,name=geom.name+'_fixed_case',type='box',mesh=None,mesh_name=None,
+                    pos=tuple(np.asarray(geom.pos)+quat_to_mat(geom.quat)@((lo+hi)/2)),size=tuple((hi-lo)/2),
+                    density=C.M.MATERIALS[op.material].density,collision=True,tiers=ALL_TIERS,
+                    part_label='Fixed cold-storage handle housing around prepared shaft journal')
+                mount.geoms.append(case);fixed_cases.append((face,case.name));continue
             key=C.MESH.key_for('prepared_rotary_piece',source=geom.mesh_name,part=k)
             new=replace(geom,name=geom.name+'_piece_'+str(k),mesh=part,mesh_name=key,
                         density=C.M.MATERIALS[op.material].density,tiers=ALL_TIERS)
@@ -157,13 +167,27 @@ def _prepare(model,spec,phys,body,op,item):
     if cases:
         model.meta['clearance_allow']=[a for a in model.meta.get('clearance_allow',[]) if not (a[1]==name+'_rim_case' and a[0] in (name+'_knob_*',name+'_spindle'))]
     bearings=[];plates=[];spacer_names=[]
-    for face in (-1.,1.):
+    for face in faces:
         tag='p' if face>0 else 'n';level=face_levels[face]
         installed=face in faces
         neck=.011 if op.kind in ('knob','keypad_deadbolt','cremone') else max(op.style_params.get('diameter',.019)*.65,.011)
         if op.style_params.get('square'):neck=max(neck,op.style_params.get('diameter',.019)*.65*math.sqrt(2))
         bore=((neck if installed else .006)+.0006)/math.cos(math.pi/12)
         rose=max(op.style_params.get('rose_diameter',.064)/2,bore+.004)
+        if any(f==face for f,_ in fixed_cases):
+            # Keep the actual 60×90 mm fixed case, with a central prepared
+            # opening around a20 mm-radius journal and the rotating hub.
+            rose=max(.020,bore+.004)
+            names={n for f,n in fixed_cases if f==face};opening=rose+.001
+            cuts.append(cut_stock(mount,(-opening,-t/2-.1,-opening),(opening,t/2+.1,opening),
+                'prepared_housing',names=names))
+        # Raised battens/diagonal stock require an actual journal seat. Keep
+        # the captured mounting plane and prepare the surrounding face stock,
+        # rather than burying a stationary rose inside an uncut wood brace.
+        ya,yb=(level,ymax) if face>0 else (ymin,-level)
+        if yb-ya>1e-9:
+            cuts.append(_bore_stock(leaf,(x-rose-.001,ya,z-rose-.001),
+                (x+rose+.001,yb,z+rose+.001),name+'_journal_seat_'+tag))
         gap=0.
         for old in standoffs:
             if old['face']!=face:continue
@@ -192,9 +216,14 @@ def _prepare(model,spec,phys,body,op,item):
             cuts.append(cut_stock(mount,(-opening,-t/2-.004,-opening),(opening,t/2+.004,opening),
                 'prepared_journal',names={plate.name}))
             plates.extend(g.name for g in mount.geoms if g.name.startswith(plate.name+'_prepared_journal_'))
-    low=-(face_levels[-1.]+(.032 if -1. in faces else .012));high=face_levels[1.]+(.032 if 1. in faces else .012)
+    # A handleset interior knob or panic exterior trim drives the concealed
+    # follower through a one-face stub. It must not project through the other
+    # face into that independently installed mechanism's housing. The finite
+    # installed-face journal supplies its supported shaft span.
+    low=-(face_levels[-1.]+.032) if -1. in faces else 0.
+    high=face_levels[1.]+.032 if 1. in faces else 0.
     body.geoms.append(C.cyl(name+'_spindle',(0,(low+high)/2,0),.006,(high-low)/2,steel,(0,1,0),7850,
-        True,True,ALL_TIERS,'mechanism','Continuous retained through-shaft in prepared stock'))
+        True,True,ALL_TIERS,'mechanism','Continuous retained through-shaft in prepared stock' if len(faces)==2 else 'Supported one-face stub ending at latch centre plane'))
     # A point on a knob's rotation axis cannot supply its turning moment.
     # Bind useful actual surface patches; runtime may explicitly apply the
     # declared opposed pair rather than substituting free joint torque.
@@ -226,8 +255,10 @@ def _prepare(model,spec,phys,body,op,item):
         'shaft_geom':name+'_spindle','support_body':mount.name,'bearing_geoms':bearings,'plate_geoms':plates,
         'spacer_geoms':spacer_names,'handle_geometry':profile_names,'faces':faces,'shaft_radius_m':.006,
         'leaf_stock_geoms':[g.name for g in leaf.geoms if g.semantic in ('leaf','glass')],
+        'fixed_parent_geoms':[g.name for g in leaf.geoms],
         'support_geoms':[g.name for g in mount.geoms],
         'input_surfaces':input_surfaces,'input_model':'opposed_surface_pair' if op.kind in ('knob','keypad_deadbolt','cremone') else 'single_surface_force',
         'input_sites_by_face':{tag:[s.name for s in body.sites if s.name in (name+'_grip_'+tag,name+'_grip_'+tag+'_opposed')] for tag in ('n','p')},
         'operator_force_cap_N':op.operable_force_limit,'operator_model':op.id,
+        'nominal_operator_travel_rad':op.travel,'operator_dead_travel_rad':op.dead_travel,
         'stock_clearance_m':.001,'scope':'Prepared shaft/stock and connected fixed journals. Existing lock range, concealed cams and return law retained; no complete lockset or service-task certification.'})

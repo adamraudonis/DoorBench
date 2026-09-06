@@ -64,7 +64,13 @@ def test_native_mass_replaces_only_operator_allowance_and_locked_dogs_carry_load
 def test_exact_inspection_branch_stays_nonsingular_and_closes_real_pins(fixtures,spec):
     ir,_,path=fixtures[spec['id']];row=ir.meta['marine_dog_linkage']
     assert not any(e.name.startswith('wheel_dog_') for e in ir.equalities)
-    assert len(row['connect_equalities'])==4
+    assert len(row['connect_equalities']) == spec['kinematics']['dogs'] == 4
+    assert set(ir.meta['dog_joints']) == set(row['dog_joints'])
+    # A wheel-operated linkage must not also receive independent lever grips
+    # and their over-centre springs in the connecting-rod sweep.
+    assert not ir.meta.get('marine_dog_retention')
+    assert not any('lever' in g.name for b in ir.bodies
+                   if b.name in [f'dog_{k}' for k in range(4)] for g in b.geoms)
     for tier in ('full','simple','minimal'):
         m=mujoco.MjModel.from_xml_path(str(path/('door.xml' if tier=='full' else f'door_{tier}.xml')))
         d=mujoco.MjData(m);a=m.jnt_qposadr[m.joint(row['input_joint']).id]

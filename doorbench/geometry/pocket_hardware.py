@@ -35,6 +35,12 @@ def cut_box_recess(body, lower, upper, suffix):
                 if np.any(np.asarray(geom.pos)+ext <= low+1e-9) or np.any(np.asarray(geom.pos)-ext >= high-1e-9):
                     output.append(geom)
                     continue
+            elif geom.type == 'mesh' and geom.mesh is not None:
+                vertices=np.asarray(geom.mesh.vertices)@quat_to_mat(geom.quat).T+geom.pos
+                if len(vertices) and np.isfinite(vertices).all() and (
+                        np.any(vertices.max(axis=0)<=low+1e-9) or np.any(vertices.min(axis=0)>=high-1e-9)):
+                    output.append(geom)
+                    continue
             raise ValueError(f"Cannot mortise non-axis-aligned leaf geometry {geom.name}")
         a, b = np.asarray(geom.pos) - geom.size, np.asarray(geom.pos) + geom.size
         lo, hi = np.maximum(a, low), np.minimum(b, high)

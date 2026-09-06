@@ -31,8 +31,8 @@ def add_tiltup_lock(model, panel, world, spec, top_height, *, mount_height=None)
         C.add_keeper_loop(world.geoms,'garage_lock_keeper',keeper,
             (keeper[0],surface+.015,z),(-1,0,0),(0,1,0),.006,steel,ALL_TIERS,
             base=.030,bar=.005,bar_len=.014)
-        if lock.get('engaged') and not lock.get('robot_side_release'):
-            bolt.joint.range=(0.,.001)
+        # Approach-side permission is not a physical bolt stop. The interior
+        # input keeps its actual stroke even when an outside robot cannot use it.
         model.meta['garage_lock_hardware']={'kind':'rear_slide_bolt','joint':bolt.joint.name,
             'grip_site':'slide_lock_grip','engaged_q':0.,'released_q':.065,
             'keeper_prefix':'garage_lock_keeper','side':'garage_interior'}

@@ -677,9 +677,16 @@ def build_folding(spec, phys, model: Model):
                 if opm.kind == "knob":
                     key, mesh = MESH.knob_mesh(shape="round", diameter=0.03, depth=0.03, rose_diameter=0.0)
                     mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
+                    # Fixed knobs need an actual neck seated on the leaf.
+                    # The old visual mesh began 6 mm away from its mounting
+                    # face and its spherical contact target was inside metal.
+                    b.geoms.append(C.cyl(f"{name}_knob_neck",(u*grip_x,-(t/2+.010),hz),
+                        .006,.010,mat,(0,1,0),3000,True,True,ALL_TIERS,"operator","Fixed knob mounting neck"))
+                    b.geoms.append(C.cyl(f"{name}_knob_rose",(u*grip_x,-(t/2+.0015),hz),
+                        .012,.0015,mat,(0,1,0),3000,True,True,ALL_TIERS,"operator","Knob mounting washer on solid leaf stock"))
                     b.geoms.append(C.mesh_geom(f"{name}_knob", key, mesh, (u * grip_x, -t / 2, hz), C.q_face(-1.0, u), mat, 3000, False, ALL_TIERS, "operator", "Bifold knob"))
                     b.geoms.append(C.sphere(f"{name}_knob_col", (u * grip_x, -(t / 2 + 0.03), hz), 0.016, mat, 3000, True, ALL_TIERS, "operator", "Knob grip"))
-                    b.sites.append(Site(f"{name}_grip", (u * grip_x, -(t / 2 + 0.03), hz), QUAT_ID, 0.012, "grip"))
+                    b.sites.append(Site(f"{name}_grip", (u * grip_x, -(t / 2 + 0.046), hz), C.q_face(-1.,u), 0.008, "grip"))
                 elif opm.kind == "flush_pull":
                     add_recessed_pull(model, b, opm, u, u*(x_b-.06), hz, t, -1.0, name=f"{name}_pull")
                 else:

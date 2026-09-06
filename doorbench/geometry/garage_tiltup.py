@@ -140,7 +140,24 @@ def build_tiltup(spec, phys, model):
     carriage.joint = Joint('door_carriage_slide','slide',(0,1,0),(0,0,0),(0.,travel+.01),
         damping=2.,frictionloss=1.,armature=.1,role='mechanism',robot_interactive=False,
         label='Top rollers travel rearward on horizontal tracks')
-    carriage.mass_override=.25
+    # The two roller-bearing eyes need a real rigid connection. A rearward
+    # offset RHS crossmember clears both the wall header and the rotating
+    # panel; its stock mass remains in the carriage's native inertia.
+    beam_y=opening['wall_thickness']/2+.08
+    beam_z=.060
+    half_span=width/2+.050
+    for sign in (-1,1):
+        carriage.geoms.append(C.box(f'tilt_carriage_tube_side_{sign}',(0,beam_y+sign*.014,beam_z),
+            (half_span,.001,.020),steel,7850,True,True,ALL_TIERS,'mechanism','2 mm RHS crossmember side wall'))
+        carriage.geoms.append(C.box(f'tilt_carriage_tube_cap_{sign}',(0,beam_y,beam_z+sign*.019),
+            (half_span,.013,.001),steel,7850,True,True,ALL_TIERS,'mechanism','2 mm RHS crossmember wall'))
+        x=sign*(width/2+.042)
+        carriage.geoms.append(C.box(f'tilt_carriage_offset_{sign}',(x,(.008+beam_y)/2,0),
+            (.008,(beam_y-.008)/2,.005),steel,7850,True,True,ALL_TIERS,'mechanism','Bearing-eye rearward support strap'))
+        carriage.geoms.append(C.box(f'tilt_carriage_elbow_{sign}',(sign*(width/2+.031),beam_y,0),
+            (.019,.006,.005),steel,7850,True,True,ALL_TIERS,'mechanism','Inboard offset beneath track flange'))
+        carriage.geoms.append(C.box(f'tilt_carriage_upright_{sign}',(sign*(width/2+.020),beam_y,.025),
+            (.008,.006,.030),steel,7850,True,True,ALL_TIERS,'mechanism','Offset support welded into crossmember'))
     model.add_body(carriage)
     panel = Body('door','door_carriage',(0,0,0),QUAT_ID,None,[],[],ALL_TIERS,'leaf','Rigid up-and-over panel')
     panel.joint = Joint('door_hinge','hinge',(-1,0,0),(0,0,0),(0.,maximum),
@@ -241,7 +258,8 @@ def build_tiltup(spec, phys, model):
     else:
         C.add_pull(model,panel,opm,1.,0.,hz-zt,thickness,-1.,name='lift_handle')
         model.meta['operator_joint']=None
-    if spec['lock'].get('engaged') and not spec['lock'].get('robot_side_release'):
+    if (spec['lock'].get('engaged') and not spec['lock'].get('robot_side_release')
+            and spec['lock']['model'] not in ('garage_slide_lock','padlock')):
         panel.joint.range=(0.,.01)
     from .garage_locks import add_tiltup_lock
     add_tiltup_lock(model,panel,world,spec,zt)

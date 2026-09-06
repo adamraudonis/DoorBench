@@ -151,3 +151,23 @@ def test_closed_solid_rod_blocks_pin_until_real_slot_arrives(exports):
     p=m.joint('hatch_stay_release').id
     assert d.qpos[m.jnt_qposadr[p]]>.012
     assert abs(d.qpos[m.jnt_qposadr[m.joint('hatch_hinge').id]])<.01
+
+
+@pytest.mark.parametrize('spec', SPECS, ids=lambda s:s['id'])
+def test_ring_pivot_and_release_knob_have_real_connected_stock(exports, spec):
+    m,d,desc=load(exports,spec);mujoco.mj_forward(m,d)
+    if desc['meta']['hatch_hand_access']['opening_contact']=='grip_ring':
+        pin=m.geom('ring_pivot_pin').id
+        ears=[g for g in range(m.ngeom) if m.geom(g).name.startswith('ring_bearing_')]
+        assert len(ears)==12
+        for angle in np.linspace(0,math.pi/2,13):
+            d.qpos[m.jnt_qposadr[m.joint('ring_hinge').id]]=angle
+            mujoco.mj_forward(m,d)
+            gaps=[mujoco.mj_geomDistance(m,d,pin,g,.03,None) for g in ears]
+            assert min(gaps)==pytest.approx(.0005,abs=2e-6)
+        for side in (-1,1):
+            assert mujoco.mj_geomDistance(m,d,pin,m.geom(f'ring_side_{side}').id,.03,None)<0
+    support=desc['meta'].get('hatch_support')
+    if support and support.get('support_release_joint'):
+        assert mujoco.mj_geomDistance(m,d,m.geom('stay_lock_pin').id,
+                                     m.geom('stay_release_knob').id,.03,None)<0

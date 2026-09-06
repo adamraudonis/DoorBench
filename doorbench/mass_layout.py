@@ -15,7 +15,8 @@ def mass_panels(spec):
     def add(name,width=w,height=h,**kwargs):
         result.append({'body':name,'width':width,'height':height,**kwargs})
     if f=='swing_double':
-        inset=.006 if H.HINGES[spec['hinge']['model']].kind in ('pivot_center','pivot_center_heavy') else .003
+        from .construction_dimensions import PAIRED_JAMB_GAP_M
+        inset=.006 if H.HINGES[spec['hinge']['model']].kind in ('pivot_center','pivot_center_heavy') else PAIRED_JAMB_GAP_M
         mullion=leaf.get('astragal')=='removable_mullion'
         width=(wo-2*inset-(.056 if mullion else .003))/2
         add('leaf_a',width)

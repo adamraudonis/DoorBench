@@ -1144,7 +1144,10 @@ def gen_ship(i, ctx, B, rng):
     s["leaf"] = {"width": W, "height": Hh, "thickness": M.SLABS[slab].typical_thickness[0], "slab": slab, "panel_style": B.pick("sw:panel", {"riveted_steel": 1, "porthole": 1, "dished_plate": 1, "steel_flush": 1}), "finish": finish_for(slab, "industrial_utility", B, rng), "count": 1, "glazing": {"material": "glass_laminated_security", "thickness": 0.012, "area_fraction": 0.03, "panel_style": "porthole", "count": 1} if rng.random() < 0.4 else None}
     s["opening"] = {"width": _round(W + 0.01), "height": _round(Hh + 0.01), "wall_thickness": 0.012, "frame": {"kind": "ship_coaming", "material": "steel_painted", "casing": True, "stop_depth": 0.03, "jamb_depth": 0.15}, "threshold": "coaming", "sidelite": False, "transom": False, "sill_height": _round(B.pick("sw:sill", {0.15: 1, 0.30: 2, 0.45: 1}))}
     s["hinge"] = hinge_block("ship_hinge", 2, B.pick("sw:side", ["left", "right"]), swing)
-    s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": B.pick("sw:mo", {110: 1, 150: 1, 180: 1}), "stop": "hook_holdback", "dogs": n_dogs, "wheel_dogging": op == "wheel_ship_hatch"}   # quick-acting doors carry the same dogs; the wheel drives all of them at once
+    # The supported wheel transmission has four pinned output rods. Preserve
+    # the random draw above, but declare the actual assembly count.
+    n_dogs = 4 if op == "wheel_ship_hatch" else n_dogs
+    s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": B.pick("sw:mo", {110: 1, 150: 1, 180: 1}), "stop": "hook_holdback", "dogs": n_dogs, "wheel_dogging": op == "wheel_ship_hatch"}
     s["operator"] = {"model": op, "height": _round(Hh * 0.5), "sides": "both"}
     s["latch"] = {"model": "dogs_6"}
     s["lock"] = {"model": "dogs"}

@@ -152,7 +152,7 @@ def prepare_hoist_open(model, meta, initial_qpos=None, *, time_limit_s=120.):
             if abs(float(np.linalg.norm(initial[start:start+4]))-1)>1e-6:raise ValueError('Initial free-root quaternion must be unit length')
     binary=np.zeros(mujoco.mj_sizeModel(model),dtype=np.uint8);mujoco.mj_saveModel(model,buffer=binary)
     model_hash=hashlib.sha256(binary).hexdigest()
-    opts={'algorithm_version':4,'hoist':meta['rollup_hoist'],'curtain':meta['rollup_curtain'],'time_limit_s':time_limit_s}
+    opts={'algorithm_version':5,'hoist':meta['rollup_hoist'],'curtain':meta['rollup_curtain'],'time_limit_s':time_limit_s}
     key=hashlib.sha256(model_hash.encode()+initial.tobytes()+json.dumps(opts,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     if key in _CACHE:
         _CACHE.move_to_end(key);result=copy.deepcopy(_CACHE[key]);result['cache_hit']=True;return result
@@ -161,7 +161,7 @@ def prepare_hoist_open(model, meta, initial_qpos=None, *, time_limit_s=120.):
         'scope':'Native material-link and positive-keeper force initialization with two seconds of hands-free retention; no security-lock release, source property changes, pose interpolation, robot support or equilibrium guarantee',
         'force_limit_N':rules.force_limit,'peak_force_N':0.,'max_penetration_m':0.,'max_loop_residual_m':0.,
         'max_gear_residual_rad':0.,'regrasps':0,'elapsed_native_s':0.,'trace':[],
-        'algorithm_version':4,'transitions':[],'hands_free_hold_s':0.,'peak_keeper_force_N':0.,
+        'algorithm_version':5,'transitions':[],'hands_free_hold_s':0.,'peak_keeper_force_N':0.,
         'hands_free_pin_load_peak_N':0.,'hands_free_pin_load_observed_s':0.,
         'hands_free_up_stop_load_peak_N':0.,'hands_free_up_stop_load_observed_s':0.,
         'native_warning_messages':[],'native_warning_events':[]}

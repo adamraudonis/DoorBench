@@ -50,6 +50,13 @@ def test_real_pivot_bore_anchorage_grip_and_stock_mass(exports, spec):
     assert model.dof_armature[model.jnt_dofadr[model.joint(hb['hook_joint']).id]] == 0.
     assert hb['hook_body'] in meta['mechanism_mass_bodies']
     assert 'ship_holdback_striker' in meta['mechanism_mass_bodies']
+    striker = model.geom(hb['striker_geom']).id
+    # Rounded ends avoid the opposing duplicate cylinder/box contact normals
+    # reproduced during the second native closing cycle on DB0911. Preserve
+    # the actual bar stock envelope and geometry-derived inertia.
+    assert model.geom_type[striker] == mujoco.mjtGeom.mjGEOM_CAPSULE
+    assert model.geom_size[striker, 0] == pytest.approx(.006)
+    assert 2 * model.geom_size[striker, :2].sum() == pytest.approx(.090)
     shaft = model.geom('ship_holdback_pivot_pin').id
     cheeks = [g for g in range(model.ngeom) if model.geom(g).name.startswith('ship_holdback_cheek_')]
     assert len(cheeks) == 6

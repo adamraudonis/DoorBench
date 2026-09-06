@@ -10,6 +10,7 @@ import numpy as np
 from ..ir import ALL_TIERS, Body, Joint, Site, QUAT_ID
 from . import common as C
 from .pocket_hardware import cut_box_recess
+from ..construction_dimensions import MULTIPOINT_CASE_DEPTH_M
 
 SOURCE='https://www.yalehome.com/nz/en/campaigns/4-point-locks'
 
@@ -50,7 +51,7 @@ def add_multipoint(model,leaf,world,spec,*,u,v,x_edge,hz,zb,height,t,handle_join
     steel=C.mat_from_material(model,'stainless','mat_multipoint_steel')
     zdb=hz+.14;upper=min(zdb+.5,zb+height-.12);lower=max(zdb-.55,zb+.15)
     # Real internal mortise preserves both outer door skins.
-    xs=sorted((x_edge-u*.135,x_edge+u*.002))
+    xs=sorted((x_edge-u*MULTIPOINT_CASE_DEPTH_M,x_edge+u*.002))
     removed=cut_box_recess(leaf,(xs[0],-.016,lower-.065),(xs[1],.016,upper+.045),name+'_case')
     bar=Body(name+'_drivebar',leaf.name,(0,0,0),semantic='lock',label='Lift-lock drive bar')
     engaged=bool(spec['lock']['engaged'])

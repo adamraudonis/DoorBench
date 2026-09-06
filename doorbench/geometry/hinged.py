@@ -21,7 +21,7 @@ def _uv(spec):
 
 
 # top of the sill / threshold the floor strike of a bottom shoot bolt stands on
-FLOOR_STRIKE_TOP = {"none": 0.0, "saddle": 0.013, "sill": 0.013, "sill_step": 0.045, "coaming": 0.0}
+from ..construction_dimensions import FLOOR_STRIKE_TOP_M as FLOOR_STRIKE_TOP
 # m; a retracted bottom shoot bolt has to clear a 25 mm floor dome stop, so it pulls up into its rod housing rather
 # than stopping flush with the leaf's bottom edge (which is how a cremone / SVR rod end actually retracts)
 FLOOR_RETRACT_Z = 0.030
@@ -170,10 +170,10 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         y_pin = 0.0
     else:
         # butt hinge: pin at the door edge line, its knuckle proud of the frame's swing-side face (see hinge_throw)
-        x_axis_rel = u * C.GAP
+        x_axis_rel = u * (pair['jamb_gap'] if pair else C.GAP)
         y_pin = v * C.hinge_throw(t, depth_, y_wall, v, W)
     hx = pair["hx"] if pair else u * (-Wo / 2)      # hinge jamb inner face x (world)
-    x_leaf0 = u * C.GAP                                # leaf hinge edge in body frame (body origin at jamb face)
+    x_leaf0 = u * (pair['jamb_gap'] if pair else C.GAP)  # physical hinge-edge clearance
     if hg.kind in ("pivot_center", "pivot_center_heavy"):
         x_leaf0 = u * 0.006
     if abs(y_pin) < 1e-9:
@@ -651,7 +651,9 @@ def build_swing_double(spec, phys, model: Model):
     double_egress = spec["kinematics"].get("double_egress", False)
     pair = {"world": world, "pockets": [], "jamb_t": 0.05}
     hg_ = H.HINGES[spec["hinge"]["model"]]
-    inset_ = 0.006 if hg_.kind in ("pivot_center", "pivot_center_heavy") else C.GAP
+    from ..construction_dimensions import PAIRED_JAMB_GAP_M
+    inset_ = 0.006 if hg_.kind in ("pivot_center", "pivot_center_heavy") else PAIRED_JAMB_GAP_M
+    pair['jamb_gap']=inset_
     W_leaf = (Wo - 2 * inset_ - C.GAP) / 2 if not mullion else (Wo - 2 * inset_ - 0.05 - 2 * C.GAP) / 2
     # leaf A: hinge left (u=+1); leaf B: hinge right (u=-1)
     res = {}
@@ -882,7 +884,7 @@ def build_ship(spec, phys, model: Model):
     mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
     dog_joints = []
     positions = []
-    if n_dogs:
+    if n_dogs and not spec["kinematics"].get("wheel_dogging"):
         per_side = max(1, n_dogs // 2)
         for k in range(per_side):
             z = 0.2 + (Hh - 0.4) * (k + 0.5) / per_side
@@ -918,6 +920,7 @@ def build_ship(spec, phys, model: Model):
                 wy = t / 2 + 0.034
                 d.geoms.append(C.box(f"dog_{k}_wedge", (edge_dir * 0.06, -v * wy, 0), (0.05, 0.012, 0.02), mat, 7800, True, True, ALL_TIERS, "lock", "Dog wedge"))
                 model.add_body(d)
+                dog_joints.append(d.joint.name)
                 cx = hx + xd + edge_dir * 0.08
                 world.geoms.append(C.box(f"cleat_{k}", (cx, -v * (wy - 0.012 - 0.005 - 0.003), zd + sill), (0.02, 0.005, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Dog cleat"))
                 world.geoms.append(C.box(f"cleat_{k}_base", (cx, -v * (wy + 0.036), zd + sill), (0.02, 0.018, 0.025), fm, 7850, True, True, ALL_TIERS, "lock", "Cleat base"))
