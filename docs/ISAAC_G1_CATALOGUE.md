@@ -18,6 +18,10 @@ The G1 controls its legs and holds a fixed upper-body posture. It has no door pe
 
 The four-door [earlier integration demo](ISAAC_G1_DEMO.md) contains an already-open doorway and selected easy cases. Its 3/4 result is not comparable to this closed-start catalogue sweep.
 
+## Watch progress locally
+
+For new GPU runs, register the output directory in the [local Run Center](GPU_RUN_CENTER.md) before launching. The current runner emits a five-second heartbeat; the frozen historical runner remains available for exact reproduction.
+
 ## Reproduce the evaluation
 
 Use Linux with an RTX-capable GPU and the [tested installation procedure](RUNPOD.md). The evaluation runner was frozen at `a0d8248cc`; the source hashes and frozen inputs accompanying the recorded run take precedence over a newly generated dataset.
