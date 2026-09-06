@@ -100,7 +100,7 @@ def build_sliding(spec, phys, model: Model):
     opens_left = spec["hinge"]["side"] == "left"
     s_open = -1.0 if opens_left else 1.0     # direction the leaf moves to open
     outdoor = bool(op.get("outdoor"))
-    m_leaf = phys["mass"]["total_kg"]
+    m_leaf = phys["mass"]["per_leaf_kg"]
     fixed_panel = bool(op.get("fixed_panel"))
     center = fam == "elevator" and kin.get("center_opening") or fam == "automatic_sliding" and kin.get("bi_parting")
     # y plane of the leaf(s)
@@ -681,7 +681,7 @@ def build_revolving(spec, phys, model: Model):
         a = 2 * math.pi * k / wings
         q = quat_from_axis_angle([0, 0, 1], a)
         Wl = R - 0.04
-        rotor.geoms.append(C.box(f"wing_{k}_glass", (Wl / 2 * math.cos(a) + 0.02 * math.cos(a), Wl / 2 * math.sin(a) + 0.02 * math.sin(a), Hh / 2 + 0.05), (Wl / 2, t / 2, Hh / 2 - 0.05), gm, 2500, True, True, ALL_TIERS, "glass", f"Wing {k + 1} glass", quat=q, mass=phys["mass"]["total_kg"]))
+        rotor.geoms.append(C.box(f"wing_{k}_glass", (Wl / 2 * math.cos(a) + 0.02 * math.cos(a), Wl / 2 * math.sin(a) + 0.02 * math.sin(a), Hh / 2 + 0.05), (Wl / 2, t / 2, Hh / 2 - 0.05), gm, 2500, True, True, ALL_TIERS, "glass", f"Wing {k + 1} glass", quat=q, mass=phys["mass"]["per_leaf_kg"]))
         # tip stile: same z envelope as the rails (its outer face at R runs 14 mm inside the drum glass: brush-seal gap)
         rotor.geoms.append(C.box(f"wing_{k}_stile", ((R - 0.02) * math.cos(a), (R - 0.02) * math.sin(a), (z_bot + z_top) / 2), (0.02, 0.03, (z_top - z_bot) / 2), fm, 2700, True, True, ALL_TIERS, "leaf", "Wing stile", quat=q))
         rotor.geoms.append(C.box(f"wing_{k}_rail_b", (Wl / 2 * math.cos(a), Wl / 2 * math.sin(a), z_bot + 0.04), (Wl / 2, 0.03, 0.04), fm, 2700, True, True, FULL_SIMPLE, "leaf", "Bottom rail", quat=q))
@@ -830,7 +830,7 @@ def build_vertical(spec, phys, model: Model):
     if fam == "garage_sectional":
         ns = kin.get("n_sections", 4)
         sh = Hh / ns
-        phys_k = {"mass": {"slab_kg": phys["mass"]["slab_kg"] / ns}}
+        phys_k = {"mass": {"leaf_slab_kg": phys["mass"]["leaf_slab_kg"] / ns}}   # one section of the one leaf
         for k in range(ns):
             sub = {**leaf, "height": sh, "panel_style": leaf["panel_style"]}
             C.add_leaf_geoms(model, lb, spec, sub, 1.0, -W / 2, 0.01 + k * sh, phys_k, name_prefix=f"section_{k}", Hh=sh)
@@ -1043,7 +1043,7 @@ def build_horizontal(spec, phys, model: Model):
         lb.joint = j
         model.add_body(lb)
         lm = C.mat_from_finish(model, leaf["finish"], "mat_leaf")
-        lb.geoms.append(C.box("hatch_slab", (0, -Ho / 2, 0), (W / 2, Ho / 2 - 0.004, t / 2), lm, 1.0, True, True, ALL_TIERS, "leaf", "Hatch slab", mass=phys["mass"]["slab_kg"]))
+        lb.geoms.append(C.box("hatch_slab", (0, -Ho / 2, 0), (W / 2, Ho / 2 - 0.004, t / 2), lm, 1.0, True, True, ALL_TIERS, "leaf", "Hatch slab", mass=phys["mass"]["leaf_slab_kg"]))
         # the surface hinges themselves: a knuckle on the lid and one on the curb, coaxial with the hinge axis, so
         # the lid hangs on something instead of merely sitting 4 mm inside its curb
         hgm = C.mat_from_material(model, "steel_galvanized", "mat_hinge")
@@ -1126,7 +1126,7 @@ def build_horizontal(spec, phys, model: Model):
         model.add_body(flap)
         slab = M.SLABS[leaf["slab"]]
         gm = C.mat_from_material(model, slab.core_material, "mat_flap")
-        flap.geoms.append(C.box("flap_geom", (0, 0, -Hh / 2), (W / 2 - 0.003, t / 2, Hh / 2 - 0.002), gm, 1.0, True, True, ALL_TIERS, "leaf", "Flap", mass=phys["mass"]["total_kg"]))
+        flap.geoms.append(C.box("flap_geom", (0, 0, -Hh / 2), (W / 2 - 0.003, t / 2, Hh / 2 - 0.002), gm, 1.0, True, True, ALL_TIERS, "leaf", "Flap", mass=phys["mass"]["per_leaf_kg"]))
         model.meta.setdefault("attachment_allow", []).append(
             ["*", "flap*", "a pet flap swings in a hole: it hangs on the hinge line at the top of its frame and keeps a running clearance from the frame all round"])
         if kin.get("magnet_force_N", 0) > 0:

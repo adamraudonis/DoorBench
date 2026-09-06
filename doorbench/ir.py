@@ -262,6 +262,7 @@ class Geom:
             "material": self.material, "collision": self.collision, "visual": self.visual,
             "density": self.density, "friction": list(self.friction), "tiers": sorted(self.tiers),
             "semantic": self.semantic, "part_label": self.part_label,
+            "volume_m3": float(self.volume()),   # so a consumer can check mass against volume x density
         }
         if self.type == "mesh":
             d["mesh_name"] = self.mesh_name

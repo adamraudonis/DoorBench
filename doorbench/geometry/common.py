@@ -485,7 +485,7 @@ def add_leaf_geoms(model: Model, leaf_body: Body, spec: dict, leaf: dict, u: flo
     fin = leaf["finish"]
     lm = mat_from_finish(model, fin, f"mat_{name_prefix}")
     face = M.slab_face_material(slab)
-    mass = phys["mass"]["slab_kg"] if phys else None
+    mass = phys["mass"]["leaf_slab_kg"] if phys else None      # ONE leaf's slab: this draws one leaf
     xc = x0 + u * W / 2
     zc = z0 + Hh / 2
     style = leaf.get("panel_style", "flush")

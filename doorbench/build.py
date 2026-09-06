@@ -226,6 +226,41 @@ MIN_MODELLED_T = 0.003   # m; the thinnest a leaf may be MODELLED.  spec["leaf"]
 #                          physics has been derived, so no mass or QA number moves.
 
 
+def primary_assembly(model: Model):
+    """What the primary joint carries: the mass of its whole subtree, and that subtree's lever about the axis.
+
+    mass  one leaf of a pair or a bypass set, but the WHOLE rotor of a revolving door or turnstile and the whole
+          stack of a fold - the mass a push on the primary joint has to accelerate.
+    arm   the perpendicular distance from the joint axis to that subtree's centre of mass: the lever the door's
+          own weight works through when the leaf is laid horizontal, which is what sizes the QA push.  It is
+          W/2 for a leaf on a vertical hinge, H/2 for a strip hanging from a horizontal rod, and ~0 for a
+          balanced rotor.  Returns (mass, arm) or None.
+    """
+    pj = model.meta.get("primary_joint")
+    if not pj:
+        return None
+    host = next((b for b in model.bodies if b.joint is not None and b.joint.name == pj), None)
+    if host is None:
+        return None
+    kids = {}
+    for b in model.bodies:
+        kids.setdefault(b.parent, []).append(b.name)
+    total, stack = 0.0, [host.name]
+    while stack:
+        nm = stack.pop()
+        b = model.body(nm)
+        if b is None:
+            continue
+        total += float(b.inertial("full")[0])
+        stack.extend(kids.get(nm, []))
+    arm = 0.0
+    if host.joint.type == "hinge":
+        _, _, com_rel, axis = _subtree_about_axis(model, host, host.joint.axis, host.joint.pos)
+        perp = np.asarray(com_rel, dtype=float) - float(np.dot(com_rel, axis)) * np.asarray(axis, dtype=float)
+        arm = float(np.linalg.norm(perp))
+    return total, arm
+
+
 def build_model(spec: dict, phys: dict | None = None) -> Model:
     phys = phys or P.derive(spec)
     if float(spec["leaf"].get("thickness", 1.0)) < MIN_MODELLED_T:
@@ -292,20 +327,29 @@ def build_model(spec: dict, phys: dict | None = None) -> Model:
             floor = 0.5
         j.armature = max(j.armature, floor)
     op = spec["opening"]
-    # --- mass reconciliation: the derived slab + glass mass (physics.py, calibrated to manufacturer weight tables) is
-    # distributed over the leaf bodies by volume, so the simulated moving mass matches the spec whatever the geometry
-    # builder did (glass panes, split leaves, strips and rotors otherwise carried density-based masses)
+    # --- mass reconciliation.  physics.mass_budget states what ONE leaf is made of (slab area density x its own
+    # area, plus its glazing) and how many leaves the door has; the leaf bodies together must weigh ALL of them.
+    # Splitting one leaf's mass across the leaves - what this used to do - made every multi-leaf door 2-8x too
+    # light (a four-wing revolving door 110 kg where its wings alone are 440).  On top of the material, the leaf
+    # carries any declared hardware the geometry did not model as its own body (tracks, hangers, straps, plates);
+    # where the geometry models MORE hardware than the catalogue charged, the rider is zero and the leaf keeps
+    # exactly its material.  qa.leaf_mass_checks re-derives all of this from the spec and gates it.
     leaf_bodies = [b for b in model.bodies if getattr(b, "semantic", "") == "leaf" and not b.static]
     hw_now = float(sum(b.inertial("full")[0] for b in model.bodies if not b.static and getattr(b, "semantic", "") != "leaf"))
-    slab_glass = float(phys["mass"].get("slab_kg", 0.0) + phys["mass"].get("glass_kg", 0.0))
-    # hardware that is not modelled as its own body (tracks, hangers, straps, plates) rides on the leaf
-    tgt_mass = max(0.5 * slab_glass, float(phys["mass"]["total_kg"]) - hw_now)
+    leaf_material = float(phys["mass"].get("slab_kg", 0.0) + phys["mass"].get("glass_kg", 0.0))   # ALL leaves
+    rider = max(float(phys["mass"].get("hardware_kg", 0.0)) - hw_now, 0.0)
+    tgt_mass = leaf_material + rider
     if tgt_mass > 0 and leaf_bodies:
         vols = [max(sum((g.volume() or 0.0) for g in b.geoms), 1e-6) for b in leaf_bodies]
         vt = sum(vols)
         for b, vol in zip(leaf_bodies, vols):
             b.mass_override = tgt_mass * vol / vt
         model.meta["mass_reconciled_kg"] = tgt_mass
+    model.meta["mass"] = {"leaf_material_kg": leaf_material, "leaf_hardware_rider_kg": rider,
+                          "hardware_modelled_kg": hw_now, "leaf_bodies": len(leaf_bodies),
+                          "total_moving_kg": tgt_mass + hw_now if (tgt_mass > 0 and leaf_bodies) else leaf_material + hw_now}
+    phys["mass"]["model_total_moving_kg"] = model.meta["mass"]["total_moving_kg"]
+    phys["mass"]["leaf_hardware_rider_kg"] = rider
     model.meta["scene_extent"] = max(1.5, 0.75 * max(op["width"], op["height"]) + 0.5)
     model.meta["cam_target_z"] = 0.5 * op["height"] + float(op.get("elevation", 0.0) or 0.0) + float(op.get("sill_height", 0.0) or 0.0) * 0.5
     model.meta["cam_target_x"] = 0.0
@@ -360,6 +404,16 @@ def build_model(spec: dict, phys: dict | None = None) -> Model:
         model.meta.setdefault("operator_coupling", "individual")
     # operator release behaviour: needs the finished geometry (real inertia, real weight moment) and the armature floors
     tune_operator_returns(model, spec, phys)
+    # what the robot actually has to move: the mass hanging on the primary joint, MEASURED on the finished model.
+    # physics.leaves_on_primary only estimates it (the geometry is what decides whether a fold stacks to one jamb
+    # or two), and everything that sizes an effort from it - the QA push, the parity protocol, the benchmark's
+    # transit time - should use the measured number.
+    pa = primary_assembly(model)
+    if pa is not None and pa[0] > 0:
+        phys["mass"]["primary_assembly_estimated_kg"] = float(phys["mass"].get("primary_assembly_kg", 0.0))
+        phys["mass"]["primary_assembly_kg"] = pa[0]
+        phys["mass"]["primary_com_arm_m"] = pa[1]
+        model.meta["primary_assembly_kg"] = pa[0]
     model.bake_initial()
     model.uniquify()
     model.validate()
