@@ -1,8 +1,10 @@
 # DoorBench — continue here
 
-Written 2026-09-05 as a handoff. A formatted version of this document is `handoffs/handoff.html` (open it in a
-browser), also published at https://claude.ai/code/artifact/3f02a5b2-84b3-45fc-b7cc-94d4a3b4b2bc Master is at `955531917`, pushed, and regenerates clean. Read this file, then
-`docs/LOG.md` (the engineering log: every defect class, how it was found, what the fix was).
+Written 2026-09-05 as a handoff. Master is pushed and regenerates clean. Read this file, then `docs/LOG.md`
+(the engineering log: every defect class, how it was found, what the fix was).
+
+A formatted version of this page is `handoffs/handoff.html` — open it in a browser — and it is also published at
+https://claude.ai/code/artifact/3f02a5b2-84b3-45fc-b7cc-94d4a3b4b2bc
 
 ---
 
