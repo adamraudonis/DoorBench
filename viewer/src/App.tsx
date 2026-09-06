@@ -7,7 +7,7 @@ import { Families } from "./Families";
 import { DoorView } from "./DoorView";
 import { About } from "./About";
 import { Results } from "./Results";
-import { Review } from "./Review";
+import { Review } from "./QuickReview";
 import { MotionLab } from "./MotionLab";
 import { HumanReference } from "./HumanReference";
 import { DATASET, Icon, REPOSITORY, SiteFooter } from "./SiteUI";

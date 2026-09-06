@@ -6,7 +6,7 @@ import { Vector3 } from "three";
 import type { ModelJ, TelescopingLinkageJ, TwoBarLinkageJ } from "./types";
 import { LoopSolver, hasLoops } from "./kinematics";
 
-const ASSETS = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "assets", "doors");
+const ASSETS = path.resolve(process.env.DOORBENCH_TEST_ASSETS || path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "assets"), "doors");
 const have = existsSync(ASSETS);
 
 function load(id: string): ModelJ {

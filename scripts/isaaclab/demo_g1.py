@@ -28,6 +28,7 @@ p.add_argument(
     ),
 )
 p.add_argument("--video", action="store_true")
+p.add_argument("--batch-doors", nargs="+", help="Door IDs for the simultaneous grid runner")
 from isaaclab.app import AppLauncher
 
 AppLauncher.add_app_launcher_args(p)

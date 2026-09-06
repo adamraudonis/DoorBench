@@ -69,7 +69,8 @@ def _key() -> str:
 def _req(method: str, path: str, body: dict | None = None):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(API + path, data=data, method=method,
-                                 headers={"Authorization": f"Bearer {_key()}", "Content-Type": "application/json"})
+                                 headers={"Authorization": f"Bearer {_key()}", "Content-Type": "application/json",
+                                          "User-Agent": "DoorBench/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=90) as r:
             txt = r.read().decode()

@@ -48,12 +48,18 @@ jobs:
           touch site/.nojekyll
           python3 -c 'from pathlib import Path; n=sum(p.stat().st_size for p in Path("site").rglob("*") if p.is_file()); print(f"Site payload: {n:,} bytes"); assert n < 950_000_000, "Site exceeds the publication size budget"'
           du -sh site
-      - name: Check viewer against the published dataset
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Generate current-source viewer regression fixtures
+        run: |
+          python -m pip install -e .
+          python scripts/generate_viewer_test_fixtures.py --out "$RUNNER_TEMP/viewer-test-fixtures"
+      - name: Check current mechanisms and published-release compatibility
         working-directory: viewer
         run: |
-          rsync -a ../site/assets/ ../assets/
           bun run typecheck
-          bun test
+          DOORBENCH_TEST_ASSETS="$RUNNER_TEMP/viewer-test-fixtures" DOORBENCH_PUBLISHED_ASSETS="$GITHUB_WORKSPACE/site/assets" bun test
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

@@ -2,7 +2,7 @@
 
 This walkthrough runs DoorBench with a physically simulated Unitree G1 and Unitree’s existing locomotion checkpoint. It does not train a new policy. The checkpoint controls the legs; the upper body holds a fixed posture. This first adapter uses state observations; optional video recording does not supply camera observations to the policy. Door movement comes from robot contact or the automatic door’s sensor and motor.
 
-The four cases are integration examples, not a score on the 985-door benchmark. The original [MuJoCo G1 demo](../robot_demo/README.md) uses the same checkpoint and observation adapter, but its results cannot be substituted for an Isaac Sim run.
+For the catalogue-wide run and native 4×4 recording, see [the 985-door diagnostic](ISAAC_G1_CATALOGUE.md). The four cases below are integration examples, not a score on the 985-door benchmark. The original [MuJoCo G1 demo](../robot_demo/README.md) uses the same checkpoint and observation adapter, but its results cannot be substituted for an Isaac Sim run.
 
 ## 1. Install the simulator
 
@@ -13,12 +13,15 @@ On a fresh Ubuntu GPU machine, pin the tested source snapshot:
 ```bash
 git clone https://github.com/adamraudonis/DoorBench.git
 cd DoorBench
+# Use the later runtime installer, which pins the ONNX compatibility fix.
+git checkout a0d8248cc
+DOORBENCH_WORK=/opt/doorbench-runtime bash "$PWD/scripts/pod_bootstrap.sh"
+# Restore the original four-case geometry and runner after installation.
 git checkout 85b4a81fe8f28d79ccaab34f730f3d4b1c763c9a
-bash scripts/pod_bootstrap.sh
 source isaaclab/cloud/env.sh
 ```
 
-This installs into `/workspace` by default, downloads several large simulator packages, and launches Isaac once. Check for `RUNTIME_CHECK_OK`, `ISAACLAB_IMPORT_OK`, and `ISAACSIM_OK` in its output. See [GPU setup](RUNPOD.md) for details. Do not run this system bootstrap on a machine whose environment you need to preserve.
+This installs into local disk at `/opt/doorbench-runtime`, downloads several large simulator packages, and launches Isaac once. Check for `RUNTIME_CHECK_OK`, `ISAACLAB_IMPORT_OK`, and `ISAACSIM_OK` in its output. See [GPU setup](RUNPOD.md) for details. Do not run this system bootstrap on a machine whose environment you need to preserve.
 
 With an existing matching Isaac Lab installation, activate its Python environment and install the two packages:
 

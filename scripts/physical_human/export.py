@@ -1,0 +1,161 @@
+"""Package the actual native trajectory for a local, orbitable evidence viewer."""
+
+import argparse
+import hashlib
+import json
+import shutil
+from pathlib import Path
+
+import mujoco
+import numpy as np
+from scipy.spatial.transform import Rotation
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("directory", type=Path)
+    p.add_argument("--web", type=Path, required=True)
+    p.add_argument("--three", type=Path, required=True)
+    a = p.parse_args()
+    out = a.web
+    out.mkdir(parents=True, exist_ok=True)
+    for n in ["index.html", "app.js", "style.css"]:
+        shutil.copy(Path(__file__).parent / "web" / n, out / n)
+    (out / "lib").mkdir(exist_ok=True)
+    for n in ["three.module.js", "three.core.js"]:
+        shutil.copy(a.three / "build" / n, out / "lib" / n)
+    shutil.copy(
+        a.three / "examples/jsm/controls/OrbitControls.js", out / "lib/OrbitControls.js"
+    )
+    m = mujoco.MjModel.from_xml_path(str(a.directory / "scene.xml"))
+    d = mujoco.MjData(m)
+    z = np.load(a.directory / "trajectory.npz")
+    report = json.loads((a.directory / "report.json").read_text())
+    if (
+        not report.get("quality_passed")
+        or not report.get("grasp", {}).get("passed")
+        or report["grasp"].get("minimum_loaded_fingers") != 4
+    ):
+        raise ValueError(
+            "The demonstration requires passing four-finger/opposing-thumb checks"
+        )
+    for name, key in [
+        ("scene.xml", "scene_sha256"),
+        ("trajectory.npz", "trajectory_sha256"),
+    ]:
+        if hashlib.sha256((a.directory / name).read_bytes()).hexdigest() != report[key]:
+            raise ValueError(f"Recorded {name} hash does not match")
+    geoms = []
+    for i in range(m.ngeom):
+        geoms.append(
+            {
+                "name": m.geom(i).name or f"joint_{i}",
+                "body": m.body(m.geom_bodyid[i]).name,
+                "type": int(m.geom_type[i]),
+                "group": int(m.geom_group[i]),
+                "size": m.geom_size[i].tolist(),
+                "rgba": m.geom_rgba[i].tolist(),
+            }
+        )
+    angle_names = [
+        "hand_l_cmc_flexion",
+        "hand_l_cmc_abduction",
+        "hand_l_mp_flexion",
+        "hand_l_ip_flexion",
+        "actor_wrist_l_flexion",
+        "actor_wrist_l_deviation",
+    ]
+    angle_ids = [m.joint(n).qposadr[0] for n in angle_names]
+    frames = []
+    torso_tilt_deg = []
+    chest_id = m.body("actor_chest").id
+    for q in z["qpos"]:
+        d.qpos[:] = q
+        mujoco.mj_forward(m, d)
+        torso_tilt_deg.append(
+            round(float(np.rad2deg(np.arccos(np.clip(d.xmat[chest_id, 8], -1, 1)))), 3)
+        )
+        frames.append(
+            np.round(
+                np.c_[
+                    d.geom_xpos,
+                    Rotation.from_matrix(d.geom_xmat.reshape(-1, 3, 3)).as_quat(),
+                ],
+                6,
+            ).tolist()
+        )
+    (out / "replay.json").write_text(
+        json.dumps(
+            {
+                "geoms": geoms,
+                "angle_names": angle_names,
+                "angles_deg": np.rad2deg(z["qpos"][:, angle_ids]).round(3).tolist(),
+                "torso_tilt_deg": torso_tilt_deg,
+                "frames": frames,
+                "time": z["time"].tolist(),
+                "report": report,
+            },
+            separators=(",", ":"),
+        )
+    )
+    shutil.copy(
+        Path(__file__).parent / "anatomy/LICENSE-MyoSim.txt", out / "LICENSE-MyoSim.txt"
+    )
+    shutil.copy(Path(__file__).parent / "anatomy/README.md", out / "hand-provenance.md")
+    for n in ["scene.xml", "trajectory.npz", "report.json"]:
+        shutil.copy(a.directory / n, out / n)
+    for n in ["walking-plan.npz", "release-plan.json"]:
+        if (a.directory / n).exists():
+            shutil.copy(a.directory / n, out / n)
+    checks = {}
+    for n in ["no-touch", "blocked"]:
+        path = a.directory.parent / n / "report.json"
+        if not path.exists():
+            raise ValueError(f"Missing native causal check: {n}")
+        checks[n] = {
+            k: v
+            for k, v in json.loads(path.read_text()).items()
+            if k not in ["rows", "contacts"]
+        }
+    if (
+        not checks["no-touch"].get("no_touch")
+        or checks["no-touch"]["max_door_deg"] > 0.01
+    ):
+        raise ValueError("Door moves without hand contact")
+    if (
+        not checks["blocked"].get("latch_blocked")
+        or checks["blocked"]["max_door_deg"] >= 1
+    ):
+        raise ValueError("Blocked latch does not prevent opening")
+    for case in checks.values():
+        if (
+            case["source_sha256"] != report["source_sha256"]
+            or case.get("grasp_controller_sha256")
+            != report.get("grasp_controller_sha256")
+            or case.get("kinematic_audit_sha256")
+            != report.get("kinematic_audit_sha256")
+            or case.get("grip_residual_rad") != report.get("grip_residual_rad")
+            or case["rig_sha256"] != report["rig_sha256"]
+            or case.get("hand_source") != report.get("hand_source")
+            or case.get("source_files_sha256") != report.get("source_files_sha256")
+            or case.get("controller_parameters") != report.get("controller_parameters")
+            or case.get("sequence_config") != report.get("sequence_config")
+        ):
+            raise ValueError(
+                "Causal check comes from a different controller/rig revision"
+            )
+    if (a.directory / "overview.mp4").exists():
+        shutil.copy(a.directory / "overview.mp4", out / "overview.mp4")
+    checks["baseline"] = {
+        k: v for k, v in report.items() if k not in ["rows", "contacts"]
+    }
+    checks["hashes"] = {
+        n: hashlib.sha256((out / n).read_bytes()).hexdigest()
+        for n in ["scene.xml", "trajectory.npz", "report.json"]
+    }
+    (out / "checks.json").write_text(json.dumps(checks, indent=2))
+    print(out.resolve())
+
+
+if __name__ == "__main__":
+    main()
