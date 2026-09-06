@@ -46,7 +46,7 @@ function update(t){
 }
 $('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'Pause':'Play';$('play').setAttribute('aria-label',playing?'Pause playback':'Play playback')};$('restart').onclick=()=>seek(0);$('time').oninput=e=>seek(+e.target.value/1000*end);$('speed').onchange=e=>speed=+e.target.value;
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>setView(b.dataset.view));document.querySelectorAll('[data-time]').forEach(b=>b.onclick=()=>seek(+b.dataset.time));
-$('xray').onchange=e=>meshes.forEach((mesh,i)=>{if(data.geoms[i].name==='door_leaf'){mesh.material.transparent=e.target.checked;mesh.material.opacity=e.target.checked?.12:1;mesh.material.depthWrite=!e.target.checked;mesh.castShadow=!e.target.checked}});
+$('xray').onchange=e=>meshes.forEach((mesh,i)=>{if(data.geoms[i].name==='door_leaf'){mesh.material.transparent=e.target.checked;mesh.material.opacity=e.target.checked?.12:1;mesh.material.depthWrite=!e.target.checked;mesh.material.needsUpdate=true;mesh.castShadow=!e.target.checked}});
 orbit.addEventListener('start',()=>{manualOrbit=true});window.addEventListener('keydown',e=>{if(e.code==='Space'&&!['INPUT','BUTTON','SELECT'].includes(document.activeElement.tagName)){e.preventDefault();$('play').click()}});
 new ResizeObserver(()=>{const w=viewport.clientWidth,h=viewport.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix()}).observe(viewport);
 update(0);setView('scene');
