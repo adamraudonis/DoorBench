@@ -1847,6 +1847,55 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
         # the hook it hangs on (a wreath 7 mm off the door face with nothing behind it reads as floating)
         leaf_body.geoms.append(cyl("wreath_hook", (x0 + u * W / 2, -1.0 * (t / 2 + 0.007), z0 + Hh * 0.78 + min(0.2, W * 0.25) - 0.012),
                                    0.004, 0.008, mat_from_material(model, "brass", "mat_wreath_hook"), (0, 1, 0), 8500, False, True, FULL_ONLY, "decor", "Wreath hook"))
+    # Three extras the taxonomy samples, physics.py charges hardware mass for, and no builder ever
+    # drew: a door that says it has a louvre vent and has none is the "hardware the spec implies but
+    # that is not visible" class the vision review exists to catch (docs/VISION_REVIEW.md).
+    if "louver_vent" in ex and spec["leaf"].get("panel_style") not in ("louver_full", "louver_half") \
+            and not spec["leaf"].get("pet_flap"):     # both want the bottom third of the leaf
+        vm = mat_from_material(model, "aluminum", "mat_vent")
+        vw, vh = min(0.30, W - 0.16), 0.25
+        zc = z0 + 0.18 + vh / 2
+        xc = x0 + u * W / 2
+        for f in (-1.0, 1.0):
+            for sgn in (-1, 1):                                   # vent frame stiles
+                leaf_body.geoms.append(box(f"louver_vent_stile_{'p' if f > 0 else 'n'}_{'r' if sgn > 0 else 'l'}",
+                                           (xc + sgn * (vw / 2 + 0.012), f * (t / 2 + 0.002), zc),
+                                           (0.012, 0.002, vh / 2 + 0.012), vm, 2700, False, True,
+                                           FULL_ONLY, "decor", "Louvre vent frame"))
+            for sgn in (-1, 1):                                   # vent frame head / sill
+                leaf_body.geoms.append(box(f"louver_vent_rail_{'p' if f > 0 else 'n'}_{'t' if sgn > 0 else 'b'}",
+                                           (xc, f * (t / 2 + 0.002), zc + sgn * (vh / 2 + 0.012)),
+                                           (vw / 2, 0.002, 0.012), vm, 2700, False, True,
+                                           FULL_ONLY, "decor", "Louvre vent frame"))
+        n_sl = 6
+        for k in range(n_sl):                                      # slats, sloped like a real louvre
+            zk = zc - vh / 2 + (k + 0.5) * vh / n_sl
+            leaf_body.geoms.append(box(f"louver_vent_slat_{k}", (xc, 0.0, zk),
+                                       (vw / 2, 0.0015, vh / n_sl * 0.36), vm, 2700, False, True,
+                                       FULL_ONLY, "decor", "Louvre slat",
+                                       quat=tuple(quat_from_axis_angle([1, 0, 0], math.radians(-30)))))
+    if "weather_drip_cap" in ex:
+        dm = mat_from_material(model, "aluminum", "mat_drip")
+        # on the frame head above the opening, not on the leaf: a drip cap on a swinging leaf would
+        # sweep the head casing.  Same standoff treatment as the EXIT sign.
+        world.geoms.append(box("weather_drip_cap", (0, -v * 0.03, Ho + 0.045), (Wo / 2 + 0.05, 0.03, 0.008),
+                               dm, 2700, False, True, FULL_ONLY, "decor", "Weather drip cap"))
+        brace_to_structure(world, world.geoms[-1], -v, dm, name="weather_drip_cap_bracket",
+                           semantic="decor", label="Drip cap fixing", tiers=FULL_ONLY, span=0.30)
+    if "hold_open_kickdown" in ex:
+        hm = mat_from_material(model, "brass", "mat_kickdown")
+        # kick-down holder on the leaf's latch stile, low, retracted: the latch stile is the part that
+        # leaves the frame first as the door opens, so a face-mounted holder there sweeps nothing
+        xk = x0 + u * (W - 0.10)
+        leaf_body.geoms.append(box("kickdown_housing", (xk, -v * (t / 2 + 0.016), z0 + 0.16),
+                                   (0.022, 0.016, 0.045), hm, 8500, False, True, FULL_ONLY,
+                                   "decor", "Kick-down holder housing"))
+        leaf_body.geoms.append(box("kickdown_arm", (xk, -v * (t / 2 + 0.012), z0 + 0.095),
+                                   (0.012, 0.006, 0.045), hm, 8500, False, True, FULL_ONLY,
+                                   "decor", "Kick-down holder arm (retracted)"))
+        leaf_body.geoms.append(cyl("kickdown_pad", (xk, -v * (t / 2 + 0.012), z0 + 0.052), 0.014, 0.006,
+                                   mat_from_material(model, "pvc", "mat_kickdown_pad"), (0, 0, 1), 1200,
+                                   False, True, FULL_ONLY, "decor", "Kick-down rubber pad"))
     if "coat_hook" in ex:
         key, mesh = MESH.coat_hook_mesh()
         hm = mat_from_material(model, "chrome", "mat_hook")

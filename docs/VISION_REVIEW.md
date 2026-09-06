@@ -1023,7 +1023,7 @@ that happened to be sampled.
 | 3 | An automatic swing operator's arm pointing into open space with the door open, connected to nothing | `auto_operator_arm` / `_shoe` are geoms of the **leaf** body (`common.py:1698`, comment: "arm to the leaf (visual)"); 35 mm short of the header even shut, half a metre away at full open | **15 doors** (10 automatic_swing, 3 swing_single, 2 swing_double) | blocker |
 | 4 | Closed, mid-travel and fully open panels identical on a door whose task is "open and traverse" | the primary joint's whole range is 2 mm (elevator) or ±2.9° (turnstile); MuJoCo ranges are static, so releasing the interlock/mag-lock cannot widen them | **24 benchmark-eligible doors** (8 elevator, 13 turnstile, 1 gate_sliding, 1 swing_single, 1 garage_sectional) + 28 swing pairs with the inactive leaf welded shut, 4 of them with no bolt in the spec at all | blocker |
 | 5 | A caption reading "4 leaves … 5.5 kg" over four full-height doors | `physics.leaf_mass` is documented as "mass of **one leaf**" and the pipeline uses it as the whole door's mass, splitting it across all leaves. Implied area density = stated area density / leaf count, exactly, on every multi-leaf door | **219 doors** (76 swing_double, 35 sliding_bypass, 30 bifold, 15 revolving, 12 accordion, 20 turnstile, 9 saloon, 9 automatic_sliding, 8 strip_curtain, 5 elevator) - a 4-wing revolving door weighs 110 kg instead of 440 | major (physics-wide) |
-| 6 | A caption listing extras that are nowhere on the door | 5 extras are implemented nowhere (`louver_vent`, `door_stop_wall`, `hold_open_kickdown`, `weather_drip_cap`, `soft_close_damper`); 4 family builders never call `add_extras` at all (revolving, turnstile, vault, blast) | **156 declared extras across 153 doors**; `physics.py` still charges hardware mass for several of them | major |
+| 6 | A caption listing extras that are nowhere on the door | 5 extras were implemented nowhere (`louver_vent`, `door_stop_wall`, `hold_open_kickdown`, `weather_drip_cap`, `soft_close_damper`); 4 family builders never call `add_extras` at all (revolving, turnstile, vault, blast) | **156 declared extras across 153 doors**; `physics.py` still charges hardware mass for several of them. **47 of them fixed here** (see below); 109 remain | major |
 | 7 | A hatch standing 90° open with nothing holding it, on a door whose caption says `stop=prop_arm` | the named stop part has no geometry | **35 doors** (9 prop_arm, 10 hook_holdback, 13 wall_180, 3 kick_down_holder) | major |
 | 8 | A blank leaf in the far-face close-up next to a caption saying the pull is on both sides | operator-semantic geoms all on one face | **129 doors**, concentrated in the families whose builders do not use `operator_faces()` (sliding_single, gate_swing, stall, baby_gate, rollup, garage, ship_watertight) | major |
 | 9 | Two dog levers on a door captioned `dogs_6` | moving dog/bolt joints counted against the model name | **12 doors** (10 build 4 where the name says 6, 2 build 8) | major |
@@ -1077,11 +1077,33 @@ and each one was killed by a measurement rather than by argument.
 
 ### What was fixed here, and what was not
 
-**Fixed in this branch** (the review tool, `doorbench/review/`): the five rendering defects above, each
-of which was making a correct door look wrong or a wrong one look right. No dataset geometry was
-changed: every remaining finding is either dataset-wide (the mass formula touches 219 doors and every
-physics number derived from them) or needs a real mechanism where there is now a decoration, and
-neither is a change to make without the owner's call on the physics it moves.
+**Fixed in the review tool** (`doorbench/review/sheet.py`): the five rendering defects above, each of
+which was making a correct door look wrong or a wrong one look right.
+
+**Fixed in the dataset** (`doorbench/geometry/common.py`, `add_extras`): three of the five extras that
+no builder had ever drawn - `louver_vent` (25 doors), `weather_drip_cap` (11), `hold_open_kickdown`
+(11). Each is in `taxonomy.EXTRAS`, each is sampled into specs, and each is charged 0.9 / 0.3 / 0.3 kg
+of hardware mass in `physics.py`, so 46 doors were carrying weight for parts that did not exist.
+Placement follows the conventions that already pass every gate: the vent is a framed grille with six
+sloped slats in the lower third of the leaf, 2 mm proud of both faces like a kick plate; the drip cap
+goes on the *frame head*, not the leaf, because a drip cap on a swinging leaf sweeps the head casing,
+and it is braced back to the wall with `brace_to_structure` exactly as the EXIT sign is; the kick-down
+holder sits on the leaf's **latch** stile, which is the part that leaves the frame first as the door
+opens, so a face-mounted holder there sweeps nothing. One door (`db0823_swing_single`) also carries a
+pet flap, which wants the same bottom third of the leaf; it fails clearance if both are drawn, so the
+vent is skipped there - the same guard `kick_plate` already uses.
+
+Proved by regeneration: **1000/1000 signed off, clearance 1000/1000, running_clearance 1000/1000,
+attachment 1000/1000, 1627 tests pass**, and `tests/test_vision_review.py` now asserts that a door
+declaring one of the three extras actually draws it.
+
+![louvre vent, now drawn](fixed_db0040_swing_single.jpg)
+![weather drip cap on the frame head](fixed_db0086_swing_single.jpg)
+![kick-down holder on the latch stile](fixed_db0081_swing_single.jpg)
+
+**Not fixed**: everything else. Each remaining finding is either dataset-wide (the mass formula moves
+219 doors and every physics number derived from them) or needs a real mechanism where there is now a
+decoration; neither is a change to make without the owner's call on the physics it moves.
 
 ### Handoff
 
@@ -1108,12 +1130,12 @@ Grouped by the file the fix lands in. Each item is stated so it can be picked up
    on the leaf is a case it has not seen.
 
 **`doorbench/geometry/common.py` - `add_extras()` (line 1807)**
-3. Five extras in `taxonomy.EXTRAS` are implemented nowhere: `louver_vent` (26 doors), `door_stop_wall`
-   (21), `hold_open_kickdown` (11), `weather_drip_cap` (11), `soft_close_damper` (6). `physics.py`
-   already charges 0.9 / 0.3 / 0.3 kg of hardware mass for three of them, so the doors carry weight for
-   parts that do not exist. All are leaf- or wall-mounted and small; the only care needed is the
-   running-clearance gate, since a face-mounted part at the bottom or top of a leaf sweeps past the
-   casing.
+3. Two of the five unimplemented extras are still unimplemented (the other three were fixed here):
+   `door_stop_wall` (21 doors) and `soft_close_damper` (6). Both were left because a wrongly placed one
+   is worse than none: a wall stop has to be put where the leaf's latch stile actually reaches at max
+   open (mirror the `floor_stop_dome` sweep calculation, and note it only makes sense on doors that
+   open close to 180 deg), and a soft-close damper needs the track's own geometry, which `add_extras`
+   does not have - it belongs in `sliding_tracks.add_tracks` beside the end stops.
 4. `add_extras()` is called from exactly two places (`hinged.py:702`, `other.py:488`). `build_revolving`,
    `build_turnstile`, `build_vertical` and `build_horizontal` never call it, so `push_pull_sign` (15
    revolving), `keypad_reader_wall` (20 turnstiles) and `warning_placard` (14 vault/blast) are silently

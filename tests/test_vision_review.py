@@ -375,3 +375,35 @@ def test_category_by_family_table_totals():
 def test_prompt_for_is_deterministic(rendered):
     rec, _ = rendered
     assert prompt_for(rec) == prompt_for(rec), "the rubric must be byte-stable or caching never hits"
+
+
+# ---------------------------------------------------------------------------------------------
+# the one dataset defect this review fixed
+# ---------------------------------------------------------------------------------------------
+@pytest.mark.parametrize("extra,pattern", [("louver_vent", "louver_vent_"),
+                                           ("weather_drip_cap", "weather_drip_cap"),
+                                           ("hold_open_kickdown", "kickdown_")])
+def test_declared_extra_is_actually_drawn(extra, pattern):
+    """A door that says it has a louvre vent must have one.
+
+    These three extras are in `taxonomy.EXTRAS`, are sampled into specs, and are charged 0.9 / 0.3 /
+    0.3 kg of hardware mass in `physics.py` - and until the vision review looked at the pictures no
+    builder drew any of them.  The exception is a leaf that also carries a pet flap: both want the
+    bottom third of the door, so the vent is skipped there rather than driven through the flap.
+    """
+    import glob
+    checked = 0
+    for p in sorted(glob.glob(os.path.join(ASSETS, "doors", "*", "spec.json"))):
+        with open(p) as f:
+            spec = json.load(f)
+        if extra not in (spec.get("extras") or []):
+            continue
+        if extra == "louver_vent" and (spec["leaf"].get("pet_flap")
+                                       or spec["leaf"].get("panel_style") in ("louver_full", "louver_half")):
+            continue
+        with open(p.replace("spec.json", "model.json")) as f:
+            model = json.load(f)
+        names = [g["name"] for b in model["bodies"] for g in b["geoms"]]
+        assert any(pattern in n for n in names), f"{spec['id']} declares {extra} and draws none of it"
+        checked += 1
+    assert checked >= 5, f"expected the sampler to place {extra} on several doors, saw {checked}"
