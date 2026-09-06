@@ -347,7 +347,7 @@ class _Writer:
             prim = UsdGeom.Xform.Define(self.stage, gp)
             _set_xform(UsdGeom, Gf, prim, pos, quat)
             rel = os.path.relpath(mesh_path, self.out_dir).replace(os.sep, "/")
-            prim.GetPrim().GetReferences().AddReference(rel, Sdf.Path(f"/{g.mesh_name}"))
+            prim.GetPrim().GetReferences().AddReference(rel, Sdf.Path(f"/{_safe(g.mesh_name)}"))
         else:
             return None
         p = prim.GetPrim()
@@ -1724,6 +1724,7 @@ def _write_mesh_usd(mesh, path, name):
     stage = Usd.Stage.CreateNew(path)
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
     UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+    name = _safe(name)
     xf = UsdGeom.Xform.Define(stage, f"/{name}")
     stage.SetDefaultPrim(xf.GetPrim())
     m = UsdGeom.Mesh.Define(stage, f"/{name}/mesh")
