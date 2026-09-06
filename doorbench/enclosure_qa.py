@@ -154,7 +154,10 @@ def run_guided_travel_qa(model, metadata: dict, samples: int = SAMPLES, tol: flo
     except KeyError:
         return {"ok": False, "declared": True, "n_failures": len(failures) + 1,
                 "failures": failures + [{"check": "missing_joint", "joint": decl.get("joint")}]}
-    lo_q, hi_q = (float(v) for v in model.jnt_range[joint])
+    # The NOMINAL unlocked travel is swept even when an engaged lock narrows the MJCF joint range to 3 mm - the
+    # same rule doorbench/sliding_track_qa.py applies to a horizontal rail, and for the same reason: a door that
+    # is locked today still has to be built to run its whole travel.
+    lo_q, hi_q = (float(v) for v in (decl.get("range") or model.jnt_range[joint]))
     hull = ([min(zn["x"][0] for zn in zones), max(zn["x"][1] for zn in zones),
              min(zn["z"][0] for zn in zones), max(zn["z"][1] for zn in zones)] if zones else [0.0] * 4)
     worst = 0.0

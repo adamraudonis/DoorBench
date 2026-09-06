@@ -83,8 +83,10 @@ it is bolted to. `tests/test_enclosure_gates.py` measures that reach.
 
 `doorbench/enclosure_qa.py`, both inside `signed_off`:
 
-**`checks["guided_travel"]`** - sweeps the primary joint over its whole range (33 samples) with joint equalities
-resolved, so coupled parts (a curtain's courses) follow, and requires every geom of the declared moving assembly -
+**`checks["guided_travel"]`** - sweeps the primary joint over its whole NOMINAL travel (33 samples) - the same
+rule `doorbench/sliding_track_qa.py` applies to a horizontal rail, so an engaged lock that narrows the MJCF range
+to 3 mm cannot shrink what is checked - with joint equalities resolved, so coupled parts (a curtain's courses)
+follow, and requires every geom of the declared moving assembly -
 34 to 381 of them per door - to stay inside a declared guide envelope, and never to reach out through the wall
 plane. The envelope cannot be invented: each zone names the static guide/track geoms that **back** it, and the
 zone's lateral faces and its top and bottom must coincide with the extent of that real hardware to within 30 mm.

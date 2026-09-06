@@ -1173,7 +1173,8 @@ def build_vertical(spec, phys, model: Model):
     _sites(world, Ho, -2.0, 2.0)
     model.meta.update({"primary_joint": j.name, "handle_height": hz, "counterbalance_fraction": cb,
                        "guided_travel": {"joint": j.name, "bodies": moving_bodies, "y_min": -wt2 - 0.001,
-                                         "zones": zones, "label": "vertical lift: the door stays in its guides"}})
+                                         "range": [0.0, travel], "zones": zones,
+                                         "label": "vertical lift: the door stays in its guides"}})
     if "operator_joint" not in model.meta:
         model.meta["operator_joint"] = None
     return lb

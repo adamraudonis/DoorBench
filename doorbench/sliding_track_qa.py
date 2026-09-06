@@ -3,6 +3,12 @@
 The nominal unlocked range is swept even when an engaged lock narrows the MJCF
 joint range. A rail-only result is explicitly distinguished from wheel contact;
 it is not evidence that a missing suspension mechanism has been modeled.
+
+Scope: leaves that run along a HORIZONTAL rail. A vertically guided assembly -
+a coiling curtain in its side guides, a sectional door on its tracks - is the
+same requirement about a different axis and a different kind of hardware, and
+is checked by ``doorbench/enclosure_qa.run_guided_travel_qa``
+(``checks["guided_travel"]``), which sweeps the nominal travel the same way.
 """
 from __future__ import annotations
 
