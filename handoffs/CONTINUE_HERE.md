@@ -1,3 +1,8 @@
+> **Historical handoff — reconciled September 6, 2026.** Read
+> [the takeover review](handoff-reconciliation-2026-09-06.md) first. The blanket
+> sign-off claims and merge order below do not describe the current mechanical
+> integration. Do not replace newer physical mechanisms with these older branches.
+
 # DoorBench — continue here
 
 Written 2026-09-05 as a handoff. Master is pushed and regenerates clean. Read this file, then `docs/LOG.md`
