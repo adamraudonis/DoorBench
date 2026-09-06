@@ -286,13 +286,18 @@ def test_the_db0024_stop_is_mounted_and_struck(specs, tmp_path):
 
 
 def test_a_leaf_that_folds_back_to_the_wall_gets_a_wall_bumper(specs):
-    """The stop's mount is decided by the leaf's own travel, not by the name in the spec: at 90 deg the leaf stands
-    perpendicular to its wall and gets the floor riser (all 130 wall_bumper doors in the dataset), and a leaf that
-    folds back against the wall gets the wall plate and tip."""
-    base = next(s for s in specs.values() if s["kinematics"].get("stop") == "wall_bumper")
+    """The stop's mount is decided by the leaf's own travel: at 90 deg the leaf stands perpendicular to its wall and
+    gets the floor riser (every bumper-stopped door in the dataset), and a leaf that folds back against the wall gets
+    the wall plate and tip.
+
+    The spec now NAMES which of the two it is - `floor_bumper` vs `wall_bumper` - and `add_bumper_stop` raises if the
+    name and the reachable mount disagree, so the folded variant here has to declare the wall bumper it gets
+    (docs/SPEC_REALIZED.md).
+    """
+    base = next(s for s in specs.values() if s["kinematics"].get("stop") == "floor_bumper")
     floor_model = build_model(base)
     assert floor_model.meta["stops"][0]["mount"] == "floor"
-    folded = {**base, "kinematics": {**base["kinematics"], "max_open_deg": 180}}   # flat against the wall
+    folded = {**base, "kinematics": {**base["kinematics"], "max_open_deg": 180, "stop": "wall_bumper"}}
     wall_model = build_model(folded)
     st = wall_model.meta["stops"][0]
     assert st["mount"] == "wall", st

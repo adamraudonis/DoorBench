@@ -50,12 +50,13 @@ ENFORCED is the whole of the work it names.  Today's open counts, measured over 
                                 11 electric strikes, 9 key cylinders, 8 hook locks, 8 child-lock covers,
                                 6 electric bolts, 5 card readers, and 11 `jam_stuck` doors that
                                 correctly have no lock hardware at all.
+
     latch_missing   56 doors  - 17 watertight/vault doors whose dogs and bolts carry the `lock` semantic
                                 rather than `latch`, 14 magnetic catches, 8 elevator interlocks and 17
                                 other bolts drawn under another semantic or not at all.
-    hinge_count    ~90 doors  - hinge models whose realization is not a set of numbered stations
-                                (pivots, rotor bearings, piano hinges, flap pins) are excused by
-                                HINGE_NOT_STATIONED; what is left is a real count mismatch.
+
+Both of those are the same class this gate exists for - a declaration with nothing behind it - and both
+are the next tranche of the same work.
 
 Every absence not covered by an exception is a defect and must be fixed in the generator.
 """
@@ -63,7 +64,6 @@ from __future__ import annotations
 
 import fnmatch
 import json
-import math
 import os
 import re
 
@@ -117,8 +117,8 @@ STOP_EXCEPTIONS = {
                  "hardware and is not drawn; the joint limit carries it",
     "overhead_90": "a concealed overhead stop lives inside the door's top rail and the frame soffit; "
                    "the track and slide arm are not modelled and the joint limit carries the travel",
-    "overhead_105": "as overhead_90",
-    "overhead_110_hold": "as overhead_90",
+    "overhead_105": "a concealed overhead stop at 105 deg: as overhead_90, inside the rail and the soffit",
+    "overhead_110_hold": "a concealed overhead stop and holder: as overhead_90, inside the rail and the soffit",
     "wedge_jammed": "a wedge kicked under the leaf; modelled as the joint range, not as loose furniture",
 }
 
@@ -159,11 +159,22 @@ EXTRA_CONTRACT = {
 }
 
 
+# Families whose leaves are not hung on a set of numbered hinge stations at all.
+HINGE_NOT_STATIONED_FAMILIES = {
+    "bifold": "a bi-fold panel pair hangs on a top pivot, a guide and the knuckles between the panels",
+    "accordion": "an accordion's panels hang on a carrier and hinge to each other, not on N butt hinges",
+    "strip_curtain": "each strip hangs on its own hanger off the header",
+    "revolving": "a rotor turns on a floor pivot and a top bearing",
+    "turnstile_tripod": "a rotor turns in its cabinet bearing",
+    "turnstile_fullheight": "a rotor turns on a floor bearing and a roof bearing",
+    "pet_door": "a flap hangs on a pin line through its frame",
+}
+
 # Hinge models whose realization is not a set of numbered butt-hinge stations, so ``hinge["count"]``
 # cannot be counted off the geometry.  Each is excused with the reason.
 HINGE_NOT_STATIONED = {
     "pivot_center": "a pivot door turns on one top and one bottom pivot, not on N leaves",
-    "pivot_center_heavy": "as pivot_center",
+    "pivot_center_heavy": "a heavy centre-pivot set is still one top and one bottom fitting",
     "pivot_offset": "an offset pivot set is a top and a bottom fitting",
     "gravity_pivot": "a gravity hinge is a top and a bottom pivot with a cam",
     "spring_double": "a double-acting spring pivot set is top and bottom",
@@ -177,13 +188,14 @@ HINGE_NOT_STATIONED = {
     "vault_hinge": "a crane hinge is drawn as its barrel, arm and frame brackets",
     "concealed_soss": "a concealed hinge is invisible when the door is shut",
     "bifold_pivot": "a bi-fold panel turns on a top pivot and a bottom pivot",
+    "baby_gate": "a pressure-mounted child gate hangs on a top and a bottom pivot in its frame",
 }
 
 # The rules ``checks["spec_realized"]`` signs off on.  Every one of them is zero over all 1000 doors.
-ENFORCED_RULES = ("operator_missing", "operator_faces", "latch_multiplicity",
-                  "closer_missing", "stop_missing", "stop_wrong_kind", "extra_missing")
+ENFORCED_RULES = ("operator_missing", "operator_faces", "latch_multiplicity", "closer_missing",
+                  "stop_missing", "stop_wrong_kind", "extra_missing", "hinge_count")
 # The same walk, applied to declarations whose realization is not built yet.  Counted, never silent.
-REPORTED_RULES = ("latch_missing", "lock_missing", "hinge_count")
+REPORTED_RULES = ("latch_missing", "lock_missing")
 
 
 def _load(door_dir: str):
@@ -218,8 +230,6 @@ class SpecRealized:
             if len(e) == 3:
                 self.allow.append((e[0], e[1], e[2]))
         self.geoms = [(b, g) for b in self.model["bodies"] for g in b["geoms"] if _tier_ok(g, tier)]
-        self.names = [g["name"] for _, g in self.geoms]
-        self.lnames = [n.lower() for n in self.names]
 
     # ---- helpers ---------------------------------------------------------
     def has(self, globs, semantic=None):
@@ -257,9 +267,6 @@ class SpecRealized:
         self.exceptions.append({"rule": rule, "item": item, "reason": reason, "scope": "global"})
 
     # ---- leaf frames -----------------------------------------------------
-    def leaf_bodies(self):
-        return [b for b in self.model["bodies"] if b.get("semantic") == "leaf" and b.get("joint")]
-
     def owner_leaf(self, body, geom=None):
         """The nearest ancestor (or self) that is a leaf body, and the geom's position in ITS frame.
 
@@ -410,7 +417,7 @@ class SpecRealized:
         for b, g in self.geoms:
             if g.get("semantic") != "hinge":
                 continue
-            m = re.search(r"(?:^|_)hinge_(\d+)(?:_|$)", g["name"])
+            m = re.search(r"_(\d+)(?:_|$)", g["name"])   # hinge_2, hinge_1_jamb, hinge_pintle_0, hinge_strap_eye_1
             if m:
                 idx.add(int(m.group(1)))
         return len(idx)
@@ -421,6 +428,10 @@ class SpecRealized:
         if not want:
             return
         model_id = h.get("model") or ""
+        fam = self.spec["family"]
+        if fam in HINGE_NOT_STATIONED_FAMILIES:
+            self.excuse("hinge_count", model_id, HINGE_NOT_STATIONED_FAMILIES[fam])
+            return
         if model_id in HINGE_NOT_STATIONED:
             self.excuse("hinge_count", model_id, HINGE_NOT_STATIONED[model_id])
             return

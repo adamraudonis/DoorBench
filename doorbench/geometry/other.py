@@ -713,6 +713,9 @@ def build_revolving(spec, phys, model: Model):
             xb, yb = (R * 0.6) * math.cos(a), (R * 0.6) * math.sin(a)
             nx, ny = -math.sin(a), math.cos(a)
             faces_ = (-1.0, 1.0) if spec["operator"].get("sides", "both") == "both" else (-1.0,)
+            # the catalogue's operator mass is the mass of the SET, so a bar on each face is drawn at half the
+            # density each - two full-weight bars per wing would add the set's mass again to a balanced rotor
+            dens_op = 7900 / len(faces_)
             for sf in faces_:
                 sfx = "" if sf < 0 else "_p"
                 if op_id == "push_plate":
@@ -720,15 +723,15 @@ def build_revolving(spec, phys, model: Model):
                     sz = H.OPERATORS["push_plate"].style_params.get("size", (0.10, 0.40))
                     rotor.geoms.append(C.box(f"wing_{k}_push_plate{sfx}",
                                              (xb + sf * nx * (t / 2 + 0.001), yb + sf * ny * (t / 2 + 0.001), 1.0),
-                                             (sz[1] / 2, 0.001, sz[0] / 2), pm, 7900, False, True, ALL_TIERS,
+                                             (sz[1] / 2, 0.001, sz[0] / 2), pm, dens_op, False, True, ALL_TIERS,
                                              "operator", "Push plate", quat=quat_from_axis_angle([0, 0, 1], a)))
                     rotor.sites.append(Site(f"wing_{k}_push{sfx}", (xb + sf * nx * (t / 2 + 0.004), yb + sf * ny * (t / 2 + 0.004), 1.0), QUAT_ID, 0.015, "push"))
                     continue
-                rotor.geoms.append(Geom(f"wing_{k}_bar{sfx}", "capsule", (0.012, 0.15), (xb + sf * nx * (t / 2 + 0.05), yb + sf * ny * (t / 2 + 0.05), 1.0), (1, 0, 0, 0), pm, True, True, 7900, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Push bar"))
+                rotor.geoms.append(Geom(f"wing_{k}_bar{sfx}", "capsule", (0.012, 0.15), (xb + sf * nx * (t / 2 + 0.05), yb + sf * ny * (t / 2 + 0.05), 1.0), (1, 0, 0, 0), pm, True, True, dens_op, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Push bar"))
                 for dz_ in (-0.12, 0.12):
                     rotor.geoms.append(C.cyl(f"wing_{k}_bar{sfx}_stud_{'u' if dz_ > 0 else 'd'}",
                                              (xb + sf * nx * (t / 2 + 0.026), yb + sf * ny * (t / 2 + 0.026), 1.0 + dz_), 0.009, 0.028,
-                                             pm, (nx, ny, 0), 7900, False, True, ALL_TIERS, "operator", "Push bar standoff"))
+                                             pm, (nx, ny, 0), dens_op, False, True, ALL_TIERS, "operator", "Push bar standoff"))
                 rotor.sites.append(Site(f"wing_{k}_push{sfx}", (xb + sf * nx * (t / 2 + 0.05), yb + sf * ny * (t / 2 + 0.05), 1.0), QUAT_ID, 0.015, "push"))
     # build_revolving never called add_extras, so every revolving door silently dropped the push/pull signs its
     # spec declares (docs/VISION_REVIEW.md class 6, 15 doors).  The signs go on the leading wing, which is the one

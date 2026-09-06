@@ -1529,6 +1529,13 @@ def generate_all(seed: int = 20260903) -> list[dict]:
         if (s["family"] == "sliding_bypass" or s["kinematics"].get("track") == "top_hung_pocket") and H.OPERATORS[s["operator"]["model"]].kind in ("pull", "ring_pull", "knob"):
             s["operator"]["model"] = "pull_flush_recessed"    # leaves that pass each other / enter a pocket need flush pulls
             s.setdefault("tags", []).append("flush_pull_required")
+        if s["kinematics"].get("type") == "slide_horizontal" and H.OPERATORS[s["operator"]["model"]].kind == "ring_pull":
+            # a ring pull's grip bar lies ACROSS the leaf, so it fouls the jamb reveal the moment the leaf slides
+            # past it; a horizontally sliding leaf takes the recessed pull instead (the builder used to draw nothing
+            # at all for a ring pull on a slider, so the spec promised an operator that was not there).  A vertical
+            # lift keeps its ring: a shutter's bottom bar passes no jamb.
+            s["operator"]["model"] = "pull_flush_recessed"
+            s.setdefault("tags", []).append("flush_pull_required")
         if s["family"] == "saloon":
             s["kinematics"]["max_open_deg"] = min(s["kinematics"].get("max_open_deg") or 90, 90)
         if s["family"] == "stall":

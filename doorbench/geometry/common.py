@@ -944,8 +944,11 @@ def add_hasp_assembly(model: Model, leaf_body: Body, world: Body, name: str, hin
     # The turned-up tab at the free end is what a hand lifts, and on a `hasp_padlock` door the hasp IS the
     # operator the spec declares - it used to be drawn entirely as `lock`, so the benchmark's grip sites, the
     # viewer's handle camera and the review's hardware close-up all missed it on 9 doors.
-    hb.geoms.append(obox(f"{name}_hasp_tab", tuple(tw * (strap_len - 0.006) + n * 0.006), tw, n, 0.0, 0.0, 0.0,
-                         0.006, w / 2, 0.008, material, False, tiers, "operator", "Hasp lifting tab"))
+    hg_ = np.array([0.0, 0.0, -1.0]) if hang is None else _unit(hang)
+    tab_side = -1.0 if float(np.dot(lat, hg_)) > 0 else 1.0     # on the side the padlock does NOT hang toward
+    hb.geoms.append(obox(f"{name}_hasp_tab", tuple(tw * (strap_len - 0.030) + lat * (tab_side * (w / 2 + 0.006)) + n * 0.004),
+                         tw, n, 0.0, 0.0, 0.0, 0.012, 0.006, 0.006, material, False, tiers, "operator",
+                         "Hasp lifting tab"))
     hb.sites.append(Site(f"{name}_hasp_grip", tuple(tw * (strap_len - 0.02) + n * 0.01), QUAT_ID, 0.01, "grip"))
     model.add_body(hb)
     eye = np.asarray(eye_pt_w, float)
@@ -963,7 +966,7 @@ def add_hasp_assembly(model: Model, leaf_body: Body, world: Body, name: str, hin
         [f"{name}_padlock*", f"{name}_hasp_strap", "padlock hangs over the strap"],
         [f"{name}_hasp_strap", f"{name}_hasp_plate", "strap over its hinge plate"],
         [f"{name}_hasp_knuckle", f"{name}_hasp_plate", "knuckle on its hinge plate"],
-        [f"{name}_hasp_tab", f"{name}_staple*", "the lifting tab reaches over the staple"]])
+        [f"{name}_hasp_tab", f"{name}_staple*", "the lifting tab reaches past the staple"]])
     return hb
 
 
@@ -1711,28 +1714,28 @@ def add_hook_holdback(model: Model, world: Body, leaf_body: Body, spec: dict, u:
                            7850, True, True, FULL_SIMPLE, "frame", "Stanchion head (carries the hook pivot)",
                            quat=tuple(quat_from_axis_angle([0, 0, 1], math.atan2(hy_ - by, hx_ - bx)))))
     # the hook itself: hangs from the head on a gravity pivot, swinging in the plane of the leaf face
-    hook = Body("holdback_hook", None, (hx_, hy_, z_h - 0.010), QUAT_ID, None, [], [], FULL_SIMPLE, "latch", "Holdback hook")
+    hook = Body("holdback_hook", None, (hx_, hy_, z_h - 0.010), QUAT_ID, None, [], [], FULL_SIMPLE, "mechanism", "Holdback hook")
     hook.joint = Joint("holdback_hook_hinge", "hinge", (nx, ny, 0), (0, 0, 0), (-1.2, 1.2), damping=0.05,
                        frictionloss=0.05, role="mechanism", return_kind="gravity", robot_interactive=True,
                        label="Holdback hook (hangs on its pivot; drops over the leaf's pad-eye when the door is right open)")
     tx, ty = -nx, -ny                                   # toward the leaf face
     hook.geoms.append(cyl("holdback_hook_shank", (0, 0, -0.030), 0.005, 0.030, mm, (0, 0, 1),
-                          7850, True, True, FULL_SIMPLE, "latch", "Hook shank"))
+                          7850, True, True, FULL_SIMPLE, "mechanism", "Hook shank"))
     hook.geoms.append(cyl("holdback_hook_bill", (tx * 0.014, ty * 0.014, -0.058), 0.005, 0.014, mm, (tx, ty, 0),
-                          7850, True, True, FULL_SIMPLE, "latch", "Hook bill"))
+                          7850, True, True, FULL_SIMPLE, "mechanism", "Hook bill"))
     model.add_body(hook)
     model.meta.setdefault("clearance_allow", []).append(
         ["holdback_hook*", "holdback_stop_head", "the hook hangs on the head it pivots in"])
     # the pad-eye the hook drops into, on the leaf face at the same height: a plate, two lugs and the pin across them
     z_eye = z_local - 0.058                          # leaf-local: the pad-eye is a geom of the leaf
     leaf_body.geoms.append(box("holdback_eye_keeper_pad", (xs, -v * (t / 2 + 0.0025), z_eye), (0.030, 0.0025, 0.022),
-                               mm, 7850, False, True, FULL_SIMPLE, "latch", "Holdback pad-eye plate"))
+                               mm, 7850, False, True, FULL_SIMPLE, "mechanism", "Holdback pad-eye plate"))
     for sx_ in (-1, 1):
         leaf_body.geoms.append(box(f"holdback_eye_keeper_lug_{'p' if sx_ > 0 else 'n'}",
                                    (xs + sx_ * 0.014, -v * (t / 2 + 0.012), z_eye), (0.005, 0.0075, 0.014),
-                                   mm, 7850, False, True, FULL_SIMPLE, "latch", "Pad-eye lug"))
+                                   mm, 7850, False, True, FULL_SIMPLE, "mechanism", "Pad-eye lug"))
     leaf_body.geoms.append(cyl("holdback_eye_keeper_pin", (xs, -v * (t / 2 + 0.016), z_eye), 0.004, 0.014, mm,
-                               (1, 0, 0), 7850, False, True, FULL_SIMPLE, "latch", "Pad-eye pin"))
+                               (1, 0, 0), 7850, False, True, FULL_SIMPLE, "mechanism", "Pad-eye pin"))
     model.meta.setdefault("notes", []).append(
         "Hold-open: hook-and-eye holdback - a deck stanchion at the leaf's opening limit carrying a gravity-hung "
         "hook, and a pad-eye on the leaf face it drops over.")
@@ -2056,9 +2059,15 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
         brace_to_structure(world, world.geoms[-1], -v, mat_from_material(model, "aluminum", "mat_sign_bracket"),
                            name="exit_sign_bracket", semantic="decor", label="EXIT sign back box", tiers=FULL_ONLY, span=0.35)
     if "push_pull_sign" in ex:
-        sm = mat_from_material(model, "stainless", "mat_sign")
-        leaf_body.geoms.append(box("sign_push", (x0 + u * W / 2, -v * (t / 2 + 0.001), z0 + 1.35), (0.06, 0.001, 0.03), sm, 7900, False, True, FULL_ONLY, "decor", "PUSH sign"))
-        leaf_body.geoms.append(box("sign_pull", (x0 + u * W / 2, v * (t / 2 + 0.001), z0 + 1.35), (0.06, 0.001, 0.03), sm, 7900, False, True, FULL_ONLY, "decor", "PULL sign"))
+        # On a solid leaf the sign is an engraved plate; on a GLASS leaf (a storefront door, an automatic slider,
+        # a revolving wing) it is a vinyl decal, which is a tenth of a millimetre of plastic and not two of steel.
+        # The difference is 0.11 kg per face, and on a balanced rotor that is mass in the wrong place.
+        glassy = (spec["leaf"].get("panel_style", "").startswith("glass")
+                  or str(spec["leaf"].get("slab", "")).startswith(("glass", "storefront", "revolving")))
+        sm = mat_from_material(model, "pvc" if glassy else "stainless", "mat_sign_decal" if glassy else "mat_sign")
+        th, dens_s = (0.0002, 1200) if glassy else (0.001, 7900)
+        leaf_body.geoms.append(box("sign_push", (x0 + u * W / 2, -v * (t / 2 + th), z0 + 1.35), (0.06, th, 0.03), sm, dens_s, False, True, FULL_ONLY, "decor", "PUSH sign"))
+        leaf_body.geoms.append(box("sign_pull", (x0 + u * W / 2, v * (t / 2 + th), z0 + 1.35), (0.06, th, 0.03), sm, dens_s, False, True, FULL_ONLY, "decor", "PULL sign"))
     if "warning_placard" in ex:
         pm = mat_rgba(model, "mat_placard", (0.95, 0.75, 0.05, 1), 0.5)
         leaf_body.geoms.append(box("warning_placard", (x0 + u * W / 2, -1.0 * (t / 2 + 0.001), z0 + Hh * 0.75), (0.11, 0.001, 0.08), pm, 1000, False, True, FULL_ONLY, "decor", "Warning placard"))
