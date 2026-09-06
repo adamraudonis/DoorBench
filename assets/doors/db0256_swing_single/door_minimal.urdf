@@ -53,6 +53,58 @@
         <box size="1.051 0.145 0.52"/>
       </geometry>
     </collision>
+    <visual name="leaf_bottom_strike_plate_vis">
+      <origin xyz="-0.3965 0 0.00075" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.051 0.051 0.0015"/>
+      </geometry>
+      <material name="mat_bolt"/>
+    </visual>
+    <collision name="leaf_bottom_strike_plate_col">
+      <origin xyz="-0.3965 0 0.00075" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.051 0.051 0.0015"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_bottom_strike_p_vis">
+      <origin xyz="-0.3965 0.0145 0.00725" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.043 0.008 0.0115"/>
+      </geometry>
+      <material name="mat_bolt"/>
+    </visual>
+    <collision name="leaf_bottom_strike_p_col">
+      <origin xyz="-0.3965 0.0145 0.00725" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.043 0.008 0.0115"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_bottom_strike_n_vis">
+      <origin xyz="-0.3965 -0.0145 0.00725" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.043 0.008 0.0115"/>
+      </geometry>
+      <material name="mat_bolt"/>
+    </visual>
+    <collision name="leaf_bottom_strike_n_col">
+      <origin xyz="-0.3965 -0.0145 0.00725" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.043 0.008 0.0115"/>
+      </geometry>
+    </collision>
+    <visual name="leaf_bottom_strike_e_vis">
+      <origin xyz="-0.411 0 0.00725" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.008 0.043 0.0115"/>
+      </geometry>
+      <material name="mat_bolt"/>
+    </visual>
+    <collision name="leaf_bottom_strike_e_col">
+      <origin xyz="-0.411 0 0.00725" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.008 0.043 0.0115"/>
+      </geometry>
+    </collision>
     <visual name="jamb_hinge_vis">
       <origin xyz="0.4855 -0.0435 1.2255" rpy="0 0 0"/>
       <geometry>
@@ -212,21 +264,21 @@
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="-0.46696 -0.030124 1.215266" rpy="0 0 0"/>
-      <mass value="63.320936"/>
-      <inertia ixx="30.067606759" ixy="-0.008866049" ixz="-0.157843175" iyy="34.534057687" iyz="-0.017809294" izz="4.502355866"/>
+      <origin xyz="-0.46696 -0.030124 1.218597" rpy="0 0 0"/>
+      <mass value="63.144548"/>
+      <inertia ixx="29.818578878" ixy="-0.008841352" ixz="-0.159498208" iyy="34.272588001" iyz="-0.01799603" izz="4.489814043"/>
     </inertial>
     <visual name="leaf_slab_vis">
-      <origin xyz="-0.457 -0.029 1.228" rpy="0 0 0"/>
+      <origin xyz="-0.457 -0.029 1.2315" rpy="0 0 0"/>
       <geometry>
-        <box size="0.914 0.044 2.438"/>
+        <box size="0.914 0.044 2.431"/>
       </geometry>
       <material name="mat_leaf"/>
     </visual>
     <collision name="leaf_slab_col">
-      <origin xyz="-0.457 -0.029 1.228" rpy="0 0 0"/>
+      <origin xyz="-0.457 -0.029 1.2315" rpy="0 0 0"/>
       <geometry>
-        <box size="0.914 0.044 2.438"/>
+        <box size="0.914 0.044 2.431"/>
       </geometry>
     </collision>
     <visual name="leaf_exit_device_rail_vis">
@@ -328,6 +380,26 @@
       </geometry>
     </collision>
   </link>
+  <link name="leaf_bottom_latch">
+    <inertial>
+      <origin xyz="0 0 0.012" rpy="0 0 0"/>
+      <mass value="0.167896"/>
+      <inertia ixx="0.000072388" ixy="0" ixz="0" iyy="0.000072388" iyz="0" izz="0.000007301"/>
+    </inertial>
+    <visual name="leaf_bottom_latch_capsule_vis">
+      <origin xyz="0 0 0.012" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.0095" length="0.057"/>
+      </geometry>
+      <material name="mat_bolt"/>
+    </visual>
+    <collision name="leaf_bottom_latch_capsule_col">
+      <origin xyz="0 0 0.012" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.0095" length="0.057"/>
+      </geometry>
+    </collision>
+  </link>
   <joint name="leaf_hinge" type="revolute">
     <origin xyz="0.4575 0.029 0" rpy="0 0 0"/>
     <parent link="world_env"/>
@@ -344,7 +416,7 @@
     <child link="leaf_exit_device"/>
     <axis xyz="0 1 0"/>
     <limit lower="0" upper="0.016" effort="5000" velocity="10"/>
-    <dynamics damping="8" friction="0.5"/>
+    <dynamics damping="165.880125" friction="0.5"/>
     <doorbench:spring stiffness="1400" springref="-0.015714" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_top_latch_slide" type="prismatic">
@@ -356,6 +428,17 @@
     <dynamics damping="2" friction="0.3"/>
     <doorbench:spring stiffness="800" springref="-0.01" note="tau = -stiffness*(q - springref); not native URDF"/>
     <mimic joint="leaf_exit_device_slide" multiplier="1.142857" offset="0"/>
+    <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
+  </joint>
+  <joint name="leaf_bottom_latch_slide" type="prismatic">
+    <origin xyz="-0.854 -0.029 0.03" rpy="0 0 0"/>
+    <parent link="leaf"/>
+    <child link="leaf_bottom_latch"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="0.026" effort="5000" velocity="10"/>
+    <dynamics damping="2" friction="0.3"/>
+    <doorbench:spring stiffness="800" springref="-0.01" note="tau = -stiffness*(q - springref); not native URDF"/>
+    <mimic joint="leaf_exit_device_slide" multiplier="1.56391" offset="0"/>
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
   </joint>
   <material name="mat_bolt">

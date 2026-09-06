@@ -145,8 +145,8 @@
    "backset_m": 0.0,
    "operator_travel": 0.06,
    "operator_dead_travel": 0.005,
-   "operator_spring_preload": 2.0,
-   "operator_spring_rate": 40.0,
+   "operator_spring_preload": 0.0,
+   "operator_spring_rate": 0.0,
    "operator_yield": 200.0,
    "operator_grip_offset_m": 0.04,
    "coupling": {
@@ -157,6 +157,63 @@
     ],
     "dead_travel": 0.005
    }
+  },
+  "operator": {
+   "model": "gate_latch_fork",
+   "kind": "gate_latch_fork",
+   "motion": "lift",
+   "rotary": false,
+   "return_kind": "gravity",
+   "return_note": "a gravity fork latch has no spring by definition: released, the fork drops back over the post under its own weight",
+   "source": "Chain link fork latch; lift to release",
+   "travel": 0.06,
+   "dead_travel": 0.005,
+   "spring_preload": 0.0,
+   "spring_rate": 0.0,
+   "detent_friction": 0.0,
+   "damping_ratio": 0.6,
+   "gravity_margin": null,
+   "units": {
+    "preload": "N",
+    "rate": "N/m",
+    "damping": "N*s/m",
+    "friction": "N",
+    "inertia": "kg",
+    "travel": "m"
+   },
+   "joints": {
+    "leaf_fork_hinge": {
+     "joint": "leaf_fork_hinge",
+     "type": "hinge",
+     "return_kind": "gravity",
+     "operator_model": "gate_latch_fork",
+     "travel": 1.2,
+     "inertia": 0.0034137042705679192,
+     "armature": 0.0001,
+     "moving_mass_kg": 0.19216299229684541,
+     "gravity_moment_at_rest": -0.20428224553988764,
+     "units": {
+      "preload": "N",
+      "rate": "N/m",
+      "damping": "N*s/m",
+      "friction": "N",
+      "inertia": "kg",
+      "travel": "m"
+     },
+     "spring_preload": 0.0,
+     "spring_rate": 0.0,
+     "damping": 0.02892803154037382,
+     "damping_ratio": 0.6,
+     "frictionloss": 0.004642299667183255,
+     "rest": 0.0,
+     "released_from": 1.08,
+     "expected_return_time_s": 0.544,
+     "return_tolerance": 0.06,
+     "gravity_moment_at_release": -0.030948664447888366,
+     "note": "gravity is restoring: the part falls back to its drawn rest"
+    }
+   },
+   "formula": "no spring: the part's own weight returns it; light bearing friction and near-critical damping only"
   },
   "lock": {
    "model": "none",
@@ -215,6 +272,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "open_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "open_and_traverse"

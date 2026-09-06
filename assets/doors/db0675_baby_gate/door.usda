@@ -11,7 +11,7 @@ def Xform "db0675_baby_gate"
     custom string doorbench:door_id = "db0675_baby_gate"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = "[]"
-    custom string doorbench:meta = '{"door_id": "db0675_baby_gate", "family": "baby_gate", "task": "hold_and_pass", "wall_y": 0.0405, "clearance_allow": [["leaf_pin_geom", "leaf_pin_housing", "pin slides inside its housing"], ["leaf_pin_knob", "leaf_pin_housing", "knob seats on the housing"], ["leaf_pin_geom", "leaf_pin_bracket*", "pin passes the bracket"]], "u": 1.0, "v": -1.0, "hinge_x": -0.556, "leaf_edge_x_local": 1.103, "handle_height": 0.55, "primary_joint": "leaf_hinge", "operator_joint": "leaf_pin_slide", "mass_reconciled_kg": 11.366283414212251, "scene_extent": 1.5, "cam_target_z": 0.385, "cam_target_x": 0.0, "handle_cam_x": 0.44399999999999995, "handle_cam_target": [0.5069999999999999, 0.045000000000000005, 0.615], "handle_cam_pos": [0.6869999999999998, -0.755, 0.895], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0675_baby_gate/Articulation/Joints/leaf_hinge", "leaf_pin_slide": "/db0675_baby_gate/Articulation/Joints/leaf_pin_slide"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0675_baby_gate", "family": "baby_gate", "task": "hold_and_pass", "wall_y": 0.0405, "clearance_allow": [["leaf_pin_geom", "leaf_pin_housing", "pin slides inside its housing"], ["leaf_pin_knob", "leaf_pin_housing", "knob seats on the housing"], ["leaf_pin_geom", "leaf_pin_bracket*", "pin passes the bracket"]], "u": 1.0, "v": -1.0, "hinge_x": -0.556, "leaf_edge_x_local": 1.103, "handle_height": 0.55, "primary_joint": "leaf_hinge", "operator_joint": "leaf_pin_slide", "mass_reconciled_kg": 11.32633178043655, "scene_extent": 1.5, "cam_target_z": 0.385, "cam_target_x": 0.0, "handle_cam_x": 0.44399999999999995, "handle_cam_target": [0.5069999999999999, 0.045000000000000005, 0.615], "handle_cam_pos": [0.6869999999999998, -0.755, 0.895], "operator_joints": ["leaf_pin_slide"], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0675_baby_gate/Articulation/Joints/leaf_hinge", "leaf_pin_slide": "/db0675_baby_gate/Articulation/Joints/leaf_pin_slide"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -253,26 +253,6 @@ def Xform "db0675_baby_gate"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "wall_header" (
-                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
-            )
-            {
-                custom bool doorbench:collision = 1
-                custom string doorbench:label = "Wall header"
-                custom string doorbench:semantic = "wall"
-                rel material:binding = </db0675_baby_gate/Looks/mat_wall>
-                rel material:binding:physics = </db0675_baby_gate/Looks/PhysMat_mat_wall_0_600> (
-                    bindMaterialAs = "weakerThanDescendants"
-                )
-                custom float physxCollision:contactOffset = 0.005
-                custom float physxCollision:restOffset = 0
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.202, 0.115, 1.87)
-                double3 xformOp:translate = (0.015000000000000013, 0.0405, 1.7650000000000001)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
             def Xform "hinge_0_jamb" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
                 prepend references = @../../hardware/hinge_jamb_1ed121a7f3.usdc@</hinge_jamb_1ed121a7f3>
@@ -451,6 +431,36 @@ def Xform "db0675_baby_gate"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Cube "leaf_pin_post_plate_strap_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Latch post plate standoff"
+                custom string doorbench:semantic = "latch"
+                rel material:binding = </db0675_baby_gate/Looks/mat_op_pvc>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.01, 0.009, 0.08)
+                double3 xformOp:translate = (0.559, 0.019000000000000003, 0.56)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "gate_stop_strap_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Gate stop post bracket"
+                custom string doorbench:semantic = "frame"
+                rel material:binding = </db0675_baby_gate/Looks/mat_frame>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.061, 0.0192, 0.096)
+                double3 xformOp:translate = (0.5860000000000001, 0.022, 0.255)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "approach_point"
             {
                 custom string doorbench:site_role = "approach"
@@ -511,7 +521,7 @@ def Xform "db0675_baby_gate"
                 custom float doorbench:friction_effort = 0.23417594
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
-                custom float doorbench:legacy_friction_coeff = 0.0013446048
+                custom float doorbench:legacy_friction_coeff = 0.0013493476
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -548,11 +558,11 @@ def Xform "db0675_baby_gate"
             )
             {
                 custom float doorbench:armature_si = 0.15
-                custom float doorbench:damping_si = 1
-                custom float doorbench:friction_effort = 0.2
+                custom float doorbench:damping_si = 9.526824
+                custom float doorbench:friction_effort = 0.25
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Lift pin (+ = lifted; weak return spring, magnet-assisted drop)"
-                custom float doorbench:legacy_friction_coeff = 0.10831861
+                custom float doorbench:legacy_friction_coeff = 0.1116904
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "operator"
@@ -561,7 +571,7 @@ def Xform "db0675_baby_gate"
                 custom float doorbench:stiffness_si = 60
                 custom float doorbench:target_si = -0.016666668
                 custom float doorbench:zero_offset = 0
-                float drive:linear:physics:damping = 1
+                float drive:linear:physics:damping = 9.526824
                 float drive:linear:physics:maxForce = 1000000
                 float drive:linear:physics:stiffness = 60
                 float drive:linear:physics:targetPosition = -0.016666668
@@ -579,8 +589,8 @@ def Xform "db0675_baby_gate"
                 custom float physxJoint:armature = 0.15
                 custom float physxJoint:jointFriction = 0
                 custom float physxJointAxis:linear:armature = 0.15
-                custom float physxJointAxis:linear:dynamicFrictionEffort = 0.2
-                custom float physxJointAxis:linear:staticFrictionEffort = 0.2
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 0.25
+                custom float physxJointAxis:linear:staticFrictionEffort = 0.25
                 custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
         }
@@ -610,8 +620,8 @@ def Xform "db0675_baby_gate"
             custom string doorbench:label = "Door leaf"
             custom string doorbench:semantic = "leaf"
             point3f physics:centerOfMass = (0.5646142, 0.0016806306, 0.40858284)
-            float3 physics:diagonalInertia = (0.51719755, 1.231654, 1.7457252)
-            float physics:mass = 11.366283
+            float3 physics:diagonalInertia = (0.5153796, 1.227325, 1.7395891)
+            float physics:mass = 11.326332
             quatf physics:principalAxes = (0.70817536, 0.7059335, -0.004677954, 0.011118071)
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
@@ -974,9 +984,9 @@ def Xform "db0675_baby_gate"
         {
             custom string doorbench:label = "Lift pin"
             custom string doorbench:semantic = "latch"
-            point3f physics:centerOfMass = (0, 0, 0.03773585)
-            float3 physics:diagonalInertia = (0.000009447763, 0.0003391818, 0.0003391818)
-            float physics:mass = 0.18821658
+            point3f physics:centerOfMass = (0, 0, 0.037519455)
+            float3 physics:diagonalInertia = (0.000010166892, 0.00034641344, 0.00034641344)
+            float physics:mass = 0.22816822
             quatf physics:principalAxes = (0.70710677, 0, 0.70710677, -0)
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
@@ -993,7 +1003,7 @@ def Xform "db0675_baby_gate"
                 custom bool doorbench:collision = 1
                 custom string doorbench:label = "Latch pin"
                 custom string doorbench:semantic = "latch"
-                double height = 0.06
+                double height = 0.105
                 rel material:binding = </db0675_baby_gate/Looks/mat_op_pvc>
                 rel material:binding:physics = </db0675_baby_gate/Looks/PhysMat_mat_op_pvc_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
@@ -1002,7 +1012,7 @@ def Xform "db0675_baby_gate"
                 custom float physxCollision:restOffset = 0
                 double radius = 0.006
                 quatf xformOp:orient = (1, 0, 0, 0)
-                double3 xformOp:translate = (0, 0, -0.02)
+                double3 xformOp:translate = (0, 0, 0.0025)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 

@@ -173,6 +173,62 @@
     "dead_travel": 0.002
    }
   },
+  "operator": {
+   "model": "panic_touchbar_rim_light",
+   "kind": "panic_touchbar",
+   "motion": "push_in",
+   "rotary": false,
+   "return_kind": "spring",
+   "return_note": "reduced-tension pad spring, still self-returning",
+   "source": "Sargent 80 series w/ reduced spring tension",
+   "travel": 0.016,
+   "dead_travel": 0.002,
+   "spring_preload": 8.0,
+   "spring_rate": 700.0,
+   "detent_friction": 0.0,
+   "damping_ratio": 1.0,
+   "gravity_margin": 1.35,
+   "units": {
+    "preload": "N",
+    "rate": "N/m",
+    "damping": "N*s/m",
+    "friction": "N",
+    "inertia": "kg",
+    "travel": "m"
+   },
+   "joints": {
+    "leaf_exit_device_slide": {
+     "joint": "leaf_exit_device_slide",
+     "type": "slide",
+     "return_kind": "spring",
+     "operator_model": "panic_touchbar_rim_light",
+     "travel": 0.016,
+     "inertia": 4.913610000000001,
+     "armature": 0.15,
+     "moving_mass_kg": 4.763610000000001,
+     "gravity_moment_at_rest": 0.0,
+     "units": {
+      "preload": "N",
+      "rate": "N/m",
+      "damping": "N*s/m",
+      "friction": "N",
+      "inertia": "kg",
+      "travel": "m"
+     },
+     "spring_preload": 8.0,
+     "spring_preload_catalogue": 8.0,
+     "spring_rate": 700.0,
+     "damping": 117.29496152861812,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.5,
+     "omega_n_rad_s": 11.93572154979924,
+     "rest": 0.0,
+     "expected_return_time_s": 0.1665,
+     "return_tolerance": 0.0002
+    }
+   },
+   "formula": "tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = 1.0 (critical) and I the joint-space inertia (armature + the handle's own inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where the catalogue spring would not lift it; fl capped at 0.25 of the restoring torque at rest so it cannot park the handle short of rest"
+  },
   "lock": {
    "model": "mag_lock",
    "kind": "mag_lock",
@@ -230,6 +286,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "open_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "open_and_traverse"

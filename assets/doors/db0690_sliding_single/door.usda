@@ -11,7 +11,7 @@ def Xform "db0690_sliding_single"
     custom string doorbench:door_id = "db0690_sliding_single"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = '[["leaf", "leaf_handle"], ["leaf", "leaf_hook"]]'
-    custom string doorbench:meta = '{"door_id": "db0690_sliding_single", "family": "sliding_single", "task": "open_only", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "bottom_rail", "nominal_range": [0.0, 0.701], "leaf_width_m": 0.762, "rollers": ["leaf_roller_0", "leaf_roller_1"], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "operator_joint": "leaf_handle_hinge", "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "right", "mass_reconciled_kg": 110.03511806377034, "scene_extent": 2.05775, "cam_target_z": 1.0385, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.677, 0.0225, 1.0], "handle_cam_pos": [-0.49700000000000005, -0.7775000000000001, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0690_sliding_single/Articulation/Joints/leaf_slide", "leaf_handle_hinge": "/db0690_sliding_single/Articulation/Joints/leaf_handle_hinge", "leaf_hook_hinge": "/db0690_sliding_single/Articulation/Joints/leaf_hook_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_handle"], ["leaf", "leaf_hook"]], "n_filtered_pairs": 2, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0690_sliding_single", "family": "sliding_single", "task": "open_only", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "bottom_rail", "nominal_range": [0.0, 0.701], "leaf_width_m": 0.762, "rollers": ["leaf_roller_0", "leaf_roller_1"], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "operator_joint": "leaf_handle_hinge", "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "right", "mass_reconciled_kg": 110.01913741026006, "scene_extent": 2.05775, "cam_target_z": 1.0385, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [-0.677, 0.0225, 1.0], "handle_cam_pos": [-0.49700000000000005, -0.7775000000000001, 1.28], "operator_joints": ["leaf_handle_hinge"], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0690_sliding_single/Articulation/Joints/leaf_slide", "leaf_handle_hinge": "/db0690_sliding_single/Articulation/Joints/leaf_handle_hinge", "leaf_hook_hinge": "/db0690_sliding_single/Articulation/Joints/leaf_hook_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_handle"], ["leaf", "leaf_hook"]], "n_filtered_pairs": 2, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -661,6 +661,21 @@ def Xform "db0690_sliding_single"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Cube "leaf_hook_keeper_bracket" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Standoff mounting bracket"
+                custom string doorbench:semantic = "latch"
+                rel material:binding = </db0690_sliding_single/Looks/mat_hook>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.0128, 0.0145, 0.01)
+                double3 xformOp:translate = (-0.785, 0.02175, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "approach_point"
             {
                 custom string doorbench:site_role = "approach"
@@ -719,7 +734,7 @@ def Xform "db0690_sliding_single"
                 custom float doorbench:friction_effort = 16.257748
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Slide (0 = closed, + = open)"
-                custom float doorbench:legacy_friction_coeff = 0.01497166
+                custom float doorbench:legacy_friction_coeff = 0.014970343
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -756,11 +771,11 @@ def Xform "db0690_sliding_single"
             )
             {
                 custom float doorbench:armature_si = 0.01
-                custom float doorbench:damping_si = 0.02
+                custom float doorbench:damping_si = 0.2063068
                 custom float doorbench:friction_effort = 0.042
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Slider handle / thumb latch (+ = unlock hook)"
-                custom float doorbench:legacy_friction_coeff = 0.009806511
+                custom float doorbench:legacy_friction_coeff = 0.0094602285
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "operator"
@@ -769,7 +784,7 @@ def Xform "db0690_sliding_single"
                 custom float doorbench:stiffness_si = 1
                 custom float doorbench:target_si = -0.35
                 custom float doorbench:zero_offset = 0
-                float drive:angular:physics:damping = 0.00034906584
+                float drive:angular:physics:damping = 0.003600733
                 float drive:angular:physics:maxForce = 1000000
                 float drive:angular:physics:stiffness = 0.017453292
                 float drive:angular:physics:targetPosition = -20.053522
@@ -872,10 +887,10 @@ def Xform "db0690_sliding_single"
         {
             custom string doorbench:label = "Sliding leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-0.00013722433, 0.0000018359883, 1.0431279)
-            float3 physics:diagonalInertia = (5.3558397, 38.073833, 43.392628)
-            float physics:mass = 110.03512
-            quatf physics:principalAxes = (0.50000226, -0.5000077, -0.4999922, -0.49999785)
+            point3f physics:centerOfMass = (-0.00017974648, 0.0000018359883, 1.0431279)
+            float3 physics:diagonalInertia = (5.350152, 38.068302, 43.381416)
+            float physics:mass = 110.019135
+            quatf physics:principalAxes = (0.50003815, -0.5000436, -0.4999563, -0.49996194)
             custom rel physxFilteredPairs:filteredPairs = [
                 </db0690_sliding_single/Articulation/leaf_handle>,
                 </db0690_sliding_single/Articulation/leaf_hook>,
@@ -919,7 +934,7 @@ def Xform "db0690_sliding_single"
                 rel material:binding = </db0690_sliding_single/Looks/mat_roller>
                 double radius = 0.015
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
-                double3 xformOp:translate = (-0.281, 0, 0.039)
+                double3 xformOp:translate = (-0.266, 0, 0.039)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -935,7 +950,7 @@ def Xform "db0690_sliding_single"
                 rel material:binding = </db0690_sliding_single/Looks/mat_roller>
                 double radius = 0.015
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
-                double3 xformOp:translate = (0.281, 0, 0.039)
+                double3 xformOp:translate = (0.23600000000000004, 0, 0.039)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -992,10 +1007,10 @@ def Xform "db0690_sliding_single"
         {
             custom string doorbench:label = "L-shaped square lever (modern)"
             custom string doorbench:semantic = "operator"
-            point3f physics:centerOfMass = (0.017912263, -0.04946087, 2.535366e-18)
-            float3 physics:diagonalInertia = (0.00017128943, 0.0006364201, 0.0007551973)
-            float physics:mass = 0.41476354
-            quatf physics:principalAxes = (0.27396178, -3.3048126e-18, 1.16015175e-17, 0.96174055)
+            point3f physics:centerOfMass = (0.017247716, -0.047625866, 2.4413036e-18)
+            float3 physics:diagonalInertia = (0.0001943227, 0.00066731055, 0.0008088334)
+            float physics:mass = 0.4307442
+            quatf physics:principalAxes = (0.29986638, -3.867193e-18, 1.2302911e-17, 0.9539812)
             custom rel physxFilteredPairs:filteredPairs = </db0690_sliding_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
@@ -1012,7 +1027,7 @@ def Xform "db0690_sliding_single"
                 custom bool doorbench:collision = 0
                 custom string doorbench:label = "Spindle"
                 custom string doorbench:semantic = "mechanism"
-                double height = 0.043
+                double height = 0.060999999999999985
                 rel material:binding = </db0690_sliding_single/Looks/mat_op_black_matte_metal>
                 double radius = 0.006
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)

@@ -396,9 +396,9 @@
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="0.458886 -0.032323 1.198081" rpy="0 0 0"/>
-      <mass value="62.3208"/>
-      <inertia ixx="31.97571067" ixy="0.022199462" ixz="0.10294297" iyy="36.347356413" iyz="-0.00068181" izz="4.414662821"/>
+      <origin xyz="0.458886 -0.032326 1.198177" rpy="0 0 0"/>
+      <mass value="62.28754"/>
+      <inertia ixx="31.96065931" ixy="0.022184912" ixz="0.102888365" iyy="36.329499109" iyz="-0.000526715" izz="4.411838398"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="0.457 -0.029 1.232" rpy="0 0 0"/>
@@ -524,17 +524,24 @@
       </geometry>
       <material name="mat_wreath"/>
     </visual>
+    <visual name="wreath_hook_vis">
+      <origin xyz="0.457 -0.058 2.1004" rpy="-1.570796 0 0"/>
+      <geometry>
+        <cylinder radius="0.004" length="0.016"/>
+      </geometry>
+      <material name="mat_wreath_hook"/>
+    </visual>
   </link>
   <link name="leaf_handle">
     <inertial>
-      <origin xyz="0 0.05439 0" rpy="0 0 0"/>
-      <mass value="0.58663"/>
-      <inertia ixx="0.000394487" ixy="0" ixz="0" iyy="0.000156449" iyz="0" izz="0.000394487"/>
+      <origin xyz="0 0.052948 0" rpy="0 0 0"/>
+      <mass value="0.60261"/>
+      <inertia ixx="0.000451151" ixy="0" ixz="0" iyy="0.000156736" iyz="0" izz="0.000451151"/>
     </inertial>
     <visual name="leaf_handle_spindle_vis">
       <origin xyz="0 0 0" rpy="-1.570796 0 0"/>
       <geometry>
-        <cylinder radius="0.006" length="0.042"/>
+        <cylinder radius="0.006" length="0.06"/>
       </geometry>
       <material name="mat_op_brass"/>
     </visual>
@@ -567,9 +574,9 @@
   </link>
   <link name="leaf_thumbpiece">
     <inertial>
-      <origin xyz="0 0 -0.02" rpy="0 0 0"/>
-      <mass value="0.03456"/>
-      <inertia ixx="0.000004792" ixy="0" ixz="0" iyy="0.00000834" iyz="0" izz="0.000003917"/>
+      <origin xyz="0 0.004 -0.02" rpy="0 0 0"/>
+      <mass value="0.05184"/>
+      <inertia ixx="0.000007488" ixy="0" ixz="0" iyy="0.000009124" iyz="0" izz="0.000006981"/>
     </inertial>
     <visual name="leaf_thumbpiece_geom_vis">
       <origin xyz="0 0 -0.02" rpy="0 0 0"/>
@@ -584,6 +591,13 @@
         <box size="0.036 0.008 0.04"/>
       </geometry>
     </collision>
+    <visual name="leaf_thumbpiece_boss_vis">
+      <origin xyz="0 0.012 -0.02" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.024 0.012"/>
+      </geometry>
+      <material name="mat_op_bronze"/>
+    </visual>
   </link>
   <link name="leaf_latch_bolt">
     <inertial>
@@ -640,7 +654,7 @@
     <child link="leaf_handle"/>
     <axis xyz="0 -1 0"/>
     <limit lower="0" upper="0.87" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.038"/>
+    <dynamics damping="0.142525" friction="0.038"/>
     <doorbench:spring stiffness="0.5" springref="-0.5" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_thumbpiece_hinge" type="revolute">
@@ -649,7 +663,7 @@
     <child link="leaf_thumbpiece"/>
     <axis xyz="-1 0 0"/>
     <limit lower="0" upper="0.35" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.02"/>
+    <dynamics damping="0.219407" friction="0.058"/>
     <doorbench:spring stiffness="1.2" springref="-0.416667" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_latch_bolt_slide" type="prismatic">
@@ -662,7 +676,7 @@
     <doorbench:spring stiffness="400" springref="-0.01" note="tau = -stiffness*(q - springref); not native URDF"/>
     <mimic joint="leaf_thumbpiece_hinge" multiplier="0.04375" offset="0"/>
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
-    <mimic joint="leaf_handle_hinge" multiplier="0.04375" offset="0"/>
+    <mimic joint="leaf_handle_hinge" multiplier="0.017284" offset="0"/>
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
   </joint>
   <joint name="leaf_deadbolt_fixed" type="fixed">
@@ -711,5 +725,8 @@
   </material>
   <material name="mat_wreath">
     <color rgba="0.12 0.3 0.12 1"/>
+  </material>
+  <material name="mat_wreath_hook">
+    <color rgba="0.85 0.66 0.3 1"/>
   </material>
 </robot>

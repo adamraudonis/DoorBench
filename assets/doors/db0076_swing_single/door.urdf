@@ -272,25 +272,51 @@
       </geometry>
       <material name="mat_frame"/>
     </visual>
-    <visual name="wall_bumper_stop_vis">
-      <origin xyz="-0.333 -0.5455 0.35" rpy="0.269078 -1.570796 -0.269078"/>
+    <visual name="door_stop_base_vis">
+      <origin xyz="-0.322 -0.5455 0.003" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.025" length="0.04"/>
+        <cylinder radius="0.022" length="0.006"/>
+      </geometry>
+      <material name="mat_stop_base"/>
+    </visual>
+    <collision name="door_stop_base_col">
+      <origin xyz="-0.322 -0.5455 0.003" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.006"/>
+      </geometry>
+    </collision>
+    <visual name="door_stop_post_vis">
+      <origin xyz="-0.322 -0.5455 0.0305" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.012" length="0.049"/>
+      </geometry>
+      <material name="mat_stop_base"/>
+    </visual>
+    <collision name="door_stop_post_col">
+      <origin xyz="-0.322 -0.5455 0.0305" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.012" length="0.049"/>
+      </geometry>
+    </collision>
+    <visual name="door_stop_bumper_vis">
+      <origin xyz="-0.322 -0.5455 0.075" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.04"/>
       </geometry>
       <material name="mat_bumper_stop"/>
     </visual>
-    <collision name="wall_bumper_stop_col">
-      <origin xyz="-0.333 -0.5455 0.35" rpy="0.269078 -1.570796 -0.269078"/>
+    <collision name="door_stop_bumper_col">
+      <origin xyz="-0.322 -0.5455 0.075" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.025" length="0.04"/>
+        <cylinder radius="0.022" length="0.04"/>
       </geometry>
     </collision>
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="0.299192 0.023164 1.1066" rpy="0 0 0"/>
-      <mass value="21.671301"/>
-      <inertia ixx="8.241337133" ixy="-0.001479861" ixz="-0.000382765" iyy="8.910940817" iyz="0.043433316" izz="0.686488098"/>
+      <origin xyz="0.299193 0.023157 1.106815" rpy="0 0 0"/>
+      <mass value="21.65532"/>
+      <inertia ixx="8.236055942" ixy="-0.00147743" ixz="-0.000409489" iyy="8.904958406" iyz="0.04349622" izz="0.685776647"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="0.305 0.027 1.076" rpy="0 0 0"/>
@@ -340,17 +366,24 @@
       </geometry>
       <material name="mat_wreath"/>
     </visual>
+    <visual name="wreath_hook_vis">
+      <origin xyz="0.305 0 1.81402" rpy="-1.570796 0 0"/>
+      <geometry>
+        <cylinder radius="0.004" length="0.016"/>
+      </geometry>
+      <material name="mat_wreath_hook"/>
+    </visual>
   </link>
   <link name="leaf_handle">
     <inertial>
-      <origin xyz="0 -0.000224 0" rpy="0 0 0"/>
-      <mass value="1.13512"/>
-      <inertia ixx="0.004025547" ixy="0" ixz="0" iyy="0.000312195" iyz="0" izz="0.004025547"/>
+      <origin xyz="0 -0.000221 0" rpy="0 0 0"/>
+      <mass value="1.1511"/>
+      <inertia ixx="0.004034625" ixy="0" ixz="0" iyy="0.000312482" iyz="0" izz="0.004034625"/>
     </inertial>
     <visual name="leaf_handle_spindle_vis">
       <origin xyz="0 0 0" rpy="-1.570796 0 0"/>
       <geometry>
-        <cylinder radius="0.006" length="0.038"/>
+        <cylinder radius="0.006" length="0.056"/>
       </geometry>
       <material name="mat_op_nickel_satin"/>
     </visual>
@@ -442,7 +475,7 @@
     <child link="leaf_handle"/>
     <axis xyz="0 -1 0"/>
     <limit lower="0" upper="0.87" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.038"/>
+    <dynamics damping="0.143614" friction="0.038"/>
     <doorbench:spring stiffness="0.5" springref="-0.5" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_latch_bolt_slide" type="prismatic">
@@ -477,10 +510,16 @@
   <material name="mat_op_nickel_satin">
     <color rgba="0.72 0.7 0.66 1"/>
   </material>
+  <material name="mat_stop_base">
+    <color rgba="0.9 0.9 0.92 1"/>
+  </material>
   <material name="mat_wall">
     <color rgba="0.78 0.76 0.7 1"/>
   </material>
   <material name="mat_wreath">
     <color rgba="0.12 0.3 0.12 1"/>
+  </material>
+  <material name="mat_wreath_hook">
+    <color rgba="0.85 0.66 0.3 1"/>
   </material>
 </robot>

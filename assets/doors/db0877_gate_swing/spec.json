@@ -162,6 +162,62 @@
     "dead_travel": 0.002
    }
   },
+  "operator": {
+   "model": "gate_latch_magnetic",
+   "kind": "lift_latch",
+   "motion": "lift",
+   "rotary": false,
+   "return_kind": "spring",
+   "return_note": "MagnaLatch: spring plus magnet drives the pin back down (child-safety requirement)",
+   "source": "D&D MagnaLatch; 1.5 m mounting height",
+   "travel": 0.03,
+   "dead_travel": 0.002,
+   "spring_preload": 6.0,
+   "spring_rate": 150.0,
+   "detent_friction": 0.0,
+   "damping_ratio": 1.0,
+   "gravity_margin": 1.35,
+   "units": {
+    "preload": "N",
+    "rate": "N/m",
+    "damping": "N*s/m",
+    "friction": "N",
+    "inertia": "kg",
+    "travel": "m"
+   },
+   "joints": {
+    "leaf_pin_slide": {
+     "joint": "leaf_pin_slide",
+     "type": "slide",
+     "return_kind": "spring",
+     "operator_model": "gate_latch_magnetic",
+     "travel": 0.06,
+     "inertia": 0.37816821956345026,
+     "armature": 0.15,
+     "moving_mass_kg": 0.22816821956345024,
+     "gravity_moment_at_rest": -2.238330233917447,
+     "units": {
+      "preload": "N",
+      "rate": "N/m",
+      "damping": "N*s/m",
+      "friction": "N",
+      "inertia": "kg",
+      "travel": "m"
+     },
+     "spring_preload": 1.0,
+     "spring_preload_catalogue": 1.0,
+     "spring_rate": 60.0,
+     "damping": 9.526823851380273,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.25,
+     "omega_n_rad_s": 12.596013306429935,
+     "rest": 0.0,
+     "expected_return_time_s": 0.1435,
+     "return_tolerance": 0.0006
+    }
+   },
+   "formula": "tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = 1.0 (critical) and I the joint-space inertia (armature + the handle's own inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where the catalogue spring would not lift it; fl capped at 0.25 of the restoring torque at rest so it cannot park the handle short of rest"
+  },
   "lock": {
    "model": "none",
    "kind": "none",
@@ -219,6 +275,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "open_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "open_and_traverse"
@@ -444,14 +506,14 @@
      "!damage"
     ],
     "time_budget_s": 50.0,
-    "expected_transit_s": 12.58,
+    "expected_transit_s": 12.59,
     "expected_transit_terms": {
      "approach_s": 1.41,
      "operate_s": 1.5,
      "open_s": 0.95,
      "pass_s": 3.0,
      "scenario_extra_s": 5.72,
-     "total_s": 12.58
+     "total_s": 12.59
     }
    }
   ],

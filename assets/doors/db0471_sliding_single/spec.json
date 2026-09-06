@@ -146,7 +146,7 @@
    "backset_m": 0.0,
    "operator_travel": 0.5,
    "operator_dead_travel": 0.03,
-   "operator_spring_preload": 1.2,
+   "operator_spring_preload": 2.4,
    "operator_spring_rate": 2.5,
    "operator_yield": 60.0,
    "operator_grip_offset_m": 0.15,
@@ -158,6 +158,32 @@
     ],
     "dead_travel": 0.03
    }
+  },
+  "operator": {
+   "model": "cold_storage_handle",
+   "kind": "lever",
+   "motion": "rotate_horizontal",
+   "rotary": true,
+   "return_kind": "spring",
+   "return_note": "Kason 58: the return spring has to lift a 2.5 kg chrome handle back to horizontal, so it is wound far harder than a lever rose spring",
+   "source": "Kason 58 SafeGuard latch w/ inside release",
+   "travel": 0.5,
+   "dead_travel": 0.03,
+   "spring_preload": 2.4,
+   "spring_rate": 2.5,
+   "detent_friction": 0.0,
+   "damping_ratio": 1.0,
+   "gravity_margin": 1.35,
+   "units": {
+    "preload": "N*m",
+    "rate": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "friction": "N*m",
+    "inertia": "kg*m^2",
+    "travel": "rad"
+   },
+   "joints": {},
+   "formula": "tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = 1.0 (critical) and I the joint-space inertia (armature + the handle's own inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where the catalogue spring would not lift it; fl capped at 0.25 of the restoring torque at rest so it cannot park the handle short of rest"
   },
   "lock": {
    "model": "none",
@@ -204,6 +230,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "open_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "open_and_traverse",

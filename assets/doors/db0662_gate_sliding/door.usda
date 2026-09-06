@@ -11,7 +11,7 @@ def Xform "db0662_gate_sliding"
     custom string doorbench:door_id = "db0662_gate_sliding"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = '[["leaf", "leaf_hasp"]]'
-    custom string doorbench:meta = '{"door_id": "db0662_gate_sliding", "family": "gate_sliding", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "gate_rail", "nominal_range": [0.0, 4.8], "leaf_width_m": 4.8, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "clearance_allow": [["leaf_hasp_strap", "leaf_staple*", "staple passes through the strap slot"], ["leaf_padlock*", "leaf_staple*", "shackle through the staple eye"], ["leaf_padlock*", "leaf_hasp_strap", "padlock hangs over the strap"], ["leaf_hasp_strap", "leaf_hasp_plate", "strap over its hinge plate"], ["leaf_hasp_knuckle", "leaf_hasp_plate", "knuckle on its hinge plate"]], "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 24.45472299684556, "scene_extent": 4.137499999999999, "cam_target_z": 1.075, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [2.4569999999999994, -0.07615, 1.0], "handle_cam_pos": [2.7069999999999994, -1.17615, 1.35], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0662_gate_sliding/Articulation/Joints/leaf_slide", "leaf_hasp_hinge": "/db0662_gate_sliding/Articulation/Joints/leaf_hasp_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_hasp"]], "n_filtered_pairs": 1, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0662_gate_sliding", "family": "gate_sliding", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "gate_rail", "nominal_range": [0.0, 4.8], "leaf_width_m": 4.8, "rollers": ["leaf_roller_0", "leaf_roller_1"], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "clearance_allow": [["leaf_hasp_strap", "leaf_staple*", "staple passes through the strap slot"], ["leaf_padlock*", "leaf_staple*", "shackle through the staple eye"], ["leaf_padlock*", "leaf_hasp_strap", "padlock hangs over the strap"], ["leaf_hasp_strap", "leaf_hasp_plate", "strap over its hinge plate"], ["leaf_hasp_knuckle", "leaf_hasp_plate", "knuckle on its hinge plate"]], "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 24.45472299684556, "scene_extent": 4.137499999999999, "cam_target_z": 1.075, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [2.4569999999999994, -0.0775, 1.0], "handle_cam_pos": [2.7069999999999994, -1.1775, 1.35], "operator_joints": [], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0662_gate_sliding/Articulation/Joints/leaf_slide", "leaf_hasp_hinge": "/db0662_gate_sliding/Articulation/Joints/leaf_hasp_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_hasp"]], "n_filtered_pairs": 1, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -146,6 +146,21 @@ def Xform "db0662_gate_sliding"
                 float inputs:metallic = 1
                 float inputs:opacity = 1
                 float inputs:roughness = 0.25
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_hook"
+        {
+            token outputs:surface.connect = </db0662_gate_sliding/Looks/mat_hook/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.75, 0.76, 0.77)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.35
                 token outputs:surface
             }
         }
@@ -300,8 +315,8 @@ def Xform "db0662_gate_sliding"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
-                float3 xformOp:scale = (0.006, 0.005, 0.10815)
-                double3 xformOp:translate = (2.4549999999999996, -0.03407500000000001, 0.9875)
+                float3 xformOp:scale = (0.006, 0.005, 0.1095)
+                double3 xformOp:translate = (2.4549999999999996, -0.03475, 0.9875)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -320,8 +335,8 @@ def Xform "db0662_gate_sliding"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
-                float3 xformOp:scale = (0.006, 0.005, 0.10815)
-                double3 xformOp:translate = (2.4549999999999996, -0.03407500000000001, 1.0125)
+                float3 xformOp:scale = (0.006, 0.005, 0.1095)
+                double3 xformOp:translate = (2.4549999999999996, -0.03475, 1.0125)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -341,7 +356,7 @@ def Xform "db0662_gate_sliding"
                 double size = 1
                 quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
                 float3 xformOp:scale = (0.006, 0.03, 0.005)
-                double3 xformOp:translate = (2.4549999999999996, -0.08565, 1)
+                double3 xformOp:translate = (2.4549999999999996, -0.08700000000000001, 1)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -418,7 +433,7 @@ def Xform "db0662_gate_sliding"
                 custom float doorbench:friction_effort = 12.056492
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Slide (0 = closed, + = open)"
-                custom float doorbench:legacy_friction_coeff = 0.04891827
+                custom float doorbench:legacy_friction_coeff = 0.049036756
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -477,7 +492,7 @@ def Xform "db0662_gate_sliding"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0662_gate_sliding/Articulation/leaf>
                 rel physics:body1 = </db0662_gate_sliding/Articulation/leaf_hasp>
-                point3f physics:localPos0 = (2.34, -0.00615, 1)
+                point3f physics:localPos0 = (2.34, -0.0075, 1)
                 point3f physics:localPos1 = (0, 0, 0)
                 quatf physics:localRot0 = (0.70710677, 0, 0.70710677, 0)
                 quatf physics:localRot1 = (0.70710677, -0, 0.70710677, 0)
@@ -516,10 +531,10 @@ def Xform "db0662_gate_sliding"
         {
             custom string doorbench:label = "Sliding leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.009390915, -0.000012750595, 1.1294738)
-            float3 physics:diagonalInertia = (8.951587, 47.291832, 56.243416)
+            point3f physics:centerOfMass = (0.006908413, -0.000017298617, 1.0759342)
+            float3 physics:diagonalInertia = (9.828011, 50.97687, 60.80479)
             float physics:mass = 24.454723
-            quatf physics:principalAxes = (0.7071083, 0.70710516, 0.00026880484, -0.00027957663)
+            quatf physics:principalAxes = (0.7071055, -0.7071079, -0.00027829103, -0.00029186474)
             custom rel physxFilteredPairs:filteredPairs = </db0662_gate_sliding/Articulation/leaf_hasp>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
@@ -544,7 +559,7 @@ def Xform "db0662_gate_sliding"
                 uniform token purpose = "guide"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (4.8, 0.0003, 2.1)
+                float3 xformOp:scale = (4.8, 0.003, 2.1)
                 double3 xformOp:translate = (0, 0, 1.1300000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
@@ -559,7 +574,7 @@ def Xform "db0662_gate_sliding"
                 rel material:binding = </db0662_gate_sliding/Looks/mat_leaf>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (4.8, 0.0003, 0.045)
+                float3 xformOp:scale = (4.8, 0.003, 0.045)
                 double3 xformOp:translate = (0, 0, 0.10250000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
@@ -574,7 +589,7 @@ def Xform "db0662_gate_sliding"
                 rel material:binding = </db0662_gate_sliding/Looks/mat_leaf>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (4.8, 0.0003, 0.045)
+                float3 xformOp:scale = (4.8, 0.003, 0.045)
                 double3 xformOp:translate = (0, 0, 2.1575)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
@@ -589,7 +604,7 @@ def Xform "db0662_gate_sliding"
                 rel material:binding = </db0662_gate_sliding/Looks/mat_leaf>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.045, 0.0003, 2.1)
+                float3 xformOp:scale = (0.045, 0.003, 2.1)
                 double3 xformOp:translate = (-2.3775, 0, 1.1300000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
@@ -604,7 +619,7 @@ def Xform "db0662_gate_sliding"
                 rel material:binding = </db0662_gate_sliding/Looks/mat_leaf>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.045, 0.0003, 2.1)
+                float3 xformOp:scale = (0.045, 0.003, 2.1)
                 double3 xformOp:translate = (2.3775, 0, 1.1300000000000001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
@@ -624,6 +639,38 @@ def Xform "db0662_gate_sliding"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Cylinder "leaf_roller_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Roller"
+                custom string doorbench:semantic = "track"
+                double height = 0.016
+                rel material:binding = </db0662_gate_sliding/Looks/mat_roller>
+                double radius = 0.04
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (-2.26, 0, 0.064)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "leaf_roller_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Roller"
+                custom string doorbench:semantic = "track"
+                double height = 0.016
+                rel material:binding = </db0662_gate_sliding/Looks/mat_roller>
+                double radius = 0.04
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (2.1799999999999997, 0, 0.064)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
             def Cube "leaf_hasp_plate" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
@@ -635,7 +682,7 @@ def Xform "db0662_gate_sliding"
                 double size = 1
                 quatf xformOp:orient = (0.70710677, 0.70710677, 0, 0)
                 float3 xformOp:scale = (0.048, 0.043, 0.006)
-                double3 xformOp:translate = (2.32, -0.00315, 1)
+                double3 xformOp:translate = (2.32, -0.0045000000000000005, 1)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -663,7 +710,7 @@ def Xform "db0662_gate_sliding"
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (2.34, -0.06615, 1)
+            double3 xformOp:translate = (2.34, -0.0675, 1)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "leaf_hasp_strap" (

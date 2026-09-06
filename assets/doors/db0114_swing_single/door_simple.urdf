@@ -348,8 +348,8 @@
   <link name="leaf">
     <inertial>
       <origin xyz="-0.432921 0.028819 0.941375" rpy="0 0 0"/>
-      <mass value="26.600992"/>
-      <inertia ixx="9.78418475" ixy="-0.010434626" ixz="-0.025923249" iyy="11.544735166" iyz="0.046981552" izz="1.777333236"/>
+      <mass value="26.567732"/>
+      <inertia ixx="9.771951057" ixy="-0.010421579" ixz="-0.025890836" iyy="11.530300162" iyz="0.046922809" izz="1.77511094"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="-0.432 0.029 1.025" rpy="0 0 0"/>
@@ -539,9 +539,9 @@
   </link>
   <link name="leaf_thumbpiece">
     <inertial>
-      <origin xyz="0 0 -0.02" rpy="0 0 0"/>
-      <mass value="0.03456"/>
-      <inertia ixx="0.000004792" ixy="0" ixz="0" iyy="0.00000834" iyz="0" izz="0.000003917"/>
+      <origin xyz="0 0.004 -0.02" rpy="0 0 0"/>
+      <mass value="0.05184"/>
+      <inertia ixx="0.000007488" ixy="0" ixz="0" iyy="0.000009124" iyz="0" izz="0.000006981"/>
     </inertial>
     <visual name="leaf_thumbpiece_geom_vis">
       <origin xyz="0 0 -0.02" rpy="0 0 0"/>
@@ -556,6 +556,13 @@
         <box size="0.036 0.008 0.04"/>
       </geometry>
     </collision>
+    <visual name="leaf_thumbpiece_boss_vis">
+      <origin xyz="0 0.012 -0.02" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.024 0.012"/>
+      </geometry>
+      <material name="mat_op_bronze"/>
+    </visual>
   </link>
   <link name="leaf_latch_bolt">
     <inertial>
@@ -612,7 +619,7 @@
     <child link="leaf_handle"/>
     <axis xyz="0 1 0"/>
     <limit lower="0" upper="0.87" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.038"/>
+    <dynamics damping="0.142525" friction="0.038"/>
     <doorbench:spring stiffness="0.5" springref="-0.5" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_thumbpiece_hinge" type="revolute">
@@ -621,7 +628,7 @@
     <child link="leaf_thumbpiece"/>
     <axis xyz="-1 0 0"/>
     <limit lower="0" upper="0.35" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.02"/>
+    <dynamics damping="0.219407" friction="0.058"/>
     <doorbench:spring stiffness="1.2" springref="-0.416667" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_latch_bolt_slide" type="prismatic">
@@ -634,7 +641,7 @@
     <doorbench:spring stiffness="600" springref="-0.01" note="tau = -stiffness*(q - springref); not native URDF"/>
     <mimic joint="leaf_thumbpiece_hinge" multiplier="0.059375" offset="0"/>
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
-    <mimic joint="leaf_handle_hinge" multiplier="0.059375" offset="0"/>
+    <mimic joint="leaf_handle_hinge" multiplier="0.023457" offset="0"/>
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
   </joint>
   <joint name="leaf_deadbolt_fixed" type="fixed">

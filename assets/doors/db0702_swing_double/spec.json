@@ -174,6 +174,91 @@
     "dead_travel": 0.03
    }
   },
+  "operator": {
+   "model": "handleset_thumb",
+   "kind": "handleset",
+   "motion": "rotate_horizontal",
+   "rotary": true,
+   "return_kind": "spring",
+   "return_note": "handleset thumb piece: spring in the latch hub lifts the thumb piece back",
+   "source": "Kwikset Arlington / Schlage Camelot handleset",
+   "travel": 0.35,
+   "dead_travel": 0.03,
+   "spring_preload": 0.5,
+   "spring_rate": 1.2,
+   "detent_friction": 0.0,
+   "damping_ratio": 1.0,
+   "gravity_margin": 1.35,
+   "units": {
+    "preload": "N*m",
+    "rate": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "friction": "N*m",
+    "inertia": "kg*m^2",
+    "travel": "rad"
+   },
+   "joints": {
+    "leaf_a_handle_hinge": {
+     "joint": "leaf_a_handle_hinge",
+     "type": "hinge",
+     "return_kind": "spring",
+     "operator_model": "knob_round",
+     "travel": 0.03,
+     "inertia": 0.010156736460761682,
+     "armature": 0.01,
+     "moving_mass_kg": 0.602610283655023,
+     "gravity_moment_at_rest": -1.2720089750780107e-34,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "spring_preload": 0.25,
+     "spring_preload_catalogue": 0.25,
+     "spring_rate": 0.5,
+     "damping": 0.14252534133101863,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.038000000000000006,
+     "omega_n_rad_s": 7.016296124332552,
+     "rest": 0.0,
+     "expected_return_time_s": 0.054,
+     "return_tolerance": 0.004363323129985824
+    },
+    "leaf_a_thumbpiece_hinge": {
+     "joint": "leaf_a_thumbpiece_hinge",
+     "type": "hinge",
+     "return_kind": "spring",
+     "operator_model": "handleset_thumb",
+     "travel": 0.35,
+     "inertia": 0.01002905344,
+     "armature": 0.01,
+     "moving_mass_kg": 0.05184,
+     "gravity_moment_at_rest": 0.0020342016000000004,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "spring_preload": 0.5,
+     "spring_preload_catalogue": 0.5,
+     "spring_rate": 1.2,
+     "damping": 0.21940705665953408,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.057999999999999996,
+     "omega_n_rad_s": 10.93857251694603,
+     "rest": 0.0,
+     "expected_return_time_s": 0.148,
+     "return_tolerance": 0.004363323129985824
+    }
+   },
+   "formula": "tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = 1.0 (critical) and I the joint-space inertia (armature + the handle's own inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where the catalogue spring would not lift it; fl capped at 0.25 of the restoring torque at rest so it cannot park the handle short of rest"
+  },
   "lock": {
    "model": "multipoint",
    "kind": "multipoint",
@@ -231,6 +316,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "locked_recognize",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "locked_recognize"

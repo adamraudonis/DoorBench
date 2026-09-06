@@ -9,7 +9,7 @@ def Xform "db0424_swing_single"
 {
     custom string doorbench:door_id = "db0424_swing_single"
     custom string doorbench:env_release = "[]"
-    custom string doorbench:meta = '{"door_id": "db0424_swing_single", "family": "swing_single", "task": "open_and_traverse", "wall_y": 0.028000000000000004, "u": 1.0, "v": -1.0, "hinge_x": -0.5385, "leaf_edge_x_local": 1.073, "handle_height": 1.016, "primary_joint": "leaf_hinge", "operator_joint": null, "mass_reconciled_kg": 118.70211640399998, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": 0.4285, "handle_cam_target": [0.4295, -0.0875, 1.016], "handle_cam_pos": [0.6094999999999999, -0.8875000000000001, 1.296]}'
+    custom string doorbench:meta = '{"door_id": "db0424_swing_single", "family": "swing_single", "task": "open_and_traverse", "wall_y": 0.028000000000000004, "u": 1.0, "v": -1.0, "hinge_x": -0.5385, "leaf_edge_x_local": 1.073, "handle_height": 1.016, "primary_joint": "leaf_hinge", "operator_joint": null, "mass_reconciled_kg": 118.70211640399998, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": 0.4285, "handle_cam_target": [0.4295, -0.0875, 1.016], "handle_cam_pos": [0.6094999999999999, -0.8875000000000001, 1.296], "operator_joints": [], "operator_coupling": "coupled"}'
     custom string doorbench:rl = '{"door_id": "db0424_swing_single", "family": "swing_single", "task": "open_and_traverse", "slots": {"door": "hinge", "operator": "none", "latch": "none", "secondary": "none"}, "links": ["base", "carriage", "leaf", "operator_pivot", "operator", "latch", "carriage2", "leaf2"], "joints": {"door_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "door_hinge": {"active": true, "type": "revolute", "source": "leaf_hinge", "role": "primary", "range": [0.0, 1.8325957145940461], "stiffness": 35.03955227111167, "damping": 10.499539504545714, "target": -1.6798159846502116, "friction": 3.975540654839103, "armature": 0.02, "damping_closing": 72.0, "damping_opening": 10.0, "backcheck_angle": 1.31, "backcheck_damping": 50.0, "ratchet_one_way": false, "label": "Door hinge (0 = closed, + = opening)"}, "operator_hinge": {"active": false, "type": "revolute", "range": [-0.0008726646259971648, 0.0008726646259971648]}, "operator_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "latch_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "leaf2_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "leaf2_hinge": {"active": false, "type": "revolute", "range": [-0.0008726646259971648, 0.0008726646259971648]}}, "primary_joint": "leaf_hinge", "operator_joint": null, "latch_joint": null, "secondary_joint": null, "door_joint": "door_hinge", "operator_slot_joint": null, "secondary_slot_joint": null, "latch_coupling": null, "secondary_coupling": null, "open_threshold": 0.17453292519943295, "clear_threshold": 1.0471975511965976, "closed_threshold": 0.05235987755982989, "sites": {"approach": [0.0, -1.5, 0.0], "goal": [0.0, 1.5, 0.0], "pass_plane": [0.0, 0.0, 1.0735], "grip": [{"name": "leaf_pull_grip_n", "link": "leaf", "pos": [0.968, -0.0875, 1.016]}, {"name": "leaf_pull_grip_p", "link": "leaf", "pos": [0.968, 0.0875, 1.016]}], "grip_link": "leaf", "push": [], "leaf_edge": [{"name": "leaf_edge_mid", "link": "leaf", "pos": [1.073, 0.0, 1.067]}]}, "opening": {"width": 1.077, "height": 2.147}, "robot": {"approach_side": "-y", "is_push": false, "robot_outside": false, "start_distance_m": 1.85}, "handle_height": 1.016, "u": 1.0, "v": -1.0, "hinge_x": -0.5385, "lock": {"model": "none", "engaged": false, "robot_side_release": true}, "closer": "concealed_overhead", "operator": "pull_ladder_full", "latch": "none", "damage": {"leaf_dent_force_N": 1500.0, "glass_break_force_N": 1500, "operator_yield_torque_Nm": 4000.0, "slam_velocity_rad_s": 4.0, "frame_impact_force_N": 3000.0}, "actuators": [], "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325, "welded_static": [], "omitted": [], "notes": [], "mass_kg": 118.70211640399998, "welded": [], "released_parts": [], "released_holding": [], "welded_engaged": [], "operator_driven_joints": [], "couplings": [], "coupling_reflected_armature": {}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": []}'
 
     def Scope "Looks"
@@ -275,6 +275,36 @@ def Xform "db0424_swing_single"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (1.197, 0.115, 0.525)
                 double3 xformOp:translate = (0.015000000000000013, 0.028000000000000004, 2.4844999999999997)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "pivot_bottom_socket" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Floor pivot socket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0424_swing_single/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.07, 0.07, 0.017)
+                double3 xformOp:translate = (-0.5355, -0.0295, -0.00150000000000005)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "pivot_top_bracket" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Head pivot bracket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0424_swing_single/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.07, 0.07, 0.071)
+                double3 xformOp:translate = (-0.5355, -0.0295, 2.1864999999999997)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

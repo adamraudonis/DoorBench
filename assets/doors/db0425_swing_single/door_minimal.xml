@@ -54,11 +54,11 @@
     <geom name="stop_strike" type="box" size="0.0055 0.016 0.50485" pos="0.4545 -0.0195 0.50485" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="stop_strike_1" type="box" size="0.0055 0.016 0.53835" pos="0.4545 -0.0195 1.60865" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="stop_head" type="box" size="0.46 0.016 0.0055" pos="0 -0.0195 2.1415" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
-    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="door_plane_center" pos="0 0 1.0735" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="approach_point" pos="0 -1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.0735" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="leaf" pos="-0.46 0 0">
-      <inertial pos="0.46 0 1.076" mass="59.494723" quat="0.5 0.5 0.5 -0.5" diaginertia="4.142062267 22.578421235 26.720126559"/>
+      <inertial pos="0.46 0 1.076" mass="59.497777" quat="-0.5 -0.5 -0.5 0.5" diaginertia="4.142274863 22.579580096 26.721497997"/>
       <joint name="leaf_hinge" type="hinge" axis="0 0 1" pos="0.003 0.01 0" limited="true" range="0 2.443461" damping="0.318966" frictionloss="8.9405" armature="0.02"/>
       <geom name="leaf_slab_col" type="box" size="0.457 0.003 1.067" pos="0.46 0 1.076" material="mat_leaf" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.45 0.005 0.0001" density="1"/>
       <geom name="leaf_rail_b" type="box" size="0.457 0.003 0.0225" pos="0.46 0 0.0315" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
@@ -66,10 +66,14 @@
       <geom name="leaf_stile_h" type="box" size="0.0225 0.003 1.067" pos="0.0255 0 1.076" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
       <geom name="leaf_stile_l" type="box" size="0.0225 0.003 1.067" pos="0.8945 0 1.076" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
       <geom name="leaf_mesh" type="box" size="0.412 0.0015 1.022" pos="0.46 0 1.076" material="mat_mesh_infill" group="1" contype="0" conaffinity="0" density="1"/>
-      <site name="leaf_edge_mid" pos="0.917 0 1.067" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_edge_mid" pos="0.917 0 1.067" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
       <body name="leaf_handle" pos="0.847 0 1.04">
         <inertial pos="0 0 0" mass="0.01" quat="1 0 0 0" diaginertia="0.000001 0.000001 0.000001"/>
-        <joint name="leaf_handle_hinge" type="hinge" axis="0 -1 0" limited="true" range="0 0.87" damping="0.02" frictionloss="0.048" stiffness="0.5" springref="-0.5" armature="0.01"/>
+        <joint name="leaf_handle_hinge" type="hinge" axis="0 -1 0" limited="true" range="0 0.87" damping="0.141422" frictionloss="0.048" stiffness="0.5" springref="-0.5" armature="0.01"/>
+      </body>
+      <body name="leaf_handle_out" pos="0.847 0 1.04">
+        <inertial pos="0 0 0" mass="0.01" quat="1 0 0 0" diaginertia="0.000001 0.000001 0.000001"/>
+        <joint name="leaf_handle_out_hinge" type="hinge" axis="0 -1 0" limited="true" range="0 0.08" damping="0.141421" frictionloss="0.048" stiffness="0.5" springref="-0.5" armature="0.01"/>
       </body>
       <body name="leaf_latch_bolt" pos="0.917 0 1.04">
         <inertial pos="-0.0055 0 0" mass="0.074627" quat="0.92388 -0.382683 0 0" diaginertia="0.000002271 0.000013255 0.000013255"/>
@@ -82,6 +86,7 @@
     <fixed name="leaf_latch_bolt_coupling" limited="true" range="0 10">
       <joint joint="leaf_latch_bolt_slide" coef="1"/>
       <joint joint="leaf_handle_hinge" coef="-0.023457"/>
+      <joint joint="leaf_handle_out_hinge" coef="-0.023457"/>
     </fixed>
   </tendon>
   <sensor>
@@ -89,6 +94,8 @@
     <jointvel name="leaf_hinge_vel" joint="leaf_hinge"/>
     <jointpos name="leaf_handle_hinge_pos" joint="leaf_handle_hinge"/>
     <jointvel name="leaf_handle_hinge_vel" joint="leaf_handle_hinge"/>
+    <jointpos name="leaf_handle_out_hinge_pos" joint="leaf_handle_out_hinge"/>
+    <jointvel name="leaf_handle_out_hinge_vel" joint="leaf_handle_out_hinge"/>
     <jointpos name="leaf_latch_bolt_slide_pos" joint="leaf_latch_bolt_slide"/>
     <jointvel name="leaf_latch_bolt_slide_vel" joint="leaf_latch_bolt_slide"/>
   </sensor>

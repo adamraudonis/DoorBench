@@ -66,6 +66,13 @@
         <box size="0.25 0.05 0.04"/>
       </geometry>
     </collision>
+    <visual name="leaf_maglock_bracket_vis">
+      <origin xyz="0.309 0.057 2.0225" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.18 0.05 0.045"/>
+      </geometry>
+      <material name="mat_maglock"/>
+    </visual>
     <visual name="jamb_hinge_vis">
       <origin xyz="-0.638 0.121 1.0225" rpy="0 0 0"/>
       <geometry>
@@ -290,25 +297,58 @@
       </geometry>
       <material name="mat_exit_sign"/>
     </visual>
-    <visual name="wall_bumper_stop_vis">
-      <origin xyz="-0.637 -1.06515 0.35" rpy="0.269078 -1.570796 -0.269078"/>
+    <visual name="exit_sign_bracket_vis">
+      <origin xyz="0 0.15 2.185" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.025" length="0.04"/>
+        <box size="0.1155 0.0175 0.121"/>
+      </geometry>
+      <material name="mat_sign_bracket"/>
+    </visual>
+    <visual name="door_stop_base_vis">
+      <origin xyz="-0.626 -1.06515 0.003" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.006"/>
+      </geometry>
+      <material name="mat_stop_base"/>
+    </visual>
+    <collision name="door_stop_base_col">
+      <origin xyz="-0.626 -1.06515 0.003" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.006"/>
+      </geometry>
+    </collision>
+    <visual name="door_stop_post_vis">
+      <origin xyz="-0.626 -1.06515 0.0315" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.012" length="0.051"/>
+      </geometry>
+      <material name="mat_stop_base"/>
+    </visual>
+    <collision name="door_stop_post_col">
+      <origin xyz="-0.626 -1.06515 0.0315" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.012" length="0.051"/>
+      </geometry>
+    </collision>
+    <visual name="door_stop_bumper_vis">
+      <origin xyz="-0.626 -1.06515 0.077" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.04"/>
       </geometry>
       <material name="mat_bumper_stop"/>
     </visual>
-    <collision name="wall_bumper_stop_col">
-      <origin xyz="-0.637 -1.06515 0.35" rpy="0.269078 -1.570796 -0.269078"/>
+    <collision name="door_stop_bumper_col">
+      <origin xyz="-0.626 -1.06515 0.077" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.025" length="0.04"/>
+        <cylinder radius="0.022" length="0.04"/>
       </geometry>
     </collision>
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="0.612427 0.030618 0.999048" rpy="0 0 0"/>
+      <origin xyz="0.601535 0.030073 0.999581" rpy="0 0 0"/>
       <mass value="79.974607"/>
-      <inertia ixx="27.879165308" ixy="-0.050740881" ixz="-0.146392319" iyy="38.221191887" iyz="0.051933435" izz="10.38763881"/>
+      <inertia ixx="27.862010087" ixy="-0.076035037" ixz="-0.118161845" iyy="38.542786452" iyz="0.052290973" izz="10.728393798"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="0.6095 0.029 1.029" rpy="0 0 0"/>
@@ -326,7 +366,7 @@
     <visual name="hinge_continuous_vis">
       <origin xyz="0 0 1.029" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.0096" length="2.004"/>
+        <cylinder radius="0.0136" length="2.004"/>
       </geometry>
       <material name="mat_hinge"/>
     </visual>
@@ -487,7 +527,7 @@
     <child link="leaf_exit_device"/>
     <axis xyz="0 -1 0"/>
     <limit lower="0" upper="0.016" effort="5000" velocity="10"/>
-    <dynamics damping="8" friction="0.5"/>
+    <dynamics damping="135.108912" friction="0.5"/>
     <doorbench:spring stiffness="700" springref="-0.011429" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_latch_bolt_slide" type="prismatic">
@@ -545,6 +585,12 @@
   </material>
   <material name="mat_sign">
     <color rgba="0.75 0.76 0.77 1"/>
+  </material>
+  <material name="mat_sign_bracket">
+    <color rgba="0.8 0.81 0.83 1"/>
+  </material>
+  <material name="mat_stop_base">
+    <color rgba="0.9 0.9 0.92 1"/>
   </material>
   <material name="mat_threshold">
     <color rgba="0.8 0.81 0.83 1"/>

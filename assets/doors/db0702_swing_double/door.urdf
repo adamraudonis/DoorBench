@@ -186,12 +186,25 @@
         <box size="1.229 0.012 0.03"/>
       </geometry>
     </collision>
+    <visual name="threshold_vis">
+      <origin xyz="0 -0.108 0.0065" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.267 0.3 0.013"/>
+      </geometry>
+      <material name="mat_threshold"/>
+    </visual>
+    <collision name="threshold_col">
+      <origin xyz="0 -0.108 0.0065" rpy="0 0 0"/>
+      <geometry>
+        <box size="1.267 0.3 0.013"/>
+      </geometry>
+    </collision>
   </link>
   <link name="leaf_a">
     <inertial>
       <origin xyz="0.318329 -0.032282 1.068916" rpy="0 0 0"/>
-      <mass value="12.664653"/>
-      <inertia ixx="4.457395016" ixy="0.01115204" ixz="0.031228213" iyy="4.898896434" iyz="-0.007462134" izz="0.451124091"/>
+      <mass value="12.647667"/>
+      <inertia ixx="4.451416719" ixy="0.011137083" ixz="0.031186329" iyy="4.892325991" iyz="-0.007452126" izz="0.450519039"/>
     </inertial>
     <visual name="leaf_a_slab_vis">
       <origin xyz="0.305 -0.029 1.08" rpy="0 0 0"/>
@@ -390,14 +403,14 @@
   </link>
   <link name="leaf_a_handle">
     <inertial>
-      <origin xyz="0 0.05439 0" rpy="0 0 0"/>
-      <mass value="0.58663"/>
-      <inertia ixx="0.000394487" ixy="0" ixz="0" iyy="0.000156449" iyz="0" izz="0.000394487"/>
+      <origin xyz="0 0.052948 0" rpy="0 0 0"/>
+      <mass value="0.60261"/>
+      <inertia ixx="0.000451151" ixy="0" ixz="0" iyy="0.000156736" iyz="0" izz="0.000451151"/>
     </inertial>
     <visual name="leaf_a_handle_spindle_vis">
       <origin xyz="0 0 0" rpy="-1.570796 0 0"/>
       <geometry>
-        <cylinder radius="0.006" length="0.042"/>
+        <cylinder radius="0.006" length="0.06"/>
       </geometry>
       <material name="mat_op_brass"/>
     </visual>
@@ -430,9 +443,9 @@
   </link>
   <link name="leaf_a_thumbpiece">
     <inertial>
-      <origin xyz="0 0 -0.02" rpy="0 0 0"/>
-      <mass value="0.03456"/>
-      <inertia ixx="0.000004792" ixy="0" ixz="0" iyy="0.00000834" iyz="0" izz="0.000003917"/>
+      <origin xyz="0 0.004 -0.02" rpy="0 0 0"/>
+      <mass value="0.05184"/>
+      <inertia ixx="0.000007488" ixy="0" ixz="0" iyy="0.000009124" iyz="0" izz="0.000006981"/>
     </inertial>
     <visual name="leaf_a_thumbpiece_geom_vis">
       <origin xyz="0 0 -0.02" rpy="0 0 0"/>
@@ -447,6 +460,13 @@
         <box size="0.036 0.008 0.04"/>
       </geometry>
     </collision>
+    <visual name="leaf_a_thumbpiece_boss_vis">
+      <origin xyz="0 0.012 -0.02" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.024 0.012"/>
+      </geometry>
+      <material name="mat_op_bronze"/>
+    </visual>
   </link>
   <link name="leaf_a_latch_bolt">
     <inertial>
@@ -531,8 +551,8 @@
   <link name="leaf_b">
     <inertial>
       <origin xyz="-0.343254 -0.035286 1.077845" rpy="0 0 0"/>
-      <mass value="12.13436"/>
-      <inertia ixx="4.578379829" ixy="-0.023961049" ixz="-0.012452593" iyy="5.086412202" iyz="-0.001022872" izz="0.515358013"/>
+      <mass value="12.118085"/>
+      <inertia ixx="4.572239265" ixy="-0.023928912" ixz="-0.012435891" iyy="5.079590261" iyz="-0.0010215" izz="0.51466681"/>
     </inertial>
     <visual name="leaf_b_edge_590_wall_n_vis">
       <origin xyz="-0.58 -0.04475 0.59" rpy="0 0 0"/>
@@ -936,7 +956,7 @@
     <child link="leaf_a_handle"/>
     <axis xyz="0 -1 0"/>
     <limit lower="0" upper="0.03" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.038"/>
+    <dynamics damping="0.142525" friction="0.038"/>
     <doorbench:spring stiffness="0.5" springref="-0.5" note="tau = -stiffness*(q - springref); not native URDF"/>
     <doorbench:note text="locked: range limited to backlash"/>
   </joint>
@@ -946,7 +966,7 @@
     <child link="leaf_a_thumbpiece"/>
     <axis xyz="-1 0 0"/>
     <limit lower="0" upper="0.35" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.02"/>
+    <dynamics damping="0.219407" friction="0.058"/>
     <doorbench:spring stiffness="1.2" springref="-0.416667" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_a_latch_bolt_slide" type="prismatic">
@@ -959,7 +979,7 @@
     <doorbench:spring stiffness="300" springref="-0.008333" note="tau = -stiffness*(q - springref); not native URDF"/>
     <mimic joint="leaf_a_thumbpiece_hinge" multiplier="0.039688" offset="0"/>
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
-    <mimic joint="leaf_a_handle_hinge" multiplier="0.039688" offset="0"/>
+    <mimic joint="leaf_a_handle_hinge" multiplier="0.015679" offset="0"/>
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
   </joint>
   <joint name="leaf_a_deadbolt_fixed" type="fixed">
@@ -1019,6 +1039,9 @@
   </material>
   <material name="mat_op_bronze">
     <color rgba="0.3 0.22 0.15 1"/>
+  </material>
+  <material name="mat_threshold">
+    <color rgba="0.8 0.81 0.83 1"/>
   </material>
   <material name="mat_wall">
     <color rgba="0.78 0.76 0.7 1"/>

@@ -11,7 +11,7 @@ def Xform "db0560_pivot"
     custom string doorbench:door_id = "db0560_pivot"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = "[]"
-    custom string doorbench:meta = '{"door_id": "db0560_pivot", "family": "pivot", "task": "open_only", "wall_y": -0.063, "u": 1.0, "v": 1.0, "hinge_x": -0.606, "leaf_edge_x_local": 1.2029999999999998, "handle_height": 1.05, "primary_joint": "leaf_hinge", "operator_joint": null, "mass_reconciled_kg": 125.78400000000002, "scene_extent": 2.5340000000000003, "cam_target_z": 1.356, "cam_target_x": 0.0, "handle_cam_x": 0.4939999999999999, "handle_cam_target": [0.4919999999999999, -0.095, 1.05], "handle_cam_pos": [0.6719999999999999, -0.895, 1.33], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0560_pivot/Articulation/Joints/leaf_hinge"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0560_pivot", "family": "pivot", "task": "open_only", "wall_y": -0.063, "u": 1.0, "v": 1.0, "hinge_x": -0.606, "leaf_edge_x_local": 1.2029999999999998, "handle_height": 1.05, "primary_joint": "leaf_hinge", "operator_joint": null, "mass_reconciled_kg": 125.78400000000002, "scene_extent": 2.5340000000000003, "cam_target_z": 1.356, "cam_target_x": 0.0, "handle_cam_x": 0.4939999999999999, "handle_cam_target": [0.4919999999999999, -0.095, 1.05], "handle_cam_pos": [0.6719999999999999, -0.895, 1.33], "operator_joints": [], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0560_pivot/Articulation/Joints/leaf_hinge"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -252,6 +252,36 @@ def Xform "db0560_pivot"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (1.332, 0.2, 0.525)
                 double3 xformOp:translate = (0.015000000000000013, -0.063, 3.0495)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "pivot_bottom_socket" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Floor pivot socket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0560_pivot/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.07, 0.07, 0.016)
+                double3 xformOp:translate = (-0.587, 0.04, -0.001999999999999995)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "pivot_top_bracket" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Head pivot bracket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0560_pivot/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.07, 0.07, 0.071)
+                double3 xformOp:translate = (-0.587, 0.04, 2.7515)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

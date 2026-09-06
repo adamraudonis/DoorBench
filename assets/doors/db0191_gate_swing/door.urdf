@@ -14,6 +14,20 @@
         <box size="12 12 0.1"/>
       </geometry>
     </collision>
+    <visual name="hinge_pintle_0_vis">
+      <origin xyz="-0.503 -0.05 0.274" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.008" length="0.04"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
+    <visual name="hinge_pintle_1_vis">
+      <origin xyz="-0.503 -0.05 0.874" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.008" length="0.04"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
     <visual name="leaf_aux_bolt_keeper_b_vis">
       <origin xyz="0.5055 0.0245 0.937" rpy="1.570796 0 -1.570796"/>
       <geometry>
@@ -147,17 +161,43 @@
         <box size="0.04 0.024 0.12"/>
       </geometry>
     </collision>
-    <visual name="wall_bumper_stop_vis">
-      <origin xyz="-0.4995 -0.9 0.35" rpy="0.269078 -1.570796 -0.269078"/>
+    <visual name="door_stop_base_vis">
+      <origin xyz="-0.4885 -0.9 0.003" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.025" length="0.04"/>
+        <cylinder radius="0.022" length="0.006"/>
+      </geometry>
+      <material name="mat_stop_base"/>
+    </visual>
+    <collision name="door_stop_base_col">
+      <origin xyz="-0.4885 -0.9 0.003" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.006"/>
+      </geometry>
+    </collision>
+    <visual name="door_stop_post_vis">
+      <origin xyz="-0.4885 -0.9 0.098" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.012" length="0.184"/>
+      </geometry>
+      <material name="mat_stop_base"/>
+    </visual>
+    <collision name="door_stop_post_col">
+      <origin xyz="-0.4885 -0.9 0.098" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.012" length="0.184"/>
+      </geometry>
+    </collision>
+    <visual name="door_stop_bumper_vis">
+      <origin xyz="-0.4885 -0.9 0.21" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.04"/>
       </geometry>
       <material name="mat_bumper_stop"/>
     </visual>
-    <collision name="wall_bumper_stop_col">
-      <origin xyz="-0.4995 -0.9 0.35" rpy="0.269078 -1.570796 -0.269078"/>
+    <collision name="door_stop_bumper_col">
+      <origin xyz="-0.4885 -0.9 0.21" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.025" length="0.04"/>
+        <cylinder radius="0.022" length="0.04"/>
       </geometry>
     </collision>
     <visual name="fence_picket_l_0_vis">
@@ -524,12 +564,19 @@
         <box size="2 0.03 0.08"/>
       </geometry>
     </collision>
+    <visual name="gate_stop_strap_0_vis">
+      <origin xyz="0.556 0.0245 0.4" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.101 0.0192 0.096"/>
+      </geometry>
+      <material name="mat_frame"/>
+    </visual>
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="0.45048 0.047471 0.606288" rpy="0 0 0"/>
+      <origin xyz="0.435817 0.046247 0.606083" rpy="0 0 0"/>
       <mass value="9.637453"/>
-      <inertia ixx="0.687290836" ixy="-0.008983282" ixz="-0.027927721" iyy="1.564593511" iyz="-0.001002838" izz="0.879070173"/>
+      <inertia ixx="0.69365549" ixy="-0.013829435" ixz="-0.027878306" iyy="1.603518198" iyz="-0.00104192" izz="0.912538064"/>
     </inertial>
     <collision name="leaf_slab_col_col">
       <origin xyz="0.5 0.05 0.6" rpy="0 0 0"/>
@@ -628,10 +675,38 @@
       </geometry>
       <material name="mat_hinge"/>
     </visual>
+    <visual name="hinge_strap_eye_0_vis">
+      <origin xyz="0 0 0.3" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.011" length="0.024"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
+    <visual name="hinge_strap_neck_0_vis">
+      <origin xyz="0 0.01725 0.3" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.024 0.0425 0.012"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
     <visual name="hinge_strap_1_vis">
       <origin xyz="0 0.0345 0.9" rpy="0 0 0"/>
       <geometry>
         <mesh filename="../../hardware/strap_hinge_78d1bbb966.obj"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
+    <visual name="hinge_strap_eye_1_vis">
+      <origin xyz="0 0 0.9" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.011" length="0.024"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
+    <visual name="hinge_strap_neck_1_vis">
+      <origin xyz="0 0.01725 0.9" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.024 0.0425 0.012"/>
       </geometry>
       <material name="mat_hinge"/>
     </visual>
@@ -841,7 +916,7 @@
     <child link="leaf_fork"/>
     <axis xyz="0 -1 0"/>
     <limit lower="0" upper="1.2" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.02"/>
+    <dynamics damping="0.037477" friction="0.006367"/>
   </joint>
   <joint name="leaf_aux_bolt_slide" type="prismatic">
     <origin xyz="1 0.0745 0.95" rpy="0 0 0"/>
@@ -875,5 +950,8 @@
   </material>
   <material name="mat_op_steel_galvanized">
     <color rgba="0.65 0.66 0.68 1"/>
+  </material>
+  <material name="mat_stop_base">
+    <color rgba="0.9 0.9 0.92 1"/>
   </material>
 </robot>

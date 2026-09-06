@@ -11,7 +11,7 @@ def Xform "db0788_swing_double"
     custom string doorbench:door_id = "db0788_swing_double"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = '[["leaf_a", "leaf_a_aux_bolt"]]'
-    custom string doorbench:meta = '{"door_id": "db0788_swing_double", "family": "swing_double", "task": "open_and_traverse", "wall_y": 0.030499999999999996, "u": -1.0, "v": -1.0, "hinge_x": 0.9045, "leaf_edge_x_local": -0.903, "handle_height": 1.05, "primary_joint": "leaf_a_hinge", "operator_joint": null, "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": false, "mass_reconciled_kg": 39.70421608909191, "scene_extent": 2.00975, "cam_target_z": 1.0065, "cam_target_x": 0.0, "handle_cam_x": 0.10449999999999993, "handle_cam_target": [-0.10649999999999993, -0.067, 1.05], "handle_cam_pos": [0.07350000000000007, -0.867, 1.33], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0788_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_a_aux_bolt_slide": "/db0788_swing_double/Articulation/Joints/leaf_a_aux_bolt_slide", "leaf_b_hinge": "/db0788_swing_double/Articulation/Joints/leaf_b_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf_a", "leaf_a_aux_bolt"]], "n_filtered_pairs": 1, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0788_swing_double", "family": "swing_double", "task": "open_and_traverse", "wall_y": 0.030499999999999996, "u": -1.0, "v": -1.0, "hinge_x": 0.9045, "leaf_edge_x_local": -0.903, "handle_height": 1.05, "primary_joint": "leaf_a_hinge", "operator_joint": null, "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": false, "mass_reconciled_kg": 39.70421608909191, "scene_extent": 2.00975, "cam_target_z": 1.0065, "cam_target_x": 0.0, "handle_cam_x": 0.10449999999999993, "handle_cam_target": [-0.10649999999999993, -0.067, 1.05], "handle_cam_pos": [0.07350000000000007, -0.867, 1.33], "operator_joints": [], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0788_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_a_aux_bolt_slide": "/db0788_swing_double/Articulation/Joints/leaf_a_aux_bolt_slide", "leaf_b_hinge": "/db0788_swing_double/Articulation/Joints/leaf_b_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf_a", "leaf_a_aux_bolt"]], "n_filtered_pairs": 1, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -165,6 +165,21 @@ def Xform "db0788_swing_double"
             }
         }
 
+        def Material "mat_threshold"
+        {
+            token outputs:surface.connect = </db0788_swing_double/Looks/mat_threshold/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.8, 0.81, 0.83)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.4
+                token outputs:surface
+            }
+        }
+
         def Material "PhysMat_mat_floor_0_800" (
             prepend apiSchemas = ["PhysicsMaterialAPI"]
         )
@@ -190,6 +205,15 @@ def Xform "db0788_swing_double"
             float physics:dynamicFriction = 0.51
             float physics:restitution = 0.05
             float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_threshold_0_500" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.425
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.5
         }
 
         def Material "PhysMat_mat_leaf_a_0_450" (
@@ -327,6 +351,70 @@ def Xform "db0788_swing_double"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Cylinder "hinge_pintle_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Pintle"
+                custom string doorbench:semantic = "hinge"
+                double height = 0.04
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double radius = 0.008
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.9015, -0.028999999999999998, 0.141)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "hinge_pintle_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Pintle"
+                custom string doorbench:semantic = "hinge"
+                double height = 0.04
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double radius = 0.008
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.9015, -0.028999999999999998, 1.833)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "hinge_pintle_0_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Pintle"
+                custom string doorbench:semantic = "hinge"
+                double height = 0.04
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double radius = 0.008
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.9015, -0.028999999999999998, 0.141)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "hinge_pintle_1_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Pintle"
+                custom string doorbench:semantic = "hinge"
+                double height = 0.04
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double radius = 0.008
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.9015, -0.028999999999999998, 1.833)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
             def Cube "jamb_l" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
@@ -404,6 +492,86 @@ def Xform "db0788_swing_double"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (1.847, 0.145, 0.03)
                 double3 xformOp:translate = (0, 0.030499999999999996, 2.047)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "threshold" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Threshold saddle (13 mm)"
+                custom string doorbench:semantic = "frame"
+                rel material:binding = </db0788_swing_double/Looks/mat_threshold>
+                rel material:binding:physics = </db0788_swing_double/Looks/PhysMat_mat_threshold_0_500> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1.847, 0.145, 0.013)
+                double3 xformOp:translate = (0, 0.030499999999999996, 0.0065)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hinge_pintle_0_strap_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Pintle post strap"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.056, 0.0128, 0.032)
+                double3 xformOp:translate = (-0.937, -0.028999999999999998, 0.141)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hinge_pintle_0_strap_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Pintle post strap"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.056, 0.0128, 0.032)
+                double3 xformOp:translate = (0.937, -0.028999999999999998, 0.141)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hinge_pintle_1_strap_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Pintle post strap"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.056, 0.0128, 0.032)
+                double3 xformOp:translate = (-0.937, -0.028999999999999998, 1.833)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hinge_pintle_1_strap_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Pintle post strap"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.056, 0.0128, 0.032)
+                double3 xformOp:translate = (0.937, -0.028999999999999998, 1.833)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -515,7 +683,7 @@ def Xform "db0788_swing_double"
                 custom float doorbench:friction_effort = 3.6810236
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
-                custom float doorbench:legacy_friction_coeff = 0.012921345
+                custom float doorbench:legacy_friction_coeff = 0.012940564
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -599,7 +767,7 @@ def Xform "db0788_swing_double"
                 custom float doorbench:friction_effort = 3.6810236
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Inactive leaf (flush bolts engaged)"
-                custom float doorbench:legacy_friction_coeff = 0.013458986
+                custom float doorbench:legacy_friction_coeff = 0.01347816
                 custom bool doorbench:limited = 1
                 custom string doorbench:notes = "inactive leaf held by flush bolts; set range to free it"
                 custom bool doorbench:robot_interactive = 1
@@ -657,10 +825,10 @@ def Xform "db0788_swing_double"
         {
             custom string doorbench:label = "Door leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.44970238, -0.0011836195, 1.0147876)
-            float3 physics:diagonalInertia = (1.4044294, 6.7573814, 8.151158)
-            float physics:mass = 19.919764
-            quatf physics:principalAxes = (0.5003673, 0.49839512, 0.50163966, -0.49959233)
+            point3f physics:centerOfMass = (0.44755667, -0.0013145945, 1.014779)
+            float3 physics:diagonalInertia = (1.4167461, 6.7934, 8.199418)
+            float physics:mass = 19.919552
+            quatf physics:principalAxes = (0.50056195, 0.49820396, 0.50182956, -0.49939728)
             custom rel physxFilteredPairs:filteredPairs = </db0788_swing_double/Articulation/leaf_a_aux_bolt>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
@@ -823,6 +991,37 @@ def Xform "db0788_swing_double"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cylinder "hinge_strap_eye_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap eye"
+                custom string doorbench:semantic = "hinge"
+                double height = 0.024
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double radius = 0.011
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.003, -0.028999999999999998, 0.16699999999999998)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "hinge_strap_neck_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap eye neck"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.024, 0.012, 0.012)
+                double3 xformOp:translate = (0.003, -0.026999999999999996, 0.16699999999999998)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "hinge_strap_1" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
                 prepend references = @../../hardware/strap_hinge_78d1bbb966.usdc@</strap_hinge_78d1bbb966>
@@ -835,6 +1034,37 @@ def Xform "db0788_swing_double"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (0.003, -0.024999999999999998, 1.859)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "hinge_strap_eye_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap eye"
+                custom string doorbench:semantic = "hinge"
+                double height = 0.024
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double radius = 0.011
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.003, -0.028999999999999998, 1.859)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "hinge_strap_neck_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap eye neck"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.024, 0.012, 0.012)
+                double3 xformOp:translate = (0.003, -0.026999999999999996, 1.859)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
             def Xform "leaf_a_pull_n" (
@@ -1128,10 +1358,10 @@ def Xform "db0788_swing_double"
         {
             custom string doorbench:label = "Door leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-0.41121858, -0.0011212298, 1.0130001)
-            float3 physics:diagonalInertia = (1.18282, 6.886625, 8.062302)
-            float physics:mass = 19.784452
-            quatf physics:principalAxes = (0.50118256, 0.49880296, -0.50119424, 0.4988146)
+            point3f physics:centerOfMass = (-0.4092033, -0.0012561511, 1.0130001)
+            float3 physics:diagonalInertia = (1.193268, 6.922674, 8.1087055)
+            float physics:mass = 19.784664
+            quatf physics:principalAxes = (0.5013944, 0.49859008, -0.501406, 0.49860165)
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -1174,8 +1404,8 @@ def Xform "db0788_swing_double"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.03, 0.006, 0.02)
-                double3 xformOp:translate = (-0.888, -0.045, 1.3)
+                float3 xformOp:scale = (0.044, 0.006, 0.02)
+                double3 xformOp:translate = (-0.881, -0.045, 1.3)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -1393,6 +1623,37 @@ def Xform "db0788_swing_double"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cylinder "hinge_strap_eye_0_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap eye"
+                custom string doorbench:semantic = "hinge"
+                double height = 0.024
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double radius = 0.011
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.003, -0.028999999999999998, 0.16699999999999998)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "hinge_strap_neck_0_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap eye neck"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.024, 0.012, 0.012)
+                double3 xformOp:translate = (-0.003, -0.026999999999999996, 0.16699999999999998)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "hinge_strap_1_2" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
                 prepend references = @../../hardware/strap_hinge_78d1bbb966.usdc@</strap_hinge_78d1bbb966>
@@ -1405,6 +1666,37 @@ def Xform "db0788_swing_double"
                 quatf xformOp:orient = (6.123234e-17, 0, 0, 1)
                 double3 xformOp:translate = (-0.003, -0.024999999999999998, 1.859)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "hinge_strap_eye_1_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap eye"
+                custom string doorbench:semantic = "hinge"
+                double height = 0.024
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double radius = 0.011
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (-0.003, -0.028999999999999998, 1.859)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "hinge_strap_neck_1_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strap eye neck"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0788_swing_double/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.024, 0.012, 0.012)
+                double3 xformOp:translate = (-0.003, -0.026999999999999996, 1.859)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
             def Xform "leaf_b_edge_mid"

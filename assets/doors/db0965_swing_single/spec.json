@@ -161,6 +161,62 @@
     "dead_travel": 0.15
    }
   },
+  "operator": {
+   "model": "knob_glass_antique",
+   "kind": "knob",
+   "motion": "rotate_normal",
+   "rotary": true,
+   "return_kind": "spring",
+   "return_note": "tired mortise hub spring: weakest sprung set in the catalogue, still returns the knob",
+   "source": "Vintage 1920s glass knob w/ mortise lock",
+   "travel": 0.8,
+   "dead_travel": 0.15,
+   "spring_preload": 0.15,
+   "spring_rate": 0.35,
+   "detent_friction": 0.0,
+   "damping_ratio": 1.0,
+   "gravity_margin": 1.35,
+   "units": {
+    "preload": "N*m",
+    "rate": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "friction": "N*m",
+    "inertia": "kg*m^2",
+    "travel": "rad"
+   },
+   "joints": {
+    "leaf_handle_hinge": {
+     "joint": "leaf_handle_hinge",
+     "type": "hinge",
+     "return_kind": "spring",
+     "operator_model": "knob_glass_antique",
+     "travel": 0.07,
+     "inertia": 0.010215241391740725,
+     "armature": 0.01,
+     "moving_mass_kg": 0.9693847741477157,
+     "gravity_moment_at_rest": 0.0,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "spring_preload": 0.15,
+     "spring_preload_catalogue": 0.15,
+     "spring_rate": 0.35,
+     "damping": 0.11958820154361806,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.032,
+     "omega_n_rad_s": 5.85342024517933,
+     "rest": 0.0,
+     "expected_return_time_s": 0.122,
+     "return_tolerance": 0.004363323129985824
+    }
+   },
+   "formula": "tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = 1.0 (critical) and I the joint-space inertia (armature + the handle's own inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where the catalogue spring would not lift it; fl capped at 0.25 of the restoring torque at rest so it cannot park the handle short of rest"
+  },
   "lock": {
    "model": "privacy_button",
    "kind": "privacy_button",
@@ -218,6 +274,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "locked_recognize",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "locked_recognize"

@@ -38,7 +38,7 @@
     <camera name="robot_view" pos="0 -2.609312 1.812087" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
     <camera name="far_view" pos="0 2.666313 1.812087" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
     <camera name="iso" pos="-2.004737 -2.187262 2.234138" xyaxes="0.741536 -0.670913 0 0.242917 0.268487 0.932151" fovy="46"/>
-    <camera name="detail_handle" pos="-0.1984 -0.723 1.296" xyaxes="0.97561 0.219512 0 -0.070934 0.315262 0.94635" fovy="38"/>
+    <camera name="detail_handle" pos="-0.1984 -0.877 1.296" xyaxes="0.97561 0.219512 0 -0.070934 0.315262 0.94635" fovy="38"/>
     <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
     <geom name="wall_left" type="box" size="0.9415 0.0575 1.3735" pos="-1.5585 0.0285 1.3735" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
     <geom name="wall_right" type="box" size="0.9565 0.0575 1.3735" pos="1.5435 0.0285 1.3735" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
@@ -55,21 +55,29 @@
     <geom name="stop_hinge" type="box" size="0.0055 0.016 1.0735" pos="0.5315 0.0385 1.0735" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="stop_strike" type="box" size="0.0055 0.016 1.0735" pos="-0.5315 0.0385 1.0735" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="stop_head" type="box" size="0.537 0.016 0.0055" pos="0 0.0385 2.1415" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
-    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="door_plane_center" pos="0 0 1.0735" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="approach_point" pos="0 -1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.0735" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="leaf" pos="0.537 0 0">
-      <inertial pos="-0.5365 0 1.076" mass="68.23569" quat="-0.5 0.5 0.5 0.5" diaginertia="6.484807234 25.906202863 32.368992715"/>
+      <inertial pos="-0.5365 0 1.076" mass="67.804272" quat="-0.5 0.5 0.5 0.5" diaginertia="6.443807217 25.742411601 32.16434064"/>
       <joint name="leaf_hinge" type="hinge" axis="0 0 1" pos="-0.003 -0.029 0" limited="true" range="0 1.745329" damping="12.49954" frictionloss="8.094349" stiffness="15.673579" springref="-1.79155" armature="0.02"/>
       <geom name="leaf_slab" type="box" size="0.5335 0.022 1.067" pos="-0.5365 0 1.076" material="mat_leaf" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
-      <site name="leaf_edge_mid" pos="-1.07 0 1.067" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_edge_mid" pos="-1.07 0 1.067" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
       <body name="leaf_handle" pos="-1.005 0 1.016">
+        <inertial pos="0.025007 -0.057273 0" mass="0.41" quat="0.235955 0 0 0.971764" diaginertia="0.000156759 0.000717302 0.000791484"/>
+        <joint name="leaf_handle_hinge" type="hinge" axis="0 1 0" limited="true" range="0 0.87" damping="0.208392" frictionloss="0.052" stiffness="1" springref="-0.35" armature="0.01"/>
+        <geom name="leaf_handle_lever_n" type="mesh" mesh="lever_a61139b160" pos="0 -0.022 0" quat="0 0 -0.707107 0.707107" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="3000"/>
+        <geom name="leaf_handle_lever_col_n" type="capsule" size="0.008 0.048" pos="0.056 -0.077 0" quat="0.707107 0 0.707107 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
+        <geom name="leaf_handle_hub_col_n" type="cylinder" size="0.012 0.022" pos="0 -0.052 0" quat="0.707107 -0.707107 0 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
+        <site name="leaf_handle_grip_n" pos="0.0896 -0.077 0" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      </body>
+      <body name="leaf_handle_out" pos="-1.005 0 1.016">
         <inertial pos="0.025007 0.057273 0" mass="0.41" quat="-0.235955 0 0 0.971764" diaginertia="0.000156759 0.000717302 0.000791484"/>
-        <joint name="leaf_handle_hinge" type="hinge" axis="0 1 0" limited="true" range="0 0.87" damping="0.02" frictionloss="0.052" stiffness="1" springref="-0.35" armature="0.01"/>
-        <geom name="leaf_handle_lever_p" type="mesh" mesh="lever_a61139b160" pos="0 0.022 0" quat="0 0 0.707107 0.707107" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="3000"/>
-        <geom name="leaf_handle_lever_col_p" type="capsule" size="0.008 0.048" pos="0.056 0.077 0" quat="0.707107 0 0.707107 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
-        <geom name="leaf_handle_hub_col_p" type="cylinder" size="0.012 0.022" pos="0 0.052 0" quat="0.707107 -0.707107 0 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
-        <site name="leaf_handle_grip_p" pos="0.0896 0.077 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+        <joint name="leaf_handle_out_hinge" type="hinge" axis="0 1 0" limited="true" range="0 0.09" damping="0.208382" frictionloss="0.052" stiffness="1" springref="-0.35" armature="0.01"/>
+        <geom name="leaf_handle_out_lever_p" type="mesh" mesh="lever_a61139b160" pos="0 0.022 0" quat="0 0 0.707107 0.707107" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="3000"/>
+        <geom name="leaf_handle_out_lever_col_p" type="capsule" size="0.008 0.048" pos="0.056 0.077 0" quat="0.707107 0 0.707107 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
+        <geom name="leaf_handle_out_hub_col_p" type="cylinder" size="0.012 0.022" pos="0 0.052 0" quat="0.707107 -0.707107 0 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
+        <site name="leaf_handle_out_grip_p" pos="0.0896 0.077 0" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
       <body name="leaf_latch_bolt" pos="-1.07 0 1.016">
         <inertial pos="0.0055 0 0" mass="0.102826" quat="0.92388 0.382683 0 0" diaginertia="0.000004365 0.000018287 0.000018287"/>
@@ -82,6 +90,7 @@
     <fixed name="leaf_latch_bolt_coupling" limited="true" range="0 10">
       <joint joint="leaf_latch_bolt_slide" coef="1"/>
       <joint joint="leaf_handle_hinge" coef="-0.023457"/>
+      <joint joint="leaf_handle_out_hinge" coef="-0.023457"/>
     </fixed>
   </tendon>
   <sensor>
@@ -89,6 +98,8 @@
     <jointvel name="leaf_hinge_vel" joint="leaf_hinge"/>
     <jointpos name="leaf_handle_hinge_pos" joint="leaf_handle_hinge"/>
     <jointvel name="leaf_handle_hinge_vel" joint="leaf_handle_hinge"/>
+    <jointpos name="leaf_handle_out_hinge_pos" joint="leaf_handle_out_hinge"/>
+    <jointvel name="leaf_handle_out_hinge_vel" joint="leaf_handle_out_hinge"/>
     <jointpos name="leaf_latch_bolt_slide_pos" joint="leaf_latch_bolt_slide"/>
     <jointvel name="leaf_latch_bolt_slide_vel" joint="leaf_latch_bolt_slide"/>
   </sensor>

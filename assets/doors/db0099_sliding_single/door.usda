@@ -11,7 +11,7 @@ def Xform "db0099_sliding_single"
     custom string doorbench:door_id = "db0099_sliding_single"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = "[]"
-    custom string doorbench:meta = '{"door_id": "db0099_sliding_single", "family": "sliding_single", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "track_header", "nominal_range": [0.0, 0.675], "leaf_width_m": 0.711, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 33.380428640000005, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.26549999999999996, -0.0175, 1.0], "handle_cam_pos": [0.44549999999999995, -0.8175, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0099_sliding_single/Articulation/Joints/leaf_slide"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0099_sliding_single", "family": "sliding_single", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "track_header", "nominal_range": [0.0, 0.675], "leaf_width_m": 0.711, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 33.380428640000005, "scene_extent": 2.039, "cam_target_z": 1.026, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.26549999999999996, -0.0175, 1.0], "handle_cam_pos": [0.44549999999999995, -0.8175, 1.28], "operator_joints": [], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0099_sliding_single/Articulation/Joints/leaf_slide"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -382,6 +382,21 @@ def Xform "db0099_sliding_single"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.079, 0.145, 2.052)
                 double3 xformOp:translate = (0.40499999999999997, 0, 1.026)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "track_header_bracket" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Standoff mounting bracket"
+                custom string doorbench:semantic = "track"
+                rel material:binding = </db0099_sliding_single/Looks/mat_hook>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1.1888, 0.0325, 0.064)
+                double3 xformOp:translate = (-0.3375, 0.040749999999999995, 2.111)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

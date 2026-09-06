@@ -237,25 +237,51 @@
       </geometry>
       <material name="mat_closer"/>
     </visual>
-    <visual name="wall_bumper_stop_vis">
-      <origin xyz="0.4845 0.8059 0.35" rpy="-0.269078 1.570796 -0.269078"/>
+    <visual name="door_stop_base_vis">
+      <origin xyz="0.4735 0.8059 0.003" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.025" length="0.04"/>
+        <cylinder radius="0.022" length="0.006"/>
+      </geometry>
+      <material name="mat_stop_base"/>
+    </visual>
+    <collision name="door_stop_base_col">
+      <origin xyz="0.4735 0.8059 0.003" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.006"/>
+      </geometry>
+    </collision>
+    <visual name="door_stop_post_vis">
+      <origin xyz="0.4735 0.8059 0.0305" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.012" length="0.049"/>
+      </geometry>
+      <material name="mat_stop_base"/>
+    </visual>
+    <collision name="door_stop_post_col">
+      <origin xyz="0.4735 0.8059 0.0305" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.012" length="0.049"/>
+      </geometry>
+    </collision>
+    <visual name="door_stop_bumper_vis">
+      <origin xyz="0.4735 0.8059 0.075" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.04"/>
       </geometry>
       <material name="mat_bumper_stop"/>
     </visual>
-    <collision name="wall_bumper_stop_col">
-      <origin xyz="0.4845 0.8059 0.35" rpy="-0.269078 1.570796 -0.269078"/>
+    <collision name="door_stop_bumper_col">
+      <origin xyz="0.4735 0.8059 0.075" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.025" length="0.04"/>
+        <cylinder radius="0.022" length="0.04"/>
       </geometry>
     </collision>
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="-0.441629 -0.02928 1.024213" rpy="0 0 0"/>
-      <mass value="49.989377"/>
-      <inertia ixx="20.200539145" ixy="-0.022762887" ixz="-0.039861327" iyy="23.873193245" iyz="-0.058311226" izz="3.693157387"/>
+      <origin xyz="-0.426996 -0.02831 1.025929" rpy="0 0 0"/>
+      <mass value="49.973396"/>
+      <inertia ixx="20.147404695" ixy="-0.042703791" ixz="-0.075143298" iyy="24.008107677" iyz="-0.058788686" izz="3.883495125"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="-0.457 -0.029 1.076" rpy="0 0 0"/>
@@ -280,7 +306,7 @@
     <visual name="hinge_continuous_vis">
       <origin xyz="0 0 1.076" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.0096" length="2.114"/>
+        <cylinder radius="0.0136" length="2.114"/>
       </geometry>
       <material name="mat_hinge"/>
     </visual>
@@ -301,14 +327,14 @@
   </link>
   <link name="leaf_handle">
     <inertial>
-      <origin xyz="0.018797 0 0" rpy="0 0 0"/>
-      <mass value="0.790463"/>
-      <inertia ixx="0.002582761" ixy="0" ixz="0" iyy="0.001000662" iyz="0" izz="0.003479103"/>
+      <origin xyz="0.018425 0 0" rpy="0 0 0"/>
+      <mass value="0.806444"/>
+      <inertia ixx="0.002593405" ixy="0" ixz="0" iyy="0.001006485" iyz="0" izz="0.00349528"/>
     </inertial>
     <visual name="leaf_handle_spindle_vis">
       <origin xyz="0 0 0" rpy="-1.570796 0 0"/>
       <geometry>
-        <cylinder radius="0.006" length="0.042"/>
+        <cylinder radius="0.006" length="0.06"/>
       </geometry>
       <material name="mat_op_black_matte_metal"/>
     </visual>
@@ -387,7 +413,7 @@
     <child link="leaf_handle"/>
     <axis xyz="0 1 0"/>
     <limit lower="0" upper="0.87" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.042"/>
+    <dynamics damping="0.212417" friction="0.042"/>
     <doorbench:spring stiffness="1" springref="-0.35" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_latch_bolt_slide" type="prismatic">
@@ -433,6 +459,9 @@
   </material>
   <material name="mat_seal">
     <color rgba="0.1 0.1 0.1 1"/>
+  </material>
+  <material name="mat_stop_base">
+    <color rgba="0.9 0.9 0.92 1"/>
   </material>
   <material name="mat_wall">
     <color rgba="0.78 0.76 0.7 1"/>

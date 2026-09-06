@@ -181,6 +181,91 @@
     "dead_travel": 0.03
    }
   },
+  "operator": {
+   "model": "panic_crossbar",
+   "kind": "panic_crossbar",
+   "motion": "rotate_horizontal",
+   "rotary": true,
+   "return_kind": "spring",
+   "return_note": "crossbar end-case springs throw the bar back out",
+   "source": "Von Duprin 88 crossbar; 20 deg arc",
+   "travel": 0.35,
+   "dead_travel": 0.03,
+   "spring_preload": 4.0,
+   "spring_rate": 12.0,
+   "detent_friction": 0.0,
+   "damping_ratio": 1.0,
+   "gravity_margin": 1.35,
+   "units": {
+    "preload": "N*m",
+    "rate": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "friction": "N*m",
+    "inertia": "kg*m^2",
+    "travel": "rad"
+   },
+   "joints": {
+    "leaf_a_exit_device_hinge": {
+     "joint": "leaf_a_exit_device_hinge",
+     "type": "hinge",
+     "return_kind": "spring",
+     "operator_model": "panic_crossbar",
+     "travel": 0.35,
+     "inertia": 0.01676644025804368,
+     "armature": 0.01,
+     "moving_mass_kg": 1.9344941246145386,
+     "gravity_moment_at_rest": -1.093937733712536,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "spring_preload": 4.0,
+     "spring_preload_catalogue": 4.0,
+     "spring_rate": 12.0,
+     "damping": 0.8971004026228595,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.13999999999999999,
+     "omega_n_rad_s": 26.752858353235613,
+     "rest": 0.0,
+     "expected_return_time_s": 0.0575,
+     "return_tolerance": 0.004363323129985824
+    },
+    "leaf_b_exit_device_hinge": {
+     "joint": "leaf_b_exit_device_hinge",
+     "type": "hinge",
+     "return_kind": "spring",
+     "operator_model": "panic_crossbar",
+     "travel": 0.35,
+     "inertia": 0.01676644025804368,
+     "armature": 0.01,
+     "moving_mass_kg": 1.9344941246145386,
+     "gravity_moment_at_rest": 1.093937733712536,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "spring_preload": 4.0,
+     "spring_preload_catalogue": 4.0,
+     "spring_rate": 12.0,
+     "damping": 0.8971004026228595,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.13999999999999999,
+     "omega_n_rad_s": 26.752858353235613,
+     "rest": 0.0,
+     "expected_return_time_s": 0.0745,
+     "return_tolerance": 0.004363323129985824
+    }
+   },
+   "formula": "tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = 1.0 (critical) and I the joint-space inertia (armature + the handle's own inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where the catalogue spring would not lift it; fl capped at 0.25 of the restoring torque at rest so it cannot park the handle short of rest"
+  },
   "lock": {
    "model": "none",
    "kind": "none",
@@ -238,6 +323,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "open_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "open_and_traverse"

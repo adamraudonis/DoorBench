@@ -70,7 +70,7 @@
   "type": "hinge_vertical",
   "max_open_deg": 110,
   "stop": "hook_holdback",
-  "dogs": 0,
+  "dogs": 6,
   "wheel_dogging": true
  },
  "operator": {
@@ -161,6 +161,59 @@
     "dead_travel": 0.1
    }
   },
+  "operator": {
+   "model": "wheel_ship_hatch",
+   "kind": "wheel",
+   "motion": "rotate_normal",
+   "rotary": true,
+   "return_kind": "detent",
+   "return_note": "no spring: the dogging linkage is self-locking and holds the wheel where it is left",
+   "source": "Quick-acting watertight door wheel",
+   "travel": 9.4248,
+   "dead_travel": 0.1,
+   "spring_preload": 0.0,
+   "spring_rate": 0.0,
+   "detent_friction": 2.0,
+   "damping_ratio": null,
+   "gravity_margin": null,
+   "units": {
+    "preload": "N*m",
+    "rate": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "friction": "N*m",
+    "inertia": "kg*m^2",
+    "travel": "rad"
+   },
+   "joints": {
+    "wheel_hinge": {
+     "joint": "wheel_hinge",
+     "type": "hinge",
+     "return_kind": "detent",
+     "operator_model": "wheel_ship_hatch",
+     "travel": 9.4248,
+     "inertia": 0.1582114547088485,
+     "armature": 0.01,
+     "moving_mass_kg": 5.9868283415532275,
+     "gravity_moment_at_rest": -3.1482629003765086e-16,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "detent_friction": 2.0,
+     "damping": 0.5,
+     "spring_preload": 0.0,
+     "spring_rate": 0.0,
+     "rest": null,
+     "expected_return_time_s": null,
+     "note": "stays where it is put; QA `operator_holds` asserts it does not creep back"
+    }
+   },
+   "formula": "no spring: Coulomb friction detent_friction holds the part where it was left"
+  },
   "lock": {
    "model": "dogs",
    "kind": "dogs",
@@ -218,6 +271,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "unlock_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "unlock_and_traverse"
@@ -313,15 +372,15 @@
      "traversed",
      "!damage"
     ],
-    "time_budget_s": 60.0,
-    "expected_transit_s": 16.49,
+    "time_budget_s": 45.0,
+    "expected_transit_s": 10.49,
     "expected_transit_terms": {
      "approach_s": 1.36,
-     "operate_s": 11.0,
+     "operate_s": 5.0,
      "open_s": 1.14,
      "pass_s": 3.0,
      "scenario_extra_s": 0.0,
-     "total_s": 16.49
+     "total_s": 10.49
     }
    }
   ],

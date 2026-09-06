@@ -158,6 +158,59 @@
     "dead_travel": 0.1
    }
   },
+  "operator": {
+   "model": "wheel_vault",
+   "kind": "wheel",
+   "motion": "rotate_normal",
+   "rotary": true,
+   "return_kind": "detent",
+   "return_note": "no spring: the boltwork friction holds the wheel wherever it is left (a sprung wheel would re-throw the bolts)",
+   "source": "Vault handwheel; 1-2 turns throws 4-8 bolts",
+   "travel": 6.2832,
+   "dead_travel": 0.1,
+   "spring_preload": 0.0,
+   "spring_rate": 0.0,
+   "detent_friction": 5.0,
+   "damping_ratio": null,
+   "gravity_margin": null,
+   "units": {
+    "preload": "N*m",
+    "rate": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "friction": "N*m",
+    "inertia": "kg*m^2",
+    "travel": "rad"
+   },
+   "joints": {
+    "wheel_hinge": {
+     "joint": "wheel_hinge",
+     "type": "hinge",
+     "return_kind": "detent",
+     "operator_model": "wheel_vault",
+     "travel": 6.2832,
+     "inertia": 0.12574716783584522,
+     "armature": 0.01,
+     "moving_mass_kg": 3.9138475402685113,
+     "gravity_moment_at_rest": 1.2337787042016049e-15,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "detent_friction": 5.0,
+     "damping": 0.5,
+     "spring_preload": 0.0,
+     "spring_rate": 0.0,
+     "rest": null,
+     "expected_return_time_s": null,
+     "note": "stays where it is put; QA `operator_holds` asserts it does not creep back"
+    }
+   },
+   "formula": "no spring: Coulomb friction detent_friction holds the part where it was left"
+  },
   "lock": {
    "model": "vault_wheel",
    "kind": "vault_wheel",
@@ -215,6 +268,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "unlock_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "unlock_and_traverse"

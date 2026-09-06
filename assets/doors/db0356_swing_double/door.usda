@@ -11,7 +11,7 @@ def Xform "db0356_swing_double"
     custom string doorbench:door_id = "db0356_swing_double"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = "[]"
-    custom string doorbench:meta = '{"door_id": "db0356_swing_double", "family": "swing_double", "task": "open_and_traverse", "wall_y": 0.0, "u": -1.0, "v": -1.0, "hinge_x": 0.9185, "leaf_edge_x_local": -0.917, "handle_height": 1.016, "primary_joint": "leaf_a_hinge", "operator_joint": null, "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": false, "mass_reconciled_kg": 51.8835541144, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": 0.10449999999999993, "handle_cam_target": [0.10449999999999993, 0.0, 1.016], "handle_cam_pos": [0.2844999999999999, -0.8, 1.296], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0356_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_b_hinge": "/db0356_swing_double/Articulation/Joints/leaf_b_hinge"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0356_swing_double", "family": "swing_double", "task": "open_and_traverse", "wall_y": 0.0, "u": -1.0, "v": -1.0, "hinge_x": 0.9185, "leaf_edge_x_local": -0.917, "handle_height": 1.016, "primary_joint": "leaf_a_hinge", "operator_joint": null, "pair": true, "secondary_joint": "leaf_b_hinge", "mullion": false, "mass_reconciled_kg": 51.8835541144, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": 0.10449999999999993, "handle_cam_target": [0.10449999999999993, 0.0, 1.016], "handle_cam_pos": [0.2844999999999999, -0.8, 1.296], "operator_joints": [], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_a_hinge": "/db0356_swing_double/Articulation/Joints/leaf_a_hinge", "leaf_b_hinge": "/db0356_swing_double/Articulation/Joints/leaf_b_hinge"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -165,6 +165,21 @@ def Xform "db0356_swing_double"
             }
         }
 
+        def Material "mat_threshold"
+        {
+            token outputs:surface.connect = </db0356_swing_double/Looks/mat_threshold/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.8, 0.81, 0.83)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.4
+                token outputs:surface
+            }
+        }
+
         def Material "PhysMat_mat_floor_0_800" (
             prepend apiSchemas = ["PhysicsMaterialAPI"]
         )
@@ -190,6 +205,15 @@ def Xform "db0356_swing_double"
             float physics:dynamicFriction = 0.51
             float physics:restitution = 0.05
             float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_threshold_0_500" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.425
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.5
         }
 
         def Material "PhysMat_mat_leaf_a_0_400" (
@@ -470,6 +494,26 @@ def Xform "db0356_swing_double"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (1.937, 0.1, 0.03)
                 double3 xformOp:translate = (0, 0, 2.2119999999999997)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "threshold" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Threshold saddle (13 mm)"
+                custom string doorbench:semantic = "frame"
+                rel material:binding = </db0356_swing_double/Looks/mat_threshold>
+                rel material:binding:physics = </db0356_swing_double/Looks/PhysMat_mat_threshold_0_500> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1.937, 0.1, 0.013)
+                double3 xformOp:translate = (0, 0, 0.0065)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

@@ -157,7 +157,7 @@
    "backset_m": 0.07,
    "operator_travel": 0.4,
    "operator_dead_travel": 0.03,
-   "operator_spring_preload": 0.6,
+   "operator_spring_preload": 1.5,
    "operator_spring_rate": 1.5,
    "operator_yield": 30.0,
    "operator_grip_offset_m": 0.09,
@@ -169,6 +169,62 @@
     ],
     "dead_travel": 0.03
    }
+  },
+  "operator": {
+   "model": "paddle_push_pull",
+   "kind": "paddle",
+   "motion": "rotate_horizontal",
+   "rotary": true,
+   "return_kind": "spring",
+   "return_note": "latch hub spring returns the plate; it must also lift the plate's own weight (rocker on a horizontal pin)",
+   "source": "Glynn-Johnson HL6 hospital push/pull latch",
+   "travel": 0.4,
+   "dead_travel": 0.03,
+   "spring_preload": 1.5,
+   "spring_rate": 1.5,
+   "detent_friction": 0.0,
+   "damping_ratio": 1.0,
+   "gravity_margin": 1.35,
+   "units": {
+    "preload": "N*m",
+    "rate": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "friction": "N*m",
+    "inertia": "kg*m^2",
+    "travel": "rad"
+   },
+   "joints": {
+    "leaf_handle_hinge": {
+     "joint": "leaf_handle_hinge",
+     "type": "hinge",
+     "return_kind": "spring",
+     "operator_model": "paddle_push_pull",
+     "travel": 0.4,
+     "inertia": 0.012753989822248436,
+     "armature": 0.01,
+     "moving_mass_kg": 0.3337979452636557,
+     "gravity_moment_at_rest": -0.10175236305592851,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "spring_preload": 1.5,
+     "spring_preload_catalogue": 1.5,
+     "spring_rate": 1.5,
+     "damping": 0.2766296060321285,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.05600000000000001,
+     "omega_n_rad_s": 10.844826202917602,
+     "rest": 0.0,
+     "expected_return_time_s": 0.093,
+     "return_tolerance": 0.004363323129985824
+    }
+   },
+   "formula": "tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = 1.0 (critical) and I the joint-space inertia (armature + the handle's own inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where the catalogue spring would not lift it; fl capped at 0.25 of the restoring torque at rest so it cannot park the handle short of rest"
   },
   "lock": {
    "model": "thumbturn_only",
@@ -199,10 +255,10 @@
   "compliance": {
    "opening_force_start_N": 39.44325714822703,
    "opening_force_90deg_N": 66.50636394434353,
-   "operator_force_N": 13.333333333333336,
+   "operator_force_N": 23.333333333333336,
    "ada_interior_5lbf_ok": null,
    "ibc_fire_exterior_ok": true,
-   "hardware_operable_5lbf_ok": true,
+   "hardware_operable_5lbf_ok": false,
    "panic_unlatch_15lbf_ok": null,
    "lever_or_ada_hardware": true,
    "handle_height_ada_ok": true,
@@ -227,6 +283,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "open_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "open_and_traverse"
@@ -324,14 +386,14 @@
      "!damage"
     ],
     "time_budget_s": 55.0,
-    "expected_transit_s": 14.66,
+    "expected_transit_s": 14.65,
     "expected_transit_terms": {
      "approach_s": 2.19,
      "operate_s": 1.0,
      "open_s": 8.46,
      "pass_s": 3.0,
      "scenario_extra_s": 0.0,
-     "total_s": 14.66
+     "total_s": 14.65
     }
    },
    {

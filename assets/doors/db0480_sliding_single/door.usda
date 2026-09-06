@@ -11,7 +11,7 @@ def Xform "db0480_sliding_single"
     custom string doorbench:door_id = "db0480_sliding_single"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = '[["leaf", "leaf_hook"], ["leaf", "leaf_hook_thumbturn"]]'
-    custom string doorbench:meta = '{"door_id": "db0480_sliding_single", "family": "sliding_single", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "bottom_rail", "nominal_range": [0.0, 0.841], "leaf_width_m": 0.914, "rollers": ["leaf_roller_0", "leaf_roller_1"], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.05, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 136.91068373447268, "scene_extent": 2.1342499999999998, "cam_target_z": 1.0895, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.829, -0.08249999999999999, 1.05], "handle_cam_pos": [1.009, -0.8825000000000001, 1.33], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0480_sliding_single/Articulation/Joints/leaf_slide", "leaf_hook_thumbturn_hinge": "/db0480_sliding_single/Articulation/Joints/leaf_hook_thumbturn_hinge", "leaf_hook_hinge": "/db0480_sliding_single/Articulation/Joints/leaf_hook_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_hook"], ["leaf", "leaf_hook_thumbturn"]], "n_filtered_pairs": 2, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0480_sliding_single", "family": "sliding_single", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "bottom_rail", "nominal_range": [0.0, 0.841], "leaf_width_m": 0.914, "rollers": ["leaf_roller_0", "leaf_roller_1"], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.05, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 136.91068373447268, "scene_extent": 2.1342499999999998, "cam_target_z": 1.0895, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.829, -0.08249999999999999, 1.05], "handle_cam_pos": [1.009, -0.8825000000000001, 1.33], "operator_joints": [], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0480_sliding_single/Articulation/Joints/leaf_slide", "leaf_hook_thumbturn_hinge": "/db0480_sliding_single/Articulation/Joints/leaf_hook_thumbturn_hinge", "leaf_hook_hinge": "/db0480_sliding_single/Articulation/Joints/leaf_hook_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_hook"], ["leaf", "leaf_hook_thumbturn"]], "n_filtered_pairs": 2, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -637,6 +637,21 @@ def Xform "db0480_sliding_single"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Cube "leaf_hook_keeper_bracket" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Standoff mounting bracket"
+                custom string doorbench:semantic = "latch"
+                rel material:binding = </db0480_sliding_single/Looks/mat_hook>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.0128, 0.0145, 0.01)
+                double3 xformOp:translate = (0.937, 0.02175, 1.1300000000000001)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "approach_point"
             {
                 custom string doorbench:site_role = "approach"
@@ -695,7 +710,7 @@ def Xform "db0480_sliding_single"
                 custom float doorbench:friction_effort = 40.352898
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Slide (0 = closed, + = open)"
-                custom float doorbench:legacy_friction_coeff = 0.0298973
+                custom float doorbench:legacy_friction_coeff = 0.029898327
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -848,10 +863,10 @@ def Xform "db0480_sliding_single"
         {
             custom string doorbench:label = "Sliding leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.002298786, -0.00042738568, 1.0942663)
-            float3 physics:diagonalInertia = (9.634202, 51.901253, 61.48056)
+            point3f physics:centerOfMass = (0.0022638831, -0.00042738568, 1.0942663)
+            float3 physics:diagonalInertia = (9.627761, 51.90125, 61.474117)
             float physics:mass = 136.91069
-            quatf physics:principalAxes = (0.5004939, 0.4993552, -0.5006193, 0.49953035)
+            quatf physics:principalAxes = (0.50052416, 0.49938455, -0.5005899, 0.49950013)
             custom rel physxFilteredPairs:filteredPairs = [
                 </db0480_sliding_single/Articulation/leaf_hook>,
                 </db0480_sliding_single/Articulation/leaf_hook_thumbturn>,
@@ -895,7 +910,7 @@ def Xform "db0480_sliding_single"
                 rel material:binding = </db0480_sliding_single/Looks/mat_roller>
                 double radius = 0.015
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
-                double3 xformOp:translate = (-0.357, 0, 0.039)
+                double3 xformOp:translate = (-0.34199999999999997, 0, 0.039)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -911,7 +926,7 @@ def Xform "db0480_sliding_single"
                 rel material:binding = </db0480_sliding_single/Looks/mat_roller>
                 double radius = 0.015
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
-                double3 xformOp:translate = (0.357, 0, 0.039)
+                double3 xformOp:translate = (0.312, 0, 0.039)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 

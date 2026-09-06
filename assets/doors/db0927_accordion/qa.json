@@ -5,6 +5,8 @@
   "load_minimal": true,
   "clearance": true,
   "running_clearance": true,
+  "attachment": true,
+  "baby_gate_headroom": true,
   "sliding_track_support": true,
   "linkage_feasibility": true,
   "mass": true,
@@ -23,6 +25,14 @@
   "running_clearance_n_failures": 0,
   "running_clearance_failures": [],
   "running_clearance_n_pairs": 15,
+  "attachment_n_findings": 0,
+  "attachment_by_rule": {},
+  "attachment_findings": [],
+  "baby_gate_headroom": {
+   "ok": true,
+   "applicable": false,
+   "failures": []
+  },
   "sliding_track_support": {
    "ok": true,
    "n_supports": 0,
@@ -44,7 +54,7 @@
    "n_failures": 0,
    "failures": []
   },
-  "moving_mass_kg": 14.100993999999998,
+  "moving_mass_kg": 14.100993000000003,
   "initial_penetration_m": 0.0,
   "initial_penetration_pair": [
    null,
@@ -53,11 +63,13 @@
   "settle_drift": 0.0,
   "warnings": [],
   "qa_push": 15.275782622720001,
-  "hold_displacement": 1.0259590720434233,
+  "hold_displacement": 1.02597541809628,
   "jam_t_free": 0.176,
   "jam_push_s": 1.0,
   "jam_peak_force_N": 0.0,
   "jam_peak_pair": null,
+  "operator_joints": [],
+  "operator_coupling": "coupled",
   "urdf_nbody": 11,
   "usd_joints": 10,
   "usd_rl_joints": [
@@ -71,175 +83,6 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.9940941333770752,
- "mujoco_version": "3.12.0",
- "isaac_parity": {
-  "version": "1",
-  "date": "2026-09-05",
-  "commit": "3b3acd3f2",
-  "engines": {
-   "mujoco": {
-    "mujoco": "3.12.0"
-   },
-   "isaac_full": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   },
-   "isaac_rl": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   }
-  },
-  "ok": true,
-  "grade": "B",
-  "status": "compared",
-  "kinds": {
-   "full": {
-    "status": "compared",
-    "grade": "B",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "quant",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [
-     "VELOCITY_EXPLOSION"
-    ],
-    "details": [
-     "hold: the door joint leaves the physical velocity range in PhysX: max |v| of the door joint: 1.231 vs 23.91 (cap 15)"
-    ],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      0.0,
-      5.715890434576654e-12,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      1.0259590720434233,
-      1.0219367742538452,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      1.0259590720434233,
-      1.0219367742538452,
-      true
-     ],
-     "hold.t_free": [
-      0.2,
-      0.2,
-      true
-     ],
-     "hold.velocity_cap_hit_primary": [
-      false,
-      true,
-      false
-     ]
-    }
-   },
-   "rl": {
-    "status": "compared",
-    "grade": "A",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "agree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [],
-    "details": [],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      0.0,
-      3.0138338543066634e-19,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      1.0259590720434233,
-      1.003147006034851,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      1.0259590720434233,
-      1.003147006034851,
-      true
-     ],
-     "hold.t_free": [
-      0.2,
-      0.433333,
-      true
-     ]
-    }
-   }
-  },
-  "classes": [
-   "VELOCITY_EXPLOSION"
-  ],
-  "primary_class": "VELOCITY_EXPLOSION",
-  "likely_root_cause": "rigid PhysX limits plus a heavy / stiff mechanism at 120 Hz, initial penetration, or an effort far above the mechanism's own scale"
- }
+ "time_s": 0.5410268306732178,
+ "mujoco_version": "3.12.0"
 }

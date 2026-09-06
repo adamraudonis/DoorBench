@@ -11,7 +11,7 @@ def Xform "db0406_strip_curtain"
     custom string doorbench:door_id = "db0406_strip_curtain"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = '[["strip_0", "strip_1"], ["strip_1", "strip_2"], ["strip_2", "strip_3"], ["strip_3", "strip_4"], ["strip_4", "strip_5"]]'
-    custom string doorbench:meta = '{"door_id": "db0406_strip_curtain", "family": "strip_curtain", "task": "push_through", "wall_y": 0.0, "primary_joint": "strip_3_hinge", "operator_joint": null, "handle_height": 1.0, "both_ways": true, "n_strips": 6, "clearance_allow": [["strip_*_geom", "strip_*_geom", "overlapping PVC strips push each other aside (compliant in reality)"]], "mass_reconciled_kg": 4.220000000000001, "scene_extent": 2.09, "cam_target_z": 1.06, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.48, -0.8, 1.28], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"strip_0_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_0_hinge", "strip_1_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_1_hinge", "strip_2_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_2_hinge", "strip_3_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_3_hinge", "strip_4_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_4_hinge", "strip_5_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_5_hinge"}, "self_collisions": true, "filtered_pairs": [["strip_0", "strip_1"], ["strip_1", "strip_2"], ["strip_2", "strip_3"], ["strip_3", "strip_4"], ["strip_4", "strip_5"]], "n_filtered_pairs": 5, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0406_strip_curtain", "family": "strip_curtain", "task": "push_through", "wall_y": 0.0, "primary_joint": "strip_3_hinge", "operator_joint": null, "handle_height": 1.0, "both_ways": true, "n_strips": 6, "clearance_allow": [["strip_*_geom", "strip_*_geom", "overlapping PVC strips push each other aside (compliant in reality)"]], "mass_reconciled_kg": 4.220000000000001, "scene_extent": 2.09, "cam_target_z": 1.06, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.48, -0.8, 1.28], "operator_joints": [], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"strip_0_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_0_hinge", "strip_1_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_1_hinge", "strip_2_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_2_hinge", "strip_3_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_3_hinge", "strip_4_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_4_hinge", "strip_5_hinge": "/db0406_strip_curtain/Articulation/Joints/strip_5_hinge"}, "self_collisions": true, "filtered_pairs": [["strip_0", "strip_1"], ["strip_1", "strip_2"], ["strip_2", "strip_3"], ["strip_3", "strip_4"], ["strip_4", "strip_5"]], "n_filtered_pairs": 5, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -218,6 +218,96 @@ def Xform "db0406_strip_curtain"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (1.32, 0.06, 0.06)
                 double3 xformOp:translate = (0, 0, 2.15)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "strip_0_hanger" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strip hanger bracket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0406_strip_curtain/Looks/mat_frame>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.4, 0.011, 0.029)
+                double3 xformOp:translate = (-0.39999999999999997, -0.0085, 2.1275000000000004)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "strip_1_hanger" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strip hanger bracket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0406_strip_curtain/Looks/mat_frame>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.4, 0.011, 0.029)
+                double3 xformOp:translate = (-0.24, 0.0035, 2.1275000000000004)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "strip_2_hanger" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strip hanger bracket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0406_strip_curtain/Looks/mat_frame>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.4, 0.011, 0.029)
+                double3 xformOp:translate = (-0.08000000000000002, 0.0015, 2.1275000000000004)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "strip_3_hanger" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strip hanger bracket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0406_strip_curtain/Looks/mat_frame>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.4, 0.011, 0.029)
+                double3 xformOp:translate = (0.07999999999999996, -0.0015, 2.1275000000000004)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "strip_4_hanger" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strip hanger bracket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0406_strip_curtain/Looks/mat_frame>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.4, 0.011, 0.029)
+                double3 xformOp:translate = (0.23999999999999994, -0.0035, 2.1275000000000004)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "strip_5_hanger" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Strip hanger bracket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0406_strip_curtain/Looks/mat_frame>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.4, 0.011, 0.029)
+                double3 xformOp:translate = (0.39999999999999986, 0.0085, 2.1275000000000004)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

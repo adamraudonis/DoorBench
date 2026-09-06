@@ -30,6 +30,7 @@
     <material name="mat_frame" rgba="0.7 0.58 0.42 1" specular="0.2" shininess="0.5" reflectance="0"/>
     <material name="mat_numbers" rgba="0.05 0.05 0.05 1" specular="0.38" shininess="0.3" reflectance="0.12"/>
     <material name="mat_bumper_stop" rgba="0.08 0.08 0.08 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_stop_base" rgba="0.9 0.9 0.92 1" specular="0.8" shininess="0.9" reflectance="0.4"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
   </asset>
   <worldbody>
@@ -62,10 +63,12 @@
     <geom name="stop_strike" type="box" size="0.0055 0.016 0.639" pos="-0.455 -0.0385 0.639" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="750"/>
     <geom name="stop_strike_1" type="box" size="0.0055 0.016 0.338" pos="-0.455 -0.0385 1.66" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="750"/>
     <geom name="stop_head" type="box" size="0.4605 0.016 0.0055" pos="0 -0.0385 1.9925" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="750"/>
-    <geom name="wall_bumper_stop" type="cylinder" size="0.025 0.02" pos="0.4845 0.8059 0.35" quat="0.707107 0 0.707107 0" material="mat_bumper_stop" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1100"/>
-    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="door_plane_center" pos="0 0 0.999" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <geom name="door_stop_base" type="cylinder" size="0.022 0.003" pos="0.4745 0.8059 0.003" material="mat_stop_base" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="door_stop_post" type="cylinder" size="0.012 0.0245" pos="0.4745 0.8059 0.0305" material="mat_stop_base" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="door_stop_bumper" type="cylinder" size="0.022 0.02" pos="0.4745 0.8059 0.075" material="mat_bumper_stop" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1100"/>
+    <site name="approach_point" pos="0 -1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 0.999" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="leaf" pos="0.4605 0 0">
       <inertial pos="-0.4614 0.000059 1.002798" mass="57.138348" quat="-0.499993 0.499359 0.500589 0.500058" diaginertia="4.102640148 18.554344695 22.634004353"/>
       <joint name="leaf_hinge" type="hinge" axis="0 0 -1" pos="-0.003 0.029 0" limited="true" range="0 1.570796" damping="0.300186" frictionloss="7.882315" armature="0.02"/>
@@ -84,15 +87,15 @@
       <geom name="leaf_aux_bolt_guide_1_leg_n" type="box" size="0.006 0.002 0.0125" pos="-0.8 -0.0345 1.311" quat="0 0 -0.707107 0.707107" material="mat_op_brass" group="1" contype="0" conaffinity="0" density="7800"/>
       <geom name="leaf_aux_bolt_guide_1_leg_p" type="box" size="0.006 0.002 0.0125" pos="-0.8 -0.0345 1.289" quat="0 0 -0.707107 0.707107" material="mat_op_brass" group="1" contype="0" conaffinity="0" density="7800"/>
       <geom name="leaf_aux_bolt_guide_1_bridge" type="box" size="0.006 0.013 0.002" pos="-0.8 -0.045 1.3" quat="0 0 -0.707107 0.707107" material="mat_op_brass" group="1" contype="0" conaffinity="0" density="7800"/>
-      <site name="leaf_ring_pull_grip_n" pos="-0.812 -0.054 0.99" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
-      <site name="leaf_ring_pull_grip_p" pos="-0.812 0.054 0.99" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
-      <site name="leaf_edge_mid" pos="-0.917 0 0.9925" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_ring_pull_grip_n" pos="-0.812 -0.054 0.99" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_ring_pull_grip_p" pos="-0.812 0.054 0.99" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_edge_mid" pos="-0.917 0 0.9925" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
       <body name="leaf_aux_bolt" pos="-0.917 -0.034 1.3">
         <inertial pos="0.067426 -0.002426 0" mass="0.101671" quat="0.999708 0 0 -0.024159" diaginertia="0.000005554 0.000069827 0.000073677"/>
         <joint name="leaf_aux_bolt_slide" type="slide" axis="1 0 0" limited="true" range="0 0.045" damping="1" frictionloss="1" armature="0.1" ref="0.045"/>
         <geom name="leaf_aux_bolt_rod" type="capsule" size="0.006 0.044" pos="0.065 0 0" quat="0.707107 0 -0.707107 0" material="mat_op_brass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
         <geom name="leaf_aux_bolt_knob" type="capsule" size="0.005 0.01" pos="0.08 -0.015 0" quat="0.707107 0.707107 0 0" material="mat_op_brass" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
-        <site name="leaf_aux_bolt_grip" pos="0.08 -0.034 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+        <site name="leaf_aux_bolt_grip" pos="0.08 -0.034 0" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
     </body>
   </worldbody>

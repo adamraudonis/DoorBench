@@ -11,7 +11,7 @@ def Xform "db0424_swing_single"
     custom string doorbench:door_id = "db0424_swing_single"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = "[]"
-    custom string doorbench:meta = '{"door_id": "db0424_swing_single", "family": "swing_single", "task": "open_and_traverse", "wall_y": 0.028000000000000004, "u": 1.0, "v": -1.0, "hinge_x": -0.5385, "leaf_edge_x_local": 1.073, "handle_height": 1.016, "primary_joint": "leaf_hinge", "operator_joint": null, "mass_reconciled_kg": 118.70211640399998, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": 0.4285, "handle_cam_target": [0.4295, -0.0875, 1.016], "handle_cam_pos": [0.6094999999999999, -0.8875000000000001, 1.296], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0424_swing_single/Articulation/Joints/leaf_hinge"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0424_swing_single", "family": "swing_single", "task": "open_and_traverse", "wall_y": 0.028000000000000004, "u": 1.0, "v": -1.0, "hinge_x": -0.5385, "leaf_edge_x_local": 1.073, "handle_height": 1.016, "primary_joint": "leaf_hinge", "operator_joint": null, "mass_reconciled_kg": 118.70211640399998, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": 0.4285, "handle_cam_target": [0.4295, -0.0875, 1.016], "handle_cam_pos": [0.6094999999999999, -0.8875000000000001, 1.296], "operator_joints": [], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0424_swing_single/Articulation/Joints/leaf_hinge"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -306,6 +306,36 @@ def Xform "db0424_swing_single"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (1.197, 0.115, 0.525)
                 double3 xformOp:translate = (0.015000000000000013, 0.028000000000000004, 2.4844999999999997)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "pivot_bottom_socket" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Floor pivot socket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0424_swing_single/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.07, 0.07, 0.017)
+                double3 xformOp:translate = (-0.5355, -0.0295, -0.00150000000000005)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "pivot_top_bracket" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Head pivot bracket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0424_swing_single/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.07, 0.07, 0.071)
+                double3 xformOp:translate = (-0.5355, -0.0295, 2.1864999999999997)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

@@ -11,7 +11,7 @@ def Xform "db0866_swing_single"
     custom string doorbench:door_id = "db0866_swing_single"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = '[["leaf", "leaf_handle"], ["leaf", "leaf_latch_bolt"]]'
-    custom string doorbench:meta = '{"door_id": "db0866_swing_single", "family": "swing_single", "task": "locked_recognize", "wall_y": 0.121, "u": -1.0, "v": -1.0, "hinge_x": 0.486, "leaf_edge_x_local": -0.968, "handle_height": 1.04, "primary_joint": "leaf_hinge", "operator_joint": "leaf_handle_hinge", "mass_reconciled_kg": 40.922531485114796, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": -0.379, "handle_cam_target": [-0.31599999999999995, -0.077, 1.04], "handle_cam_pos": [-0.13599999999999995, -0.877, 1.32], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0866_swing_single/Articulation/Joints/leaf_hinge", "leaf_handle_hinge": "/db0866_swing_single/Articulation/Joints/leaf_handle_hinge", "leaf_latch_bolt_slide": "/db0866_swing_single/Articulation/Joints/leaf_latch_bolt_slide", "rex_button_slide": "/db0866_swing_single/Articulation/Joints/rex_button_slide"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_handle"], ["leaf", "leaf_latch_bolt"]], "n_filtered_pairs": 2, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0866_swing_single", "family": "swing_single", "task": "locked_recognize", "wall_y": 0.121, "stops": [{"geom": "door_stop_bumper", "joint": "leaf_hinge", "mount": "floor", "max_open_deg": 90, "q": 1.5708, "strike": [0.476, -0.8492, 0.075]}], "u": -1.0, "v": -1.0, "hinge_x": 0.486, "leaf_edge_x_local": -0.968, "handle_height": 1.04, "primary_joint": "leaf_hinge", "operator_joint": "leaf_handle_hinge", "mass_reconciled_kg": 40.90655083160452, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": -0.379, "handle_cam_target": [-0.31599999999999995, -0.077, 1.04], "handle_cam_pos": [-0.13599999999999995, -0.877, 1.32], "operator_joints": ["leaf_handle_hinge"], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0866_swing_single/Articulation/Joints/leaf_hinge", "leaf_handle_hinge": "/db0866_swing_single/Articulation/Joints/leaf_handle_hinge", "leaf_latch_bolt_slide": "/db0866_swing_single/Articulation/Joints/leaf_latch_bolt_slide", "rex_button_slide": "/db0866_swing_single/Articulation/Joints/rex_button_slide"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_handle"], ["leaf", "leaf_latch_bolt"]], "n_filtered_pairs": 2, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -225,6 +225,21 @@ def Xform "db0866_swing_single"
             }
         }
 
+        def Material "mat_stop_base"
+        {
+            token outputs:surface.connect = </db0866_swing_single/Looks/mat_stop_base/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.9, 0.9, 0.92)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.1
+                token outputs:surface
+            }
+        }
+
         def Material "PhysMat_mat_floor_0_800" (
             prepend apiSchemas = ["PhysicsMaterialAPI"]
         )
@@ -259,6 +274,15 @@ def Xform "db0866_swing_single"
             float physics:dynamicFriction = 0.102
             float physics:restitution = 0.05
             float physics:staticFriction = 0.12
+        }
+
+        def Material "PhysMat_mat_stop_base_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
         }
 
         def Material "PhysMat_mat_bumper_stop_0_600" (
@@ -705,13 +729,55 @@ def Xform "db0866_swing_single"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cylinder "wall_bumper_stop" (
+            def Cylinder "door_stop_base" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 uniform token axis = "Z"
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Wall bumper stop"
+                custom string doorbench:label = "Floor stop base plate"
+                custom string doorbench:semantic = "frame"
+                double height = 0.006
+                rel material:binding = </db0866_swing_single/Looks/mat_stop_base>
+                rel material:binding:physics = </db0866_swing_single/Looks/PhysMat_mat_stop_base_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.022
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.49899999999999994, -0.84925, 0.003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "door_stop_post" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Floor stop riser"
+                custom string doorbench:semantic = "frame"
+                double height = 0.048999999999999995
+                rel material:binding = </db0866_swing_single/Looks/mat_stop_base>
+                rel material:binding:physics = </db0866_swing_single/Looks/PhysMat_mat_stop_base_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.012
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.49899999999999994, -0.84925, 0.0305)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "door_stop_bumper" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Floor stop (rubber bumper)"
                 custom string doorbench:semantic = "frame"
                 double height = 0.04
                 rel material:binding = </db0866_swing_single/Looks/mat_bumper_stop>
@@ -720,9 +786,9 @@ def Xform "db0866_swing_single"
                 )
                 custom float physxCollision:contactOffset = 0.005
                 custom float physxCollision:restOffset = 0
-                double radius = 0.025
-                quatf xformOp:orient = (0.70710677, 4.3297803e-17, 0.70710677, -0)
-                double3 xformOp:translate = (0.5099999999999999, -0.84925, 0.35)
+                double radius = 0.022
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.49899999999999994, -0.84925, 0.075)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -786,7 +852,7 @@ def Xform "db0866_swing_single"
                 custom float doorbench:friction_effort = 2.2359035
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
-                custom float doorbench:legacy_friction_coeff = 0.0036789812
+                custom float doorbench:legacy_friction_coeff = 0.003726339
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -823,11 +889,11 @@ def Xform "db0866_swing_single"
             )
             {
                 custom float doorbench:armature_si = 0.01
-                custom float doorbench:damping_si = 0.02
+                custom float doorbench:damping_si = 0.25579906
                 custom float doorbench:friction_effort = 0.05
                 custom float doorbench:initial = 0
-                custom string doorbench:label = "Return-to-door lever (hospital/ADA) (0 = rest, + = actuated)"
-                custom float doorbench:legacy_friction_coeff = 0.0046912516
+                custom string doorbench:label = "Return-to-door lever (hospital/ADA) (0 = rest, + = actuated; spring return)"
+                custom float doorbench:legacy_friction_coeff = 0.0046232482
                 custom bool doorbench:limited = 1
                 custom string doorbench:notes = "locked: range limited to backlash"
                 custom bool doorbench:robot_interactive = 1
@@ -835,12 +901,12 @@ def Xform "db0866_swing_single"
                 custom bool doorbench:servo_in_drive = 0
                 custom string doorbench:source_joint = "leaf_handle_hinge"
                 custom float doorbench:stiffness_si = 1.2
-                custom float doorbench:target_si = -0.375
+                custom float doorbench:target_si = -0.5833333
                 custom float doorbench:zero_offset = 0
-                float drive:angular:physics:damping = 0.00034906584
+                float drive:angular:physics:damping = 0.0044645355
                 float drive:angular:physics:maxForce = 1000000
                 float drive:angular:physics:stiffness = 0.02094395
-                float drive:angular:physics:targetPosition = -21.485918
+                float drive:angular:physics:targetPosition = -33.42254
                 float drive:angular:physics:targetVelocity = 0
                 uniform token drive:angular:physics:type = "force"
                 uniform token physics:axis = "X"
@@ -930,7 +996,7 @@ def Xform "db0866_swing_single"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0866_swing_single/Articulation/base>
                 rel physics:body1 = </db0866_swing_single/Articulation/rex_button>
-                point3f physics:localPos0 = (-0.736, 0.283, 1.1)
+                point3f physics:localPos0 = (-0.736, 0.277, 1.1)
                 point3f physics:localPos1 = (0, 0, 0)
                 quatf physics:localRot0 = (0.70710677, 0, 0, -0.70710677)
                 quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
@@ -969,10 +1035,10 @@ def Xform "db0866_swing_single"
         {
             custom string doorbench:label = "Door leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-0.46475077, -0.0012618073, 1.0760242)
-            float3 physics:diagonalInertia = (3.4448853, 15.51686, 18.946503)
-            float physics:mass = 40.92253
-            quatf physics:principalAxes = (0.50173175, 0.4982556, -0.5017383, 0.4982622)
+            point3f physics:centerOfMass = (-0.44536936, -0.0024260837, 1.0760232)
+            float3 physics:diagonalInertia = (3.6512275, 15.500206, 19.134811)
+            float physics:mass = 40.90655
+            quatf physics:principalAxes = (0.5030073, 0.49696726, -0.50301445, 0.4969745)
             custom rel physxFilteredPairs:filteredPairs = [
                 </db0866_swing_single/Articulation/leaf_handle>,
                 </db0866_swing_single/Articulation/leaf_latch_bolt>,
@@ -1029,7 +1095,7 @@ def Xform "db0866_swing_single"
                 custom string doorbench:semantic = "hinge"
                 double height = 2.114
                 rel material:binding = </db0866_swing_single/Looks/mat_hinge>
-                double radius = 0.009600000000000001
+                double radius = 0.013600000000000001
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (-0.003, -0.028999999999999998, 1.0759999999999998)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
@@ -1065,10 +1131,10 @@ def Xform "db0866_swing_single"
         {
             custom string doorbench:label = "Return-to-door lever (hospital/ADA)"
             custom string doorbench:semantic = "operator"
-            point3f physics:centerOfMass = (0.034756877, -0.0009155434, 2.77689e-18)
-            float3 physics:diagonalInertia = (0.0023625612, 0.0040174974, 0.0058124675)
-            float physics:mass = 1.0499507
-            quatf physics:principalAxes = (0.69993114, 4.17342e-18, 1.4104981e-17, -0.71421033)
+            point3f physics:centerOfMass = (0.034235798, -0.0009018174, 2.7352582e-18)
+            float3 physics:diagonalInertia = (0.0023818812, 0.004028137, 0.00584214)
+            float physics:mass = 1.0659313
+            quatf physics:principalAxes = (0.70000184, 4.7216015e-18, 1.3963398e-17, -0.714141)
             custom rel physxFilteredPairs:filteredPairs = </db0866_swing_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
@@ -1085,7 +1151,7 @@ def Xform "db0866_swing_single"
                 custom bool doorbench:collision = 0
                 custom string doorbench:label = "Spindle"
                 custom string doorbench:semantic = "mechanism"
-                double height = 0.041999999999999996
+                double height = 0.059999999999999984
                 rel material:binding = </db0866_swing_single/Looks/mat_op_stainless>
                 double radius = 0.006
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
@@ -1327,7 +1393,7 @@ def Xform "db0866_swing_single"
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (-0.736, 0.28300000000000003, 1.1)
+            double3 xformOp:translate = (-0.736, 0.277, 1.1)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cylinder "rex_button_geom" (

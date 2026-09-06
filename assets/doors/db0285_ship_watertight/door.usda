@@ -11,7 +11,7 @@ def Xform "db0285_ship_watertight"
     custom string doorbench:door_id = "db0285_ship_watertight"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = '[["dog_0", "leaf"], ["dog_1", "leaf"], ["dog_2", "leaf"], ["dog_3", "leaf"]]'
-    custom string doorbench:meta = '{"door_id": "db0285_ship_watertight", "family": "ship_watertight", "task": "unlock_open_traverse", "wall_y": 0.0, "u": 1.0, "v": -1.0, "primary_joint": "leaf_hinge", "dog_joints": ["dog_0_hinge", "dog_1_hinge", "dog_2_hinge", "dog_3_hinge"], "operator_joint": "dog_0_hinge", "sill_height": 0.45, "mass_reconciled_kg": 51.20688762482932, "scene_extent": 1.6325, "cam_target_z": 0.98, "cam_target_x": 0.0, "handle_cam_x": 0.55, "handle_cam_target": [0.08400000000000007, -0.054000000000000006, 0.925], "handle_cam_pos": [0.26400000000000007, -0.8540000000000001, 1.205], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0285_ship_watertight/Articulation/Joints/leaf_hinge", "dog_0_hinge": "/db0285_ship_watertight/Articulation/Joints/dog_0_hinge", "dog_1_hinge": "/db0285_ship_watertight/Articulation/Joints/dog_1_hinge", "dog_2_hinge": "/db0285_ship_watertight/Articulation/Joints/dog_2_hinge", "dog_3_hinge": "/db0285_ship_watertight/Articulation/Joints/dog_3_hinge"}, "self_collisions": true, "filtered_pairs": [["dog_0", "leaf"], ["dog_1", "leaf"], ["dog_2", "leaf"], ["dog_3", "leaf"]], "n_filtered_pairs": 4, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0285_ship_watertight", "family": "ship_watertight", "task": "unlock_open_traverse", "wall_y": 0.0, "u": 1.0, "v": -1.0, "primary_joint": "leaf_hinge", "dog_joints": ["dog_0_hinge", "dog_1_hinge", "dog_2_hinge", "dog_3_hinge"], "operator_joint": "dog_0_hinge", "sill_height": 0.45, "operator_joints": ["dog_0_hinge", "dog_1_hinge", "dog_2_hinge", "dog_3_hinge"], "operator_coupling": "individual", "mass_reconciled_kg": 49.391107298923906, "scene_extent": 1.6325, "cam_target_z": 0.98, "cam_target_x": 0.0, "handle_cam_x": 0.55, "handle_cam_target": [0.08400000000000007, -0.054000000000000006, 0.925], "handle_cam_pos": [0.26400000000000007, -0.8540000000000001, 1.205], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0285_ship_watertight/Articulation/Joints/leaf_hinge", "dog_0_hinge": "/db0285_ship_watertight/Articulation/Joints/dog_0_hinge", "dog_1_hinge": "/db0285_ship_watertight/Articulation/Joints/dog_1_hinge", "dog_2_hinge": "/db0285_ship_watertight/Articulation/Joints/dog_2_hinge", "dog_3_hinge": "/db0285_ship_watertight/Articulation/Joints/dog_3_hinge"}, "self_collisions": true, "filtered_pairs": [["dog_0", "leaf"], ["dog_1", "leaf"], ["dog_2", "leaf"], ["dog_3", "leaf"]], "n_filtered_pairs": 4, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -384,7 +384,7 @@ def Xform "db0285_ship_watertight"
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Dog cleat"
+                custom string doorbench:label = "Dog cleat (inner jaw)"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
                 rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
@@ -394,8 +394,28 @@ def Xform "db0285_ship_watertight"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.01, 0.05)
-                double3 xformOp:translate = (0.3440000000000001, 0.018000000000000006, 0.925)
+                float3 xformOp:scale = (0.055, 0.01, 0.05)
+                double3 xformOp:translate = (0.3515000000000001, 0.020500000000000004, 0.925)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "cleat_0_outer" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Dog cleat (outer jaw)"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
+                rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.055, 0.01, 0.05)
+                double3 xformOp:translate = (0.3515000000000001, 0.0555, 0.925)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -404,7 +424,7 @@ def Xform "db0285_ship_watertight"
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Cleat base"
+                custom string doorbench:label = "Cleat base (welded to its bridge)"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
                 rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
@@ -414,8 +434,8 @@ def Xform "db0285_ship_watertight"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.036, 0.05)
-                double3 xformOp:translate = (0.3440000000000001, 0.07400000000000001, 0.925)
+                float3 xformOp:scale = (0.085, 0.036, 0.05)
+                double3 xformOp:translate = (0.3665000000000001, 0.084, 0.925)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -424,7 +444,7 @@ def Xform "db0285_ship_watertight"
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Cleat bridge"
+                custom string doorbench:label = "Cleat bridge (welded to the cleat and the frame flange)"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
                 rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
@@ -434,8 +454,8 @@ def Xform "db0285_ship_watertight"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.01, 0.06, 0.05)
-                double3 xformOp:translate = (0.38900000000000007, 0.046000000000000006, 0.925)
+                float3 xformOp:scale = (0.016, 0.082, 0.05)
+                double3 xformOp:translate = (0.38700000000000007, 0.05700000000000001, 0.925)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -444,7 +464,7 @@ def Xform "db0285_ship_watertight"
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Dog cleat"
+                custom string doorbench:label = "Dog cleat (inner jaw)"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
                 rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
@@ -454,8 +474,28 @@ def Xform "db0285_ship_watertight"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.01, 0.05)
-                double3 xformOp:translate = (-0.34600000000000003, 0.018000000000000006, 0.925)
+                float3 xformOp:scale = (0.055, 0.01, 0.05)
+                double3 xformOp:translate = (-0.35350000000000004, 0.020500000000000004, 0.925)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "cleat_1_outer" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Dog cleat (outer jaw)"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
+                rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.055, 0.01, 0.05)
+                double3 xformOp:translate = (-0.35350000000000004, 0.0555, 0.925)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -464,7 +504,7 @@ def Xform "db0285_ship_watertight"
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Cleat base"
+                custom string doorbench:label = "Cleat base (welded to its bridge)"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
                 rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
@@ -474,8 +514,8 @@ def Xform "db0285_ship_watertight"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.036, 0.05)
-                double3 xformOp:translate = (-0.34600000000000003, 0.07400000000000001, 0.925)
+                float3 xformOp:scale = (0.085, 0.036, 0.05)
+                double3 xformOp:translate = (-0.36850000000000005, 0.084, 0.925)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -484,7 +524,7 @@ def Xform "db0285_ship_watertight"
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Cleat bridge"
+                custom string doorbench:label = "Cleat bridge (welded to the cleat and the frame flange)"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
                 rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
@@ -494,8 +534,8 @@ def Xform "db0285_ship_watertight"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.01, 0.06, 0.05)
-                double3 xformOp:translate = (-0.391, 0.046000000000000006, 0.925)
+                float3 xformOp:scale = (0.016, 0.082, 0.05)
+                double3 xformOp:translate = (-0.389, 0.05700000000000001, 0.925)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -504,7 +544,7 @@ def Xform "db0285_ship_watertight"
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Dog cleat"
+                custom string doorbench:label = "Dog cleat (inner jaw)"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
                 rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
@@ -514,8 +554,28 @@ def Xform "db0285_ship_watertight"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.01, 0.05)
-                double3 xformOp:translate = (0.3440000000000001, 0.018000000000000006, 1.475)
+                float3 xformOp:scale = (0.055, 0.01, 0.05)
+                double3 xformOp:translate = (0.3515000000000001, 0.020500000000000004, 1.475)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "cleat_2_outer" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Dog cleat (outer jaw)"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
+                rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.055, 0.01, 0.05)
+                double3 xformOp:translate = (0.3515000000000001, 0.0555, 1.475)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -524,7 +584,7 @@ def Xform "db0285_ship_watertight"
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Cleat base"
+                custom string doorbench:label = "Cleat base (welded to its bridge)"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
                 rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
@@ -534,8 +594,8 @@ def Xform "db0285_ship_watertight"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.036, 0.05)
-                double3 xformOp:translate = (0.3440000000000001, 0.07400000000000001, 1.475)
+                float3 xformOp:scale = (0.085, 0.036, 0.05)
+                double3 xformOp:translate = (0.3665000000000001, 0.084, 1.475)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -544,7 +604,7 @@ def Xform "db0285_ship_watertight"
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Cleat bridge"
+                custom string doorbench:label = "Cleat bridge (welded to the cleat and the frame flange)"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
                 rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
@@ -554,8 +614,8 @@ def Xform "db0285_ship_watertight"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.01, 0.06, 0.05)
-                double3 xformOp:translate = (0.38900000000000007, 0.046000000000000006, 1.475)
+                float3 xformOp:scale = (0.016, 0.082, 0.05)
+                double3 xformOp:translate = (0.38700000000000007, 0.05700000000000001, 1.475)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -564,7 +624,7 @@ def Xform "db0285_ship_watertight"
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Dog cleat"
+                custom string doorbench:label = "Dog cleat (inner jaw)"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
                 rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
@@ -574,8 +634,28 @@ def Xform "db0285_ship_watertight"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.01, 0.05)
-                double3 xformOp:translate = (-0.34600000000000003, 0.018000000000000006, 1.475)
+                float3 xformOp:scale = (0.055, 0.01, 0.05)
+                double3 xformOp:translate = (-0.35350000000000004, 0.020500000000000004, 1.475)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "cleat_3_outer" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Dog cleat (outer jaw)"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
+                rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.055, 0.01, 0.05)
+                double3 xformOp:translate = (-0.35350000000000004, 0.0555, 1.475)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -584,7 +664,7 @@ def Xform "db0285_ship_watertight"
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Cleat base"
+                custom string doorbench:label = "Cleat base (welded to its bridge)"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
                 rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
@@ -594,8 +674,8 @@ def Xform "db0285_ship_watertight"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.036, 0.05)
-                double3 xformOp:translate = (-0.34600000000000003, 0.07400000000000001, 1.475)
+                float3 xformOp:scale = (0.085, 0.036, 0.05)
+                double3 xformOp:translate = (-0.36850000000000005, 0.084, 1.475)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -604,7 +684,7 @@ def Xform "db0285_ship_watertight"
             )
             {
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Cleat bridge"
+                custom string doorbench:label = "Cleat bridge (welded to the cleat and the frame flange)"
                 custom string doorbench:semantic = "lock"
                 rel material:binding = </db0285_ship_watertight/Looks/mat_frame>
                 rel material:binding:physics = </db0285_ship_watertight/Looks/PhysMat_mat_frame_0_600> (
@@ -614,8 +694,8 @@ def Xform "db0285_ship_watertight"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.01, 0.06, 0.05)
-                double3 xformOp:translate = (-0.391, 0.046000000000000006, 1.475)
+                float3 xformOp:scale = (0.016, 0.082, 0.05)
+                double3 xformOp:translate = (-0.389, 0.05700000000000001, 1.475)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -633,6 +713,21 @@ def Xform "db0285_ship_watertight"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cube "hinge_0_jamb_lug" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Hinge 1 lug (frame)"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.02, 0.008, 0.04)
+                double3 xformOp:translate = (-0.36, -0.010000000000000002, 0.617)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "hinge_1_jamb" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
                 prepend references = @../../hardware/hinge_jamb_5a3d6f5c54.usdc@</hinge_jamb_5a3d6f5c54>
@@ -645,6 +740,21 @@ def Xform "db0285_ship_watertight"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (-0.36, -0.024, 1.774)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "hinge_1_jamb_lug" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Hinge 2 lug (frame)"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.02, 0.008, 0.04)
+                double3 xformOp:translate = (-0.36, -0.010000000000000002, 1.687)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
             def Xform "approach_point"
@@ -707,7 +817,7 @@ def Xform "db0285_ship_watertight"
                 custom float doorbench:friction_effort = 5.3789473
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
-                custom float doorbench:legacy_friction_coeff = 0.0063339053
+                custom float doorbench:legacy_friction_coeff = 0.0063551613
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -748,7 +858,7 @@ def Xform "db0285_ship_watertight"
                 custom float doorbench:friction_effort = 1.5
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Dog 1 (0 = dogged, + = released)"
-                custom float doorbench:legacy_friction_coeff = 0.04454187
+                custom float doorbench:legacy_friction_coeff = 0.039489385
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "lock"
@@ -789,7 +899,7 @@ def Xform "db0285_ship_watertight"
                 custom float doorbench:friction_effort = 1.5
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Dog 2 (0 = dogged, + = released)"
-                custom float doorbench:legacy_friction_coeff = 0.04454187
+                custom float doorbench:legacy_friction_coeff = 0.039489385
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "lock"
@@ -830,7 +940,7 @@ def Xform "db0285_ship_watertight"
                 custom float doorbench:friction_effort = 1.5
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Dog 3 (0 = dogged, + = released)"
-                custom float doorbench:legacy_friction_coeff = 0.04454187
+                custom float doorbench:legacy_friction_coeff = 0.039489385
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "lock"
@@ -871,7 +981,7 @@ def Xform "db0285_ship_watertight"
                 custom float doorbench:friction_effort = 1.5
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Dog 4 (0 = dogged, + = released)"
-                custom float doorbench:legacy_friction_coeff = 0.04454187
+                custom float doorbench:legacy_friction_coeff = 0.039489385
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "lock"
@@ -928,10 +1038,10 @@ def Xform "db0285_ship_watertight"
         {
             custom string doorbench:label = "Watertight door leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.31970924, -0.0005296312, 0.7553987)
-            float3 physics:diagonalInertia = (1.9484789, 9.800099, 11.746468)
-            float physics:mass = 51.206886
-            quatf physics:principalAxes = (-0.4991112, 0.50190246, -0.49803373, -0.5009434)
+            point3f physics:centerOfMass = (0.31345224, -0.0008573542, 0.7567006)
+            float3 physics:diagonalInertia = (1.9402598, 9.549029, 11.486794)
+            float physics:mass = 49.391106
+            quatf physics:principalAxes = (0.50311905, 0.4991903, 0.50090784, -0.49676108)
             custom rel physxFilteredPairs:filteredPairs = [
                 </db0285_ship_watertight/Articulation/dog_0>,
                 </db0285_ship_watertight/Articulation/dog_1>,
@@ -1039,6 +1149,36 @@ def Xform "db0285_ship_watertight"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cube "hinge_0_lug_foot" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Hinge 1 lug foot"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.04, 0.009, 0.06)
+                double3 xformOp:translate = (0.026000000000000006, -0.0085, 0.28700000000000003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hinge_0_lug" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Hinge 1 lug (leaf)"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.052, 0.019, 0.06)
+                double3 xformOp:translate = (-0.009999999999999997, -0.020499999999999997, 0.28700000000000003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "hinge_1" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
                 prepend references = @../../hardware/hinge_aa6f1f959a.usdc@</hinge_aa6f1f959a>
@@ -1051,6 +1191,36 @@ def Xform "db0285_ship_watertight"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (-0.03, -0.024, 1.324)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "hinge_1_lug_foot" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Hinge 2 lug foot"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.04, 0.009, 0.06)
+                double3 xformOp:translate = (0.026000000000000006, -0.0085, 1.357)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "hinge_1_lug" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Hinge 2 lug (leaf)"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.052, 0.019, 0.06)
+                double3 xformOp:translate = (-0.009999999999999997, -0.020499999999999997, 1.357)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
             def Cube "warning_placard" (
@@ -1075,10 +1245,10 @@ def Xform "db0285_ship_watertight"
         {
             custom string doorbench:label = "Dog 1"
             custom string doorbench:semantic = "lock"
-            point3f physics:centerOfMass = (-0.063206784, -0.0319646, 4.586115e-18)
-            float3 physics:diagonalInertia = (0.0022763417, 0.035400786, 0.037178446)
-            float physics:mass = 3.2057781
-            quatf physics:principalAxes = (-0.16144584, 1.6219019e-18, 9.914316e-18, 0.98688155)
+            point3f physics:centerOfMass = (-0.052877095, -0.02388026, 4.017262e-18)
+            float3 physics:diagonalInertia = (0.0028227668, 0.039604522, 0.041849602)
+            float physics:mass = 3.6597233
+            quatf physics:principalAxes = (-0.18046175, 2.6084847e-18, 1.4217187e-17, 0.983582)
             custom rel physxFilteredPairs:filteredPairs = </db0285_ship_watertight/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
@@ -1143,6 +1313,37 @@ def Xform "db0285_ship_watertight"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Cylinder "dog_0_shaft" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Dog shaft"
+                custom string doorbench:semantic = "lock"
+                double height = 0.066
+                rel material:binding = </db0285_ship_watertight/Looks/mat_op_steel_painted>
+                double radius = 0.008
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (0, 0.017, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "dog_0_crank" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Dog crank"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_op_steel_painted>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.052, 0.024, 0.036)
+                double3 xformOp:translate = (0.026, 0.038000000000000006, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "dog_0_grip"
             {
                 custom string doorbench:site_role = "grip"
@@ -1158,10 +1359,10 @@ def Xform "db0285_ship_watertight"
         {
             custom string doorbench:label = "Dog 2"
             custom string doorbench:semantic = "lock"
-            point3f physics:centerOfMass = (0.063206784, -0.0319646, -1.5565379e-18)
-            float3 physics:diagonalInertia = (0.0022763417, 0.035400786, 0.037178446)
-            float physics:mass = 3.2057781
-            quatf physics:principalAxes = (0.16144584, 6.108561e-18, -3.734024e-17, 0.98688155)
+            point3f physics:centerOfMass = (0.052877095, -0.02388026, -1.363468e-18)
+            float3 physics:diagonalInertia = (0.0028227668, 0.039604522, 0.041849602)
+            float physics:mass = 3.6597233
+            quatf physics:principalAxes = (0.18046175, 5.9774007e-18, -3.2579e-17, 0.983582)
             custom rel physxFilteredPairs:filteredPairs = </db0285_ship_watertight/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
@@ -1226,6 +1427,37 @@ def Xform "db0285_ship_watertight"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Cylinder "dog_1_shaft" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Dog shaft"
+                custom string doorbench:semantic = "lock"
+                double height = 0.066
+                rel material:binding = </db0285_ship_watertight/Looks/mat_op_steel_painted>
+                double radius = 0.008
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (0, 0.017, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "dog_1_crank" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Dog crank"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_op_steel_painted>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.052, 0.024, 0.036)
+                double3 xformOp:translate = (-0.026, 0.038000000000000006, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "dog_1_grip"
             {
                 custom string doorbench:site_role = "grip"
@@ -1241,10 +1473,10 @@ def Xform "db0285_ship_watertight"
         {
             custom string doorbench:label = "Dog 3"
             custom string doorbench:semantic = "lock"
-            point3f physics:centerOfMass = (-0.063206784, -0.0319646, 4.586115e-18)
-            float3 physics:diagonalInertia = (0.0022763417, 0.035400786, 0.037178446)
-            float physics:mass = 3.2057781
-            quatf physics:principalAxes = (-0.16144584, 1.6219019e-18, 9.914316e-18, 0.98688155)
+            point3f physics:centerOfMass = (-0.052877095, -0.02388026, 4.017262e-18)
+            float3 physics:diagonalInertia = (0.0028227668, 0.039604522, 0.041849602)
+            float physics:mass = 3.6597233
+            quatf physics:principalAxes = (-0.18046175, 2.6084847e-18, 1.4217187e-17, 0.983582)
             custom rel physxFilteredPairs:filteredPairs = </db0285_ship_watertight/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
@@ -1309,6 +1541,37 @@ def Xform "db0285_ship_watertight"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Cylinder "dog_2_shaft" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Dog shaft"
+                custom string doorbench:semantic = "lock"
+                double height = 0.066
+                rel material:binding = </db0285_ship_watertight/Looks/mat_op_steel_painted>
+                double radius = 0.008
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (0, 0.017, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "dog_2_crank" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Dog crank"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_op_steel_painted>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.052, 0.024, 0.036)
+                double3 xformOp:translate = (0.026, 0.038000000000000006, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "dog_2_grip"
             {
                 custom string doorbench:site_role = "grip"
@@ -1324,10 +1587,10 @@ def Xform "db0285_ship_watertight"
         {
             custom string doorbench:label = "Dog 4"
             custom string doorbench:semantic = "lock"
-            point3f physics:centerOfMass = (0.063206784, -0.0319646, -1.5565379e-18)
-            float3 physics:diagonalInertia = (0.0022763417, 0.035400786, 0.037178446)
-            float physics:mass = 3.2057781
-            quatf physics:principalAxes = (0.16144584, 6.108561e-18, -3.734024e-17, 0.98688155)
+            point3f physics:centerOfMass = (0.052877095, -0.02388026, -1.363468e-18)
+            float3 physics:diagonalInertia = (0.0028227668, 0.039604522, 0.041849602)
+            float physics:mass = 3.6597233
+            quatf physics:principalAxes = (0.18046175, 5.9774007e-18, -3.2579e-17, 0.983582)
             custom rel physxFilteredPairs:filteredPairs = </db0285_ship_watertight/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
@@ -1389,6 +1652,37 @@ def Xform "db0285_ship_watertight"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.1, 0.024, 0.04)
                 double3 xformOp:translate = (-0.06, 0.038000000000000006, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "dog_3_shaft" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Dog shaft"
+                custom string doorbench:semantic = "lock"
+                double height = 0.066
+                rel material:binding = </db0285_ship_watertight/Looks/mat_op_steel_painted>
+                double radius = 0.008
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (0, 0.017, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "dog_3_crank" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Dog crank"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0285_ship_watertight/Looks/mat_op_steel_painted>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.052, 0.024, 0.036)
+                double3 xformOp:translate = (-0.026, 0.038000000000000006, 0)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

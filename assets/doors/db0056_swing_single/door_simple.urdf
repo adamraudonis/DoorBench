@@ -241,8 +241,8 @@
   <link name="leaf">
     <inertial>
       <origin xyz="0.44379 0.030711 1.308584" rpy="0 0 0"/>
-      <mass value="108.484804"/>
-      <inertia ixx="58.86173468" ixy="-0.099536085" ixz="1.313106589" iyy="66.228972593" iyz="0.558978638" izz="7.501209392"/>
+      <mass value="108.463386"/>
+      <inertia ixx="58.850113472" ixy="-0.099516433" ixz="1.312847339" iyy="66.215896854" iyz="0.558868278" izz="7.499728411"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="0.457 0.0355 1.228" rpy="0 0 0"/>
@@ -288,14 +288,14 @@
     <visual name="leaf_keypad_body_vis">
       <origin xyz="0.844 0.064 1.18" rpy="1.570796 0 3.141593"/>
       <geometry>
-        <mesh filename="../../hardware/keypad_body_157e208992.obj"/>
+        <mesh filename="../../hardware/keypad_body_91eb8ded3e.obj"/>
       </geometry>
       <material name="mat_keypad"/>
     </visual>
     <collision name="leaf_keypad_body_col">
       <origin xyz="0.844 0.064 1.18" rpy="1.570796 0 3.141593"/>
       <geometry>
-        <mesh filename="../../hardware/keypad_body_157e208992.obj"/>
+        <mesh filename="../../hardware/keypad_body_91eb8ded3e.obj"/>
       </geometry>
     </collision>
     <visual name="leaf_latch_bolt_faceplate_vis">
@@ -321,9 +321,9 @@
   </link>
   <link name="leaf_handle">
     <inertial>
-      <origin xyz="-0.025007 0 0" rpy="0 0 0"/>
-      <mass value="0.82"/>
-      <inertia ixx="0.003884202" ixy="0" ixz="0" iyy="0.001198839" iyz="0" izz="0.004917888"/>
+      <origin xyz="-0.025007 -0.063773 0" rpy="0 0 0"/>
+      <mass value="0.41"/>
+      <inertia ixx="0.000274641" ixy="-0.000228434" ixz="0" iyy="0.00059942" iyz="0" izz="0.000791484"/>
     </inertial>
     <visual name="leaf_handle_lever_n_vis">
       <origin xyz="0 -0.0285 0" rpy="1.570796 0 0"/>
@@ -344,20 +344,27 @@
         <cylinder radius="0.012" length="0.044"/>
       </geometry>
     </collision>
-    <visual name="leaf_handle_lever_p_vis">
+  </link>
+  <link name="leaf_handle_out">
+    <inertial>
+      <origin xyz="-0.025007 0.063773 0" rpy="0 0 0"/>
+      <mass value="0.41"/>
+      <inertia ixx="0.000274641" ixy="0.000228434" ixz="0" iyy="0.00059942" iyz="0" izz="0.000791484"/>
+    </inertial>
+    <visual name="leaf_handle_out_lever_p_vis">
       <origin xyz="0 0.0285 0" rpy="-1.570796 0 0"/>
       <geometry>
         <mesh filename="../../hardware/lever_a61139b160.obj"/>
       </geometry>
       <material name="mat_op_nickel_satin"/>
     </visual>
-    <collision name="leaf_handle_lever_col_p_col">
+    <collision name="leaf_handle_out_lever_col_p_col">
       <origin xyz="-0.056 0.0835 0" rpy="0 -1.570796 0"/>
       <geometry>
         <cylinder radius="0.008" length="0.096"/>
       </geometry>
     </collision>
-    <collision name="leaf_handle_hub_col_p_col">
+    <collision name="leaf_handle_out_hub_col_p_col">
       <origin xyz="0 0.0585 0" rpy="-1.570796 0 0"/>
       <geometry>
         <cylinder radius="0.012" length="0.044"/>
@@ -400,8 +407,18 @@
     <child link="leaf_handle"/>
     <axis xyz="0 -1 0"/>
     <limit lower="0" upper="0.87" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.052"/>
+    <dynamics damping="0.208394" friction="0.052"/>
     <doorbench:spring stiffness="1" springref="-0.35" note="tau = -stiffness*(q - springref); not native URDF"/>
+  </joint>
+  <joint name="leaf_handle_out_hinge" type="revolute">
+    <origin xyz="0.844 0.0355 1.04" rpy="0 0 0"/>
+    <parent link="leaf"/>
+    <child link="leaf_handle_out"/>
+    <axis xyz="0 -1 0"/>
+    <limit lower="0" upper="0.87" effort="2000" velocity="10"/>
+    <dynamics damping="0.208382" friction="0.052"/>
+    <doorbench:spring stiffness="1" springref="-0.35" note="tau = -stiffness*(q - springref); not native URDF"/>
+    <doorbench:note text="keypad clutch engaged (lock not thrown)"/>
   </joint>
   <joint name="leaf_latch_bolt_slide" type="prismatic">
     <origin xyz="0.914 0.0355 1.04" rpy="0 0 0"/>

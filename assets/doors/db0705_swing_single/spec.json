@@ -164,6 +164,62 @@
     "dead_travel": 0.1
    }
   },
+  "operator": {
+   "model": "knob_porcelain",
+   "kind": "knob",
+   "motion": "rotate_normal",
+   "rotary": true,
+   "return_kind": "spring",
+   "return_note": "mortise hub spring",
+   "source": "Vintage porcelain knob",
+   "travel": 0.85,
+   "dead_travel": 0.1,
+   "spring_preload": 0.2,
+   "spring_rate": 0.4,
+   "detent_friction": 0.0,
+   "damping_ratio": 1.0,
+   "gravity_margin": 1.35,
+   "units": {
+    "preload": "N*m",
+    "rate": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "friction": "N*m",
+    "inertia": "kg*m^2",
+    "travel": "rad"
+   },
+   "joints": {
+    "leaf_handle_hinge": {
+     "joint": "leaf_handle_hinge",
+     "type": "hinge",
+     "return_kind": "spring",
+     "operator_model": "knob_porcelain",
+     "travel": 0.85,
+     "inertia": 0.01029865801692725,
+     "armature": 0.01,
+     "moving_mass_kg": 1.1500813570260324,
+     "gravity_moment_at_rest": -2.0773483031411716e-18,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "spring_preload": 0.2,
+     "spring_preload_catalogue": 0.2,
+     "spring_rate": 0.4,
+     "damping": 0.12836608908541072,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.032,
+     "omega_n_rad_s": 6.232175535609763,
+     "rest": 0.0,
+     "expected_return_time_s": 0.3645,
+     "return_tolerance": 0.0085
+    }
+   },
+   "formula": "tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = 1.0 (critical) and I the joint-space inertia (armature + the handle's own inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where the catalogue spring would not lift it; fl capped at 0.25 of the restoring torque at rest so it cannot park the handle short of rest"
+  },
   "lock": {
    "model": "none",
    "kind": "none",
@@ -221,6 +277,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "open_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "open_and_traverse"

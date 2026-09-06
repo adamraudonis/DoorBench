@@ -11,7 +11,7 @@ def Xform "db0102_automatic_swing"
     custom string doorbench:door_id = "db0102_automatic_swing"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = '[["leaf", "leaf_deadbolt"]]'
-    custom string doorbench:meta = '{"door_id": "db0102_automatic_swing", "family": "automatic_swing", "task": "locked_recognize", "wall_y": -0.07100000000000001, "u": -1.0, "v": 1.0, "hinge_x": 0.4605, "leaf_edge_x_local": -0.917, "handle_height": 1.04, "primary_joint": "leaf_hinge", "operator_joint": null, "actuators": [{"name": "swing_operator", "joint": "leaf_hinge", "kind": "position", "kp": 150.0, "kv": 40.0, "forcerange": [-60, 60], "ctrlrange": [0.0, 1.6], "in_drive": false}], "mass_reconciled_kg": 36.91878665376227, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": -0.35350000000000004, "handle_cam_target": [-0.35150000000000003, -0.08199999999999999, 1.04], "handle_cam_pos": [-0.17150000000000004, -0.882, 1.32], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0102_automatic_swing/Articulation/Joints/leaf_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_deadbolt"]], "n_filtered_pairs": 1, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0102_automatic_swing", "family": "automatic_swing", "task": "locked_recognize", "wall_y": -0.07100000000000001, "stops": [{"geom": "door_stop_bumper", "joint": "leaf_hinge", "mount": "floor", "max_open_deg": 90, "q": 1.5708, "strike": [0.4505, 0.8059, 0.075]}], "u": -1.0, "v": 1.0, "hinge_x": 0.4605, "leaf_edge_x_local": -0.917, "handle_height": 1.04, "primary_joint": "leaf_hinge", "operator_joint": null, "actuators": [{"name": "swing_operator", "joint": "leaf_hinge", "kind": "position", "kp": 150.0, "kv": 40.0, "forcerange": [-60, 60], "ctrlrange": [0.0, 1.6], "in_drive": false}], "mass_reconciled_kg": 36.91878665376227, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": -0.35350000000000004, "handle_cam_target": [-0.35150000000000003, -0.08199999999999999, 1.04], "handle_cam_pos": [-0.17150000000000004, -0.882, 1.32], "operator_joints": [], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0102_automatic_swing/Articulation/Joints/leaf_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_deadbolt"]], "n_filtered_pairs": 1, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -210,6 +210,21 @@ def Xform "db0102_automatic_swing"
             }
         }
 
+        def Material "mat_stop_base"
+        {
+            token outputs:surface.connect = </db0102_automatic_swing/Looks/mat_stop_base/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.9, 0.9, 0.92)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.1
+                token outputs:surface
+            }
+        }
+
         def Material "PhysMat_mat_floor_0_800" (
             prepend apiSchemas = ["PhysicsMaterialAPI"]
         )
@@ -247,6 +262,15 @@ def Xform "db0102_automatic_swing"
         }
 
         def Material "PhysMat_mat_wallreader_0_600" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.51
+            float physics:restitution = 0.05
+            float physics:staticFriction = 0.6
+        }
+
+        def Material "PhysMat_mat_stop_base_0_600" (
             prepend apiSchemas = ["PhysicsMaterialAPI"]
         )
         {
@@ -817,13 +841,70 @@ def Xform "db0102_automatic_swing"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cylinder "wall_bumper_stop" (
+            def Cube "wave_sensor_p_pad" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Sensor wall pad"
+                custom string doorbench:semantic = "sensor"
+                rel material:binding = </db0102_automatic_swing/Looks/mat_wallreader>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.08, 0.201, 0.08)
+                double3 xformOp:translate = (-0.7105, -0.071, 1.05)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "door_stop_base" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
             {
                 uniform token axis = "Z"
                 custom bool doorbench:collision = 1
-                custom string doorbench:label = "Wall bumper stop"
+                custom string doorbench:label = "Floor stop base plate"
+                custom string doorbench:semantic = "frame"
+                double height = 0.006
+                rel material:binding = </db0102_automatic_swing/Looks/mat_stop_base>
+                rel material:binding:physics = </db0102_automatic_swing/Looks/PhysMat_mat_stop_base_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.022
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.4735, 0.8059000000000001, 0.003)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "door_stop_post" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Floor stop riser"
+                custom string doorbench:semantic = "frame"
+                double height = 0.048999999999999995
+                rel material:binding = </db0102_automatic_swing/Looks/mat_stop_base>
+                rel material:binding:physics = </db0102_automatic_swing/Looks/PhysMat_mat_stop_base_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double radius = 0.012
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.4735, 0.8059000000000001, 0.0305)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "door_stop_bumper" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Floor stop (rubber bumper)"
                 custom string doorbench:semantic = "frame"
                 double height = 0.04
                 rel material:binding = </db0102_automatic_swing/Looks/mat_bumper_stop>
@@ -832,9 +913,9 @@ def Xform "db0102_automatic_swing"
                 )
                 custom float physxCollision:contactOffset = 0.005
                 custom float physxCollision:restOffset = 0
-                double radius = 0.025
-                quatf xformOp:orient = (0.70710677, -4.3297803e-17, 0.70710677, 0)
-                double3 xformOp:translate = (0.48449999999999993, 0.8059000000000001, 0.35)
+                double radius = 0.022
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.4735, 0.8059000000000001, 0.075)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -898,7 +979,7 @@ def Xform "db0102_automatic_swing"
                 custom float doorbench:friction_effort = 1.979641
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
-                custom float doorbench:legacy_friction_coeff = 0.0037182036
+                custom float doorbench:legacy_friction_coeff = 0.0037184523
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -967,10 +1048,10 @@ def Xform "db0102_automatic_swing"
         {
             custom string doorbench:label = "Door leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-0.4623854, -0.00020019537, 1.0465214)
-            float3 physics:diagonalInertia = (2.7022197, 13.140619, 15.809308)
+            point3f physics:centerOfMass = (-0.46227503, -0.00038652145, 1.0517833)
+            float3 physics:diagonalInertia = (2.6892107, 13.282564, 15.937912)
             float physics:mass = 36.918785
-            quatf physics:principalAxes = (0.49643174, 0.4962952, 0.5044797, -0.5027393)
+            quatf physics:principalAxes = (0.49626324, 0.49640027, 0.50463736, -0.5026437)
             custom rel physxFilteredPairs:filteredPairs = </db0102_automatic_swing/Articulation/leaf_deadbolt>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
@@ -1169,6 +1250,21 @@ def Xform "db0102_automatic_swing"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.44, 0.016, 0.016)
                 double3 xformOp:translate = (-0.25, -0.052, 2.114)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "auto_operator_arm_shoe" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Operator arm door shoe"
+                custom string doorbench:semantic = "closer"
+                rel material:binding = </db0102_automatic_swing/Looks/mat_closer>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.06, 0.032, 0.028)
+                double3 xformOp:translate = (-0.44, -0.038, 2.114)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

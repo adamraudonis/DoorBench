@@ -11,7 +11,7 @@ def Xform "db0887_revolving"
     custom string doorbench:door_id = "db0887_revolving"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = "[]"
-    custom string doorbench:meta = '{"door_id": "db0887_revolving", "family": "revolving", "task": "traverse_open", "wall_y": 0.0, "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 1.0, "drum_diameter": 2.0, "running_clearance_min": 0.01, "mass_reconciled_kg": 60.74999999999999, "scene_extent": 2.5250000000000004, "cam_target_z": 1.35, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.55, -1.1, 1.35], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"rotor_hinge": "/db0887_revolving/Articulation/Joints/rotor_hinge"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0887_revolving", "family": "revolving", "task": "traverse_open", "wall_y": 0.0, "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 1.0, "drum_diameter": 2.0, "running_clearance_min": 0.01, "mass_reconciled_kg": 60.74999999999999, "scene_extent": 2.5250000000000004, "cam_target_z": 1.35, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.55, -1.1, 1.35], "operator_joints": [], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"rotor_hinge": "/db0887_revolving/Articulation/Joints/rotor_hinge"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -484,7 +484,7 @@ def Xform "db0887_revolving"
                 uniform token axis = "Z"
                 custom bool doorbench:collision = 1
                 custom string doorbench:label = "Top bearing housing"
-                custom string doorbench:semantic = "frame"
+                custom string doorbench:semantic = "hinge"
                 double height = 0.006
                 rel material:binding = </db0887_revolving/Looks/mat_frame>
                 rel material:binding:physics = </db0887_revolving/Looks/PhysMat_mat_frame_0_600> (
@@ -521,7 +521,7 @@ def Xform "db0887_revolving"
                 uniform token axis = "Z"
                 custom bool doorbench:collision = 1
                 custom string doorbench:label = "Floor pivot housing"
-                custom string doorbench:semantic = "frame"
+                custom string doorbench:semantic = "hinge"
                 double height = 0.006
                 rel material:binding = </db0887_revolving/Looks/mat_frame>
                 rel material:binding:physics = </db0887_revolving/Looks/PhysMat_mat_frame_0_600> (
@@ -650,10 +650,10 @@ def Xform "db0887_revolving"
         {
             custom string doorbench:label = "Rotor"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-5.6653355e-17, 3.6550554e-17, 1.2474022)
-            float3 physics:diagonalInertia = (20.56479, 49.751217, 49.751217)
+            point3f physics:centerOfMass = (-4.3860663e-17, 4.751572e-17, 1.2474254)
+            float3 physics:diagonalInertia = (20.551159, 49.779125, 49.779125)
             float physics:mass = 60.75
-            quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            quatf physics:principalAxes = (0.70710677, -6.4753766e-18, 0.70710677, -4.4624946e-18)
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -679,6 +679,38 @@ def Xform "db0887_revolving"
                 double radius = 0.06
                 quatf xformOp:orient = (1, 0, 0, 0)
                 double3 xformOp:translate = (0, 0, 1.2449999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "rotor_pintle_b" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Rotor pintle (runs in its bearing)"
+                custom string doorbench:semantic = "hinge"
+                double height = 0.016
+                rel material:binding = </db0887_revolving/Looks/mat_frame>
+                double radius = 0.03
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 0, 0.016)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "rotor_pintle_t" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Rotor pintle (runs in its bearing)"
+                custom string doorbench:semantic = "hinge"
+                double height = 0.017000000000000348
+                rel material:binding = </db0887_revolving/Looks/mat_frame>
+                double radius = 0.03
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 0, 2.4745)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 

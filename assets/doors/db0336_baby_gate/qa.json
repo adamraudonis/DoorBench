@@ -5,10 +5,13 @@
   "load_minimal": true,
   "clearance": true,
   "running_clearance": true,
+  "attachment": true,
+  "baby_gate_headroom": true,
   "sliding_track_support": true,
   "linkage_feasibility": true,
   "mass": true,
   "settle": true,
+  "operator_returns": true,
   "hold": true,
   "actuate_opens": true,
   "settle_simple": true,
@@ -23,6 +26,26 @@
   "running_clearance_n_failures": 0,
   "running_clearance_failures": [],
   "running_clearance_n_pairs": 4,
+  "attachment_n_findings": 0,
+  "attachment_by_rule": {},
+  "attachment_findings": [],
+  "baby_gate_headroom": {
+   "ok": true,
+   "applicable": true,
+   "volume_min_m": [
+    -0.341,
+    -0.017,
+    0.88
+   ],
+   "volume_max_m": [
+    0.341,
+    0.098,
+    2.7
+   ],
+   "n_geoms_checked": 36,
+   "scope": "Reference-scene geometry in the clear passage above the gate, up to 2.7 m",
+   "failures": []
+  },
   "sliding_track_support": {
    "ok": true,
    "n_supports": 0,
@@ -50,12 +73,50 @@
    "gate_stop",
    "leaf_slab_col"
   ],
-  "settle_drift": 1.0212147078069773e-17,
+  "settle_drift": 1.3530660621712886e-15,
   "warnings": [],
+  "operator_release": {
+   "leaf_pin_slide": {
+    "return_kind": "spring",
+    "operator_model": "baby_gate_latch",
+    "expected_return_time_s": 0.132,
+    "closed": {
+     "driven_to": 0.047441208158121334,
+     "travel": 0.05,
+     "rest": 0.0,
+     "tolerance": 0.0005,
+     "door_angle": 1.353284312334297e-15,
+     "t_return_s": 0.128,
+     "residual": -9.018489978831714e-06,
+     "bounces": 1,
+     "rebound": 0.0008462542846240119,
+     "held_fraction": -0.00019009823587909328
+    },
+    "closed_ok": true,
+    "open": {
+     "driven_to": 0.047441208158121334,
+     "travel": 0.05,
+     "rest": 0.0,
+     "tolerance": 0.0005,
+     "door_angle": 0.5235341867476033,
+     "t_return_s": 0.128,
+     "residual": -9.018489978831714e-06,
+     "bounces": 1,
+     "rebound": 0.0008462542846240119,
+     "held_fraction": -0.00019009823587909328
+    },
+    "open_ok": true,
+    "ok": true
+   }
+  },
   "qa_push": 28.738140187500004,
-  "hold_displacement": 0.0028571131247936534,
-  "actuate_displacement": 1.5232728013625054,
-  "operator_travel_reached": 0.050358349292847646,
+  "hold_displacement": 0.002853083771137065,
+  "actuate_displacement": 1.561720786251855,
+  "operator_travel_reached": 0.05033236505749971,
+  "operator_joints": [
+   "leaf_pin_slide"
+  ],
+  "operator_coupling": "coupled",
   "urdf_nbody": 3,
   "usd_joints": 2,
   "usd_rl_joints": [
@@ -69,175 +130,6 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.12565207481384277,
- "mujoco_version": "3.12.0",
- "isaac_parity": {
-  "version": "1",
-  "date": "2026-09-05",
-  "commit": "3b3acd3f2",
-  "engines": {
-   "mujoco": {
-    "mujoco": "3.12.0"
-   },
-   "isaac_full": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   },
-   "isaac_rl": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   }
-  },
-  "ok": false,
-  "grade": "C",
-  "status": "compared",
-  "kinds": {
-   "full": {
-    "status": "compared",
-    "grade": "C",
-    "ok": false,
-    "phases": {
-     "settle": "agree",
-     "hold": "disagree",
-     "operate_open": "agree",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [
-     "CONTACT_GEOMETRY"
-    ],
-    "details": [
-     "hold: latch (hook) holds in MuJoCo (0.002857), PhysX opened 1.571: bolt / strike contact not engaging"
-    ],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      1.0212147078069773e-17,
-      2.692465614018147e-06,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      0.0028571131247936534,
-      1.5707964897155762,
-      false
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      0.0028571131247936534,
-      1.5707964897155762,
-      false
-     ],
-     "operate_open.finite": [
-      true,
-      true,
-      true
-     ],
-     "operate_open.informational": [
-      false,
-      false,
-      true
-     ],
-     "operate_open.opened": [
-      1.5232728013625054,
-      1.5707964897155762,
-      true
-     ],
-     "operate_open.operator_travel_reached": [
-      0.050358349292847646,
-      0.0499994158744812,
-      true
-     ],
-     "operate_open.q_primary_max": [
-      1.5821278566612729,
-      1.5707964897155762,
-      true
-     ],
-     "operate_open.t_open": [
-      1.4,
-      1.4,
-      true
-     ],
-     "operate_open.t_open_bench": [
-      1.468,
-      1.466667,
-      true
-     ]
-    }
-   },
-   "rl": {
-    "status": "compared",
-    "grade": "A",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "na",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [],
-    "details": [],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      1.0212147078069773e-17,
-      6.746153115300135e-12,
-      true
-     ]
-    }
-   }
-  },
-  "classes": [
-   "CONTACT_GEOMETRY"
-  ],
-  "primary_class": "CONTACT_GEOMETRY",
-  "likely_root_cause": "H7: PhysX contacts with Env prims at 0-5 mm clearance (contactOffset 5 mm), convex decomposition of hooks / strikes. The global self-collision part is FIXED in the export: physxArticulation:enabledSelfCollisions is True and every pair MuJoCo suppresses (same weld body, weld parent/child, contact_excludes) is authored as PhysxFilteredPairsAPI, so a latch holding one moving link against another (swing pairs, lift pins, drop bolts) now touches in PhysX too"
- }
+ "time_s": 0.13440775871276855,
+ "mujoco_version": "3.12.0"
 }

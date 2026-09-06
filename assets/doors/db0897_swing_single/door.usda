@@ -11,7 +11,7 @@ def Xform "db0897_swing_single"
     custom string doorbench:door_id = "db0897_swing_single"
     custom string doorbench:env_release = '[{"name": "leaf_maglock", "body": "leaf", "other": "world", "label": "Maglock w/ REX button inside (fail-safe) (env releases on REX / badge / timer)", "active": true, "holding_force_N": 2670.0, "joint": "/db0897_swing_single/Articulation/Joints/leaf_maglock", "joint_name": "leaf_maglock", "body_prim": "/db0897_swing_single/Articulation/leaf", "base_prim": "/db0897_swing_single/Articulation/base"}]'
     custom string doorbench:filtered_pairs = "[]"
-    custom string doorbench:meta = '{"door_id": "db0897_swing_single", "family": "swing_single", "task": "unlock_open_traverse", "wall_y": 0.1205, "breakable_welds": [{"name": "leaf_maglock", "holding_force_N": 2670.0}], "u": 1.0, "v": -1.0, "hinge_x": -0.5385, "leaf_edge_x_local": 1.0699999999999998, "handle_height": 1.016, "primary_joint": "leaf_hinge", "operator_joint": null, "mass_reconciled_kg": 132.12223982799998, "scene_extent": 2.33825, "cam_target_z": 1.2255, "cam_target_x": 0.0, "handle_cam_x": 0.4285, "handle_cam_target": [0.4264999999999999, -0.0975, 1.016], "handle_cam_pos": [0.6064999999999998, -0.8975000000000001, 1.296], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0897_swing_single/Articulation/Joints/leaf_hinge"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [{"name": "leaf_maglock", "body": "leaf", "other": "world", "label": "Maglock w/ REX button inside (fail-safe) (env releases on REX / badge / timer)", "active": true, "holding_force_N": 2670.0, "joint": "/db0897_swing_single/Articulation/Joints/leaf_maglock", "joint_name": "leaf_maglock", "body_prim": "/db0897_swing_single/Articulation/leaf", "base_prim": "/db0897_swing_single/Articulation/base"}], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0897_swing_single", "family": "swing_single", "task": "unlock_open_traverse", "wall_y": 0.1205, "breakable_welds": [{"name": "leaf_maglock", "holding_force_N": 2670.0}], "u": 1.0, "v": -1.0, "hinge_x": -0.5385, "leaf_edge_x_local": 1.0699999999999998, "handle_height": 1.016, "primary_joint": "leaf_hinge", "operator_joint": null, "mass_reconciled_kg": 132.12223982799998, "scene_extent": 2.33825, "cam_target_z": 1.2255, "cam_target_x": 0.0, "handle_cam_x": 0.4285, "handle_cam_target": [0.4264999999999999, -0.0975, 1.016], "handle_cam_pos": [0.6064999999999998, -0.8975000000000001, 1.296], "operator_joints": [], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0897_swing_single/Articulation/Joints/leaf_hinge"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [{"name": "leaf_maglock", "body": "leaf", "other": "world", "label": "Maglock w/ REX button inside (fail-safe) (env releases on REX / badge / timer)", "active": true, "holding_force_N": 2670.0, "joint": "/db0897_swing_single/Articulation/Joints/leaf_maglock", "joint_name": "leaf_maglock", "body_prim": "/db0897_swing_single/Articulation/leaf", "base_prim": "/db0897_swing_single/Articulation/base"}], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -324,6 +324,36 @@ def Xform "db0897_swing_single"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Cube "pivot_bottom_socket" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Floor pivot socket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0897_swing_single/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.07, 0.07, 0.017)
+                double3 xformOp:translate = (-0.5195, -0.0325, -0.00150000000000005)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "pivot_top_bracket" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Head pivot bracket"
+                custom string doorbench:semantic = "hinge"
+                rel material:binding = </db0897_swing_single/Looks/mat_hinge>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.07, 0.07, 0.071)
+                double3 xformOp:translate = (-0.5195, -0.0325, 2.4905)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Cube "leaf_maglock_body" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
@@ -341,6 +371,21 @@ def Xform "db0897_swing_single"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.25, 0.05, 0.04)
                 double3 xformOp:translate = (0.23149999999999987, 0.0575, 2.386)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "leaf_maglock_bracket" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Maglock header bracket"
+                custom string doorbench:semantic = "lock"
+                rel material:binding = </db0897_swing_single/Looks/mat_maglock>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.18, 0.05, 0.045)
+                double3 xformOp:translate = (0.23149999999999987, 0.0575, 2.4285)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

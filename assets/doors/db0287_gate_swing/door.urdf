@@ -14,6 +14,20 @@
         <box size="12 12 0.1"/>
       </geometry>
     </collision>
+    <visual name="hinge_pintle_0_vis">
+      <origin xyz="0.503 -0.05 0.174" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.008" length="0.04"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
+    <visual name="hinge_pintle_1_vis">
+      <origin xyz="0.503 -0.05 1.074" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.008" length="0.04"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
     <visual name="leaf_pin_housing_vis">
       <origin xyz="-0.457 0.0475 1.015" rpy="0 0 0"/>
       <geometry>
@@ -147,12 +161,19 @@
         <cylinder radius="0.025" length="1.25"/>
       </geometry>
     </collision>
+    <visual name="leaf_pin_post_plate_strap_0_vis">
+      <origin xyz="-0.4925 0.0475 1.01" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.028 0.0416 0.08"/>
+      </geometry>
+      <material name="mat_op_black_matte_metal"/>
+    </visual>
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="-0.483152 0.050726 0.659778" rpy="0 0 0"/>
-      <mass value="13.611783"/>
-      <inertia ixx="1.702260039" ixy="0.018345118" ixz="0.063394631" iyy="3.001422922" iyz="-0.007365116" izz="1.304196481"/>
+      <origin xyz="-0.46972 0.049591 0.659506" rpy="0 0 0"/>
+      <mass value="13.571832"/>
+      <inertia ixx="1.727205381" ixy="0.025021321" ixz="0.063184209" iyy="3.071510123" iyz="-0.007285834" izz="1.350537627"/>
     </inertial>
     <collision name="leaf_slab_col_col">
       <origin xyz="-0.5 0.05 0.65" rpy="0 0 0"/>
@@ -251,10 +272,38 @@
       </geometry>
       <material name="mat_hinge"/>
     </visual>
+    <visual name="hinge_strap_eye_0_vis">
+      <origin xyz="0 0 0.2" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.011" length="0.024"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
+    <visual name="hinge_strap_neck_0_vis">
+      <origin xyz="0 0.01725 0.2" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.024 0.0425 0.012"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
     <visual name="hinge_strap_1_vis">
       <origin xyz="0 0.0345 1.1" rpy="0 0 3.141593"/>
       <geometry>
         <mesh filename="../../hardware/strap_hinge_3c1a7c1a5f.obj"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
+    <visual name="hinge_strap_eye_1_vis">
+      <origin xyz="0 0 1.1" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.011" length="0.024"/>
+      </geometry>
+      <material name="mat_hinge"/>
+    </visual>
+    <visual name="hinge_strap_neck_1_vis">
+      <origin xyz="0 0.01725 1.1" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.024 0.0425 0.012"/>
       </geometry>
       <material name="mat_hinge"/>
     </visual>
@@ -320,21 +369,21 @@
   </link>
   <link name="leaf_pin">
     <inertial>
-      <origin xyz="0 0 0.037736" rpy="0 0 0"/>
-      <mass value="0.188217"/>
-      <inertia ixx="0.000339182" ixy="0" ixz="0" iyy="0.000339182" iyz="0" izz="0.000009448"/>
+      <origin xyz="0 0 0.037519" rpy="0 0 0"/>
+      <mass value="0.228168"/>
+      <inertia ixx="0.000346413" ixy="0" ixz="0" iyy="0.000346413" iyz="0" izz="0.000010167"/>
     </inertial>
     <visual name="leaf_pin_geom_vis">
-      <origin xyz="0 0 -0.02" rpy="0 0 0"/>
+      <origin xyz="0 0 0.0025" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.006" length="0.06"/>
+        <cylinder radius="0.006" length="0.105"/>
       </geometry>
       <material name="mat_op_black_matte_metal"/>
     </visual>
     <collision name="leaf_pin_geom_col">
-      <origin xyz="0 0 -0.02" rpy="0 0 0"/>
+      <origin xyz="0 0 0.0025" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.006" length="0.06"/>
+        <cylinder radius="0.006" length="0.105"/>
       </geometry>
     </collision>
     <visual name="leaf_pin_knob_vis">
@@ -367,7 +416,7 @@
     <child link="leaf_pin"/>
     <axis xyz="0 0 1"/>
     <limit lower="0" upper="0.06" effort="5000" velocity="10"/>
-    <dynamics damping="1" friction="0.2"/>
+    <dynamics damping="9.526824" friction="0.25"/>
     <doorbench:spring stiffness="60" springref="-0.016667" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <material name="mat_fence_mesh">

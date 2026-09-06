@@ -5,10 +5,13 @@
   "load_minimal": true,
   "clearance": true,
   "running_clearance": true,
+  "attachment": true,
+  "baby_gate_headroom": true,
   "sliding_track_support": true,
   "linkage_feasibility": true,
   "mass": true,
   "settle": true,
+  "operator_returns": true,
   "hold": true,
   "locked_holds": true,
   "closer_returns": true,
@@ -24,6 +27,14 @@
   "running_clearance_n_failures": 0,
   "running_clearance_failures": [],
   "running_clearance_n_pairs": 41,
+  "attachment_n_findings": 0,
+  "attachment_by_rule": {},
+  "attachment_findings": [],
+  "baby_gate_headroom": {
+   "ok": true,
+   "applicable": false,
+   "failures": []
+  },
   "sliding_track_support": {
    "ok": true,
    "n_supports": 0,
@@ -41,22 +52,76 @@
    "ok": true,
    "n_loops": 1,
    "n_samples": 51,
-   "max_residual_m": 2.6330467688915775e-12,
+   "max_residual_m": 7.418421026757584e-14,
    "failures": [],
    "n_failures": 0
   },
-  "moving_mass_kg": 44.09671,
+  "moving_mass_kg": 44.096709,
   "initial_penetration_m": 0.0,
   "initial_penetration_pair": [
    null,
    null
   ],
-  "settle_drift": 2.426746032932428e-05,
+  "settle_drift": 2.4277227498099665e-05,
   "warnings": [],
+  "operator_release": {
+   "leaf_handle_hinge": {
+    "return_kind": "spring",
+    "operator_model": "knob_round",
+    "expected_return_time_s": 0.3255,
+    "closed": {
+     "driven_to": 0.8261991474686271,
+     "travel": 0.87,
+     "rest": 0.0,
+     "tolerance": 0.0087,
+     "door_angle": -2.422791377319747e-05,
+     "t_return_s": 0.28,
+     "residual": -2.0061380680873326e-05,
+     "bounces": 0,
+     "rebound": 0.008228701522567118,
+     "held_fraction": -2.428153156819265e-05
+    },
+    "closed_ok": true,
+    "open": {
+     "skipped": "the leaf does not open under a hand-sized effort (locked): latch-clear case not applicable",
+     "door_angle": 0.0015989861813991526,
+     "door_target": 0.5235987755982988
+    },
+    "ok": true
+   },
+   "leaf_thumbpiece_hinge": {
+    "return_kind": "spring",
+    "operator_model": "handleset_thumb",
+    "expected_return_time_s": 0.148,
+    "closed": {
+     "driven_to": 0.33193606867250913,
+     "travel": 0.35,
+     "rest": 0.0,
+     "tolerance": 0.004363323129985824,
+     "door_angle": -2.2864744200813363e-05,
+     "t_return_s": 0.12,
+     "residual": -4.7428114910527065e-05,
+     "bounces": 1,
+     "rebound": 0.005934767778979032,
+     "held_fraction": -0.00014288328201332055
+    },
+    "closed_ok": true,
+    "open": {
+     "skipped": "the leaf does not open under a hand-sized effort (locked): latch-clear case not applicable",
+     "door_angle": 0.0015990257364149833,
+     "door_target": 0.5235987755982988
+    },
+    "ok": true
+   }
+  },
   "qa_push": 119.07497853734401,
-  "hold_displacement": 0.0015990314069910477,
-  "locked_displacement": 0.0015990037902620248,
-  "closer_final_angle": 0.04031551823187801,
+  "hold_displacement": 0.0015990117650407421,
+  "locked_displacement": 0.001599003896246531,
+  "closer_final_angle": 0.04031563200430888,
+  "operator_joints": [
+   "leaf_handle_hinge"
+  ],
+  "operator_coupling": "coupled",
   "urdf_nbody": 8,
   "usd_joints": 7,
   "usd_rl_joints": [
@@ -70,274 +135,6 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.49132418632507324,
- "mujoco_version": "3.12.0",
- "isaac_parity": {
-  "version": "1",
-  "date": "2026-09-05",
-  "commit": "3b3acd3f2",
-  "engines": {
-   "mujoco": {
-    "mujoco": "3.12.0"
-   },
-   "isaac_full": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   },
-   "isaac_rl": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   }
-  },
-  "ok": true,
-  "grade": "B",
-  "status": "compared",
-  "kinds": {
-   "full": {
-    "status": "compared",
-    "grade": "B",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "agree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "agree",
-     "locked_holds": "quant"
-    },
-    "classes": [
-     "QUANT"
-    ],
-    "details": [
-     "locked_holds: operator_travel_reached: mujoco 0.3664 vs physx 0.87 (tol 0.05)"
-    ],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      2.426746032932428e-05,
-      3.0991349486697573e-09,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      0.0015990314069910477,
-      0.0015965147176757455,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      0.0015990314069910477,
-      0.0015965147176757455,
-      true
-     ],
-     "closer_return.closer_final_angle": [
-      0.04031551823187801,
-      0.04031587392091751,
-      true
-     ],
-     "closer_return.closer_t_close": [
-      1.2,
-      1.2,
-      true
-     ],
-     "closer_return.finite": [
-      true,
-      true,
-      true
-     ],
-     "closer_return.informational": [
-      false,
-      false,
-      true
-     ],
-     "closer_return.peak_closing_speed": [
-      1.3799367808928948,
-      1.3779627084732056,
-      true
-     ],
-     "closer_return.slam": [
-      false,
-      false,
-      true
-     ],
-     "closer_return.speed_at_latch": [
-      1.3799367808928948,
-      1.3779627084732056,
-      true
-     ],
-     "locked_holds.finite": [
-      true,
-      true,
-      true
-     ],
-     "locked_holds.informational": [
-      false,
-      false,
-      true
-     ],
-     "locked_holds.locked_displacement": [
-      0.0015990037902620248,
-      0.0015963981859385967,
-      true
-     ],
-     "locked_holds.operator_travel_reached": [
-      0.3663828598627614,
-      0.8700000047683716,
-      false
-     ]
-    }
-   },
-   "rl": {
-    "status": "compared",
-    "grade": "B",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "agree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "agree",
-     "locked_holds": "quant"
-    },
-    "classes": [
-     "QUANT"
-    ],
-    "details": [
-     "locked_holds: operator_travel_reached: mujoco 0.3664 vs physx 0.87 (tol 0.05)"
-    ],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      2.426746032932428e-05,
-      4.100652706284791e-09,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      0.0015990314069910477,
-      0.001595888053998351,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      0.0015990314069910477,
-      0.001595888053998351,
-      true
-     ],
-     "closer_return.closer_final_angle": [
-      0.04031551823187801,
-      0.040298085659742355,
-      true
-     ],
-     "closer_return.closer_t_close": [
-      1.2,
-      1.2,
-      true
-     ],
-     "closer_return.finite": [
-      true,
-      true,
-      true
-     ],
-     "closer_return.informational": [
-      false,
-      false,
-      true
-     ],
-     "closer_return.peak_closing_speed": [
-      1.3799367808928948,
-      1.3702713251113892,
-      true
-     ],
-     "closer_return.slam": [
-      false,
-      false,
-      true
-     ],
-     "closer_return.speed_at_latch": [
-      1.3799367808928948,
-      1.3702713251113892,
-      true
-     ],
-     "locked_holds.finite": [
-      true,
-      true,
-      true
-     ],
-     "locked_holds.informational": [
-      false,
-      false,
-      true
-     ],
-     "locked_holds.locked_displacement": [
-      0.0015990037902620248,
-      0.001596194226294756,
-      true
-     ],
-     "locked_holds.operator_travel_reached": [
-      0.3663828598627614,
-      0.8700000047683716,
-      false
-     ]
-    }
-   }
-  },
-  "classes": [
-   "QUANT"
-  ],
-  "primary_class": "QUANT",
-  "likely_root_cause": "soft MuJoCo contacts / limits (solref 0.005) vs rigid PhysX limits, constraint-based vs effort-based Coulomb friction, implicitfast vs implicit drives at high damping; solver dt"
- }
+ "time_s": 0.3845398426055908,
+ "mujoco_version": "3.12.0"
 }

@@ -89,7 +89,8 @@
  "lock": {
   "model": "keypad_code_6",
   "engaged": false,
-  "robot_side_release": true
+  "robot_side_release": true,
+  "code": "367915"
  },
  "closer": {
   "model": "none",
@@ -167,6 +168,63 @@
     "dead_travel": 0.06
    }
   },
+  "operator": {
+   "model": "lever_keypad",
+   "kind": "keypad_lever",
+   "motion": "rotate_normal",
+   "rotary": true,
+   "return_kind": "spring",
+   "return_note": "keypad lever set: the clutch releases but the return spring still centres the lever",
+   "source": "Schlage FE595 keypad lever",
+   "travel": 0.87,
+   "dead_travel": 0.06,
+   "spring_preload": 0.35,
+   "spring_rate": 1.0,
+   "detent_friction": 0.0,
+   "damping_ratio": 1.0,
+   "gravity_margin": 1.35,
+   "units": {
+    "preload": "N*m",
+    "rate": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "friction": "N*m",
+    "inertia": "kg*m^2",
+    "travel": "rad"
+   },
+   "joints": {
+    "leaf_handle_hinge": {
+     "joint": "leaf_handle_hinge",
+     "type": "hinge",
+     "return_kind": "spring",
+     "operator_model": "lever_keypad",
+     "travel": 0.87,
+     "inertia": 0.0117125882457136,
+     "armature": 0.01,
+     "moving_mass_kg": 0.8732686191193606,
+     "gravity_moment_at_rest": 0.20116194051717282,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "spring_preload": 0.37556861969818334,
+     "spring_preload_catalogue": 0.35,
+     "spring_rate": 1.0,
+     "damping": 0.21644942361404984,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.04360166979525263,
+     "omega_n_rad_s": 9.240033845348522,
+     "rest": 0.0,
+     "expected_return_time_s": 0.3615,
+     "return_tolerance": 0.0087,
+     "preload_raised": "catalogue 0.35 -> 0.38: 1.35 x the 0.20 weight moment of the modelled handle plus 2 x 0.05 bearing friction"
+    }
+   },
+   "formula": "tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = 1.0 (critical) and I the joint-space inertia (armature + the handle's own inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where the catalogue spring would not lift it; fl capped at 0.25 of the restoring torque at rest so it cannot park the handle short of rest"
+  },
   "lock": {
    "model": "keypad_code_6",
    "kind": "keypad_code",
@@ -179,7 +237,7 @@
    "thumbturn_travel_rad": 1.5708,
    "thumbturn_torque_Nm": 0.3,
    "chain_slack_m": 0.0,
-   "code": null
+   "code": "367915"
   },
   "damage": {
    "leaf_dent_force_N": 1700.0,
@@ -224,6 +282,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "open_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "open_and_traverse",
@@ -328,6 +392,126 @@
      "pass_s": 3.0,
      "scenario_extra_s": 0.0,
      "total_s": 6.55
+    },
+    "lock": {
+     "model": "keypad_code_6",
+     "engaged": false,
+     "code": "367915",
+     "code_kind": "sequence",
+     "release": "none",
+     "buttons": [
+      {
+       "label": "1",
+       "joint": "leaf_keypad_key_1_slide",
+       "site": "leaf_keypad_key_1_press",
+       "pos": [
+        -0.3735,
+        0.047,
+        1.133
+       ]
+      },
+      {
+       "label": "2",
+       "joint": "leaf_keypad_key_2_slide",
+       "site": "leaf_keypad_key_2_press",
+       "pos": [
+        -0.3995,
+        0.047,
+        1.133
+       ]
+      },
+      {
+       "label": "3",
+       "joint": "leaf_keypad_key_3_slide",
+       "site": "leaf_keypad_key_3_press",
+       "pos": [
+        -0.3735,
+        0.047,
+        1.109
+       ]
+      },
+      {
+       "label": "4",
+       "joint": "leaf_keypad_key_4_slide",
+       "site": "leaf_keypad_key_4_press",
+       "pos": [
+        -0.3995,
+        0.047,
+        1.109
+       ]
+      },
+      {
+       "label": "5",
+       "joint": "leaf_keypad_key_5_slide",
+       "site": "leaf_keypad_key_5_press",
+       "pos": [
+        -0.3735,
+        0.047,
+        1.085
+       ]
+      },
+      {
+       "label": "6",
+       "joint": "leaf_keypad_key_6_slide",
+       "site": "leaf_keypad_key_6_press",
+       "pos": [
+        -0.3995,
+        0.047,
+        1.085
+       ]
+      },
+      {
+       "label": "7",
+       "joint": "leaf_keypad_key_7_slide",
+       "site": "leaf_keypad_key_7_press",
+       "pos": [
+        -0.3735,
+        0.047,
+        1.061
+       ]
+      },
+      {
+       "label": "8",
+       "joint": "leaf_keypad_key_8_slide",
+       "site": "leaf_keypad_key_8_press",
+       "pos": [
+        -0.3995,
+        0.047,
+        1.061
+       ]
+      },
+      {
+       "label": "9",
+       "joint": "leaf_keypad_key_9_slide",
+       "site": "leaf_keypad_key_9_press",
+       "pos": [
+        -0.3735,
+        0.047,
+        1.037
+       ]
+      },
+      {
+       "label": "0",
+       "joint": "leaf_keypad_key_0_slide",
+       "site": "leaf_keypad_key_0_press",
+       "pos": [
+        -0.3995,
+        0.047,
+        1.037
+       ]
+      }
+     ],
+     "press_force_N": 3.0,
+     "travel_m": 0.0015,
+     "press_depth_frac": 0.6,
+     "debounce_s": 0.02,
+     "code_timeout_s": 5.0,
+     "lockout_s": 30.0,
+     "max_attempts": 3,
+     "clutch_joint": null,
+     "bolt_joint": "leaf_deadbolt_slide",
+     "keypad_face_normal_y": 1.0,
+     "note": "electronic keypad: the digits in order; a partial entry clears after 5 s, and 3 wrong codes lock the keypad out for 30 s."
     }
    },
    {
@@ -431,6 +615,126 @@
      "pass_s": 3.0,
      "scenario_extra_s": 3.31,
      "total_s": 9.86
+    },
+    "lock": {
+     "model": "keypad_code_6",
+     "engaged": false,
+     "code": "367915",
+     "code_kind": "sequence",
+     "release": "none",
+     "buttons": [
+      {
+       "label": "1",
+       "joint": "leaf_keypad_key_1_slide",
+       "site": "leaf_keypad_key_1_press",
+       "pos": [
+        -0.3735,
+        0.047,
+        1.133
+       ]
+      },
+      {
+       "label": "2",
+       "joint": "leaf_keypad_key_2_slide",
+       "site": "leaf_keypad_key_2_press",
+       "pos": [
+        -0.3995,
+        0.047,
+        1.133
+       ]
+      },
+      {
+       "label": "3",
+       "joint": "leaf_keypad_key_3_slide",
+       "site": "leaf_keypad_key_3_press",
+       "pos": [
+        -0.3735,
+        0.047,
+        1.109
+       ]
+      },
+      {
+       "label": "4",
+       "joint": "leaf_keypad_key_4_slide",
+       "site": "leaf_keypad_key_4_press",
+       "pos": [
+        -0.3995,
+        0.047,
+        1.109
+       ]
+      },
+      {
+       "label": "5",
+       "joint": "leaf_keypad_key_5_slide",
+       "site": "leaf_keypad_key_5_press",
+       "pos": [
+        -0.3735,
+        0.047,
+        1.085
+       ]
+      },
+      {
+       "label": "6",
+       "joint": "leaf_keypad_key_6_slide",
+       "site": "leaf_keypad_key_6_press",
+       "pos": [
+        -0.3995,
+        0.047,
+        1.085
+       ]
+      },
+      {
+       "label": "7",
+       "joint": "leaf_keypad_key_7_slide",
+       "site": "leaf_keypad_key_7_press",
+       "pos": [
+        -0.3735,
+        0.047,
+        1.061
+       ]
+      },
+      {
+       "label": "8",
+       "joint": "leaf_keypad_key_8_slide",
+       "site": "leaf_keypad_key_8_press",
+       "pos": [
+        -0.3995,
+        0.047,
+        1.061
+       ]
+      },
+      {
+       "label": "9",
+       "joint": "leaf_keypad_key_9_slide",
+       "site": "leaf_keypad_key_9_press",
+       "pos": [
+        -0.3735,
+        0.047,
+        1.037
+       ]
+      },
+      {
+       "label": "0",
+       "joint": "leaf_keypad_key_0_slide",
+       "site": "leaf_keypad_key_0_press",
+       "pos": [
+        -0.3995,
+        0.047,
+        1.037
+       ]
+      }
+     ],
+     "press_force_N": 3.0,
+     "travel_m": 0.0015,
+     "press_depth_frac": 0.6,
+     "debounce_s": 0.02,
+     "code_timeout_s": 5.0,
+     "lockout_s": 30.0,
+     "max_attempts": 3,
+     "clutch_joint": null,
+     "bolt_joint": "leaf_deadbolt_slide",
+     "keypad_face_normal_y": 1.0,
+     "note": "electronic keypad: the digits in order; a partial entry clears after 5 s, and 3 wrong codes lock the keypad out for 30 s."
     }
    }
   ],

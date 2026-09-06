@@ -153,7 +153,7 @@
    "backset_m": 0.07,
    "operator_travel": 0.96,
    "operator_dead_travel": 0.05,
-   "operator_spring_preload": 0.45,
+   "operator_spring_preload": 0.55,
    "operator_spring_rate": 1.2,
    "operator_yield": 25.0,
    "operator_grip_offset_m": 0.115,
@@ -165,6 +165,62 @@
     ],
     "dead_travel": 0.05
    }
+  },
+  "operator": {
+   "model": "lever_straight",
+   "kind": "lever",
+   "motion": "rotate_normal",
+   "rotary": true,
+   "return_kind": "spring",
+   "return_note": "Grade 1 lever: spring cassette in the rose returns it to horizontal",
+   "source": "Schlage ND series Rhodes lever; ANSI A156.2 Grade 1 return-spring cassette",
+   "travel": 0.96,
+   "dead_travel": 0.05,
+   "spring_preload": 0.55,
+   "spring_rate": 1.2,
+   "detent_friction": 0.0,
+   "damping_ratio": 1.0,
+   "gravity_margin": 1.35,
+   "units": {
+    "preload": "N*m",
+    "rate": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "friction": "N*m",
+    "inertia": "kg*m^2",
+    "travel": "rad"
+   },
+   "joints": {
+    "leaf_handle_hinge": {
+     "joint": "leaf_handle_hinge",
+     "type": "hinge",
+     "return_kind": "spring",
+     "operator_model": "lever_straight",
+     "travel": 0.96,
+     "inertia": 0.012569021698090758,
+     "armature": 0.01,
+     "moving_mass_kg": 0.9781865342560337,
+     "gravity_moment_at_rest": 0.27390635882432285,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "spring_preload": 0.55,
+     "spring_preload_catalogue": 0.55,
+     "spring_rate": 1.2,
+     "damping": 0.24562431506435928,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.048,
+     "omega_n_rad_s": 9.771019613311264,
+     "rest": 0.0,
+     "expected_return_time_s": 0.3115,
+     "return_tolerance": 0.0096
+    }
+   },
+   "formula": "tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = 1.0 (critical) and I the joint-space inertia (armature + the handle's own inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where the catalogue spring would not lift it; fl capped at 0.25 of the restoring torque at rest so it cannot park the handle short of rest"
   },
   "lock": {
    "model": "electric_strike",
@@ -195,7 +251,7 @@
   "compliance": {
    "opening_force_start_N": 1.3424878286337971,
    "opening_force_90deg_N": 0.7356917121289429,
-   "operator_force_N": 13.930434782608694,
+   "operator_force_N": 14.799999999999999,
    "ada_interior_5lbf_ok": null,
    "ibc_fire_exterior_ok": true,
    "hardware_operable_5lbf_ok": true,
@@ -223,6 +279,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "unlock_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "unlock_and_traverse"

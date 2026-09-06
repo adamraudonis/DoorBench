@@ -11,7 +11,7 @@ def Xform "db0735_sliding_single"
     custom string doorbench:door_id = "db0735_sliding_single"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = '[["leaf", "leaf_teardrop"]]'
-    custom string doorbench:meta = '{"door_id": "db0735_sliding_single", "family": "sliding_single", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "flat_track", "nominal_range": [0.0, 0.914], "leaf_width_m": 0.914, "rollers": ["leaf_hanger_wheel_0", "leaf_hanger_wheel_1"], "end_stops": ["leaf_track_stop_l", "leaf_track_stop_r"], "floor_guides_required": true, "floor_guides": [{"jaws": ["floor_guide_n", "floor_guide_p"], "feet": ["floor_guide_n_foot", "floor_guide_p_foot"]}], "guide_leaf_geoms": ["leaf_slab", "leaf_plank_gap_1", "leaf_plank_gap_2", "leaf_plank_gap_3", "leaf_plank_gap_4", "leaf_plank_gap_5", "leaf_batten_13", "leaf_batten_202", "leaf_batten_107"]}], "operator_joint": "leaf_teardrop_hinge", "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.05, "opens_toward": "left", "mass_reconciled_kg": 60.87731679999999, "scene_extent": 2.1155, "cam_target_z": 1.077, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.367, -0.1815, 1.05], "handle_cam_pos": [0.5469999999999999, -0.9815, 1.33], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0735_sliding_single/Articulation/Joints/leaf_slide", "leaf_teardrop_hinge": "/db0735_sliding_single/Articulation/Joints/leaf_teardrop_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_teardrop"]], "n_filtered_pairs": 1, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0735_sliding_single", "family": "sliding_single", "task": "open_and_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "flat_track", "nominal_range": [0.0, 0.914], "leaf_width_m": 0.914, "rollers": ["leaf_hanger_wheel_0", "leaf_hanger_wheel_1"], "end_stops": ["leaf_track_stop_l", "leaf_track_stop_r"], "floor_guides_required": true, "floor_guides": [{"jaws": ["floor_guide_n", "floor_guide_p"], "feet": ["floor_guide_n_foot", "floor_guide_p_foot"]}], "guide_leaf_geoms": ["leaf_slab", "leaf_plank_gap_1", "leaf_plank_gap_2", "leaf_plank_gap_3", "leaf_plank_gap_4", "leaf_plank_gap_5", "leaf_batten_13", "leaf_batten_202", "leaf_batten_107"]}], "operator_joint": "leaf_teardrop_hinge", "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.05, "opens_toward": "left", "mass_reconciled_kg": 60.85222427115723, "scene_extent": 2.1155, "cam_target_z": 1.077, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.367, -0.1815, 1.05], "handle_cam_pos": [0.5469999999999999, -0.9815, 1.33], "operator_joints": ["leaf_teardrop_hinge"], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0735_sliding_single/Articulation/Joints/leaf_slide", "leaf_teardrop_hinge": "/db0735_sliding_single/Articulation/Joints/leaf_teardrop_hinge"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_teardrop"]], "n_filtered_pairs": 1, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -633,6 +633,21 @@ def Xform "db0735_sliding_single"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Cube "leaf_teardrop_keeper_base_arm" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Keeper jamb bracket"
+                custom string doorbench:semantic = "latch"
+                rel material:binding = </db0735_sliding_single/Looks/mat_hook>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.01, 0.081, 0.032)
+                double3 xformOp:translate = (0.462, -0.11249999999999999, 1.47)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "approach_point"
             {
                 custom string doorbench:site_role = "approach"
@@ -691,7 +706,7 @@ def Xform "db0735_sliding_single"
                 custom float doorbench:friction_effort = 23.918285
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Slide (0 = closed, + = open)"
-                custom float doorbench:legacy_friction_coeff = 0.039846316
+                custom float doorbench:legacy_friction_coeff = 0.039839882
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -727,12 +742,12 @@ def Xform "db0735_sliding_single"
                 prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysxJointAPI", "PhysxJointAxisAPI:angular"]
             )
             {
-                custom float doorbench:armature_si = 0.01
-                custom float doorbench:damping_si = 0.02
-                custom float doorbench:friction_effort = 0.02
+                custom float doorbench:armature_si = 0.0001
+                custom float doorbench:damping_si = 0.005198882
+                custom float doorbench:friction_effort = 0.004385699
                 custom float doorbench:initial = 0
-                custom string doorbench:label = "Teardrop latch (0 = dropped over the keeper, + = lifted)"
-                custom float doorbench:legacy_friction_coeff = 0.019859014
+                custom string doorbench:label = "Teardrop latch (0 = dropped over the keeper, + = lifted; gravity return, no spring)"
+                custom float doorbench:legacy_friction_coeff = 0.0034993826
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "operator"
@@ -741,7 +756,7 @@ def Xform "db0735_sliding_single"
                 custom float doorbench:stiffness_si = 0
                 custom float doorbench:target_si = 0
                 custom float doorbench:zero_offset = 0
-                float drive:angular:physics:damping = 0.00034906584
+                float drive:angular:physics:damping = 0.00009073761
                 float drive:angular:physics:maxForce = 1000000
                 float drive:angular:physics:stiffness = 0
                 float drive:angular:physics:targetPosition = 0
@@ -756,11 +771,11 @@ def Xform "db0735_sliding_single"
                 quatf physics:localRot1 = (0.70710677, 0, 0, -0.70710677)
                 float physics:lowerLimit = 0
                 float physics:upperLimit = 80.21409
-                custom float physxJoint:armature = 0.01
+                custom float physxJoint:armature = 0.0001
                 custom float physxJoint:jointFriction = 0
-                custom float physxJointAxis:angular:armature = 0.01
-                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.02
-                custom float physxJointAxis:angular:staticFrictionEffort = 0.02
+                custom float physxJointAxis:angular:armature = 0.0001
+                custom float physxJointAxis:angular:dynamicFrictionEffort = 0.004385699
+                custom float physxJointAxis:angular:staticFrictionEffort = 0.004385699
                 custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
             }
         }
@@ -790,8 +805,8 @@ def Xform "db0735_sliding_single"
             custom string doorbench:label = "Sliding leaf"
             custom string doorbench:semantic = "leaf"
             point3f physics:centerOfMass = (0.0027973491, 0.00009028061, 1.1575943)
-            float3 physics:diagonalInertia = (4.45713, 26.85734, 31.289944)
-            float physics:mass = 60.877316
+            float3 physics:diagonalInertia = (4.4552927, 26.84627, 31.277046)
+            float physics:mass = 60.852222
             quatf physics:principalAxes = (0.50079286, 0.49879572, -0.50033975, 0.5000695)
             custom rel physxFilteredPairs:filteredPairs = </db0735_sliding_single/Articulation/leaf_teardrop>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
@@ -1218,10 +1233,10 @@ def Xform "db0735_sliding_single"
         {
             custom string doorbench:label = "Teardrop latch"
             custom string doorbench:semantic = "latch"
-            point3f physics:centerOfMass = (0.054615386, 0, -0.014615385)
-            float3 physics:diagonalInertia = (0.000017085615, 0.00007583413, 0.00009188141)
-            float physics:mass = 0.097344
-            quatf physics:principalAxes = (0.14753275, 0.14753275, -0.6915447, 0.6915447)
+            point3f physics:centerOfMass = (0.043422334, 0.001229659, -0.0116200615)
+            float3 physics:diagonalInertia = (0.00001917929, 0.00014047165, 0.00015680141)
+            float physics:mass = 0.12243653
+            quatf physics:principalAxes = (0.68875384, 0.7048778, 0.09943069, -0.13740079)
             custom rel physxFilteredPairs:filteredPairs = </db0735_sliding_single/Articulation/leaf>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
@@ -1268,6 +1283,22 @@ def Xform "db0735_sliding_single"
                 float3 xformOp:scale = (0.01, 0.008, 0.06)
                 double3 xformOp:translate = (0.078, 0, -0.03)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "leaf_teardrop_boss" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Teardrop pivot boss"
+                custom string doorbench:semantic = "latch"
+                double height = 0.016
+                rel material:binding = </db0735_sliding_single/Looks/mat_teardrop>
+                double radius = 0.008
+                quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
+                double3 xformOp:translate = (0, 0.006, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Xform "leaf_teardrop_grip"

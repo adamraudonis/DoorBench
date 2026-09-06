@@ -163,6 +163,62 @@
     "dead_travel": 0.06
    }
   },
+  "operator": {
+   "model": "knob_childproof",
+   "kind": "knob",
+   "motion": "rotate_normal",
+   "rotary": true,
+   "return_kind": "spring",
+   "return_note": "knob rose spring (the cover free-spins and does not change the return)",
+   "source": "Safety 1st knob cover; grip slips unless squeezed",
+   "travel": 0.87,
+   "dead_travel": 0.06,
+   "spring_preload": 0.25,
+   "spring_rate": 0.5,
+   "detent_friction": 0.0,
+   "damping_ratio": 1.0,
+   "gravity_margin": 1.35,
+   "units": {
+    "preload": "N*m",
+    "rate": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "friction": "N*m",
+    "inertia": "kg*m^2",
+    "travel": "rad"
+   },
+   "joints": {
+    "leaf_handle_hinge": {
+     "joint": "leaf_handle_hinge",
+     "type": "hinge",
+     "return_kind": "spring",
+     "operator_model": "knob_childproof",
+     "travel": 0.87,
+     "inertia": 0.013579625949237353,
+     "armature": 0.01,
+     "moving_mass_kg": 3.575148693847643,
+     "gravity_moment_at_rest": 3.4081542383562983e-18,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "spring_preload": 0.25,
+     "spring_preload_catalogue": 0.25,
+     "spring_rate": 0.5,
+     "damping": 0.16480064289460375,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.039,
+     "omega_n_rad_s": 6.067937493663407,
+     "rest": 0.0,
+     "expected_return_time_s": 0.377,
+     "return_tolerance": 0.0087
+    }
+   },
+   "formula": "tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = 1.0 (critical) and I the joint-space inertia (armature + the handle's own inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where the catalogue spring would not lift it; fl capped at 0.25 of the restoring torque at rest so it cannot park the handle short of rest"
+  },
   "lock": {
    "model": "child_lock_cover",
    "kind": "child_lock_cover",
@@ -220,6 +276,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "open_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "open_and_traverse"

@@ -300,7 +300,7 @@
       <material name="mat_frame"/>
     </visual>
     <visual name="closer_bracket_vis">
-      <origin xyz="-0.52 0.068 2.037667" rpy="0 0 0"/>
+      <origin xyz="-0.52 0.07 2.037667" rpy="0 0 0"/>
       <geometry>
         <box size="0.064 0.008 0.051333"/>
       </geometry>
@@ -323,23 +323,23 @@
   </link>
   <link name="leaf_riser">
     <inertial>
-      <origin xyz="0.003 0.057 0.05" rpy="0 0 0"/>
-      <mass value="0.002104"/>
-      <inertia ixx="0.000000013" ixy="0" ixz="0" iyy="0.000000013" iyz="0" izz="0.000000013"/>
+      <origin xyz="0.003 0.057 0.055" rpy="0 0 0"/>
+      <mass value="0.174012"/>
+      <inertia ixx="0.00002732" ixy="0" ixz="0" iyy="0.00002732" iyz="0" izz="0.000017053"/>
     </inertial>
     <visual name="leaf_riser_marker_vis">
-      <origin xyz="0.003 0.057 0.05" rpy="0 0 0"/>
+      <origin xyz="0.003 0.057 0.055" rpy="0 0 0"/>
       <geometry>
-        <sphere radius="0.004"/>
+        <cylinder radius="0.014" length="0.036"/>
       </geometry>
       <material name="mat_hinge"/>
     </visual>
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="0.533809 -0.03856 1.129563" rpy="0 0 0"/>
-      <mass value="60.399109"/>
-      <inertia ixx="25.667665897" ixy="0.333241254" ixz="2.727249388" iyy="32.737312447" iyz="-1.041998373" izz="7.385376874"/>
+      <origin xyz="0.533809 -0.038622 1.129563" rpy="0 0 0"/>
+      <mass value="60.211221"/>
+      <inertia ixx="25.586978022" ixy="0.331315553" ixz="2.718765541" iyy="32.635474181" iyz="-1.035649712" izz="7.361561005"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="0.61 -0.057 0.9942" rpy="0 0 0"/>
@@ -382,7 +382,7 @@
       </geometry>
     </collision>
     <visual name="closer_pinion_shaft_vis">
-      <origin xyz="0.297 0.103 1.9572" rpy="0 0 0"/>
+      <origin xyz="0.297 0.044 1.9572" rpy="0 0 0"/>
       <geometry>
         <cylinder radius="0.008" length="0.1456"/>
       </geometry>
@@ -405,14 +405,14 @@
   </link>
   <link name="leaf_handle">
     <inertial>
-      <origin xyz="-0.046401 0 0" rpy="0 0 0"/>
-      <mass value="2.971846"/>
-      <inertia ixx="0.023700761" ixy="0" ixz="0" iyy="0.018403486" iyz="0" izz="0.040134348"/>
+      <origin xyz="-0.046153 0 0" rpy="0 0 0"/>
+      <mass value="2.987827"/>
+      <inertia ixx="0.023746754" ixy="0" ixz="0" iyy="0.018437997" iyz="0" izz="0.040214564"/>
     </inertial>
     <visual name="leaf_handle_spindle_vis">
       <origin xyz="0 0 0" rpy="-1.570796 0 0"/>
       <geometry>
-        <cylinder radius="0.006" length="0.098"/>
+        <cylinder radius="0.006" length="0.116"/>
       </geometry>
       <material name="mat_op_chrome"/>
     </visual>
@@ -557,8 +557,8 @@
     <child link="leaf_handle"/>
     <axis xyz="0 -1 0"/>
     <limit lower="0" upper="0.5" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.07"/>
-    <doorbench:spring stiffness="2.5" springref="-0.48" note="tau = -stiffness*(q - springref); not native URDF"/>
+    <dynamics damping="0.589936" friction="0.07"/>
+    <doorbench:spring stiffness="2.5" springref="-0.96" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_latch_bolt_slide" type="prismatic">
     <origin xyz="1.22 -0.057 1" rpy="0 0 0"/>
@@ -572,21 +572,21 @@
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
   </joint>
   <joint name="closer_pinion" type="continuous">
-    <origin xyz="0.297 0.103 2.03" rpy="0 0 2.43555"/>
+    <origin xyz="0.297 0.044 2.03" rpy="0 0 2.127418"/>
     <parent link="leaf"/>
     <child link="closer_arm_main"/>
     <axis xyz="0 0 1"/>
     <dynamics damping="0.01" friction="0"/>
   </joint>
   <joint name="closer_elbow" type="continuous">
-    <origin xyz="0.28 0 0" rpy="0 0 2.327098"/>
+    <origin xyz="0.28 0 0" rpy="0 0 2.383338"/>
     <parent link="closer_arm_main"/>
     <child link="closer_arm_fore"/>
     <axis xyz="0 0 1"/>
     <dynamics damping="0.01" friction="0"/>
   </joint>
   <joint name="closer_shoe_slide" type="prismatic">
-    <origin xyz="-0.52 0.082 2.03" rpy="0 0 0"/>
+    <origin xyz="-0.52 0.084 2.03" rpy="0 0 0"/>
     <parent link="world_env"/>
     <child link="closer_shoe"/>
     <axis xyz="0 0 1"/>

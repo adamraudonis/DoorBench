@@ -36,6 +36,7 @@
     <material name="mat_threshold" rgba="0.8 0.81 0.83 1" specular="0.8" shininess="0.6" reflectance="0.4"/>
     <material name="mat_kick" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <material name="mat_wreath" rgba="0.12 0.3 0.12 1" specular="0.2" shininess="0.05" reflectance="0"/>
+    <material name="mat_wreath_hook" rgba="0.85 0.66 0.3 1" specular="0.8" shininess="0.75" reflectance="0.4"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
   </asset>
   <worldbody>
@@ -77,11 +78,11 @@
     <geom name="seal_strike" type="box" size="0.004 0.0015 1.2255" pos="0.4575 -0.0235 1.2255" material="mat_seal" group="1" contype="0" conaffinity="0" density="1100"/>
     <geom name="seal_head" type="box" size="0.4405 0.0015 0.008" pos="0 -0.0235 2.439" material="mat_seal" group="1" contype="0" conaffinity="0" density="1100"/>
     <geom name="threshold" type="box" size="0.4795 0.0725 0.0065" pos="0 -0.0435 0.0065" material="mat_threshold" group="0" contype="1" conaffinity="1" friction="0.5 0.005 0.0001" density="2700"/>
-    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="door_plane_center" pos="0 0 1.2255" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="approach_point" pos="0 -1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.2255" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="leaf" pos="-0.4605 0 0">
-      <inertial pos="0.461268 -0.001639 1.181019" mass="62.3208" quat="-0.497247 0.500855 0.500319 0.501569" diaginertia="4.472368156 31.977863663 36.422634803"/>
+      <inertial pos="0.461268 -0.001639 1.181019" mass="62.28754" quat="-0.497247 0.500855 0.500319 0.501569" diaginertia="4.46998125 31.960797056 36.403196018"/>
       <joint name="leaf_hinge" type="hinge" axis="0 0 1" pos="0.003 0.029 0" limited="true" range="0 1.745329" solreflimit="0.02 1" damping="0.357281" frictionloss="6.1308" armature="0.02"/>
       <geom name="leaf_slab" type="box" size="0.457 0.022 1.215" pos="0.46 0 1.232" material="mat_leaf" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
       <geom name="hinge_0" type="mesh" mesh="hinge_2af0f4d6ca" pos="0.003 0.029 0.267" quat="0 1 0 0" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
@@ -93,21 +94,22 @@
       <geom name="leaf_latch_bolt_faceplate" type="box" size="0.0006 0.011 0.025" pos="0.9164 0 1.016" material="mat_bolt" group="1" contype="0" conaffinity="0" density="8500"/>
       <geom name="leaf_deadbolt_faceplate" type="box" size="0.0006 0.014 0.0245" pos="0.9164 0 1.191" material="mat_deadbolt" group="1" contype="0" conaffinity="0" density="8500"/>
       <geom name="kick_plate_n" type="box" size="0.427 0.0008 0.125" pos="0.46 -0.0228 0.152" material="mat_kick" group="2" contype="0" conaffinity="0" density="7900"/>
-      <site name="leaf_handleset_grip_n" pos="0.812 -0.082 0.956" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
-      <site name="leaf_edge_mid" pos="0.917 0 1.215" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_handleset_grip_n" pos="0.812 -0.082 0.956" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_edge_mid" pos="0.917 0 1.215" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
       <body name="leaf_handle" pos="0.862 0 1.016">
         <inertial pos="0 0.058082 0" mass="0.549341" quat="0.707107 0 0 -0.707107" diaginertia="0.000155778 0.000270874 0.000270874"/>
-        <joint name="leaf_handle_hinge" type="hinge" axis="0 -1 0" limited="true" range="0 0.87" damping="0.02" frictionloss="0.038" stiffness="0.5" springref="-0.5" armature="0.01"/>
+        <joint name="leaf_handle_hinge" type="hinge" axis="0 -1 0" limited="true" range="0 0.87" damping="0.142525" frictionloss="0.038" stiffness="0.5" springref="-0.5" armature="0.01"/>
         <geom name="leaf_handle_knob_p" type="mesh" mesh="knob_d1888f6f03" pos="0 0.022 0" quat="-0.707107 0.707107 0 0" material="mat_op_brass" group="1" contype="0" conaffinity="0" density="3000"/>
         <geom name="leaf_handle_knob_col_p" type="sphere" size="0.0243" pos="0 0.0685 0" material="mat_op_brass" group="0" contype="1" conaffinity="1" friction="0.9 0.01 0.0001" density="3000"/>
         <geom name="leaf_handle_knob_neck_p" type="cylinder" size="0.011 0.012" pos="0 0.034 0" quat="0.707107 -0.707107 0 0" material="mat_op_brass" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
-        <site name="leaf_handle_grip_p" pos="0 0.0685 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+        <site name="leaf_handle_grip_p" pos="0 0.0685 0" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
       <body name="leaf_thumbpiece" pos="0.812 -0.04 1.128">
-        <inertial pos="0 0 0" mass="0.03456" quat="-0.5 0.5 0.5 0.5" diaginertia="0.000003917 0.000004792 0.00000834"/>
-        <joint name="leaf_thumbpiece_hinge" type="hinge" axis="-1 0 0" pos="0 0 0.02" limited="true" range="0 0.35" damping="0.02" frictionloss="0.02" stiffness="1.2" springref="-0.416667" armature="0.01"/>
+        <inertial pos="0 0.004 0" mass="0.05184" quat="-0.5 0.5 0.5 0.5" diaginertia="0.000006981 0.000007488 0.000009124"/>
+        <joint name="leaf_thumbpiece_hinge" type="hinge" axis="-1 0 0" pos="0 0 0.02" limited="true" range="0 0.35" damping="0.219407" frictionloss="0.058" stiffness="1.2" springref="-0.416667" armature="0.01"/>
         <geom name="leaf_thumbpiece_geom" type="box" size="0.018 0.004 0.02" pos="0 0 0" material="mat_op_bronze" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="3000"/>
-        <site name="leaf_thumb_push" pos="0 -0.005 0.01" size="0.01" rgba="0.2 0.9 0.2 0.5" group="4"/>
+        <geom name="leaf_thumbpiece_boss" type="box" size="0.01 0.012 0.006" pos="0 0.012 0" material="mat_op_bronze" group="1" contype="0" conaffinity="0" density="3000"/>
+        <site name="leaf_thumb_push" pos="0 -0.005 0.01" quat="1 0 0 0" size="0.01" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
       <body name="leaf_latch_bolt" pos="0.917 0 1.016">
         <inertial pos="-0.008 0 0" mass="0.027149" quat="0 0 0.707107 0.707107" diaginertia="0.000000328 0.000003943 0.000003943"/>
@@ -127,7 +129,7 @@
     </fixed>
     <fixed name="leaf_latch_bolt_coupling" limited="true" range="0 10">
       <joint joint="leaf_latch_bolt_slide" coef="1"/>
-      <joint joint="leaf_handle_hinge" coef="-0.04375"/>
+      <joint joint="leaf_handle_hinge" coef="-0.017284"/>
     </fixed>
   </tendon>
   <sensor>

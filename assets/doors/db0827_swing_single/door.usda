@@ -11,7 +11,7 @@ def Xform "db0827_swing_single"
     custom string doorbench:door_id = "db0827_swing_single"
     custom string doorbench:env_release = "[]"
     custom string doorbench:filtered_pairs = '[["leaf", "leaf_latch_bolt"], ["leaf", "leaf_pushbutton"]]'
-    custom string doorbench:meta = '{"door_id": "db0827_swing_single", "family": "swing_single", "task": "open_and_traverse", "wall_y": -0.0515, "u": -1.0, "v": 1.0, "hinge_x": 0.4605, "leaf_edge_x_local": -0.917, "handle_height": 1.016, "primary_joint": "leaf_hinge", "operator_joint": "leaf_pushbutton_slide", "mass_reconciled_kg": 149.90156495310612, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": -0.35350000000000004, "handle_cam_target": [-0.36650000000000005, 0.074, 1.016], "handle_cam_pos": [-0.18650000000000005, -0.7260000000000001, 1.296], "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0827_swing_single/Articulation/Joints/leaf_hinge", "leaf_pushbutton_slide": "/db0827_swing_single/Articulation/Joints/leaf_pushbutton_slide", "leaf_latch_bolt_slide": "/db0827_swing_single/Articulation/Joints/leaf_latch_bolt_slide"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_latch_bolt"], ["leaf", "leaf_pushbutton"]], "n_filtered_pairs": 2, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0827_swing_single", "family": "swing_single", "task": "open_and_traverse", "wall_y": -0.0515, "u": -1.0, "v": 1.0, "hinge_x": 0.4605, "leaf_edge_x_local": -0.917, "handle_height": 1.016, "primary_joint": "leaf_hinge", "operator_joint": "leaf_pushbutton_slide", "mass_reconciled_kg": 149.90156495310612, "scene_extent": 2.1102499999999997, "cam_target_z": 1.0735, "cam_target_x": 0.0, "handle_cam_x": -0.35350000000000004, "handle_cam_target": [-0.36650000000000005, 0.074, 1.016], "handle_cam_pos": [-0.18650000000000005, -0.7260000000000001, 1.296], "operator_joints": ["leaf_pushbutton_slide"], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_hinge": "/db0827_swing_single/Articulation/Joints/leaf_hinge", "leaf_pushbutton_slide": "/db0827_swing_single/Articulation/Joints/leaf_pushbutton_slide", "leaf_latch_bolt_slide": "/db0827_swing_single/Articulation/Joints/leaf_latch_bolt_slide"}, "self_collisions": true, "filtered_pairs": [["leaf", "leaf_latch_bolt"], ["leaf", "leaf_pushbutton"]], "n_filtered_pairs": 2, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -878,7 +878,7 @@ def Xform "db0827_swing_single"
                 custom float doorbench:friction_effort = 2.3003962
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
-                custom float doorbench:legacy_friction_coeff = 0.0010734746
+                custom float doorbench:legacy_friction_coeff = 0.0010735764
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -915,11 +915,11 @@ def Xform "db0827_swing_single"
             )
             {
                 custom float doorbench:armature_si = 0.15
-                custom float doorbench:damping_si = 1
-                custom float doorbench:friction_effort = 0.2
+                custom float doorbench:damping_si = 16.008936
+                custom float doorbench:friction_effort = 0.5
                 custom float doorbench:initial = 0
-                custom string doorbench:label = "Push button (+ = pressed)"
-                custom float doorbench:legacy_friction_coeff = 0.2
+                custom string doorbench:label = "Push button (+ = pressed; spring return)"
+                custom float doorbench:legacy_friction_coeff = 0.5
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "operator"
@@ -928,7 +928,7 @@ def Xform "db0827_swing_single"
                 custom float doorbench:stiffness_si = 400
                 custom float doorbench:target_si = -0.0075
                 custom float doorbench:zero_offset = 0
-                float drive:linear:physics:damping = 1
+                float drive:linear:physics:damping = 16.008936
                 float drive:linear:physics:maxForce = 1000000
                 float drive:linear:physics:stiffness = 400
                 float drive:linear:physics:targetPosition = -0.0075
@@ -946,8 +946,8 @@ def Xform "db0827_swing_single"
                 custom float physxJoint:armature = 0.15
                 custom float physxJoint:jointFriction = 0
                 custom float physxJointAxis:linear:armature = 0.15
-                custom float physxJointAxis:linear:dynamicFrictionEffort = 0.2
-                custom float physxJointAxis:linear:staticFrictionEffort = 0.2
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 0.5
+                custom float physxJointAxis:linear:staticFrictionEffort = 0.5
                 custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
 
@@ -1019,10 +1019,10 @@ def Xform "db0827_swing_single"
         {
             custom string doorbench:label = "Door leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-0.4594701, 0.00012282099, 1.0640956)
-            float3 physics:diagonalInertia = (10.508453, 57.367863, 67.84943)
+            point3f physics:centerOfMass = (-0.45933276, 0.00014240808, 1.0642343)
+            float3 physics:diagonalInertia = (10.508173, 57.334763, 67.81587)
             float physics:mass = 149.90157
-            quatf physics:principalAxes = (0.500016, -0.50044984, -0.49990353, -0.49963033)
+            quatf physics:principalAxes = (0.5000511, -0.5004612, -0.49989754, -0.49958977)
             custom rel physxFilteredPairs:filteredPairs = [
                 </db0827_swing_single/Articulation/leaf_latch_bolt>,
                 </db0827_swing_single/Articulation/leaf_pushbutton>,
@@ -1252,6 +1252,36 @@ def Xform "db0827_swing_single"
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (-0.25, 0.044, 1.2755999999999998)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cube "closer_pneumatic_bracket_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Closer mounting bracket"
+                custom string doorbench:semantic = "closer"
+                rel material:binding = </db0827_swing_single/Looks/mat_closer>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.016, 0.032, 0.036)
+                double3 xformOp:translate = (-0.1, 0.03, 1.2755999999999998)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "closer_pneumatic_bracket_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Closer mounting bracket"
+                custom string doorbench:semantic = "closer"
+                rel material:binding = </db0827_swing_single/Looks/mat_closer>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.016, 0.032, 0.036)
+                double3 xformOp:translate = (-0.4, 0.03, 1.2755999999999998)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
             def Cube "kick_plate_n" (

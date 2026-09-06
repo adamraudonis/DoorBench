@@ -29,6 +29,7 @@
     <material name="mat_seal" rgba="0.1 0.1 0.1 1" specular="0.2" shininess="0.1" reflectance="0"/>
     <material name="mat_threshold" rgba="0.8 0.81 0.83 1" specular="0.8" shininess="0.6" reflectance="0.4"/>
     <material name="mat_wreath" rgba="0.12 0.3 0.12 1" specular="0.2" shininess="0.05" reflectance="0"/>
+    <material name="mat_wreath_hook" rgba="0.85 0.66 0.3 1" specular="0.8" shininess="0.75" reflectance="0.4"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
   </asset>
   <worldbody>
@@ -60,22 +61,22 @@
     <geom name="stop_strike_2" type="box" size="0.0055 0.016 0.3365" pos="0.354 0.0385 1.7085" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="750"/>
     <geom name="stop_head" type="box" size="0.3595 0.016 0.0055" pos="0 0.0385 2.0395" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="750"/>
     <geom name="threshold" type="box" size="0.4195 0.2 0.004" pos="0 0.121 0.004" material="mat_threshold" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
-    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="door_plane_center" pos="0 0 1.0225" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="approach_point" pos="0 -1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.0225" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="leaf" pos="-0.3595 0 0">
-      <inertial pos="0.365529 -0.001068 1.025638" mass="32.560546" quat="0.501802 0.498486 -0.501547 0.498155" diaginertia="1.404905978 10.928904823 12.320473494"/>
+      <inertial pos="0.365529 -0.001068 1.025638" mass="32.522914" quat="0.501802 0.498486 -0.501547 0.498155" diaginertia="1.403282251 10.916273691 12.306234051"/>
       <joint name="leaf_hinge" type="hinge" axis="0 0 -1" pos="0.003 -0.029 0" limited="true" range="0 1.396263" solreflimit="0.02 1" damping="0.143782" frictionloss="5.677134" armature="0.02"/>
       <geom name="leaf_slab" type="box" size="0.3555 0.022 1.016" pos="0.3585 0 1.025" material="mat_leaf" group="0" contype="1" conaffinity="1" friction="0.45 0.005 0.0001" density="1"/>
       <geom name="leaf_suffolk_grip" type="mesh" mesh="thumb_latch_0073ea78ed" pos="0.634 -0.022 1.05" quat="0.707107 0.707107 0 0" material="mat_op_wrought_iron" group="1" contype="0" conaffinity="0" density="7000"/>
       <geom name="leaf_suffolk_grip_col" type="capsule" size="0.008 0.09" pos="0.634 -0.057 1.05" material="mat_op_wrought_iron" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="7000"/>
-      <site name="leaf_grip_n" pos="0.634 -0.057 1.05" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
-      <site name="leaf_edge_mid" pos="0.714 0 1.016" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_grip_n" pos="0.634 -0.057 1.05" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_edge_mid" pos="0.714 0 1.016" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
       <body name="leaf_thumb" pos="0.634 -0.022 1.195">
         <inertial pos="0 -0.02 0" mass="0.03528" quat="1 0 0 0" diaginertia="0.000002411 0.000002752 0.000004951"/>
-        <joint name="leaf_thumb_hinge" type="hinge" axis="1 0 0" limited="true" range="0 0.3" damping="0.02" frictionloss="0.05" stiffness="0.6" springref="-0.5" armature="0.01"/>
+        <joint name="leaf_thumb_hinge" type="hinge" axis="1 0 0" limited="true" range="0 0.3" damping="0.155346" frictionloss="0.032" stiffness="0.6" springref="-0.5" armature="0.01"/>
         <geom name="leaf_thumb_geom" type="box" size="0.015 0.014 0.003" pos="0 -0.02 0" material="mat_op_wrought_iron" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7000"/>
-        <site name="leaf_thumb_push" pos="0 -0.024 0.005" size="0.01" rgba="0.2 0.9 0.2 0.5" group="4"/>
+        <site name="leaf_thumb_push" pos="0 -0.024 0.005" quat="1 0 0 0" size="0.01" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
       <body name="leaf_latch_bar" pos="0.514 0.034 1.19">
         <inertial pos="0.106 0 0" mass="0.25" quat="0 0 0.707107 0.707107" diaginertia="0.000004465 0.000904065 0.000904065"/>

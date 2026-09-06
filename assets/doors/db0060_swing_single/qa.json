@@ -5,10 +5,13 @@
   "load_minimal": true,
   "clearance": true,
   "running_clearance": true,
+  "attachment": true,
+  "baby_gate_headroom": true,
   "sliding_track_support": true,
   "linkage_feasibility": true,
   "mass": true,
   "settle": true,
+  "operator_returns": true,
   "hold": true,
   "actuate_opens": true,
   "latch_returns": true,
@@ -26,6 +29,14 @@
   "running_clearance_n_failures": 0,
   "running_clearance_failures": [],
   "running_clearance_n_pairs": 20,
+  "attachment_n_findings": 0,
+  "attachment_by_rule": {},
+  "attachment_findings": [],
+  "baby_gate_headroom": {
+   "ok": true,
+   "applicable": false,
+   "failures": []
+  },
   "sliding_track_support": {
    "ok": true,
    "n_supports": 0,
@@ -47,22 +58,60 @@
    "n_failures": 0,
    "failures": []
   },
-  "moving_mass_kg": 48.383554000000004,
+  "moving_mass_kg": 48.383554,
   "initial_penetration_m": 0.0,
   "initial_penetration_pair": [
    null,
    null
   ],
-  "settle_drift": 9.221049096837477e-07,
+  "settle_drift": 9.216407940141334e-07,
   "warnings": [],
+  "operator_release": {
+   "leaf_handle_hinge": {
+    "return_kind": "spring",
+    "operator_model": "lever_straight",
+    "expected_return_time_s": 0.3115,
+    "closed": {
+     "driven_to": 0.9114527764968383,
+     "travel": 0.96,
+     "rest": 0.0,
+     "tolerance": 0.0096,
+     "door_angle": -1.312898307354608e-06,
+     "t_return_s": 0.236,
+     "residual": -1.929060589415374e-05,
+     "bounces": 0,
+     "rebound": 0.009301670546056812,
+     "held_fraction": -2.116467950023372e-05
+    },
+    "closed_ok": true,
+    "open": {
+     "driven_to": 0.9114562675946236,
+     "travel": 0.96,
+     "rest": 0.0,
+     "tolerance": 0.0096,
+     "door_angle": 0.5233996479615763,
+     "t_return_s": 0.238,
+     "residual": -1.9313167594764834e-05,
+     "bounces": 0,
+     "rebound": 0.005977993572413736,
+     "held_fraction": -2.118935189916813e-05
+    },
+    "open_ok": true,
+    "ok": true
+   }
+  },
   "qa_push": 83.095264,
-  "hold_displacement": 0.0017416096415355932,
-  "actuate_displacement": 1.0205353776137516,
-  "operator_travel_reached": 0.960112653181701,
-  "bolt_after_release_m": -3.513356404197583e-05,
-  "relatch_closed_angle": -5.38860574501681e-06,
-  "relatch_repush_angle": 0.0017415261694983324,
-  "closer_final_angle": -1.1621569559315803e-06,
+  "hold_displacement": 0.0017416090156478386,
+  "actuate_displacement": 1.0199084797869593,
+  "operator_travel_reached": 0.9600997905093935,
+  "bolt_after_release_m": -3.596770970172785e-05,
+  "relatch_closed_angle": -5.388423898225268e-06,
+  "relatch_repush_angle": 0.0017415532253732893,
+  "closer_final_angle": -1.0687638263773685e-06,
+  "operator_joints": [
+   "leaf_handle_hinge"
+  ],
+  "operator_coupling": "coupled",
   "urdf_nbody": 5,
   "usd_joints": 4,
   "usd_rl_joints": [
@@ -76,454 +125,6 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.49820494651794434,
- "mujoco_version": "3.12.0",
- "isaac_parity": {
-  "version": "1",
-  "date": "2026-09-05",
-  "commit": "3b3acd3f2",
-  "engines": {
-   "mujoco": {
-    "mujoco": "3.12.0"
-   },
-   "isaac_full": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   },
-   "isaac_rl": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   }
-  },
-  "ok": true,
-  "grade": "B",
-  "status": "compared",
-  "kinds": {
-   "full": {
-    "status": "compared",
-    "grade": "B",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "agree",
-     "operate_open": "agree",
-     "release": "agree",
-     "relatch": "agree",
-     "closer_return": "quant",
-     "locked_holds": "na"
-    },
-    "classes": [
-     "QUANT"
-    ],
-    "details": [
-     "closer_return: closer_final_angle: mujoco -1.162e-06 vs physx 0.05322 (tol 0.03491)"
-    ],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      9.221049096837477e-07,
-      7.606619778499635e-10,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      0.0017416096415355932,
-      0.0016192711191251874,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      0.0017416096415355932,
-      0.0016192711191251874,
-      true
-     ],
-     "operate_open.bolt_retract_max_frac": [
-      1.0207473624591343,
-      0.9999999678448627,
-      true
-     ],
-     "operate_open.finite": [
-      true,
-      true,
-      true
-     ],
-     "operate_open.informational": [
-      false,
-      false,
-      true
-     ],
-     "operate_open.opened": [
-      1.0205353776137516,
-      1.0001856088638306,
-      true
-     ],
-     "operate_open.operator_travel_reached": [
-      0.960112653181701,
-      0.9600000381469727,
-      true
-     ],
-     "operate_open.q_primary_max": [
-      1.660018507230694,
-      1.657812476158142,
-      true
-     ],
-     "operate_open.t_open": [
-      1.568,
-      1.566667,
-      true
-     ],
-     "operate_open.t_open_bench": [
-      1.668,
-      1.666667,
-      true
-     ],
-     "operate_open.t_unlatch": [
-      0.7,
-      0.7,
-      true
-     ],
-     "release.bolt_after_release_m": [
-      -3.513356404197583e-05,
-      0.0,
-      true
-     ],
-     "release.finite": [
-      true,
-      true,
-      true
-     ],
-     "release.informational": [
-      false,
-      false,
-      true
-     ],
-     "release.operator_after_release_frac": [
-      -1.6995300555114338e-05,
-      0.00015367885074131968,
-      true
-     ],
-     "release.t_bolt_return": [
-      0.134,
-      0.133333,
-      true
-     ],
-     "relatch.arrival_speed": [
-      2.3547402049026727,
-      2.3364951610565186,
-      true
-     ],
-     "relatch.bolt_max_during_close": [
-      0.012943501389237127,
-      0.01580321602523327,
-      true
-     ],
-     "relatch.bolt_min_during_close": [
-      -0.00010955373500407094,
-      0.0,
-      true
-     ],
-     "relatch.finite": [
-      true,
-      true,
-      true
-     ],
-     "relatch.informational": [
-      false,
-      false,
-      true
-     ],
-     "relatch.relatch_closed_angle": [
-      -5.38860574501681e-06,
-      -8.1659912165577e-10,
-      true
-     ],
-     "relatch.relatch_repush_angle": [
-      0.0017415261694983324,
-      0.0016214876668527722,
-      true
-     ],
-     "relatch.t_close": [
-      0.768,
-      0.766667,
-      true
-     ],
-     "closer_return.closer_final_angle": [
-      -1.1621569559315803e-06,
-      0.05321715399622917,
-      false
-     ],
-     "closer_return.closer_t_close": [
-      2.2,
-      2.2,
-      true
-     ],
-     "closer_return.finite": [
-      true,
-      true,
-      true
-     ],
-     "closer_return.informational": [
-      false,
-      false,
-      true
-     ],
-     "closer_return.peak_closing_speed": [
-      0.6921612653184634,
-      0.6846672892570496,
-      true
-     ],
-     "closer_return.slam": [
-      false,
-      false,
-      true
-     ],
-     "closer_return.speed_at_latch": [
-      0.6921612653184634,
-      0.6846672892570496,
-      true
-     ]
-    }
-   },
-   "rl": {
-    "status": "compared",
-    "grade": "B",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "agree",
-     "operate_open": "agree",
-     "release": "agree",
-     "relatch": "agree",
-     "closer_return": "quant",
-     "locked_holds": "na"
-    },
-    "classes": [
-     "QUANT"
-    ],
-    "details": [
-     "closer_return: closer_final_angle: mujoco -1.162e-06 vs physx 0.05462 (tol 0.03491)"
-    ],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      9.221049096837477e-07,
-      1.0302084740843043e-09,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      0.0017416096415355932,
-      0.0016211947659030557,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      0.0017416096415355932,
-      0.0016211947659030557,
-      true
-     ],
-     "operate_open.bolt_retract_max_frac": [
-      1.0207473624591343,
-      0.9999983012676239,
-      true
-     ],
-     "operate_open.finite": [
-      true,
-      true,
-      true
-     ],
-     "operate_open.informational": [
-      false,
-      false,
-      true
-     ],
-     "operate_open.opened": [
-      1.0205353776137516,
-      1.0273486375808716,
-      true
-     ],
-     "operate_open.operator_travel_reached": [
-      0.960112653181701,
-      0.9600000977516174,
-      true
-     ],
-     "operate_open.q_primary_max": [
-      1.660018507230694,
-      1.650867223739624,
-      true
-     ],
-     "operate_open.t_open": [
-      1.568,
-      1.566667,
-      true
-     ],
-     "operate_open.t_open_bench": [
-      1.668,
-      1.666667,
-      true
-     ],
-     "operate_open.t_unlatch": [
-      0.7,
-      0.7,
-      true
-     ],
-     "release.bolt_after_release_m": [
-      -3.513356404197583e-05,
-      0.0,
-      true
-     ],
-     "release.finite": [
-      true,
-      true,
-      true
-     ],
-     "release.informational": [
-      false,
-      false,
-      true
-     ],
-     "release.operator_after_release_frac": [
-      -1.6995300555114338e-05,
-      0.0001523661164052707,
-      true
-     ],
-     "release.t_bolt_return": [
-      0.134,
-      0.133333,
-      true
-     ],
-     "relatch.arrival_speed": [
-      2.3547402049026727,
-      2.401470422744751,
-      true
-     ],
-     "relatch.bolt_max_during_close": [
-      0.012943501389237127,
-      0.015055658295750618,
-      true
-     ],
-     "relatch.bolt_min_during_close": [
-      -0.00010955373500407094,
-      0.0,
-      true
-     ],
-     "relatch.finite": [
-      true,
-      true,
-      true
-     ],
-     "relatch.informational": [
-      false,
-      false,
-      true
-     ],
-     "relatch.relatch_closed_angle": [
-      -5.38860574501681e-06,
-      -1.1295049340276364e-09,
-      true
-     ],
-     "relatch.relatch_repush_angle": [
-      0.0017415261694983324,
-      0.0016227626474574208,
-      true
-     ],
-     "relatch.t_close": [
-      0.768,
-      0.8,
-      true
-     ],
-     "closer_return.closer_final_angle": [
-      -1.1621569559315803e-06,
-      0.054621219635009766,
-      false
-     ],
-     "closer_return.closer_t_close": [
-      2.2,
-      2.233333,
-      true
-     ],
-     "closer_return.finite": [
-      true,
-      true,
-      true
-     ],
-     "closer_return.informational": [
-      false,
-      false,
-      true
-     ],
-     "closer_return.peak_closing_speed": [
-      0.6921612653184634,
-      0.6808300018310547,
-      true
-     ],
-     "closer_return.slam": [
-      false,
-      false,
-      true
-     ],
-     "closer_return.speed_at_latch": [
-      0.6921612653184634,
-      0.6808300018310547,
-      true
-     ]
-    }
-   }
-  },
-  "classes": [
-   "QUANT"
-  ],
-  "primary_class": "QUANT",
-  "likely_root_cause": "soft MuJoCo contacts / limits (solref 0.005) vs rigid PhysX limits, constraint-based vs effort-based Coulomb friction, implicitfast vs implicit drives at high damping; solver dt"
- }
+ "time_s": 0.27033495903015137,
+ "mujoco_version": "3.12.0"
 }

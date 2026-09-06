@@ -40,19 +40,13 @@
         <box size="1.998 0.115 2.7"/>
       </geometry>
     </collision>
-    <visual name="wall_header_vis">
-      <origin xyz="-0.015 0.0405 1.765" rpy="0 0 0"/>
+    <visual name="pivot_bottom_socket_vis">
+      <origin xyz="0.456 0 0.009" rpy="0 0 0"/>
       <geometry>
-        <box size="1.034 0.115 1.87"/>
+        <box size="0.07 0.07 0.038"/>
       </geometry>
-      <material name="mat_wall"/>
+      <material name="mat_hinge"/>
     </visual>
-    <collision name="wall_header_col">
-      <origin xyz="-0.015 0.0405 1.765" rpy="0 0 0"/>
-      <geometry>
-        <box size="1.034 0.115 1.87"/>
-      </geometry>
-    </collision>
     <visual name="leaf_pin_housing_vis">
       <origin xyz="-0.404 0.045 0.565" rpy="0 0 0"/>
       <geometry>
@@ -93,12 +87,19 @@
         <box size="0.03 0.03 0.83"/>
       </geometry>
     </collision>
+    <visual name="leaf_pin_post_plate_strap_0_vis">
+      <origin xyz="-0.475 0.019 0.56" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.01 0.009 0.08"/>
+      </geometry>
+      <material name="mat_op_pvc"/>
+    </visual>
   </link>
   <link name="leaf">
     <inertial>
       <origin xyz="-0.464898 0.001953 0.408454" rpy="0 0 0"/>
-      <mass value="10.716783"/>
-      <inertia ixx="0.489186476" ixy="0.008270226" ixz="0.01462324" iyy="1.247766053" iyz="-0.00190283" izz="0.761846339"/>
+      <mass value="10.676832"/>
+      <inertia ixx="0.487362813" ixy="0.008239395" ixz="0.014568725" iyy="1.243114443" iyz="-0.001895737" izz="0.759006214"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="-0.45 0 0.405" rpy="0 0 0"/>
@@ -175,21 +176,21 @@
   </link>
   <link name="leaf_pin">
     <inertial>
-      <origin xyz="0 0 0.037736" rpy="0 0 0"/>
-      <mass value="0.188217"/>
-      <inertia ixx="0.000339182" ixy="0" ixz="0" iyy="0.000339182" iyz="0" izz="0.000009448"/>
+      <origin xyz="0 0 0.037519" rpy="0 0 0"/>
+      <mass value="0.228168"/>
+      <inertia ixx="0.000346413" ixy="0" ixz="0" iyy="0.000346413" iyz="0" izz="0.000010167"/>
     </inertial>
     <visual name="leaf_pin_geom_vis">
-      <origin xyz="0 0 -0.02" rpy="0 0 0"/>
+      <origin xyz="0 0 0.0025" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.006" length="0.06"/>
+        <cylinder radius="0.006" length="0.105"/>
       </geometry>
       <material name="mat_op_pvc"/>
     </visual>
     <collision name="leaf_pin_geom_col">
-      <origin xyz="0 0 -0.02" rpy="0 0 0"/>
+      <origin xyz="0 0 0.0025" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.006" length="0.06"/>
+        <cylinder radius="0.006" length="0.105"/>
       </geometry>
     </collision>
     <visual name="leaf_pin_knob_vis">
@@ -222,7 +223,7 @@
     <child link="leaf_pin"/>
     <axis xyz="0 0 1"/>
     <limit lower="0" upper="0.05" effort="5000" velocity="10"/>
-    <dynamics damping="1" friction="0.2"/>
+    <dynamics damping="9.526824" friction="0.25"/>
     <doorbench:spring stiffness="60" springref="-0.016667" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <material name="mat_floor">
@@ -230,6 +231,9 @@
   </material>
   <material name="mat_frame">
     <color rgba="0.45 0.48 0.52 1"/>
+  </material>
+  <material name="mat_hinge">
+    <color rgba="0.65 0.66 0.68 1"/>
   </material>
   <material name="mat_keeper">
     <color rgba="0.65 0.66 0.68 1"/>

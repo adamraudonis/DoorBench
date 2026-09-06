@@ -35,6 +35,7 @@
     <material name="mat_wallreader" rgba="0.05 0.05 0.05 1" specular="0.38" shininess="0.3" reflectance="0.12"/>
     <material name="mat_rex" rgba="0.1 0.6 0.2 1" specular="0.2" shininess="0.6" reflectance="0"/>
     <material name="mat_bumper_stop" rgba="0.08 0.08 0.08 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_stop_base" rgba="0.9 0.9 0.92 1" specular="0.8" shininess="0.9" reflectance="0.4"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
   </asset>
   <worldbody>
@@ -52,6 +53,7 @@
     <geom name="hinge_1_jamb" type="mesh" mesh="hinge_jamb_e1d088f8dc" pos="-0.4575 0.029 1.076" quat="0 1 0 0" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
     <geom name="hinge_2_jamb" type="mesh" mesh="hinge_jamb_e1d088f8dc" pos="-0.4575 0.029 1.963" quat="0 1 0 0" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
     <geom name="leaf_maglock_body" type="box" size="0.125 0.025 0.02" pos="0.1565 -0.057 2.082" material="mat_maglock" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2000"/>
+    <geom name="leaf_maglock_bracket" type="box" size="0.09 0.025 0.0225" pos="0.1565 -0.057 2.1245" material="mat_maglock" group="1" contype="0" conaffinity="0" density="7850"/>
     <geom name="jamb_hinge" type="box" size="0.025 0.0575 1.0735" pos="-0.4855 -0.0285 1.0735" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="strike_1040_wall_n" type="box" size="0.04 0.039075 0.0167" pos="0.5005 -0.046925 1.04" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="strike_1040_wall_p" type="box" size="0.04 0.008 0.0167" pos="0.5005 0.01585 1.04" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
@@ -69,17 +71,19 @@
     <geom name="seal_head" type="box" size="0.4405 0.004 0.008" pos="0 -0.026 2.135" material="mat_seal" group="1" contype="0" conaffinity="0" density="1100"/>
     <geom name="wall_reader" type="box" size="0.04 0.015 0.06" pos="0.7105 -0.101 1.1" material="mat_wallreader" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1000"/>
     <geom name="rex_plate" type="box" size="0.04 0.003 0.06" pos="0.7105 0.032 1.1" material="mat_wallreader" group="1" contype="0" conaffinity="0" density="1000"/>
-    <geom name="wall_bumper_stop" type="cylinder" size="0.025 0.02" pos="-0.4845 0.8059 0.35" quat="0.707107 0 -0.707107 0" material="mat_bumper_stop" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1100"/>
-    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="door_plane_center" pos="0 0 1.0735" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <body name="rex_button" pos="0.7105 0.041 1.1">
+    <geom name="door_stop_base" type="cylinder" size="0.022 0.003" pos="-0.4735 0.8059 0.003" material="mat_stop_base" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="door_stop_post" type="cylinder" size="0.012 0.0245" pos="-0.4735 0.8059 0.0305" material="mat_stop_base" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="door_stop_bumper" type="cylinder" size="0.022 0.02" pos="-0.4735 0.8059 0.075" material="mat_bumper_stop" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1100"/>
+    <site name="approach_point" pos="0 -1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.0735" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="rex_button" pos="0.7105 0.035 1.1">
       <inertial pos="0 0.004 0" mass="0.010053" quat="0 0 0.707107 -0.707107" diaginertia="0.000001059 0.000001059 0.000002011"/>
       <joint name="rex_button_slide" type="slide" axis="0 -1 0" limited="true" range="0 0.004" damping="1" stiffness="1500" springref="-0.004" armature="0.1"/>
       <geom name="rex_button_geom" type="cylinder" size="0.02 0.004" pos="0 0.004 0" quat="0.707107 -0.707107 0 0" material="mat_rex" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1000"/>
     </body>
     <body name="leaf" pos="-0.4605 0 0">
-      <inertial pos="0.449607 -0.002803 0.991114" mass="43.31832" quat="-0.499437 0.504079 0.497726 0.498734" diaginertia="3.121852614 19.480522786 22.583771265"/>
+      <inertial pos="0.449607 -0.002803 0.991114" mass="43.30234" quat="-0.499437 0.504079 0.497726 0.498734" diaginertia="3.120700925 19.473336185 22.575439838"/>
       <joint name="leaf_hinge" type="hinge" axis="0 0 1" pos="0.003 0.029 0" limited="true" range="0 1.570796" solreflimit="0.02 1" damping="0.318966" frictionloss="1.948092" armature="0.02"/>
       <geom name="leaf_slab" type="box" size="0.457 0.022 1.067" pos="0.46 0 1.076" material="mat_leaf" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
       <geom name="leaf_glass_0" type="box" size="0.35646 0.0228 0.89628" pos="0.46 0 1.14002" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
@@ -89,19 +93,19 @@
       <geom name="leaf_latch_bolt_faceplate" type="box" size="0.0006 0.01235 0.0267" pos="0.9164 0 1.04" material="mat_bolt" group="1" contype="0" conaffinity="0" density="8500"/>
       <geom name="leaf_maglock_armature" type="box" size="0.09 0.005 0.02" pos="0.617 -0.027 2.082" material="mat_maglock" group="1" contype="0" conaffinity="0" density="7800"/>
       <geom name="kick_plate_n" type="box" size="0.427 0.0008 0.125" pos="0.46 -0.0228 0.144" material="mat_kick" group="2" contype="0" conaffinity="0" density="7900"/>
-      <site name="leaf_edge_mid" pos="0.917 0 1.067" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_edge_mid" pos="0.917 0 1.067" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
       <body name="leaf_handle" pos="0.847 0 1.04">
-        <inertial pos="-0.029018 0 0" mass="0.962206" quat="0 0.707107 0.707107 0" diaginertia="0.001758523 0.003593812 0.005174419"/>
-        <joint name="leaf_handle_hinge" type="hinge" axis="0 -1 0" limited="true" range="0 0.96" damping="0.02" frictionloss="0.048" stiffness="1.2" springref="-0.375" armature="0.01"/>
-        <geom name="leaf_handle_spindle" type="cylinder" size="0.006 0.021" pos="0 0 0" quat="0.707107 -0.707107 0 0" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="7850"/>
+        <inertial pos="-0.028544 0 0" mass="0.978187" quat="0 0.707107 0.707107 0" diaginertia="0.001772047 0.003604455 0.005198299"/>
+        <joint name="leaf_handle_hinge" type="hinge" axis="0 -1 0" limited="true" range="0 0.96" damping="0.245624" frictionloss="0.048" stiffness="1.2" springref="-0.458333" armature="0.01"/>
+        <geom name="leaf_handle_spindle" type="cylinder" size="0.006 0.03" pos="0 0 0" quat="0.707107 -0.707107 0 0" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="7850"/>
         <geom name="leaf_handle_lever_n" type="mesh" mesh="lever_9f02b544cf" pos="0 -0.022 0" quat="0.707107 0.707107 0 0" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="3000"/>
         <geom name="leaf_handle_lever_col_n" type="capsule" size="0.0095 0.053" pos="-0.0625 -0.077 0" quat="0.707107 0 -0.707107 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
         <geom name="leaf_handle_hub_col_n" type="cylinder" size="0.012 0.022" pos="0 -0.052 0" quat="0.707107 -0.707107 0 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
         <geom name="leaf_handle_lever_p" type="mesh" mesh="lever_9f02b544cf" pos="0 0.022 0" quat="-0.707107 0.707107 0 0" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="3000"/>
         <geom name="leaf_handle_lever_col_p" type="capsule" size="0.0095 0.053" pos="-0.0625 0.077 0" quat="0.707107 0 -0.707107 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
         <geom name="leaf_handle_hub_col_p" type="cylinder" size="0.012 0.022" pos="0 0.052 0" quat="0.707107 -0.707107 0 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
-        <site name="leaf_handle_grip_n" pos="-0.1 -0.077 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
-        <site name="leaf_handle_grip_p" pos="-0.1 0.077 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+        <site name="leaf_handle_grip_n" pos="-0.1 -0.077 0" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+        <site name="leaf_handle_grip_p" pos="-0.1 0.077 0" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
       <body name="leaf_latch_bolt" pos="0.917 0 1.04">
         <inertial pos="-0.00865 0 0" mass="0.041419" quat="0.92388 -0.382683 0 0" diaginertia="0.000000798 0.000005598 0.000005598"/>

@@ -279,9 +279,9 @@
       <material name="mat_seal"/>
     </visual>
     <visual name="closer_bracket_vis">
-      <origin xyz="-0.3605 -0.1045 2.177" rpy="0 0 0"/>
+      <origin xyz="-0.3605 -0.041 2.177" rpy="0 0 0"/>
       <geometry>
-        <box size="0.06 0.04 0.024"/>
+        <box size="0.06 0.024 0.028"/>
       </geometry>
       <material name="mat_closer"/>
     </visual>
@@ -291,6 +291,13 @@
         <mesh filename="../../hardware/exit_sign_a6449bfa2c.obj"/>
       </geometry>
       <material name="mat_exit_sign"/>
+    </visual>
+    <visual name="exit_sign_bracket_vis">
+      <origin xyz="0 0.1205 2.447" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.1155 0.01 0.07"/>
+      </geometry>
+      <material name="mat_sign_bracket"/>
     </visual>
     <visual name="rex_plate_vis">
       <origin xyz="0.7105 0.119 1.1" rpy="0 0 0"/>
@@ -302,9 +309,9 @@
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="0.424735 0.01541 1.245477" rpy="0 0 0"/>
-      <mass value="57.473639"/>
-      <inertia ixx="27.432907303" ixy="-0.137059109" ixz="1.620984097" iyy="31.061755134" iyz="0.775503291" izz="3.785052129"/>
+      <origin xyz="0.424735 0.015467 1.245477" rpy="0 0 0"/>
+      <mass value="57.465147"/>
+      <inertia ixx="27.428271087" ixy="-0.136617712" ixz="1.620744607" iyy="31.057165949" iyz="0.772520213" izz="3.783909739"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="0.457 0.029 1.076" rpy="0 0 0"/>
@@ -426,7 +433,7 @@
       </geometry>
     </collision>
     <visual name="closer_pinion_shaft_vis">
-      <origin xyz="0.297 -0.103 2.1155" rpy="0 0 0"/>
+      <origin xyz="0.297 -0.043 2.1155" rpy="0 0 0"/>
       <geometry>
         <cylinder radius="0.008" length="0.123"/>
       </geometry>
@@ -496,14 +503,28 @@
   </link>
   <link name="closer_arm_fore">
     <inertial>
-      <origin xyz="0.1125 0 0" rpy="0 0 0"/>
-      <mass value="0.06804"/>
-      <inertia ixx="0.000001474" ixy="0" ixz="0" iyy="0.000287407" iyz="0" izz="0.000288155"/>
+      <origin xyz="0.128088 0 0" rpy="0 0 0"/>
+      <mass value="0.076531"/>
+      <inertia ixx="0.000001771" ixy="0" ixz="0" iyy="0.000437665" iyz="0" izz="0.000438201"/>
     </inertial>
     <visual name="closer_arm_fore_geom_vis">
       <origin xyz="0.1125 0 0" rpy="0 0 0"/>
       <geometry>
         <box size="0.225 0.014 0.008"/>
+      </geometry>
+      <material name="mat_closer"/>
+    </visual>
+    <visual name="closer_fore_neck_vis">
+      <origin xyz="0.2425 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.035 0.006 0.006"/>
+      </geometry>
+      <material name="mat_closer"/>
+    </visual>
+    <visual name="closer_fore_pivot_vis">
+      <origin xyz="0.26 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.005" length="0.024"/>
       </geometry>
       <material name="mat_closer"/>
     </visual>
@@ -544,7 +565,7 @@
     <child link="leaf_exit_device"/>
     <axis xyz="0 -1 0"/>
     <limit lower="0" upper="0.016" effort="5000" velocity="10"/>
-    <dynamics damping="8" friction="0.5"/>
+    <dynamics damping="117.294962" friction="0.5"/>
     <doorbench:spring stiffness="700" springref="-0.011429" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_latch_bolt_slide" type="prismatic">
@@ -559,21 +580,21 @@
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
   </joint>
   <joint name="closer_pinion" type="continuous">
-    <origin xyz="0.297 -0.103 2.177" rpy="0 0 -2.180972"/>
+    <origin xyz="0.297 -0.043 2.177" rpy="0 0 -2.198853"/>
     <parent link="leaf"/>
     <child link="closer_arm_main"/>
     <axis xyz="0 0 1"/>
     <dynamics damping="0.01" friction="0"/>
   </joint>
   <joint name="closer_elbow" type="continuous">
-    <origin xyz="0.28 0 0" rpy="0 0 -2.378682"/>
+    <origin xyz="0.28 0 0" rpy="0 0 -2.376649"/>
     <parent link="closer_arm_main"/>
     <child link="closer_arm_fore"/>
     <axis xyz="0 0 1"/>
     <dynamics damping="0.01" friction="0"/>
   </joint>
   <joint name="rex_button_slide" type="prismatic">
-    <origin xyz="0.7105 0.128 1.1" rpy="0 0 0"/>
+    <origin xyz="0.7105 0.122 1.1" rpy="0 0 0"/>
     <parent link="world_env"/>
     <child link="rex_button"/>
     <axis xyz="0 -1 0"/>
@@ -616,6 +637,9 @@
   </material>
   <material name="mat_seal">
     <color rgba="0.1 0.1 0.1 1"/>
+  </material>
+  <material name="mat_sign_bracket">
+    <color rgba="0.8 0.81 0.83 1"/>
   </material>
   <material name="mat_wall">
     <color rgba="0.78 0.76 0.7 1"/>

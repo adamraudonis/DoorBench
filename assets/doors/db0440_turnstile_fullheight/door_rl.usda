@@ -9,7 +9,7 @@ def Xform "db0440_turnstile_fullheight"
 {
     custom string doorbench:door_id = "db0440_turnstile_fullheight"
     custom string doorbench:env_release = "[]"
-    custom string doorbench:meta = '{"door_id": "db0440_turnstile_fullheight", "family": "turnstile_fullheight", "task": "push_through", "wall_y": 0.0, "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 1.0, "ratchet_deg": 120.0, "one_way": true, "locked": true, "running_clearance_min": 0.01, "mass_reconciled_kg": 17.852904174963545, "scene_extent": 2.2249999999999996, "cam_target_z": 1.15, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.55, -1.1, 1.35]}'
+    custom string doorbench:meta = '{"door_id": "db0440_turnstile_fullheight", "family": "turnstile_fullheight", "task": "push_through", "wall_y": 0.0, "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 1.0, "ratchet_deg": 120.0, "one_way": true, "locked": true, "running_clearance_min": 0.01, "mass_reconciled_kg": 17.852904174963545, "scene_extent": 2.2249999999999996, "cam_target_z": 1.15, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.55, -1.1, 1.35], "operator_joints": [], "operator_coupling": "coupled"}'
     custom string doorbench:rl = '{"door_id": "db0440_turnstile_fullheight", "family": "turnstile_fullheight", "task": "push_through", "slots": {"door": "hinge", "operator": "none", "latch": "none", "secondary": "none"}, "links": ["base", "carriage", "leaf", "operator_pivot", "operator", "latch", "carriage2", "leaf2"], "joints": {"door_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "door_hinge": {"active": true, "type": "revolute", "source": "rotor_hinge", "role": "primary", "range": [-0.05, 0.05], "stiffness": 0.0, "damping": 6.0, "target": 0.0, "friction": 4.1820802700365025, "armature": 0.3, "damping_closing": null, "damping_opening": null, "backcheck_angle": null, "backcheck_damping": null, "ratchet_one_way": true, "label": "Rotor (ratchets 360/wings deg; one-way enforced by env)"}, "operator_hinge": {"active": false, "type": "revolute", "range": [-0.0008726646259971648, 0.0008726646259971648]}, "operator_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "latch_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "leaf2_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "leaf2_hinge": {"active": false, "type": "revolute", "range": [-0.0008726646259971648, 0.0008726646259971648]}}, "primary_joint": "rotor_hinge", "operator_joint": null, "latch_joint": null, "secondary_joint": null, "door_joint": "door_hinge", "operator_slot_joint": null, "secondary_slot_joint": null, "latch_coupling": null, "secondary_coupling": null, "open_threshold": 0.17453292519943295, "clear_threshold": 1.0471975511965976, "closed_threshold": 0.05235987755982989, "sites": {"approach": [1.23, -1.5, 0.0], "goal": [1.23, 1.5, 0.0], "pass_plane": [0.415, 0.0, 1.0], "grip": [{"name": "wing_0_push", "link": "leaf", "pos": [0.6000000000000001, 0.0, 1.0]}, {"name": "wing_1_push", "link": "leaf", "pos": [-0.29999999999999993, 0.5196152422706632, 1.0]}, {"name": "wing_2_push", "link": "leaf", "pos": [-0.30000000000000027, -0.519615242270663, 1.0]}], "grip_link": "leaf", "push": [{"name": "wing_0_push", "link": "leaf", "pos": [0.6000000000000001, 0.0, 1.0]}, {"name": "wing_1_push", "link": "leaf", "pos": [-0.29999999999999993, 0.5196152422706632, 1.0]}, {"name": "wing_2_push", "link": "leaf", "pos": [-0.30000000000000027, -0.519615242270663, 1.0]}], "leaf_edge": []}, "opening": {"width": 1.6, "height": 2.3}, "robot": {"approach_side": "-y", "is_push": true, "robot_outside": false, "start_distance_m": 2.1}, "handle_height": 1.0, "u": null, "v": null, "hinge_x": null, "lock": {"model": "mag_lock", "engaged": true, "robot_side_release": false}, "closer": "none", "operator": "turnstile_arm", "latch": "none", "damage": {"leaf_dent_force_N": 3800.0, "glass_break_force_N": null, "operator_yield_torque_Nm": 10000.0, "slam_velocity_rad_s": 2.0, "frame_impact_force_N": 3000.0}, "actuators": [], "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325, "welded_static": [], "omitted": [], "notes": [], "mass_kg": 17.852904174963545, "welded": [], "released_parts": [], "released_holding": [], "welded_engaged": [], "operator_driven_joints": [], "couplings": [], "coupling_reflected_armature": {}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": []}'
 
     def Scope "Looks"
@@ -495,6 +495,86 @@ def Xform "db0440_turnstile_fullheight"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.8, 0.04, 2.2)
                 double3 xformOp:translate = (1.23, 0.9299999999999999, 1.1)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "rotor_bearing_jaw_0" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Floor bearing housing"
+                custom string doorbench:semantic = "frame"
+                rel material:binding = </db0440_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </db0440_turnstile_fullheight/Looks/PhysMat_mat_op_stainless_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.03, 0.1, 0.1)
+                double3 xformOp:translate = (0.077, 0, 0.05)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "rotor_bearing_jaw_1" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Floor bearing housing"
+                custom string doorbench:semantic = "frame"
+                rel material:binding = </db0440_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </db0440_turnstile_fullheight/Looks/PhysMat_mat_op_stainless_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.03, 0.1, 0.1)
+                double3 xformOp:translate = (-0.077, 0, 0.05)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "rotor_bearing_jaw_2" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Floor bearing housing"
+                custom string doorbench:semantic = "frame"
+                rel material:binding = </db0440_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </db0440_turnstile_fullheight/Looks/PhysMat_mat_op_stainless_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.1, 0.03, 0.1)
+                double3 xformOp:translate = (0, 0.077, 0.05)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "rotor_bearing_jaw_3" (
+                prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+            )
+            {
+                custom bool doorbench:collision = 1
+                custom string doorbench:label = "Floor bearing housing"
+                custom string doorbench:semantic = "frame"
+                rel material:binding = </db0440_turnstile_fullheight/Looks/mat_op_stainless>
+                rel material:binding:physics = </db0440_turnstile_fullheight/Looks/PhysMat_mat_op_stainless_0_600> (
+                    bindMaterialAs = "weakerThanDescendants"
+                )
+                custom float physxCollision:contactOffset = 0.005
+                custom float physxCollision:restOffset = 0
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.1, 0.03, 0.1)
+                double3 xformOp:translate = (0, -0.077, 0.05)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

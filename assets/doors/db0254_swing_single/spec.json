@@ -153,7 +153,7 @@
    "backset_m": 0.055,
    "operator_travel": 0.7,
    "operator_dead_travel": 0.04,
-   "operator_spring_preload": 0.5,
+   "operator_spring_preload": 0.6,
    "operator_spring_rate": 1.4,
    "operator_yield": 30.0,
    "operator_grip_offset_m": 0.125,
@@ -165,6 +165,62 @@
     ],
     "dead_travel": 0.04
    }
+  },
+  "operator": {
+   "model": "lever_mortise_escutcheon",
+   "kind": "lever",
+   "motion": "rotate_normal",
+   "rotary": true,
+   "return_kind": "spring",
+   "return_note": "mortise lock hub spring (heavier than a cylindrical rose spring)",
+   "source": "Sargent 8200 mortise lock w/ LE1 escutcheon",
+   "travel": 0.7,
+   "dead_travel": 0.04,
+   "spring_preload": 0.6,
+   "spring_rate": 1.4,
+   "detent_friction": 0.0,
+   "damping_ratio": 1.0,
+   "gravity_margin": 1.35,
+   "units": {
+    "preload": "N*m",
+    "rate": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "friction": "N*m",
+    "inertia": "kg*m^2",
+    "travel": "rad"
+   },
+   "joints": {
+    "leaf_handle_hinge": {
+     "joint": "leaf_handle_hinge",
+     "type": "hinge",
+     "return_kind": "spring",
+     "operator_model": "lever_mortise_escutcheon",
+     "travel": 0.7,
+     "inertia": 0.013028882377810247,
+     "armature": 0.01,
+     "moving_mass_kg": 0.8287076382691768,
+     "gravity_moment_at_rest": 0.328502527752749,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "spring_preload": 0.6,
+     "spring_preload_catalogue": 0.6,
+     "spring_rate": 1.4,
+     "damping": 0.2701143115714852,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.064,
+     "omega_n_rad_s": 10.365981660542209,
+     "rest": 0.0,
+     "expected_return_time_s": 0.2905,
+     "return_tolerance": 0.006999999999999999
+    }
+   },
+   "formula": "tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = 1.0 (critical) and I the joint-space inertia (armature + the handle's own inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where the catalogue spring would not lift it; fl capped at 0.25 of the restoring torque at rest so it cannot park the handle short of rest"
   },
   "lock": {
    "model": "none",
@@ -195,7 +251,7 @@
   "compliance": {
    "opening_force_start_N": 5.859030062120296,
    "opening_force_90deg_N": 5.35499780405578,
-   "operator_force_N": 11.84,
+   "operator_force_N": 12.639999999999999,
    "ada_interior_5lbf_ok": true,
    "ibc_fire_exterior_ok": null,
    "hardware_operable_5lbf_ok": true,
@@ -223,6 +279,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "open_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "open_and_traverse",

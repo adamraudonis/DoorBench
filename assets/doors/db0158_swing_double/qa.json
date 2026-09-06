@@ -5,10 +5,13 @@
   "load_minimal": true,
   "clearance": true,
   "running_clearance": true,
+  "attachment": true,
+  "baby_gate_headroom": true,
   "sliding_track_support": true,
   "linkage_feasibility": true,
   "mass": true,
   "settle": true,
+  "operator_returns": true,
   "hold": true,
   "settle_simple": true,
   "settle_minimal": true,
@@ -22,6 +25,14 @@
   "running_clearance_n_failures": 0,
   "running_clearance_failures": [],
   "running_clearance_n_pairs": 7,
+  "attachment_n_findings": 0,
+  "attachment_by_rule": {},
+  "attachment_findings": [],
+  "baby_gate_headroom": {
+   "ok": true,
+   "applicable": false,
+   "failures": []
+  },
   "sliding_track_support": {
    "ok": true,
    "n_supports": 0,
@@ -43,19 +54,73 @@
    "n_failures": 0,
    "failures": []
   },
-  "moving_mass_kg": 90.325448,
+  "moving_mass_kg": 90.32544800000001,
   "initial_penetration_m": 0.0,
   "initial_penetration_pair": [
    null,
    null
   ],
-  "settle_drift": 3.6701886687078293e-07,
+  "settle_drift": 3.610114360369765e-07,
   "warnings": [],
+  "operator_release": {
+   "leaf_a_handle_hinge": {
+    "return_kind": "spring",
+    "operator_model": "paddle_push_pull",
+    "expected_return_time_s": 0.0995,
+    "closed": {
+     "driven_to": 0.3793411625763908,
+     "travel": 0.4,
+     "rest": 0.0,
+     "tolerance": 0.004363323129985824,
+     "door_angle": -5.760595847536242e-07,
+     "t_return_s": 0.11,
+     "residual": -0.00011612641395080884,
+     "bounces": 0,
+     "rebound": 0.0043315871943985,
+     "held_fraction": -0.00030612658315830305
+    },
+    "closed_ok": true,
+    "open": {
+     "skipped": "the leaf does not open under a hand-sized effort (locked): latch-clear case not applicable",
+     "door_angle": 1.3550058329514066e-06,
+     "door_target": 0.5235987755982988
+    },
+    "ok": true
+   },
+   "leaf_b_handle_hinge": {
+    "return_kind": "spring",
+    "operator_model": "paddle_push_pull",
+    "expected_return_time_s": 0.093,
+    "closed": {
+     "driven_to": 0.3793411435528433,
+     "travel": 0.4,
+     "rest": 0.0,
+     "tolerance": 0.004363323129985824,
+     "door_angle": -3.752228981483758e-07,
+     "t_return_s": 0.11,
+     "residual": -0.00012767218341841469,
+     "bounces": 0,
+     "rebound": 0.004333708895565826,
+     "held_fraction": -0.000336562973957054
+    },
+    "closed_ok": true,
+    "open": {
+     "skipped": "the leaf does not open under a hand-sized effort (locked): latch-clear case not applicable",
+     "door_angle": 1.5800878315128475e-06,
+     "door_target": 0.5235987755982988
+    },
+    "ok": true
+   }
+  },
   "qa_push": 239.691729475024,
-  "hold_displacement": 1.7265547260129757e-06,
+  "hold_displacement": 1.8007279918035695e-06,
   "note": "lock released by environment logic (badge / REX / timer); actuation not tested by QA",
-  "urdf_nbody": 5,
-  "usd_joints": 4,
+  "operator_joints": [
+   "leaf_a_handle_hinge"
+  ],
+  "operator_coupling": "coupled",
+  "urdf_nbody": 7,
+  "usd_joints": 6,
   "usd_rl_joints": [
    "door_hinge",
    "door_slide",
@@ -67,174 +132,6 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.3229060173034668,
- "mujoco_version": "3.12.0",
- "isaac_parity": {
-  "version": "1",
-  "date": "2026-09-05",
-  "commit": "3b3acd3f2",
-  "engines": {
-   "mujoco": {
-    "mujoco": "3.12.0"
-   },
-   "isaac_full": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   },
-   "isaac_rl": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   }
-  },
-  "ok": false,
-  "grade": "C",
-  "status": "compared",
-  "kinds": {
-   "full": {
-    "status": "compared",
-    "grade": "C",
-    "ok": false,
-    "phases": {
-     "settle": "agree",
-     "hold": "disagree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [
-     "EXPORT_WELD"
-    ],
-    "details": [
-     "hold: mag_lock engaged: MuJoCo weld holds (1.727e-06), PhysX opened 1.571"
-    ],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      3.6701886687078293e-07,
-      9.159517588841481e-09,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      1.7265547260129757e-06,
-      1.5707963705062866,
-      false
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      1.7265547260129757e-06,
-      1.5707963705062866,
-      false
-     ],
-     "hold.secondary_drift": [
-      -5.427636653041294e-05,
-      -9.140579848576635e-09,
-      true
-     ]
-    }
-   },
-   "rl": {
-    "status": "compared",
-    "grade": "C",
-    "ok": false,
-    "phases": {
-     "settle": "agree",
-     "hold": "disagree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [
-     "EXPORT_WELD"
-    ],
-    "details": [
-     "hold: mag_lock engaged: MuJoCo weld holds (1.727e-06), PhysX opened 1.571"
-    ],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      3.6701886687078293e-07,
-      1.28520358799733e-08,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      1.7265547260129757e-06,
-      1.570796251296997,
-      false
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      1.7265547260129757e-06,
-      1.570796251296997,
-      false
-     ],
-     "hold.secondary_drift": [
-      -5.427636653041294e-05,
-      -1.248435399503478e-08,
-      true
-     ]
-    }
-   }
-  },
-  "classes": [
-   "EXPORT_WELD"
-  ],
-  "primary_class": "EXPORT_WELD",
-  "likely_root_cause": "H5 (FIXED in the export): weld-type lock equalities (mag_lock / delayed_egress / electric_bolt / interlock leaf -> world) used to be exported only as doorbench:couplings JSON. Both USD kinds now carry a breakable UsdPhysics.FixedJoint base -> leaf with physics:excludeFromArticulation, breakForce == breakTorque == holding_force_N and physics:jointEnabled (doorbench:env_release). A remaining occurrence means the joint is absent (stale assets) or PhysX did not parse the loop joint"
- }
+ "time_s": 0.36707305908203125,
+ "mujoco_version": "3.12.0"
 }

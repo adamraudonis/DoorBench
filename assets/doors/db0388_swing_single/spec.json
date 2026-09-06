@@ -148,7 +148,7 @@
    "backset_m": 0.06,
    "operator_travel": 0.87,
    "operator_dead_travel": 0.08,
-   "operator_spring_preload": 0.3,
+   "operator_spring_preload": 0.4,
    "operator_spring_rate": 0.9,
    "operator_yield": 15.0,
    "operator_grip_offset_m": 0.105,
@@ -160,6 +160,62 @@
     ],
     "dead_travel": 0.08
    }
+  },
+  "operator": {
+   "model": "lever_curved",
+   "kind": "lever",
+   "motion": "rotate_normal",
+   "rotary": true,
+   "return_kind": "spring",
+   "return_note": "Grade 2/3 residential lever spring",
+   "source": "Kwikset Halifax / Schlage Latitude",
+   "travel": 0.87,
+   "dead_travel": 0.08,
+   "spring_preload": 0.4,
+   "spring_rate": 0.9,
+   "detent_friction": 0.0,
+   "damping_ratio": 1.0,
+   "gravity_margin": 1.35,
+   "units": {
+    "preload": "N*m",
+    "rate": "N*m/rad",
+    "damping": "N*m*s/rad",
+    "friction": "N*m",
+    "inertia": "kg*m^2",
+    "travel": "rad"
+   },
+   "joints": {
+    "leaf_handle_hinge": {
+     "joint": "leaf_handle_hinge",
+     "type": "hinge",
+     "return_kind": "spring",
+     "operator_model": "lever_curved",
+     "travel": 0.87,
+     "inertia": 0.011683163233776162,
+     "armature": 0.01,
+     "moving_mass_kg": 0.8398072999217947,
+     "gravity_moment_at_rest": 0.20116194051717284,
+     "units": {
+      "preload": "N*m",
+      "rate": "N*m/rad",
+      "damping": "N*m*s/rad",
+      "friction": "N*m",
+      "inertia": "kg*m^2",
+      "travel": "rad"
+     },
+     "spring_preload": 0.4,
+     "spring_preload_catalogue": 0.4,
+     "spring_rate": 0.9,
+     "damping": 0.20508385514611865,
+     "damping_ratio": 1.0,
+     "frictionloss": 0.04,
+     "omega_n_rad_s": 8.776897619354441,
+     "rest": 0.0,
+     "expected_return_time_s": 0.3455,
+     "return_tolerance": 0.0087
+    }
+   },
+   "formula": "tau = -(preload + k*q) - b*dq - fl*sign(dq); b = 2*zeta*sqrt(k*I) with zeta = 1.0 (critical) and I the joint-space inertia (armature + the handle's own inertia about the spindle); preload raised to gravity_margin x the handle's gravity moment where the catalogue spring would not lift it; fl capped at 0.25 of the restoring torque at rest so it cannot park the handle short of rest"
   },
   "lock": {
    "model": "none",
@@ -190,7 +246,7 @@
   "compliance": {
    "opening_force_start_N": 0.7378431482973332,
    "opening_force_90deg_N": 0.7378431482973332,
-   "operator_force_N": 10.314285714285715,
+   "operator_force_N": 11.266666666666667,
    "ada_interior_5lbf_ok": true,
    "ibc_fire_exterior_ok": null,
    "hardware_operable_5lbf_ok": true,
@@ -218,6 +274,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "open_and_traverse",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "open_and_traverse",

@@ -27,6 +27,7 @@
     <material name="mat_roller" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
     <material name="mat_op_stainless" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <material name="mat_ebolt" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <material name="mat_hook" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
   </asset>
   <worldbody>
@@ -41,11 +42,13 @@
     <geom name="post_r" type="box" size="0.06 0.06 1.2" pos="1.885 0.08 1.2" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
     <geom name="gate_rail" type="box" size="3.65 0.02 0.012" pos="-1.8 -0.06 0.012" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
     <geom name="leaf_electric_bolt_housing" type="box" size="0.022 0.014 0.045" pos="1.72 -0.0905 2.21" material="mat_ebolt" group="1" contype="0" conaffinity="0" density="7900"/>
-    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="door_plane_center" pos="0 0 1.075" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <geom name="leaf_electric_bolt_riser" type="box" size="0.016 0.01 0.034" pos="1.72 -0.0905 2.285" material="mat_ebolt" group="1" contype="0" conaffinity="0" density="7900"/>
+    <geom name="leaf_electric_bolt_riser_strap_0" type="box" size="0.045 0.06125 0.0272" pos="1.7805 -0.03725 2.285" material="mat_ebolt" group="1" contype="0" conaffinity="0" density="7850"/>
+    <site name="approach_point" pos="0 -1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.075" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="leaf" pos="0 -0.06 0">
-      <inertial pos="0.00405 -0.000108 1.130766" mass="329.086632" quat="0.707116 -0.707097 -0.000589 -0.000709" diaginertia="120.980819308 356.882036807 477.824396266"/>
+      <inertial pos="0.003881 -0.000108 1.126679" mass="329.086632" quat="0.707116 -0.707097 -0.000672 -0.000791" diaginertia="121.946801682 358.826575595 480.735010768"/>
       <joint name="leaf_slide" type="slide" axis="-1 0 0" limited="true" range="0 3.6" damping="18.46185" frictionloss="104.933141" armature="0.5"/>
       <geom name="leaf_slab_col" type="box" size="1.8 0.0125 1.05" pos="0 0 1.13" material="mat_leaf" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.45 0.005 0.0001" density="1"/>
       <geom name="leaf_rail_b" type="box" size="1.8 0.0125 0.0225" pos="0 0 0.1025" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
@@ -53,13 +56,15 @@
       <geom name="leaf_stile_h" type="box" size="0.0225 0.0125 1.05" pos="-1.7775 0 1.13" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
       <geom name="leaf_stile_l" type="box" size="0.0225 0.0125 1.05" pos="1.7775 0 1.13" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
       <geom name="leaf_mesh" type="box" size="1.755 0.0015 1.005" pos="0 0 1.13" material="mat_mesh_infill" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_roller_0" type="cylinder" size="0.04 0.008" pos="-1.66 0 0.064" quat="0.707107 -0.707107 0 0" material="mat_roller" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="leaf_roller_1" type="cylinder" size="0.04 0.008" pos="1.58 0 0.064" quat="0.707107 -0.707107 0 0" material="mat_roller" group="1" contype="0" conaffinity="0" density="7850"/>
       <geom name="leaf_pull_n" type="mesh" mesh="pull_1e5d69a91a" pos="1.71 -0.0125 1" quat="0.707107 0.707107 0 0" material="mat_op_stainless" group="1" contype="0" conaffinity="0" density="3000"/>
       <geom name="leaf_pull_col_n" type="capsule" size="0.0095 0.08" pos="1.71 -0.0725 1" material="mat_op_stainless" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
       <geom name="leaf_ebolt_keeper_n" type="box" size="0.006 0.014 0.02" pos="1.702 -0.0265 2.08" material="mat_ebolt" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
       <geom name="leaf_ebolt_keeper_p" type="box" size="0.006 0.014 0.02" pos="1.738 -0.0265 2.08" material="mat_ebolt" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
       <geom name="leaf_ebolt_keeper_base" type="box" size="0.03 0.002 0.03" pos="1.72 -0.0145 2.08" material="mat_ebolt" group="1" contype="0" conaffinity="0" density="7900"/>
-      <site name="leaf_pull_grip_n" pos="1.71 -0.0725 1" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
-      <site name="leaf_edge_mid" pos="1.8 0 1.13" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_pull_grip_n" pos="1.71 -0.0725 1" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_edge_mid" pos="1.8 0 1.13" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     </body>
     <body name="leaf_electric_bolt" pos="1.72 -0.0865 2.115">
       <inertial pos="0 0 0.04" mass="0.150368" quat="0.707107 0 0.707107 0" diaginertia="0.000004703 0.000115179 0.000115179"/>

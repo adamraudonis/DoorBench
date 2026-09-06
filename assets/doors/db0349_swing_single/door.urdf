@@ -351,25 +351,51 @@
         <box size="1.042 0.245 0.008"/>
       </geometry>
     </collision>
-    <visual name="wall_bumper_stop_vis">
-      <origin xyz="-0.485 0.8089 0.35" rpy="-0.269078 -1.570796 0.269078"/>
+    <visual name="door_stop_base_vis">
+      <origin xyz="-0.475 0.8089 0.003" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.025" length="0.04"/>
+        <cylinder radius="0.022" length="0.006"/>
+      </geometry>
+      <material name="mat_stop_base"/>
+    </visual>
+    <collision name="door_stop_base_col">
+      <origin xyz="-0.475 0.8089 0.003" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.006"/>
+      </geometry>
+    </collision>
+    <visual name="door_stop_post_vis">
+      <origin xyz="-0.475 0.8089 0.0305" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.012" length="0.049"/>
+      </geometry>
+      <material name="mat_stop_base"/>
+    </visual>
+    <collision name="door_stop_post_col">
+      <origin xyz="-0.475 0.8089 0.0305" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.012" length="0.049"/>
+      </geometry>
+    </collision>
+    <visual name="door_stop_bumper_vis">
+      <origin xyz="-0.475 0.8089 0.075" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.04"/>
       </geometry>
       <material name="mat_bumper_stop"/>
     </visual>
-    <collision name="wall_bumper_stop_col">
-      <origin xyz="-0.485 0.8089 0.35" rpy="-0.269078 -1.570796 0.269078"/>
+    <collision name="door_stop_bumper_col">
+      <origin xyz="-0.475 0.8089 0.075" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.025" length="0.04"/>
+        <cylinder radius="0.022" length="0.04"/>
       </geometry>
     </collision>
   </link>
   <link name="leaf">
     <inertial>
       <origin xyz="0.45718 -0.032364 1.026305" rpy="0 0 0"/>
-      <mass value="65.828376"/>
-      <inertia ixx="22.419319171" ixy="0.021032898" ixz="-0.017240532" iyy="27.159595439" iyz="0.001638208" izz="4.771873082"/>
+      <mass value="65.790744"/>
+      <inertia ixx="22.406502756" ixy="0.021020874" ixz="-0.017230677" iyy="27.144069157" iyz="0.001637272" izz="4.769145153"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="0.457 -0.032 1.025" rpy="0 0 0"/>
@@ -519,9 +545,9 @@
   </link>
   <link name="leaf_thumb">
     <inertial>
-      <origin xyz="0 -0.001001 -0.004723" rpy="0 0 0"/>
-      <mass value="0.09352"/>
-      <inertia ixx="0.000056482" ixy="0" ixz="0" iyy="0.000010688" iyz="0.000014136" izz="0.000054459"/>
+      <origin xyz="0 -0.00137 -0.006032" rpy="0 0 0"/>
+      <mass value="0.131152"/>
+      <inertia ixx="0.0000597" ixy="0" ixz="0" iyy="0.000014805" iyz="0.00001338" izz="0.000057174"/>
     </inertial>
     <visual name="leaf_thumb_geom_vis">
       <origin xyz="0 -0.02 0" rpy="0 0 0"/>
@@ -537,9 +563,9 @@
       </geometry>
     </collision>
     <visual name="leaf_thumb_boss_vis">
-      <origin xyz="0 -0.006 0" rpy="0 0 0"/>
+      <origin xyz="0 -0.004 -0.005" rpy="0 0 0"/>
       <geometry>
-        <box size="0.024 0.012 0.016"/>
+        <box size="0.024 0.016 0.026"/>
       </geometry>
       <material name="mat_op_wrought_iron"/>
     </visual>
@@ -626,7 +652,7 @@
     <child link="leaf_thumb"/>
     <axis xyz="1 0 0"/>
     <limit lower="0" upper="0.3" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.05"/>
+    <dynamics damping="0.15542" friction="0.032"/>
     <doorbench:spring stiffness="0.6" springref="-0.5" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_latch_bar_hinge" type="revolute">
@@ -670,6 +696,9 @@
   </material>
   <material name="mat_op_wrought_iron">
     <color rgba="0.08 0.08 0.09 1"/>
+  </material>
+  <material name="mat_stop_base">
+    <color rgba="0.9 0.9 0.92 1"/>
   </material>
   <material name="mat_threshold">
     <color rgba="0.8 0.81 0.83 1"/>

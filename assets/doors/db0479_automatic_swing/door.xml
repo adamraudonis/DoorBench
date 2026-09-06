@@ -31,6 +31,7 @@
     <material name="mat_threshold" rgba="0.8 0.81 0.83 1" specular="0.8" shininess="0.6" reflectance="0.4"/>
     <material name="mat_closer" rgba="0.22 0.17 0.13 1" specular="0.8" shininess="0.6" reflectance="0.4"/>
     <material name="mat_exit_sign" rgba="0.85 0.1 0.1 1" specular="0.2" shininess="0.6" reflectance="0"/>
+    <material name="mat_sign_bracket" rgba="0.8 0.81 0.83 1" specular="0.8" shininess="0.6" reflectance="0.4"/>
     <material name="mat_sign" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <material name="mat_wallreader" rgba="0.05 0.05 0.05 1" specular="0.38" shininess="0.3" reflectance="0.12"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
@@ -46,6 +47,8 @@
     <geom name="wall_left" type="box" size="0.9585 0.15 1.5255" pos="-1.5415 -0.1335 1.5255" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
     <geom name="wall_right" type="box" size="0.9435 0.15 1.5255" pos="1.5565 -0.1335 1.5255" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
     <geom name="wall_header" type="box" size="0.598 0.15 0.2625" pos="0.015 -0.1335 2.7885" material="mat_wall" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="800"/>
+    <geom name="pivot_bottom_socket" type="box" size="0.035 0.035 0.0125" pos="-0.535 0.0165 0.0025" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
+    <geom name="pivot_top_bracket" type="box" size="0.035 0.035 0.0355" pos="-0.535 0.0165 2.4905" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
     <geom name="leaf_deadbolt_strike_b" type="box" size="0.0155 0.003 0.0005" pos="0.5375 0 1.0865" quat="-0.5 -0.5 0.5 0.5" material="mat_deadbolt" group="1" contype="0" conaffinity="0" density="7800"/>
     <geom name="leaf_deadbolt_strike_l" type="box" size="0.003 0.0155 0.0005" pos="0.5375 0.0125 1.105" quat="-0.5 -0.5 0.5 0.5" material="mat_deadbolt" group="1" contype="0" conaffinity="0" density="7800"/>
     <geom name="leaf_deadbolt_strike_t" type="box" size="0.0155 0.003 0.0005" pos="0.5375 0 1.1235" quat="-0.5 -0.5 0.5 0.5" material="mat_deadbolt" group="1" contype="0" conaffinity="0" density="7800"/>
@@ -63,11 +66,11 @@
     <geom name="exit_sign" type="mesh" mesh="exit_sign_a6449bfa2c" pos="0 -0.15 2.751" material="mat_exit_sign" group="2" contype="0" conaffinity="0" density="500"/>
     <geom name="wave_sensor_n" type="box" size="0.05 0.012 0.05" pos="0.788 -0.2955 1.05" material="mat_wallreader" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1000"/>
     <geom name="wave_sensor_p" type="box" size="0.05 0.012 0.05" pos="0.788 0.0285 1.05" material="mat_wallreader" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1000"/>
-    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="door_plane_center" pos="0 0 1.2255" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="approach_point" pos="0 -1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.2255" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="leaf" pos="-0.538 0 0">
-      <inertial pos="0.558419 -0.002379 1.264342" mass="92.128198" quat="-0.485411 0.484112 0.513776 0.515796" diaginertia="9.273489569 45.160656513 54.416274089"/>
+      <inertial pos="0.556143 -0.002824 1.286361" mass="92.128198" quat="-0.484987 0.483179 0.514256 0.516592" diaginertia="9.100538686 46.593643977 55.675113925"/>
       <joint name="leaf_hinge" type="hinge" axis="0 0 1" pos="0.003 0.0165 0" limited="true" range="0 1.570796" damping="15.570702" frictionloss="1.196857" stiffness="19.0031" springref="-2.141756" armature="0.02"/>
       <geom name="leaf_glass" type="box" size="0.5335 0.0095 1.215" pos="0.5395 0 1.232" material="mat_glass_leaf" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
       <geom name="leaf_patch_bot" type="box" size="0.08 0.0175 0.05" pos="0.086 0 0.077" material="mat_patch" group="1" contype="0" conaffinity="0" density="1"/>
@@ -78,10 +81,11 @@
       <geom name="leaf_deadbolt_faceplate" type="box" size="0.0006 0.0075 0.0245" pos="1.0724 0 1.105" material="mat_deadbolt" group="1" contype="0" conaffinity="0" density="8500"/>
       <geom name="leaf_deadbolt_cylinder_face" type="mesh" mesh="cyl_face_e9e5036966" pos="1.008 -0.0095 1.105" quat="0.707107 0.707107 0 0" material="mat_deadbolt" group="1" contype="0" conaffinity="0" density="7100"/>
       <geom name="auto_operator_arm" type="box" size="0.22 0.008 0.008" pos="0.25 -0.0395 2.41" material="mat_closer" group="1" contype="0" conaffinity="0" density="2700"/>
+      <geom name="auto_operator_arm_shoe" type="box" size="0.03 0.016 0.014" pos="0.44 -0.0255 2.41" material="mat_closer" group="1" contype="0" conaffinity="0" density="2700"/>
       <geom name="sign_push" type="box" size="0.06 0.001 0.03" pos="0.5395 -0.0105 1.367" material="mat_sign" group="2" contype="0" conaffinity="0" density="7900"/>
       <geom name="sign_pull" type="box" size="0.06 0.001 0.03" pos="0.5395 0.0105 1.367" material="mat_sign" group="2" contype="0" conaffinity="0" density="7900"/>
-      <site name="leaf_push_plate_push_n" pos="0.968 -0.0095 0.965" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
-      <site name="leaf_edge_mid" pos="1.073 0 1.215" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_push_plate_push_n" pos="0.968 -0.0095 0.965" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_edge_mid" pos="1.073 0 1.215" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
       <body name="leaf_deadbolt" pos="1.073 0 1.105">
         <inertial pos="-0.0023 0 0" mass="0.18836" quat="0 0 0.707107 0.707107" diaginertia="0.000013829 0.000052194 0.000057986"/>
         <geom name="leaf_deadbolt_box" type="box" size="0.0277 0.008 0.0125" pos="-0.0023 0 0" material="mat_deadbolt" group="0" contype="1" conaffinity="1" friction="0.3 0.005 0.0001" density="8500"/>

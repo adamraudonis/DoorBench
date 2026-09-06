@@ -21,7 +21,7 @@
     <mesh name="coat_hook_d622d37ad0" file="coat_hook_d622d37ad0.obj"/>
     <mesh name="hinge_e22b26c0c1" file="hinge_e22b26c0c1.obj"/>
     <mesh name="hinge_jamb_e1d088f8dc" file="hinge_jamb_e1d088f8dc.obj"/>
-    <mesh name="keypad_body_157e208992" file="keypad_body_157e208992.obj"/>
+    <mesh name="keypad_body_91eb8ded3e" file="keypad_body_91eb8ded3e.obj"/>
     <mesh name="lever_a61139b160" file="lever_a61139b160.obj"/>
     <material name="mat_floor" rgba="0.55 0.53 0.5 1" specular="0.2" shininess="0.15" reflectance="0"/>
     <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
@@ -38,6 +38,7 @@
     <material name="mat_hook" rgba="0.9 0.9 0.92 1" specular="0.8" shininess="0.9" reflectance="0.4"/>
     <material name="mat_wallreader" rgba="0.05 0.05 0.05 1" specular="0.38" shininess="0.3" reflectance="0.12"/>
     <material name="mat_bumper_stop" rgba="0.08 0.08 0.08 1" specular="0.2" shininess="0.1" reflectance="0"/>
+    <material name="mat_stop_base" rgba="0.9 0.9 0.92 1" specular="0.8" shininess="0.9" reflectance="0.4"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
   </asset>
   <worldbody>
@@ -66,79 +67,92 @@
     <geom name="stop_hinge" type="box" size="0.0055 0.016 1.0225" pos="-0.5315 -0.0385 1.0225" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="stop_strike" type="box" size="0.0055 0.016 1.0225" pos="0.5315 -0.0385 1.0225" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="stop_head" type="box" size="0.537 0.016 0.0055" pos="0 -0.0385 2.0395" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
-    <geom name="closer_bracket" type="box" size="0.03 0.02 0.012" pos="-0.437 0.0895 2.075" material="mat_closer" group="1" contype="0" conaffinity="0" density="2700"/>
+    <geom name="closer_bracket" type="box" size="0.03 0.012 0.014" pos="-0.437 0.041 2.075" material="mat_closer" group="1" contype="0" conaffinity="0" density="2700"/>
     <geom name="wall_reader" type="box" size="0.04 0.015 0.06" pos="0.787 -0.101 1.1" material="mat_wallreader" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1000"/>
-    <geom name="wall_bumper_stop" type="cylinder" size="0.025 0.02" pos="-0.561 0.93595 0.35" quat="0.707107 0 -0.707107 0" material="mat_bumper_stop" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1100"/>
-    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="door_plane_center" pos="0 0 1.0225" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <geom name="door_stop_base" type="cylinder" size="0.022 0.003" pos="-0.55 0.93595 0.003" material="mat_stop_base" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="door_stop_post" type="cylinder" size="0.012 0.0245" pos="-0.55 0.93595 0.0305" material="mat_stop_base" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    <geom name="door_stop_bumper" type="cylinder" size="0.022 0.02" pos="-0.55 0.93595 0.075" material="mat_bumper_stop" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1100"/>
+    <site name="approach_point" pos="0 -1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.0225" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="leaf" pos="-0.537 0 0">
-      <inertial pos="0.492879 0.012294 1.197245" mass="51.842788" quat="0.525677 0.522395 0.46597 -0.483362" diaginertia="4.629652643 21.149249231 25.714762236"/>
+      <inertial pos="0.492879 0.012222 1.197245" mass="51.82137" quat="0.525666 0.522406 0.466032 -0.483303" diaginertia="4.627307547 21.139958129 25.70399553"/>
       <joint name="leaf_hinge" type="hinge" axis="0 0 1" pos="0.003 0.029 0" limited="true" range="0 1.570796" damping="10.475663" frictionloss="0.870159" stiffness="15.673579" springref="-1.79155" armature="0.02"/>
       <geom name="leaf_slab" type="box" size="0.5335 0.022 1.016" pos="0.5365 0 1.025" material="mat_leaf" group="0" contype="1" conaffinity="1" friction="0.4 0.005 0.0001" density="1"/>
       <geom name="leaf_glass_0" type="box" size="0.41613 0.0228 0.43688" pos="0.5365 0 1.50252" material="mat_glass" group="1" contype="0" conaffinity="0" density="1"/>
       <geom name="hinge_0" type="mesh" mesh="hinge_e22b26c0c1" pos="0.003 0.029 0.259" quat="0 1 0 0" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
       <geom name="hinge_1" type="mesh" mesh="hinge_e22b26c0c1" pos="0.003 0.029 1.025" quat="0 1 0 0" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
       <geom name="hinge_2" type="mesh" mesh="hinge_e22b26c0c1" pos="0.003 0.029 1.861" quat="0 1 0 0" material="mat_hinge" group="1" contype="0" conaffinity="0" density="7850"/>
-      <geom name="leaf_keypad_body" type="mesh" mesh="keypad_body_157e208992" pos="1 0.022 1.18" quat="0 0 0.707107 0.707107" material="mat_keypad" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2000"/>
+      <geom name="leaf_keypad_body" type="mesh" mesh="keypad_body_91eb8ded3e" pos="1 0.022 1.18" quat="0 0 0.707107 0.707107" material="mat_keypad" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2000"/>
       <geom name="leaf_keypad_cylinder" type="cylinder" size="0.009 0.002" pos="1 0.056 1.105" quat="0.707107 -0.707107 0 0" material="mat_trim" group="1" contype="0" conaffinity="0" density="7100"/>
       <geom name="leaf_latch_bolt_faceplate" type="box" size="0.0006 0.014 0.028" pos="1.0694 0 1.04" material="mat_bolt" group="1" contype="0" conaffinity="0" density="8500"/>
       <geom name="closer_body" type="mesh" mesh="closer_body_b226fdb10b" pos="0.3 0.022 1.952" quat="-0.707107 0.707107 0 0" material="mat_closer" group="1" contype="0" conaffinity="0" density="2000"/>
       <geom name="closer_body_col" type="box" size="0.12 0.04 0.03" pos="0.3 0.062 1.952" material="mat_closer" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="2000"/>
-      <geom name="closer_pinion_shaft" type="cylinder" size="0.008 0.0615" pos="0.3 0.112 2.0135" material="mat_closer" group="1" contype="0" conaffinity="0" density="2700"/>
+      <geom name="closer_pinion_shaft" type="cylinder" size="0.008 0.0615" pos="0.3 0.064 2.0135" material="mat_closer" group="1" contype="0" conaffinity="0" density="2700"/>
       <geom name="coat_hook" type="mesh" mesh="coat_hook_d622d37ad0" pos="0.5365 0.022 1.691" quat="-0.707107 0.707107 0 0" material="mat_hook" group="2" contype="0" conaffinity="0" density="7000"/>
-      <site name="leaf_edge_mid" pos="1.07 0 1.016" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <site name="leaf_edge_mid" pos="1.07 0 1.016" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
       <body name="leaf_handle" pos="1 0 1.04">
-        <inertial pos="-0.023919 0 0" mass="0.857288" quat="0 0.707107 0.707107 0" diaginertia="0.001221814 0.003244845 0.004300836"/>
-        <joint name="leaf_handle_hinge" type="hinge" axis="0 -1 0" limited="true" range="0 0.87" damping="0.02" frictionloss="0.052" stiffness="1" springref="-0.35" armature="0.01"/>
-        <geom name="leaf_handle_spindle" type="cylinder" size="0.006 0.021" pos="0 0 0" quat="0.707107 -0.707107 0 0" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="7850"/>
+        <inertial pos="-0.022132 -0.050687 0" mass="0.463269" quat="-0.312008 0 0 0.950079" diaginertia="0.000227859 0.000847742 0.000992066"/>
+        <joint name="leaf_handle_hinge" type="hinge" axis="0 -1 0" limited="true" range="0 0.87" damping="0.208392" frictionloss="0.052" stiffness="1" springref="-0.35" armature="0.01"/>
+        <geom name="leaf_handle_spindle" type="cylinder" size="0.006 0.03" pos="0 0 0" quat="0.707107 -0.707107 0 0" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="7850"/>
         <geom name="leaf_handle_lever_n" type="mesh" mesh="lever_a61139b160" pos="0 -0.022 0" quat="0.707107 0.707107 0 0" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="3000"/>
         <geom name="leaf_handle_lever_col_n" type="capsule" size="0.008 0.048" pos="-0.056 -0.077 0" quat="0.707107 0 -0.707107 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
         <geom name="leaf_handle_hub_col_n" type="cylinder" size="0.012 0.022" pos="0 -0.052 0" quat="0.707107 -0.707107 0 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
-        <geom name="leaf_handle_lever_p" type="mesh" mesh="lever_a61139b160" pos="0 0.022 0" quat="-0.707107 0.707107 0 0" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="3000"/>
-        <geom name="leaf_handle_lever_col_p" type="capsule" size="0.008 0.048" pos="-0.056 0.077 0" quat="0.707107 0 -0.707107 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
-        <geom name="leaf_handle_hub_col_p" type="cylinder" size="0.012 0.022" pos="0 0.052 0" quat="0.707107 -0.707107 0 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
-        <site name="leaf_handle_grip_n" pos="-0.0896 -0.077 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
-        <site name="leaf_handle_grip_p" pos="-0.0896 0.077 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+        <site name="leaf_handle_grip_n" pos="-0.0896 -0.077 0" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
-      <body name="leaf_keypad_key_1" pos="1 0.054 1.235">
-        <inertial pos="0 0.003 0" mass="0.001832" quat="0 0 0.707107 -0.707107" diaginertia="0.000000043 0.000000043 0.000000074"/>
-        <joint name="leaf_keypad_key_1_slide" type="slide" axis="0 -1 0" limited="true" range="0 0.004" damping="0.5" frictionloss="0.05" stiffness="1500" springref="-0.004" armature="0.1"/>
-        <geom name="leaf_keypad_key_0_geom" type="cylinder" size="0.009 0.003" pos="0 0.003 0" quat="0.707107 -0.707107 0 0" material="mat_key" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+      <body name="leaf_keypad_key_1" pos="1.006 0.054 1.232">
+        <inertial pos="0 0.002 0" mass="0.001221" quat="0 0 0.707107 -0.707107" diaginertia="0.000000026 0.000000026 0.000000049"/>
+        <joint name="leaf_keypad_key_1_slide" type="slide" axis="0 -1 0" limited="true" range="0 0.004" damping="17.146" frictionloss="0.05" stiffness="1500" springref="-0.004" armature="0.1"/>
+        <geom name="leaf_keypad_key_1_geom" type="cylinder" size="0.009 0.002" pos="0 0.002 0" quat="0.707107 -0.707107 0 0" material="mat_key" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+        <site name="leaf_keypad_key_1_press" pos="0 0.006 0" quat="1 0 0 0" size="0.008" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
-      <body name="leaf_keypad_key_2" pos="1 0.054 1.209">
-        <inertial pos="0 0.003 0" mass="0.001832" quat="0 0 0.707107 -0.707107" diaginertia="0.000000043 0.000000043 0.000000074"/>
-        <joint name="leaf_keypad_key_2_slide" type="slide" axis="0 -1 0" limited="true" range="0 0.004" damping="0.5" frictionloss="0.05" stiffness="1500" springref="-0.004" armature="0.1"/>
-        <geom name="leaf_keypad_key_1_geom" type="cylinder" size="0.009 0.003" pos="0 0.003 0" quat="0.707107 -0.707107 0 0" material="mat_key" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+      <body name="leaf_keypad_key_2" pos="0.994 0.054 1.206">
+        <inertial pos="0 0.002 0" mass="0.001221" quat="0 0 0.707107 -0.707107" diaginertia="0.000000026 0.000000026 0.000000049"/>
+        <joint name="leaf_keypad_key_2_slide" type="slide" axis="0 -1 0" limited="true" range="0 0.004" damping="17.146" frictionloss="0.05" stiffness="1500" springref="-0.004" armature="0.1"/>
+        <geom name="leaf_keypad_key_2_geom" type="cylinder" size="0.009 0.002" pos="0 0.002 0" quat="0.707107 -0.707107 0 0" material="mat_key" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+        <site name="leaf_keypad_key_2_press" pos="0 0.006 0" quat="1 0 0 0" size="0.008" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
-      <body name="leaf_keypad_key_3" pos="1 0.054 1.183">
-        <inertial pos="0 0.003 0" mass="0.001832" quat="0 0 0.707107 -0.707107" diaginertia="0.000000043 0.000000043 0.000000074"/>
-        <joint name="leaf_keypad_key_3_slide" type="slide" axis="0 -1 0" limited="true" range="0 0.004" damping="0.5" frictionloss="0.05" stiffness="1500" springref="-0.004" armature="0.1"/>
-        <geom name="leaf_keypad_key_2_geom" type="cylinder" size="0.009 0.003" pos="0 0.003 0" quat="0.707107 -0.707107 0 0" material="mat_key" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+      <body name="leaf_keypad_key_3" pos="1.006 0.054 1.18">
+        <inertial pos="0 0.002 0" mass="0.001221" quat="0 0 0.707107 -0.707107" diaginertia="0.000000026 0.000000026 0.000000049"/>
+        <joint name="leaf_keypad_key_3_slide" type="slide" axis="0 -1 0" limited="true" range="0 0.004" damping="17.146" frictionloss="0.05" stiffness="1500" springref="-0.004" armature="0.1"/>
+        <geom name="leaf_keypad_key_3_geom" type="cylinder" size="0.009 0.002" pos="0 0.002 0" quat="0.707107 -0.707107 0 0" material="mat_key" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+        <site name="leaf_keypad_key_3_press" pos="0 0.006 0" quat="1 0 0 0" size="0.008" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
-      <body name="leaf_keypad_key_4" pos="1 0.054 1.157">
-        <inertial pos="0 0.003 0" mass="0.001832" quat="0 0 0.707107 -0.707107" diaginertia="0.000000043 0.000000043 0.000000074"/>
-        <joint name="leaf_keypad_key_4_slide" type="slide" axis="0 -1 0" limited="true" range="0 0.004" damping="0.5" frictionloss="0.05" stiffness="1500" springref="-0.004" armature="0.1"/>
-        <geom name="leaf_keypad_key_3_geom" type="cylinder" size="0.009 0.003" pos="0 0.003 0" quat="0.707107 -0.707107 0 0" material="mat_key" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+      <body name="leaf_keypad_key_4" pos="0.994 0.054 1.154">
+        <inertial pos="0 0.002 0" mass="0.001221" quat="0 0 0.707107 -0.707107" diaginertia="0.000000026 0.000000026 0.000000049"/>
+        <joint name="leaf_keypad_key_4_slide" type="slide" axis="0 -1 0" limited="true" range="0 0.004" damping="17.146" frictionloss="0.05" stiffness="1500" springref="-0.004" armature="0.1"/>
+        <geom name="leaf_keypad_key_4_geom" type="cylinder" size="0.009 0.002" pos="0 0.002 0" quat="0.707107 -0.707107 0 0" material="mat_key" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+        <site name="leaf_keypad_key_4_press" pos="0 0.006 0" quat="1 0 0 0" size="0.008" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
-      <body name="leaf_keypad_key_5" pos="1 0.054 1.131">
-        <inertial pos="0 0.003 0" mass="0.001832" quat="0 0 0.707107 -0.707107" diaginertia="0.000000043 0.000000043 0.000000074"/>
-        <joint name="leaf_keypad_key_5_slide" type="slide" axis="0 -1 0" limited="true" range="0 0.004" damping="0.5" frictionloss="0.05" stiffness="1500" springref="-0.004" armature="0.1"/>
-        <geom name="leaf_keypad_key_4_geom" type="cylinder" size="0.009 0.003" pos="0 0.003 0" quat="0.707107 -0.707107 0 0" material="mat_key" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+      <body name="leaf_keypad_key_5" pos="1.006 0.054 1.128">
+        <inertial pos="0 0.002 0" mass="0.001221" quat="0 0 0.707107 -0.707107" diaginertia="0.000000026 0.000000026 0.000000049"/>
+        <joint name="leaf_keypad_key_5_slide" type="slide" axis="0 -1 0" limited="true" range="0 0.004" damping="17.146" frictionloss="0.05" stiffness="1500" springref="-0.004" armature="0.1"/>
+        <geom name="leaf_keypad_key_5_geom" type="cylinder" size="0.009 0.002" pos="0 0.002 0" quat="0.707107 -0.707107 0 0" material="mat_key" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1200"/>
+        <site name="leaf_keypad_key_5_press" pos="0 0.006 0" quat="1 0 0 0" size="0.008" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      </body>
+      <body name="leaf_handle_out" pos="1 0 1.04">
+        <inertial pos="-0.025007 0.057273 0" mass="0.41" quat="0.235955 0 0 0.971764" diaginertia="0.000156759 0.000717302 0.000791484"/>
+        <joint name="leaf_handle_out_hinge" type="hinge" axis="0 -1 0" limited="true" range="0 0.06" damping="0.208382" frictionloss="0.052" stiffness="1" springref="-0.35" armature="0.01"/>
+        <geom name="leaf_handle_out_lever_p" type="mesh" mesh="lever_a61139b160" pos="0 0.022 0" quat="-0.707107 0.707107 0 0" material="mat_op_nickel_satin" group="1" contype="0" conaffinity="0" density="3000"/>
+        <geom name="leaf_handle_out_lever_col_p" type="capsule" size="0.008 0.048" pos="-0.056 0.077 0" quat="0.707107 0 -0.707107 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.7 0.01 0.0001" density="3000"/>
+        <geom name="leaf_handle_out_hub_col_p" type="cylinder" size="0.012 0.022" pos="0 0.052 0" quat="0.707107 -0.707107 0 0" material="mat_op_nickel_satin" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.6 0.005 0.0001" density="3000"/>
+        <site name="leaf_handle_out_grip_p" pos="-0.0896 0.077 0" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
       <body name="leaf_latch_bolt" pos="1.07 0 1.04">
         <inertial pos="-0.0055 0 0" mass="0.074627" quat="0.92388 -0.382683 0 0" diaginertia="0.000002271 0.000013255 0.000013255"/>
         <joint name="leaf_latch_bolt_slide" type="slide" axis="-1 0 0" limited="true" range="0 0.019" damping="2" frictionloss="0.3" stiffness="550" springref="-0.01" armature="0.1"/>
         <geom name="leaf_latch_bolt_capsule" type="capsule" size="0.008 0.0165" pos="-0.0055 0 0" quat="0.707107 0 0.707107 0" material="mat_bolt" group="0" contype="1" conaffinity="1" friction="0.2 0.005 0.0001" density="8500"/>
       </body>
-      <body name="closer_arm_main" pos="0.3 0.112 2.075" quat="0.473336 0 0 0.880882">
+      <body name="closer_arm_main" pos="0.3 0.064 2.075" quat="0.472212 0 0 0.881485">
         <inertial pos="0.14 0 0" mass="0.12096" quat="1 0 0 0" diaginertia="0.000003588 0.00079128 0.000792852"/>
         <joint name="closer_pinion" type="hinge" axis="0 0 1" limited="false" damping="0.01" armature="0.002"/>
         <geom name="closer_arm_main_geom" type="box" size="0.14 0.008 0.005" pos="0.14 0 0" material="mat_closer" group="1" contype="0" conaffinity="0" density="2700"/>
-        <body name="closer_arm_fore" pos="0.28 0 0" quat="-0.371117 0 0 -0.928586">
-          <inertial pos="0.1125 0 0" mass="0.06804" quat="1 0 0 0" diaginertia="0.000001474 0.000287407 0.000288155"/>
+        <body name="closer_arm_fore" pos="0.28 0 0" quat="-0.371222 0 0 -0.928544">
+          <inertial pos="0.128088 0 0" mass="0.076531" quat="1 0 0 0" diaginertia="0.000001771 0.000437665 0.000438201"/>
           <joint name="closer_elbow" type="hinge" axis="0 0 1" limited="false" damping="0.01" armature="0.002"/>
           <geom name="closer_arm_fore_geom" type="box" size="0.1125 0.007 0.004" pos="0.1125 0 0" material="mat_closer" group="1" contype="0" conaffinity="0" density="2700"/>
+          <geom name="closer_fore_neck" type="box" size="0.0175 0.003 0.003" pos="0.2425 0 0" material="mat_closer" group="1" contype="0" conaffinity="0" density="2700"/>
+          <geom name="closer_fore_pivot" type="cylinder" size="0.005 0.012" pos="0.26 0 0" material="mat_closer" group="1" contype="0" conaffinity="0" density="2700"/>
         </body>
       </body>
     </body>
@@ -147,6 +161,7 @@
     <fixed name="leaf_latch_bolt_coupling" limited="true" range="0 10">
       <joint joint="leaf_latch_bolt_slide" coef="1"/>
       <joint joint="leaf_handle_hinge" coef="-0.023457"/>
+      <joint joint="leaf_handle_out_hinge" coef="-0.023457"/>
     </fixed>
   </tendon>
   <equality>
@@ -172,6 +187,8 @@
     <jointvel name="leaf_keypad_key_4_slide_vel" joint="leaf_keypad_key_4_slide"/>
     <jointpos name="leaf_keypad_key_5_slide_pos" joint="leaf_keypad_key_5_slide"/>
     <jointvel name="leaf_keypad_key_5_slide_vel" joint="leaf_keypad_key_5_slide"/>
+    <jointpos name="leaf_handle_out_hinge_pos" joint="leaf_handle_out_hinge"/>
+    <jointvel name="leaf_handle_out_hinge_vel" joint="leaf_handle_out_hinge"/>
     <jointpos name="leaf_latch_bolt_slide_pos" joint="leaf_latch_bolt_slide"/>
     <jointvel name="leaf_latch_bolt_slide_vel" joint="leaf_latch_bolt_slide"/>
   </sensor>

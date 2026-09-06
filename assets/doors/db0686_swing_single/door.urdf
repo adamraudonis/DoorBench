@@ -252,18 +252,18 @@
       <material name="mat_seal"/>
     </visual>
     <visual name="closer_bracket_vis">
-      <origin xyz="0.3605 0.1045 2.177" rpy="0 0 0"/>
+      <origin xyz="0.3605 0.041 2.177" rpy="0 0 0"/>
       <geometry>
-        <box size="0.06 0.04 0.024"/>
+        <box size="0.06 0.024 0.028"/>
       </geometry>
       <material name="mat_closer"/>
     </visual>
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="-0.426564 -0.019251 1.225335" rpy="0 0 0"/>
-      <mass value="49.653634"/>
-      <inertia ixx="22.209683984" ixy="-0.066320145" ixz="-0.965402869" iyy="25.384323028" iyz="-0.389968999" izz="3.246539451"/>
+      <origin xyz="-0.426564 -0.019312 1.225335" rpy="0 0 0"/>
+      <mass value="49.629162"/>
+      <inertia ixx="22.198267941" ixy="-0.065898598" ixz="-0.964927066" iyy="25.371812241" iyz="-0.387105149" izz="3.244469485"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="-0.457 -0.029 1.076" rpy="0 0 0"/>
@@ -327,7 +327,7 @@
       </geometry>
     </collision>
     <visual name="closer_pinion_shaft_vis">
-      <origin xyz="-0.297 0.083 2.1155" rpy="0 0 0"/>
+      <origin xyz="-0.297 0.035 2.1155" rpy="0 0 0"/>
       <geometry>
         <cylinder radius="0.008" length="0.123"/>
       </geometry>
@@ -336,14 +336,14 @@
   </link>
   <link name="leaf_handle">
     <inertial>
-      <origin xyz="0.029018 0 0" rpy="0 0 0"/>
-      <mass value="0.962206"/>
-      <inertia ixx="0.003593812" ixy="0" ixz="0" iyy="0.001758523" iyz="0" izz="0.005174419"/>
+      <origin xyz="0.028544 0 0" rpy="0 0 0"/>
+      <mass value="0.978187"/>
+      <inertia ixx="0.003604455" ixy="0" ixz="0" iyy="0.001772047" iyz="0" izz="0.005198299"/>
     </inertial>
     <visual name="leaf_handle_spindle_vis">
       <origin xyz="0 0 0" rpy="-1.570796 0 0"/>
       <geometry>
-        <cylinder radius="0.006" length="0.042"/>
+        <cylinder radius="0.006" length="0.06"/>
       </geometry>
       <material name="mat_op_nickel_satin"/>
     </visual>
@@ -422,14 +422,28 @@
   </link>
   <link name="closer_arm_fore">
     <inertial>
-      <origin xyz="0.1125 0 0" rpy="0 0 0"/>
-      <mass value="0.06804"/>
-      <inertia ixx="0.000001474" ixy="0" ixz="0" iyy="0.000287407" iyz="0" izz="0.000288155"/>
+      <origin xyz="0.128088 0 0" rpy="0 0 0"/>
+      <mass value="0.076531"/>
+      <inertia ixx="0.000001771" ixy="0" ixz="0" iyy="0.000437665" iyz="0" izz="0.000438201"/>
     </inertial>
     <visual name="closer_arm_fore_geom_vis">
       <origin xyz="0.1125 0 0" rpy="0 0 0"/>
       <geometry>
         <box size="0.225 0.014 0.008"/>
+      </geometry>
+      <material name="mat_closer"/>
+    </visual>
+    <visual name="closer_fore_neck_vis">
+      <origin xyz="0.2425 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.035 0.006 0.006"/>
+      </geometry>
+      <material name="mat_closer"/>
+    </visual>
+    <visual name="closer_fore_pivot_vis">
+      <origin xyz="0.26 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.005" length="0.024"/>
       </geometry>
       <material name="mat_closer"/>
     </visual>
@@ -450,8 +464,8 @@
     <child link="leaf_handle"/>
     <axis xyz="0 1 0"/>
     <limit lower="0" upper="0.96" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.048"/>
-    <doorbench:spring stiffness="1.2" springref="-0.375" note="tau = -stiffness*(q - springref); not native URDF"/>
+    <dynamics damping="0.245624" friction="0.048"/>
+    <doorbench:spring stiffness="1.2" springref="-0.458333" note="tau = -stiffness*(q - springref); not native URDF"/>
   </joint>
   <joint name="leaf_latch_bolt_slide" type="prismatic">
     <origin xyz="-0.914 -0.029 1.016" rpy="0 0 0"/>
@@ -465,14 +479,14 @@
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
   </joint>
   <joint name="closer_pinion" type="continuous">
-    <origin xyz="-0.297 0.083 2.177" rpy="0 0 1.06234"/>
+    <origin xyz="-0.297 0.035 2.177" rpy="0 0 0.983597"/>
     <parent link="leaf"/>
     <child link="closer_arm_main"/>
     <axis xyz="0 0 1"/>
     <dynamics damping="0.01" friction="0"/>
   </joint>
   <joint name="closer_elbow" type="continuous">
-    <origin xyz="0.28 0 0" rpy="0 0 -2.385665"/>
+    <origin xyz="0.28 0 0" rpy="0 0 -2.380944"/>
     <parent link="closer_arm_main"/>
     <child link="closer_arm_fore"/>
     <axis xyz="0 0 1"/>

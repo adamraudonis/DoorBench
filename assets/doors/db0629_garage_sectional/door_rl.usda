@@ -9,7 +9,7 @@ def Xform "db0629_garage_sectional"
 {
     custom string doorbench:door_id = "db0629_garage_sectional"
     custom string doorbench:env_release = "[]"
-    custom string doorbench:meta = '{"door_id": "db0629_garage_sectional", "family": "garage_sectional", "task": "locked_recognize", "wall_y": 0.0, "locked": true, "primary_joint": "door_slide", "handle_height": 0.9, "counterbalance_fraction": 0.0, "operator_joint": null, "mass_reconciled_kg": 78.529822, "scene_extent": 2.5925000000000002, "cam_target_z": 1.09, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, -0.07500000000000001, 0.9], "handle_cam_pos": [0.25, -1.175, 1.25]}'
+    custom string doorbench:meta = '{"door_id": "db0629_garage_sectional", "family": "garage_sectional", "task": "locked_recognize", "wall_y": 0.0, "locked": true, "primary_joint": "door_slide", "handle_height": 0.9, "counterbalance_fraction": 0.0, "operator_joint": null, "mass_reconciled_kg": 78.529822, "scene_extent": 2.5925000000000002, "cam_target_z": 1.09, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.0, -0.07500000000000001, 0.9], "handle_cam_pos": [0.25, -1.175, 1.25], "operator_joints": [], "operator_coupling": "coupled"}'
     custom string doorbench:rl = '{"door_id": "db0629_garage_sectional", "family": "garage_sectional", "task": "locked_recognize", "slots": {"door": "slide", "operator": "none", "latch": "none", "secondary": "none"}, "links": ["base", "carriage", "leaf", "operator_pivot", "operator", "latch", "carriage2", "leaf2"], "joints": {"door_slide": {"active": true, "type": "prismatic", "source": "door_slide", "role": "primary", "range": [0.0, 0.003], "stiffness": 0.0, "damping": 5.9264911, "target": 0.0, "friction": 15.402289578325998, "armature": 0.5, "damping_closing": null, "damping_opening": null, "backcheck_angle": null, "backcheck_damping": null, "ratchet_one_way": false, "label": "Vertical lift (0 = closed, + = raised)"}, "door_hinge": {"active": false, "type": "revolute", "range": [-0.0008726646259971648, 0.0008726646259971648]}, "operator_hinge": {"active": false, "type": "revolute", "range": [-0.0008726646259971648, 0.0008726646259971648]}, "operator_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "latch_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "leaf2_slide": {"active": false, "type": "prismatic", "range": [-0.0005, 0.0005]}, "leaf2_hinge": {"active": false, "type": "revolute", "range": [-0.0008726646259971648, 0.0008726646259971648]}}, "primary_joint": "door_slide", "operator_joint": null, "latch_joint": null, "secondary_joint": null, "door_joint": "door_slide", "operator_slot_joint": null, "secondary_slot_joint": null, "latch_coupling": null, "secondary_coupling": null, "open_threshold": 0.1, "clear_threshold": 0.00285, "closed_threshold": 0.03, "sites": {"approach": [0.0, -2.0, 0.0], "goal": [0.0, 2.0, 0.0], "pass_plane": [0.0, 0.0, 1.09], "grip": [{"name": "lift_handle_grip_n", "link": "leaf", "pos": [0.0, -0.07500000000000001, 0.9]}, {"name": "lift_handle_grip_p", "link": "leaf", "pos": [0.0, 0.07500000000000001, 0.9]}], "grip_link": "leaf", "push": [], "leaf_edge": []}, "opening": {"width": 2.79, "height": 2.18}, "robot": {"approach_side": "-y", "is_push": false, "robot_outside": false, "start_distance_m": 2.0}, "handle_height": 0.9, "u": null, "v": null, "hinge_x": null, "lock": {"model": "padlock", "engaged": true, "robot_side_release": false}, "closer": "none", "operator": "pull_lift_garage", "latch": "none", "damage": {"leaf_dent_force_N": 7000.0, "glass_break_force_N": null, "operator_yield_torque_Nm": 2000.0, "slam_velocity_rad_s": 2.0, "frame_impact_force_N": 3000.0}, "actuators": [], "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325, "welded_static": [], "omitted": [], "notes": [], "mass_kg": 78.529822, "welded": [], "released_parts": [], "released_holding": [], "welded_engaged": [], "operator_driven_joints": [], "couplings": [], "coupling_reflected_armature": {}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": []}'
 
     def Scope "Looks"
@@ -572,7 +572,7 @@ def Xform "db0629_garage_sectional"
                 custom bool doorbench:collision = 1
                 custom string doorbench:label = "Torsion spring shaft"
                 custom string doorbench:semantic = "mechanism"
-                double height = 3.14
+                double height = 3.2500000000000004
                 rel material:binding = </db0629_garage_sectional/Looks/mat_track>
                 rel material:binding:physics = </db0629_garage_sectional/Looks/PhysMat_mat_track_0_600> (
                     bindMaterialAs = "weakerThanDescendants"
@@ -601,6 +601,111 @@ def Xform "db0629_garage_sectional"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cube "torsion_bearing_plate_l" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Torsion end bearing plate"
+                custom string doorbench:semantic = "mechanism"
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.11, 0.008, 0.11)
+                double3 xformOp:translate = (-1.5750000000000002, 0.10400000000000001, 2.43)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "torsion_bearing_arm_l" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Torsion end bearing bracket"
+                custom string doorbench:semantic = "mechanism"
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.016, 0.098, 0.06)
+                double3 xformOp:translate = (-1.5750000000000002, 0.139, 2.43)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "torsion_bearing_plate_r" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Torsion end bearing plate"
+                custom string doorbench:semantic = "mechanism"
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.11, 0.008, 0.11)
+                double3 xformOp:translate = (1.5750000000000002, 0.10400000000000001, 2.43)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "torsion_bearing_arm_r" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Torsion end bearing bracket"
+                custom string doorbench:semantic = "mechanism"
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.016, 0.098, 0.06)
+                double3 xformOp:translate = (1.5750000000000002, 0.139, 2.43)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "opener_header_angle" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Opener header angle"
+                custom string doorbench:semantic = "mechanism"
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (3.26, 0.05, 0.05)
+                double3 xformOp:translate = (0, 0.145, 2.33)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "opener_header_gusset_l" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Header angle wall gusset"
+                custom string doorbench:semantic = "mechanism"
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.1, 0.07, 0.1)
+                double3 xformOp:translate = (-1.5750000000000002, 0.135, 2.33)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "opener_header_gusset_r" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Header angle wall gusset"
+                custom string doorbench:semantic = "mechanism"
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.1, 0.07, 0.1)
+                double3 xformOp:translate = (1.5750000000000002, 0.135, 2.33)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Cube "opener_rail" (
                 prepend apiSchemas = ["MaterialBindingAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
             )
@@ -616,8 +721,8 @@ def Xform "db0629_garage_sectional"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.06, 2.5, 0.06)
-                double3 xformOp:translate = (0, 1.75, 2.33)
+                float3 xformOp:scale = (0.06, 2.88, 0.06)
+                double3 xformOp:translate = (0, 1.56, 2.33)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -699,7 +804,7 @@ def Xform "db0629_garage_sectional"
                 custom float doorbench:friction_effort = 15.402289
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Vertical lift (0 = closed, + = raised)"
-                custom float doorbench:legacy_friction_coeff = 0.019819764
+                custom float doorbench:legacy_friction_coeff = 0.019812359
                 custom bool doorbench:limited = 1
                 custom bool doorbench:locked = 0
                 custom string doorbench:role = "primary"
@@ -1005,10 +1110,10 @@ def Xform "db0629_garage_sectional"
             custom string doorbench:label = "door"
             custom string doorbench:semantic = "leaf"
             custom string doorbench:source_bodies = '["door"]'
-            point3f physics:centerOfMass = (-7.0687986e-19, 0.0087491805, 1.0725583)
-            float3 physics:diagonalInertia = (28.557312, 59.464855, 87.921745)
+            point3f physics:centerOfMass = (7.0687986e-19, 0.009126176, 1.0727506)
+            float3 physics:diagonalInertia = (28.589489, 59.907257, 88.39232)
             float physics:mass = 78.52982
-            quatf physics:principalAxes = (0.7071245, -0.70708907, 0, 0)
+            quatf physics:principalAxes = (0.7071163, -0.7070973, 0, 0)
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
@@ -3212,6 +3317,22 @@ def Xform "db0629_garage_sectional"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cylinder "roller_stem_l_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Roller stem"
+                custom string doorbench:semantic = "track"
+                double height = 0.054
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double radius = 0.006
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (-1.375, 0.08499999999999999, 0.04)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
             def Cube "roller_arm_l_0" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
@@ -3223,7 +3344,7 @@ def Xform "db0629_garage_sectional"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.06, 0.012)
-                double3 xformOp:translate = (-1.35, 0.05499999999999999, 0.01)
+                double3 xformOp:translate = (-1.35, 0.05499999999999999, 0.04)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3240,6 +3361,22 @@ def Xform "db0629_garage_sectional"
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (-1.4000000000000001, 0.08499999999999999, 0.5425)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "roller_stem_l_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Roller stem"
+                custom string doorbench:semantic = "track"
+                double height = 0.054
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double radius = 0.006
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (-1.375, 0.08499999999999999, 0.5425)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -3274,6 +3411,22 @@ def Xform "db0629_garage_sectional"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cylinder "roller_stem_l_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Roller stem"
+                custom string doorbench:semantic = "track"
+                double height = 0.054
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double radius = 0.006
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (-1.375, 0.08499999999999999, 1.075)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
             def Cube "roller_arm_l_2" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
@@ -3302,6 +3455,22 @@ def Xform "db0629_garage_sectional"
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (-1.4000000000000001, 0.08499999999999999, 1.6075)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "roller_stem_l_3" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Roller stem"
+                custom string doorbench:semantic = "track"
+                double height = 0.054
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double radius = 0.006
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (-1.375, 0.08499999999999999, 1.6075)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -3336,6 +3505,22 @@ def Xform "db0629_garage_sectional"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cylinder "roller_stem_l_4" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Roller stem"
+                custom string doorbench:semantic = "track"
+                double height = 0.054
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double radius = 0.006
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (-1.375, 0.08499999999999999, 2.08)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
             def Cube "roller_arm_l_4" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
@@ -3367,6 +3552,22 @@ def Xform "db0629_garage_sectional"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cylinder "roller_stem_r_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Roller stem"
+                custom string doorbench:semantic = "track"
+                double height = 0.054
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double radius = 0.006
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (1.375, 0.08499999999999999, 0.04)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
             def Cube "roller_arm_r_0" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
@@ -3378,7 +3579,7 @@ def Xform "db0629_garage_sectional"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.06, 0.06, 0.012)
-                double3 xformOp:translate = (1.35, 0.05499999999999999, 0.01)
+                double3 xformOp:translate = (1.35, 0.05499999999999999, 0.04)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3395,6 +3596,22 @@ def Xform "db0629_garage_sectional"
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (1.4000000000000001, 0.08499999999999999, 0.5425)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "roller_stem_r_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Roller stem"
+                custom string doorbench:semantic = "track"
+                double height = 0.054
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double radius = 0.006
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (1.375, 0.08499999999999999, 0.5425)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -3429,6 +3646,22 @@ def Xform "db0629_garage_sectional"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cylinder "roller_stem_r_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Roller stem"
+                custom string doorbench:semantic = "track"
+                double height = 0.054
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double radius = 0.006
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (1.375, 0.08499999999999999, 1.075)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
             def Cube "roller_arm_r_2" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
@@ -3460,6 +3693,22 @@ def Xform "db0629_garage_sectional"
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
+            def Cylinder "roller_stem_r_3" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Roller stem"
+                custom string doorbench:semantic = "track"
+                double height = 0.054
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double radius = 0.006
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (1.375, 0.08499999999999999, 1.6075)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
             def Cube "roller_arm_r_3" (
                 prepend apiSchemas = ["MaterialBindingAPI"]
             )
@@ -3488,6 +3737,22 @@ def Xform "db0629_garage_sectional"
                 double radius = 0.025
                 quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
                 double3 xformOp:translate = (1.4000000000000001, 0.08499999999999999, 2.08)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
+            }
+
+            def Cylinder "roller_stem_r_4" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Roller stem"
+                custom string doorbench:semantic = "track"
+                double height = 0.054
+                rel material:binding = </db0629_garage_sectional/Looks/mat_track>
+                double radius = 0.006
+                quatf xformOp:orient = (0.70710677, 0, 0.70710677, 0)
+                double3 xformOp:translate = (1.375, 0.08499999999999999, 2.08)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 

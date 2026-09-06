@@ -26,6 +26,7 @@
     <material name="mat_roller" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
     <material name="mat_op_steel_galvanized" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
     <material name="mat_keeper" rgba="0.65 0.66 0.68 1" specular="0.74" shininess="0.5" reflectance="0.36"/>
+    <material name="mat_hook" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
   </asset>
   <worldbody>
@@ -34,45 +35,47 @@
     <camera name="robot_view" pos="0 -4.046875 2.208125" xyaxes="1 0 0 0 0.26963 0.962964" fovy="52"/>
     <camera name="far_view" pos="0 4.046875 2.208125" xyaxes="-1 0 0 0 -0.26963 0.962964" fovy="52"/>
     <camera name="iso" pos="3.075625 -3.399375 2.855625" xyaxes="0.741536 0.670913 0 -0.242917 0.268487 0.932151" fovy="46"/>
-    <camera name="detail_handle" pos="1.93 -1.24415 0.716" xyaxes="0.975133 0.221621 0 -0.065674 0.288965 0.955084" fovy="38"/>
+    <camera name="detail_handle" pos="1.93 -1.2455 0.716" xyaxes="0.975133 0.221621 0 -0.065674 0.288965 0.955084" fovy="38"/>
     <geom name="floor" type="box" size="6 6 0.05" pos="0 0 -0.05" material="mat_floor" group="0" contype="1" conaffinity="1" friction="0.8 0.005 0.0001" density="2400"/>
     <geom name="post_l" type="box" size="0.06 0.06 1.2" pos="-1.885 0.08 1.2" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
     <geom name="post_r" type="box" size="0.06 0.06 1.2" pos="1.885 0.08 1.2" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
     <geom name="gate_rail" type="box" size="3.65 0.02 0.012" pos="-1.8 -0.06 0.012" material="mat_track" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="2700"/>
-    <geom name="leaf_socket_n" type="box" size="0.004 0.02 0.02" pos="1.664 -0.08015 0.04" material="mat_keeper" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
-    <geom name="leaf_socket_p" type="box" size="0.004 0.02 0.02" pos="1.696 -0.08015 0.04" material="mat_keeper" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
-    <geom name="leaf_socket_b" type="box" size="0.02 0.004 0.02" pos="1.68 -0.06415 0.04" material="mat_keeper" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
-    <geom name="leaf_socket_base" type="box" size="0.024 0.024 0.01" pos="1.68 -0.08015 0.01" material="mat_keeper" group="1" contype="0" conaffinity="0" density="7800"/>
-    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="door_plane_center" pos="0 0 1.075" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <geom name="leaf_socket_n" type="box" size="0.004 0.02 0.02" pos="1.664 -0.0815 0.04" material="mat_keeper" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
+    <geom name="leaf_socket_p" type="box" size="0.004 0.02 0.02" pos="1.696 -0.0815 0.04" material="mat_keeper" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
+    <geom name="leaf_socket_b" type="box" size="0.02 0.004 0.02" pos="1.68 -0.0655 0.04" material="mat_keeper" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7800"/>
+    <geom name="leaf_socket_base" type="box" size="0.024 0.024 0.01" pos="1.68 -0.0815 0.01" material="mat_keeper" group="1" contype="0" conaffinity="0" density="7800"/>
+    <site name="approach_point" pos="0 -1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.075" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="leaf" pos="0 -0.06 0">
-      <inertial pos="0.037107 -0.000176 1.111307" mass="18.21952" quat="0.707085 0.706827 0.01451 -0.014692" diaginertia="6.812448725 20.375445333 27.187727386"/>
+      <inertial pos="0.032109 -0.000193 1.043465" mass="18.21952" quat="0.707146 0.70691 0.010455 -0.010638" diaginertia="7.59158825 22.152343569 29.743684025"/>
       <joint name="leaf_slide" type="slide" axis="-1 0 0" limited="true" range="0 3.6" damping="2.96019" frictionloss="6.120561" armature="0.5"/>
-      <geom name="leaf_slab_col" type="box" size="1.8 0.00015 1.05" pos="0 0 1.13" material="mat_leaf" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.45 0.005 0.0001" density="1"/>
-      <geom name="leaf_rail_b" type="box" size="1.8 0.00015 0.0225" pos="0 0 0.1025" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="leaf_rail_t" type="box" size="1.8 0.00015 0.0225" pos="0 0 2.1575" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="leaf_stile_h" type="box" size="0.0225 0.00015 1.05" pos="-1.7775 0 1.13" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="leaf_stile_l" type="box" size="0.0225 0.00015 1.05" pos="1.7775 0 1.13" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_slab_col" type="box" size="1.8 0.0015 1.05" pos="0 0 1.13" material="mat_leaf" group="3" contype="1" conaffinity="1" rgba="0.8 0.3 0.3 0.25" friction="0.45 0.005 0.0001" density="1"/>
+      <geom name="leaf_rail_b" type="box" size="1.8 0.0015 0.0225" pos="0 0 0.1025" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_rail_t" type="box" size="1.8 0.0015 0.0225" pos="0 0 2.1575" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_stile_h" type="box" size="0.0225 0.0015 1.05" pos="-1.7775 0 1.13" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
+      <geom name="leaf_stile_l" type="box" size="0.0225 0.0015 1.05" pos="1.7775 0 1.13" material="mat_leaf" group="1" contype="0" conaffinity="0" density="1"/>
       <geom name="leaf_mesh" type="box" size="1.755 0.0015 1.005" pos="0 0 1.13" material="mat_mesh_infill" group="1" contype="0" conaffinity="0" density="1"/>
-      <geom name="leaf_slide_bolt_plate" type="box" size="0.196 0.023 0.001" pos="1.68 -0.00115 0.284" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
-      <geom name="leaf_slide_bolt_guide_0_leg_n" type="box" size="0.006 0.002 0.0185" pos="1.665 -0.01865 0.096" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
-      <geom name="leaf_slide_bolt_guide_0_leg_p" type="box" size="0.006 0.002 0.0185" pos="1.695 -0.01865 0.096" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
-      <geom name="leaf_slide_bolt_guide_0_bridge" type="box" size="0.006 0.017 0.002" pos="1.68 -0.03515 0.096" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
-      <geom name="leaf_slide_bolt_guide_1_leg_n" type="box" size="0.006 0.002 0.0185" pos="1.665 -0.01865 0.47" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
-      <geom name="leaf_slide_bolt_guide_1_leg_p" type="box" size="0.006 0.002 0.0185" pos="1.695 -0.01865 0.47" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
-      <geom name="leaf_slide_bolt_guide_1_bridge" type="box" size="0.006 0.017 0.002" pos="1.68 -0.03515 0.47" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
-      <geom name="leaf_slide_bolt_guide_2_leg_n" type="box" size="0.006 0.002 0.0185" pos="1.665 -0.01865 0.283" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
-      <geom name="leaf_slide_bolt_guide_2_leg_p" type="box" size="0.006 0.002 0.0185" pos="1.695 -0.01865 0.283" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
-      <geom name="leaf_slide_bolt_guide_2_bridge" type="box" size="0.006 0.017 0.002" pos="1.68 -0.03515 0.283" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
-      <site name="leaf_edge_mid" pos="1.8 0 1.13" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
-      <body name="leaf_slide_bolt" pos="1.68 -0.02015 0.08">
+      <geom name="leaf_roller_0" type="cylinder" size="0.04 0.008" pos="-1.66 0 0.064" quat="0.707107 -0.707107 0 0" material="mat_roller" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="leaf_roller_1" type="cylinder" size="0.04 0.008" pos="1.58 0 0.064" quat="0.707107 -0.707107 0 0" material="mat_roller" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="leaf_slide_bolt_plate" type="box" size="0.196 0.023 0.001" pos="1.68 -0.0025 0.284" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
+      <geom name="leaf_slide_bolt_guide_0_leg_n" type="box" size="0.006 0.002 0.0185" pos="1.665 -0.02 0.096" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
+      <geom name="leaf_slide_bolt_guide_0_leg_p" type="box" size="0.006 0.002 0.0185" pos="1.695 -0.02 0.096" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
+      <geom name="leaf_slide_bolt_guide_0_bridge" type="box" size="0.006 0.017 0.002" pos="1.68 -0.0365 0.096" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
+      <geom name="leaf_slide_bolt_guide_1_leg_n" type="box" size="0.006 0.002 0.0185" pos="1.665 -0.02 0.47" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
+      <geom name="leaf_slide_bolt_guide_1_leg_p" type="box" size="0.006 0.002 0.0185" pos="1.695 -0.02 0.47" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
+      <geom name="leaf_slide_bolt_guide_1_bridge" type="box" size="0.006 0.017 0.002" pos="1.68 -0.0365 0.47" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
+      <geom name="leaf_slide_bolt_guide_2_leg_n" type="box" size="0.006 0.002 0.0185" pos="1.665 -0.02 0.283" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
+      <geom name="leaf_slide_bolt_guide_2_leg_p" type="box" size="0.006 0.002 0.0185" pos="1.695 -0.02 0.283" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
+      <geom name="leaf_slide_bolt_guide_2_bridge" type="box" size="0.006 0.017 0.002" pos="1.68 -0.0365 0.283" quat="-0.5 -0.5 -0.5 0.5" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7800"/>
+      <site name="leaf_edge_mid" pos="1.8 0 1.13" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <body name="leaf_slide_bolt" pos="1.68 -0.0215 0.08">
         <inertial pos="0 -0.005155 0.144148" mass="0.98428" quat="-0.022342 0.706754 -0.022342 0.706754" diaginertia="0.000222618 0.011640367 0.011815899"/>
         <joint name="leaf_slide_bolt_slide" type="slide" axis="0 0 1" limited="true" range="0 0.08" damping="2" frictionloss="3" armature="0.1"/>
         <geom name="leaf_slide_bolt_rod" type="capsule" size="0.01 0.167" pos="0 0 0.123" quat="0 1 0 0" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
         <geom name="leaf_slide_bolt_knob" type="capsule" size="0.008 0.022" pos="0 -0.03 0.286" quat="0.707107 0.707107 0 0" material="mat_op_steel_galvanized" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
         <geom name="leaf_slide_bolt_knob_end" type="sphere" size="0.0108" pos="0 -0.06 0.286" material="mat_op_steel_galvanized" group="1" contype="0" conaffinity="0" density="7850"/>
-        <site name="leaf_grip_bolt" pos="0 -0.064 0.286" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
+        <site name="leaf_grip_bolt" pos="0 -0.064 0.286" quat="1 0 0 0" size="0.012" rgba="0.2 0.9 0.2 0.5" group="4"/>
       </body>
     </body>
   </worldbody>

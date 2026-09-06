@@ -237,25 +237,51 @@
       </geometry>
       <material name="mat_wallreader"/>
     </visual>
-    <visual name="wall_bumper_stop_vis">
-      <origin xyz="0.51 -0.84925 0.35" rpy="0.269078 1.570796 0.269078"/>
+    <visual name="door_stop_base_vis">
+      <origin xyz="0.499 -0.84925 0.003" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.025" length="0.04"/>
+        <cylinder radius="0.022" length="0.006"/>
+      </geometry>
+      <material name="mat_stop_base"/>
+    </visual>
+    <collision name="door_stop_base_col">
+      <origin xyz="0.499 -0.84925 0.003" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.006"/>
+      </geometry>
+    </collision>
+    <visual name="door_stop_post_vis">
+      <origin xyz="0.499 -0.84925 0.0305" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.012" length="0.049"/>
+      </geometry>
+      <material name="mat_stop_base"/>
+    </visual>
+    <collision name="door_stop_post_col">
+      <origin xyz="0.499 -0.84925 0.0305" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.012" length="0.049"/>
+      </geometry>
+    </collision>
+    <visual name="door_stop_bumper_vis">
+      <origin xyz="0.499 -0.84925 0.075" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.04"/>
       </geometry>
       <material name="mat_bumper_stop"/>
     </visual>
-    <collision name="wall_bumper_stop_col">
-      <origin xyz="0.51 -0.84925 0.35" rpy="0.269078 1.570796 0.269078"/>
+    <collision name="door_stop_bumper_col">
+      <origin xyz="0.499 -0.84925 0.075" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.025" length="0.04"/>
+        <cylinder radius="0.022" length="0.04"/>
       </geometry>
     </collision>
   </link>
   <link name="leaf">
     <inertial>
-      <origin xyz="-0.461751 0.027738 1.076024" rpy="0 0 0"/>
-      <mass value="40.922531"/>
-      <inertia ixx="15.517025298" ixy="0.023843124" ixz="0.000158733" iyy="18.946337263" iyz="-0.00000125" izz="3.444885261"/>
+      <origin xyz="-0.442369 0.026574 1.076023" rpy="0 0 0"/>
+      <mass value="40.906551"/>
+      <inertia ixx="15.500736264" ixy="0.043901937" ixz="0.000170397" iyy="19.134280874" iyz="-0.000002301" izz="3.651227565"/>
     </inertial>
     <visual name="leaf_slab_vis">
       <origin xyz="-0.4825 0.029 1.076" rpy="0 0 0"/>
@@ -280,7 +306,7 @@
     <visual name="hinge_continuous_vis">
       <origin xyz="0 0 1.076" rpy="0 0 0"/>
       <geometry>
-        <cylinder radius="0.0096" length="2.114"/>
+        <cylinder radius="0.0136" length="2.114"/>
       </geometry>
       <material name="mat_hinge"/>
     </visual>
@@ -294,14 +320,14 @@
   </link>
   <link name="leaf_handle">
     <inertial>
-      <origin xyz="0.034757 -0.000916 0" rpy="0 0 0"/>
-      <mass value="1.049951"/>
-      <inertia ixx="0.004016822" ixy="-0.000033411" ixz="0" iyy="0.002363236" iyz="0" izz="0.005812468"/>
+      <origin xyz="0.034236 -0.000902 0" rpy="0 0 0"/>
+      <mass value="1.065931"/>
+      <inertia ixx="0.004027479" ixy="-0.00003291" ixz="0" iyy="0.002382539" iyz="0" izz="0.00584214"/>
     </inertial>
     <visual name="leaf_handle_spindle_vis">
       <origin xyz="0 0 0" rpy="-1.570796 0 0"/>
       <geometry>
-        <cylinder radius="0.006" length="0.042"/>
+        <cylinder radius="0.006" length="0.06"/>
       </geometry>
       <material name="mat_op_stainless"/>
     </visual>
@@ -420,8 +446,8 @@
     <child link="leaf_handle"/>
     <axis xyz="0 1 0"/>
     <limit lower="0" upper="0.06" effort="2000" velocity="10"/>
-    <dynamics damping="0.02" friction="0.05"/>
-    <doorbench:spring stiffness="1.2" springref="-0.375" note="tau = -stiffness*(q - springref); not native URDF"/>
+    <dynamics damping="0.255799" friction="0.05"/>
+    <doorbench:spring stiffness="1.2" springref="-0.583333" note="tau = -stiffness*(q - springref); not native URDF"/>
     <doorbench:note text="locked: range limited to backlash"/>
   </joint>
   <joint name="leaf_latch_bolt_slide" type="prismatic">
@@ -436,7 +462,7 @@
     <doorbench:coupling one_sided="true" note="MJCF uses a one-sided tendon (bolt may retract further, e.g. riding over the strike lip); mimic is bilateral"/>
   </joint>
   <joint name="rex_button_slide" type="prismatic">
-    <origin xyz="-0.736 0.283 1.1" rpy="0 0 0"/>
+    <origin xyz="-0.736 0.277 1.1" rpy="0 0 0"/>
     <parent link="world_env"/>
     <child link="rex_button"/>
     <axis xyz="0 -1 0"/>
@@ -476,6 +502,9 @@
   </material>
   <material name="mat_seal">
     <color rgba="0.1 0.1 0.1 1"/>
+  </material>
+  <material name="mat_stop_base">
+    <color rgba="0.9 0.9 0.92 1"/>
   </material>
   <material name="mat_trim">
     <color rgba="0.85 0.66 0.3 1"/>

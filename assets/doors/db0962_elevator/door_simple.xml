@@ -27,6 +27,7 @@
     <material name="mat_sill" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <material name="mat_wallreader" rgba="0.05 0.05 0.05 1" specular="0.38" shininess="0.3" reflectance="0.12"/>
     <material name="mat_callbtn" rgba="0.9 0.9 0.9 1" specular="0.68" shininess="0.7" reflectance="0.32"/>
+    <material name="mat_hook" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
   </asset>
   <worldbody>
@@ -50,25 +51,34 @@
     <geom name="car_wall_l" type="box" size="0.02 1.1 1.18" pos="-1.21 1.2 1.18" material="mat_sill" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
     <geom name="car_wall_r" type="box" size="0.02 1.1 1.18" pos="1.21 1.2 1.18" material="mat_sill" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
     <geom name="car_back" type="box" size="1.21 0.02 1.18" pos="0 2.3 1.18" material="mat_sill" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
-    <site name="approach_point" pos="0 -1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="goal_point" pos="0 1.5 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <site name="door_plane_center" pos="0 0 1.08" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <body name="call_button" pos="0.86 -0.137 1.05">
+    <geom name="call_plate" type="box" size="0.03 0.003 0.05" pos="0.86 -0.128 1.05" material="mat_wallreader" group="1" contype="0" conaffinity="0" density="1000"/>
+    <site name="approach_point" pos="0 -1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="goal_point" pos="0 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <site name="door_plane_center" pos="0 0 1.08" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+    <body name="call_button" pos="0.86 -0.131 1.05">
       <inertial pos="0 -0.003 0" mass="0.004241" quat="0 0 0.707107 -0.707107" diaginertia="0.000000251 0.000000251 0.000000477"/>
       <joint name="call_button_slide" type="slide" axis="0 1 0" limited="true" range="0 0.003" damping="1" stiffness="1500" springref="-0.003" armature="0.1"/>
       <geom name="call_button_geom" type="cylinder" size="0.015 0.003" pos="0 -0.003 0" quat="0.707107 -0.707107 0 0" material="mat_callbtn" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="1000"/>
     </body>
     <body name="leaf_a" pos="-0.3 0 0">
-      <inertial pos="0 0 1.08" mass="18.708879" quat="-0.5 0.5 0.5 0.5" diaginertia="0.562669549 6.876916355 7.436779571"/>
+      <inertial pos="0 0 1.097899" mass="18.708879" quat="-0.5 -0.5 -0.5 0.5" diaginertia="0.563460093 7.100531608 7.661227932"/>
       <joint name="leaf_a_slide" type="slide" axis="-1 0 0" limited="true" range="0 0.002" damping="3.8711" frictionloss="5" armature="0.5"/>
       <geom name="leaf_a_slab" type="box" size="0.3 0.015 1.05" pos="0 0 1.08" material="mat_leaf_a" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
-      <site name="leaf_a_edge_mid" pos="0.3 0 1.08" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <geom name="leaf_a_carrier_0" type="box" size="0.02 0.005 0.043" pos="-0.18 0 2.113" material="mat_roller" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="leaf_a_carrier_wheel_0" type="cylinder" size="0.014 0.006" pos="-0.18 0 2.146" quat="0.707107 -0.707107 0 0" material="mat_roller" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="leaf_a_carrier_1" type="box" size="0.02 0.005 0.043" pos="0.18 0 2.113" material="mat_roller" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="leaf_a_carrier_wheel_1" type="cylinder" size="0.014 0.006" pos="0.18 0 2.146" quat="0.707107 -0.707107 0 0" material="mat_roller" group="1" contype="0" conaffinity="0" density="7850"/>
+      <site name="leaf_a_edge_mid" pos="0.3 0 1.08" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     </body>
     <body name="leaf_b" pos="0.3 0 0">
-      <inertial pos="0 0 1.08" mass="18.708879" quat="-0.5 0.5 0.5 0.5" diaginertia="0.562669549 6.876916355 7.436779571"/>
+      <inertial pos="0 0 1.097899" mass="18.708879" quat="-0.5 -0.5 -0.5 0.5" diaginertia="0.563460093 7.100531608 7.661227932"/>
       <joint name="leaf_b_slide" type="slide" axis="1 0 0" limited="true" range="0 0.002" damping="3.8711" frictionloss="5" armature="0.5"/>
       <geom name="leaf_b_slab" type="box" size="0.3 0.015 1.05" pos="0 0 1.08" material="mat_leaf_b" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
-      <site name="leaf_b_edge_mid" pos="-0.3 0 1.08" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
+      <geom name="leaf_b_carrier_0" type="box" size="0.02 0.005 0.043" pos="-0.18 0 2.113" material="mat_roller" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="leaf_b_carrier_wheel_0" type="cylinder" size="0.014 0.006" pos="-0.18 0 2.146" quat="0.707107 -0.707107 0 0" material="mat_roller" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="leaf_b_carrier_1" type="box" size="0.02 0.005 0.043" pos="0.18 0 2.113" material="mat_roller" group="1" contype="0" conaffinity="0" density="7850"/>
+      <geom name="leaf_b_carrier_wheel_1" type="cylinder" size="0.014 0.006" pos="0.18 0 2.146" quat="0.707107 -0.707107 0 0" material="mat_roller" group="1" contype="0" conaffinity="0" density="7850"/>
+      <site name="leaf_b_edge_mid" pos="-0.3 0 1.08" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     </body>
   </worldbody>
   <equality>

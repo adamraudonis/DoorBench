@@ -149,8 +149,8 @@
    "backset_m": 0.0,
    "operator_travel": 0.06,
    "operator_dead_travel": 0.005,
-   "operator_spring_preload": 2.0,
-   "operator_spring_rate": 40.0,
+   "operator_spring_preload": 0.0,
+   "operator_spring_rate": 0.0,
    "operator_yield": 200.0,
    "operator_grip_offset_m": 0.04,
    "coupling": {
@@ -161,6 +161,63 @@
     ],
     "dead_travel": 0.005
    }
+  },
+  "operator": {
+   "model": "gate_latch_fork",
+   "kind": "gate_latch_fork",
+   "motion": "lift",
+   "rotary": false,
+   "return_kind": "gravity",
+   "return_note": "a gravity fork latch has no spring by definition: released, the fork drops back over the post under its own weight",
+   "source": "Chain link fork latch; lift to release",
+   "travel": 0.06,
+   "dead_travel": 0.005,
+   "spring_preload": 0.0,
+   "spring_rate": 0.0,
+   "detent_friction": 0.0,
+   "damping_ratio": 0.6,
+   "gravity_margin": null,
+   "units": {
+    "preload": "N",
+    "rate": "N/m",
+    "damping": "N*s/m",
+    "friction": "N",
+    "inertia": "kg",
+    "travel": "m"
+   },
+   "joints": {
+    "leaf_fork_hinge": {
+     "joint": "leaf_fork_hinge",
+     "type": "hinge",
+     "return_kind": "gravity",
+     "operator_model": "gate_latch_fork",
+     "travel": 0.001,
+     "inertia": 0.0054840180114924175,
+     "armature": 0.0001,
+     "moving_mass_kg": 0.4625934598767698,
+     "gravity_moment_at_rest": -0.37568181388784094,
+     "units": {
+      "preload": "N",
+      "rate": "N/m",
+      "damping": "N*s/m",
+      "friction": "N",
+      "inertia": "kg",
+      "travel": "m"
+     },
+     "spring_preload": 0.0,
+     "spring_rate": 0.0,
+     "damping": 1.7224267766408907,
+     "damping_ratio": 0.6,
+     "frictionloss": 0.02,
+     "rest": 0.0,
+     "released_from": 0.0009000000000000001,
+     "expected_return_time_s": 0.0005,
+     "return_tolerance": 0.008726646259971648,
+     "gravity_moment_at_release": -0.37567638407355447,
+     "note": "gravity is restoring: the part falls back to its drawn rest"
+    }
+   },
+   "formula": "no spring: the part's own weight returns it; light bearing friction and near-critical damping only"
   },
   "lock": {
    "model": "padlock",
@@ -219,6 +276,12 @@
    "speed_m_s": 1.1
   },
   "primary_scenario": "locked_recognize",
+  "benchmark_eligibility": {
+   "eligible": true,
+   "collection": "standard",
+   "reason_code": null,
+   "reason": null
+  },
   "suites": {
    "core": [
     "locked_recognize"
