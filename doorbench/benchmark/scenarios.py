@@ -223,7 +223,9 @@ def t_open_dynamics(spec: dict, phys: dict, clear: dict) -> float:
     kin = spec["kinematics"]["type"]
     fam = spec["family"]
     F = ROBOT["push_force_N"]
-    m = phys["mass"]["total_kg"]
+    # what the robot has to accelerate: the mass on the primary joint (one leaf of a pair or a bypass set, but
+    # the whole rotor of a revolving door and the whole stack of a fold), not the whole door's mass
+    m = float(phys["mass"].get("primary_assembly_kg") or phys["mass"]["total_kg"])
     W = spec["leaf"]["width"]
     if fam in FREE_SWING:
         if kin == "rotor":
@@ -250,13 +252,12 @@ def t_open_dynamics(spec: dict, phys: dict, clear: dict) -> float:
         b = phys.get("roller", {}).get("viscous_damping_N_s_per_m", 0.0) or 0.0
         F_net = max(0.1 * F, F - Fr)
         d = clear["travel_m"]
-        m_leaf = m / max(1, spec["leaf"].get("count", 1))
-        t = math.sqrt(2 * d * m_leaf / F_net) + d * b / F_net
+        t = math.sqrt(2 * d * m / F_net) + d * b / F_net    # m is already the mass on this one track
         return min(12.0, max(0.6, t))
     if kin == "slide_vertical":
         cb = float(spec["kinematics"].get("counterbalance_fraction", 0.0) or 0.0)
         Fr = phys.get("roller", {}).get("coulomb_force_N", 10.0) or 10.0
-        lift = m * 9.81 * (1 - cb) + Fr
+        lift = float(phys["mass"]["total_kg"]) * 9.81 * (1 - cb) + Fr    # the whole curtain is lifted
         v = 0.4 if lift <= ROBOT["lift_force_N"] else 0.4 * ROBOT["lift_force_N"] / lift
         return min(20.0, max(1.0, clear["travel_m"] / max(v, 0.05)))
     return 1.5

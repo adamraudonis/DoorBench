@@ -52,9 +52,13 @@ def test_inputs_spring_latch_knob_door():
     assert inp["is_hinge"] and inp["primary_joint"] == "leaf_hinge" and inp["operator_joint"] == "leaf_handle_hinge" and inp["latch_bolt_joint"] == "leaf_latch_bolt_slide"
     assert inp["flags"]["spring_latch"] and inp["flags"]["has_holding"] and not inp["flags"]["lock_engaged"]
     assert inp["forces"]["operator_effort"] == 4.0 and inp["forces"]["source"] == "qa.json"
-    # qa_push of the door: 2 x static + a base sized by the leaf (12.50 kg x 0.762 m -> 46.7 N*m, under the 60 N*m cap)
-    assert inp["forces"]["push"] == pytest.approx(47.085883, abs=1e-5)
-    assert inp["push_base"] == pytest.approx(0.5 * 12.5013067296 * 9.81 * 0.762, abs=1e-6)
+    # qa_push of the door: 2 x static + a base sized by what the PRIMARY joint carries (12.447 kg) and the lever
+    # that subtree's weight works through (2 x 0.39563 m = 0.79125 m) -> 48.3 N*m, under the 60 N*m cap
+    spec = _load("db0002_swing_single")[0]
+    mb = spec["physics"]["mass"]
+    assert mb["primary_assembly_kg"] == pytest.approx(12.447295169, abs=1e-6)
+    assert inp["forces"]["push"] == pytest.approx(48.673507, abs=1e-5)
+    assert inp["push_base"] == pytest.approx(0.5 * mb["primary_assembly_kg"] * 9.81 * 2 * mb["primary_com_arm_m"], abs=1e-6)
     assert inp["coupling"]["latch"]["scale"] == pytest.approx(0.015679, abs=1e-6) and inp["coupling"]["latch"]["operator_joint"] == "leaf_handle_hinge"
     sched = inp["schedule"]
     for kind in ("mjcf", "usd_full", "usd_rl"):
@@ -106,7 +110,7 @@ def test_inputs_hash_stable_and_forces_override():
     b = P.door_inputs(spec, mj, qa=qa, rl_meta=rl)
     assert a["inputs_hash"] == b["inputs_hash"]
     c = P.door_inputs(spec, mj, forces={"bias": 0.0, "frictionloss": 0.180437, "preload": 0.0}, qa=qa, rl_meta=rl)
-    base = QA.push_base("hinge", spec["physics"]["mass"]["total_kg"], spec["leaf"]["width"])
+    base = QA.push_base("hinge", QA.push_mass(spec["physics"]), QA.push_lever(spec, spec["physics"]))
     assert c["forces"]["source"] == "mujoco" and c["forces"]["push"] == pytest.approx(2 * 0.180437 + base)
     d = P.door_inputs(spec, mj, rl_meta=rl)                     # no qa.json, no MuJoCo: model.json estimate
     assert d["forces"]["source"].startswith("model.json") and d["forces"]["bias"] is None

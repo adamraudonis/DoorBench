@@ -201,7 +201,7 @@ def assign_task(spec: dict, B: Balanced):
 
 def difficulty(spec: dict, phys: dict) -> int:
     d = 1.0
-    m = phys["mass"]["total_kg"]
+    m = phys["mass"]["primary_assembly_kg"]      # what the robot has to move, not what the whole door weighs
     d += min(m / 60.0, 2.0)
     if phys["closer"]["kind"] != "none":
         d += 0.8 + phys["closer"]["spring_preload_Nm"] / 40.0

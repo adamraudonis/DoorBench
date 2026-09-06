@@ -16,8 +16,35 @@ G = 9.80665
 AIR_DENSITY = 1.204
 
 
-def leaf_mass(spec: dict) -> dict:
-    """Mass breakdown of one leaf: slab + glazing + hardware."""
+def leaf_count(spec: dict) -> int:
+    """How many leaves the door has.  ``spec["leaf"]`` describes ONE of them (width, height, thickness, slab); a
+    pair, a bypass set, a fold, a revolving rotor and a strip curtain all repeat that leaf ``count`` times."""
+    return max(1, int(spec["leaf"].get("count", 1) or 1))
+
+
+def leaves_on_primary(spec: dict) -> float:
+    """How many leaves ride the door's PRIMARY degree of freedom - the one the robot drives.
+
+    A pair, a bypass set and a bi-parting slider give every leaf its own joint, so the robot moves one of them.
+    A revolving door or a turnstile hangs every wing on one rotor; a fold carries a whole stack on its pivot
+    panel; a dutch door splits its one leaf into two independently hinged halves, so the primary joint carries
+    about half of it.  ``build.build_model`` overwrites the resulting ``primary_assembly_kg`` with the mass it
+    measures on the finished model, so this is only the estimate the geometry is built from."""
+    fam = spec["family"]
+    kin = spec["kinematics"]
+    n = float(leaf_count(spec))
+    if kin["type"] == "rotor":
+        return n                                   # every wing / arm turns with the rotor
+    if kin.get("fold"):
+        from .folding import fold_groups
+        return n / fold_groups(int(n), bool(kin.get("accordion")))
+    if fam == "dutch":
+        return 0.5                                 # top half on the primary joint, bottom half on its own
+    return 1.0
+
+
+def one_leaf_material(spec: dict) -> dict:
+    """Slab + glazing of ONE leaf, from the slab's area density and the glazing's own material."""
     leaf = spec["leaf"]
     slab = M.SLABS[leaf["slab"]]
     W, Hh, t = leaf["width"], leaf["height"], leaf["thickness"]
@@ -25,32 +52,45 @@ def leaf_mass(spec: dict) -> dict:
     glaz = leaf.get("glazing") or {}
     glass_area = float(glaz.get("area_fraction", 0.0)) * area
     slab_area = area - glass_area
-    if slab.monolithic:
-        ad = slab.area_density(t)
-    else:
-        ad = slab.area_density(t)
+    ad = slab.area_density(t)
     slab_mass = ad * slab_area
     fam = spec.get("family", "")
     if fam == "turnstile_tripod":
-        # 3 arms: 38 mm OD x 1.5 mm wall stainless tube, 0.5 m + hub
-        slab_mass = 3 * (math.pi * (0.019 ** 2 - 0.0175 ** 2) * W * 7900) + 3.0
+        # ONE arm: 38 mm OD x 1.5 mm wall stainless tube, 0.5 m, plus its third of the hub casting.  There are
+        # `count` (= 3) of them and the budget multiplies by that, so this must be per arm, not per tripod.
+        slab_mass = math.pi * (0.019 ** 2 - 0.0175 ** 2) * W * 7900 + 1.0
     elif fam == "turnstile_fullheight":
         arms = leaf.get("arms_per_wing", 8)
         slab_mass = arms * (math.pi * (0.019 ** 2 - 0.0175 ** 2) * W * 7900) + 4.0  # per wing incl. share of rotor column
     elif fam == "strip_curtain":
-        slab_mass = W * Hh * t * M.MATERIALS["pvc_flexible"].density
+        slab_mass = W * Hh * t * M.MATERIALS["pvc_flexible"].density   # one strip
     glass_mass = 0.0
     if glass_area > 0:
         gm = M.MATERIALS[glaz.get("material", "glass_clear")]
         gt = float(glaz.get("thickness", 0.006))
         glass_mass = glass_area * gt * gm.density
-    # louvers: open area reduces mass (already in fill fraction for louver slab)
-    hw = 0.0
+    return {"slab_kg": slab_mass, "glass_kg": glass_mass, "slab_area_density_kg_m2": ad, "source": slab.source}
+
+
+def door_hardware(spec: dict) -> dict:
+    """Hardware mass that moves with the door: operator, lock, latch, door-mounted closer, leaf-side hinge halves
+    and the extras bolted to the leaf.
+
+    Charged ONCE for the door, not once per leaf: every one of these is sampled once in the spec and
+    ``spec["hinge"]["count"]`` is already the door's hinge count (one rotor bearing for a revolving door, the
+    n-1 piano hinges between an accordion's panels, the pair of butts a bifold set hangs on).  Only the leaf
+    MATERIAL repeats per leaf - that is what ``mass_budget`` multiplies by ``leaf_count``.
+
+    Frame-side hardware (strike, keeper, mag-lock magnet, closer body on the frame) is not here: it never moves.
+    """
     parts = {}
     op = H.OPERATORS[spec["operator"]["model"]]
     parts["operator"] = op.mass
     lk = H.LOCKS[spec["lock"]["model"]]
     parts["lock"] = lk.mass
+    lt = H.LATCHES[spec["latch"]["model"]]
+    if lt.mass:
+        parts["latch"] = lt.mass          # the case, bolt, rods, dogs or boltwork the leaf carries
     cl = H.CLOSERS[spec["closer"]["model"]]
     if cl.mounts_on in ("door_push", "door_pull"):
         parts["closer"] = cl.mass
@@ -58,13 +98,45 @@ def leaf_mass(spec: dict) -> dict:
     parts["hinges_half"] = 0.5 * hg.mass_each * spec["hinge"]["count"]
     for e in spec.get("extras", []):
         parts[e] = EXTRA_MASS.get(e, 0.0)
-    hw = sum(parts.values())
-    total = slab_mass + glass_mass + hw
+    return {"parts": parts, "total_kg": sum(parts.values())}
+
+
+def mass_budget(spec: dict) -> dict:
+    """The door's mass budget, at both levels, with the level in every name.
+
+    ``spec["leaf"]`` describes ONE leaf and the door has ``leaf_count`` of them, so there are two different
+    masses here and using either where the other belongs is a physics bug:
+
+      per_leaf_kg     one leaf, its glazing and the hardware bolted to it - what ONE hinge set carries, what a
+                      closer is sized for, what slams into the frame.
+      total_kg        the whole door: every leaf's material plus the door's hardware.  This is what the model's
+                      moving bodies must weigh (``build.build_model`` reconciles them to it and ``qa`` gates it).
+      primary_assembly_kg  what the robot actually has to move: one leaf of a pair, but the whole rotor of a
+                      revolving door and the whole stack of a fold.  ``build`` replaces the estimate here with
+                      the mass it measures on the finished model.
+    """
+    n = leaf_count(spec)
+    mat = one_leaf_material(spec)
+    hw = door_hardware(spec)
+    per_leaf = mat["slab_kg"] + mat["glass_kg"] + hw["total_kg"]
+    door_hw = hw["total_kg"]
+    total = n * (mat["slab_kg"] + mat["glass_kg"]) + door_hw
+    k = leaves_on_primary(spec)
     return {
-        "slab_kg": slab_mass, "slab_area_density_kg_m2": ad, "glass_kg": glass_mass, "hardware_kg": hw,
-        "hardware_parts": parts, "total_kg": total,
-        "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
-        "source": slab.source,
+        "leaf_count": n,
+        # ---- one leaf
+        "leaf_slab_kg": mat["slab_kg"], "leaf_glass_kg": mat["glass_kg"],
+        "leaf_hardware_kg": hw["total_kg"], "per_leaf_kg": per_leaf,
+        "slab_area_density_kg_m2": mat["slab_area_density_kg_m2"], "hardware_parts": hw["parts"],
+        # ---- the whole door
+        "slab_kg": n * mat["slab_kg"], "glass_kg": n * mat["glass_kg"], "hardware_kg": door_hw,
+        "total_kg": total,
+        # ---- what the primary joint carries (estimate; build.py measures it on the model)
+        "leaves_on_primary": k,
+        "primary_assembly_kg": k * (mat["slab_kg"] + mat["glass_kg"]) + hw["total_kg"],
+        "formula": ("per leaf: slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware;  "
+                    "door: leaf_count * (slab + glass) + the door's hardware set (charged once)"),
+        "source": mat["source"],
     }
 
 
@@ -369,26 +441,31 @@ def roller_friction(spec: dict, mass_kg: float) -> dict:
 
 def derive(spec: dict) -> dict:
     """Full physics block for a spec."""
-    lm = leaf_mass(spec)
-    m = lm["total_kg"]
+    lm = mass_budget(spec)
+    # Two masses, never interchangeable: ONE leaf (what a hinge set carries, what a closer is sized for, what
+    # slams) and the PRIMARY ASSEMBLY (what the robot drives: one leaf of a pair, but the whole rotor of a
+    # revolving door and the whole stack of a fold, which is also what the bearings and the track carry).
+    m = lm["per_leaf_kg"]
+    m_assy = lm["primary_assembly_kg"]
     W, Hh = spec["leaf"]["width"], spec["leaf"]["height"]
     phys = {"mass": lm}
     kin = spec["kinematics"]["type"]
     if kin.startswith("hinge") or kin == "rotor":
-        hf = hinge_friction(spec, m)
+        # a rotor's thrust bearing carries every wing at once; a leaf hinge carries its own leaf
+        hf = hinge_friction(spec, m_assy if kin == "rotor" else m)
         phys["hinge"] = hf
-        phys["hinge"]["air_damping_Nms_per_rad"] = air_damping(W, Hh) if kin != "rotor" else 0.5 * air_damping(W, Hh)
+        phys["hinge"]["air_damping_Nms_per_rad"] = air_damping(W, Hh) if kin != "rotor" else 0.5 * air_damping(W, Hh) * lm["leaves_on_primary"]
         phys["closer"] = closer_params(spec, m, hf["coulomb_torque_Nm"] + 0.5 * hf["stick_torque_Nm"])
         phys["hinge"]["total_damping_symmetric"] = phys["hinge"]["air_damping_Nms_per_rad"] + (
             phys["closer"]["damping_opening"] if phys["closer"]["kind"] != "none" else 0.0)
-        # moment of inertia about hinge line for reporting
-        phys["inertia_about_hinge_kg_m2"] = m * W * W / 3 + m * spec["leaf"]["thickness"] ** 2 / 12
+        # moment of inertia about the primary axis (a rotor's is every wing's; a leaf's is its own)
+        phys["inertia_about_hinge_kg_m2"] = m_assy * W * W / 3 + m_assy * spec["leaf"]["thickness"] ** 2 / 12
     else:
-        phys["roller"] = roller_friction(spec, m)
+        phys["roller"] = roller_friction(spec, m_assy)   # the rollers carry what hangs on the track
         phys["closer"] = closer_params(spec, m) if spec["closer"]["model"] != "none" else {"model": "none", "kind": "none", "spring_stiffness_Nm_per_rad": 0.0, "spring_preload_Nm": 0.0, "damping_closing": 0.0, "damping_opening": 0.0}
         phys["hinge"] = {"coulomb_torque_Nm": 0.0, "stick_torque_Nm": 0.0, "air_damping_Nms_per_rad": 0.0, "total_damping_symmetric": 0.0}
     if "roller" not in phys and spec["kinematics"].get("roller"):
-        phys["roller"] = roller_friction(spec, m)
+        phys["roller"] = roller_friction(spec, m_assy)
     phys["latch"] = latch_params(spec)
     op_ = H.OPERATORS[spec["operator"]["model"]]
     phys["operator"] = operator_dynamics(op_, preload_override=(max(op_.spring_torque_preload, 1.5) if op_.kind == "paddle" else None))

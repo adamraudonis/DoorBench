@@ -5,21 +5,41 @@ its formula and source.  This page summarises the models.
 
 ## Mass and inertia
 
-`m_leaf = ρ_area(t) · (W·H − A_glass) + ρ_glass · t_glass · A_glass + Σ hardware`
+`spec["leaf"]` describes **one** leaf and the door has `leaf.count` of them, so `physics.mass_budget` states three
+masses and names the level of each.  They are not interchangeable, and using one where another belongs is a
+physics bug (it was one: every multi-leaf door used to weigh a single leaf).
+
+| field | what it is | what uses it |
+|---|---|---|
+| `per_leaf_kg` | one leaf + the hardware on it: `ρ_area(t)·(W·H − A_glass) + ρ_glass·t_glass·A_glass + Σ hardware` | hinge friction, EN 1154 closer sizing, slam impulse, ADA/IBC opening force |
+| `total_kg` | the whole door: `leaf_count · (slab + glazing) + Σ hardware` | the model's moving mass (gated by `qa.mass`), the manifest, the viewer |
+| `primary_assembly_kg` | what the primary joint carries — one leaf of a pair or a bypass set, but the **whole** rotor of a revolving door or turnstile and the whole stack of a fold — measured on the finished model by `build.primary_assembly` | the QA push, the Isaac parity protocol, the benchmark's expected transit time, difficulty |
+
+The hardware set is charged **once**: the operator, lock, latch, closer and `hinge.count` are sampled once for the
+door (one rotor bearing for a revolving door, the n−1 piano hinges between an accordion's panels).  Only the leaf
+material repeats per leaf.  Frame-side hardware (strike, keeper, mag-lock magnet) never moves and is not counted.
 
 `ρ_area(t)` comes from a **slab construction** (`materials.SLABS`): two skins + core (+ stile/rail frame) or a
 monolithic material.  Constructions are calibrated against manufacturer door-weight tables
 (Knape & Vogt, VT Industries, Steel Door Institute): e.g. a 3'0"×6'8" hollow-core interior door ≈ 12–14 kg,
 a 3'0"×7'0" 18-gauge hollow-metal door ≈ 47 kg, a 12 mm frameless tempered glass door ≈ 60 kg, a vault door ≈ 1 t.
-Hardware masses (lever sets 1–2 kg, exit devices 5–8 kg, closers 3–4 kg, hinges 0.2–0.6 kg each) are added.
+Hardware masses (lever sets 1–2 kg, exit devices 5–8 kg, closers 3–4 kg, hinges 0.2–0.6 kg each, a mortise latch
+case 1.1 kg, a watertight door's six dogs 15 kg, vault boltwork 14–26 kg) are added.
 Inertia tensors are computed analytically per geom (boxes, cylinders, capsules, spheres; trimesh for meshes) and
 combined with the parallel-axis theorem; MJCF/URDF/USD carry explicit inertials.
+
+`build.build_model` gives the leaf bodies `leaf_count · (slab + glazing)`, split by volume, plus any declared
+hardware with no body of its own (tracks, hangers, straps, plates), and `qa.leaf_mass_checks` re-derives the same
+number from the spec and gates it (`leaf_material_mass`, `leaf_mass_share`).
 
 ## Hinge friction
 
 Coulomb torque about the hinge line from a bearing-load model:
 
 `τ_f = μ · (m·g·r_thrust + 2·F_h·r_pin) · k_condition + τ_seal`,  `F_h = m·g·(W/2) / L_hinge_span`
+
+`m` is the mass that bearing carries: `per_leaf_kg` for a leaf on its own hinges, `primary_assembly_kg` for a
+rotor, whose thrust bearing carries every wing at once.
 
 with `μ` per bearing type (ball-bearing 0.04 … rusty pin 0.55), pin/thrust radii per hinge model, and a condition
 multiplier (new 1.0 … rusty 6.0). Doors flagged *swollen* or *sagging* add a stiction term.  Rolling friction for

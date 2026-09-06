@@ -10,6 +10,11 @@ Checks (all tiers where applicable):
   running_clearance  geometric gate: no moving collider ever TOUCHES static structure - every structural
               moving/static pair keeps a real running clearance at rest and through the sweep (seals, bearings,
               latches and stops are allow-listed by semantics; see clearance.required_gap)
+  mass        the model's total moving mass matches the door's derived mass (every leaf's material + hardware)
+  leaf_material_mass  the moving leaf bodies together weigh leaf_count x ONE leaf's slab + glazing (area density
+              over its own W x H) plus any declared hardware with no body of its own - re-derived from the spec,
+              so a per-leaf number used as a per-door one (or the reverse) cannot pass
+  leaf_mass_share  each leaf body's share of that mass is its share of the leaf volume
   settle      1 s free simulation: no warnings, no deep initial penetrations, primary joint drift small
   hold        latched door resists a strong opening torque/force (if it has a latch/lock, or is a locked rotor / bolted flap)
   free_opens  a leaf that nothing holds (no latch, no lock; every free-swing family) must move past a threshold under
@@ -91,18 +96,13 @@ def push_base(unit: str, mass_kg: float | None = None, width_m: float | None = N
     where there is no lever arm).  Clamped to [2, 60] N*m ([2, 80] N), so every door of 20 kg and up keeps exactly the
     push it had, and only leaves too light to justify it get less.
 
-    Known approximation (verified 2026-09, 211 doors get a reduced base and none of them changes a QA verdict).
-    ``mass_kg`` is the whole leaf assembly and ``width_m`` the spec's leaf width, which is the gravity moment arm only
-    for a leaf hinged on a VERTICAL axis carrying its whole mass.  It is not the arm for the 48 ``hinge_horizontal``
-    doors, and on the 8 strip curtains it is wrong in both factors at once: the primary joint carries ONE 0.58 kg
-    strip whose COM hangs H/2 = 1.19 m below the hinge, so the physical moment is m_strip * g * H/2 = 6.7 N*m while
-    the formula returns 0.5 * m_curtain * g * W = 4.2 N*m - within a factor 1.6 because the two errors cancel.  The
-    obvious repair (subtree mass times the perpendicular distance from the axis to the subtree COM) is NOT correct
-    either: a revolving door or turnstile is balanced about its axis, that distance is 0, and the formula would
-    collapse to the 2 N*m floor on a 100 kg rotor.  Sizing a balanced rotor needs inertia, not gravity, so this is
-    left as is and documented rather than replaced with a formula that is wrong somewhere else.
-    Measured effect of the approximation: 18 doors differ by more than 5 % from the height-arm value, and on 10 of
-    them (hatches, pet flaps) the base is a small part of the push anyway (the bias term is 44-420 N*m)."""
+    Both arguments are measured on the finished model rather than guessed from the spec: ``mass_kg`` is what the
+    PRIMARY joint carries (``push_mass``: one leaf of a pair, but the whole rotor of a revolving door and the whole
+    stack of a fold) and ``width_m`` is twice that subtree's own lever about its axis (``push_lever``), floored at
+    the leaf width.  For a leaf on a vertical hinge the lever is half the width and this is exactly the old
+    formula; for a strip hanging from a horizontal rod it is half the HEIGHT, which is what a hand actually works
+    through, and for a balanced rotor - lever ~0 about its own axis - the floor keeps the leaf width.  Sizing a
+    balanced rotor from gravity is meaningless (it needs inertia), which is why the floor is there."""
     cap = PUSH_BASE_MAX["hinge" if unit == "hinge" else "slide"]
     if not mass_kg or mass_kg <= 0:
         return cap
@@ -113,6 +113,84 @@ def push_base(unit: str, mass_kg: float | None = None, width_m: float | None = N
     else:
         scale = 0.5 * float(mass_kg) * G
     return float(min(cap, max(PUSH_BASE_MIN, scale)))
+
+
+
+LEAF_MASS_TOL = 0.02          # 2 % of the leaf material: the reconciliation is arithmetic, not a fit
+LEAF_SHARE_TOL = 0.02         # 2 %: each leaf's share of the mass must be its share of the volume
+
+
+def leaf_mass_checks(spec: dict, phys: dict, door_dir: str) -> dict:
+    """Does the model weigh what the door is MADE of - and does each leaf weigh its own share?
+
+    Re-derived from the spec alone (``physics.one_leaf_material``: the slab's area density over the leaf's own
+    W x H, plus its glazing, times ``leaf_count``), so it is independent of whatever ``build.build_model`` did.
+    That is the check that was missing: the pipeline used to compute ONE leaf's mass and then split it across
+    all the leaves, which left every pair, bypass set, fold, rotor and strip curtain 2-8x too light - and the
+    old ``mass`` gate could not see it, because it compared the model against the same halved number.
+
+      leaf_material_mass  sum of the moving leaf bodies == leaf_count x (slab + glazing) of ONE leaf, plus any
+                          declared hardware that has no body of its own and therefore rides on the leaf
+      leaf_mass_share     each leaf body's share of that mass is its share of the leaf volume (one wing of a
+                          revolving door cannot be heavy while the other three are light)
+    """
+    from . import physics as P
+    with open(os.path.join(door_dir, "model.json")) as f:
+        model = json.load(f)
+    bodies = [b for b in model.get("bodies", []) if not b.get("static")]
+    leaves = [b for b in bodies if b.get("semantic") == "leaf"]
+    out = {"n_leaf_bodies": len(leaves)}
+    if not leaves:
+        return {"ok": True, "checks": {}, "metrics": {**out, "note": "no moving leaf body"}}
+    n = P.leaf_count(spec)
+    mat = P.one_leaf_material(spec)
+    leaf_material = n * (mat["slab_kg"] + mat["glass_kg"])
+    hw_modelled = float(sum(b.get("mass", 0.0) for b in bodies if b.get("semantic") != "leaf"))
+    rider = max(float(phys["mass"].get("hardware_kg", 0.0)) - hw_modelled, 0.0)
+    expected = leaf_material + rider
+    got = float(sum(b.get("mass", 0.0) for b in leaves))
+    out.update({"leaf_count": n, "leaf_material_kg": leaf_material, "hardware_rider_kg": rider,
+                "hardware_modelled_kg": hw_modelled, "expected_leaf_mass_kg": expected,
+                "model_leaf_mass_kg": got, "leaf_mass_ratio": got / expected if expected > 0 else None,
+                "per_leaf_material_kg": mat["slab_kg"] + mat["glass_kg"]})
+    ok_total = expected <= 0 or abs(got - expected) <= max(LEAF_MASS_TOL * expected, 0.02)
+    # ---- share: mass in proportion to volume, leaf body by leaf body
+    vols = [max(sum(float(g.get("volume_m3") or 0.0) for g in b.get("geoms", [])), 1e-9) for b in leaves]
+    vt, mt = sum(vols), got
+    worst, worst_body = 0.0, None
+    if vt > 0 and mt > 0:
+        for b, v in zip(leaves, vols):
+            dev = abs((float(b.get("mass", 0.0)) / mt) / (v / vt) - 1.0)
+            if dev > worst:
+                worst, worst_body = dev, b.get("name")
+    out.update({"worst_share_deviation": worst, "worst_share_body": worst_body})
+    ok_share = worst <= LEAF_SHARE_TOL
+    return {"ok": bool(ok_total and ok_share),
+            "checks": {"leaf_material_mass": bool(ok_total), "leaf_mass_share": bool(ok_share)},
+            "metrics": out}
+
+
+def push_mass(phys: dict) -> float:
+    """The mass the adaptive QA push has to move: what hangs on the PRIMARY joint.
+
+    ``mass.total_kg`` is the whole door - both leaves of a pair, every wing of a revolving door - and pushing on
+    one leaf does not move the others.  ``build.build_model`` measures the primary joint's subtree on the finished
+    model and writes it here; the estimate from ``physics.leaves_on_primary`` is the fallback."""
+    mb = phys.get("mass", {})
+    return float(mb.get("primary_assembly_kg") or mb.get("per_leaf_kg") or mb.get("total_kg") or 0.0)
+
+
+def push_lever(spec: dict, phys: dict) -> float:
+    """The leaf dimension ``push_base`` scales its effort by: twice the primary subtree's own lever about its axis.
+
+    ``push_base`` reads this as a width, because ``0.5 * m * g * width`` is the moment the leaf's weight would
+    exert lying horizontal - and for a leaf on a vertical hinge the lever IS half its width, so this returns the
+    spec's leaf width unchanged.  It is not half the width for a strip hanging from a horizontal rod (the lever
+    is half its HEIGHT, and with the strip's mass now right the old value was three times too small to part the
+    curtain) or for a hatch.  ``build.primary_assembly`` measures the lever on the finished model; the max with
+    the leaf width keeps a balanced rotor - lever ~0 about its own axis - on the width it always had."""
+    arm = float(phys.get("mass", {}).get("primary_com_arm_m") or 0.0)
+    return max(2.0 * arm, float(spec["leaf"]["width"]))
 
 
 def qa_push(m, d, pj, mass_kg: float | None = None, width_m: float | None = None) -> dict:
@@ -546,11 +624,18 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
     checks["linkage_feasibility"] = bool(linkage["ok"])
     metrics["linkage_feasibility"] = linkage
     d = mujoco.MjData(m)
-    # ---- mass gate: simulated moving mass must match the derived door mass (slab + glass + hardware)
+    # ---- mass gates.  `mass` is the whole door: every leaf's material plus the door's hardware, which is what
+    #      the simulated moving bodies must weigh.  `leaf_material_mass` / `leaf_mass_share` re-derive the leaf
+    #      side of that from the spec alone (see leaf_mass_checks) so a per-leaf/per-door mix-up cannot hide
+    #      behind a total that was reconciled to the same wrong number.
     moving_mass = float(sum(m.body_mass[b] for b in range(1, m.nbody) if m.body_dofnum[b] > 0 or m.body_parentid[b] != 0))
     tgt_mass = float(phys["mass"]["total_kg"])
     metrics["moving_mass_kg"] = moving_mass
+    metrics["door_mass_kg"] = tgt_mass
     checks["mass"] = bool(abs(moving_mass - tgt_mass) <= max(0.2 * tgt_mass, 0.5))
+    lmc = leaf_mass_checks(spec, phys, door_dir)
+    checks.update(lmc["checks"])
+    metrics["leaf_mass"] = lmc["metrics"]
     pj = _jid(m, model_meta.get("primary_joint") or "")
     oj = _jid(m, model_meta.get("operator_joint") or "") if model_meta.get("operator_joint") else -1
     bj = _jid(m, "leaf_latch_bolt_slide")
@@ -565,7 +650,7 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
     checks["settle"] = bool(settle_ok)
     metrics.update({"initial_penetration_m": pen0[0], "initial_penetration_pair": [pen0[1], pen0[2]], "settle_drift": drift, "warnings": warn})
     # ---- operator release behaviour: sprung / gravity operators come home, detent operators stay where put
-    rel = operator_release_checks(m, d, phys, pj, phys["mass"]["total_kg"], spec["leaf"]["width"])
+    rel = operator_release_checks(m, d, phys, pj, push_mass(phys), push_lever(spec, phys))
     checks.update(rel["checks"])
     if rel["metrics"]:
         metrics["operator_release"] = rel["metrics"]
@@ -580,7 +665,7 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
     # panel in - must instead hold within its locked play)
     if pj >= 0 and free_swing and int(m.jnt_type[pj]) in (HINGE, SLIDE):
         is_hinge = int(m.jnt_type[pj]) == HINGE
-        push = qa_push(m, d, pj, phys["mass"]["total_kg"], spec["leaf"]["width"])["push"]
+        push = qa_push(m, d, pj, push_mass(phys), push_lever(spec, phys))["push"]
         metrics["qa_push"] = push
         thr_free = math.radians(10) if is_hinge else 0.05
         lo, hi = (m.jnt_range[pj] if m.jnt_limited[pj] else (-math.inf, math.inf))
@@ -596,11 +681,12 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         checks["no_jam"] = bool(jam["peak_force_N"] < JAM_FORCE_N)
     if pj >= 0 and not free_swing and int(m.jnt_type[pj]) in (HINGE, SLIDE):
         is_hinge = int(m.jnt_type[pj]) == HINGE
-        mass = phys["mass"]["total_kg"]
+        mass = push_mass(phys)
         W = spec["leaf"]["width"]
+        lever = push_lever(spec, phys)
         # adaptive push: gravity bias at rest + friction + spring preload, with margin (a strong human / robot)
         dof = m.jnt_dofadr[pj]
-        pf = qa_push(m, d, pj, mass, W)
+        pf = qa_push(m, d, pj, mass, lever)
         push, bias, fl, preload = pf["push"], pf["bias"], pf["frictionloss"], pf["preload"]
         metrics["qa_push"] = push
         thr = math.radians(2.0) if is_hinge else 0.015
@@ -729,7 +815,7 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
     if (pj >= 0 and not free_swing and int(m.jnt_type[pj]) in (HINGE, SLIDE) and len(op_names) > 1
             and model_meta.get("operator_coupling") == "individual" and flags["can_release"] and not env_release_only):
         is_hinge = int(m.jnt_type[pj]) == HINGE
-        push = float(metrics.get("qa_push") or qa_push(m, d, pj, phys["mass"]["total_kg"], spec["leaf"]["width"])["push"])
+        push = float(metrics.get("qa_push") or qa_push(m, d, pj, push_mass(phys), push_lever(spec, phys))["push"])
         tt = _jid(m, "leaf_deadbolt_thumbturn_hinge")
         if tt < 0:
             tt = _jid(m, "leaf_a_deadbolt_thumbturn_hinge")
@@ -768,7 +854,7 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
     if model_meta.get("keypad"):
         try:
             from .keypad_qa import run_keypad_qa
-            kpush = metrics.get("qa_push") or qa_push(m, mujoco.MjData(m), pj, phys["mass"]["total_kg"], spec["leaf"]["width"])["push"] if pj >= 0 else 0.0
+            kpush = metrics.get("qa_push") or qa_push(m, mujoco.MjData(m), pj, push_mass(phys), push_lever(spec, phys))["push"] if pj >= 0 else 0.0
             kres = run_keypad_qa(m, spec, model_meta, phys, float(kpush), oj, pj)
             if kres.get("ok") is not None:
                 checks["keypad_code_works"] = bool(kres["ok"])

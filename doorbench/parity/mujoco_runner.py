@@ -227,7 +227,7 @@ def compact_record(rec: dict, keep_joints: int = 3, hz: int = 5) -> dict:
     out = {k: v for k, v in rec.items() if k not in ("phases", "inputs", "pose0")}
     out["metrics_version"] = rec.get("metrics_version", P.METRICS_VERSION)
     out["pose0"] = {"bodies": {n: b["pos"] for n, b in rec.get("pose0", {}).get("bodies", {}).items() if b.get("moving")}, "joints": rec.get("pose0", {}).get("joints", {})}
-    out["inputs"] = {k: inputs[k] for k in ("door_id", "family", "is_hinge", "primary_joint", "operator_joint", "latch_bolt_joint", "secondary_joint", "flags", "forces", "thresholds", "schedule", "inputs_hash", "coupling", "rl", "reference_qa", "push_base", "joints", "thumbturn_joint", "aux_joints", "dog_joints", "unlimited_joints", "latch_joints", "max_open_deg", "travel_m", "unit", "mass_kg", "kinematics_type", "leaf_width_m", "task", "protocol_version")}
+    out["inputs"] = {k: inputs[k] for k in ("door_id", "family", "is_hinge", "primary_joint", "operator_joint", "latch_bolt_joint", "secondary_joint", "flags", "forces", "thresholds", "schedule", "inputs_hash", "coupling", "rl", "reference_qa", "push_base", "joints", "thumbturn_joint", "aux_joints", "dog_joints", "unlimited_joints", "latch_joints", "max_open_deg", "travel_m", "unit", "mass_kg", "kinematics_type", "leaf_width_m", "push_lever_m", "task", "protocol_version")}
     out["phases"] = {}
     for p, r in rec["phases"].items():
         row = {"expected": r["expected"], "status": r["status"], "metrics": r["metrics"], "informational": bool(r.get("informational"))}

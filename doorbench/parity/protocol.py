@@ -220,10 +220,13 @@ def door_inputs(spec: dict, model_json: dict, forces: dict | None = None, qa: di
     })
     # ---- forces (qa.py adaptive push)
     W = float(spec["leaf"]["width"])
-    mass = float(phys.get("mass", {}).get("total_kg", 0.0) or 0.0)
+    # the push scales with what the PRIMARY joint carries and the lever that subtree's weight works through
+    # (qa.push_mass / qa.push_lever), not with the whole door's mass and the leaf's width
+    mass = float(phys.get("mass", {}).get("primary_assembly_kg") or phys.get("mass", {}).get("total_kg", 0.0) or 0.0)
+    lever = max(2.0 * float(phys.get("mass", {}).get("primary_com_arm_m") or 0.0), W)
     fl = P["frictionloss"]
     preload = abs(P["stiffness"] * P["springref"]) if P["stiffness"] > 0 else 0.0
-    base, cap = push_base(unit, mass, W), PUSH_CAP[unit]
+    base, cap = push_base(unit, mass, lever), PUSH_CAP[unit]
     if forces is not None and forces.get("bias") is not None:
         # values from the compiled MJCF win (the XML rounds to 6 decimals; qa.py reads m.dof_frictionloss / m.qpos_spring)
         bias = float(forces["bias"])
@@ -303,7 +306,7 @@ def door_inputs(spec: dict, model_json: dict, forces: dict | None = None, qa: di
               "env_release": [e.get("name") for e in rl_meta.get("env_release", [])]}
     inputs = {
         "protocol_version": PROTOCOL_VERSION, "door_id": spec["id"], "family": fam, "kinematics_type": kin.get("type"), "is_hinge": is_hinge, "unit": unit,
-        "max_open_deg": max_open_deg, "travel_m": travel, "leaf_width_m": W, "mass_kg": mass, "task": spec.get("task"),
+        "max_open_deg": max_open_deg, "travel_m": travel, "leaf_width_m": W, "push_lever_m": lever, "mass_kg": mass, "task": spec.get("task"),
         "joints": joints, "primary_joint": pj, "operator_joint": oj, "secondary_joint": sj, "latch_bolt_joint": bolt, "latch_joints": latch_joints,
         "thumbturn_joint": thumbturn, "aux_joints": aux, "dog_joints": dogs, "unlimited_joints": unlimited,
         "flags": flags,

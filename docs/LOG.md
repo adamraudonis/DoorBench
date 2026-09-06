@@ -324,3 +324,54 @@ reflectance rendering as silhouettes, clear glazing so transparent that a slider
 shut, a camera fitted to the bounding sphere so no close-up was close, and a bypass closet whose "fully
 open" pose swapped its two leaves and left the doorway blocked. Lesson: **a review instrument needs its
 own calibration.** Half the first-pass "findings" were the camera.
+
+## 2026-09-05 — a door weighs all of its leaves (vision-review finding 5)
+
+`physics.leaf_mass` was documented as "the mass of ONE leaf" and `build.py` used it as the whole door's
+mass, distributing it over every leaf body by volume. **209 doors carried a single leaf's mass shared out
+among 2-18 leaves**: a four-wing revolving door weighed 110 kg where its wings alone are 440, a nine-strip
+PVC curtain 3.3 kg where the strips are 20. Every deterministic gate passed, because the `mass` gate
+compared the model against the same halved number.
+
+The repair is a contract, not a multiplication. `spec["leaf"]` describes ONE leaf and `leaf.count` says how
+many there are, so `physics.mass_budget` now states three masses and names the level of each:
+`per_leaf_kg` (one leaf + its hardware: what a hinge set carries, what a closer is sized for, what slams),
+`total_kg` (`leaf_count x (slab + glazing) + the hardware set`, which is what the model's moving bodies
+weigh), and `primary_assembly_kg` (what the robot has to move - one leaf of a pair, but the whole rotor of
+a revolving door and the whole stack of a fold, **measured** on the finished model by
+`build.primary_assembly` rather than guessed). Every reader was moved to the level it meant.
+
+Auditing the rest of `physics.py` for the same per-part/per-door confusion found five more:
+
+* `turnstile_tripod`'s slab special case builds all **three** arms in a family whose leaf count is 3 - it
+  would have been tripled by a naive fix, so it is now per arm and the tripod's mass is unchanged. (This
+  is why the affected count is 209 and not the 219 the triage estimated: the ten tripods were already right.)
+* a rotor's thrust bearing carries every wing, so rotor hinge friction, air damping and inertia take the
+  assembly. Revolving-door hinge friction +92-181 %, full-height turnstiles +132-249 %.
+* the track carries what hangs on it, so roller friction takes the assembly (57 doors).
+* `LatchModel` had no mass at all, so a watertight door's six dogs - 15 kg the geometry does model as
+  bodies - were charged to nothing. Ten ship doors were 13-23 % light for that reason alone.
+* the QA push is now sized by what the primary joint carries **and** by that subtree's own lever about its
+  axis, both measured on the model. For a leaf on a vertical hinge that is the old formula exactly; for a
+  strip curtain the lever is half the strip's HEIGHT, which is the approximation `push_base` had documented
+  and which stopped cancelling once the mass was right (6 of 8 curtains failed `free_opens` in between).
+* `benchmark.t_open_dynamics` divided the door mass by the leaf count for sliders - the same confusion,
+  written out longhand.
+
+**The gate.** `qa.leaf_mass_checks` re-derives the leaf side from the spec alone - the slab's area density
+over the leaf's own W x H, times `leaf_count` - and asserts the moving leaf bodies weigh it
+(`leaf_material_mass`), and that each leaf's share of the mass is its share of the volume
+(`leaf_mass_share`, using a new `volume_m3` on every geom in `model.json`). Run against the **previous**
+dataset it fails 230 of the 1000 doors: the 209 split leaves, the 10 watertight doors, and 11 whose pet
+flap took its mass out of the slab. Lesson, and it is the same one as the clearance gate: **a gate that
+reconciles the model to a derived number cannot check that number.** It has to be re-derived from the spec
+by a second path, or it only proves the reconciliation ran.
+
+What moved: 496 doors change mass, 209 of them by 1.8-13.4x (swing_double 76, sliding_bypass 35, bifold 30,
+revolving 15, accordion 12, turnstile_fullheight 10, saloon 9, automatic_sliding 9, strip_curtain 8,
+elevator 5); the other 287 by 1-23 % from the latch mass. Per-leaf mass is unchanged, so EN 1154 sizing was
+re-derived and moved on only 7 doors (size 3 -> 4, all sitting on the threshold), opening force at start on
+68, closer preload on 11. The 37 counterbalanced doors still balance exactly (spring = the declared fraction
+x the lifted weight, re-derived from the new mass). Expected transit time moves on 121 of 1475 scenarios
+(-4.3 % to +75 %). 1000/1000 signed off, clearance / running clearance / attachment 1000/1000, USD static
+1000/1000, MuJoCo parity 1000/1000 with **no phase verdict changed**, 1642 tests.
