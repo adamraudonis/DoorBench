@@ -59,7 +59,7 @@ The hero view uses sixteen distinct successful vertical cases selected from the 
 
 The presentation changes lighting, the floor’s visual material and cell spacing. It retains the robot asset, door inputs, collision geometry, physical materials and policy. A runtime assertion verifies that the presentation material preserves the floor’s physics binding. The original and presentation runners have separate hashes. No human animation or door-joint playback substitutes for the native policy rollout.
 
-On the current source revision:
+On the current source revision, adding `--hero` to `run_g1_catalogue.py` performs selection, records the grid, and audits the rerun separately in `hero/traversal-audit.json`. For manual camera work:
 
 ```bash
 python scripts/isaaclab/select_g1_hero.py \
@@ -71,4 +71,4 @@ python scripts/isaaclab/hero_g1.py --headless --device cuda:0 \
   --video --batch-doors <the sixteen selected IDs>
 ```
 
-The camera records 1920×1080 video at 25 fps, plus several still frames. Keep the complete recording when choosing a README image, so a pleasing pose cannot conceal a failed attempt.
+The camera records 2560×1600 presentation video at 25 fps, plus several still frames. Keep the complete recording when choosing a README image, so a pleasing pose cannot conceal a failed attempt.

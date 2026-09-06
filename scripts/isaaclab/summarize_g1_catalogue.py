@@ -12,6 +12,11 @@ p = argparse.ArgumentParser(description=__doc__)
 p.add_argument("--results", required=True)
 p.add_argument("--assets", required=True)
 p.add_argument("--out", required=True)
+p.add_argument(
+    "--selection",
+    type=Path,
+    help="Explicit selected-hero JSON with an ids list; otherwise require catalogue coverage",
+)
 a = p.parse_args()
 root = Path(a.results)
 assets = Path(a.assets)
@@ -19,6 +24,15 @@ doc = json.loads((root / "results.json").read_text())
 rows = []
 suite = json.loads((assets / "demo-suite.json").read_text())
 expected = {c["id"]: c for c in suite["cases"]}
+if a.selection:
+    selected = json.loads(a.selection.read_text())["ids"]
+    if len(set(selected)) != len(selected) or set(selected) - expected.keys():
+        raise ValueError("Selection contains duplicate or unknown fixture IDs")
+    expected = {id: expected[id] for id in selected}
+if doc["eligible_doors"] != len(expected):
+    raise ValueError(
+        "Declared coverage differs from the frozen suite or explicit selection"
+    )
 if set(doc["per_door"]) - expected.keys():
     raise ValueError("Result contains doors outside the frozen suite")
 if doc["complete"] and set(doc["per_door"]) != expected.keys():
@@ -95,6 +109,10 @@ for id, r in doc["per_door"].items():
     )
 report = {
     "scope": "Closed-start canonical-USD G1 locomotion diagnostic, audited root-plane crossing; not assigned core benchmark success or full-body clearance certification",
+    "coverage_kind": "selected_hero" if a.selection else "catalogue",
+    "selection_sha256": hashlib.sha256(a.selection.read_bytes()).hexdigest()
+    if a.selection
+    else None,
     "source_results_sha256": hashlib.sha256(
         (root / "results.json").read_bytes()
     ).hexdigest(),
