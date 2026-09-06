@@ -188,6 +188,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
     appliedReference.current = `${id}|${query}`;
     const requested=Number(new URLSearchParams(query).get("rt") || 0);
     seekReference(Number.isFinite(requested) ? Math.max(0,Math.min(reference.duration,requested)) : 0); frameReference();
+    if (new URLSearchParams(query).get("autoplay") === "1") { referenceState.current.playing=true; setReferencePlaying(true); }
   }, [reference, joints, query, id]);
 
   const toast = (text: string, ms = 2600) => {
