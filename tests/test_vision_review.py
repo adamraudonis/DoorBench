@@ -386,24 +386,26 @@ def test_prompt_for_is_deterministic(rendered):
 def test_declared_extra_is_actually_drawn(extra, pattern):
     """A door that says it has a louvre vent must have one.
 
-    These three extras are in `taxonomy.EXTRAS`, are sampled into specs, and are charged 0.9 / 0.3 /
-    0.3 kg of hardware mass in `physics.py` - and until the vision review looked at the pictures no
-    builder drew any of them.  The exception is a leaf that also carries a pet flap: both want the
-    bottom third of the door, so the vent is skipped there rather than driven through the flap.
+    These three extras are in ``taxonomy.EXTRAS``, are sampled into specs, and are charged
+    0.9 / 0.3 / 0.3 kg of hardware mass in ``physics.py`` - and until the vision review looked at the
+    pictures, no builder drew any of them.  156 declared extras across 153 doors had no geometry at
+    all; these three were 48 of them.
+
+    The check builds the door from its spec rather than reading ``assets/``, so it holds whether or
+    not the shipped dataset has been regenerated since the generator changed.
     """
-    import glob
+    from doorbench.build import build_model
+    from doorbench.spec import generate_all
+
+    specs = [s for s in generate_all() if extra in (s.get("extras") or [])]
+    assert len(specs) >= 5, f"expected the sampler to place {extra} on several doors, saw {len(specs)}"
     checked = 0
-    for p in sorted(glob.glob(os.path.join(ASSETS, "doors", "*", "spec.json"))):
-        with open(p) as f:
-            spec = json.load(f)
-        if extra not in (spec.get("extras") or []):
-            continue
+    for spec in specs:
         if extra == "louver_vent" and (spec["leaf"].get("pet_flap")
                                        or spec["leaf"].get("panel_style") in ("louver_full", "louver_half")):
-            continue
-        with open(p.replace("spec.json", "model.json")) as f:
-            model = json.load(f)
-        names = [g["name"] for b in model["bodies"] for g in b["geoms"]]
+            continue          # a pet flap wants the same bottom third of the leaf; a louvred leaf already has slats
+        model = build_model(spec)
+        names = [g.name for b in model.bodies for g in b.geoms]
         assert any(pattern in n for n in names), f"{spec['id']} declares {extra} and draws none of it"
         checked += 1
-    assert checked >= 5, f"expected the sampler to place {extra} on several doors, saw {checked}"
+    assert checked >= 5

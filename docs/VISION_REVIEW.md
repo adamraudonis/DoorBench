@@ -1097,9 +1097,11 @@ Proved by regeneration: **1000/1000 signed off, clearance 1000/1000, running_cle
 attachment 1000/1000, 1627 tests pass**, and `tests/test_vision_review.py` now asserts that a door
 declaring one of the three extras actually draws it.
 
-![louvre vent, now drawn](fixed_db0040_swing_single.jpg)
-![weather drip cap on the frame head](fixed_db0086_swing_single.jpg)
-![kick-down holder on the latch stile](fixed_db0081_swing_single.jpg)
+![louvre vent, now drawn](review/vision/fixed_db0040_swing_single.jpg)
+
+![weather drip cap on the frame head](review/vision/fixed_db0086_swing_single.jpg)
+
+![kick-down holder on the latch stile](review/vision/fixed_db0081_swing_single.jpg)
 
 **Not fixed**: everything else. Each remaining finding is either dataset-wide (the mass formula moves
 219 doors and every physics number derived from them) or needs a real mechanism where there is now a

@@ -261,3 +261,42 @@ closer_linkage / closer_closes, operator_returns, rollers_on_track, keypad_code_
 
 Added 2026-09-05: `all_latches_release` (multi-operator doors: every latch holds the leaf on its own, all of them
 released opens it) and `rod_points_hold` (two-point rod mechanisms: the head bolt and the floor bolt each hold).
+
+**Vision review: photograph every door and ask what a person would ask (2026-09-05).** The owner's
+report - "for db0079 the rail does not extend long enough so one of the wheels will fall off it; as a
+human it is ultra obvious" - became a tool. `doorbench/review/` renders one 12-panel review sheet per
+door with MuJoCo's offscreen renderer (closed / mid-travel / fully open x front-iso, back-iso,
+hinge-or-track-side, plus a hardware close-up on each face and a mechanism close-up at full open), one
+camera per column so the three rows are the same shot at three points in the travel, captioned with
+what the *spec says should be there*. `scripts/vision_review.py` sends the sheet to the Claude API with
+a rubric and parses a strict JSON verdict; there is no API key on this machine, so that path is
+implemented and unit-tested against a mocked client and has never run live. Estimated cost for all
+1000 doors: **$49.56** one request per door, **$24.78** through the Batches API (Opus 5, cached rubric).
+
+122 doors were reviewed by an agent reading the sheets - four per family across all 30, plus db0079 and
+db0024 forced in as calibration. **97 of 122 carry a finding and every one of those 97 passes every
+deterministic gate.** Both calibration doors read clean of their reported defect: the tightest
+roller-to-rail-end margin in the dataset is now 120 mm, and db0024's stop stands on the floor.
+
+The classes, each seen on a sheet first and then re-checked over all 1000 doors: roll-up curtains rise
+as a rigid slab clear of their guides and above the wall (15/15); a 2.0-2.5 m hole in the wall above
+every sectional garage door (18/18); the automatic-swing operator arm is a leaf-mounted decoration
+35 mm short of its header when shut and half a metre away when open (15); **24 benchmark-eligible doors
+carry a task that requires the door to move on a primary joint whose static MuJoCo range is 2 mm or
+±3°** - a releasable lock modelled as a joint limit, which no amount of unlocking can widen; **219
+multi-leaf doors are 2-8x too light** because `physics.leaf_mass` is computed for one leaf and then
+split across all of them (a 4-wing revolving door weighs 110 kg instead of 440, and the mass gate
+cannot see it because it compares the model against the same wrong number); 156 declared extras across
+153 doors with no geometry at all; 35 doors naming a stop part that is not modelled; 129 doors saying
+the operator is on both faces and drawing it on one. Fixed here: the three extras nobody had ever drawn
+(`louver_vent`, `weather_drip_cap`, `hold_open_kickdown`, 46 doors), regenerated to 1000/1000. The rest
+is handed off in `docs/review/vision/triage.md`.
+
+Ten false positives are recorded too, because they are the method's error rate: a louvre panel whose
+23 slats vanish at 400 px, a "centre pivot" that is a normal offset pivot, a strip curtain that looked
+half-width and covers 98 %. Five of them were the *renderer*, not the door - a reflective garage
+section mirroring the skybox so five opaque panels read as an empty opening, 28 doors painted at 4 %
+reflectance rendering as silhouettes, clear glazing so transparent that a slider open by 0.84 m looked
+shut, a camera fitted to the bounding sphere so no close-up was close, and a bypass closet whose "fully
+open" pose swapped its two leaves and left the doorway blocked. Lesson: **a review instrument needs its
+own calibration.** Half the first-pass "findings" were the camera.
