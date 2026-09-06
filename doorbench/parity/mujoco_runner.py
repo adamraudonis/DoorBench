@@ -12,6 +12,7 @@ import time
 
 import numpy as np
 
+from ..qa import apply_robot_release
 from . import protocol as P
 
 
@@ -50,6 +51,7 @@ class MujocoDoor:
         rl_meta = P.read_rl_meta(door_dir)
         self.inputs = P.door_inputs(self.spec, self.model_json, forces=self.measure_forces(), qa=self.qa, rl_meta=rl_meta)
         self.pj = self.inputs["primary_joint"]
+        self._robot_welds = [w for w in (self.inputs["flags"].get("breakable_welds") or []) if w.get("release") == "robot"]
         self.sample_every = 1.0 / P.SAMPLE_HZ
 
     # ------------------------------------------------------------------
@@ -128,6 +130,11 @@ class MujocoDoor:
             qd = {n: float(d.qvel[a]) for n, a in self.dadr.items()}
             eff = P.phase_efforts(inputs, phase, t, q, kind="mjcf", qd=qd)
             self._apply(eff)
+            # a lock the ROBOT releases is a constraint plus the part that undoes it (a garage T-handle withdrawing
+            # its lock bars): the weld drops once that part is past its release fraction, exactly as qa.py and
+            # benchmark/env.py do it.  Without this the protocol works the handle and the door stays welded shut.
+            if self._robot_welds:
+                apply_robot_release(m, d, self._robot_welds)
             if pins:
                 for n, v in pins.items():
                     d.qpos[self.qadr[n]] = v

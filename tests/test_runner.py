@@ -27,7 +27,9 @@ pytestmark = pytest.mark.skipif(not os.path.exists(MANIFEST), reason=f"generated
 
 # one knob swing door (open_and_traverse + open_then_close + knock_and_wait), a patio slider with a hook lock
 # (unlock_and_traverse + open_then_close + close_only), a garage sectional, a panic pair, a revolving door
-FIVE = "db0002_swing_single,db0345_sliding_single,db0148_garage_sectional,db0019_swing_double,db0066_revolving"
+# db0018 is here for `close_only`: db0345's hook lock is engaged, and a door its own lock holds shut is never
+# handed to the robot already open, so it no longer carries that scenario
+FIVE = "db0002_swing_single,db0345_sliding_single,db0148_garage_sectional,db0019_swing_double,db0066_revolving,db0018_sliding_single"
 
 
 def _load_script(name):
@@ -170,7 +172,7 @@ def _check_result(res, n_doors, n_episodes, tmp_path, name, suite="core"):
 
 def test_scripted_hand_5_doors_core(tmp_path):
     res = R.run_benchmark("scripted_hand", doors=FIVE, seeds=1, suite="core", workers=1, tier="full", assets=ASSETS, progress=lambda *_: None)
-    doc = _check_result(res, 5, 9, tmp_path, "scripted")
+    doc = _check_result(res, 6, 11, tmp_path, "scripted")
     a = doc["aggregate"]["core"]
     assert a["n_success"] >= 7, {(e["door_id"], e["scenario"]): (e["outcome"], e["criteria"]) for e in doc["episodes"]}
     lever = next(e for e in doc["episodes"] if e["door_id"] == "db0002_swing_single" and e["scenario"] == "open_and_traverse")
@@ -189,7 +191,7 @@ def test_scripted_hand_5_doors_core(tmp_path):
 
 def test_random_5_doors_pool(tmp_path):
     res = R.run_benchmark("random", doors=FIVE, seeds=2, suite="core", scenarios="primary", workers=2, tier="full", assets=ASSETS, progress=lambda *_: None)
-    doc = _check_result(res, 5, 10, tmp_path, "random")
+    doc = _check_result(res, 6, 12, tmp_path, "random")
     assert {e["seed"] for e in doc["episodes"]} == {0, 1}
     assert any(e["randomized"] for e in doc["episodes"]) and any(not e["randomized"] for e in doc["episodes"])
     assert doc["run"]["scenario_filter"] == "primary"
@@ -273,10 +275,10 @@ def test_cli_dry_run_and_lists(capsys):
     assert "open_and_traverse" in out and "suite=core" in out and "knock_and_wait" in out and "suite=human" in out
     main(["benchmark", "run", "--policy", "random", "--doors", FIVE, "--seeds", "2", "--assets", ASSETS, "--dry-run"])
     out = capsys.readouterr().out
-    assert "suite core: 5 doors" in out and "db0066_revolving" in out and "knock_and_wait" not in out
+    assert "suite core: 6 doors" in out and "db0066_revolving" in out and "knock_and_wait" not in out
     main(["benchmark", "run", "--policy", "random", "--doors", FIVE, "--seeds", "1", "--suite", "human", "--assets", ASSETS, "--dry-run"])
     out = capsys.readouterr().out
-    assert "suite human: 1 doors (5 selected)" in out and "knock_and_wait" in out
+    assert "suite human: 1 doors (6 selected)" in out and "knock_and_wait" in out
 
 
 def test_build_results_index(tmp_path, monkeypatch):

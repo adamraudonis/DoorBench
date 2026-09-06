@@ -42,6 +42,13 @@ Checks (all tiers where applicable):
   keypad_code_works  every door with a code lock: a programmatic finger pressing the spec's code on the real
               button bodies releases the lock and the door opens, a wrong code does not, a partial entry times
               out (or is cleared by the lever, mechanically) and repeated wrong codes lock the keypad out
+  pair_swing  a double-egress pair swings one leaf each way and every other pair both leaves the same way,
+              measured from where each leaf edge ends up (the two leaves are mirror images, so the hinge axis
+              sign alone says nothing about which way a leaf actually goes)
+  task_achievable  every scenario in spec.json["benchmark"] is physically completable: the primary joint reaches
+              the scenario's pass threshold once the door's declared release path is taken, a leaf whose lock can
+              be released keeps its whole declared travel (a release cannot widen a static joint range), and a leaf
+              only the environment can release opens under the QA push once released (doorbench/task_qa.py)
   urdf        URDF loads in MuJoCo (structure check)
   usd         USD stage opens; joint & rigid-body counts match the IR
 Writes qa.json with pass/fail per check, metrics, and a signed_off flag.
@@ -209,6 +216,30 @@ def qa_push(m, d, pj, mass_kg: float | None = None, width_m: float | None = None
     base = push_base(unit, mass_kg, width_m)
     push = min(2.0 * (bias + fl + preload) + base, PUSH_CAP[unit])
     return {"push": push, "bias": bias, "frictionloss": fl, "preload": preload, "is_hinge": is_hinge, "push_base": base}
+
+
+def apply_robot_release(m, d, welds) -> list:
+    """Drop every holding weld whose own release part has been driven past its release fraction.
+
+    A lock the ROBOT releases is a constraint plus the part that undoes it (a garage T-handle withdrawing its lock
+    bars).  ``benchmark/env.py`` drops the weld when that part is past 80 % of its travel; the QA drive has to do
+    the same, or `actuate_opens` would be asking the door to open while its own lock is still thrown."""
+    import mujoco
+    dropped = []
+    for w in welds or []:
+        if w.get("release") != "robot":
+            continue
+        eid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_EQUALITY, w["name"])
+        if eid < 0 or not d.eq_active[eid]:
+            continue
+        rj = _jid(m, w.get("release_joint") or "")
+        if rj < 0:
+            continue
+        lo, hi = float(m.jnt_range[rj][0]), float(m.jnt_range[rj][1])
+        if hi - lo > 1e-9 and (float(d.qpos[m.jnt_qposadr[rj]]) - lo) >= float(w.get("release_fraction", 0.8)) * (hi - lo):
+            d.eq_active[eid] = 0
+            dropped.append(w["name"])
+    return dropped
 
 
 def push_primary(m, d, pj, push: float, has_holding: bool, thr_free: float) -> float:
@@ -728,6 +759,7 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
                     d.qfrc_applied[m.jnt_dofadr[oj]] = eff
                 if k >= 600 and (not is_hinge or _q(m, d, pj) < math.radians(50)):
                     d.qfrc_applied[m.jnt_dofadr[pj]] = push   # stop pushing past 50 deg (levers would be pressed against the wall)
+                apply_robot_release(m, d, model_meta.get("breakable_welds"))
                 mujoco.mj_step(m, d)
             opened = _q(m, d, pj)
             metrics["actuate_displacement"] = opened
@@ -862,6 +894,28 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
         except Exception as e:
             checks["keypad_code_works"] = False
             metrics["keypad_error"] = f"{type(e).__name__}: {e}"[:300]
+    # ---- pair_swing: a double-egress pair swings one leaf each way; every other pair both leaves the same way
+    from .task_qa import run_pair_swing
+    ps = run_pair_swing(spec, model_meta, m, mujoco.MjData(m))
+    if ps.get("checked"):
+        checks["pair_swing"] = bool(ps["ok"])
+    if ps.get("checked") or ps.get("dy_leaf_a") is not None:
+        metrics["pair_swing"] = ps
+    # ---- task_achievable: the benchmark task on this door can actually be performed (doorbench/task_qa.py).
+    #      Every other gate asks whether the door is built right; this one asks whether the task in
+    #      spec.json["benchmark"] is possible - the primary joint reaches each scenario's pass threshold once the
+    #      door's declared release path has been taken, a releasable leaf keeps its whole declared travel, and a
+    #      leaf only the environment can release actually opens under the QA push once it is released.
+    try:
+        from .task_qa import run_task_achievable
+        with open(os.path.join(door_dir, "model.json")) as f:
+            joint_roles = {b["joint"]["name"]: b["joint"].get("role") for b in json.load(f)["bodies"] if b.get("joint")}
+        ta = run_task_achievable(spec, door_dir, model_meta, m, mujoco.MjData(m), phys, joint_roles)
+        checks["task_achievable"] = bool(ta["ok"])
+        metrics["task_achievable"] = ta
+    except Exception as e:
+        checks["task_achievable"] = False
+        metrics["task_achievable_error"] = f"{type(e).__name__}: {e}"[:300]
     # ---- simple & minimal tiers settle
     for tier in ("simple", "minimal"):
         if tier in models:
