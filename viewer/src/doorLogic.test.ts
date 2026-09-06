@@ -6,7 +6,7 @@ import type { ModelJ } from "./types";
 import { activeLeaf, boltJointsFor, easeFor, gravityEase, openClosePhases, operatorJoints, operatorReturnPhase, operatorsAreIndividual, previewOperatorForLeaf, returnChip, returnLabel, sliderReaction, springEase, type JointLike, type Phase } from "./doorLogic";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..");
-const ASSETS = path.resolve(ROOT, process.env.DOORBENCH_SITE_ROOT || ".", "assets", "doors");
+const ASSETS = path.resolve(process.env.DOORBENCH_TEST_ASSETS || path.resolve(ROOT, process.env.DOORBENCH_SITE_ROOT || ".", "assets"), "doors");
 const moves = (phases: Phase[]) => phases.flatMap(p => [p, ...(p.followers ?? [])]);
 
 function load(id: string): { model: ModelJ; joints: Map<string, JointLike> } | null {
