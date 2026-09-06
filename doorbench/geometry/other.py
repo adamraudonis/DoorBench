@@ -862,8 +862,13 @@ def _assembly_y_extent(model: Model, root: Body):
     return lo, hi
 
 
-def _slat_lines(model, body, W, t, z0, h, prefix):
-    """The visible slat joints of one curtain course (drawn on the weather face)."""
+def _slat_lines(model, body, W, t, z0, h, prefix, style="corrugated_slats"):
+    """The visible slat joints of one curtain course (drawn on the weather face).
+
+    Only on a solid slat curtain: a rolling grille's own rods are its pattern, and drawing joint lines across them
+    as well makes an overlapping course read as render noise rather than as curtain."""
+    if style != "corrugated_slats":
+        return
     mat = C.mat_rgba(model, "mat_slat_line", (0.25, 0.25, 0.25, 1), 0.7)
     for k in range(1, max(1, int(round(h / SLAT_PITCH)))):
         body.geoms.append(C.box(f"{prefix}_slat_line_{k}", (0, -t / 2 - 0.001, z0 + k * h / max(1, int(round(h / SLAT_PITCH)))),
@@ -910,7 +915,7 @@ def _add_curtain_courses(model, spec, phys, lb, W, Hh, t, z_bot, travel):
             z0 = 0.0
         sub = {**leaf, "height": hp}
         C.add_leaf_geoms(model, body, spec, sub, 1.0, -W / 2, z0, phys_k, name_prefix=prefix, Hh=hp)
-        _slat_lines(model, body, W, t, z0, hp, prefix)
+        _slat_lines(model, body, W, t, z0, hp, prefix, leaf.get("panel_style", "corrugated_slats"))
     for a in range(len(courses)):
         for b in range(a + 1, len(courses)):
             model.contact_excludes.append((courses[a].name, courses[b].name))
