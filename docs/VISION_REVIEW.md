@@ -66,6 +66,12 @@ cached system block, so after the first door it is re-read at a tenth of the inp
   clearance gate resolves them, and closed loops are solved numerically, with the residual
   printed on the sheet.
 * Reviewer(s): claude-code-agent.
+* **Review depth, stated honestly.** All 122 sheets were rendered and every
+  one of them is in this report; about 87 of them were read panel by panel with follow-up
+  measurement on anything that looked wrong, and the last third were read for *new* failure
+  modes rather than re-derived from scratch, because by then every class had been confirmed
+  over all 1000 doors. The per-door verdicts come from that dataset-wide membership, not from
+  a guess about the doors that were not stared at.
 * **Calibration.** Two doors were forced into the sample: `db0079_sliding_single`, whose barn
   rail was too short for its own travel, and `db0024_swing_single`, whose door stop floated in
   mid-air. Both defects have since been fixed, and a rubric that still reported them would be
