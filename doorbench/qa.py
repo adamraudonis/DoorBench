@@ -3,6 +3,11 @@
 Checks (all tiers where applicable):
   load        MJCF loads in MuJoCo (full / simple / minimal)
   clearance   geometric gate: nothing interpenetrates anywhere in the travel (doorbench/clearance.py)
+  spec_realized  the spec is a CONTRACT: every piece of hardware the spec declares - the operator and the faces it
+              is on, the latch and its bolt/dog count, the lock, the closer, the named opening stop, the hinges and
+              their count, every extra - has geometry in the model with the matching semantic and name, in the right
+              place, with the right multiplicity.  Anything deliberately not drawn is in a documented exception
+              table and is counted in the metrics rather than silently missing (doorbench/spec_realized.py)
   attachment  geometric gate: nothing FLOATS - every static geom is connected to the structure, every body touches
               what carries it at rest and through its travel, each body's geoms form one part, equalities are
               authored closed, declared stops are struck, and nothing is degenerate or duplicated
@@ -529,6 +534,19 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
     metrics["attachment_n_findings"] = at["n_findings"]
     metrics["attachment_by_rule"] = at["by_rule"]
     metrics["attachment_findings"] = at["findings"][:10]
+    # ---- spec_realized: the spec is a contract and the geometry must satisfy it.  Walk the declared hardware -
+    #      operator (and its faces), latch (and its bolt/dog count), lock, closer, stop, hinges (and their count),
+    #      extras - and require geometry with the matching semantic and name for each, in the right place, with the
+    #      right multiplicity.  Anything deliberately not drawn is in an explicit, documented exception table and is
+    #      counted, never silent.  See doorbench/spec_realized.py.
+    from .spec_realized import run_spec_realized
+    sr = run_spec_realized(door_dir, "full")
+    checks["spec_realized"] = bool(sr["ok"])
+    metrics["spec_realized_n_findings"] = sr["n_findings"]
+    metrics["spec_realized_by_rule"] = sr["by_rule"]
+    metrics["spec_realized_findings"] = sr["findings"][:10]
+    metrics["spec_realized_open"] = {"n": sr["n_open"], "by_rule": sr["open_by_rule"], "items": sr["open"][:10]}
+    metrics["spec_realized_exceptions"] = sr["exceptions"]
     m = models["full"]
     from .baby_gate_qa import run_baby_gate_qa
     headroom = run_baby_gate_qa(m, spec)

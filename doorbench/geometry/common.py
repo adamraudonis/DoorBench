@@ -941,6 +941,11 @@ def add_hasp_assembly(model: Model, leaf_body: Body, world: Body, name: str, hin
     hb.joint = Joint(f"{name}_hasp_hinge", "hinge", tuple(axis_j), (0, 0, 0), (0.0, 0.0015 if locked else 2.9), damping=0.02, frictionloss=0.05, role="lock", label="Hasp (0 = closed over the staple, + = flipped open)" + (" [padlocked]" if locked else ""), initial=0.0 if locked else 2.8, modeled_at=0.0)
     hb.geoms.append(obox(f"{name}_hasp_strap", (0, 0, 0), tw, n, strap_len / 2, 0.0, tth / 2, strap_len / 2, w / 2, tth / 2, material, True, tiers, "lock", "Hasp strap"))
     hb.geoms.append(cyl(f"{name}_hasp_knuckle", tuple(n * 0.004), 0.0045, w / 2 + 0.004, material, tuple(axis_j), 7850, False, True, FULL_ONLY, "lock", "Hasp hinge knuckle"))
+    # The turned-up tab at the free end is what a hand lifts, and on a `hasp_padlock` door the hasp IS the
+    # operator the spec declares - it used to be drawn entirely as `lock`, so the benchmark's grip sites, the
+    # viewer's handle camera and the review's hardware close-up all missed it on 9 doors.
+    hb.geoms.append(obox(f"{name}_hasp_tab", tuple(tw * (strap_len - 0.006) + n * 0.006), tw, n, 0.0, 0.0, 0.0,
+                         0.006, w / 2, 0.008, material, False, tiers, "operator", "Hasp lifting tab"))
     hb.sites.append(Site(f"{name}_hasp_grip", tuple(tw * (strap_len - 0.02) + n * 0.01), QUAT_ID, 0.01, "grip"))
     model.add_body(hb)
     eye = np.asarray(eye_pt_w, float)
@@ -957,7 +962,8 @@ def add_hasp_assembly(model: Model, leaf_body: Body, world: Body, name: str, hin
         [f"{name}_padlock*", f"{name}_staple*", "shackle through the staple eye"],
         [f"{name}_padlock*", f"{name}_hasp_strap", "padlock hangs over the strap"],
         [f"{name}_hasp_strap", f"{name}_hasp_plate", "strap over its hinge plate"],
-        [f"{name}_hasp_knuckle", f"{name}_hasp_plate", "knuckle on its hinge plate"]])
+        [f"{name}_hasp_knuckle", f"{name}_hasp_plate", "knuckle on its hinge plate"],
+        [f"{name}_hasp_tab", f"{name}_staple*", "the lifting tab reaches over the staple"]])
     return hb
 
 
@@ -1147,7 +1153,10 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
                 body.geoms.append(box(f"{name}_keyway_{'p' if f > 0 else 'n'}", (0, f * (t / 2 + 0.055 + d / 2 + 0.0045), 0), (0.0012, 0.0008, 0.006), mat_rgba(model, "mat_keyway", (0.05, 0.05, 0.05, 1), 0.5), 7100, False, True, FULL_ONLY, "lock", "Keyway"))
             if button_face is not None and f == button_face:
                 body.geoms.append(cyl(f"{name}_turn_button_{'p' if f > 0 else 'n'}", (0, f * (t / 2 + 0.055 + d / 2 + 0.001), 0), 0.006, 0.005, trim_m, (0, 1, 0), 7100, False, True, FULL_ONLY, "lock", "Privacy turn button"))
-        elif op.kind in ("knob",):
+        elif op.kind in ("knob", "keypad_deadbolt"):
+            # A keypad deadbolt set (Schlage BE365) is a plain passage KNOB with the keypad on the rose above it.
+            # `keypad_deadbolt` was not in this list, so 9 doors declared the set and drew no knob at all - the
+            # spindle turned and there was nothing on either face to turn it by (docs/VISION_REVIEW.md class 12).
             key, mesh = MESH.knob_mesh(shape=sp.get("shape", "round"), diameter=sp.get("diameter", 0.054), depth=sp.get("depth", 0.06), rose_diameter=sp.get("rose_diameter", 0.064), childproof_cover=sp.get("childproof_cover", 0.0), privacy_button=bool(sp.get("privacy_button", False)) and f == outside * -1.0)
             body.geoms.append(mesh_geom(f"{name}_knob_{'p' if f > 0 else 'n'}", key, mesh, (0, f * (t / 2 + so_f), 0), q, mat, 3000, False, ALL_TIERS, "operator", "Knob"))
             D, dep = sp.get("diameter", 0.054), sp.get("depth", 0.06)
@@ -1576,6 +1585,157 @@ def add_bumper_stop(model: Model, world: Body, leaf_body: Body, spec: dict, u: f
     model.meta.setdefault("notes", []).append(
         f"Opening stop: rubber bumper on a {mount} mount; the leaf face strikes its tip at the {spec['kinematics'].get('max_open_deg')} deg limit."
         + ("" if mount == "wall" else "  A wall bumper cannot reach a leaf that stops perpendicular to its own wall, so the floor riser real doors use there is modelled instead."))
+    # The spec is a contract: it names the KIND of bumper stop, and this is the only place that decides the mount.
+    # 149 doors used to be captioned `stop=wall_bumper` and build a floor riser (docs/VISION_REVIEW.md class 12);
+    # a build-time assertion is what stops that coming back, because a spec that names the wrong kind now fails to
+    # build rather than shipping a caption that contradicts the model.
+    declared = spec["kinematics"].get("stop")
+    if declared in ("wall_bumper", "floor_bumper"):
+        want = "wall" if declared == "wall_bumper" else "floor"
+        if mount != want:
+            raise ValueError(f"{spec['id']}: spec declares stop '{declared}' ({want} mount) and the leaf's travel "
+                             f"({spec['kinematics'].get('max_open_deg')} deg) only admits a {mount} mount")
+
+
+def add_kick_down_holder(model: Model, leaf_body: Body, spec: dict, u: float, v: float, x0: float, z0: float,
+                        W: float, t: float, name: str = "kickdown"):
+    """Surface kick-down door holder, drawn retracted (the door is shipped closed).
+
+    A kick-down holder is a cast housing on the leaf's LATCH stile carrying a pivoted arm with a rubber foot: kick
+    the arm down and the foot bites the floor and holds the door open; kick it up and the door is free.  The latch
+    stile is the part that leaves the frame first as the door opens, so a face-mounted holder there sweeps nothing.
+    Both the `hold_open_kickdown` extra and ``kinematics["stop"] == "kick_down_holder"`` are this part."""
+    if any(g.name.startswith(name + "_") for g in leaf_body.geoms):
+        return                                     # the extra and the stop name the same holder; draw it once
+    hm = mat_from_material(model, "brass", "mat_kickdown")
+    xk = x0 + u * (W - 0.10)
+    leaf_body.geoms.append(box(f"{name}_housing", (xk, -v * (t / 2 + 0.016), z0 + 0.16),
+                               (0.022, 0.016, 0.045), hm, 8500, False, True, FULL_ONLY,
+                               "decor", "Kick-down holder housing"))
+    leaf_body.geoms.append(box(f"{name}_arm", (xk, -v * (t / 2 + 0.012), z0 + 0.095),
+                               (0.012, 0.006, 0.045), hm, 8500, False, True, FULL_ONLY,
+                               "decor", "Kick-down holder arm (retracted)"))
+    leaf_body.geoms.append(cyl(f"{name}_pad", (xk, -v * (t / 2 + 0.012), z0 + 0.052), 0.014, 0.006,
+                               mat_from_material(model, "pvc", "mat_kickdown_pad"), (0, 0, 1), 1200,
+                               False, True, FULL_ONLY, "decor", "Kick-down rubber foot"))
+    model.meta.setdefault("notes", []).append(
+        "Hold-open: surface kick-down holder on the latch stile, drawn retracted (the door ships closed); kicking "
+        "the arm down puts its rubber foot on the floor and holds the leaf where it stands.")
+
+
+def add_prop_arm(model: Model, world: Body, lid: Body, spec: dict, x_a: float, y_pivot: float, y_dir: float,
+                 L: float, z_face: float, face: float, socket_world: tuple, mat_id: str = "steel_galvanized"):
+    """The folding prop arm that holds a hatch lid open, and the socket on the curb that it stands in.
+
+    ``kinematics["stop"] == "prop_arm"`` used to draw nothing at all: the lid stood 90 deg open held by nothing
+    (docs/VISION_REVIEW.md class 7).  The arm is a real body hinged on the lid, lying folded against the lid's
+    outer face in the shipped (closed) pose and swinging out to stand in the curb socket as the lid rises; the
+    socket is a jawed bracket on the curb whose lip the arm's foot drops behind.  Coordinates are in the LID's own
+    frame; ``socket_world`` is the (x, y, z) of the socket on the curb."""
+    am = mat_from_material(model, mat_id, "mat_prop")
+    z_arm = z_face + face * 0.008
+    arm = Body("prop_arm", lid.name, (x_a, y_pivot, z_arm), QUAT_ID, None, [], [], FULL_SIMPLE, "mechanism", "Hatch prop arm")
+    arm.joint = Joint("prop_arm_hinge", "hinge", (1, 0, 0), (0, 0, 0), (0.0, 1.4), damping=0.4, frictionloss=0.8,
+                      role="mechanism", return_kind="gravity", robot_interactive=True,
+                      label="Prop arm (0 = folded on the lid, + = swung out to stand in the curb socket)")
+    arm.geoms.append(box("prop_arm_bar", (0, y_dir * L / 2, 0), (0.010, L / 2, 0.005), am, 7850,
+                         True, True, FULL_SIMPLE, "mechanism", "Prop arm bar"))
+    arm.geoms.append(box("prop_arm_foot", (0, y_dir * (L - 0.010), face * 0.009), (0.014, 0.012, 0.009),
+                         am, 7850, True, True, FULL_SIMPLE, "mechanism", "Prop arm foot"))
+    arm.sites.append(Site("prop_arm_grip", (0, y_dir * (L - 0.04), face * 0.012), QUAT_ID, 0.012, "grip"))
+    model.add_body(arm)
+    lid.geoms.append(cyl("prop_arm_knuckle", (x_a, y_pivot, z_arm), 0.009, 0.016, am, (1, 0, 0), 7850, False, True,
+                         FULL_SIMPLE, "mechanism", "Prop arm knuckle"))
+    # the clip that holds the arm folded: a post off the lid face beside the bar, with a lip over it
+    y_clip = y_pivot + y_dir * (L - 0.02)
+    lid.geoms.append(box("prop_arm_clip_post", (x_a + 0.024, y_clip, z_face + face * 0.009),
+                         (0.006, 0.010, 0.009), am, 7850, False, True, FULL_SIMPLE, "mechanism",
+                         "Prop arm clip post"))
+    lid.geoms.append(box("prop_arm_clip", (x_a + 0.010, y_clip, z_face + face * 0.0175),
+                         (0.020, 0.010, 0.0025), am, 7850, False, True, FULL_SIMPLE, "mechanism",
+                         "Prop arm retaining clip (holds the arm folded)"))
+    # the socket the arm stands in, on the curb
+    sx, sy, sz = socket_world
+    for k_, dx_ in enumerate((-0.020, 0.020)):
+        world.geoms.append(box(f"prop_arm_socket_{k_}", (sx + dx_, sy, sz + 0.014), (0.005, 0.018, 0.014), am, 7850,
+                               True, True, FULL_SIMPLE, "frame", "Prop arm socket jaw"))
+    world.geoms.append(box("prop_arm_socket_base", (sx, sy, sz + 0.004), (0.025, 0.018, 0.004), am, 7850, True, True,
+                           FULL_SIMPLE, "frame", "Prop arm socket base"))
+    model.meta.setdefault("clearance_allow", []).extend([
+        ["prop_arm_bar", "prop_arm_knuckle", "the arm turns in its own knuckle"],
+        ["prop_arm_bar", "prop_arm_clip*", "the folded arm is held by its clip"],
+        ["prop_arm_foot", "prop_arm_clip*", "the folded arm's foot sits under its clip"],
+    ])
+    model.contact_excludes.append((arm.name, lid.name))
+    model.meta.setdefault("notes", []).append(
+        "Hold-open: folding prop arm hinged on the lid with a socket on the curb.  It is drawn FOLDED, which is "
+        "where it lies on a shut hatch; swinging it out (prop_arm_hinge) stands it in the socket and it carries "
+        "the lid.  The stand-and-catch itself is left to the environment, as the shipped pose is the closed one.")
+    return arm
+
+
+def add_hook_holdback(model: Model, world: Body, leaf_body: Body, spec: dict, u: float, v: float,
+                      x0: float, W: float, t: float, Hh: float, zb: float = 0.0):
+    """Hook-and-eye holdback: a deck stanchion carrying a hook, and a pad-eye on the leaf that it catches.
+
+    Ten watertight doors were captioned ``stop=hook_holdback`` with no holdback modelled at all: at full open the
+    leaf was held by nothing (docs/VISION_REVIEW.md class 7).  The stanchion stands where the leaf's own face
+    arrives at its opening limit - the same strike computation the floor riser bumper uses - and the hook hangs
+    from its head on a gravity pivot, so it drops over the leaf's pad-eye when the door is swung right open."""
+    ang = math.radians(spec["kinematics"].get("max_open_deg") or 90)
+    jp = leaf_body.joint.pos if leaf_body.joint is not None else (u * GAP, v * (t / 2 + LEAF_FACE_INSET), 0.0)
+    wp = body_world_pos(model, leaf_body)
+    r = W * 0.85
+    phi = u * v * ang
+    c_, s_ = math.cos(phi), math.sin(phi)
+    nx, ny = -s_ * v, c_ * v
+    # below the lowest dog lever (they start 0.2 m up the leaf): the leaf's face is plain slab down here, and the
+    # stanchion is not swept by hardware standing proud of it
+    z_h = max(0.30, wp[2] + 0.15)                    # world z of the stanchion head
+    z_local = z_h - wp[2]                            # ... and the same height in the leaf's own frame
+    xs = x0 + u * r
+    proud = face_proud(leaf_body, v, t / 2, xs - 0.06, xs + 0.06, z_local - 0.05, z_local + 0.05)
+    rel = (xs - jp[0], v * (t / 2 + proud) - jp[1])
+    fx = wp[0] + jp[0] + c_ * rel[0] - s_ * rel[1]
+    fy = wp[1] + jp[1] + s_ * rel[0] + c_ * rel[1]
+    mm = mat_from_material(model, "steel_galvanized", "mat_holdback")
+    d_hook = 0.060                                   # m from the leaf face to the hook's own axis at full open
+    d_post = d_hook + 0.040                          # the stanchion stands clear behind it
+    hx_, hy_ = fx + nx * d_hook, fy + ny * d_hook
+    bx, by = fx + nx * d_post, fy + ny * d_post
+    world.geoms.append(cyl("holdback_stop_base", (bx, by, 0.004), 0.045, 0.004, mm, (0, 0, 1), 7850, True, True,
+                           FULL_SIMPLE, "frame", "Holdback stanchion base plate"))
+    world.geoms.append(cyl("holdback_stop_post", (bx, by, (0.008 + z_h) / 2), 0.016, (z_h - 0.008) / 2, mm, (0, 0, 1),
+                           7850, True, True, FULL_SIMPLE, "frame", "Holdback stanchion"))
+    world.geoms.append(box("holdback_stop_head", ((bx + hx_) / 2, (by + hy_) / 2, z_h), (0.026, 0.010, 0.008), mm,
+                           7850, True, True, FULL_SIMPLE, "frame", "Stanchion head (carries the hook pivot)",
+                           quat=tuple(quat_from_axis_angle([0, 0, 1], math.atan2(hy_ - by, hx_ - bx)))))
+    # the hook itself: hangs from the head on a gravity pivot, swinging in the plane of the leaf face
+    hook = Body("holdback_hook", None, (hx_, hy_, z_h - 0.010), QUAT_ID, None, [], [], FULL_SIMPLE, "latch", "Holdback hook")
+    hook.joint = Joint("holdback_hook_hinge", "hinge", (nx, ny, 0), (0, 0, 0), (-1.2, 1.2), damping=0.05,
+                       frictionloss=0.05, role="mechanism", return_kind="gravity", robot_interactive=True,
+                       label="Holdback hook (hangs on its pivot; drops over the leaf's pad-eye when the door is right open)")
+    tx, ty = -nx, -ny                                   # toward the leaf face
+    hook.geoms.append(cyl("holdback_hook_shank", (0, 0, -0.030), 0.005, 0.030, mm, (0, 0, 1),
+                          7850, True, True, FULL_SIMPLE, "latch", "Hook shank"))
+    hook.geoms.append(cyl("holdback_hook_bill", (tx * 0.014, ty * 0.014, -0.058), 0.005, 0.014, mm, (tx, ty, 0),
+                          7850, True, True, FULL_SIMPLE, "latch", "Hook bill"))
+    model.add_body(hook)
+    model.meta.setdefault("clearance_allow", []).append(
+        ["holdback_hook*", "holdback_stop_head", "the hook hangs on the head it pivots in"])
+    # the pad-eye the hook drops into, on the leaf face at the same height: a plate, two lugs and the pin across them
+    z_eye = z_local - 0.058                          # leaf-local: the pad-eye is a geom of the leaf
+    leaf_body.geoms.append(box("holdback_eye_keeper_pad", (xs, -v * (t / 2 + 0.0025), z_eye), (0.030, 0.0025, 0.022),
+                               mm, 7850, False, True, FULL_SIMPLE, "latch", "Holdback pad-eye plate"))
+    for sx_ in (-1, 1):
+        leaf_body.geoms.append(box(f"holdback_eye_keeper_lug_{'p' if sx_ > 0 else 'n'}",
+                                   (xs + sx_ * 0.014, -v * (t / 2 + 0.012), z_eye), (0.005, 0.0075, 0.014),
+                                   mm, 7850, False, True, FULL_SIMPLE, "latch", "Pad-eye lug"))
+    leaf_body.geoms.append(cyl("holdback_eye_keeper_pin", (xs, -v * (t / 2 + 0.016), z_eye), 0.004, 0.014, mm,
+                               (1, 0, 0), 7850, False, True, FULL_SIMPLE, "latch", "Pad-eye pin"))
+    model.meta.setdefault("notes", []).append(
+        "Hold-open: hook-and-eye holdback - a deck stanchion at the leaf's opening limit carrying a gravity-hung "
+        "hook, and a pad-eye on the leaf face it drops over.")
 
 
 def brace_pending(model: Model):
@@ -1882,20 +2042,8 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
                                dm, 2700, False, True, FULL_ONLY, "decor", "Weather drip cap"))
         brace_to_structure(world, world.geoms[-1], -v, dm, name="weather_drip_cap_bracket",
                            semantic="decor", label="Drip cap fixing", tiers=FULL_ONLY, span=0.30)
-    if "hold_open_kickdown" in ex:
-        hm = mat_from_material(model, "brass", "mat_kickdown")
-        # kick-down holder on the leaf's latch stile, low, retracted: the latch stile is the part that
-        # leaves the frame first as the door opens, so a face-mounted holder there sweeps nothing
-        xk = x0 + u * (W - 0.10)
-        leaf_body.geoms.append(box("kickdown_housing", (xk, -v * (t / 2 + 0.016), z0 + 0.16),
-                                   (0.022, 0.016, 0.045), hm, 8500, False, True, FULL_ONLY,
-                                   "decor", "Kick-down holder housing"))
-        leaf_body.geoms.append(box("kickdown_arm", (xk, -v * (t / 2 + 0.012), z0 + 0.095),
-                                   (0.012, 0.006, 0.045), hm, 8500, False, True, FULL_ONLY,
-                                   "decor", "Kick-down holder arm (retracted)"))
-        leaf_body.geoms.append(cyl("kickdown_pad", (xk, -v * (t / 2 + 0.012), z0 + 0.052), 0.014, 0.006,
-                                   mat_from_material(model, "pvc", "mat_kickdown_pad"), (0, 0, 1), 1200,
-                                   False, True, FULL_ONLY, "decor", "Kick-down rubber pad"))
+    if "hold_open_kickdown" in ex or spec["kinematics"].get("stop") == "kick_down_holder":
+        add_kick_down_holder(model, leaf_body, spec, u, v, x0, z0, W, t)
     if "coat_hook" in ex:
         key, mesh = MESH.coat_hook_mesh()
         hm = mat_from_material(model, "chrome", "mat_hook")
@@ -1958,6 +2106,14 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
     if "transom_window" in ex and spec["opening"].get("transom"):
         gm = mat_from_material(model, "glass_clear", "mat_transom")
         world.geoms.append(box("transom_glass", (0, 0, Ho + 0.05 + 0.2), (Wo / 2, 0.003, 0.18), gm, 2500, True, True, FULL_SIMPLE, "glass", "Transom"))
+    if "threshold_saddle" in ex and not any(g.name.startswith("threshold") for g in world.geoms):
+        # A saddle is a real sill member.  22 sliding doors declared one and got nothing, because
+        # add_threshold only fires on ``opening["threshold"]`` and a sliding spec sets that to "none".
+        tm = mat_from_material(model, "aluminum", "mat_threshold")
+        y_w = float(model.meta.get("wall_y", 0.0))
+        depth = max(0.06, float(spec["opening"]["wall_thickness"]) / 2 + 0.02)
+        world.geoms.append(box("threshold_saddle", (0, y_w, 0.006), (Wo / 2 + 0.02, depth, 0.006), tm, 2700,
+                               True, True, FULL_SIMPLE, "frame", "Threshold saddle"))
     if "door_stop_floor" in ex or spec["kinematics"].get("stop") == "floor_dome":
         sm = mat_from_material(model, "chrome", "mat_stop")
         # dome on the swing side floor at the max-open sweep position of the leaf's far edge

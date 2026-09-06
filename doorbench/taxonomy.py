@@ -134,7 +134,10 @@ EXTRAS = {
     "push_pull_sign": ["swing_single", "swing_double"],
     "vision_lite_grille": ["swing_single"],
     "door_stop_floor": ["swing_single", "swing_double", "pivot"],
-    "door_stop_wall": ["swing_single", "swing_double"],
+    # "door_stop_wall" was here and no builder ever drew one.  It cannot be drawn either: a wall bumper only
+    # reaches a leaf that folds back flat against its own wall, and every hinged door in this dataset is capped at
+    # 135-140 deg by its casing (spec.make_specs).  The 21 doors that declared it now declare "door_stop_floor",
+    # which is the stop those doors really take and which is drawn.  See doorbench/spec_realized.py.
     "hold_open_kickdown": ["swing_single"],
     "wreath": ["swing_single"],
     "keypad_reader_wall": ["swing_single", "swing_double", "automatic_sliding", "gate_swing", "gate_sliding", "elevator"],

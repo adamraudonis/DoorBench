@@ -57,8 +57,57 @@ def add_tracks(model, world, spec, leaf_defs, y_leaf, jamb_t, material):
                 count = math.ceil((x1 - x0 - 0.10) / 0.6)
                 x = x0 + 0.05 + (x1 - x0 - 0.10) * k / count
                 world.geoms.append(C.cyl(f"track_standoff_{k}", (x, (rear + wall_face) / 2, z), 0.012, (wall_face - rear) / 2, material, (0, 1, 0), 7850, False, True, FULL_ONLY, "track", "Wall-to-track spacer"))
+    if "soft_close_damper" in (spec.get("extras") or []):
+        add_soft_close_dampers(model, world, spec, leaf_defs, definitions, material)
     model.meta["sliding_track_supports"] = list(definitions.values())
     return definitions
+
+
+def add_soft_close_dampers(model, world, spec, leaf_defs, definitions, material):
+    """Soft-close damper units on the rail, and the trigger blade on each leaf that runs into them.
+
+    ``soft_close_damper`` is one of the extras no builder ever drew (docs/VISION_REVIEW.md class 6): six doors
+    declared one and had nothing.  It cannot live in ``add_extras``, which has no access to the track - the damper
+    is a rail part, bolted at the closing end of the run beside the end stop, with a catch blade on the leaf's top
+    edge that runs into its piston over the last few centimetres.  The capture itself is not simulated (the
+    closing energy is already in the joint's damping); the blade keeps a running clearance under the unit."""
+    W, Hh, t = (spec["leaf"][k] for k in ("width", "height", "thickness"))
+    dm = C.mat_from_material(model, "black_matte_metal", "mat_softclose")
+    for name, direction, xc, yl in leaf_defs:
+        d = definitions.get(name)
+        if d is None:
+            continue
+        rail = next((g for g in world.geoms if g.name == d["rail"]), None)
+        if rail is None:
+            continue
+        z_rail_lo = float(rail.pos[2]) - float(rail.size[2])
+        if z_rail_lo < 0.5:
+            continue                      # a bottom rail / shikii has no room for an overhead damper
+        lo, hi = d["nominal_range"]
+        x_closed = xc + direction * lo
+        # At the CLOSING end of the rail, past the closed leaf's own carriers (they sit 120 mm in from each edge),
+        # so nothing that runs on the rail ever reaches the unit.
+        x_unit = x_closed - direction * (W / 2 + 0.01)
+        y_unit = float(rail.pos[1])
+        z_unit = z_rail_lo - 0.028
+        pfx = "" if len(leaf_defs) == 1 else name + "_"
+        world.geoms.append(C.box(pfx + "soft_close_body", (x_unit, y_unit, z_unit), (0.038, 0.014, 0.016), dm, 1400,
+                                 True, True, C.FULL_SIMPLE, "track", "Soft-close damper unit"))
+        world.geoms.append(C.box(pfx + "soft_close_bracket", (x_unit, y_unit, z_rail_lo - 0.008),
+                                 (0.020, 0.014, 0.008), dm, 7850, False, True, C.FULL_SIMPLE, "track",
+                                 "Damper mounting bracket"))
+        world.geoms.append(C.cyl(pfx + "soft_close_piston", (x_unit + direction * 0.052, y_unit, z_unit), 0.005, 0.016,
+                                 dm, (1, 0, 0), 7850, False, True, C.FULL_ONLY, "track", "Damper piston rod"))
+        body = next((b for b in model.bodies if b.name == name), None)
+        if body is not None:
+            # the trigger blade on the leaf's closing edge, under the rail, with a running clearance under the unit
+            body.geoms.append(C.box(pfx + "soft_close_catch", (-direction * (W / 2 - 0.04), y_unit - float(body.pos[1]),
+                                                               z_unit - float(body.pos[2]) - 0.032),
+                                    (0.012, 0.010, 0.010), dm, 7850, False, True, C.FULL_SIMPLE, "track",
+                                    "Soft-close trigger blade"))
+    model.meta.setdefault("notes", []).append(
+        "Soft-close damper: rail-mounted unit at the closing end with the trigger blade on the leaf; the capture is "
+        "not simulated - the closing energy is carried by the slide joint's damping.")
 
 
 def add_barn_hangers(model, world, body, spec, zb, support, roller_material, track_material):

@@ -311,11 +311,30 @@ def build_sliding(spec, phys, model: Model):
                 b.geoms.append(C.box(f"{name}_ebolt_keeper_{'p' if sx_ > 0 else 'n'}", (x_latch_edge + dir_ * 0.08 + sx_ * 0.018, f_eb * (t / 2 + 0.014), zk), (0.006, 0.014, 0.02), ebm, 7900, True, True, ALL_TIERS, "lock", "Keeper block"))
             b.geoms.append(C.box(f"{name}_ebolt_keeper_base", (x_latch_edge + dir_ * 0.08, f_eb * (t / 2 + 0.002), zk), (0.03, 0.002, 0.03), ebm, 7900, False, True, FULL_SIMPLE, "lock", "Keeper plate"))
             model.meta["env_release_joint"] = eb.joint.name
-        if opm.kind in ("flush_pull", "pull", "push_plate"):
-            faces = [-1.0, 1.0] if spec["operator"].get("sides", "both") == "both" and abs(yl) < 0.05 and not fixed_panel else [-1.0]
-            for f in faces:
+        if opm.kind in ("lever",):
+            # a walk-in cooler slider carries a big lever latch handle on the face; the sliding builder used to
+            # handle only pulls and the hook slider, so two doors declared a cold-storage handle and drew none
+            both_l = spec["operator"].get("sides", "both") == "both"
+            far_clear_l = abs(yl) < 0.05 and not fixed_panel
+            hb = C.add_rotary_operator(model, b, spec, phys, opm, dir_ * -1.0, 1.0, x_latch_edge + dir_ * 0.07, hz, t,
+                                       [-1.0, 1.0] if both_l and far_clear_l else [-1.0], None, name=f"{name}_handle")
+            if both_l and not far_clear_l:
+                # the far face runs past the wall the leaf slides along: it gets the recessed pull a real
+                # cold-room slider carries there (the inside release), not a lever that would sweep the wall
+                C.add_pull(model, b, H.OPERATORS["pull_flush_recessed"], dir_ * -1.0, x_latch_edge + dir_ * 0.10, hz, t,
+                           1.0, name=f"{name}_ext_pull")
+            model.meta.setdefault("operator_joint", hb.joint.name)
+        if opm.kind in ("flush_pull", "pull", "push_plate", "ring_pull"):
+            # `sides == "both"` is a promise that the far face carries its half of the set.  Where the far face is
+            # clear it gets the same pull; where the leaf runs past a wall (a barn door, |yl| >= 50 mm) or past a
+            # fixed panel, a surface pull there would sweep it, so that face gets the RECESSED flush pull a real
+            # barn / pocket door has.  It used to get nothing at all on 38 sliding doors, so a robot approaching
+            # from the far side found a blank slab (docs/VISION_REVIEW.md class 8).
+            both_faces = spec["operator"].get("sides", "both") == "both"
+            far_clear = abs(yl) < 0.05 and not fixed_panel
+            for f in ([-1.0, 1.0] if both_faces and far_clear else [-1.0]):
                 C.add_pull(model, b, opm, dir_ * -1.0, x_latch_edge + dir_ * 0.09, hz, t, f, name=f"{name}_pull")
-            if fixed_panel and spec["operator"].get("sides", "both") == "both" and opm.id != "pull_flush_recessed":
+            if both_faces and not far_clear:
                 C.add_pull(model, b, H.OPERATORS["pull_flush_recessed"], dir_ * -1.0, x_latch_edge + dir_ * 0.09, hz, t, 1.0, name=f"{name}_ext_pull")
             if opm.id == "barn_privacy_hook":
                 # teardrop latch on robot face at latch edge pivoting about y; hooks over a keeper on the jamb
@@ -686,21 +705,54 @@ def build_revolving(spec, phys, model: Model):
         rotor.geoms.append(C.box(f"wing_{k}_stile", ((R - 0.02) * math.cos(a), (R - 0.02) * math.sin(a), (z_bot + z_top) / 2), (0.02, 0.03, (z_top - z_bot) / 2), fm, 2700, True, True, ALL_TIERS, "leaf", "Wing stile", quat=q))
         rotor.geoms.append(C.box(f"wing_{k}_rail_b", (Wl / 2 * math.cos(a), Wl / 2 * math.sin(a), z_bot + 0.04), (Wl / 2, 0.03, 0.04), fm, 2700, True, True, FULL_SIMPLE, "leaf", "Bottom rail", quat=q))
         rotor.geoms.append(C.box(f"wing_{k}_rail_t", (Wl / 2 * math.cos(a), Wl / 2 * math.sin(a), z_top - 0.04), (Wl / 2, 0.03, 0.04), fm, 2700, True, True, FULL_SIMPLE, "leaf", "Top rail", quat=q))
-        # push bar on each wing
-        if spec["operator"]["model"] in ("pull_d", "push_plate"):
+        # The wing operator is the one the spec sampled.  The builder used to draw a tubular pull bar whatever the
+        # spec said, so 3 doors captioned `operator push_plate` carried a bar (docs/VISION_REVIEW.md class 13).
+        op_id = spec["operator"]["model"]
+        if op_id in ("pull_d", "push_plate"):
             pm = C.mat_from_material(model, "stainless", "mat_op_stainless")
             xb, yb = (R * 0.6) * math.cos(a), (R * 0.6) * math.sin(a)
             nx, ny = -math.sin(a), math.cos(a)
-            rotor.geoms.append(Geom(f"wing_{k}_bar", "capsule", (0.012, 0.15), (xb + nx * (t / 2 + 0.05), yb + ny * (t / 2 + 0.05), 1.0), (1, 0, 0, 0), pm, True, True, 7900, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Push bar"))
-            for dz_ in (-0.12, 0.12):
-                rotor.geoms.append(C.cyl(f"wing_{k}_bar_stud_{'u' if dz_ > 0 else 'd'}",
-                                         (xb + nx * (t / 2 + 0.026), yb + ny * (t / 2 + 0.026), 1.0 + dz_), 0.009, 0.028,
-                                         pm, (nx, ny, 0), 7900, False, True, ALL_TIERS, "operator", "Push bar standoff"))
-            rotor.sites.append(Site(f"wing_{k}_push", (xb + nx * (t / 2 + 0.05), yb + ny * (t / 2 + 0.05), 1.0), QUAT_ID, 0.015, "push"))
+            faces_ = (-1.0, 1.0) if spec["operator"].get("sides", "both") == "both" else (-1.0,)
+            for sf in faces_:
+                sfx = "" if sf < 0 else "_p"
+                if op_id == "push_plate":
+                    # a flat push plate lying on the wing face, as on every automatic revolving door
+                    sz = H.OPERATORS["push_plate"].style_params.get("size", (0.10, 0.40))
+                    rotor.geoms.append(C.box(f"wing_{k}_push_plate{sfx}",
+                                             (xb + sf * nx * (t / 2 + 0.001), yb + sf * ny * (t / 2 + 0.001), 1.0),
+                                             (sz[1] / 2, 0.001, sz[0] / 2), pm, 7900, False, True, ALL_TIERS,
+                                             "operator", "Push plate", quat=quat_from_axis_angle([0, 0, 1], a)))
+                    rotor.sites.append(Site(f"wing_{k}_push{sfx}", (xb + sf * nx * (t / 2 + 0.004), yb + sf * ny * (t / 2 + 0.004), 1.0), QUAT_ID, 0.015, "push"))
+                    continue
+                rotor.geoms.append(Geom(f"wing_{k}_bar{sfx}", "capsule", (0.012, 0.15), (xb + sf * nx * (t / 2 + 0.05), yb + sf * ny * (t / 2 + 0.05), 1.0), (1, 0, 0, 0), pm, True, True, 7900, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Push bar"))
+                for dz_ in (-0.12, 0.12):
+                    rotor.geoms.append(C.cyl(f"wing_{k}_bar{sfx}_stud_{'u' if dz_ > 0 else 'd'}",
+                                             (xb + sf * nx * (t / 2 + 0.026), yb + sf * ny * (t / 2 + 0.026), 1.0 + dz_), 0.009, 0.028,
+                                             pm, (nx, ny, 0), 7900, False, True, ALL_TIERS, "operator", "Push bar standoff"))
+                rotor.sites.append(Site(f"wing_{k}_push{sfx}", (xb + sf * nx * (t / 2 + 0.05), yb + sf * ny * (t / 2 + 0.05), 1.0), QUAT_ID, 0.015, "push"))
+    # build_revolving never called add_extras, so every revolving door silently dropped the push/pull signs its
+    # spec declares (docs/VISION_REVIEW.md class 6, 15 doors).  The signs go on the leading wing, which is the one
+    # a person meets; Wo/Ho here are the drum opening.
+    C.add_extras(model, world, rotor, spec, 1.0, 1.0, 0.02, 0.05, R - 0.04, Hh - 0.05, t, op["width"], op["height"])
     _sites(world, Hh, -R - 1.0, R + 1.0)
     model.meta.update({"primary_joint": "rotor_hinge", "operator_joint": None, "handle_height": 1.0, "drum_diameter": D,
                        "running_clearance_min": ROTOR_MIN_CLEAR})
     return rotor
+
+
+def add_turnstile_reader(model, world, spec, host, x, y, z, nx, ny, mat):
+    """The card / keypad reader a turnstile's spec declares, on the turnstile's own furniture.
+
+    ``keypad_reader_wall`` was dropped by both turnstile builders (docs/VISION_REVIEW.md class 6, 20 doors).  A
+    turnstile has no wall to put a reader on - on the real thing it is let into the cabinet head or bolted to the
+    barrier post - so it is mounted on ``host``'s face here rather than through ``add_extras``."""
+    if "keypad_reader_wall" not in (spec.get("extras") or []):
+        return
+    world.geoms.append(C.box("wall_reader", (x, y, z), (0.045, 0.055, 0.012), mat, 1000, True, True, FULL_SIMPLE,
+                             "sensor", "Card / keypad reader", quat=C.quat_from_axis_angle([0, 0, 1], math.atan2(ny, nx))))
+    world.geoms.append(C.box("wall_reader_plate", (x - nx * 0.013, y - ny * 0.013, z), (0.050, 0.060, 0.004), mat,
+                             1000, False, True, FULL_SIMPLE, "sensor", "Reader back plate",
+                             quat=C.quat_from_axis_angle([0, 0, 1], math.atan2(ny, nx))))
 
 
 def build_turnstile(spec, phys, model: Model, full_height=False):
@@ -743,6 +795,8 @@ def build_turnstile(spec, phys, model: Model, full_height=False):
             d = math.cos(a) * e1 + math.sin(a) * e2
             rotor.geoms.append(Geom(f"arm_{k}_col", "capsule", (0.019, 0.20), tuple(d * 0.30), tuple(quat_z_to(d)), "mat_op_stainless", True, False, 7900, 2.0, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", f"Arm {k + 1}"))
         rotor.sites.append(Site("arm_push", tuple(e1 * 0.45), QUAT_ID, 0.015, "push"))
+        add_turnstile_reader(model, world, spec, "cabinet", xc, -(cab_d / 2 - 0.06) - 0.06 - 0.012, cab_h - 0.20,
+                             0.0, -1.0, C.mat_from_material(model, "black_matte_metal", "mat_wallreader"))
         world.sites.append(Site("approach_point", (xc + cab_w / 2 + 0.55, -1.2, 0), QUAT_ID, 0.05, "approach"))
         world.sites.append(Site("goal_point", (xc + cab_w / 2 + 0.55, 1.2, 0), QUAT_ID, 0.05, "goal"))
         world.sites.append(Site("door_plane_center", (xc + cab_w / 2 + 0.55, 0, 1.0), QUAT_ID, 0.02, "pass_plane"))
@@ -790,6 +844,8 @@ def build_turnstile(spec, phys, model: Model, full_height=False):
             z = 0.15 + m * (Hh - 0.3) / (arms - 1)
             rotor.geoms.append(Geom(f"wing_{k}_arm_{m}", "capsule", (0.019, Rr / 2), tuple(d * Rr / 2 + np.array([0, 0, z])), tuple(quat_z_to(d)), sm, True, True, 7900, 0.9, (0.6, 0.005, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS if m % 2 == 0 else FULL_SIMPLE, "operator", "Arm"))
         rotor.sites.append(Site(f"wing_{k}_push", tuple(d * Rr * 0.8 + np.array([0, 0, 1.0])), QUAT_ID, 0.015, "push"))
+    add_turnstile_reader(model, world, spec, "barrier_n", cage_R + 0.4, -(cage_R + 0.1) - 0.02 - 0.012, 1.10,
+                         0.0, -1.0, C.mat_from_material(model, "black_matte_metal", "mat_wallreader"))
     world.sites.append(Site("approach_point", (cage_R + 0.4, -1.5, 0), QUAT_ID, 0.05, "approach"))
     world.sites.append(Site("goal_point", (cage_R + 0.4, 1.5, 0), QUAT_ID, 0.05, "goal"))
     world.sites.append(Site("door_plane_center", (cage_R * 0.5, 0, 1.0), QUAT_ID, 0.02, "pass_plane"))
@@ -925,11 +981,15 @@ def build_vertical(spec, phys, model: Model):
     opm = H.OPERATORS[spec["operator"]["model"]]
     hz = spec["operator"]["height"]
     if fam == "rollup" and opm.kind in ("pull", "ring_pull", "none"):
-        C.add_pull(model, lb, H.OPERATORS["pull_lift_garage"], 1.0, 0.0, 0.16, t, -1.0, name="lift_handle")
-        # add_pull assumes leaf centered at y=0; shift for the curtain plane offset
-        for g in lb.geoms[-2:]:
-            g.pos = (g.pos[0], g.pos[1] + y_leaf, g.pos[2])
-        lb.sites[-1].pos = (lb.sites[-1].pos[0], lb.sites[-1].pos[1] + y_leaf, lb.sites[-1].pos[2])
+        # a shutter is pulled down from inside and lifted from outside: the handle set is on both faces where the
+        # spec says so (it used to be on the robot face alone - docs/VISION_REVIEW.md class 8)
+        for f_ in ([-1.0, 1.0] if spec["operator"].get("sides", "both") == "both" and opm.kind != "none" else [-1.0]):
+            C.add_pull(model, lb, H.OPERATORS["pull_lift_garage"], 1.0, 0.0, 0.16, t, f_,
+                       name="lift_handle" if f_ < 0 else "lift_handle_far")
+            # add_pull assumes leaf centered at y=0; shift for the curtain plane offset
+            for g in lb.geoms[-2:]:
+                g.pos = (g.pos[0], g.pos[1] + y_leaf, g.pos[2])
+            lb.sites[-1].pos = (lb.sites[-1].pos[0], lb.sites[-1].pos[1] + y_leaf, lb.sites[-1].pos[2])
     elif opm.kind == "pull":
         for f in (-1.0, 1.0):
             C.add_pull(model, lb, opm, 1.0, 0.0, hz, t, f, name="lift_handle")
@@ -1100,7 +1160,15 @@ def build_horizontal(spec, phys, model: Model):
                 sb.joint.range = (0.0, 0.001)
             C.add_keeper_loop(world.geoms, "hatch_bolt_keeper", (Wo / 2 + 0.028, 0.0, zf + 0.04), (Wo / 2 + 0.028, 0.0, zf + 0.04 + t / 2 + 0.010), (1, 0, 0), (0, 0, 1), 0.006, bm, FULL_SIMPLE, base=0.03)
         if kin.get("stop") == "prop_arm":
-            model.meta.setdefault("notes", []).append("prop arm holds hatch open (env can lock joint at max)")
+            # the lid's own frame: hinge at y = 0, free edge at y = -Ho, outer face at +-t/2 (a floor hatch is
+            # propped from below - the pit side - a ceiling scuttle from above, the loft side)
+            face_ = 1.0 if ceiling else -1.0
+            L_ = min(0.40, max(0.22, Ho * 0.55))
+            y_piv = -0.10
+            # on the hinge side away from the slide bolt (which runs along the lid's +x edge)
+            x_arm = -W * 0.30
+            C.add_prop_arm(model, world, lb, spec, x_arm, y_piv, -1.0, L_, face_ * t / 2, face_,
+                           (x_arm, -Ho / 2 - curb / 2, zf + 0.04))
         world.sites.append(Site("approach_point", (0, -1.5, zf if not ceiling else 0), QUAT_ID, 0.05, "approach"))
         world.sites.append(Site("goal_point", (0, 0, zf - 1.0 if not ceiling else elev + 0.5), QUAT_ID, 0.05, "goal"))
         world.sites.append(Site("door_plane_center", (0, 0, zf), QUAT_ID, 0.02, "pass_plane"))
@@ -1200,7 +1268,8 @@ def build_horizontal(spec, phys, model: Model):
             hb = C.add_rotary_operator(model, lb, spec, phys, opm, 1.0, 1.0, 0.0, hz - zp, t, [-1.0], None, name="t_handle")
             model.meta["operator_joint"] = hb.joint.name
         else:
-            C.add_pull(model, lb, opm, 1.0, 0.0, hz - zp, t, -1.0, name="lift_handle")
+            for f_ in ([-1.0, 1.0] if spec["operator"].get("sides", "both") == "both" and opm.both_sides else [-1.0]):
+                C.add_pull(model, lb, opm, 1.0, 0.0, hz - zp, t, f_, name="lift_handle" if f_ < 0 else "lift_handle_far")
         if spec["lock"].get("engaged") and not spec["lock"].get("robot_side_release"):
             j.range = (0.0, 0.01)
         _sites(world, Ho, -2.0, 2.0)

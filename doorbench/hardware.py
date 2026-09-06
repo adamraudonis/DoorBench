@@ -438,7 +438,13 @@ _l(LatchModel("hook_slider", "Hook lock (sliding patio)", "hook", 0.020, (0.010,
 _l(LatchModel("gravity_bar", "Gravity latch bar (Suffolk / barn)", "gravity_bar", 0.025, (0.008, 0.030), 0.0, 0, 0.0, 0, 1500, "Latch bar rests in keeper by gravity"))
 _l(LatchModel("slide_bolt", "Slide bolt (manual)", "slide_bolt", 0.030, (0.012, 0.012), 0.0, 0, 0.0, 0, 3000, "Barrel bolt"))
 _l(LatchModel("slide_bolt_heavy", "Heavy slide bolt / drop bar", "slide_bolt", 0.060, (0.020, 0.020), 0.0, 0, 0.0, 0, 15000, "Cane bolt"))
+_l(LatchModel("dogs_4", "Watertight door dogs (4 wedge dogs)", "dogs", 0.030, (0.020, 0.050), 0.0, 0, 0.0, 0, 34000, "Quick-acting WT door"))
 _l(LatchModel("dogs_6", "Watertight door dogs (6 wedge dogs)", "dogs", 0.030, (0.020, 0.050), 0.0, 0, 0.0, 0, 50000, "Quick-acting WT door"))
+_l(LatchModel("dogs_8", "Watertight door dogs (8 wedge dogs)", "dogs", 0.030, (0.020, 0.050), 0.0, 0, 0.0, 0, 66000, "Quick-acting WT door"))
+# Lever-bolt boltwork (blast / lever-operated vault doors): N levers, each throwing its own bolt.
+_l(LatchModel("multi_bolt_2", "Lever boltwork (2 x 32 mm bolts)", "multi_bolt", 0.050, (0.032, 0.032), 0.0, 0, 0.0, 0, 100000, "Blast door lever bolts"))
+_l(LatchModel("multi_bolt_3", "Lever boltwork (3 x 32 mm bolts)", "multi_bolt", 0.050, (0.032, 0.032), 0.0, 0, 0.0, 0, 150000, "Blast door lever bolts"))
+_l(LatchModel("multi_bolt_6", "Vault multi-bolt (6 x 32 mm bolts)", "multi_bolt", 0.050, (0.032, 0.032), 0.0, 0, 0.0, 0, 300000, "Vault boltwork"))
 _l(LatchModel("multi_bolt_4", "Vault multi-bolt (4 x 25 mm bolts)", "multi_bolt", 0.040, (0.025, 0.025), 0.0, 0, 0.0, 0, 200000, "Vault boltwork"))
 _l(LatchModel("multi_bolt_8", "Vault multi-bolt (8 x 32 mm bolts)", "multi_bolt", 0.050, (0.032, 0.032), 0.0, 0, 0.0, 0, 400000, "Vault boltwork"))
 _l(LatchModel("electric_strike", "Electric strike (fail-secure) on tubular latch", "electric_strike", 0.0127, (0.0127, 0.0254), 3.5, 400, 0.070, 0, 3000, "HES 1006; released by access control", strike_type="electric"))
@@ -518,7 +524,15 @@ STOPS = {
     "none": {"name": "No stop (frame/hinge geometry limits only)", "max_open_deg": 180, "compliant": False},
     # geometry.common.add_bumper_stop decides the mount from the leaf's own travel: a wall plate where the leaf
     # folds back to the wall, the floor riser real doors use where it stops perpendicular to it (every door here)
-    "wall_bumper": {"name": "Rubber bumper stop (wall plate / floor riser)", "max_open_deg": 90, "compliant": True},
+    # `wall_bumper` / `wall_180` / `corridor_wall_120` are SAMPLED but never survive into a spec: spec.make_specs
+    # rewrites all three to `floor_bumper`, because a wall bumper cannot reach a leaf that stops 90-135 deg from its
+    # own wall and no hinged door in this dataset opens further than that.  They are kept here because they name the
+    # travel each of those doors gets.
+    "wall_bumper": {"name": "Rubber bumper stop (wall plate)", "max_open_deg": 90, "compliant": True},
+    # A wall bumper cannot reach a leaf that stops perpendicular to its own wall, which is every door that stops
+    # at 90-135 deg.  Those doors get the floor riser real doors use there, and the spec names it (the caption used
+    # to say wall_bumper on 149 doors that all built a floor riser - docs/VISION_REVIEW.md class 12).
+    "floor_bumper": {"name": "Rubber bumper stop (floor riser)", "max_open_deg": 90, "compliant": True},
     "floor_dome": {"name": "Floor dome stop", "max_open_deg": 95, "compliant": True},
     "hinge_pin": {"name": "Hinge-pin stop", "max_open_deg": 100, "compliant": True},
     "overhead_90": {"name": "Overhead stop 90 deg", "max_open_deg": 90, "compliant": False},
@@ -528,6 +542,10 @@ STOPS = {
     "corridor_wall_120": {"name": "Perpendicular wall at 120 deg", "max_open_deg": 120, "compliant": True},
     "wedge_jammed": {"name": "Door wedge jammed under leaf (holds at 0-2 deg)", "max_open_deg": 2, "compliant": False},
     "kick_down_holder": {"name": "Kick-down holder (down: holds open)", "max_open_deg": 110, "compliant": False},
+    # Stops the family builders set directly (they are hardware, and they are drawn):
+    "prop_arm": {"name": "Folding prop arm (hatch lid held open)", "max_open_deg": 90, "compliant": True},
+    "hook_holdback": {"name": "Hook-and-eye holdback (leaf latched open)", "max_open_deg": 150, "compliant": True},
+    "track_end": {"name": "End of the sliding track", "max_open_deg": None, "compliant": True},
 }
 
 SEALS = {

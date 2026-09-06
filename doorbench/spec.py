@@ -47,6 +47,15 @@ def _u(rng, a, b):
     return a + (b - a) * rng.random()
 
 
+# Operator kinds that are physically one-sided hardware: the part exists on one face of the leaf and there is no
+# mirrored half on the other.  `spec["operator"]["sides"]` is narrowed to one face for these (see make_specs).
+# Stops whose name promises a WALL the leaf never reaches (see make_specs): they resolve to the floor riser.
+STOP_NAMED_WALL = ("wall_bumper", "wall_180", "corridor_wall_120")
+
+SINGLE_FACE_OPERATOR_KINDS = {"gate_latch_fork", "lift_latch", "hasp", "slide_bolt_handle", "t_handle", "ring_pull",
+                              "cremone", "wheel"}
+
+
 def _round(x, q=0.001):
     return round(round(x / q) * q, 6)
 
@@ -256,7 +265,7 @@ def gen_swing_single(i, ctx, B, rng):
         seal = B.pick("ri:seal", {"none": 6, "brush_pile": 1, "door_sweep": 1})
         cond = B.pick("ri:cond", {"new": 3, "normal": 4, "worn": 2, "old_dry": 1, "swollen": 1, "sagging": 1, "well_oiled": 1})
         use = B.pick("ri:use", ["bedroom door", "bathroom door", "closet door", "home office door", "pantry door", "laundry room door", "hallway door", "nursery door", "basement door", "guest room door"])
-        for e in ("coat_hook", "pet_flap", "door_stop_wall", "hold_open_kickdown", "wreath", "louver_vent"):
+        for e in ("coat_hook", "pet_flap", "door_stop_floor", "hold_open_kickdown", "wreath", "louver_vent"):
             if rng.random() < 0.10:
                 extras.append(e)
         frame = {"kind": "wood_jamb_casing", "material": "pine", "casing": True, "stop_depth": 0.012, "jamb_depth": 0.115}
@@ -323,7 +332,7 @@ def gen_swing_single(i, ctx, B, rng):
         seal = B.pick("co:seal", {"none": 4, "brush_pile": 2, "silicone_bulb": 1, "automatic_drop_seal": 1})
         cond = B.pick("co:cond", {"new": 4, "normal": 4, "worn": 2, "well_oiled": 1, "old_dry": 1})
         use = B.pick("co:use", ["private office door", "conference room door", "corridor door", "restroom door (public)", "server room door", "break room door", "reception door", "storage room door", "classroom door"])
-        for e, p in (("kick_plate", 0.4), ("push_pull_sign", 0.2), ("rex_button", 0.15), ("keypad_reader_wall", 0.15), ("door_stop_wall", 0.2), ("bumper_rail", 0.1), ("coat_hook", 0.1)):
+        for e, p in (("kick_plate", 0.4), ("push_pull_sign", 0.2), ("rex_button", 0.15), ("keypad_reader_wall", 0.15), ("door_stop_floor", 0.2), ("bumper_rail", 0.1), ("coat_hook", 0.1)):
             if rng.random() < p:
                 extras.append(e)
         if lock in ("mag_lock", "electric_strike", "card_reader") and "keypad_reader_wall" not in extras:
@@ -1134,7 +1143,7 @@ def gen_ship(i, ctx, B, rng):
     s["hinge"] = hinge_block("ship_hinge", 2, B.pick("sw:side", ["left", "right"]), swing)
     s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": B.pick("sw:mo", {110: 1, 150: 1, 180: 1}), "stop": "hook_holdback", "dogs": n_dogs, "wheel_dogging": op == "wheel_ship_hatch"}   # quick-acting doors carry the same dogs; the wheel drives all of them at once
     s["operator"] = {"model": op, "height": _round(Hh * 0.5), "sides": "both"}
-    s["latch"] = {"model": "dogs_6"}
+    s["latch"] = {"model": f"dogs_{n_dogs}"}      # the model name must count the dogs the builder makes
     s["lock"] = {"model": "dogs"}
     s["closer"] = {"model": "none", "en_size": None, "spring_adjust": 1.0}
     s["seal"], s["condition"], s["extras"] = "watertight_rubber", B.pick("sw:cond", {"normal": 2, "worn": 1, "rusty": 2, "well_oiled": 1}), ["warning_placard"]
@@ -1156,9 +1165,17 @@ def gen_vault(i, ctx, B, rng, blast=False):
     s["leaf"] = {"width": W, "height": Hh, "thickness": t, "slab": slab, "panel_style": B.pick(f"{fam}:panel", {"steel_flush": 2, "riveted_steel": 1}), "finish": finish_for(slab, "security_detention", B, rng), "count": 1, "glazing": None}
     s["opening"] = {"width": _round(W + 0.01), "height": _round(Hh + 0.07), "wall_thickness": _round(t + 0.2), "frame": {"kind": "vault_frame", "material": "steel", "casing": False, "stop_depth": 0.02, "jamb_depth": t + 0.2}, "threshold": "sill_step", "sidelite": False, "transom": False}
     s["hinge"] = hinge_block("vault_hinge", B.pick(f"{fam}:hn", {2: 2, 3: 1}), B.pick(f"{fam}:side", ["left", "right"]), swing)
-    s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": B.pick(f"{fam}:mo", {100: 2, 120: 1, 170: 1}), "stop": "none", "bolts": B.pick(f"{fam}:bolts", {4: 2, 8: 1}) if op == "wheel_vault" else 0}
+    # Boltwork count.  A handwheel drives 4 or 8 bolts through the boltwork; a lever-bolt door has one lever per
+    # bolt and the robot must work every one of them.  The count is sampled for BOTH mechanisms and the latch model
+    # names it, because the builder builds exactly this many: the spec used to say `dogs_6` on every lever-bolt
+    # door while the builder made two (docs/VISION_REVIEW.md class 9).
+    # A handwheel drives 4 or 8 bolts through the boltwork; a lever-bolt door has one lever per bolt.  The lever
+    # count cycles deterministically on the door index rather than through the balanced sampler, so that adding it
+    # does not disturb every other draw in the dataset.
+    n_bolts = B.pick(f"{fam}:bolts", {4: 2, 8: 1}) if op == "wheel_vault" else (2, 3, 4, 2)[i % 4]
+    s["kinematics"] = {"type": "hinge_vertical", "max_open_deg": B.pick(f"{fam}:mo", {100: 2, 120: 1, 170: 1}), "stop": "none", "bolts": n_bolts}
     s["operator"] = {"model": op, "height": _round(Hh * 0.5), "sides": "both" if op != "wheel_vault" else "robot"}
-    s["latch"] = {"model": "multi_bolt_8" if s["kinematics"]["bolts"] == 8 else ("multi_bolt_4" if op == "wheel_vault" else "dogs_6")}
+    s["latch"] = {"model": f"multi_bolt_{n_bolts}"}
     s["lock"] = {"model": "vault_wheel" if op == "wheel_vault" else "dogs"}
     s["closer"] = {"model": "none", "en_size": None, "spring_adjust": 1.0}
     s["seal"], s["condition"], s["extras"] = B.pick(f"{fam}:seal", {"gasket_rubber_heavy": 2, "none": 1}), B.pick(f"{fam}:cond", {"new": 1, "normal": 2, "well_oiled": 1, "old_dry": 1}), ["warning_placard"]
@@ -1509,7 +1526,7 @@ def generate_all(seed: int = 20260903) -> list[dict]:
         if s["kinematics"].get("double_egress"):
             s["opening"]["wall_thickness"] = 0.10      # double-egress pairs sit in a thin partition (each leaf swings its own way)
             s["opening"]["frame"]["jamb_depth"] = 0.10
-        if (s["family"] == "sliding_bypass" or s["kinematics"].get("track") == "top_hung_pocket") and H.OPERATORS[s["operator"]["model"]].kind in ("pull", "ring_pull"):
+        if (s["family"] == "sliding_bypass" or s["kinematics"].get("track") == "top_hung_pocket") and H.OPERATORS[s["operator"]["model"]].kind in ("pull", "ring_pull", "knob"):
             s["operator"]["model"] = "pull_flush_recessed"    # leaves that pass each other / enter a pocket need flush pulls
             s.setdefault("tags", []).append("flush_pull_required")
         if s["family"] == "saloon":
@@ -1527,6 +1544,40 @@ def generate_all(seed: int = 20260903) -> list[dict]:
             s.setdefault("tags", []).append("frameless_glass_patch_lock_omitted")
         if s["operator"]["model"] in ("slide_bolt_barrel", "slide_bolt_heavy", "cane_bolt_drop") and s["lock"]["model"] == "none":
             s["lock"] = {"model": "slide_bolt", "engaged": True, "robot_side_release": True}
+        # The operator catalogue's own `both_sides` says whether the set really is on both faces.  A chain-link fork
+        # latch, a barrel bolt, a garage T-handle, a MagnaLatch, a baby-gate latch, a ring pull and a handwheel are
+        # one-sided hardware: a spec that declares them on "both" faces promises a robot approaching from the far
+        # side something that is not there and cannot be (docs/VISION_REVIEW.md class 8, 129 doors).  Narrow the
+        # declaration to the face the hardware is actually on; every operator that IS a two-sided set keeps "both"
+        # and the builders draw it on both faces.
+        # The stop must name the kind of stop that is actually there.  A wall bumper only reaches a leaf that folds
+        # back flat against its own wall, and every hinged door here is capped at 135-140 deg by its casing (the cap
+        # above), so `wall_bumper`, `wall_180` and `corridor_wall_120` all describe a wall the leaf never reaches:
+        # 189 doors were captioned with one of them and 130 of those built the floor riser that a leaf stopping
+        # perpendicular to its wall really takes, while 59 built nothing at all (docs/VISION_REVIEW.md classes 7,
+        # 12).  The angle each of them stops at is kept exactly - only the name of the stop changes, to the one
+        # `common.add_bumper_stop` builds and `qa.checks["spec_realized"]` verifies.
+        if s["kinematics"].get("stop") in STOP_NAMED_WALL:
+            s["kinematics"]["stop"] = "floor_bumper"
+            s.setdefault("tags", []).append("stop_floor_riser")
+        opm_ = H.OPERATORS[s["operator"]["model"]]
+        if s["operator"].get("sides") == "both" and not opm_.both_sides and opm_.kind in SINGLE_FACE_OPERATOR_KINDS:
+            s["operator"]["sides"] = "robot"
+            s.setdefault("tags", []).append("operator_single_face")
+        # Extras the leaf itself cannot carry are not declared.  The builders used to skip these silently, so the
+        # caption promised hardware the model did not have: a louvre vent on an already-louvred leaf, a vent or a
+        # kick plate in the bottom third of a leaf that a pet flap already occupies, a knocker on a face crossed by
+        # its own bracing.  A spec that cannot be built is a spec that is wrong.
+        ex_ = set(s.get("extras", []))
+        panel_ = s["leaf"].get("panel_style")
+        if panel_ in ("louver_full", "louver_half"):
+            ex_.discard("louver_vent")
+        if panel_ in ("plank_z_brace", "plank_x_brace", "board_batten"):
+            ex_.discard("knocker")
+        if "pet_flap" in ex_ or s["leaf"].get("pet_flap"):
+            ex_ -= {"louver_vent", "kick_plate"}
+        if ex_ != set(s.get("extras", [])):
+            s["extras"] = sorted(ex_)
         assign_task(s, B)
         specs.append(s)
         i += 1

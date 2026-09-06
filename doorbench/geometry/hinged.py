@@ -701,9 +701,11 @@ def build_swing_single(spec, phys, model: Model, leaf_name="leaf", pair=None):
         ex_spec = {**spec, "extras": [e for e in spec["extras"] if e in ("kick_plate", "armor_plate", "bumper_rail", "push_pull_sign", "warning_placard")]}
     C.add_extras(model, world, leaf_body, ex_spec, u, v, x_leaf0, zb, W, Hh, t, Wo, Ho)
     C.add_pet_flap(model, leaf_body, spec, u, x_leaf0, zb, W, t)
-    # opening stop hardware: a rubber bumper on a real mount (wall plate or floor riser), struck by the leaf at the limit
+    # opening stop hardware: a rubber bumper on a real mount (wall plate or floor riser), struck by the leaf at the
+    # limit.  A pair gets ONE stop, on the active leaf: 19 double doors declared a bumper stop and had none, because
+    # this was skipped for every pair (docs/VISION_REVIEW.md class 12).
     stop = spec["kinematics"].get("stop")
-    if stop in ("wall_bumper",) and not pair:
+    if stop in ("wall_bumper", "floor_bumper") and (not pair or leaf_name == "leaf_a"):
         C.add_bumper_stop(model, world, leaf_body, spec, u, v, hx, x_leaf0, W, t, Hh, zb)
     # --- sites for benchmark
     world.sites.append(Site("approach_point", (0, -1.5, 0), QUAT_ID, 0.05, "approach"))
@@ -903,7 +905,7 @@ def build_saloon(spec, phys, model: Model):
                 C.add_pull(model, b, H.OPERATORS["push_plate"], u, u * (t / 2 + 0.006 + W - 0.12), zb + Hh * 0.6, t, f, name=f"{name}_push_plate")
         if "kick_plate" in spec["extras"]:
             for f in (-1.0, 1.0):
-                C.add_kick_plate(model, b, u, u * (t / 2 + 0.006), zb, W, t, f, name=f"{name}_kick_{'p' if f > 0 else 'n'}")
+                C.add_kick_plate(model, b, u, u * (t / 2 + 0.006), zb, W, t, f, name=f"{name}_kick_plate_{'p' if f > 0 else 'n'}")
         b.sites.append(Site(f"{name}_push_site", (u * (t / 2 + 0.006 + W * 0.75), -(t / 2), zb + Hh * 0.6), QUAT_ID, 0.015, "push"))
         bodies.append(b)
     world.sites.append(Site("approach_point", (0, -1.5, 0), QUAT_ID, 0.05, "approach"))
@@ -913,7 +915,7 @@ def build_saloon(spec, phys, model: Model):
     return bodies
 
 
-def _dog_shaft(d, mat, t: float, v: float, edge_dir: float):
+def _dog_shaft(d, mat, t: float, v: float, edge_dir: float, far_lever: bool = False):
     """The dog's shaft through the door and the crank out to its wedge.
 
     A dog is a lever on a shaft that passes through the door; the wedge sits on a crank on that shaft.  Without them
@@ -924,6 +926,9 @@ def _dog_shaft(d, mat, t: float, v: float, edge_dir: float):
     # leave the lever floating beside the wedge
     lo = min(-(t / 2 + 0.012), -v * (t / 2 + 0.046), -t / 2 + 0.004)
     hi = max(-(t / 2 + 0.012), -v * (t / 2 + 0.046), t / 2 - 0.004)
+    if far_lever:
+        # a dog is worked from EITHER side of a watertight door: the shaft carries a handle on both faces
+        lo, hi = min(lo, -(t / 2 + 0.012)), max(hi, t / 2 + 0.012)
     d.geoms.append(C.cyl(f"{d.name}_shaft", (0, (lo + hi) / 2, 0), 0.008, (hi - lo) / 2, mat, (0, 1, 0), 7800, False, True, ALL_TIERS, "lock", "Dog shaft"))
     d.geoms.append(C.box(f"{d.name}_crank", (edge_dir * 0.026, -v * wy, 0), (0.026, 0.012, 0.018), mat, 7800, False, True, ALL_TIERS, "lock", "Dog crank"))
 
@@ -986,6 +991,7 @@ def build_ship(spec, phys, model: Model):
             positions.append((u * (0.004 + 0.06), z, -u))         # hinge stile dogs
         positions = positions[:n_dogs]
     wb = None
+    two_sided_dogs = spec["operator"].get("sides") == "both" and opm.both_sides
     ROD_TRAVEL = 0.05                                             # m of push-rod travel over the wheel's full turn
     DOG_FIT = 0.0005                                              # m of slop between a dogged wedge and its cleat
     if wheel_dogging:
@@ -1002,15 +1008,25 @@ def build_ship(spec, phys, model: Model):
             # crank riding the stile push rod: the visible link between the linkage and this dog
             d.geoms.append(C.cyl(f"dog_{k}_rod_crank", (-edge_dir * 0.04, -1.0 * (t / 2 + 0.020), 0), 0.007, 0.04, mat, (1, 0, 0), 7800, False, True, FULL_SIMPLE, "mechanism", "Dog crank (driven by the push rod)"))
         else:
-            # lever on robot face (-1), wedge beyond edge
+            # A dog is worked from EITHER side of a watertight bulkhead door - that is the point of the shaft
+            # through the leaf - and the spec says so (`operator.sides == "both"`).  Only the robot-face handle
+            # used to be drawn, so a robot arriving from the far side found a blank plate
+            # (docs/VISION_REVIEW.md class 8).
             key, mesh = MESH.lever_mesh(shape="dog", length=0.22, diameter=0.025, rose_diameter=0.06, standoff=0.05)
-            d.geoms.append(C.mesh_geom(f"dog_{k}_lever", key, mesh, (0, -1.0 * (t / 2 + 0.009), 0), C.q_face(-1.0, edge_dir), mat, 7800, False, ALL_TIERS, "operator", "Dog lever"))
-            d.geoms.append(Geom(f"dog_{k}_lever_col", "capsule", (0.0125, 0.10), (-edge_dir * 0.11, -1.0 * (t / 2 + 0.05), 0), tuple(quat_z_to((1, 0, 0))), mat, True, False, 7800, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Dog lever grip"))
-            d.sites.append(Site(f"dog_{k}_grip", (-edge_dir * 0.18, -1.0 * (t / 2 + 0.05), 0), QUAT_ID, 0.012, "grip"))
+            # The operator catalogue's mass is the mass of the SET (both sides), so a two-sided pair is drawn at half
+            # the density each: two full-weight handles would double the dog's own mass and, more to the point,
+            # double the gravity moment that its detent friction has to hold - which back-drives every dog and lets
+            # a door with one dog still engaged swing open.
+            dens_lv = 7800 / (2 if two_sided_dogs else 1)
+            for f_ in ((-1.0, 1.0) if two_sided_dogs else (-1.0,)):
+                tag_ = "" if f_ < 0 else "_far"
+                d.geoms.append(C.mesh_geom(f"dog_{k}_lever{tag_}", key, mesh, (0, f_ * (t / 2 + 0.009), 0), C.q_face(f_, edge_dir), mat, dens_lv, False, ALL_TIERS, "operator", "Dog lever"))
+                d.geoms.append(Geom(f"dog_{k}_lever{tag_}_col", "capsule", (0.0125, 0.10), (-edge_dir * 0.11, f_ * (t / 2 + 0.05), 0), tuple(quat_z_to((1, 0, 0))), mat, True, False, dens_lv, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Dog lever grip"))
+                d.sites.append(Site(f"dog_{k}_grip{tag_}", (-edge_dir * 0.18, f_ * (t / 2 + 0.05), 0), QUAT_ID, 0.012, "grip"))
         # wedge: box protruding beyond the leaf edge over the flange when dogged (pointing +edge_dir), lying on the -v face plane
         wy = t / 2 + 0.034
         d.geoms.append(C.box(f"dog_{k}_wedge", (edge_dir * 0.06, -v * wy, 0), (0.05, 0.012, 0.02), mat, 7800, True, True, ALL_TIERS, "lock", "Dog wedge"))
-        _dog_shaft(d, mat, t, v, edge_dir)
+        _dog_shaft(d, mat, t, v, edge_dir, far_lever=two_sided_dogs and not wheel_dogging)
         model.add_body(d)
         dog_joints.append(d.joint.name)
         if wheel_dogging and wb is not None:
@@ -1059,6 +1075,8 @@ def build_ship(spec, phys, model: Model):
     if "warning_placard" in spec["extras"]:
         pm = C.mat_rgba(model, "mat_placard", (0.95, 0.75, 0.05, 1), 0.5)
         lb.geoms.append(C.box("warning_placard", (u * (0.004 + W / 2), -1.0 * (t / 2 + 0.001), Hh * 0.8), (0.11, 0.001, 0.08), pm, 1000, False, True, FULL_ONLY, "decor", "Warning placard"))
+    if spec["kinematics"].get("stop") == "hook_holdback":
+        C.add_hook_holdback(model, world, lb, spec, u, v, u * 0.004, W, t, Hh, zb=0.004)
     world.sites.append(Site("approach_point", (0, -1.5, 0), QUAT_ID, 0.05, "approach"))
     world.sites.append(Site("goal_point", (0, 1.5, 0), QUAT_ID, 0.05, "goal"))
     world.sites.append(Site("door_plane_center", (0, 0, sill + Ho / 2), QUAT_ID, 0.02, "pass_plane"))
@@ -1118,13 +1136,30 @@ def build_vault(spec, phys, model: Model):
         mat = C.mat_from_material(model, opm.material, f"mat_op_{opm.material}")
         bm = C.mat_from_material(model, "stainless", "mat_vault_bolt")
         throw = 0.05 + max(0.0, Wo - W - 0.006 - 0.004)
-        for k, z in enumerate([zb + Hh * 0.25, zb + Hh * 0.75]):
-            d = Body(f"dog_{k}", lb.name, (x_edge - u * 0.12, 0, z), QUAT_ID, None, [], [], ALL_TIERS, "lock", f"Lever bolt {k + 1}")
+        # One lever per bolt, and the spec's latch model names how many there are.  The builder used to make two
+        # whatever the spec said, so 12 doors were captioned `dogs_6` / `multi_bolt_8` and had 2 or 4 levers
+        # (docs/VISION_REVIEW.md class 9).
+        n_lever = max(1, int(spec["kinematics"].get("bolts") or 2))
+        two_sided = spec["operator"].get("sides") == "both" and opm.both_sides
+        z_lo_, z_hi_ = zb + 0.32, zb + Hh - 0.32
+        for k, z in enumerate([z_lo_ + (z_hi_ - z_lo_) * (i + 0.5) / n_lever for i in range(n_lever)] if n_lever > 1 else [zb + Hh / 2]):
+            # The lever's spindle sits ABOVE its bolt: the bolt slides along the leaf's own mid-plane, and a spindle
+            # through the leaf on that line would be swept by the withdrawn bolt.
+            z_lever = z + 0.09
+            d = Body(f"dog_{k}", lb.name, (x_edge - u * 0.12, 0, z_lever), QUAT_ID, None, [], [], ALL_TIERS, "lock", f"Lever bolt {k + 1}")
             d.joint = Joint(f"dog_{k}_hinge", "hinge", (0, -u, 0), (0, 0, 0), (0.0, 1.5708), damping=1.0, frictionloss=6.0, role="lock", label=f"Lever bolt {k + 1} (0 = engaged, + = released; detent friction 6 N*m, not back-drivable)")
-            key, mesh = MESH.lever_mesh(shape="dog", length=0.30, diameter=0.03, rose_diameter=0.08, standoff=0.06)
-            d.geoms.append(C.mesh_geom(f"dog_{k}_lever", key, mesh, (0, -1.0 * t / 2, 0), C.q_face(-1.0, u), mat, 7800, False, ALL_TIERS, "operator", "Lever"))
-            d.geoms.append(Geom(f"dog_{k}_lever_col", "capsule", (0.015, 0.14), (-u * 0.15, -1.0 * (t / 2 + 0.06), 0), tuple(quat_z_to((1, 0, 0))), mat, True, False, 7800, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Lever grip"))
-            d.sites.append(Site(f"dog_{k}_grip", (-u * 0.25, -1.0 * (t / 2 + 0.06), 0), QUAT_ID, 0.012, "grip"))
+            # the levers must clear each other when they are swung: shorten them where the bolts are close together
+            lev_len = min(0.30, max(0.18, (z_hi_ - z_lo_) / n_lever - 0.07)) if n_lever > 1 else 0.30
+            key, mesh = MESH.lever_mesh(shape="dog", length=lev_len, diameter=0.03, rose_diameter=0.08, standoff=0.06)
+            dens_lv = 7800 / (2 if two_sided else 1)   # the catalogue mass is the SET's; see build_ship
+            for f_ in ((-1.0, 1.0) if two_sided else (-1.0,)):
+                tag_ = "" if f_ < 0 else "_far"
+                d.geoms.append(C.mesh_geom(f"dog_{k}_lever{tag_}", key, mesh, (0, f_ * t / 2, 0), C.q_face(f_, u), mat, dens_lv, False, ALL_TIERS, "operator", "Lever"))
+                d.geoms.append(Geom(f"dog_{k}_lever{tag_}_col", "capsule", (0.015, lev_len / 2 - 0.01), (-u * (lev_len / 2), f_ * (t / 2 + 0.06), 0), tuple(quat_z_to((1, 0, 0))), mat, True, False, dens_lv, None, (0.7, 0.01, 0.0001), None, None, False, None, None, 0.0, ALL_TIERS, "operator", "Lever grip"))
+                d.sites.append(Site(f"dog_{k}_grip{tag_}", (-u * (lev_len - 0.06), f_ * (t / 2 + 0.06), 0), QUAT_ID, 0.012, "grip"))
+            if two_sided:
+                # the lever shaft runs right through the leaf so both handles are on the same spindle
+                d.geoms.append(C.cyl(f"dog_{k}_shaft", (0, 0, 0), 0.011, t / 2 + 0.004, mat, (0, 1, 0), 7800, False, True, ALL_TIERS, "lock", "Lever bolt shaft"))
             model.add_body(d)
             b = Body(f"bolt_{k}", lb.name, (x_edge, 0, z), QUAT_ID, None, [], [], ALL_TIERS, "lock", f"Bolt {k + 1}")
             b.joint = Joint(f"bolt_{k}_slide", "slide", (-u, 0, 0), (0, 0, 0), (0.0, throw), damping=20.0, frictionloss=25.0, role="lock", label=f"Bolt {k + 1} (0 = thrown)", robot_interactive=False)
@@ -1155,6 +1190,9 @@ def build_vault(spec, phys, model: Model):
             for dz in (-1, 1):
                 world.geoms.append(C.box(f"hinge_{k}_bracket_{'t' if dz > 0 else 'b'}", (xb_, vdp * (face_ + y1_) / 2, z + dz * 0.17),
                                          (0.05, (y1_ - face_) / 2, 0.05), hm, 7850, False, True, FULL_SIMPLE, "hinge", "Crane hinge frame bracket"))
+    # extras: build_vault never called add_extras, so every vault and blast door silently dropped the
+    # warning placard its spec declares (docs/VISION_REVIEW.md class 6, 14 doors)
+    C.add_extras(model, world, lb, spec, u, v, u * 0.006, zb, W, Hh, t, Wo, Ho)
     world.sites.append(Site("approach_point", (0, -1.5, 0), QUAT_ID, 0.05, "approach"))
     world.sites.append(Site("goal_point", (0, 1.5, 0), QUAT_ID, 0.05, "goal"))
     world.sites.append(Site("door_plane_center", (0, 0, Ho / 2), QUAT_ID, 0.02, "pass_plane"))
@@ -1245,6 +1283,12 @@ def build_stall(spec, phys, model: Model):
     if opm.kind != "slide_bolt_handle":
         for f in (-1.0, 1.0):
             C.add_pull(model, lb, opm, u, x_edge - u * 0.08, hz - 0.15, t, f, name="pull")
+    else:
+        # The slide latch and its knob are on the inside face only, and the spec says the operator is on both
+        # (`sides == "both"`, and `stall_slide_latch.both_sides` is True): the outside face of a partition door
+        # carries the pull you open it by.  It used to carry nothing at all (docs/VISION_REVIEW.md class 8).
+        C.add_pull(model, lb, H.OPERATORS["pull_flush_recessed"], u, x_edge - u * 0.08, hz - 0.15, t, -v,
+                   name="outside_pull")
     if True:
         inside = v   # slide latch on the face the door swings toward (opposite the stop strip on the pilaster)
         sb = Body("slide_latch", lb.name, (x_edge - u * 0.05, inside * (t / 2 + 0.008), hz), QUAT_ID, None, [], [], ALL_TIERS, "latch", "Slide latch")
