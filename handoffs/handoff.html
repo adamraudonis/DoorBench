@@ -1,0 +1,313 @@
+<title>DoorBench Handoff</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper:#F6F7F9; --panel:#FFFFFF; --ink:#191C21; --ink-soft:#535A64; --ink-faint:#828A95;
+    --rule:#DCE0E6; --rule-soft:#E9ECF0;
+    --brass:#9E6B1F; --brass-soft:#F0E4CF;
+    --pass:#2C6E49; --pass-soft:#E1EDE5;
+    --open:#A8412A; --open-soft:#F6E3DD;
+    --shadow:0 1px 2px rgba(25,28,33,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:#131519; --panel:#1A1D23; --ink:#E8EAEE; --ink-soft:#A5ADB8; --ink-faint:#7B838E;
+      --rule:#2B2F37; --rule-soft:#22262D;
+      --brass:#D2A052; --brass-soft:#3A2F1B;
+      --pass:#6BBF8E; --pass-soft:#1D2E24;
+      --open:#E08A70; --open-soft:#33211C;
+      --shadow:0 1px 2px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#131519; --panel:#1A1D23; --ink:#E8EAEE; --ink-soft:#A5ADB8; --ink-faint:#7B838E;
+    --rule:#2B2F37; --rule-soft:#22262D;
+    --brass:#D2A052; --brass-soft:#3A2F1B;
+    --pass:#6BBF8E; --pass-soft:#1D2E24;
+    --open:#E08A70; --open-soft:#33211C;
+    --shadow:0 1px 2px rgba(0,0,0,.3);
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    background:var(--paper); color:var(--ink);
+    font-family:"Source Serif 4", Georgia, serif; font-size:17px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1080px; margin:0 auto; padding:0 28px 96px; }
+  .measure { max-width:68ch; }
+
+  h1,h2,h3,.ui { font-family:Archivo, "Helvetica Neue", Arial, sans-serif; }
+  h1 { font-size:clamp(34px,5vw,52px); line-height:1.04; font-weight:700; letter-spacing:-.022em; margin:0; text-wrap:balance; }
+  h2 { font-size:26px; font-weight:600; letter-spacing:-.012em; margin:0; text-wrap:balance; }
+  h3 { font-size:18px; font-weight:600; letter-spacing:-.006em; margin:0; text-wrap:balance; }
+  p { margin:0; }
+  a { color:var(--brass); text-underline-offset:3px; }
+  code, .mono { font-family:"IBM Plex Mono", ui-monospace, Menlo, monospace; font-size:.87em; }
+  code { background:var(--rule-soft); padding:1px 5px; border-radius:3px; }
+
+  .eyebrow {
+    font-family:"IBM Plex Mono", monospace; font-size:11px; font-weight:500;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint);
+  }
+
+  /* ---- masthead ---- */
+  header { padding:64px 0 32px; border-bottom:1px solid var(--rule); display:flex; flex-direction:column; gap:20px; }
+  .lede { font-size:19px; color:var(--ink-soft); max-width:60ch; }
+  .stamp {
+    display:flex; flex-wrap:wrap; gap:8px 22px; font-family:"IBM Plex Mono", monospace;
+    font-size:12.5px; color:var(--ink-faint);
+  }
+  .stamp b { color:var(--ink-soft); font-weight:500; }
+
+  /* ---- gate rail: 26 ticks, one per gate ---- */
+  .rail { display:flex; flex-direction:column; gap:9px; padding:20px 0 4px; }
+  .ticks { display:flex; gap:3px; align-items:flex-end; height:26px; }
+  .tick { flex:1; background:var(--pass); border-radius:1px; height:100%; opacity:.82; }
+  .tick.tall { height:100%; }
+  .rail-label { display:flex; justify-content:space-between; gap:16px; }
+
+  /* ---- status strip ---- */
+  .status { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:0; border:1px solid var(--rule); border-radius:6px; background:var(--panel); overflow:hidden; }
+  .stat { padding:16px 18px; border-right:1px solid var(--rule); display:flex; flex-direction:column; gap:4px; }
+  .stat:last-child { border-right:none; }
+  .stat .k { font-family:"IBM Plex Mono", monospace; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); }
+  .stat .v { font-family:Archivo, sans-serif; font-size:23px; font-weight:600; letter-spacing:-.01em; font-variant-numeric:tabular-nums; }
+  .stat .n { font-size:13px; color:var(--ink-soft); font-family:Archivo, sans-serif; }
+  .v.warn { color:var(--open); }
+
+  section { padding:52px 0 0; display:flex; flex-direction:column; gap:20px; }
+  .sec-head { display:flex; flex-direction:column; gap:8px; }
+
+  /* ---- ordered steps: the sequence is real ---- */
+  ol.steps { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:22px; counter-reset:s; }
+  ol.steps > li { display:grid; grid-template-columns:34px 1fr; gap:16px; counter-increment:s; }
+  ol.steps > li::before {
+    content:counter(s); font-family:"IBM Plex Mono", monospace; font-size:12px; font-weight:600;
+    color:var(--brass); border-top:2px solid var(--brass); padding-top:7px;
+  }
+  .step-body { display:flex; flex-direction:column; gap:10px; min-width:0; }
+
+  ul.plain { margin:0; padding-left:1.1em; display:flex; flex-direction:column; gap:9px; }
+  ul.plain li::marker { color:var(--ink-faint); }
+
+  /* ---- tables ---- */
+  .tablewrap { overflow-x:auto; border:1px solid var(--rule); border-radius:6px; background:var(--panel); }
+  table { border-collapse:collapse; width:100%; font-size:14.5px; }
+  th, td { text-align:left; padding:11px 16px; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+  thead th {
+    font-family:"IBM Plex Mono", monospace; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink-faint); font-weight:500; border-bottom:1px solid var(--rule); white-space:nowrap;
+  }
+  tbody tr:last-child td { border-bottom:none; }
+  td.num { font-family:"IBM Plex Mono", monospace; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.gate { font-family:"IBM Plex Mono", monospace; font-size:13px; color:var(--pass); white-space:nowrap; }
+  .big { font-weight:600; }
+
+  pre {
+    margin:0; overflow-x:auto; background:var(--panel); border:1px solid var(--rule);
+    border-left:2px solid var(--brass); border-radius:4px; padding:14px 16px;
+    font-family:"IBM Plex Mono", monospace; font-size:13px; line-height:1.65; color:var(--ink-soft);
+  }
+  pre b { color:var(--ink); font-weight:500; }
+
+  .note { border-left:2px solid var(--brass); padding:2px 0 2px 16px; color:var(--ink-soft); font-size:15.5px; }
+
+  .branch { display:flex; flex-direction:column; gap:6px; padding:16px 18px; border:1px solid var(--rule); border-radius:6px; background:var(--panel); }
+  .branchgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; }
+  .bname { font-family:"IBM Plex Mono", monospace; font-size:13px; font-weight:600; color:var(--brass); }
+
+  .pill { display:inline-block; font-family:"IBM Plex Mono", monospace; font-size:11px; padding:2px 7px; border-radius:3px; white-space:nowrap; }
+  .pill.ok { background:var(--pass-soft); color:var(--pass); }
+  .pill.no { background:var(--open-soft); color:var(--open); }
+
+  footer { margin-top:64px; padding-top:24px; border-top:1px solid var(--rule); color:var(--ink-faint); font-size:14px; }
+  @media (max-width:640px) { .stat { border-right:none; border-bottom:1px solid var(--rule); } body { font-size:16px; } }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Handoff · 5 September 2026</div>
+  <h1>DoorBench: the state of the doors</h1>
+  <p class="lede">A thousand procedurally generated articulated doors, twenty-six deterministic gates, and a working method for finding the defects that gates miss. Everything below is on <code>master</code> and reproducible in four minutes.</p>
+  <div class="stamp">
+    <span><b>master</b> d7111948d</span>
+    <span><b>doors</b> 1000 / 1000 signed off</span>
+    <span><b>tests</b> 1656 passing</span>
+    <span><b>full handoff</b> handoffs/CONTINUE_HERE.md</span>
+  </div>
+</header>
+
+<div class="rail">
+  <div class="ticks" id="ticks"></div>
+  <div class="rail-label">
+    <span class="eyebrow">26 gates, every one inside sign-off</span>
+    <span class="eyebrow">each exists because something obvious slipped past</span>
+  </div>
+</div>
+
+<section>
+  <div class="status">
+    <div class="stat"><span class="k">Clearance</span><span class="v">1000</span><span class="n">no interpenetration</span></div>
+    <div class="stat"><span class="k">Attachment</span><span class="v">1000</span><span class="n">nothing floats</span></div>
+    <div class="stat"><span class="k">USD export</span><span class="v">1000</span><span class="n">both kinds valid</span></div>
+    <div class="stat"><span class="k">MuJoCo reference</span><span class="v">1000</span><span class="n">every phase passes</span></div>
+    <div class="stat"><span class="k">Isaac parity</span><span class="v warn">stale</span><span class="n">re-run on GPU</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head measure">
+    <span class="eyebrow">The method</span>
+    <h2>Find one defect, prove its scope, gate the class</h2>
+  </div>
+  <p class="measure">Every gate on that rail exists because a person or an agent looked at a door and saw something obviously wrong that no automated check caught. The loop that works: find one defect, measure how many of the thousand doors share it, fix the generator, add a deterministic gate so the class cannot return, regenerate and confirm.</p>
+  <p class="measure">Two independent finders drive it. A <b>second physics engine</b> — Isaac Sim and PhysX checked against MuJoCo — catches anything where two engines disagree about what the model means. A <b>visual review</b> renders each door as a twelve-panel sheet captioned with what the spec claims is there, and asks an agent what looks wrong; it found defects in 97 of 122 doors, every one of which passed all gates. Neither replaces the other, and both produce false positives that must be killed by measurement rather than argument.</p>
+</section>
+
+<section>
+  <div class="sec-head measure">
+    <span class="eyebrow">Start here</span>
+    <h2>Three things, in this order</h2>
+  </div>
+
+  <ol class="steps">
+    <li>
+      <div class="step-body">
+        <h3>Merge two finished branches that conflict with each other</h3>
+        <p class="measure">The last workflow was stopped mid-flight. All four fix agents finished and pushed; the verifier never ran. Two branches are already merged into master. Two are not, and neither has been adversarially verified.</p>
+        <div class="branchgrid">
+          <div class="branch">
+            <span class="bname">wf6-fix-overhead <span class="pill no">unmerged</span></span>
+            <p style="font-size:14.5px;color:var(--ink-soft)">Roll-up curtains coil instead of rising as a rigid slab out of their guides. Closes the two-metre hole in the wall above every sectional garage door. Bolts the garage opener to something. Adds a <span class="mono">guided_travel</span> gate.</p>
+          </div>
+          <div class="branch">
+            <span class="bname">wf6-fix-declared <span class="pill no">unmerged</span></span>
+            <p style="font-size:14.5px;color:var(--ink-soft)">Draws the hardware every spec declares — 156 extras, 35 hold-open stops, 129 both-face operators — and adds <span class="mono">spec_realized</span>: the spec is a contract and the geometry must satisfy it.</p>
+          </div>
+        </div>
+        <p class="note">They collide in one hunk: both rewrote the garage builder in <code>doorbench/geometry/other.py</code>, around the <code>garage_slide_lock</code> block. Merge overhead first, then declared, and reconcile by hand keeping overhead's structure and declared's intent. Conflicts in <code>results/parity/mujoco*.json</code> are generated — take either side and re-run the reference.</p>
+      </div>
+    </li>
+
+    <li>
+      <div class="step-body">
+        <h3>Re-run Isaac parity; the badges are stale</h3>
+        <p class="measure">The mass fix changed the physics of 219 doors after the last GPU run, so <code>qa.json.isaac_parity</code> is empty. The last good run scored <b>925 of 1000</b> doors at strict parity on the full export and 879 on the canonical one, with 935 badged ok. Full recipe in <code>docs/RUNPOD.md</code>; the whole cycle costs about $2.50 at $1.09 an hour.</p>
+        <pre><b>python scripts/runpod_pod.py create && python scripts/runpod_pod.py wait && python scripts/runpod_pod.py bootstrap</b>
+# ~25 min to BOOTSTRAP DONE, then on the pod:
+#   source isaaclab/cloud/env.sh && tmux new -d -s p 'bash isaaclab/cloud/parity.sh --force > logs/p.log 2>&1'
+# ~70 min, then locally:
+<b>python scripts/parity_compare.py && python scripts/isaaclab/parity_report.py && python scripts/merge_isaac_results.py</b>
+<b>python scripts/runpod_pod.py terminate</b>   # always arm a teardown timer</pre>
+        <p class="note">Trap worth knowing: regenerating the dataset rewrites <code>qa.json</code> and drops the parity badges. Re-run <code>merge_isaac_results.py</code> after every regeneration, or teach the generator to carry the block forward when the door's inputs hash is unchanged.</p>
+      </div>
+    </li>
+
+    <li>
+      <div class="step-body">
+        <h3>Close the 42 parity disagreements still open</h3>
+        <p class="measure">From the last run, each named with a likely cause in <code>docs/ISAAC_PARITY.md</code>: a latch that holds in MuJoCo but lets go in PhysX on 36 sliding singles and swing pairs, rising-hinge drift on 16 cold-storage doors, six env-release welds still unseen, seven canonical-articulation residues, three velocity explosions.</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section>
+  <div class="sec-head measure">
+    <span class="eyebrow">Already fixed</span>
+    <h2>Do not reintroduce these</h2>
+  </div>
+  <p class="measure">Each class has a gate now. This table is also the fastest way to understand what “realistic” means here: the scope column is how many of the thousand doors carried the defect when it was found.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Defect class</th><th>Scope when found</th><th>Gate</th></tr></thead>
+      <tbody>
+        <tr><td class="big">Parts attached to nothing</td><td class="num big">642 doors · 1681 findings</td><td class="gate">attachment</td></tr>
+        <tr><td class="big">Multi-leaf doors 2–8× too light<br><span style="color:var(--ink-faint);font-size:13px">per-leaf mass used as whole-door mass</span></td><td class="num big">219 doors</td><td class="gate">mass</td></tr>
+        <tr><td>Sliding rails too short; rollers leaving the track</td><td class="num">168 doors</td><td class="gate">sliding_track_support</td></tr>
+        <tr><td class="big">Zero running clearance<br><span style="color:var(--ink-faint);font-size:13px">touching but not penetrating: invisible to MuJoCo, jams PhysX, wrong on a real door</span></td><td class="num big">139 doors · 229 pairs</td><td class="gate">running_clearance</td></tr>
+        <tr><td>Releasable lock modelled by clamping the joint range, making the benchmark task impossible</td><td class="num">24 doors</td><td class="gate">task_achievable</td></tr>
+        <tr><td>Keypad codes decorative — the lever opened the door with no code</td><td class="num">28 doors</td><td class="gate">keypad_code_works</td></tr>
+        <tr><td>Multi-latch doors where one latch actuated and dogs never held</td><td class="num">13 doors</td><td class="gate">all_latches_release</td></tr>
+        <tr><td>Handles that never sprang back; wheels that sprang back but must not</td><td class="num">607 joints</td><td class="gate">operator_returns</td></tr>
+        <tr><td>Revolving wings jamming on the wall header</td><td class="num">10 of 15</td><td class="gate">no_jam</td></tr>
+        <tr><td>Double-egress pairs both swinging the same way</td><td class="num">10 of 10</td><td class="gate">pair_swing</td></tr>
+        <tr><td>Accordion folds kinematically locked by a coupling-sign mismatch</td><td class="num">all 12</td><td class="gate">clearance</td></tr>
+        <tr><td>Closer loops geometrically impossible to close</td><td class="num">5 doors</td><td class="gate">linkage_feasibility</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head measure">
+    <span class="eyebrow">Open work, ranked by value</span>
+    <h2>What nobody has picked up</h2>
+  </div>
+  <ul class="plain measure">
+    <li><b>Closer mechanisms as real linkages.</b> The closing torque is applied at the door hinge, and the arm linkage is kinematic decoration the viewer solves. The real mechanism puts the spring and hydraulic valves on the pinion and lets the torque curve emerge from the linkage's changing mechanical advantage. Largest remaining physics gap; brief in <code>handoffs/closer-mechanisms.md</code>.</li>
+    <li><b>Run the visual review over all 1000 doors.</b> Only 122 were reviewed, by an agent. The tool is built and mock-tested but has never run live — it needs an API key. About <b>$50</b> for one request per door, <b>$25</b> through the batch API. Unfixed findings are listed in <code>docs/review/vision/triage.md</code>.</li>
+    <li><b>Moving-versus-moving clearance.</b> The clearance gate only measures moving parts against static geometry. Two leaves of a pair, adjacent fold panels, a leaf against a moving mullion are unguarded. The machinery already exists; seals and astragals that legitimately compress need a documented budget.</li>
+    <li><b>Taxonomy hierarchy page</b> and the <b>browser physics playground</b>. Both requested, never started; partial work sits on two older branches.</li>
+    <li><b>Sign-off has no mandatory-checklist rule</b>, so a door passes with whichever checks happened to run. A required-checks manifest per family would close that.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="sec-head measure">
+    <span class="eyebrow">Hard-won</span>
+    <h2>Operational notes that save hours</h2>
+  </div>
+  <ul class="plain measure">
+    <li><b>Work in a git worktree, never the main checkout.</b> Another agent works in the repo root directly and switches branches; commits made there land wherever it happens to be pointing.</li>
+    <li><b>Never commit <code>assets/</code> from a branch.</b> It is generated, it is seven thousand files, and it conflicts in every merge. Avoid <code>git commit -a</code> and <code>git add -A</code>, which sweep it in. Regenerate after every merge — several times a branch landed new geometry against stale committed assets and the suite went red for unrelated reasons.</li>
+    <li><b>When a process looks slow at 0% GPU and 100% CPU, get a stack before theorising.</b> <code>faulthandler.dump_traceback_later</code> found an Isaac Lab callback looping <code>render()</code> forever in headless mode after hours of wrong guesses. <code>py-spy</code> cannot ptrace inside the container.</li>
+    <li><b>Half of a visual review's first findings will be the renderer, not the doors.</b> Reflective materials mirroring the skybox, black doors rendering as silhouettes, invisible clear glazing, a camera fitted to the bounding sphere so the close-ups were not close. Fix the camera before believing the finding.</li>
+    <li><b>Agents should commit and push early and often.</b> Two entire batches of parallel agents were killed by usage limits mid-flight; the ones that had committed lost nothing.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="sec-head measure">
+    <span class="eyebrow">Where it is written down</span>
+    <h2>The paper trail</h2>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>File</th><th>What it holds</th></tr></thead>
+      <tbody>
+        <tr><td class="num">handoffs/CONTINUE_HERE.md</td><td>this document, in full, with the exact commands</td></tr>
+        <tr><td class="num">docs/LOG.md</td><td>the engineering log: every defect class, how it was found, root cause, lesson</td></tr>
+        <tr><td class="num">docs/ISAAC_PARITY.md</td><td>the cross-engine gate: protocol, tolerances, per-door results, open classes</td></tr>
+        <tr><td class="num">docs/VISION_REVIEW.md</td><td>the visual review, its findings, and its false positives</td></tr>
+        <tr><td class="num">docs/RUNPOD.md</td><td>reproducible GPU setup, costs, and a troubleshooting table of everything that broke</td></tr>
+        <tr><td class="num">TASKS.md</td><td>the task board, status per row</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  Total GPU spend across the exercise: about $20. No pods are running and none remain on the account.
+</footer>
+
+</div>
+
+<script>
+  // one tick per gate, in the order they appear in doorbench/qa.py
+  var gates = ["clearance","running_clearance","attachment","no_jam","mass","settle","hold","free_opens",
+    "actuate_opens","latch_returns","relatch","closer_returns","locked_holds","operator_returns","operator_holds",
+    "keypad_code_works","all_latches_release","rod_points_hold","sliding_track_support","linkage_feasibility",
+    "task_achievable","pair_swing","baby_gate_headroom","urdf_loads","usd_opens","usd_rl_opens"];
+  var rail = document.getElementById("ticks");
+  gates.forEach(function (g) {
+    var d = document.createElement("div");
+    d.className = "tick";
+    d.title = g + " — 1000/1000";
+    rail.appendChild(d);
+  });
+</script>
