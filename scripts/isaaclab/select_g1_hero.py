@@ -18,7 +18,7 @@ def select(audit, assets, count=16):
             continue
         spec = json.loads((assets / "doors" / row["door_id"] / "spec.json").read_text())
         # Compact cells are reserved for appropriately sized assemblies.
-        if spec["opening"]["width"] <= 3.6 and spec["opening"]["height"] <= 3.0:
+        if spec["opening"]["width"] <= 5.0 and spec["opening"]["height"] <= 3.3:
             candidates.append(row)
     chosen, families = [], set()
     for row in candidates:
