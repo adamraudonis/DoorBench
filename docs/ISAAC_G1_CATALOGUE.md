@@ -24,7 +24,7 @@ Use Linux with an RTX-capable GPU and the [tested installation procedure](RUNPOD
 git clone https://github.com/adamraudonis/DoorBench.git
 cd DoorBench
 git checkout a0d8248cc
-DOORBENCH_WORK=/opt/doorbench-runtime bash scripts/pod_bootstrap.sh
+DOORBENCH_WORK=/opt/doorbench-runtime bash "$PWD/scripts/pod_bootstrap.sh"
 source isaaclab/cloud/env.sh
 python scripts/isaaclab/check_g1_runtime.py
 python scripts/isaaclab/fetch_g1_policy.py

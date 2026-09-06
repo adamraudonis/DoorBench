@@ -14,10 +14,11 @@ export DEBIAN_FRONTEND=noninteractive
 # Isaac Lab calls tput even without a TTY; some cloud shells inherit an unsupported TERM.
 export TERM=xterm-256color
 export OMNI_KIT_ACCEPT_EULA=YES ACCEPT_EULA=Y PRIVACY_CONSENT=Y
+# Resolve the invoking checkout before changing directories: BASH_SOURCE may be relative.
+HERE_DB="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
 W="${DOORBENCH_WORK:-/workspace}"; mkdir -p "$W"; cd "$W"
 SUDO=""; [ "$(id -u)" = "0" ] || SUDO="sudo -n"
 # when this script is run from inside a DoorBench checkout, use that checkout instead of cloning a new one
-HERE_DB="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
 if [ -f "$HERE_DB/pyproject.toml" ] && [ -d "$HERE_DB/doorbench" ]; then DB="$HERE_DB"; else DB="$W/DoorBench"; fi
 ISAACSIM_VERSION="${ISAACSIM_VERSION:-5.1.0}"
 ISAACLAB_TAG="${ISAACLAB_TAG:-v2.3.2}"

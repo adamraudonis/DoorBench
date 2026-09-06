@@ -50,6 +50,17 @@ from the multi-seed benchmark above: **879 succeeded and 106 failed**.
 | Opened but did not traverse | 9 |
 | Other unmet task criteria | 13 |
 
+A deeper source check identifies **38 of the 75** operator/opening failures with
+all articulated operators blocked by the archived baseline's side-permission
+rule: the approach is on the pull side, the operator is declared push-side-only,
+and there is no far-side articulated operator. I verified the model/spec hashes
+and executed the archived `operator_reachable` function for every operator in
+these cases; all returned false. See the [38 source-bound candidates](review/scripted-baseline/operator-access-candidates.json).
+These need an approach/operating-trim review and are candidates for quarantining
+that specific scenario revision, rather than simply increasing the hand force.
+An alternative powered or credential release must be checked before declaring
+the entire door unusable.
+
 DB0019's recorded attempt touched the door but never actuated an operator or
 released its latch, then timed out after 60 seconds with only 0.0022 radians of
 leaf movement. Its inside panic bars and approach-side permissions must be
