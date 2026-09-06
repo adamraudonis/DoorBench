@@ -58,6 +58,14 @@ MECH_MARGIN_M = 0.15          # m of static surroundings kept around the moving 
 # because a closer loop floating in mid-air (db0012, 2026-09-04) is the defect this panel exists for.
 MECH_PRIORITY = ("closer", "track", "hinge", "mechanism")
 
+# a primary joint whose entire range is under these cannot open its door; the pose shown is an
+# inspection pose, not a claim that the door opens
+PINNED_HINGE_RAD = math.radians(6.0)
+PINNED_SLIDE_M = 0.05
+
+# alpha the review render gives clear glazing so an open glass door does not look like a shut one
+GLASS_ALPHA = 0.55
+
 SLIDE_FAMILIES = ("sliding_single", "sliding_bypass", "garage_sectional", "rollup", "gate_sliding",
                   "automatic_sliding", "elevator")
 HORIZONTAL_FAMILIES = ("hatch_floor", "hatch_ceiling")
@@ -242,6 +250,12 @@ class SheetRenderer:
         self.m.light_diffuse[:] = np.minimum(self.m.light_diffuse, 0.55)
         self.m.vis.headlight.ambient[:] = 0.40
         self.m.vis.headlight.diffuse[:] = 0.42
+        # Clear glazing at its shipped alpha is invisible: a patio slider open by 0.84 m looks exactly
+        # like a shut one, and a reviewer cannot tell whether the doorway is glazed or empty.  Tint any
+        # very transparent material up to GLASS_ALPHA - enough to read as "there is glass here", still
+        # transparent enough to see the hardware and the frame behind it.
+        a = self.m.mat_rgba[:, 3]
+        a[(a > 0.02) & (a < GLASS_ALPHA)] = GLASS_ALPHA
 
     def close(self):
         try:
@@ -341,7 +355,13 @@ class SheetRenderer:
             q0 = m.qpos0[adr]
             if m.jnt_limited[j]:
                 lo, hi = m.jnt_range[j]
-                if hi - lo < 0.006 and frac:
+                # A joint whose whole range is under 6 deg / 50 mm cannot open the door at all - and a
+                # MuJoCo range is static, so no amount of unlocking widens it.  The old test was a flat
+                # 6 mm, which passed a mag-locked turnstile rotor limited to +-2.9 deg and drew it as
+                # "fully open".  Show the inspection pose, and say on the sheet that it is one.
+                pinned = (hi - lo) < (PINNED_HINGE_RAD if int(m.jnt_type[j]) == int(mujoco.mjtJoint.mjJNT_HINGE)
+                                      else PINNED_SLIDE_M)
+                if pinned and frac:
                     # a joint pinned shut by an engaged lock: show the inspection pose anyway, labelled
                     kin = self.spec["kinematics"]
                     target = (math.radians(kin.get("max_open_deg") or 90)
@@ -475,7 +495,7 @@ class SheetRenderer:
             for view in VIEWS:
                 label = f"{POSE_TITLE[pose_name]} - {titles[view]}"
                 if forced:
-                    label += "  [FORCED POSE: joint locked shut]"
+                    label += "  [INSPECTION POSE: the leaf joint is pinned and cannot open]"
                 out.append({"key": f"{pose_name}_{view}", "pose": pose_name, "view": view,
                             "label": label, "image": self._render(cams[view]),
                             "loop_residual_m": res, "forced_pose": forced})
@@ -587,7 +607,8 @@ def render_sheet(door_dir: str, out_path: str, width: int = 1200, quality: int =
         cap = caption_lines(r.spec, r.meta)
         foot = (f"panels 1-9: three poses x three viewpoints, one camera per column (identical framing "
                 f"across the three rows).  loop residual {info['loop_residual_m'] * 1000:.2f} mm"
-                + ("   |  FORCED POSE: a joint the spec pins shut was opened for inspection" if info["forced_pose"] else ""))
+                + ("   |  INSPECTION POSE: this door's leaf joint is pinned (range under 6 deg / 50 mm) and cannot open;"
+                   " the open panels are prescribed, not achievable" if info["forced_pose"] else ""))
         img = compose(panels, cap, width=width, footer=foot)
         os.makedirs(os.path.dirname(os.path.abspath(out_path)) or ".", exist_ok=True)
         img.save(out_path, quality=quality, optimize=True)
