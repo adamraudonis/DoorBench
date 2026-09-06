@@ -150,6 +150,21 @@ def Xform "db0582_swing_single"
             }
         }
 
+        def Material "mat_vent"
+        {
+            token outputs:surface.connect = </db0582_swing_single/Looks/mat_vent/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.8, 0.81, 0.83)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.4
+                token outputs:surface
+            }
+        }
+
         def Material "mat_stop"
         {
             token outputs:surface.connect = </db0582_swing_single/Looks/mat_stop/Shader.outputs:surface>
@@ -768,7 +783,7 @@ def Xform "db0582_swing_single"
                 custom float doorbench:friction_effort = 0.75031006
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
-                custom float doorbench:legacy_friction_coeff = 0.00088392006
+                custom float doorbench:legacy_friction_coeff = 0.0008838562
                 custom bool doorbench:limited = 1
                 custom string doorbench:notes = "Padlocked hasp: leaf effectively fixed (2 mm rattle)"
                 custom bool doorbench:robot_interactive = 1
@@ -949,10 +964,10 @@ def Xform "db0582_swing_single"
         {
             custom string doorbench:label = "Door leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-0.402196, 0.0054352637, 1.2328744)
-            float3 physics:diagonalInertia = (3.2629454, 28.683418, 31.693901)
+            point3f physics:centerOfMass = (-0.40229353, 0.005362688, 1.2206049)
+            float3 physics:diagonalInertia = (3.231665, 28.99149, 31.97277)
             float physics:mass = 61.50124
-            quatf physics:principalAxes = (0.5117548, 0.4614281, 0.5231507, -0.5015022)
+            quatf physics:principalAxes = (0.51190436, 0.46187076, 0.5230066, -0.5010922)
             custom rel physxFilteredPairs:filteredPairs = </db0582_swing_single/Articulation/leaf_hasp>
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
@@ -1101,6 +1116,216 @@ def Xform "db0582_swing_single"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.753, 0.0016, 0.25)
                 double3 xformOp:translate = (-0.4095, -0.022799999999999997, 0.1439999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_stile_n_l" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre vent frame"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.024, 0.004, 0.274)
+                double3 xformOp:translate = (-0.5715, -0.024, 0.3139999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_stile_n_r" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre vent frame"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.024, 0.004, 0.274)
+                double3 xformOp:translate = (-0.24749999999999997, -0.024, 0.3139999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_rail_n_b" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre vent frame"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.3, 0.004, 0.024)
+                double3 xformOp:translate = (-0.4095, -0.024, 0.17699999999999988)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_rail_n_t" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre vent frame"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.3, 0.004, 0.024)
+                double3 xformOp:translate = (-0.4095, -0.024, 0.4509999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_stile_p_l" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre vent frame"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.024, 0.004, 0.274)
+                double3 xformOp:translate = (-0.5715, 0.024, 0.3139999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_stile_p_r" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre vent frame"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.024, 0.004, 0.274)
+                double3 xformOp:translate = (-0.24749999999999997, 0.024, 0.3139999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_rail_p_b" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre vent frame"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.3, 0.004, 0.024)
+                double3 xformOp:translate = (-0.4095, 0.024, 0.17699999999999988)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_rail_p_t" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre vent frame"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.3, 0.004, 0.024)
+                double3 xformOp:translate = (-0.4095, 0.024, 0.4509999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_slat_0" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre slat"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (0.9659258, -0.25881904, -0, -0)
+                float3 xformOp:scale = (0.3, 0.003, 0.03)
+                double3 xformOp:translate = (-0.4095, 0, 0.20983333333333323)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_slat_1" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre slat"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (0.9659258, -0.25881904, -0, -0)
+                float3 xformOp:scale = (0.3, 0.003, 0.03)
+                double3 xformOp:translate = (-0.4095, 0, 0.2514999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_slat_2" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre slat"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (0.9659258, -0.25881904, -0, -0)
+                float3 xformOp:scale = (0.3, 0.003, 0.03)
+                double3 xformOp:translate = (-0.4095, 0, 0.2931666666666666)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_slat_3" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre slat"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (0.9659258, -0.25881904, -0, -0)
+                float3 xformOp:scale = (0.3, 0.003, 0.03)
+                double3 xformOp:translate = (-0.4095, 0, 0.3348333333333332)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_slat_4" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre slat"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (0.9659258, -0.25881904, -0, -0)
+                float3 xformOp:scale = (0.3, 0.003, 0.03)
+                double3 xformOp:translate = (-0.4095, 0, 0.3764999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "louver_vent_slat_5" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Louvre slat"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0582_swing_single/Looks/mat_vent>
+                double size = 1
+                quatf xformOp:orient = (0.9659258, -0.25881904, -0, -0)
+                float3 xformOp:scale = (0.3, 0.003, 0.03)
+                double3 xformOp:translate = (-0.4095, 0, 0.4181666666666666)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

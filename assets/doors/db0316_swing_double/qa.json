@@ -79,6 +79,174 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.09095191955566406,
- "mujoco_version": "3.12.0"
+ "time_s": 0.10562491416931152,
+ "mujoco_version": "3.12.0",
+ "isaac_parity": {
+  "version": "1",
+  "date": "2026-09-05",
+  "commit": "f81c1c632",
+  "engines": {
+   "mujoco": {
+    "mujoco": "3.12.0"
+   },
+   "isaac_full": {
+    "isaac_sim": "5.1.0.0",
+    "isaac_lab": "0.54.2",
+    "python": "3.11.15",
+    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
+    "torch": "2.7.0+cu128",
+    "physx_dt": 0.008333333333333333,
+    "solver_iterations": [
+     16,
+     4
+    ]
+   },
+   "isaac_rl": {
+    "isaac_sim": "5.1.0.0",
+    "isaac_lab": "0.54.2",
+    "python": "3.11.15",
+    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
+    "torch": "2.7.0+cu128",
+    "physx_dt": 0.008333333333333333,
+    "solver_iterations": [
+     16,
+     4
+    ]
+   }
+  },
+  "ok": false,
+  "grade": "C",
+  "status": "compared",
+  "kinds": {
+   "full": {
+    "status": "compared",
+    "grade": "C",
+    "ok": false,
+    "phases": {
+     "settle": "agree",
+     "hold": "disagree",
+     "operate_open": "na",
+     "release": "na",
+     "relatch": "na",
+     "closer_return": "na",
+     "locked_holds": "na"
+    },
+    "classes": [
+     "EXPORT_WELD"
+    ],
+    "details": [
+     "hold: mag_lock engaged: MuJoCo weld holds (2.232e-06), PhysX opened 1.571"
+    ],
+    "metrics": {
+     "settle.finite": [
+      true,
+      true,
+      true
+     ],
+     "settle.informational": [
+      false,
+      false,
+      true
+     ],
+     "settle.settle_drift": [
+      0.0,
+      1.0314022524937627e-08,
+      true
+     ],
+     "hold.finite": [
+      true,
+      true,
+      true
+     ],
+     "hold.hold_displacement": [
+      2.2316749047289546e-06,
+      1.5707964897155762,
+      false
+     ],
+     "hold.informational": [
+      false,
+      false,
+      true
+     ],
+     "hold.q_at_1s": [
+      2.2316749047289546e-06,
+      1.5707964897155762,
+      false
+     ],
+     "hold.secondary_drift": [
+      -7.515084810668403e-05,
+      -1.0288693452764619e-08,
+      true
+     ]
+    }
+   },
+   "rl": {
+    "status": "compared",
+    "grade": "C",
+    "ok": false,
+    "phases": {
+     "settle": "agree",
+     "hold": "disagree",
+     "operate_open": "na",
+     "release": "na",
+     "relatch": "na",
+     "closer_return": "na",
+     "locked_holds": "na"
+    },
+    "classes": [
+     "EXPORT_WELD"
+    ],
+    "details": [
+     "hold: mag_lock engaged: MuJoCo weld holds (2.232e-06), PhysX opened 1.571"
+    ],
+    "metrics": {
+     "settle.finite": [
+      true,
+      true,
+      true
+     ],
+     "settle.informational": [
+      false,
+      false,
+      true
+     ],
+     "settle.settle_drift": [
+      0.0,
+      1.3926585218371201e-08,
+      true
+     ],
+     "hold.finite": [
+      true,
+      true,
+      true
+     ],
+     "hold.hold_displacement": [
+      2.2316749047289546e-06,
+      1.570796251296997,
+      false
+     ],
+     "hold.informational": [
+      false,
+      false,
+      true
+     ],
+     "hold.q_at_1s": [
+      2.2316749047289546e-06,
+      1.570796251296997,
+      false
+     ],
+     "hold.secondary_drift": [
+      -7.515084810668403e-05,
+      -1.4079914123499293e-08,
+      true
+     ]
+    }
+   }
+  },
+  "classes": [
+   "EXPORT_WELD"
+  ],
+  "primary_class": "EXPORT_WELD",
+  "likely_root_cause": "H5 (FIXED in the export): weld-type lock equalities (mag_lock / delayed_egress / electric_bolt / interlock leaf -> world) used to be exported only as doorbench:couplings JSON. Both USD kinds now carry a breakable UsdPhysics.FixedJoint base -> leaf with physics:excludeFromArticulation, breakForce == breakTorque == holding_force_N and physics:jointEnabled (doorbench:env_release). A remaining occurrence means the joint is absent (stale assets) or PhysX did not parse the loop joint"
+ }
 }

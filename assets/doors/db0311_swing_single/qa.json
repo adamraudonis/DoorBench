@@ -104,6 +104,205 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.4251060485839844,
- "mujoco_version": "3.12.0"
+ "time_s": 0.4877438545227051,
+ "mujoco_version": "3.12.0",
+ "isaac_parity": {
+  "version": "1",
+  "date": "2026-09-05",
+  "commit": "f81c1c632",
+  "engines": {
+   "mujoco": {
+    "mujoco": "3.12.0"
+   },
+   "isaac_full": {
+    "isaac_sim": "5.1.0.0",
+    "isaac_lab": "0.54.2",
+    "python": "3.11.15",
+    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
+    "torch": "2.7.0+cu128",
+    "physx_dt": 0.008333333333333333,
+    "solver_iterations": [
+     16,
+     4
+    ]
+   },
+   "isaac_rl": {
+    "isaac_sim": "5.1.0.0",
+    "isaac_lab": "0.54.2",
+    "python": "3.11.15",
+    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
+    "torch": "2.7.0+cu128",
+    "physx_dt": 0.008333333333333333,
+    "solver_iterations": [
+     16,
+     4
+    ]
+   }
+  },
+  "ok": true,
+  "grade": "B",
+  "status": "compared",
+  "kinds": {
+   "full": {
+    "status": "compared",
+    "grade": "B",
+    "ok": true,
+    "phases": {
+     "settle": "quant",
+     "hold": "agree",
+     "operate_open": "na",
+     "release": "na",
+     "relatch": "na",
+     "closer_return": "na",
+     "locked_holds": "agree"
+    },
+    "classes": [
+     "QUANT"
+    ],
+    "details": [
+     "settle: settle_drift_joint: mujoco -0.06126 vs physx -0.03528 (tol 0.02)"
+    ],
+    "metrics": {
+     "settle.finite": [
+      true,
+      true,
+      true
+     ],
+     "settle.informational": [
+      false,
+      false,
+      true
+     ],
+     "settle.settle_drift": [
+      0.0005074048352109942,
+      0.00013330348883755505,
+      true
+     ],
+     "settle.settle_drift_joint": [
+      -0.06125953885555284,
+      -0.03527570888400078,
+      false
+     ],
+     "hold.finite": [
+      true,
+      true,
+      true
+     ],
+     "hold.hold_displacement": [
+      -0.0005072544019647881,
+      -0.00013508310075849295,
+      true
+     ],
+     "hold.informational": [
+      false,
+      false,
+      true
+     ],
+     "hold.q_at_1s": [
+      -0.0005072544019647881,
+      -0.00013508310075849295,
+      true
+     ],
+     "locked_holds.finite": [
+      true,
+      true,
+      true
+     ],
+     "locked_holds.informational": [
+      false,
+      false,
+      true
+     ],
+     "locked_holds.locked_displacement": [
+      -0.000507282024136653,
+      -0.00013507479161489755,
+      true
+     ],
+     "locked_holds.operator_travel_reached": [
+      0.8000103956850474,
+      0.800000011920929,
+      true
+     ]
+    }
+   },
+   "rl": {
+    "status": "compared",
+    "grade": "A",
+    "ok": true,
+    "phases": {
+     "settle": "agree",
+     "hold": "agree",
+     "operate_open": "na",
+     "release": "na",
+     "relatch": "na",
+     "closer_return": "na",
+     "locked_holds": "agree"
+    },
+    "classes": [],
+    "details": [],
+    "metrics": {
+     "settle.finite": [
+      true,
+      true,
+      true
+     ],
+     "settle.informational": [
+      false,
+      false,
+      true
+     ],
+     "settle.settle_drift": [
+      0.0005074048352109942,
+      0.0030395113863050938,
+      true
+     ],
+     "hold.finite": [
+      true,
+      true,
+      true
+     ],
+     "hold.hold_displacement": [
+      -0.0005072544019647881,
+      -0.0030389970634132624,
+      true
+     ],
+     "hold.informational": [
+      false,
+      false,
+      true
+     ],
+     "hold.q_at_1s": [
+      -0.0005072544019647881,
+      -0.0030389970634132624,
+      true
+     ],
+     "locked_holds.finite": [
+      true,
+      true,
+      true
+     ],
+     "locked_holds.informational": [
+      false,
+      false,
+      true
+     ],
+     "locked_holds.locked_displacement": [
+      -0.000507282024136653,
+      -0.003572822082787752,
+      true
+     ],
+     "locked_holds.operator_travel_reached": [
+      0.8000103956850474,
+      0.8000000715255737,
+      true
+     ]
+    }
+   }
+  },
+  "classes": [
+   "QUANT"
+  ],
+  "primary_class": "QUANT",
+  "likely_root_cause": "soft MuJoCo contacts / limits (solref 0.005) vs rigid PhysX limits, constraint-based vs effort-based Coulomb friction, implicitfast vs implicit drives at high damping; solver dt"
+ }
 }

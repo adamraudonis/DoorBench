@@ -120,6 +120,220 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.198469877243042,
- "mujoco_version": "3.12.0"
+ "time_s": 0.26398491859436035,
+ "mujoco_version": "3.12.0",
+ "isaac_parity": {
+  "version": "1",
+  "date": "2026-09-05",
+  "commit": "f81c1c632",
+  "engines": {
+   "mujoco": {
+    "mujoco": "3.12.0"
+   },
+   "isaac_full": {
+    "isaac_sim": "5.1.0.0",
+    "isaac_lab": "0.54.2",
+    "python": "3.11.15",
+    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
+    "torch": "2.7.0+cu128",
+    "physx_dt": 0.008333333333333333,
+    "solver_iterations": [
+     16,
+     4
+    ]
+   },
+   "isaac_rl": {
+    "isaac_sim": "5.1.0.0",
+    "isaac_lab": "0.54.2",
+    "python": "3.11.15",
+    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
+    "torch": "2.7.0+cu128",
+    "physx_dt": 0.008333333333333333,
+    "solver_iterations": [
+     16,
+     4
+    ]
+   }
+  },
+  "ok": false,
+  "grade": "C",
+  "status": "compared",
+  "kinds": {
+   "full": {
+    "status": "compared",
+    "grade": "C",
+    "ok": false,
+    "phases": {
+     "settle": "agree",
+     "hold": "disagree",
+     "operate_open": "agree",
+     "release": "na",
+     "relatch": "na",
+     "closer_return": "quant",
+     "locked_holds": "na"
+    },
+    "classes": [
+     "CONTACT_GEOMETRY"
+    ],
+    "details": [
+     "hold: latch (hook) holds in MuJoCo (0.00236), PhysX opened 1.571: bolt / strike contact not engaging"
+    ],
+    "metrics": {
+     "settle.finite": [
+      true,
+      true,
+      true
+     ],
+     "settle.informational": [
+      false,
+      false,
+      true
+     ],
+     "settle.settle_drift": [
+      2.305932187778889e-19,
+      6.349330838872902e-09,
+      true
+     ],
+     "hold.finite": [
+      true,
+      true,
+      true
+     ],
+     "hold.hold_displacement": [
+      0.0023599208257421974,
+      1.5707963705062866,
+      false
+     ],
+     "hold.informational": [
+      false,
+      false,
+      true
+     ],
+     "hold.q_at_1s": [
+      0.0023599208257421974,
+      1.5707963705062866,
+      false
+     ],
+     "operate_open.finite": [
+      true,
+      true,
+      true
+     ],
+     "operate_open.informational": [
+      false,
+      false,
+      true
+     ],
+     "operate_open.opened": [
+      0.8726597474492765,
+      0.8749300837516785,
+      true
+     ],
+     "operate_open.operator_travel_reached": [
+      0.06033117442866019,
+      0.05999938026070595,
+      true
+     ],
+     "operate_open.q_primary_max": [
+      1.2292234661894457,
+      1.2356148958206177,
+      true
+     ],
+     "operate_open.t_open": [
+      1.368,
+      1.366667,
+      true
+     ],
+     "operate_open.t_open_bench": [
+      1.434,
+      1.4,
+      true
+     ],
+     "closer_return.closer_final_angle": [
+      0.059730632602612486,
+      -6.349249570547499e-09,
+      false
+     ],
+     "closer_return.finite": [
+      true,
+      true,
+      true
+     ],
+     "closer_return.informational": [
+      false,
+      false,
+      true
+     ],
+     "closer_return.peak_closing_speed": [
+      0.6682802389333838,
+      0.6783840656280518,
+      true
+     ]
+    }
+   },
+   "rl": {
+    "status": "compared",
+    "grade": "B",
+    "ok": true,
+    "phases": {
+     "settle": "agree",
+     "hold": "na",
+     "operate_open": "na",
+     "release": "na",
+     "relatch": "na",
+     "closer_return": "quant",
+     "locked_holds": "na"
+    },
+    "classes": [
+     "QUANT"
+    ],
+    "details": [
+     "closer_return: closer_final_angle: mujoco 0.05973 vs physx -1.008e-08 (tol 0.03491)"
+    ],
+    "metrics": {
+     "settle.finite": [
+      true,
+      true,
+      true
+     ],
+     "settle.informational": [
+      false,
+      false,
+      true
+     ],
+     "settle.settle_drift": [
+      2.305932187778889e-19,
+      1.008080019460067e-08,
+      true
+     ],
+     "closer_return.closer_final_angle": [
+      0.059730632602612486,
+      -1.0080868584338987e-08,
+      false
+     ],
+     "closer_return.finite": [
+      true,
+      true,
+      true
+     ],
+     "closer_return.informational": [
+      false,
+      false,
+      true
+     ],
+     "closer_return.peak_closing_speed": [
+      0.6682802389333838,
+      0.6805888414382935,
+      true
+     ]
+    }
+   }
+  },
+  "classes": [
+   "CONTACT_GEOMETRY",
+   "QUANT"
+  ],
+  "primary_class": "CONTACT_GEOMETRY",
+  "likely_root_cause": "H7: PhysX contacts with Env prims at 0-5 mm clearance (contactOffset 5 mm), convex decomposition of hooks / strikes. The global self-collision part is FIXED in the export: physxArticulation:enabledSelfCollisions is True and every pair MuJoCo suppresses (same weld body, weld parent/child, contact_excludes) is authored as PhysxFilteredPairsAPI, so a latch holding one moving link against another (swing pairs, lift pins, drop bolts) now touches in PhysX too"
+ }
 }

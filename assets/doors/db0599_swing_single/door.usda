@@ -255,6 +255,21 @@ def Xform "db0599_swing_single"
             }
         }
 
+        def Material "mat_drip"
+        {
+            token outputs:surface.connect = </db0599_swing_single/Looks/mat_drip/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.8, 0.81, 0.83)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.4
+                token outputs:surface
+            }
+        }
+
         def Material "PhysMat_mat_floor_0_800" (
             prepend apiSchemas = ["PhysicsMaterialAPI"]
         )
@@ -1041,6 +1056,36 @@ def Xform "db0599_swing_single"
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.959, 0.145, 0.013)
                 double3 xformOp:translate = (0, -0.0435, 0.0065)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "weather_drip_cap" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Weather drip cap"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0599_swing_single/Looks/mat_drip>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (1.021, 0.06, 0.016)
+                double3 xformOp:translate = (0, -0.03, 2.496)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "weather_drip_cap_bracket" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Drip cap fixing"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0599_swing_single/Looks/mat_drip>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.3063, 0.03, 0.01)
+                double3 xformOp:translate = (0, 0.014499999999999996, 2.496)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

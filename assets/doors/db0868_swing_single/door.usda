@@ -150,6 +150,36 @@ def Xform "db0868_swing_single"
             }
         }
 
+        def Material "mat_kickdown"
+        {
+            token outputs:surface.connect = </db0868_swing_single/Looks/mat_kickdown/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.85, 0.66, 0.3)
+                float inputs:metallic = 1
+                float inputs:opacity = 1
+                float inputs:roughness = 0.25
+                token outputs:surface
+            }
+        }
+
+        def Material "mat_kickdown_pad"
+        {
+            token outputs:surface.connect = </db0868_swing_single/Looks/mat_kickdown_pad/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.92, 0.92, 0.9)
+                float inputs:metallic = 0
+                float inputs:opacity = 1
+                float inputs:roughness = 0.4
+                token outputs:surface
+            }
+        }
+
         def Material "mat_bumper_stop"
         {
             token outputs:surface.connect = </db0868_swing_single/Looks/mat_bumper_stop/Shader.outputs:surface>
@@ -855,7 +885,7 @@ def Xform "db0868_swing_single"
                 custom float doorbench:friction_effort = 0.15006562
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Door hinge (0 = closed, + = opening)"
-                custom float doorbench:legacy_friction_coeff = 0.0008524074
+                custom float doorbench:legacy_friction_coeff = 0.0008367351
                 custom bool doorbench:limited = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -996,10 +1026,10 @@ def Xform "db0868_swing_single"
         {
             custom string doorbench:label = "Door leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (0.33911473, 0.00092377415, 1.02619)
-            float3 physics:diagonalInertia = (0.5689683, 4.2497926, 4.815903)
+            point3f physics:centerOfMass = (0.3665175, -0.0024379068, 0.9395725)
+            float3 physics:diagonalInertia = (0.578773, 4.672494, 5.2468996)
             float physics:mass = 12.192975
-            quatf physics:principalAxes = (0.5012822, 0.49791074, -0.502056, 0.4987392)
+            quatf physics:principalAxes = (-0.4767201, 0.48998693, 0.5126367, 0.5194751)
             custom rel physxFilteredPairs:filteredPairs = [
                 </db0868_swing_single/Articulation/leaf_handle>,
                 </db0868_swing_single/Articulation/leaf_latch_bolt>,
@@ -1596,6 +1626,52 @@ def Xform "db0868_swing_single"
                 float3 xformOp:scale = (0.0012, 0.0247, 0.0534)
                 double3 xformOp:translate = (0.7133999999999999, 0, 0.914)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "kickdown_housing" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Kick-down holder housing"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0868_swing_single/Looks/mat_kickdown>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.044, 0.032, 0.09)
+                double3 xformOp:translate = (0.614, -0.0335, 0.1689999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "kickdown_arm" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Kick-down holder arm (retracted)"
+                custom string doorbench:semantic = "decor"
+                rel material:binding = </db0868_swing_single/Looks/mat_kickdown>
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.024, 0.012, 0.09)
+                double3 xformOp:translate = (0.614, -0.029500000000000002, 0.1039999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cylinder "kickdown_pad" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token axis = "Z"
+                custom bool doorbench:collision = 0
+                custom string doorbench:label = "Kick-down rubber pad"
+                custom string doorbench:semantic = "decor"
+                double height = 0.012
+                rel material:binding = </db0868_swing_single/Looks/mat_kickdown_pad>
+                double radius = 0.014
+                quatf xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0.614, -0.029500000000000002, 0.0609999999999999)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
             def Xform "leaf_edge_mid"
