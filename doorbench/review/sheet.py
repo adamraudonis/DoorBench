@@ -61,6 +61,8 @@ MECH_PRIORITY = ("closer", "track", "hinge", "mechanism")
 SLIDE_FAMILIES = ("sliding_single", "sliding_bypass", "garage_sectional", "rollup", "gate_sliding",
                   "automatic_sliding", "elevator")
 HORIZONTAL_FAMILIES = ("hatch_floor", "hatch_ceiling")
+# families built without a wall: nothing to read a leaf's standoff against in a near-edge-on view
+OUTDOOR_FAMILIES = ("gate_swing", "gate_sliding", "baby_gate")
 
 
 def sheet_view_titles(family: str, horizontal: bool) -> Dict[str, str]:
@@ -229,9 +231,17 @@ class SheetRenderer:
         self.opt.geomgroup[:] = 0
         self.opt.geomgroup[:3] = 1
         self.renderer = mujoco.Renderer(self.m, height=self.rh, width=self.rw)
-        # restrained lighting: MuJoCo's default headlight blows out white hardware and hides seams
+        # Inspection lighting, not presentation lighting.  Three changes, each of which fixed a case
+        # where the render made a correct door look wrong (or a wrong one look fine):
+        #  * reflectance off - a reflective steel garage section mirrors the skybox, and five opaque
+        #    sections then read as an empty opening above the bottom panel;
+        #  * ambient up - 28 doors are painted black at 4 % reflectance and render as featureless
+        #    silhouettes with no visible split line, panel detail or hardware;
+        #  * diffuse down - MuJoCo's default headlight blows out white hardware and hides its seams.
+        self.m.mat_reflectance[:] = 0.0
         self.m.light_diffuse[:] = np.minimum(self.m.light_diffuse, 0.55)
-        self.m.vis.headlight.diffuse[:] = 0.38
+        self.m.vis.headlight.ambient[:] = 0.40
+        self.m.vis.headlight.diffuse[:] = 0.42
 
     def close(self):
         try:
@@ -263,15 +273,70 @@ class SheetRenderer:
             rs.extend(pa - pb)
         return np.array(rs)
 
-    def pose(self, frac: float) -> Tuple[np.ndarray, float, bool]:
+    def _leaf_joints(self) -> List[int]:
+        m, mujoco = self.m, self.mujoco
+        out = []
+        for j in range(m.njnt):
+            name = mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_JOINT, j)
+            if self.roles.get(name) in ("primary", "secondary") and name not in self.controlled:
+                out.append(j)
+        return out
+
+    def _leaf_x_width(self, q: np.ndarray) -> float:
+        """Total width of x the leaves occupy - how much of the doorway they still block."""
+        self.d.qpos[:] = q
+        self.mujoco.mj_forward(self.m, self.d)
+        iv = []
+        for g in self.visible:
+            if self.sem.get(self.gname[g]) != "leaf":
+                continue
+            R = self.d.geom_xmat[g].reshape(3, 3)
+            c = self.d.geom_xpos[g] + R @ self.m.geom_aabb[g, :3]
+            h = np.abs(R) @ self.m.geom_aabb[g, 3:]
+            iv.append((float(c[0] - h[0]), float(c[0] + h[0])))
+        iv.sort()
+        tot, cur = 0.0, None
+        for a, b in iv:
+            if cur is None or a > cur[1]:
+                if cur:
+                    tot += cur[1] - cur[0]
+                cur = [a, b]
+            else:
+                cur[1] = max(cur[1], b)
+        return tot + (cur[1] - cur[0] if cur else 0.0)
+
+    def open_drive(self) -> List[int]:
+        """Which leaf joints the 'fully open' pose should drive.
+
+        Driving every leaf to its limit is right for a swing pair, a bifold or a bi-parting slider.
+        It is WRONG for a bypass closet: its two leaves run on opposite tracks, so driving both just
+        swaps them and the doorway is as blocked at 'fully open' as it was shut - a sheet that showed
+        that would be a picture of a door that never opens.  Decide it by measurement rather than by
+        family: take whichever of {all leaves, primary only} leaves less of the doorway covered.
+        """
+        leaves = self._leaf_joints()
+        if len(leaves) < 2:
+            return leaves
+        pj = self.meta.get("primary_joint")
+        prim = [j for j in leaves
+                if self.mujoco.mj_id2name(self.m, self.mujoco.mjtObj.mjOBJ_JOINT, j) == pj]
+        if not prim:
+            return leaves
+        w_all = self._leaf_x_width(self._raw_pose(1.0, leaves)[0])
+        w_one = self._leaf_x_width(self._raw_pose(1.0, prim)[0])
+        return prim if w_one < w_all - 0.02 else leaves
+
+    def pose(self, frac: float, drive: Optional[Sequence[int]] = None) -> Tuple[np.ndarray, float, bool]:
         """qpos at ``frac`` of the leaf travel, loops solved.  Returns (q, loop residual m, forced)."""
+        q, forced = self._raw_pose(frac, drive if drive is not None else self._leaf_joints())
+        return self._solve_loops(q) + (forced,)
+
+    def _raw_pose(self, frac: float, drive: Sequence[int]) -> Tuple[np.ndarray, bool]:
         m, d, mujoco = self.m, self.d, self.mujoco
         q = self.gate.released_qpos() if frac else self.gate.resolve(m.qpos0.copy())
         forced = False
-        for j in range(m.njnt):
+        for j in drive:
             name = mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_JOINT, j)
-            if self.roles.get(name) not in ("primary", "secondary") or name in self.controlled:
-                continue
             adr = int(m.jnt_qposadr[j])
             q0 = m.qpos0[adr]
             if m.jnt_limited[j]:
@@ -288,7 +353,10 @@ class SheetRenderer:
             else:
                 target = q0 + 1.2
             q[adr] = q0 + frac * (target - q0)
-        q = self.gate.resolve(q)
+        return self.gate.resolve(q), forced
+
+    def _solve_loops(self, q: np.ndarray) -> Tuple[np.ndarray, float]:
+        m, d, mujoco = self.m, self.d, self.mujoco
         d.qpos[:] = q
         mujoco.mj_forward(m, d)
         if self.loop_joints and self.connects:
@@ -315,7 +383,7 @@ class SheetRenderer:
         mujoco.mj_forward(m, d)
         r = self._connect_residual()
         res = float(np.max(np.linalg.norm(r.reshape(-1, 3), axis=1))) if len(r) else 0.0
-        return q, res, forced
+        return q, res
 
     # -- framing -------------------------------------------------------------------------------
     def _bbox(self, ids: Sequence[int]) -> Tuple[np.ndarray, np.ndarray]:
@@ -364,12 +432,15 @@ class SheetRenderer:
         if self.horizontal:
             az_el = {"front": (90.0, -52.0), "back": (90.0, 38.0), "edge": (0.0 if u > 0 else 180.0, -18.0)}
         else:
+            # near-elevation from the hinge (or, for sliders, the leading-edge) side: the leaf is close
+            # to edge-on, so its standoff from the jamb, the floor guides, the closer arm and anything
+            # hanging in the reveal are all in profile.  Outdoor families have no wall to read the
+            # standoff against, and a fully edge-on gate collapses into an unreadable sliver, so they
+            # get a wider angle.
+            skew = 35.0 if self.family in OUTDOOR_FAMILIES else 20.0
             az_el = {"front": (90.0 - u * 30.0, -16.0),
                      "back": (-90.0 + u * 30.0, -16.0),
-                     # near-elevation from the hinge (or, for sliders, the leading-edge) side: the leaf
-                     # is edge-on, so its standoff from the jamb, the floor guides, the closer arm and
-                     # anything hanging in the reveal are all in profile
-                     "edge": (12.0 if u > 0 else 168.0, -10.0)}
+                     "edge": (skew if u > 0 else 180.0 - skew, -10.0)}
         cam.azimuth, cam.elevation = az_el[view]
         cam.distance = self._fit_distance(lo, hi, cam.azimuth, cam.elevation, pad)
         return cam
@@ -385,8 +456,9 @@ class SheetRenderer:
 
         poses: Dict[str, Tuple[np.ndarray, float, bool]] = {}
         boxes: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+        drive = self.open_drive()
         for name, frac in zip(POSES, (0.0, 0.5, 1.0)):
-            poses[name] = self.pose(frac)
+            poses[name] = self.pose(frac, drive)
             self.d.qpos[:] = poses[name][0]
             self.mujoco.mj_forward(self.m, self.d)
             boxes[name] = self._bbox(self.visible)
