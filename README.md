@@ -15,12 +15,25 @@ The robotics collection contains **985 doors**. The **15 [pet doors](https://ada
 
 ![One barn door rendered with three material and room combinations](docs/review/blender/looks.jpg)
 
+## Isaac Sim · Unitree G1
+
+| Run (UTC) | Coverage | Success | Simulator errors |
+|---|---|---:|---:|
+| September 6, 2026, 16:27:46 | Four selected integration examples | 3 / 4 (75%) | 0 |
+
+This is the unchanged Unitree locomotion checkpoint on an L40S in Isaac Sim 5.1.
+**The four-case result is not an all-door benchmark.** A catalogue-wide native
+run is in progress; its result and 4×4 Isaac recording will replace this status
+only after the evidence is collected. [Reproduce the tested demo](docs/ISAAC_G1_DEMO.md).
+
 ## Scripted baseline
 
 The scripted-hand baseline was evaluated across **all 985 benchmark doors**, using three seeds for every assigned core scenario. It solved **849 / 985 doors (86.2%)**, with **3,727 / 4,182 successful episodes (89.1%)**. A solved door passed every scenario on every seed.
 
 <!-- Regenerate the overview with scripts/build_scripted_baseline_overview.py; update the adjacent historical score text if its source run changes. -->
 [![Scripted baseline across 985 doors: 849 solved every episode, 36 solved some, and 100 solved none. One square per door; supplementary pet doors excluded.](docs/review/scripted-baseline/overview.svg)](https://adamraudonis.github.io/DoorBench/#/results)
+
+[Why scripted attempts fail and when a test may be quarantined](docs/SCRIPTED_FAILURE_REVIEW.md).
 
 **[Explore every door’s result](https://adamraudonis.github.io/DoorBench/#/results)** · [Per-family and per-scenario tables](results/README.md) · [Open a recorded scripted attempt](https://adamraudonis.github.io/DoorBench/#/door/db0079_sliding_single?reference=1)
 
