@@ -188,4 +188,32 @@ if a.hero:
             )
             + "\n"
         )
+        if len(hero) == len(chosen) and not error:
+            ledger = dict(
+                started_at_utc=min(r["started_at_utc"] for r in hero.values()),
+                completed_at_utc=max(r["completed_at_utc"] for r in hero.values()),
+                complete=True,
+                eligible_doors=len(chosen),
+                excluded=[],
+                suite_sha256=final["suite_sha256"],
+                per_door={
+                    id: {**r, "evidence_directory": ""} for id, r in hero.items()
+                },
+            )
+            (out / "hero/results.json").write_text(json.dumps(ledger, indent=2) + "\n")
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "scripts/isaaclab/summarize_g1_catalogue.py"),
+                    "--assets",
+                    str(assets),
+                    "--results",
+                    str(out / "hero"),
+                    "--selection",
+                    str(out / "hero-selection.json"),
+                    "--out",
+                    str(out / "hero/traversal-audit.json"),
+                ],
+                check=True,
+            )
 print("CATALOGUE_COMPLETE", flush=True)

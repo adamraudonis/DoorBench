@@ -161,11 +161,11 @@ def main(spacing=12.0, presentation=False):
             camera = Camera(
                 CameraCfg(
                     prim_path="/World/HeroCamera",
-                    height=1080,
-                    width=1920,
+                    height=1600 if presentation else 1080,
+                    width=2560 if presentation else 1920,
                     data_types=["rgb"],
                     spawn=sim_utils.PinholeCameraCfg(
-                        focal_length=28.0 if presentation else 24.0,
+                        focal_length=24.0,
                         horizontal_aperture=36.0,
                         clipping_range=(0.1, 200.0),
                     ),
@@ -274,7 +274,9 @@ def main(spacing=12.0, presentation=False):
                 torch.tensor(
                     [[extent * 0.55, -extent * 0.85, extent * 0.80]], device=args.device
                 ),
-                torch.tensor([[0.0, 0.0, 0.7]], device=args.device),
+                torch.tensor(
+                    [[0.0, -3.0 if presentation else 0.0, 0.7]], device=args.device
+                ),
             )
             import imageio.v2 as imageio
 

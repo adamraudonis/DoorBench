@@ -20,6 +20,12 @@ def apply_hero_floor(stage):
         ]
 
     before = physical_bindings()
+    environment = stage.GetPrimAtPath("/World/defaultGroundPlane/Environment")
+    # Isaac's visual mesh is separate from its infinite collision plane.
+    if environment and not any(
+        p.GetPath().HasPrefix(environment.GetPath()) for p in colliders
+    ):
+        environment.GetAttribute("xformOp:scale").Set((10.0, 10.0, 1.0))
     material = UsdShade.Material.Define(stage, "/World/HeroFloorMaterial")
     shader = UsdShade.Shader.Define(stage, "/World/HeroFloorMaterial/Surface")
     shader.CreateIdAttr("UsdPreviewSurface")
