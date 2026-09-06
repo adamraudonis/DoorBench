@@ -154,3 +154,12 @@ source; the one-face inventory now includes master's independent DB0425 keypad
 trim (30 assemblies, previously 29). PUSH/PULL plates now seat on planar leaf or
 glass stock covering their entire footprint, instead of floating at the thicker
 frame plane. Unsupported footprints remain visible to attachment QA.
+
+The generic multiple-operator component schedule now uses seconds instead of
+assuming 1 ms per step. It retains its force limits and 0.3/0.6/3.2-second
+operation timing, and runs the normal passive-mechanism callbacks. All 11
+multi-latch regressions and three independent timestep tests pass. DB0124 now
+passes fresh whole-door QA; the earlier generic failure had allowed only a
+fraction of the intended operating time at its finer integration step. This
+change does not substitute generalized-force QA for the separate native surface
+service proof or certify an embodied human task.

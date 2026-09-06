@@ -384,26 +384,28 @@ def operator_effort(m, j: int, name: str) -> float:
     return 14.0 if name.startswith("dog_") else (10.0 if "wheel" in name else (8.0 if "exit_device" in name else 4.0))
 
 
-def drive_operators(m, d, pj: int, op_ids: list, aux_ids: list, tt: int, push: float, is_hinge: bool, steps: int = 3200) -> float:
+def drive_operators(m, d, pj: int, op_ids: list, aux_ids: list, tt: int, push: float, is_hinge: bool, duration_s: float = 3.2) -> float:
     """Work a SET of operators and push the leaf on the same schedule the ``actuate_opens`` drive uses (thumbturn for
-    the first 0.6 s, aux bolts throughout, operators from 0.3 s, push from 0.6 s and stopped past 50 deg).  Returns the
-    primary joint at the end.  Driving a subset is how ``all_latches_release`` asks "does one dog still hold it?"."""
+    the first 0.6 s, aux bolts throughout, operators from 0.3 s, push from 0.6 s and stopped past 50 deg).
+    Schedule times are seconds, independent of the model integration step.
+    Returns the primary joint at the end.  Driving a subset is how ``all_latches_release`` asks "does one dog still hold it?"."""
     import mujoco
     HINGE = int(mujoco.mjtJoint.mjJNT_HINGE)
     names = {j: (mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_JOINT, j) or "") for j in op_ids}
     mujoco.mj_resetData(m, d)
-    for k in range(steps):
+    for k in range(round(duration_s / m.opt.timestep)):
+        elapsed = k * m.opt.timestep
         d.qfrc_applied[:] = 0
-        if tt >= 0 and k < 600:
+        if tt >= 0 and elapsed < .6:
             d.qfrc_applied[m.jnt_dofadr[tt]] = 2.0
         for a in aux_ids:
             d.qfrc_applied[m.jnt_dofadr[a]] = 3.0 if int(m.jnt_type[a]) == HINGE else 60.0
-        if k >= 300:
+        if elapsed >= .3:
             for j in op_ids:
                 d.qfrc_applied[m.jnt_dofadr[j]] = operator_effort(m, j, names[j])
-        if k >= 600 and (not is_hinge or _q(m, d, pj) < math.radians(50)):
+        if elapsed >= .6 and (not is_hinge or _q(m, d, pj) < math.radians(50)):
             d.qfrc_applied[m.jnt_dofadr[pj]] = push
-        mujoco.mj_step(m, d)
+        _qa_step(m, d)
     return _q(m, d, pj)
 
 
