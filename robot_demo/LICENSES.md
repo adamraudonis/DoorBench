@@ -15,3 +15,5 @@ Python dependencies added to the venv for this demo: `torch` (BSD-3-Clause, CPU 
 The BSD-3-Clause licence requires that redistributions reproduce the copyright notice and disclaimer; the third-party
 files are not redistributed by this repository (they are downloaded by `setup.sh`), and the videos in `docs/media/`
 are renders produced with these assets. DoorBench's own code and door assets remain MIT.
+
+The Isaac demo downloads the pinned Unitree checkpoint, config, and license with `scripts/isaaclab/fetch_g1_policy.py` into `third_party/unitree_g1_policy/`. Its G1 USD is fetched separately by Isaac Lab’s `G1_MINIMAL_CFG` from NVIDIA’s asset server; it is not the Menagerie asset and is not redistributed by this repository.

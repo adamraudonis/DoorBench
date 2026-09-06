@@ -4,12 +4,10 @@ Train a policy to open **hundreds of different DoorBench doors at once** in NVID
 vectorised scene holds a different door (`MultiUsdFileCfg`), the rewards are the benchmark events, and the agent is
 either a 6-DoF gantry hand (fast, validates the door mechanics) or the Unitree G1 humanoid.
 
-> **Status:** written and statically validated on a Mac without an NVIDIA GPU. The USD side is verified (1000/1000
-> doors pass the pxr validator, see [`STATUS.md`](STATUS.md)); the Isaac Lab side is syntax/API-checked against the
-> Isaac Lab **v2.3.2** sources (imports, `mdp.`/`sim_utils.` attributes and config keyword arguments:
-> `scripts/isaaclab/check_api_names.py --source ~/IsaacLab`).  The USD validator ran on a RunPod L40S; training has
-> not — the scripts are thin and mirror Isaac Lab's own train/play scripts to keep first-run fixes cheap.  The GPU
-> pipeline (`cloud/run_all.sh`) is validation-first: training runs only with `TRAIN=1`.
+> **Start with an existing policy:** use the [G1 researcher walkthrough](../docs/ISAAC_G1_DEMO.md).
+> It includes the original Unitree checkpoint, a policy plug-in, and a four-door integration suite.
+> See [execution status](STATUS.md) for native validation coverage. Door validation, the G1 demo,
+> and PPO training are separate checks; the cloud pipeline runs training only with `TRAIN=1`.
 
 ## Ultra-short path (fresh Ubuntu 22.04 GPU box)
 

@@ -1,5 +1,11 @@
 # Isaac Lab integration — verification status
 
+## Native G1 demo — September 6, 2026
+
+The [researcher walkthrough](../docs/ISAAC_G1_DEMO.md) was executed in Isaac Sim 5.1.0 on an L40S using the original Unitree locomotion checkpoint. **3 of 4 selected demo cases passed**, with no simulator errors in the final suite: open doorway, automatic slider, and passive saloon-door passage succeeded; the closed latched-door attempt failed and the robot fell. This is a canonical-USD locomotion integration demo, not PPO training, a human reference, or an all-door benchmark. [Native receipts](../docs/review/isaac-g1/2026-09-06/results.json) identify the exact inputs and runtime.
+
+The historical validation records below have their own scope and source revisions.
+
 Written on an Apple-silicon Mac **without an NVIDIA GPU**: Isaac Sim / Isaac Lab cannot run here. This file lists
 exactly what was verified locally and what awaits the GPU run (task board I4).
 

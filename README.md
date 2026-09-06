@@ -53,6 +53,6 @@ Use `DoorEnv` for benchmark scenarios and access-control behavior; loading MJCF 
 | Scenarios and historical baselines | [Benchmark](docs/BENCHMARK.md), [results](results/README.md) |
 | Blender and vision data | [Appearance](docs/BLENDER_APPEARANCE.md), [state bridge](docs/BLENDER_VISION_STATE.md) |
 | Reference motion and review records | [Motion schema and replay](docs/REFERENCE_MOTIONS.md), [human review](docs/HUMAN_REVIEW.md) |
-| Humanoid experiments | [G1 demo](robot_demo/README.md), [Isaac Lab](docs/ISAAC_LAB.md), [current status](isaaclab/STATUS.md) |
+| Humanoid experiments | [Run your policy in Isaac Sim](docs/ISAAC_G1_DEMO.md), [MuJoCo G1 demo](robot_demo/README.md), [Isaac Lab](docs/ISAAC_LAB.md), [current status](isaaclab/STATUS.md) |
 
 Code, generated doors and original reference motion are [MIT](LICENSE). Poly Haven textures retain CC0, including maps packed in Blender scenes. See [release licensing](docs/DATASET_RELEASE.md#provenance-and-licenses) and [CITATION.cff](CITATION.cff); record the release tag and checksum inventory when citing experimental data.

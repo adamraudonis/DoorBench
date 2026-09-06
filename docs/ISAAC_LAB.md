@@ -4,8 +4,10 @@ DoorBench ships as Isaac Lab tasks: `DoorBench-Open-Hand-v0` (6-DoF gantry hand)
 (Unitree G1), each with a **different door in every environment**. This page explains the USD design decisions,
 the environment, and the exact commands. Everything on this page targets **Isaac Sim 5.1.0 + Isaac Lab v2.3.2**
 (rsl-rl-lib 3.1.2; `scripts/isaaclab/check_api_names.py --source ~/IsaacLab` audits every symbol and config keyword
-argument against that tree) and was **not executed on the author's machine (no NVIDIA GPU)** — see
-[`isaaclab/STATUS.md`](../isaaclab/STATUS.md) for what was and was not verified.
+argument against that tree). See [`isaaclab/STATUS.md`](../isaaclab/STATUS.md) for execution coverage.
+
+To run an existing policy before training, start with the [step-by-step G1 demo](ISAAC_G1_DEMO.md).
+That checkpoint adapter and the PPO training tasks below have different observation and action contracts.
 
 ## 1. Quick start on a GPU box
 

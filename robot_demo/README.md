@@ -1,5 +1,7 @@
 # Humanoid in the loop: Unitree G1 walking through DoorBench doors
 
+For the Isaac Sim version and a researcher policy plug-in, use the [step-by-step Isaac G1 guide](../docs/ISAAC_G1_DEMO.md). The results below describe the original MuJoCo demo.
+
 A real, off-the-shelf humanoid simulation driving a DoorBench door in plain MuJoCo on a CPU:
 
 * **Robot**: MuJoCo Menagerie [`unitree_g1/g1.xml`](https://github.com/google-deepmind/mujoco_menagerie/tree/main/unitree_g1)
