@@ -49,7 +49,7 @@ class Instance:
         )
 
 
-def main():
+def main(spacing=12.0, presentation=False):
     ids = args.batch_doors or [args.door]
     assets = Path(args.assets).resolve()
     out = Path(args.out).resolve()
@@ -66,17 +66,21 @@ def main():
     np.random.seed(args.seed)
     rows = []
     side = math.ceil(math.sqrt(len(ids)))
-    spacing = 12.0
     with build_simulation_context(
         device=args.device,
         dt=dt,
         gravity_enabled=True,
         add_ground_plane=True,
         auto_add_lighting=True,
+        add_lighting=bool(args.video),
     ) as sim:
         if getattr(sim, "_app_control_on_stop_handle", None) is not None:
             sim._app_control_on_stop_handle.unsubscribe()
             sim._app_control_on_stop_handle = None
+        if presentation:
+            from hero_style import apply_hero_floor
+
+            apply_hero_floor(sim.stage)
         for k, id in enumerate(ids):
             folder = assets / "doors" / id
             spec = json.loads((folder / "spec.json").read_text())
@@ -161,7 +165,7 @@ def main():
                     width=1920,
                     data_types=["rgb"],
                     spawn=sim_utils.PinholeCameraCfg(
-                        focal_length=24.0,
+                        focal_length=28.0 if presentation else 24.0,
                         horizontal_aperture=36.0,
                         clipping_range=(0.1, 200.0),
                     ),
@@ -265,17 +269,21 @@ def main():
                     f"Incorrect robot-to-door origin mapping: {row['id']}"
                 )
         if camera:
-            extent = side * spacing
+            extent = (side - 1) * spacing + 7.5 if presentation else side * spacing
             camera.set_world_poses_from_view(
                 torch.tensor(
-                    [[extent * 0.68, -extent * 0.85, extent * 0.85]], device=args.device
+                    [[extent * 0.55, -extent * 0.85, extent * 0.80]], device=args.device
                 ),
                 torch.tensor([[0.0, 0.0, 0.7]], device=args.device),
             )
             import imageio.v2 as imageio
 
             writer = imageio.get_writer(
-                str(out / "g1-grid.mp4"), fps=25, codec="libx264", quality=8
+                str(out / "g1-grid.mp4"),
+                fps=25,
+                codec="libx264",
+                quality=8,
+                macro_block_size=8,
             )
 
         def save(row, t, success, reason, pos):
@@ -313,6 +321,15 @@ def main():
                 gpu=torch.cuda.get_device_name(),
                 trace_sha256=digest(trace),
                 policy_direct_door_actuation=False,
+                grid_spacing_m=spacing,
+                presentation=bool(presentation),
+                presentation_source_sha256={
+                    name: digest(ROOT / "scripts/isaaclab" / name)
+                    for name in ("hero_g1.py", "hero_style.py")
+                }
+                if presentation
+                else {},
+                policy_config_sha256=digest(args.policy_config),
                 door_state_writes_during_episode=0,
             )
             (out / (row["id"] + ".json")).write_text(
