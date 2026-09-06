@@ -51,16 +51,55 @@ def build_model(spec: dict, phys: dict | None = None) -> Model:
         GO.build_horizontal(spec, phys, model)
     else:
         raise ValueError(f"unknown family {fam}")
+    approach=spec.get('robot',{}).get('approach_side','-y')
+    if approach not in ('-y','+y'):raise ValueError('Unsupported approach side')
+    model.meta['approach_face']=1 if approach=='+y' else -1
+    if approach=='+y':
+        plane=float(model.meta.get('wall_y',0.))
+        for body in model.bodies:
+            for site in body.sites:
+                if site.name in ('approach_point','goal_point'):
+                    site.pos=(site.pos[0],2*plane-site.pos[1],site.pos[2])
+    from .geometry.closer_mounts import finish_deferred_closers
+    finish_deferred_closers(model)
     if fam == "automatic_swing":
         act = spec["kinematics"].get("actuator", {})
         model.meta.setdefault("actuators", []).append({"name": "swing_operator", "joint": model.meta["primary_joint"], "kind": "position", "kp": 150.0, "kv": 40.0, "forcerange": (-act.get("max_torque_Nm", 60), act.get("max_torque_Nm", 60)), "ctrlrange": (0.0, 1.6)})
+    if fam in ("automatic_swing", "automatic_sliding", 'garage_sectional'):
+        from .geometry.automatic_controls import add_automatic_controls
+        add_automatic_controls(model, spec)
     # Armature floors: reflected inertia of internal lock/latch mechanisms (gears, springs, spindles).  Also required so
     # MuJoCo's mass-scaled soft constraints (equalities, tendon & joint limits) can act on very light mechanism bodies.
     ARM_HINGE = {"operator": 0.01, "lock": 0.005, "latch": 0.005, "mechanism": 0.002, "secondary": 0.005, "decor": 0.002, "primary": 0.01}
     ARM_SLIDE = {"operator": 0.15, "lock": 0.1, "latch": 0.1, "mechanism": 0.05, "secondary": 0.1, "decor": 0.05, "primary": 0.5}
+    physical_names=model.meta.get('physical_inertia_joints',[])
+    if physical_names:
+        import numpy as np
+        by_joint={b.joint.name:b for b in model.bodies if b.joint}
+        if (not isinstance(physical_names,list) or any(not isinstance(n,str) for n in physical_names)
+                or len(set(physical_names))!=len(physical_names) or not set(physical_names)<=by_joint.keys()):
+            raise ValueError('physical_inertia_joints must name distinct existing joints')
+        for name in physical_names:
+            body=by_joint[name]
+            for tier in body.tiers:
+                geometric_mass=sum(g.mass() for g in body.geoms if tier in g.tiers)
+                mass,_,inertia=body.inertial(tier)
+                if not (np.isfinite(geometric_mass) and geometric_mass>0 and np.isfinite(mass) and mass>0
+                        and np.isfinite(inertia).all() and np.linalg.eigvalsh(inertia).min()>0):
+                    raise ValueError(f'Physical-inertia joint {name} needs positive geometric mass and inertia in {tier}')
     for b in model.bodies:
         j = b.joint
         if j is None:
+            continue
+        if j.type == 'free':
+            # A free mechanism body has six physical rigid-body DOFs and no
+            # drive train whose reflected inertia could justify armature.
+            j.armature = 0.
+            continue
+        if j.name in model.meta.get('material_flexure_joints',[]) or j.name in model.meta.get('physical_inertia_joints',[]):
+            # Passive material, shells and linkages carry actual geometry
+            # inertia; none has a geared drive requiring reflected armature.
+            j.armature=0.
             continue
         floor = (ARM_HINGE if j.type == "hinge" else ARM_SLIDE).get(j.role, 0.005)
         if j.role == "primary" and j.type == "hinge":
@@ -69,45 +108,61 @@ def build_model(spec: dict, phys: dict | None = None) -> Model:
             floor = 0.5
         j.armature = max(j.armature, floor)
     op = spec["opening"]
-    # --- mass reconciliation: the derived slab + glass mass (physics.py, calibrated to manufacturer weight tables) is
-    # distributed over the leaf bodies by volume, so the simulated moving mass matches the spec whatever the geometry
-    # builder did (glass panes, split leaves, strips and rotors otherwise carried density-based masses)
-    leaf_bodies = [b for b in model.bodies if getattr(b, "semantic", "") == "leaf" and not b.static]
-    hw_now = float(sum(b.inertial("full")[0] for b in model.bodies if not b.static and getattr(b, "semantic", "") != "leaf"))
-    slab_glass = float(phys["mass"].get("slab_kg", 0.0) + phys["mass"].get("glass_kg", 0.0))
-    # hardware that is not modelled as its own body (tracks, hangers, straps, plates) rides on the leaf
-    tgt_mass = max(0.5 * slab_glass, float(phys["mass"]["total_kg"]) - hw_now)
-    if tgt_mass > 0 and leaf_bodies:
-        vols = [max(sum((g.volume() or 0.0) for g in b.geoms), 1e-6) for b in leaf_bodies]
-        vt = sum(vols)
-        for b, vol in zip(leaf_bodies, vols):
-            b.mass_override = tgt_mass * vol / vt
-        model.meta["mass_reconciled_kg"] = tgt_mass
+    # Explicit physical panel budgets; duplicate proxies/decor never set allocation.
+    from .mass_reconciliation import reconcile_moving_mass
+    reconcile_moving_mass(model, phys)
+    # A bidirectional lift lever must centre under its own actual weight.
+    # Specify a real torsion-spring preload, rather than holding the handle
+    # with an invisible runtime torque or a test fixture's neutral servo.
+    if model.meta.get('gravity_balanced_operators'):
+        import numpy as np
+        from .ir import quat_to_mat
+        def orientation(body):
+            R=quat_to_mat(body.quat)
+            return orientation(model.body(body.parent))@R if body.parent else R
+        for name in model.meta['gravity_balanced_operators']:
+            body=next(b for b in model.bodies if b.joint and b.joint.name==name)
+            joint=body.joint
+            if joint.type!='hinge' or joint.stiffness<=0:
+                raise ValueError('Gravity-balanced operators require an actual torsion spring')
+            mass,com,_=body.inertial('full')
+            gravity=orientation(body).T@np.array([0.,0.,-9.81])
+            torque=float(np.dot(joint.axis,np.cross(np.asarray(com)-joint.pos,mass*gravity)))
+            joint.springref=-torque/joint.stiffness
+            model.meta.setdefault('operator_return_preloads',[]).append({'joint':name,'springref_rad':joint.springref,
+                'stiffness_Nm_rad':joint.stiffness,'closed_gravity_torque_Nm':torque,
+                'scope':'Torsion spring preload balances the actual closed-pose operator geometry; no runtime servo'})
     model.meta["scene_extent"] = max(1.5, 0.75 * max(op["width"], op["height"]) + 0.5)
     model.meta["cam_target_z"] = 0.5 * op["height"] + float(op.get("elevation", 0.0) or 0.0) + float(op.get("sill_height", 0.0) or 0.0) * 0.5
     model.meta["cam_target_x"] = 0.0
     model.meta["handle_cam_x"] = float(model.meta.get("hinge_x", 0.0) + model.meta.get("u", 1.0) * (spec["leaf"]["width"] - 0.1)) if model.meta.get("u") is not None else 0.3
-    # handle-detail camera: aim at the first grip site (world position via the parent chain; rotations are identity)
-    def _world_pos(body_name):
-        p = [0.0, 0.0, 0.0]
-        seen = 0
-        while body_name and seen < 12:
+    # Use the full authored parent transforms, including wound slat rest poses.
+    def _world_pos(body_name,local):
+        from .ir import quat_rotate
+        p = list(local)
+        seen=set()
+        while body_name:
+            if body_name in seen:raise ValueError('Cyclic body hierarchy')
+            seen.add(body_name)
             b = model.body(body_name)
-            p = [p[i] + float(b.pos[i]) for i in range(3)]
+            rotated=quat_rotate(b.quat,p)
+            p = [float(rotated[i])+float(b.pos[i]) for i in range(3)]
             body_name = b.parent
-            seen += 1
         return p
     grip = None
     for b in model.bodies:
         for s_ in b.sites:
             if getattr(s_, "role", "") == "grip":
-                wp = _world_pos(b.name)
-                grip = [wp[i] + float(s_.pos[i]) for i in range(3)]
+                grip = _world_pos(b.name,s_.pos)
                 break
         if grip:
             break
     if grip is None:
         grip = [model.meta["handle_cam_x"], float(model.meta.get("wall_y", 0.0)), float(model.meta.get("handle_height", 1.0))]
+    if model.meta.get('rollup_hoist'):
+        names=set(model.meta['rollup_hoist']['material_grip_sites'])
+        candidates=[_world_pos(b.name,s.pos) for b in model.bodies for s in b.sites if s.name in names]
+        grip=min(candidates,key=lambda p:abs(p[2]-1.2))
     fam = spec["family"]
     if fam == "hatch_floor":
         off = (0.35, -0.55, 0.85)
@@ -117,6 +172,7 @@ def build_model(spec: dict, phys: dict | None = None) -> Model:
         off = (0.25, -1.1, 0.35)
     else:
         off = (0.18, -0.8, 0.28)
+    if model.meta['approach_face']>0:off=(off[0],-off[1],off[2])
     model.meta["handle_cam_target"] = grip
     model.meta["handle_cam_pos"] = [grip[0] + off[0], grip[1] + off[1], grip[2] + off[2]]
     model.bake_initial()
@@ -176,8 +232,19 @@ def write_hardware_meshes(model: Model, hardware_dir: str) -> list:
         for g in b.geoms:
             if g.type == "mesh" and g.mesh is not None:
                 path = os.path.join(hardware_dir, f"{g.mesh_name}.obj")
-                if not os.path.exists(path):
-                    g.mesh.export(path, include_normals=False, include_texture=False)
+                content = g.mesh.export(file_type="obj", include_normals=False, include_texture=False)
+                if isinstance(content, str):
+                    content = content.encode("utf-8")
+                from pathlib import Path
+                target = Path(path)
+                if not target.exists() or target.read_bytes() != content:
+                    # Parallel generators may share a mesh key. Readers must
+                    # see one complete OBJ, never a partially rewritten file.
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(dir=hardware_dir, suffix='.obj.tmp', delete=False) as mesh_tmp:
+                        mesh_tmp.write(content)
+                        temporary = mesh_tmp.name
+                    os.replace(temporary, target)
                     out.append(g.mesh_name)
     return out
 

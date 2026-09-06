@@ -87,7 +87,7 @@ def test_missing_support_metadata_is_not_a_pass(exported):
 
 def test_rail_only_scope_is_reported(exported):
     for model, metadata in exported.values():
-        if metadata["family"] == "sliding_bypass":
+        if metadata["family"] == "sliding_bypass" and not metadata["sliding_track_supports"][0].get("suspension_model"):
             result = run_sliding_track_qa(model, metadata)
             assert result["rail_only_bodies"]
             assert result["wheels_checked"] == 0
@@ -121,7 +121,9 @@ def test_requested_bypass_guides_cover_all_lanes(exported):
     assert len(covered) == 14
     _, metadata = exported["db0008_sliding_bypass"]
     middle = next(s for s in metadata["sliding_track_supports"] if s["body"] == "leaf_1")
-    assert len(middle["floor_guides"]) == 2
+    assert len(middle["floor_guides"]) == 1  # actual one-sided middle-leaf stroke
+    outer = next(s for s in metadata["sliding_track_supports"] if s["body"] == "leaf_0")
+    assert len(outer["floor_guides"]) == 2  # full two-panel-width stroke
 
 
 def test_requested_guide_cannot_be_silently_removed(exported):

@@ -56,9 +56,12 @@ def test_fold_geometry_clears_track_header_and_stacks_face_to_face(folding_specs
         # panels hang below a 30 mm track mounted under the head jamb, 20 mm off the floor
         assert Ho >= F.FOLD_FLOOR_GAP + Hh + F.FOLD_TRACK_GAP + F.FOLD_TRACK_H - 1e-9, s["id"]
         model = build_model(s)
-        track = next(g for b in model.bodies for g in b.geoms if g.name == "fold_track")
-        assert track.pos[2] - track.size[2] >= F.FOLD_FLOOR_GAP + Hh + F.FOLD_TRACK_GAP - 1e-9
-        assert track.pos[2] + track.size[2] <= Ho + 1e-9
+        tracks = [g for b in model.bodies for g in b.geoms
+                  if g.name == "fold_track" or g.name.startswith("fold_track_")]
+        assert tracks, s["id"]
+        track_bottom = min(g.pos[2] - g.size[2] for g in tracks)
+        assert track_bottom >= F.FOLD_FLOOR_GAP + Hh + F.FOLD_TRACK_GAP - 1e-9
+        assert max(g.pos[2] + g.size[2] for g in tracks) <= Ho + 1e-9
         for b in model.bodies:
             if b.joint is None or not b.name.startswith("panel_") or b.joint.role != "secondary":
                 continue
@@ -66,11 +69,16 @@ def test_fold_geometry_clears_track_header_and_stacks_face_to_face(folding_specs
             # face hinges: the axis lies on the face the pair closes onto, alternating between the two faces
             assert abs(abs(b.joint.pos[1]) - t / 2) < 1e-9, (s["id"], b.name, b.joint.pos)
             assert math.copysign(1, b.joint.pos[1]) == (1.0 if k % 2 == 1 else -1.0)
-            slab = next(g for g in b.geoms if g.name.endswith("_slab") or g.name.endswith("_slab_col") or g.name.endswith("_glass"))
-            assert abs(slab.pos[1]) < 1e-9     # the slab itself is centred on the panel plane
-            # the slab top clears the track, the bottom clears the floor
-            assert slab.pos[2] + slab.size[2] <= track.pos[2] - track.size[2] - F.FOLD_TRACK_GAP + 1e-9
-            assert slab.pos[2] - slab.size[2] >= F.FOLD_FLOOR_GAP - 1e-9
+            # A louvered leaf consists of actual stiles, rails and angled
+            # slats, so validate every structural leaf piece rather than
+            # requiring the obsolete solid-slab name.
+            from doorbench.ir import quat_to_mat
+            pieces = [g for g in b.geoms if g.semantic in ("leaf", "glass") and g.type == "box"]
+            assert pieces, (s["id"], b.name)
+            for piece in pieces:
+                extent = np.abs(quat_to_mat(piece.quat)) @ np.asarray(piece.size)
+                assert piece.pos[2] + extent[2] <= track_bottom - F.FOLD_TRACK_GAP + 1e-9
+                assert piece.pos[2] - extent[2] >= F.FOLD_FLOOR_GAP - 1e-9
 
 
 LOCKED_FOLD_XML = """<mujoco><compiler angle="radian"/><worldbody>
@@ -126,7 +134,11 @@ def test_accordion_folds_under_the_qa_push_and_signs_off(tmp_path, folding_specs
         assert qk == pytest.approx(F.fold_coupling(k) * q0, abs=0.02), (k, qk, q0)
     # lead edge excursion along the track: the face-hinged chain first lengthens; the closed lead gap swallows it
     Wo = s["opening"]["width"]
-    lead = m.geom(f"panel_0_{n - 1}_slab").id
+    # A real recessed pull splits the slab collision volume around its cup.
+    # Measure the complete leading panel envelope across every retained piece.
+    prefix=f"panel_0_{n - 1}_slab"
+    lead=[g for g in range(m.ngeom) if m.geom(g).name.startswith(prefix)]
+    assert lead
     mujoco.mj_resetData(m, d)
     xs = []
     for q in np.linspace(0.0, m.jnt_range[pj][1], 200):
@@ -135,8 +147,8 @@ def test_accordion_folds_under_the_qa_push_and_signs_off(tmp_path, folding_specs
         for k in range(1, n):
             d.qpos[m.jnt_qposadr[m.joint(f"panel_0_{k}_hinge").id]] = F.fold_coupling(k) * q
         mujoco.mj_forward(m, d)
-        R = d.geom_xmat[lead].reshape(3, 3)
-        xs.append(max(d.geom_xpos[lead][0] + (R @ (np.array(c) * m.geom_size[lead]))[0] for c in [(sx, sy, 0.0) for sx in (-1, 1) for sy in (-1, 1)]))
+        xs.append(max(d.geom_xpos[g][0] + (d.geom_xmat[g].reshape(3,3) @ (np.array(c) * m.geom_size[g]))[0]
+                      for g in lead for c in [(sx,sy,0.) for sx in (-1,1) for sy in (-1,1)]))
     gap_closed = Wo / 2 - xs[0]
     excursion = max(xs) - xs[0]
     assert excursion > 0.005, excursion                                   # the effect is real for an 8-panel stack

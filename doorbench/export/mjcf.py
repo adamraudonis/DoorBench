@@ -13,6 +13,7 @@ contact exclusion).
 from __future__ import annotations
 
 import os
+import math
 from xml.etree import ElementTree as ET
 from xml.dom import minidom
 
@@ -48,9 +49,12 @@ def _pretty(elem) -> str:
 
 
 def _geom_xml(parent, g: Geom, tier: str, mesh_prefix: str, materials: dict, default_class=None):
+    g.validate_contact_priority()
     e = ET.SubElement(parent, "geom")
     e.set("name", g.name)
     e.set("type", g.type)
+    if g.contact_priority:
+        e.set('priority', str(g.contact_priority))
     if g.type == "mesh":
         e.set("mesh", g.mesh_name)
     elif g.type == "box":
@@ -81,6 +85,8 @@ def _geom_xml(parent, g: Geom, tier: str, mesh_prefix: str, materials: dict, def
         e.set("friction", _f(g.friction))
         if g.solref:
             e.set("solref", _f(g.solref))
+        if g.solimp:
+            e.set("solimp", _f(g.solimp))
         if g.margin:
             e.set("margin", _f(g.margin))
     # mass: we set explicit inertials on bodies; geoms carry density for reference only
@@ -89,6 +95,10 @@ def _geom_xml(parent, g: Geom, tier: str, mesh_prefix: str, materials: dict, def
 
 
 def _joint_xml(parent, j: Joint):
+    if j.type == "free":
+        # freejoint deliberately avoids inherited scalar defaults. MuJoCo
+        # derives all seven qpos0 values from the owning body's world pose.
+        return ET.SubElement(parent, "freejoint", name=j.name)
     e = ET.SubElement(parent, "joint")
     e.set("name", j.name)
     e.set("type", j.type)
@@ -146,11 +156,31 @@ def _inertial_xml(parent, body: Body, tier: str):
 
 
 def build_mjcf(model: Model, tier: str = "full", mesh_dir_rel: str = "../../hardware", texture_dir_rel: str = "../../textures", include_env=True, timestep=0.002) -> ET.Element:
+    model.validate_free_joints()
+    fixed_names=model.meta.get('native_fixed_body_names',[])
+    if not isinstance(fixed_names,list) or any(not isinstance(name,str) for name in fixed_names) or len(set(fixed_names))!=len(fixed_names):
+        raise ValueError('native_fixed_body_names must be a list of distinct body names')
+    known_bodies={body.name:body for body in model.bodies}
+    for name in fixed_names:
+        if name not in known_bodies or not known_bodies[name].static or known_bodies[name].joint is not None:
+            raise ValueError(f'native_fixed_body_names requires an existing static body without a joint: {name}')
+    fixed_names=set(fixed_names)
+    native_bound=model.meta.get('native_timestep_s')
+    if native_bound is not None:
+        if isinstance(native_bound,bool) or not isinstance(native_bound,(int,float)) or not math.isfinite(native_bound) or native_bound<=0:
+            raise ValueError('native_timestep_s must be a positive finite number')
+        timestep=min(timestep,native_bound)
+    integrator=model.meta.get('native_integrator','implicitfast')
+    if not isinstance(integrator,str) or integrator not in ('implicitfast','implicit'):
+        raise ValueError('native_integrator must be implicitfast or implicit')
     root = ET.Element("mujoco", model=f"{model.name}_{tier}")
     ET.SubElement(root, "compiler", angle="radian", meshdir=mesh_dir_rel, texturedir=texture_dir_rel, autolimits="true", inertiafromgeom="false")
-    opt = ET.SubElement(root, "option", timestep=_f(timestep), integrator="implicitfast", cone="elliptic", impratio="10", noslip_iterations="3")
+    opt = ET.SubElement(root, "option", timestep=_f(timestep), integrator=integrator, cone="elliptic", impratio="10", noslip_iterations="3")
     ET.SubElement(opt, "flag", multiccd="enable")
-    ET.SubElement(root, "size", memory="16M")
+    arena=model.meta.get('native_arena_memory_mib',16)
+    if isinstance(arena,bool) or not isinstance(arena,(int,float)) or not math.isfinite(arena) or int(arena)!=arena or not 16<=arena<=128:
+        raise ValueError('native_arena_memory_mib must be an integer from 16 through 128')
+    ET.SubElement(root, "size", memory=f"{int(arena)}M")
     default = ET.SubElement(root, "default")
     ET.SubElement(default, "geom", condim="4", solref="0.005 1", solimp="0.95 0.99 0.001")
     ET.SubElement(default, "joint", solreflimit="0.005 1", solimplimit="0.95 0.99 0.001")
@@ -186,7 +216,8 @@ def build_mjcf(model: Model, tier: str = "full", mesh_dir_rel: str = "../../hard
         ext = float(model.meta.get("scene_extent", 2.4))
         tgt = np.array([float(model.meta.get("cam_target_x", 0.0)), float(model.meta.get("wall_y", 0.0)), float(model.meta.get("cam_target_z", 1.0))])
         u_ = float(model.meta.get("u", 1.0) or 1.0)
-        for name, pos, fov in (("robot_view", (tgt[0], tgt[1] - 1.25 * ext, tgt[2] + 0.35 * ext), 52), ("far_view", (tgt[0], tgt[1] + 1.25 * ext, tgt[2] + 0.35 * ext), 52), ("iso", (tgt[0] + 0.95 * ext * u_, tgt[1] - 1.05 * ext, tgt[2] + 0.55 * ext), 46)):
+        face=float(model.meta.get('approach_face',-1))
+        for name, pos, fov in (("robot_view", (tgt[0], tgt[1] + face * 1.25 * ext, tgt[2] + 0.35 * ext), 52), ("far_view", (tgt[0], tgt[1] - face * 1.25 * ext, tgt[2] + 0.35 * ext), 52), ("iso", (tgt[0] + 0.95 * ext * u_, tgt[1] + face * 1.05 * ext, tgt[2] + 0.55 * ext), 46)):
             r_, up_ = _look_at(np.array(pos), tgt)
             ET.SubElement(world, "camera", name=name, pos=_f(pos), xyaxes=_f(list(r_) + list(up_)), fovy=str(fov))
         if model.meta.get("handle_cam_pos") and model.meta.get("handle_cam_target"):
@@ -201,8 +232,13 @@ def build_mjcf(model: Model, tier: str = "full", mesh_dir_rel: str = "../../hard
     site_elems = {}
 
     def emit_body(b: Body, parent_elem):
-        if b.static:
-            # emit geoms directly on the parent (world) so world-exemption applies
+        if b.static and b.name not in fixed_names:
+            # A compiler-only frame preserves the complete static transform
+            # for geoms, sites AND articulated descendants. It adds no body
+            # mass or parent collision exclusion to the compiled model.
+            if any(abs(float(p))>1e-12 for p in b.pos) or any(abs(a-c)>1e-9 for a,c in zip(b.quat,(1,0,0,0))):
+                parent_elem=ET.SubElement(parent_elem,'frame',pos=_f(b.pos),quat=_f(b.quat))
+            # Emit geometry on the retained parent so world-exemption applies.
             for g in b.geoms:
                 if tier in g.tiers:
                     _geom_xml(parent_elem, g, tier, mesh_dir_rel, mats)
@@ -214,7 +250,8 @@ def build_mjcf(model: Model, tier: str = "full", mesh_dir_rel: str = "../../hard
         e = ET.SubElement(parent_elem, "body", name=b.name, pos=_f(b.pos))
         if any(abs(a - c) > 1e-9 for a, c in zip(b.quat, (1, 0, 0, 0))):
             e.set("quat", _f(b.quat))
-        _inertial_xml(e, b, tier)
+        if not b.static:
+            _inertial_xml(e, b, tier)
         if b.joint is not None:
             _joint_xml(e, b.joint)
         for g in b.geoms:
@@ -237,7 +274,9 @@ def build_mjcf(model: Model, tier: str = "full", mesh_dir_rel: str = "../../hard
     joint_names = {b.joint.name for b in bodies if b.joint is not None}
     # tendons
     tend = [t for t in model.tendons if tier in t.tiers and all(j in joint_names for j, _ in t.sites)]
-    if tend:
+    springs = [s for s in model.spatial_springs if tier in s.tiers]
+    cables = [c for c in model.spatial_cables if tier in c.tiers]
+    if tend or springs or cables:
         te = ET.SubElement(root, "tendon")
         for t in tend:
             fe = ET.SubElement(te, "fixed", name=t.name, limited="true", range=_f(t.range))
@@ -247,6 +286,25 @@ def build_mjcf(model: Model, tier: str = "full", mesh_dir_rel: str = "../../hard
                 fe.set("damping", _f(t.damping))
             for j, c in t.sites:
                 ET.SubElement(fe, "joint", joint=j, coef=_f(c))
+        available_sites = {s.name for b in bodies for s in b.sites if tier in s.tiers}
+        for spring in springs:
+            if not set(spring.sites) <= available_sites:
+                raise ValueError(f"Missing spatial spring endpoint: {spring.name}")
+            se = ET.SubElement(te, "spatial", name=spring.name, limited="false",
+                stiffness=_f(spring.stiffness), springlength=_f(spring.springlength),
+                damping=_f(spring.damping), width=_f(spring.width))
+            for name in spring.sites:
+                ET.SubElement(se, "site", site=name)
+        available_geoms = {g.name:g for b in bodies for g in b.geoms if tier in g.tiers}
+        for cable in cables:
+            try:
+                cable.validate_path(available_sites,available_geoms)
+            except AssertionError as exc:
+                raise ValueError(f"Invalid spatial cable {cable.name}: {exc}") from exc
+            ce = ET.SubElement(te,"spatial",name=cable.name,limited="true",range=_f((0.,cable.max_length)),
+                width=_f(cable.width),solreflimit="0.002 1",solimplimit="0.99 0.999 0.001")
+            for point in cable.path:
+                ET.SubElement(ce,"site" if 'site' in point else "geom",**point)
     # equalities
     eqs = [q for q in model.equalities if tier in q.tiers]
     eq_elems = []
@@ -260,20 +318,54 @@ def build_mjcf(model: Model, tier: str = "full", mesh_dir_rel: str = "../../hard
     if eq_elems:
         ee = ET.SubElement(root, "equality")
         for kind, q in eq_elems:
+            solver = {}
+            if q.solref is not None:
+                solver['solref'] = _f(q.solref)
+            if q.solimp is not None:
+                solver['solimp'] = _f(q.solimp)
             if kind == "joint":
-                ET.SubElement(ee, "joint", name=q.name, joint1=q.a, joint2=q.b, polycoef=_f(q.polycoeff), active="true" if q.active else "false")
+                ET.SubElement(ee, "joint", name=q.name, joint1=q.a, joint2=q.b, polycoef=_f(q.polycoeff), active="true" if q.active else "false", **solver)
             elif kind == "connect":
-                b2 = q.b if q.b in body_names and not model.body(q.b).static else "world"
-                ET.SubElement(ee, "connect", name=q.name, body1=q.a, body2=b2, anchor=_f(q.anchor), active="true" if q.active else "false")
+                b2 = q.b if q.b in body_names and (not model.body(q.b).static or q.b in fixed_names) else "world"
+                ET.SubElement(ee, "connect", name=q.name, body1=q.a, body2=b2, anchor=_f(q.anchor), active="true" if q.active else "false", **solver)
             else:
-                b2 = q.b if q.b in body_names and not model.body(q.b).static else "world"
-                ET.SubElement(ee, "weld", name=q.name, body1=q.a, body2=b2, active="true" if q.active else "false")
+                b2 = q.b if q.b in body_names and (not model.body(q.b).static or q.b in fixed_names) else "world"
+                ET.SubElement(ee, "weld", name=q.name, body1=q.a, body2=b2, active="true" if q.active else "false", **solver)
     # contact excludes
-    ex = [(a, b) for a, b in model.contact_excludes if a in body_names and b in body_names and not model.body(a).static and not model.body(b).static]
-    if ex:
+    ex = [(a, b) for a, b in model.contact_excludes if a in body_names and b in body_names
+          and (not model.body(a).static or a in fixed_names) and (not model.body(b).static or b in fixed_names)]
+    pairs=model.meta.get('native_contact_pairs',[])
+    if not isinstance(pairs,list):raise ValueError('native_contact_pairs must be a list')
+    geoms={g.name:g for b in model.bodies if b.name in body_names for g in b.geoms if tier in g.tiers}
+    encoded=[];seen=set()
+    for pair in pairs:
+        if not isinstance(pair,dict) or set(pair)-{'geom1','geom2','solref','solimp','friction'}:
+            raise ValueError('Invalid native contact pair fields')
+        names=(pair.get('geom1'),pair.get('geom2'))
+        if any(not isinstance(n,str) or n not in geoms or not geoms[n].collision for n in names) or names[0]==names[1]:
+            raise ValueError('Native contact pairs require two distinct collision geoms in every exported tier')
+        key=tuple(sorted(names))
+        if key in seen:raise ValueError('Duplicate native contact pair')
+        seen.add(key);attrs={'geom1':names[0],'geom2':names[1]}
+        for field,count in (('solref',2),('solimp',3),('friction',5)):
+            if field not in pair:continue
+            values=pair[field]
+            if (not isinstance(values,(tuple,list)) or len(values)!=count or
+                any(isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v) for v in values)):
+                raise ValueError(f'Invalid native contact pair {field}')
+            if field=='solref' and not all(v>0 for v in values):raise ValueError('Contact pair solref requires positive time constant/damping')
+            if field=='solimp' and not (0<values[0]<=values[1]<1 and values[2]>0):raise ValueError('Invalid contact pair impedance')
+            if field=='friction' and any(v<0 for v in values):raise ValueError('Contact pair friction must be nonnegative')
+            attrs[field]=_f(values)
+        encoded.append(attrs)
+    if ex or encoded:
         ce = ET.SubElement(root, "contact")
         for a, b in ex:
             ET.SubElement(ce, "exclude", body1=a, body2=b)
+        for pair in encoded:
+            # Explicit collision pairs restore only the authored stop/seat
+            # contacts which native parent filtering would otherwise omit.
+            ET.SubElement(ce,'pair',**pair)
     # actuators (position servos for automatic doors / general-purpose joint motors on primary joints)
     act = model.meta.get("actuators", [])
     act = [a for a in act if a["joint"] in joint_names]

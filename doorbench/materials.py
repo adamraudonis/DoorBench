@@ -8,6 +8,8 @@ Units: SI throughout (kg, m, N, Pa).
 """
 from __future__ import annotations
 
+import math
+
 from dataclasses import dataclass, field, asdict
 from typing import Optional
 
@@ -226,6 +228,8 @@ class SlabConstruction:
 
     def area_density(self, thickness: float) -> float:
         """kg/m^2 for a given slab thickness (physics-based build-up)."""
+        if self.id in FRAMED_GLASS_SLABS:
+            return framed_glass_profile(self.id, .9, 2.1, thickness)["total_kg"] / (.9*2.1)
         if self.monolithic:
             return MATERIALS[self.core_material].density * thickness
         skins = 2 * self.skin_thickness * MATERIALS[self.skin_material].density
@@ -319,14 +323,67 @@ _slab(SlabConstruction("glass_frameless_12", "Frameless tempered glass 12 mm", "
                        (0.012,), 0.0, None, SOURCES["glass_density"]))
 _slab(SlabConstruction("glass_frameless_19", "Frameless tempered glass 19 mm (heavy)", "glass_clear", 0.0, "glass_clear", 1.0, "glass_clear", 0.0, True,
                        (0.019,), 0.0, None, SOURCES["glass_density"]))
-_slab(SlabConstruction("storefront_alu", "Aluminum storefront (medium stile) w/ 6 mm glass", "aluminum", 0.0, "glass_clear", 1.0, "aluminum", 0.0, True,
-                       (0.006,), 12.0, None, "Kawneer 350 medium stile; 6 mm glass 15 kg/m^2 + frame ~12 kg/m^2"))
-_slab(SlabConstruction("storefront_alu_igu", "Aluminum storefront (wide stile) w/ 25 mm IGU", "aluminum", 0.0, "glass_clear", 1.0, "aluminum", 0.0, True,
-                       (0.012,), 14.0, None, "Wide stile w/ 1 in insulating glass unit"))
-_slab(SlabConstruction("patio_slider_glass", "Sliding patio door (vinyl frame, 19 mm IGU)", "pvc", 0.0, "glass_clear", 1.0, "pvc", 0.0, True,
-                       (0.012,), 6.0, None, "Vinyl sliding patio panels ≈ 25-35 kg per 3ft panel"))
+_slab(SlabConstruction("storefront_alu", "Aluminum storefront (medium stile) w/ 6 mm glass", "aluminum", 0.0, "glass_clear", 1.0, "aluminum", 0.0, False,
+                       (0.0445,), 12.0, None, "Kawneer 350 medium stile; 6 mm glass 15 kg/m^2 + frame ~12 kg/m^2"))
+_slab(SlabConstruction("storefront_alu_igu", "Aluminum storefront (wide stile) w/ 25 mm IGU", "aluminum", 0.0, "glass_clear", 1.0, "aluminum", 0.0, False,
+                       (0.0445,), 14.0, None, "Wide stile w/ 1 in insulating glass unit"))
+_slab(SlabConstruction("patio_slider_glass", "Sliding patio door (vinyl frame, 19 mm IGU)", "pvc", 0.0, "glass_clear", 1.0, "pvc", 0.0, False,
+                       (0.045,), 6.0, None, "Vinyl sliding patio panels ≈ 25-35 kg per 3ft panel"))
 _slab(SlabConstruction("mirror_bypass", "Mirrored bypass closet door (6 mm mirror, steel frame)", "mirror", 0.0, "mirror", 1.0, "steel", 0.0, True,
                        (0.006,), 3.0, None, "6 mm mirror 15 kg/m^2 + steel frame"))
+
+
+FRAMED_GLASS_SLABS = frozenset({'storefront_alu', 'storefront_alu_igu', 'patio_slider_glass'})
+
+
+def framed_glass_profile(slab_id: str, width: float, height: float, depth: float) -> dict:
+    """Original hollow frame + real glass plies; dimensions and mass share one BOM.
+
+    Storefront sightlines follow the medium/wide-stile product class, not OEM CAD.
+    Wall thickness, patio sightlines, spacers and glazing clearances are authored.
+    Parts use metres: x from hinge edge, y through depth, z from leaf bottom.
+    """
+    if slab_id not in FRAMED_GLASS_SLABS:
+        raise ValueError(f'No framed-glass construction for {slab_id}')
+    if min(width,height,depth)<=0 or not all(math.isfinite(v) for v in (width,height,depth)):
+        raise ValueError('Framed-glass dimensions must be finite and positive')
+    patio=slab_id=='patio_slider_glass'
+    wide=slab_id=='storefront_alu_igu'
+    stile=.127 if patio or wide else .0889
+    top=.127 if wide else (.10 if patio else .0889)
+    bottom=.1651 if not patio else .127
+    wall=.003 if patio else .0024
+    plies=[.004,.004] if patio else ([.006,.006] if wide else [.006])
+    gap=.011 if patio else (.013 if wide else 0.)
+    glazing_depth=sum(plies)+gap
+    if depth<glazing_depth+.006 or width<2*stile+.10 or height<top+bottom+.10:
+        raise ValueError(f'{slab_id}: frame dimensions do not fit the declared glazing')
+    frame_material='pvc' if patio else 'aluminum'
+    parts=[]
+    def part(name,pos,size,material,semantic):
+        parts.append({'name':name,'pos':list(pos),'size':list(size),'material':material,'semantic':semantic})
+    # Four nonoverlapping walls for each rectangular tube. Rail tubes stop at
+    # the stile inner faces, so corners are counted once in the material BOM.
+    def tube(name,x0,x1,z0,z1,vertical):
+        cx,cz=(x0+x1)/2,(z0+z1)/2;hw,hh=(x1-x0)/2,(z1-z0)/2
+        for face in (-1,1):
+            part(f'{name}_face_{face}',(cx,face*(depth-wall)/2,cz),(hw,wall/2,hh),frame_material,'leaf')
+            if vertical:
+                part(f'{name}_web_{face}',(cx+face*(hw-wall/2),0,cz),(wall/2,depth/2-wall,hh),frame_material,'leaf')
+            else:
+                part(f'{name}_web_{face}',(cx,0,cz+face*(hh-wall/2)),(hw,depth/2-wall,wall/2),frame_material,'leaf')
+    tube('stile_h',0,stile,0,height,True);tube('stile_l',width-stile,width,0,height,True)
+    tube('rail_b',stile,width-stile,0,bottom,False);tube('rail_t',stile,width-stile,height-top,height,False)
+    seat=.002;gx0,gx1=stile+seat,width-stile-seat;gz0,gz1=bottom+seat,height-top-seat
+    cursor=-glazing_depth/2
+    for i,ply in enumerate(plies):
+        part(f'glass_ply_{i}',((gx0+gx1)/2,cursor+ply/2,(gz0+gz1)/2),((gx1-gx0)/2,ply/2,(gz1-gz0)/2),'glass_clear','glass')
+        cursor+=ply+(gap if i==0 else 0)
+    # Continuous edge gaskets bridge the 2 mm seat, making support explicit.
+    for name,x,z,sx,sz in [('h',stile+seat/2,(gz0+gz1)/2,seat/2,(gz1-gz0)/2),('l',width-stile-seat/2,(gz0+gz1)/2,seat/2,(gz1-gz0)/2),('b',width/2,bottom+seat/2,(width-2*stile)/2,seat/2),('t',width/2,height-top-seat/2,(width-2*stile)/2,seat/2)]:
+        part(f'glazing_gasket_{name}',(x,0,z),(sx,glazing_depth/2,sz),'rubber','seal')
+    masses={kind:sum(8*math.prod(p['size'])*MATERIALS[p['material']].density for p in parts if p['semantic']==kind) for kind in ('leaf','glass','seal')}
+    return {'schema':'doorbench.framed-glass.v1','slab':slab_id,'width_m':width,'height_m':height,'frame_depth_m':depth,'stile_m':stile,'top_rail_m':top,'bottom_rail_m':bottom,'frame_wall_m':wall,'glass_plies_m':plies,'sealed_gap_m':gap,'glazing_depth_m':glazing_depth,'parts':parts,'frame_kg':masses['leaf'],'glass_kg':masses['glass'],'gasket_kg':masses['seal'],'total_kg':sum(masses.values()),'scope':'Original simplified tubular frame and sealed-glazing construction; no thermal, structural or manufacturer certification.'}
 
 # Composite / exterior
 _slab(SlabConstruction("fiberglass_entry", "Fiberglass entry door (PU foam core)", "fiberglass_frp", 0.002, "foam_pu", 1.0,

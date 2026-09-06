@@ -11,6 +11,11 @@ A policy is any Python class with two methods::
         def act(self, obs) -> dict:             # every control_dt seconds
             return {"torques": {"leaf_handle_hinge": 3.0, "leaf_hinge": 40.0}, "base_velocity": [0.0, 1.0]}
 
+An optional ``control_period(env)`` method returns the required control interval
+for a particular mechanism. An explicit job override takes precedence. The
+scripted chain-hoist contact controller uses the native integration interval;
+other scripted mechanisms use 4 ms. Episode records report the actual interval.
+
 Scenarios and suites
 --------------------
 Each episode evaluates one of the door's scenarios (`door_info["scenario"]`, `doorbench.benchmark.scenarios`):
@@ -32,8 +37,8 @@ synthetic robot base, the same embodiment as `scripts/demo_mujoco.py`:
   of the door (`spec.lock.robot_side_release == false`) have a limit of 0 - the robot cannot reach them.
 * the base is a point at z = 0.5 m that starts at the scenario's seeded start pose (`door_info["base"]["start"]`,
   drawn from the start zone) and moves with the commanded planar velocity (<= `base.max_speed` m/s).  It can only
-  cross the wall plane (|y| < `base.radius`) while the opening is clear (`LabelTracker.door_open_clear`: hinge
-  >= 60 deg, slide >= 0.55 m or 95 % of travel, overhead >= 1.9 m) and |x| is inside the opening.  It does not
+  cross the wall plane (|y| < `base.radius`) at an x position within an actual collision-clear interval
+  for supported families (0.5 m wide, 1.8 m tall); remaining families retain their declared threshold model.  It does not
   collide with the leaf otherwise, but it does count as a collision with the simulated person of the human suite
   when it comes within `robot.body_radius_m + human.radius_m` (0.52 m) of them.
 
@@ -59,12 +64,24 @@ Observation (dict, all floats in SI, positive joint values = opening / actuating
 Action (dict; every key optional)
 ---------------------------------
     torques           {joint_name: float}   generalized force on door joints (clamped, zero-order held)
+    site_forces       {site_name: [Fx,Fy,Fz]} world force in N at an authored approach-side hand site;
+                      bounded to 120 N and joint effort limits, projected by native mj_applyFT
+    site_torques      {site_name: [Tx,Ty,Tz]} world grasp torque in N*m; accepted only at sites with an
+                      explicit meta.site_wrench_limits_Nm allowance, bounded by that allowance
     base_velocity     [vx, vy] m/s
     badge             True to present a credential (card readers / turnstiles with a robot-side release)
     knock             True to knock on the closed leaf (knock_and_wait; robots with geoms knock by contact)
     declare_locked    True to declare the door locked (locked_recognize): fires `recognized_locked`, ends the episode
     done              True to end the episode early
+    mechanism_failure nonempty explanation of a failed mechanical transition; immediately ends the
+                      episode as unsuccessful, even if a task label previously became true
     ctrl              array for the model's actuators (robot embodiments only, see below)
+
+Native reference recordings save the exact ``qfrc_applied`` vector used by the
+step ending at each recorded sample (zero at reset). Displayed contact locations
+and commands are evaluated at the recorded pose; they are not measurements of
+human contact forces. Native warnings or non-finite states terminate the episode
+as a failure, including warnings that cause MuJoCo to reset its simulation clock.
 
 `door_info` (dict, given once at reset)
 ---------------------------------------

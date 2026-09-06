@@ -177,6 +177,12 @@ class Geom:
     tiers: frozenset = ALL_TIERS
     semantic: str = "structure"      # leaf | frame | operator | latch | lock | hinge | closer | glass | seal | wall | floor | track | decor | sensor | mechanism
     part_label: str = ""             # human-readable
+    contact_priority: int = 0         # native material contact mixing priority; zero preserves defaults
+
+    def validate_contact_priority(self):
+        if (isinstance(self.contact_priority, bool) or not isinstance(self.contact_priority, int)
+                or not 0 <= self.contact_priority <= 2147483647):
+            raise ValueError('Geom contact_priority must be an integer in 0..2147483647')
 
     def volume(self) -> float:
         if self.type == "box":
@@ -256,6 +262,7 @@ class Geom:
         return c
 
     def to_dict(self):
+        self.validate_contact_priority()
         d = {
             "name": self.name, "type": self.type, "size": [float(s) for s in self.size],
             "pos": [float(p) for p in self.pos], "quat": [float(q) for q in self.quat],
@@ -270,13 +277,17 @@ class Geom:
             d["mass_override"] = self.mass_override
         if self.solref:
             d["solref"] = list(self.solref)
+        if self.solimp:
+            d["solimp"] = list(self.solimp)
+        if self.contact_priority:
+            d['contact_priority'] = self.contact_priority
         return d
 
 
 @dataclass
 class Joint:
     name: str
-    type: str                     # hinge | slide
+    type: str                     # hinge | slide | free (world-root, 7 qpos / 6 qvel)
     axis: tuple = (0.0, 0.0, 1.0)
     pos: tuple = (0.0, 0.0, 0.0)
     range: Optional[tuple] = (0.0, 1.5708)
@@ -310,6 +321,9 @@ class Joint:
             "backcheck_angle": self.backcheck_angle, "backcheck_damping": self.backcheck_damping,
             "limit_solref": None if self.limit_solref is None else list(self.limit_solref),
             "ratchet_one_way": self.ratchet_one_way, "modeled_at": self.modeled_at,
+            **({"qpos_width": 7, "qvel_width": 6,
+                "initial_pose_source": "body world position and WXYZ quaternion"}
+               if self.type == "free" else {}),
         }
 
 
@@ -403,10 +417,17 @@ class Equality:
     tiers: frozenset = FULL_ONLY
     label: str = ""
     active: bool = True
+    solref: Optional[tuple] = None  # explicit constraint material/time response; None preserves exporter default
+    solimp: Optional[tuple] = None
 
     def to_dict(self):
-        return {"kind": self.kind, "name": self.name, "a": self.a, "b": self.b, "polycoeff": list(self.polycoeff),
+        result = {"kind": self.kind, "name": self.name, "a": self.a, "b": self.b, "polycoeff": list(self.polycoeff),
                 "anchor": list(self.anchor), "tiers": sorted(self.tiers), "label": self.label, "active": self.active}
+        if self.solref is not None:
+            result['solref'] = list(self.solref)
+        if self.solimp is not None:
+            result['solimp'] = list(self.solimp)
+        return result
 
 
 @dataclass
@@ -425,6 +446,60 @@ class Tendon:
 
 
 @dataclass
+class SpatialSpring:
+    """Two-site linear extension spring; distinct from joint-coordinate tendons."""
+    name: str
+    sites: tuple
+    stiffness: float
+    springlength: float
+    damping: float = 0.0
+    width: float = 0.004
+    tiers: frozenset = ALL_TIERS
+    label: str = ""
+
+    def to_dict(self):
+        return {"name": self.name, "sites": list(self.sites), "stiffness": self.stiffness,
+                "springlength": self.springlength, "damping": self.damping, "width": self.width,
+                "tiers": sorted(self.tiers), "label": self.label}
+
+
+@dataclass
+class SpatialCable:
+    """Inextensible, tension-only routed cable, with optional pulley wraps.
+
+    Path entries are {'site': name} or {'geom': name, 'sidesite': name}.
+    A side site selects the wrapping branch; it is not a cable endpoint.
+    """
+    name: str
+    path: tuple
+    max_length: float
+    width: float = .002
+    tiers: frozenset = ALL_TIERS
+    label: str = ""
+
+    def to_dict(self):
+        return {"name":self.name,"path":[dict(p) for p in self.path],
+                "max_length":self.max_length,"width":self.width,
+                "tiers":sorted(self.tiers),"label":self.label}
+
+    def validate_path(self, sites, geoms):
+        assert math.isfinite(self.max_length) and self.max_length>0, "cable length must be positive"
+        assert math.isfinite(self.width) and self.width>0, "cable width must be positive"
+        assert len(self.path)>=2 and 'site' in self.path[0] and 'site' in self.path[-1], "cable needs site endpoints"
+        previous_geom=False
+        for point in self.path:
+            if 'site' in point:
+                assert set(point)=={'site'} and point['site'] in sites, "missing/invalid cable site"
+                previous_geom=False
+            else:
+                assert set(point)<= {'geom','sidesite'} and 'geom' in point, "invalid cable path entry"
+                assert not previous_geom, "cable wrapping geoms require an intervening site"
+                assert point['geom'] in geoms and geoms[point['geom']].type in ('sphere','cylinder'), "invalid cable wrapping geom"
+                assert 'sidesite' not in point or point['sidesite'] in sites, "missing cable side site"
+                previous_geom=True
+
+
+@dataclass
 class Model:
     name: str
     bodies: list = field(default_factory=list)
@@ -433,6 +508,8 @@ class Model:
     tendons: list = field(default_factory=list)
     contact_excludes: list = field(default_factory=list)  # (body1, body2)
     meta: dict = field(default_factory=dict)
+    spatial_springs: list = field(default_factory=list)
+    spatial_cables: list = field(default_factory=list)
 
     # ---- helpers ----
     def body(self, name) -> Body:
@@ -497,6 +574,10 @@ class Model:
             "materials": {k: v.to_dict() for k, v in self.materials.items()},
             "equalities": [e.to_dict() for e in self.equalities if tier in e.tiers and e.a in self._joint_names(names) | names],
             "tendons": [t.to_dict() for t in self.tendons if tier in t.tiers],
+            **({"spatial_springs": [s.to_dict() for s in self.spatial_springs if tier in s.tiers]}
+               if self.spatial_springs else {}),
+            **({"spatial_cables": [c.to_dict() for c in self.spatial_cables if tier in c.tiers]}
+               if self.spatial_cables else {}),
             "contact_excludes": [list(x) for x in self.contact_excludes if x[0] in names and x[1] in names],
             "meta": self.meta,
         }
@@ -508,8 +589,11 @@ class Model:
         """Transform geoms/sites of bodies whose joint has initial != modeled_at so that the authored geometry
         corresponds to q = initial (then modeled_at = initial).  Child bodies are unaffected because their frames
         are expressed relative to this body's frame, which is what the joint moves."""
+        self.validate_free_joints()
         for b in self.bodies:
             j = b.joint
+            if j is not None and j.type == "free":
+                continue  # The full rest pose is b.pos/b.quat, not a scalar.
             if j is None or abs(j.initial - j.modeled_at) < 1e-12:
                 continue
             dq = j.initial - j.modeled_at
@@ -552,10 +636,34 @@ class Model:
                     seen[n] = 1
         return self
 
+    def validate_free_joints(self):
+        """Free roots have real inertia and no scalar control/offset semantics."""
+        free=set()
+        for b in self.bodies:
+            j=b.joint
+            if j is None or j.type != 'free':continue
+            free.add(j.name)
+            assert b.parent is None and not b.static, 'free joint requires a dynamic world-root body'
+            assert j.range is None and not j.robot_interactive and j.role == 'mechanism', 'free joint cannot be a scalar interactive DOF'
+            assert not any(j.pos) and j.initial == j.modeled_at == 0, 'free initial pose belongs to body pos/quat, not scalar offsets'
+            assert not any((j.damping,j.frictionloss,j.stiffness,j.springref,j.armature)), 'free root cannot inherit scalar joint forces'
+            assert j.limit_solref is None and j.damping_closing is None and j.damping_opening is None and j.backcheck_angle is None and not j.ratchet_one_way, 'free root cannot use scalar mechanism rules'
+            mass,_,inertia=b.inertial()
+            assert mass>1e-9 and np.isfinite(inertia).all() and np.linalg.eigvalsh(inertia).min()>0, 'free root requires its actual positive body inertia'
+            assert len(b.pos)==3 and all(math.isfinite(v)for v in b.pos), 'free root needs a finite position'
+            assert len(b.quat)==4 and all(math.isfinite(v)for v in b.quat) and abs(float(np.linalg.norm(b.quat))-1)<1e-6, 'free root needs a unit WXYZ quaternion'
+        assert not any(e.kind=='joint' and (e.a in free or e.b in free)for e in self.equalities), 'free joints cannot use scalar equalities'
+        assert not any(name in free for t in self.tendons for name,_ in t.sites), 'free joints cannot use scalar fixed tendons'
+        assert not any(a.get('joint')in free for a in self.meta.get('actuators',[])), 'free joints cannot use scalar actuators'
+        return True
+
     def validate(self):
+        self.validate_free_joints()
         names = set()
         for b in self.bodies:
             assert b.name not in names, f"dup body {b.name}"
+            for geom in b.geoms:
+                geom.validate_contact_priority()
             names.add(b.name)
             if b.parent is not None:
                 assert b.parent in names, f"parent {b.parent} of {b.name} must be defined before child"
@@ -563,4 +671,30 @@ class Model:
         for j in self.joints():
             assert j.name not in jn, f"dup joint {j.name}"
             jn.add(j.name)
+        for equality in self.equalities:
+            if equality.solref is not None:
+                assert len(equality.solref)==2 and all(math.isfinite(v) for v in equality.solref), 'invalid equality solref'
+                assert equality.solref[1]>0, 'equality damping ratio must be positive'
+            if equality.solimp is not None:
+                assert len(equality.solimp) in (3,4,5) and all(math.isfinite(v) for v in equality.solimp), 'invalid equality solimp'
+                assert 0<equality.solimp[0]<=equality.solimp[1]<1 and equality.solimp[2]>0, 'invalid equality impedance'
+        spring_names = set()
+        for spring in self.spatial_springs:
+            assert spring.name not in spring_names, f"duplicate spatial spring {spring.name}"
+            spring_names.add(spring.name)
+            assert len(spring.sites) == 2 and len(set(spring.sites)) == 2, "spatial spring needs two distinct sites"
+            assert all(math.isfinite(v) for v in (spring.stiffness, spring.springlength, spring.damping, spring.width))
+            assert spring.stiffness > 0 and spring.springlength >= 0 and spring.damping >= 0 and spring.width > 0
+            for tier in spring.tiers:
+                available = {s.name for b in self.bodies_in_tier(tier) for s in b.sites if tier in s.tiers}
+                assert set(spring.sites) <= available, f"missing spatial spring site in {tier}: {spring.name}"
+        tendon_names={t.name for t in self.tendons}|spring_names
+        for cable in self.spatial_cables:
+            assert cable.name not in tendon_names, f"duplicate spatial cable {cable.name}"
+            tendon_names.add(cable.name)
+            for tier in cable.tiers:
+                bodies=self.bodies_in_tier(tier)
+                sites={s.name for b in bodies for s in b.sites if tier in s.tiers}
+                geoms={g.name:g for b in bodies for g in b.geoms if tier in g.tiers}
+                cable.validate_path(sites,geoms)
         return True

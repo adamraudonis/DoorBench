@@ -8,7 +8,7 @@ const pct = (x: number | null | undefined, d = 1) => (x === null || x === undefi
 const secs = (x: number | null | undefined) => (x === null || x === undefined ? "–" : `${x.toFixed(1)} s`);
 const LOCK_LABEL: Record<string, string> = { unlocked: "unlocked / no lock", locked_releasable: "locked, robot-side release", locked_no_release: "locked, no release" };
 const SCENARIO_LABEL: Record<string, string> = {
-  open_and_traverse: "open & traverse", open_then_close: "open, traverse, close behind", close_only: "close only (starts open)", unlock_and_traverse: "unlock & traverse", locked_recognize: "locked: recognise & stop",
+  open_only: "open for access", open_and_traverse: "open & traverse", open_then_close: "open, traverse, close behind", close_only: "close only (starts open)", unlock_and_traverse: "unlock & traverse", locked_recognize: "locked: recognise & stop",
   hold_open_for_human: "hold open for a person", wait_for_human: "wait for a person coming through", knock_and_wait: "knock & wait",
 };
 

@@ -170,6 +170,61 @@ class Clearance:
         with open(os.path.join(door_dir, "model.json")) as f:
             mj_ = json.load(f)
         self.meta = mj_["meta"]
+        self.contact_preview = None
+        self.track_preview = None
+        self.turnstile_preview = None
+        self.turnstile_drop_held = {}
+        self.elevator_released={};self.elevator_locked={}
+        self.vault_native_model=mujoco.MjModel.from_xml_path(xml) if self.meta.get('vault_boltwork') else None
+        self.rotary_release=None
+        if self.meta.get('rotary_locksets'):
+            from .rotary_lockset_qa import rotary_release_snapshot
+            self.rotary_release=rotary_release_snapshot(mujoco.MjModel.from_xml_path(xml),self.meta)
+            if not self.rotary_release['ok']:raise ValueError(f"Rotary catch native preparation failed: {self.rotary_release}")
+        self.security_controlled=set();self.security_samples=[]
+        if self.meta.get('security_guards'):
+            from .security_mechanics_qa import run_security_service_qa
+            with open(os.path.join(door_dir,'spec.json')) as f:security_spec=json.load(f)
+            closer=security_spec['physics'].get('closer',{})
+            proof=run_security_service_qa(mujoco.MjModel.from_xml_path(xml),self.meta,
+                opening_preload=closer.get('spring_preload_Nm',0.),
+                opening_stiffness=closer.get('spring_stiffness_Nm_per_rad',0.))
+            if not proof['ok']:raise ValueError(f"Security native mechanism prerequisite failed: {proof['failures']}")
+            self.security_controlled={self.meta['primary_joint'],*(n for r in self.meta['security_guards'] for n in r['guard_joints'])}
+            self.security_samples=[sample for row in proof['measurements'] for sample in row['inspection_samples']]
+            if not self.security_samples:raise ValueError('Security mechanism proof has no native inspection states')
+        if self.meta.get('elevator_interlocks'):
+            from .elevator_qa import run_elevator_qa
+            proof=run_elevator_qa(mujoco.MjModel.from_xml_path(xml),self.meta)
+            if not proof['ok']:raise ValueError(f"Elevator native mechanism prerequisite failed: {proof['failures']}")
+            self.elevator_released=proof['released_configuration']
+            self.elevator_locked=proof['locked_leaf_positions']
+        if self.meta.get('turnstile_locks'):
+            from .turnstile_contact_preview import TurnstileContactPreview
+            self.turnstile_preview=TurnstileContactPreview(mujoco.MjModel.from_xml_path(xml),self.meta)
+        if self.meta.get('turnstile_drop_arm'):
+            from .turnstile_drop_qa import run_turnstile_drop_qa
+            proof=run_turnstile_drop_qa(mujoco.MjModel.from_xml_path(xml),self.meta)
+            if not proof['ok']:
+                raise ValueError(f"Turnstile indexed drop/reset prerequisite failed: {proof['failures']}")
+            self.turnstile_drop_held=proof['held_configuration']
+        self.multipoint_released = {}
+        if self.meta.get('multipoint_locks'):
+            from .multipoint_qa import run_multipoint_qa
+            proof=run_multipoint_qa(mujoco.MjModel.from_xml_path(xml),self.meta)
+            if not proof['ok']:
+                raise ValueError(f"Multipoint native inspection configuration failed: {proof['failures']}")
+            for row in proof['results']:
+                self.multipoint_released.update(row['released_joints'])
+        if self.meta.get('closer_track_holds'):
+            from .closer_track_qa import TrackContactPreview
+            self.track_preview = TrackContactPreview(mujoco.MjModel.from_xml_path(xml),self.meta)
+        if any(r.get('kind') == 'contact_suffolk' for r in self.meta.get('gate_hardware', [])):
+            from .gate_hardware_qa import SuffolkContactPreview
+            # Inspection geometry enables visual-only colliders. Passive
+            # response must use the original native collision model; settling
+            # decorative screws/bearings as solid obstructions would invent jams.
+            self.contact_preview = SuffolkContactPreview(mujoco.MjModel.from_xml_path(xml), self.meta)
         self.allow = list(DEFAULT_ALLOW) + [tuple(a[:2]) for a in self.meta.get("clearance_allow", [])]
         # running-clearance exceptions: a pair allowed to interpenetrate is certainly allowed to touch, plus the
         # model's own documented [g1, g2, reason] entries
@@ -183,6 +238,14 @@ class Clearance:
         except Exception:
             pass
         self.joints = _joint_info(mj_)
+        self.material_flexures = set(self.meta.get('material_flexure_joints', []))
+        strip_controls = (self.meta.get('strip_curtain') or {}).get('controls', [])
+        strip_geoms = {body+'_pvc' for row in strip_controls for body in row['segment_bodies']}
+        strip_supports = {name for row in strip_controls for name in [row['fixed_tab_geom'], *row['clamp_geoms']]}
+        # Flexible material may meet its own bonded tab or touch neighboring
+        # tabs/jaws. This changes only the rest-gap requirement, never contacts
+        # or penetration checks; floor, jamb, header and rail are not included.
+        self.strip_bearing_pairs = {(moving, fixed) for moving in strip_geoms for fixed in strip_supports}
         self.sem = _semantics(mj_)
         self.collide = _collision(mj_)
         m = self.m
@@ -212,20 +275,39 @@ class Clearance:
                     self.tendons.append((float(m.tendon_range[t][0]), terms))
 
     # ---- kinematic helpers -------------------------------------------------------------------------------
-    def resolve(self, q: np.ndarray) -> np.ndarray:
+    def resolve(self, q: np.ndarray, driven_joint: str | None = None) -> np.ndarray:
         """Apply joint-polynomial equalities and one-sided tendon couplings to make q consistent."""
         m, mujoco = self.m, self.mj
+        if self.rotary_release is not None:
+            for row in self.meta['rotary_locksets']:
+                if driven_joint==row['outside_joint']:
+                    q[m.jnt_qposadr[m.joint(row['catch_joint']).id]]=self.rotary_release['positions'][row['catch_joint']]
+        if self.meta.get("garage_tiltup_linkage"):
+            from .geometry.garage_tiltup import resolve_garage_configuration
+            resolve_garage_configuration(m, q, self.meta)
+        if self.meta.get("hatch_support"):
+            from .geometry.hatch_supports import resolve_hatch_configuration
+            resolve_hatch_configuration(m, q, self.meta)
+        if self.meta.get('sectional_track'):
+            from .geometry.sectional import resolve_sectional_configuration
+            resolve_sectional_configuration(m, q, self.meta)
+        if self.meta.get('marine_dog_linkage'):
+            from .geometry.marine_linkage import resolve_marine_configuration
+            resolve_marine_configuration(m, q, self.meta)
+        if self.meta.get('vault_boltwork'):
+            from .geometry.vault_hardware import resolve_vault_configuration
+            resolve_vault_configuration(m,q,self.meta)
         for _ in range(2):
             for e in range(m.neq):
-                if int(m.eq_type[e]) != int(mujoco.mjtEq.mjEQ_JOINT):
+                if int(m.eq_type[e]) != int(mujoco.mjtEq.mjEQ_JOINT) or not m.eq_active0[e]:
                     continue
                 j1, j2 = int(m.eq_obj1id[e]), int(m.eq_obj2id[e])
                 c = m.eq_data[e][:5]
                 if j2 < 0:
-                    q[m.jnt_qposadr[j1]] = c[0]
+                    q[m.jnt_qposadr[j1]] = m.qpos0[m.jnt_qposadr[j1]]+c[0]
                     continue
-                x = q[m.jnt_qposadr[j2]]
-                q[m.jnt_qposadr[j1]] = c[0] + c[1] * x + c[2] * x ** 2 + c[3] * x ** 3 + c[4] * x ** 4
+                x = q[m.jnt_qposadr[j2]]-m.qpos0[m.jnt_qposadr[j2]]
+                q[m.jnt_qposadr[j1]] = m.qpos0[m.jnt_qposadr[j1]]+c[0]+c[1]*x+c[2]*x**2+c[3]*x**3+c[4]*x**4
             for lo, terms in self.tendons:
                 length = sum(coef * q[adr] for adr, coef in terms)
                 if length < lo - 1e-9:
@@ -234,6 +316,24 @@ class Clearance:
                         if coef > 0:
                             q[adr] += (lo - length) / coef
                             break
+        if self.contact_preview and driven_joint in self.contact_preview.allowed:
+            report = self.contact_preview.resolve(q, driven_joint)
+            if not report['ok']:
+                raise ValueError(f"Contact-driven inspection pose {driven_joint}: {report['failures']}")
+            q[:] = report['qpos']
+        if self.meta.get('closer_mounts'):
+            from .geometry.closer_mounts import resolve_closer_configuration
+            resolve_closer_configuration(m, q, self.meta)
+        if self.track_preview:
+            report=self.track_preview.resolve(q,driven_joint)
+            if not report['ok']:
+                raise ValueError(f"Track contact inspection pose {driven_joint}: {report['failures']}")
+            q[:]=report['qpos']
+        if self.turnstile_preview:
+            report=self.turnstile_preview.resolve(q,driven_joint)
+            if not report['ok']:
+                raise ValueError(f"Turnstile contact inspection pose: {report['failures']}")
+            q[:]=report['qpos']
         return q
 
     def _locked(self, jname: str) -> bool:
@@ -244,13 +344,68 @@ class Clearance:
     def released_qpos(self) -> np.ndarray:
         q = self.m.qpos0.copy()
         for name, info in self.joints.items():
-            if name not in self.jid or info.get("role") not in MECH_ROLES:
+            if name in self.turnstile_drop_held:
+                # Arms, catches and release shoe form a contact mechanism.
+                # Use its observed manual-reset state for rotation; forcing
+                # every coordinate to its upper limit penetrates physical stops.
+                continue
+            if self.turnstile_preview and name==self.meta['turnstile_locks']['pawl_joint']:
+                # A permanent directional pawl is not a release actuator.
+                continue
+            if name not in self.jid or info.get("role") not in MECH_ROLES or name in self.material_flexures or name in self.multipoint_released or name in self.elevator_released or name in self.security_controlled:
                 continue
             j = self.jid[name]
             if self._locked(name) or not self.m.jnt_limited[j]:
                 continue
-            q[self.m.jnt_qposadr[j]] = self.m.jnt_range[j][1]
+            q[self.m.jnt_qposadr[j]] = self._operating_range(name,*self.m.jnt_range[j])[1]
+        for name,value in self.multipoint_released.items():
+            q[self.m.jnt_qposadr[self.jid[name]]] = value
+        for name,value in self.turnstile_drop_held.items():
+            q[self.m.jnt_qposadr[self.jid[name]]] = value
+        for name,value in self.elevator_released.items():
+            q[self.m.jnt_qposadr[self.jid[name]]] = value
         return self.resolve(q)
+
+    def _operating_range(self,jname,lo,hi):
+        for row in self.meta.get('rotary_locksets',[]):
+            if jname==row['catch_joint']:return 0.,row['catch_stroke_m']
+        if self.meta.get('vault_boltwork'):
+            if jname==self.meta['primary_joint']:return tuple(self.meta['vault_primary_nominal_range'])
+            for row in self.meta['vault_boltwork']['groups']:
+                if jname==row['operator_joint']:return tuple(row['operator_nominal_range'])
+        for row in self.meta.get('elevator_interlocks',{}).get('leaves',[]):
+            if row['joint']==jname:return 0.,row['stroke_m']
+        row=self.meta.get('turnstile_locks')
+        if row and jname==row['rotor_joint'] and row['one_way']:return 0.,2*math.pi
+        return lo,hi
+
+    def _turnstile_steps(self,jname,n_steps):
+        row=self.meta.get('turnstile_locks')
+        if n_steps and row and row['rotor_joint']==jname:
+            # Four samples per tooth avoid the former 15/30-degree grids
+            # repeatedly missing a 10-degree ratchet's intermediate phases.
+            return max(n_steps,4*len(row['ratchet_teeth']))
+        return n_steps
+
+    def _latched_range(self,jname,base,lo,hi):
+        if self.vault_native_model is not None and jname==self.meta['primary_joint']:
+            from .vault_hardware_qa import first_vault_contact_angle
+            report=first_vault_contact_angle(self.vault_native_model,self.meta)
+            if not report['ok']:raise ValueError(f"Vault has no actual initial bolt arrest: {report}")
+            return 0.,report['angle_rad']
+        if jname in self.elevator_locked:return 0.,self.elevator_locked[jname]
+        row=self.meta.get('turnstile_locks')
+        if not row or jname!=row['rotor_joint']:return lo,hi
+        from .turnstile_contact_preview import first_turnstile_contact_angle
+        for direction in (-1.,1.):
+            locked=row['credential_locked_by_default'];reverse=row['one_way'] and direction<0
+            if not (locked or reverse):continue
+            result=first_turnstile_contact_angle(self.turnstile_preview.model,self.meta,base,
+                direction=direction,bolt=locked,pawl=reverse)
+            if not result['ok']:raise ValueError(f"Turnstile has no valid physical arrest: {result}")
+            if direction<0:lo=result['angle_rad']
+            else:hi=result['angle_rad']
+        return lo,hi
 
     def contacts(self, q: np.ndarray, tol_fn) -> List[Tuple[str, str, float]]:
         m, d, mujoco = self.m, self.d, self.mj
@@ -268,7 +423,7 @@ class Clearance:
     def _ancestor(self, b_desc: int, b_anc: int) -> bool:
         m = self.m
         b = b_desc
-        for _ in range(12):
+        for _ in range(m.nbody):
             b = int(m.body_parentid[b])
             if b == b_anc:
                 return True
@@ -302,6 +457,12 @@ class Clearance:
         semantic they carry (stops, bumpers, thresholds, rollers/glides in their tracks), and by the model's own
         ``meta["running_clearance_allow"]`` entries ``[geom_a, geom_b, reason]``.  Everything structural that is
         left over is a running fit and needs a real gap."""
+        for row in self.meta.get('lock_stock',[]):
+            bolts=set(row.get('bolt_geoms',[]));guides=set(row.get('guide_geoms',[]))
+            if (gm in bolts and gs in guides) or (gs in bolts and gm in guides):
+                return .00075  # measured internal cartridge fit; no penetration exemption
+        if (gm,gs) in self.strip_bearing_pairs:
+            return 0.
         for pa, pb in self.run_allow:
             if (fnmatch.fnmatch(gm, pa) and fnmatch.fnmatch(gs, pb)) or (fnmatch.fnmatch(gm, pb) and fnmatch.fnmatch(gs, pa)):
                 return 0.0
@@ -357,15 +518,19 @@ class Clearance:
 
         base = m.qpos0.copy()
         record("rest", 0.0, self.resolve(base.copy()))
+        for sample in self.security_samples:
+            record('native_security:'+sample['phase'],sample['time_s'],np.asarray(sample['qpos']))
         released = self.released_qpos()
-        leaf_joints = [n for n, j in self.joints.items() if j.get("role") in LEAF_ROLES and n in self.jid]
+        leaf_joints = [n for n, j in self.joints.items() if j.get("role") in LEAF_ROLES and n in self.jid and n not in self.material_flexures and n not in self.security_controlled]
         for jn in leaf_joints:
             j = self.jid[jn]
             lo, hi = (m.jnt_range[j] if m.jnt_limited[j] else (-math.pi, math.pi))
+            lo,hi=self._operating_range(jn,lo,hi)
             if hi - lo < 1e-6:
                 continue
-            for k in range(n_steps + 1):
-                qv = lo + (hi - lo) * k / n_steps if n_steps else lo   # n_steps=0: the closed pose only
+            steps=self._turnstile_steps(jn,n_steps)
+            for k in range(steps + 1):
+                qv = lo + (hi - lo) * k / steps if steps else lo   # n_steps=0: the closed pose only
                 q = released.copy()
                 q[m.jnt_qposadr[j]] = qv
                 record(f"open:{jn}", qv, self.resolve(q))
@@ -377,10 +542,15 @@ class Clearance:
                    "bodies": [self.bname[m.geom_bodyid[m.geom(gm).id]], self.bname[m.geom_bodyid[m.geom(gs).id]]]}
             if record_all:
                 pairs.append(rec)
-            if need > 0 and dist < need - RUN_EPS:
+            if (need > 0 and dist < need - RUN_EPS) or ((gm,gs) in self.strip_bearing_pairs and dist < -1e-6):
                 fails.append(rec)
         fails.sort(key=lambda f: f["gap"] - f["required"])
         out = {"ok": not fails, "n_failures": len(fails), "failures": fails[:40], "n_pairs": len(best)}
+        if self.material_flexures:
+            out['scope'] = 'Initial structural gaps; material bending travel requires native strip_mechanics proof.'
+        if self.security_samples:
+            out['security_scope']='Structural gaps sampled from successful native retention/release/reinsertion cycles; no independent chain or secured-leaf position sweep.'
+            out['security_native_samples']=len(self.security_samples)
         if record_all:
             out["pairs"] = sorted(pairs, key=lambda p: p["gap"])
         return out
@@ -401,41 +571,99 @@ class Clearance:
 
         base = m.qpos0.copy()
         record("initial", "", 0.0, self.contacts(self.resolve(base.copy()), lambda a, b: self.tol_for(a, b)))
+        for sample in self.security_samples:
+            record('native_security:'+sample['phase'],'',sample['time_s'],
+                   self.contacts(np.asarray(sample['qpos']),lambda a,b:self.tol_for(a,b)))
+        if self.turnstile_preview:
+            settled=self.turnstile_preview.default_qpos(base)
+            if not settled['ok']:raise ValueError(f"Turnstile default electrical state does not settle: {settled['failures']}")
+            base=np.asarray(settled['qpos'])
         released = self.released_qpos()
-        leaf_joints = [n for n, j in self.joints.items() if j.get("role") in LEAF_ROLES and n in self.jid]
-        mech_joints = [n for n, j in self.joints.items() if j.get("role") in MECH_ROLES and n in self.jid]
+        leaf_joints = [n for n, j in self.joints.items() if j.get("role") in LEAF_ROLES and n in self.jid and n not in self.material_flexures and n not in self.security_controlled]
+        mech_joints = [n for n, j in self.joints.items() if j.get("role") in MECH_ROLES and n in self.jid and n not in self.material_flexures]
+        coupled_shoes={row.get('shoe_joint') for row in self.meta.get('closer_mounts',[])}
+        mech_joints=[name for name in mech_joints if name not in coupled_shoes]
+        # A cam follower cannot be swept independently through its rail.
+        # These inputs and followers were tested together over two complete
+        # native cycles above; missing pins/interlocks fail that prerequisite.
+        mech_joints=[name for name in mech_joints if name not in self.multipoint_released]
+        mech_joints=[name for name in mech_joints if name not in self.turnstile_drop_held]
+        mech_joints=[name for name in mech_joints if name not in self.elevator_released]
+        mech_joints=[name for name in mech_joints if name not in self.security_controlled]
+        marine=self.meta.get('marine_dog_linkage',{})
+        marine_followers={marine.get('output_joint'),*marine.get('dog_joints',[]),*marine.get('rod_joints',[])}
+        mech_joints=[name for name in mech_joints if name not in marine_followers]
+        vault=self.meta.get('vault_boltwork',{}).get('groups',[])
+        vault_operators={row['operator_joint'] for row in vault}
+        vault_followers={row[key] for row in vault for key in ('input_joint','carrier_joint','rod_joint')}-vault_operators
+        mech_joints=[name for name in mech_joints if name not in vault_followers]
         for jn in leaf_joints:
             j = self.jid[jn]
             lo, hi = (m.jnt_range[j] if m.jnt_limited[j] else (-math.pi, math.pi))
+            lo,hi=self._operating_range(jn,lo,hi)
             if hi - lo < 1e-6:
                 continue
-            for k in range(n_steps + 1):
-                qv = lo + (hi - lo) * k / n_steps if n_steps else lo   # n_steps=0: the closed pose only
+            latched_lo, latched_hi = lo, hi
+            latched_lo,latched_hi=self._latched_range(jn,base,latched_lo,latched_hi)
+            if jn == self.meta.get('primary_joint') and any(r.get('kind') == 'gravity_fork' for r in self.meta.get('gate_hardware', [])):
+                from .gate_hardware_qa import first_fork_contact_angle
+                if hi > .01:
+                    contact = first_fork_contact_angle(m, self.meta, direction=1.)
+                    if not contact['ok']:
+                        raise ValueError(f"Fork has no valid opening arrest: {contact}")
+                    latched_hi = min(hi, contact['contact_angle_rad'])
+                if lo < -.01:
+                    contact = first_fork_contact_angle(m, self.meta, direction=-1.)
+                    if not contact['ok']:
+                        raise ValueError(f"Fork has no valid reverse arrest: {contact}")
+                    latched_lo = max(lo, contact['contact_angle_rad'])
+            steps=self._turnstile_steps(jn,n_steps)
+            for k in range(steps + 1):
+                qv = lo + (hi - lo) * k / steps if steps else lo   # n_steps=0: the closed pose only
                 q = released.copy()
                 q[m.jnt_qposadr[j]] = qv
                 record(f"open:{jn}", jn, qv, self.contacts(self.resolve(q), lambda a, b: self.tol_for(a, b, ignore_blocking=self.locked_shut)))
                 q = base.copy()
-                q[m.jnt_qposadr[j]] = qv
-                record(f"latched:{jn}", jn, qv, self.contacts(self.resolve(q), lambda a, b: self.tol_for(a, b, ignore_blocking=True)))
+                q_latched = latched_lo + (latched_hi-latched_lo)*k/steps if steps else latched_lo
+                q[m.jnt_qposadr[j]] = q_latched
+                record(f"latched:{jn}", jn, q_latched, self.contacts(self.resolve(q), lambda a, b: self.tol_for(a, b, ignore_blocking=True)))
         for jn in mech_joints:
             j = self.jid[jn]
             if not m.jnt_limited[j]:
                 continue
             lo, hi = m.jnt_range[j]
+            lo,hi=self._operating_range(jn,lo,hi)
             if hi - lo < 1e-6:
                 continue
             for k in range(1, 13):
                 qv = lo + (hi - lo) * k / 12
                 q = base.copy()
                 q[m.jnt_qposadr[j]] = qv
-                record(f"mech:{jn}", jn, qv, self.contacts(self.resolve(q), lambda a, b: self.tol_for(a, b)))
+                support = self.meta.get('hatch_support')
+                if support and jn == support.get('support_release_joint'):
+                    # This pin is withdrawn/engaged at the fully extended
+                    # stay slot. A closed lid deliberately blocks insertion.
+                    q[m.jnt_qposadr[self.jid['hatch_hinge']]] = support['nominal_angle_rad']
+                record(f"mech:{jn}", jn, qv, self.contacts(self.resolve(q, driven_joint=jn), lambda a, b: self.tol_for(a, b)))
         # couplings: a driven joint parked on a limit that its equality pushes against is a locked mechanism
         for c in coupling_range_failures(m):
             failures[("coupling", c["driven"])] = {"geoms": [c["driven"], c["driver"]], "depth": round(c["overshoot"], 4), "config": f"coupling:{c['driven']}",
                                                   "joint": c["driver"], "q": round(c["driver_q"], 4), "bodies": [self.bname[m.jnt_bodyid[self.jid[c["driven"]]]], self.bname[m.jnt_bodyid[self.jid[c["driver"]]]]],
                                                   "coupling": c}
         fails = sorted(failures.values(), key=lambda f: -f["depth"])
-        return {"ok": len(fails) == 0, "n_failures": len(fails), "failures": fails[:40], "leaf_joints": leaf_joints, "mech_joints": mech_joints}
+        result = {"ok": len(fails) == 0, "n_failures": len(fails), "failures": fails[:40], "leaf_joints": leaf_joints, "mech_joints": mech_joints}
+        if self.multipoint_released:
+            result['multipoint_scope']='Two bounded native operating cycles validate coupled hardware travel; leaf sweeps use the observed unlocked, depressed configuration.'
+        if self.turnstile_drop_held:
+            result['turnstile_drop_scope']='All three indexed drop/reset mechanisms pass two native cycles first; rotor sweeps retain the observed manually-reset arm/catch/shoe state.'
+        if self.elevator_released:
+            result['elevator_scope']='Two complete native cam/hook/leaf cycles and removed-contact controls pass first; geometric sweeps use actual rail travel and measured released/locked configurations.'
+        if self.security_samples:
+            result['security_scope']='All native steps pass the service penetration gate; full inspection geometry uses10Hz and exact phase-end states from those cycles. Initial stock and unrelated mechanism strokes are checked separately.'
+            result['security_native_samples']=len(self.security_samples)
+        if self.material_flexures:
+            result['scope'] = 'Initial geometry and rigid joints; material bending travel requires native strip_mechanics proof.'
+        return result
 
 
 def run_clearance(door_dir: str, tier: str = "full", n_steps: int = 24, run_steps: int = 12) -> dict:

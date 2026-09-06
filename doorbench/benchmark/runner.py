@@ -65,7 +65,7 @@ BASE_MAX_SPEED = 1.5      # m/s
 BASE_RADIUS = 0.30        # m: half-depth of the wall band the base may only enter while the opening is clear
 BASE_MIN_OPENING = 0.45   # m: narrower openings (pet doors) cannot be passed by the reference base
 BASE_Z = 0.5
-OUTCOMES = ("success", "fail", "damaged", "fell", "timeout", "error")
+OUTCOMES = ("success", "fail", "damaged", "fell", "timeout", "error", "native_failure", "mechanism_failure")
 SUITE_CHOICES = ("core", "human", "all")
 
 
@@ -168,26 +168,33 @@ def scenarios_for(door: dict, suite: str, only: list[str] | None) -> list[str]:
 
 # ----------------------------------------------------------------------------------------------- per-episode pieces
 def qa_push_for(door_dir: str, env) -> float:
-    """The calibrated strong push of the sign-off QA (qa.json metrics.qa_push).  Free-swinging families (saloon,
-    revolving, turnstiles, bifold, accordion, bypass, strips, pet flaps) are not calibrated by the QA: the same
-    formula applies with a floor of 150 N*m / 300 N (a strong human push on a wing or a folding panel)."""
+    """Use a source-matching QA effort, or calculate it on private native data.
+
+    A stale sidecar must never set the force budget of rebuilt mechanics.
+    The result is an oracle test effort, not a human strength certificate.
+    """
     try:
+        import hashlib
+        from pathlib import Path
         with open(os.path.join(door_dir, "qa.json")) as f:
-            p = json.load(f)["metrics"].get("qa_push")
-        if p:
+            report = json.load(f)
+        source = report.get('source_sha256', {})
+        matching = all(source.get(name) == hashlib.sha256(Path(door_dir,name).read_bytes()).hexdigest()
+                       for name in ('spec.json','model.json','door.xml'))
+        p = report['metrics'].get('qa_push')
+        if matching and p:
             return float(p)
     except Exception:
         pass
-    m, d = env.m, env.d
+    m = env.m
     if env.pj < 0:
         return 100.0
-    dof = m.jnt_dofadr[env.pj]
-    env.mj.mj_forward(m, d)
-    bias = abs(float(d.qfrc_bias[dof] - d.qfrc_passive[dof]))
-    fl = float(m.dof_frictionloss[dof])
-    is_hinge = int(m.jnt_type[env.pj]) == int(env.mj.mjtJoint.mjJNT_HINGE)
-    push = min(2.0 * (bias + fl) + (60.0 if is_hinge else 80.0), 800.0 if is_hinge else 4000.0)
-    return max(push, 150.0 if is_hinge else 300.0)
+    from ..qa import qa_push
+    pose = env.mj.MjData(m)
+    phys = env.spec.get('physics', {})
+    report = env._with_passive(lambda: qa_push(m, pose, env.pj, phys.get('mass', {}).get('dynamics_mass_kg', phys.get('mass', {}).get('total_kg')),
+                                                env.spec['leaf']['width'], env.meta))
+    return float(report['push'])
 
 
 HAND_LIFTED_LATCHES = ("fork_hinge", "latch_bar_hinge")   # gravity latches a hand lifts directly (no operator drives them)
@@ -220,17 +227,22 @@ def torque_limits(env, door_dir: str) -> dict[str, float]:
     HINGE = int(mj.mjtJoint.mjJNT_HINGE)
     push = qa_push_for(door_dir, env)
     lock = env.spec.get("lock", {})
-    far_side_lock = bool(lock.get("engaged")) and not bool(lock.get("robot_side_release", True))
+    far_side_lock = not bool(lock.get("robot_side_release", True))
+    from .interactions import ContactSites
+    contacts=ContactSites(env)
     out = {}
     for b in env.model_json["bodies"]:
         j = b.get("joint")
-        if not j:
+        if not j or j.get('type')=='free':
             continue
         jid = env._jid(j["name"])
         if jid < 0:
             continue
         role, name = j.get("role"), j["name"]
         hinge = int(m.jnt_type[jid]) == HINGE
+        if not j.get("robot_interactive", True):
+            out[name] = 0.0
+            continue
         if role in ("primary", "secondary"):
             lim = push
         elif role == "operator":
@@ -246,7 +258,10 @@ def torque_limits(env, door_dir: str) -> dict[str, float]:
             lim = 10.0 if hinge else 60.0
         else:                      # latch bolts are driven through the operator, mechanism joints are not robot-interactive
             lim = 0.0
-        out[name] = float(lim)
+        # Generalized-force convenience cannot bypass an absent or far-face
+        # input. Powered door actuators are driven separately by their actual
+        # activation logic; passive transmitted loads remain in SiteForces.
+        out[name] = float(lim) if contacts.select(name) is not None else 0.0
     return out
 
 
@@ -294,12 +309,21 @@ class AutoDoorSensor:
         kin = env.spec.get("kinematics", {})
         act = kin.get("actuator") or {}
         fam = env.spec.get("family", "")
-        self.enabled = bool(acts) and fam in ("automatic_sliding", "automatic_swing", "elevator") and act.get("powered", True) is not False
+        sectional = env.meta.get('sectional_track')
+        self.sectional = sectional if sectional and sectional['drive']['mode'] == 'powered' else None
+        self.enabled = bool(self.sectional) or (bool(acts) and fam in ("automatic_sliding", "automatic_swing", "elevator") and act.get("powered", True) is not False)
         if not self.enabled:
             return
         self.env = env
+        self.elevator_control=None
+        if fam=='elevator' and env.meta.get('elevator_interlocks'):
+            from .elevator_control import ElevatorControl
+            self.elevator_control=ElevatorControl(env)
+            return
         self.ids, self.hi = [], []
         for a in acts:
+            if a.get("role") in ("latch_retraction",'sectional_drive'):
+                continue
             aid = mj.mj_name2id(m, mj.mjtObj.mjOBJ_ACTUATOR, a["name"])
             if aid >= 0:
                 self.ids.append(aid)
@@ -316,23 +340,76 @@ class AutoDoorSensor:
         self.target = [0.0] * len(self.ids)
         self.last_seen = -1e9
         self.dt = float(m.opt.timestep)
+        self.activation = env.meta.get("automatic_activation") or {"kind": 'push_button_wall' if self.sectional else act.get("sensor", "motion")}
+        self.buttons = [(env._jid(b["joint"]), float(b["threshold_m"])) for b in self.activation.get("buttons", [])]
+        self.retractors = []
+        if self.sectional:
+            from ..geometry.sectional import inspection_pose
+            link=self.sectional['drive']['linkage']
+            jid=env._jid(link['trolley_joint'])
+            self.lift_qadr=int(m.jnt_qposadr[jid]);self.lift_dof=int(m.jnt_dofadr[jid])
+            self.lift_end=inspection_pose(1.,self.sectional)['trolley_q']
+            self.lift_target=float(env.d.qpos[self.lift_qadr])
+            self.lift_open=bool(env._was_open);self.lift_pressed=False
+            self.lift_started=False
+            self.lift_site=m.site(self.sectional['powered_drive_site']).id
+            self.lift_actuator=m.actuator(self.sectional['drive']['actuator']).id
+        for row in env.meta.get("powered_latch_retraction", []):
+            aid = mj.mj_name2id(m, mj.mjtObj.mjOBJ_ACTUATOR, row["actuator"])
+            jid = env._jid(row["joint"])
+            if aid >= 0 and jid >= 0:
+                self.retractors.append((aid, int(m.jnt_qposadr[jid]), int(m.jnt_dofadr[jid]), row["travel"], row["max_force"]))
 
-    def step(self, base_xy, t: float):
+    def step(self, base_xy, t: float, action=None):
         if not self.enabled:
+            return
+        if self.elevator_control is not None:
+            self.elevator_control.step(base_xy,t)
             return
         env = self.env
         L = env.tracker.L
         released = bool(L.lock_released or env.unlocked_by_env)
         present = float(np.hypot(*(np.asarray(base_xy, float) - self.center))) < self.range
+        kind = self.activation.get("kind")
+        if kind in ("push_button", "push_button_wall"):
+            present = any(j >= 0 and float(env.d.qpos[env.m.jnt_qposadr[j]]) >= threshold for j, threshold in self.buttons)
+        elif kind == "wave_to_open":
+            site = (action or {}).get("activate_sensor")
+            sid = env.mj.mj_name2id(env.m, env.mj.mjtObj.mjOBJ_SITE, site) if site in self.activation.get("wave_sites", []) else -1
+            present = sid >= 0 and float(np.linalg.norm(env.d.site_xpos[sid][:2] - np.asarray(base_xy))) <= .75
+        if self.env.spec.get("kinematics", {}).get("actuator", {}).get("push_and_go"):
+            present = present or (self.env.pj >= 0 and abs(float(env.d.qpos[env.m.jnt_qposadr[self.env.pj]])) > .07)
         if self.elevator:
             present = present and released
         elif self.locked and not released:
             present = False
         if present:
             self.last_seen = t
+        if self.sectional:
+            # A physical garage wall button toggles the commanded state.
+            # Presence cannot activate it, and releasing the pad is not a
+            # command to close while the doorway is being traversed.
+            if present and not self.lift_pressed:
+                self.lift_open=not self.lift_open
+                self.lift_started=True
+            self.lift_pressed=present
+            if not self.lift_started:
+                env.d.ctrl[self.lift_actuator]=0.
+                return
+            goal=self.lift_end if self.lift_open else 0.
+            self.lift_target += float(np.clip(goal-self.lift_target,-.30*self.dt,.30*self.dt))
+            cap=self.sectional['drive']['max_force_N']
+            effort=float(np.clip(3500.*(self.lift_target-env.d.qpos[self.lift_qadr])-200.*env.d.qvel[self.lift_dof],-cap,cap))
+            env.d.ctrl[self.lift_actuator]=effort
+            return
         want = (t - self.last_seen) < self.hold
+        ready = True
+        for aid, qa, va, travel, force in self.retractors:
+            q, dq = float(env.d.qpos[qa]), float(env.d.qvel[va])
+            env.d.ctrl[aid] = float(np.clip(force/(.2*travel)*(travel-q) - force/(6*travel)*dq, 0, force)) if want else 0.
+            ready = ready and q >= .8*travel
         for k, aid in enumerate(self.ids):
-            goal = self.hi[k] if want else 0.0
+            goal = self.hi[k] if want and ready else 0.0
             self.target[k] += float(np.clip(goal - self.target[k], -self.v_close * self.dt, self.v_open * self.dt))
             env.d.ctrl[aid] = self.target[k]
 
@@ -347,7 +424,7 @@ class Job:
     tier: str
     policy_spec: str
     time_budget_s: float | None = None
-    wall_timeout_s: float = 120.0
+    wall_timeout_s: float = 120.0  # episode execution after native initialization
     randomize: bool = True
     control_dt: float | None = None
     extra: dict = field(default_factory=dict)
@@ -408,13 +485,13 @@ def build_door_info(env, job: Job, sc: dict, budget: float, control_dt: float, l
     joints = {}
     for b in env.model_json["bodies"]:
         j = b.get("joint")
-        if not j:
+        if not j or j.get('type')=='free':
             continue
         jid = env._jid(j["name"])
         if jid < 0 or j.get("role") not in ("primary", "secondary", "operator", "latch", "lock"):
             continue
         rng = [float(m.jnt_range[jid][0]), float(m.jnt_range[jid][1])] if m.jnt_limited[jid] else None
-        joints[j["name"]] = {"role": j.get("role"), "type": "hinge" if int(m.jnt_type[jid]) == HINGE else "slide", "range": rng, "label": j.get("label", "")}
+        joints[j["name"]] = {"role": j.get("role"), "type": "hinge" if int(m.jnt_type[jid]) == HINGE else "slide", "range": rng, "label": j.get("label", ""), "initial": float(env.d.qpos[m.jnt_qposadr[jid]]), "body": b["name"]}
     spec = env.spec
     lock = spec.get("lock", {})
     from .. import hardware as H
@@ -448,6 +525,19 @@ def run_episode(job: Job, observer=None) -> dict:
     Events are reset, step (after physics), and final. Recording does not change the policy or termination.
     Exceptions, including observer failures, become explicit error episodes.
     """
+    from ..native_warnings import capture_native_warnings
+    with capture_native_warnings() as messages:
+        result=_run_episode(job,observer,messages)
+    result['mujoco_warning_messages']=messages
+    result['mujoco_warnings']=len(messages)
+    if messages:
+        result['success']=False
+        result['outcome']='native_failure'
+        result.setdefault('native_failure',{})['messages']=messages
+    return result
+
+
+def _run_episode(job: Job, observer, native_messages) -> dict:
     require_benchmark_eligible(job.door, operation="episode evaluation")
     with open(os.path.join(job.door_dir, "spec.json")) as f:
         require_benchmark_eligible(json.load(f), operation="episode evaluation")
@@ -467,11 +557,15 @@ def run_episode(job: Job, observer=None) -> dict:
         spec = env.spec
         sc = env.scenario(job.scenario)
         env.reset(scenario=sc, seed=job.seed, randomize=bool(job.randomize and job.seed > 0))
+        ep['initialization_wall_s']=_r(time.time()-t_wall,3)
+        if env.initialization_evidence is not None:ep['initialization_evidence']=env.initialization_evidence
         budget = float(job.time_budget_s or sc["time_budget_s"])
         mj, m, d = env.mj, env.m, env.d
         dt = float(m.opt.timestep)
         env.max_steps = int(math.ceil(budget / dt))
-        control_dt = float(job.control_dt or getattr(policy, "control_dt", 0.01) or dt)
+        period=getattr(policy,'control_period',None)
+        preferred_dt=period(env) if callable(period) else getattr(policy,'control_dt',.01)
+        control_dt = float(job.control_dt or preferred_dt or dt)
         decim = max(1, int(round(control_dt / dt)))
         control_dt = decim * dt
         start = env.start_pose
@@ -482,6 +576,8 @@ def run_episode(job: Job, observer=None) -> dict:
         base = SyntheticBase(start["xy"], half)
         sensor = AutoDoorSensor(env)
         policy.reset(info, env=env)
+        from .site_forces import SiteForces
+        site_forces = SiteForces(env, limits)
         # ---- fast accessors
         HINGE = int(mj.mjtJoint.mjJNT_HINGE)
         is_hinge = env.pj >= 0 and int(m.jnt_type[env.pj]) == HINGE
@@ -522,6 +618,8 @@ def run_episode(job: Job, observer=None) -> dict:
             hinge >= 60 deg, slide >= 0.55 m or 95 % of the travel, overhead >= 1.9 m) evaluated instantaneously - the
             label itself is sticky and a door that closed again behind a person or under its closer must be
             re-opened - or the scenario's own clearance threshold."""
+            if tr.passage.enabled:
+                return env._door_clear_now()
             if env._door_clear_now():
                 return True
             q = abs(float(d.qpos[pq])) if pq >= 0 else 0.0
@@ -539,6 +637,7 @@ def run_episode(job: Job, observer=None) -> dict:
             return t_touch is not None and any((e.get("t") or 0.0) >= t_touch - 1e-9 for e in L.damage_events)
 
         lean = robot     # robot embodiments read their own state from the env handle; skip the per-joint / per-site dicts
+        t_episode=time.time()
 
         def obs():
             bp = base_pos()
@@ -553,6 +652,10 @@ def run_episode(job: Job, observer=None) -> dict:
                  "locked": engaged and not (L.lock_released or env.unlocked_by_env),
                  "fired": list(env._fired), "return": float(env.episode_return), "success": bool(env.success),
                  "human_xy": [float(d.mocap_pos[hm][0]), float(d.mocap_pos[hm][1])] if hm >= 0 else None}
+            o['passage_intervals'] = tr.passage.intervals(d)
+            if env.meta.get('sectional_track') or env.meta.get('rollup_curtain'):
+                from .lift_state import lift_state
+                o['lift_state'] = lift_state(m, d, env.meta, with_velocity=True)
             return o
 
         prev = {k: False for k in EVENT_FLAGS}
@@ -587,7 +690,7 @@ def run_episode(job: Job, observer=None) -> dict:
                     env.declare_locked()
                     events.append(["declare_locked", round(t, 3)])
                     stopped_by_policy = True
-                if time.time() - t_wall > job.wall_timeout_s:
+                if time.time() - t_episode > job.wall_timeout_s:
                     outcome = "timeout"
                     break
                 # label transitions -> events
@@ -604,19 +707,37 @@ def run_episode(job: Job, observer=None) -> dict:
                     env.tracker.mark_touch(d, operator=False)
                 if not L.touched_operator and any(n in env.operator_joints for n in tq):
                     env.tracker.mark_touch(d, operator=True)
+            if not robot and (action.get("site_forces") or action.get('site_torques')):
+                force_tau = site_forces.generalized(d, action.get("site_forces"),action.get('site_torques'))
+                d.qfrc_applied[:] += force_tau
+                if np.any(force_tau):
+                    env.tracker.mark_touch(d, operator=True)
+                for dof, limit in site_forces.limits.items():
+                    d.qfrc_applied[dof] = np.clip(d.qfrc_applied[dof], -limit, limit)
             ctrl = action.get("ctrl")
             if ctrl is not None and m.nu:
                 d.ctrl[:] = np.asarray(ctrl, float).ravel()[: m.nu]
             bp = base_pos()
-            sensor.step(bp[:2], t)
+            sensor.step(bp[:2], t, action)
             if not robot:
-                base.step(base_v, dt, clear_now())
+                intervals = tr.passage.intervals(d)
+                clear_at_base = clear_now() if intervals is None else any(lo <= base.pos[0] <= hi for lo,hi in intervals)
+                base.step(base_v, dt, clear_at_base)
             _, done = env.step(robot_base_pos=None if robot else base.pos)
             step += 1
             if observer is not None:
                 observer("step", env, base_pos().copy(), action)
             t = float(d.time)
             # ---- termination
+            warnings=[mj.mjtWarning(i).name for i,w in enumerate(d.warning) if w.number]
+            if warnings or native_messages or not np.isfinite(d.qpos).all() or not np.isfinite(d.qvel).all():
+                ep['native_failure']={'warnings':warnings,'messages':list(native_messages),'time_s':t}
+                outcome='native_failure'
+                break
+            if action.get('mechanism_failure'):
+                ep['mechanism_failure']=str(action['mechanism_failure'])
+                outcome='mechanism_failure'
+                break
             if damaged_by_policy():
                 t_damage = t_damage if t_damage is not None else t
                 if t - t_damage > 0.5:
@@ -646,7 +767,7 @@ def run_episode(job: Job, observer=None) -> dict:
         for k in EVENT_FLAGS:
             if labels.get(k) and not prev[k]:
                 events.append([k, round(float(d.time), 3)])
-        q_end = float(d.qpos[pq]) if pq >= 0 else 0.0
+        q_end = env._door_q()
         # damage that happened before the policy ever touched the door (a flap or hatch reset in an unstable open
         # pose slamming shut on its own) is the environment's doing, not the policy's: recorded, not counted
         t_touch = labels.get("time_to_touch")
@@ -664,6 +785,7 @@ def run_episode(job: Job, observer=None) -> dict:
             ok = bool(env.success)
         if outcome in ("fail", "damaged") and labels.get("door_damaged"):
             outcome = "damaged"
+        if outcome in ('native_failure','mechanism_failure'):ok=False
         if ok and outcome not in ("timeout", "error"):
             outcome = "success"
         elif outcome == "fail" and labels.get("robot_fell"):

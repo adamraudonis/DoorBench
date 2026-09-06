@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import type { BodyJ, GeomJ, ModelJ } from "./types";
 import { LoopSolver, hasLoops, type LoopResult } from "./kinematics";
+import { requiresRecordedPhysics } from './doorLogic';
+import { routePulley, nativeCablePoints, type CablePulley, type NativeCableFrame } from './cableRouting';
 
 const ASSETS = "./assets";
 const objCache = new Map<string, Promise<THREE.BufferGeometry>>();
@@ -65,6 +67,7 @@ export interface BuiltScene {
   setJoint: (name: string, q: number, propagate?: boolean) => void;
   /** Re-solve every closed loop (connect equalities) for the current driver joints; no-op when nothing moved. */
   setRecordedJoints: (names: string[], values: number[]) => void;
+  setRecordedCables: (frame: NativeCableFrame) => void;
   setDiagnostic: (enabled: boolean) => void;
   solveLoops: () => { changed: boolean; results: LoopResult[] };
   loopResults: LoopResult[];
@@ -128,8 +131,8 @@ export async function buildScene(model: ModelJ, opts: { showCollision?: boolean;
     node.position.set(b.pos[0], b.pos[1], b.pos[2]);
     node.quaternion.set(b.quat[1], b.quat[2], b.quat[3], b.quat[0]);
     let container: THREE.Object3D = node;
-    if (b.joint) {
-      const j = b.joint;
+    const j = b.joint;
+    if (j && j.type !== 'free') {
       const pivot = new THREE.Group();
       pivot.name = j.name + "_pivot";
       pivot.position.set(j.pos[0], j.pos[1], j.pos[2]);
@@ -184,8 +187,82 @@ export async function buildScene(model: ModelJ, opts: { showCollision?: boolean;
   // couplings: driven joint = c0 + c1 * driver
   const couplings = model.equalities.filter((e) => e.kind === "joint" && e.b);
   const tendons = model.tendons ?? [];
+  // Native spatial force elements join moving attachment sites. Show their
+  // actual load paths, using the same line radius as MuJoCo's tendon display.
+  const attachmentSites = new Map(model.bodies.flatMap(b => (b.sites ?? []).map(s => [s.name, {body:b.name, pos:s.pos}] as const)));
+  const springs = (model.spatial_springs ?? []).map(s => {
+    const endpoints=s.sites.map(n => attachmentSites.get(n));
+    if (endpoints.some(p => !p)) throw new Error(`Missing spring attachment: ${s.name}`);
+    const mesh=new THREE.Mesh(new THREE.CylinderGeometry(s.width,s.width,1,12),makeMaterial(model,"steel_brushed",matCache));
+    mesh.name=s.name;mesh.userData={semantic:"mechanism",label:s.label};root.add(mesh);
+    return {mesh,endpoints};
+  });
+  function updateSprings() {
+    if (!springs.length) return;
+    root.updateMatrixWorld(true);
+    for (const {mesh,endpoints} of springs) {
+      const points=endpoints.map(e => {
+        const p=e!;const body=bodies.get(p.body)!;
+        return root.worldToLocal((body.userData.container as THREE.Object3D).localToWorld(new THREE.Vector3(...p.pos)));
+      });
+      const delta=points[1]!.clone().sub(points[0]!);
+      mesh.position.copy(points[0]!).addScaledVector(delta,.5);
+      mesh.scale.set(1,delta.length(),1);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());
+    }
+  }
+
+  const cableGeoms=new Map(model.bodies.flatMap(b=>b.geoms.map(g=>[g.name,{body:b.name,geom:g}] as const)));
+  const cables=(model.spatial_cables??[]).map(c=>{
+    const mesh=new THREE.Mesh(new THREE.BufferGeometry(),makeMaterial(model,'steel_brushed',matCache));
+    mesh.name=c.name;mesh.userData={semantic:'mechanism',label:c.label};root.add(mesh);
+    return {source:c,mesh};
+  });
+  let cablesDirty=true;
+  function sitePoint(name:string) {
+    const site=attachmentSites.get(name);
+    if(!site) throw Error(`Missing cable site ${name}`);
+    return root.worldToLocal((bodies.get(site.body)!.userData.container as THREE.Object3D).localToWorld(new THREE.Vector3(...site.pos)));
+  }
+  function cableMesh(mesh:THREE.Mesh,points:THREE.Vector3[],width:number) {
+    const path=new THREE.CurvePath<THREE.Vector3>();
+    for(let i=1;i<points.length;i++) if(points[i].distanceTo(points[i-1])>1e-8) path.add(new THREE.LineCurve3(points[i-1],points[i]));
+    mesh.geometry.dispose();
+    mesh.geometry=path.curves.length?new THREE.TubeGeometry(path,Math.max(2,points.length*2),width,6,false):new THREE.BufferGeometry();
+  }
+  function updateCables() {
+    if(!cables.length||!cablesDirty) return;
+    root.updateMatrixWorld(true);
+    for(const {source,mesh} of cables) {
+      const points:THREE.Vector3[]=[];
+      for(let i=0;i<source.path.length;i++) {
+        const node=source.path[i];
+        if('site' in node) {points.push(sitePoint(node.site));continue;}
+        const item=cableGeoms.get(node.geom),previous=source.path[i-1],next=source.path[i+1];
+        if(!item||!previous||!('site' in previous)||!next||!('site' in next)) throw Error('Invalid cable pulley path');
+        const body=bodies.get(item.body)!.userData.container as THREE.Object3D,g=item.geom;
+        const matrix=root.matrixWorld.clone().invert().multiply(body.matrixWorld);
+        const localQ=new THREE.Quaternion(g.quat[1],g.quat[2],g.quat[3],g.quat[0]);
+        const pulley:CablePulley={kind:g.type==='cylinder'?'cylinder':'sphere',radius:g.size[0],
+          position:new THREE.Vector3(...g.pos).applyMatrix4(matrix).toArray(),
+          axis:new THREE.Vector3(0,0,1).applyQuaternion(localQ).transformDirection(matrix).toArray(),
+          side_point:node.sidesite?sitePoint(node.sidesite).toArray():null};
+        points.push(...routePulley(sitePoint(previous.site),sitePoint(next.site),pulley));
+      }
+      cableMesh(mesh,points,source.width);
+    }
+    cablesDirty=false;
+  }
+  function setRecordedCables(frame:NativeCableFrame) {
+    for(const {source,mesh} of cables) {
+      const cable=frame.cables.find(c=>c.name===source.name);
+      if(!cable) throw Error(`Missing recorded cable ${source.name}`);
+      cableMesh(mesh,nativeCablePoints(cable),source.width);
+    }
+  }
 
   function applyJoint(h: JointHandle) {
+    cablesDirty=true;
     const dq = h.q - h.modeledAt;
     if (h.type === "hinge") {
       h.node.quaternion.setFromAxisAngle(h.axis, dq);
@@ -194,11 +271,18 @@ export async function buildScene(model: ModelJ, opts: { showCollision?: boolean;
       h.node.quaternion.identity();
       h.node.position.copy(h.pos).addScaledVector(h.axis, dq);
     }
+    updateSprings();
   }
 
   // closed kinematic loops (closer arm linkages, struts): solved after the driver joints move
   let solver: LoopSolver | null = null;
-  try { solver = hasLoops(model) ? new LoopSolver(model) : null; } catch (e) { console.warn(`[linkage] ${model.name}: loop solver disabled:`, e); }
+  const requiresNativeMotion = requiresRecordedPhysics(model);
+  try { solver = hasLoops(model) && !requiresNativeMotion ? new LoopSolver(model) : null; } catch (e) { console.warn(`[linkage] ${model.name}: loop solver disabled:`, e); }
+  if(requiresNativeMotion) for(const h of joints.values()) {
+    // A top-roller height does not parameterize the whole articulated lift.
+    // Native playback supplies all panel, trolley and spring coordinates.
+    h.loopSolved=true;
+  }
   for (const name of solver?.owned ?? []) { const h = joints.get(name); if (h) h.loopSolved = true; }
   for (const w of solver?.warnings ?? []) console.warn(`[linkage] ${model.name}: ${w}`);
   if (solver?.loops.length) console.info(`[linkage] ${model.name}: ${solver.loops.map((l) => `${l.name} (${l.type}, ${l.source}: ${l.joints.map((j) => j.joint.name).join(" + ")})`).join("; ")}`);
@@ -207,7 +291,7 @@ export async function buildScene(model: ModelJ, opts: { showCollision?: boolean;
   const reported = new Map<string, boolean>();      // loop name -> last reported "ok" state (console noise control)
 
   function solveLoops(): { changed: boolean; results: LoopResult[] } {
-    if (!solver || !loopsDirty) return { changed: false, results: built.loopResults! };
+    if (!solver || !loopsDirty) {updateCables();return { changed: false, results: built.loopResults! };}
     loopsDirty = false;
     for (const h of joints.values()) if (!h.loopSolved) solver.setQ(h.name, h.q);
     const results = solver.solve();
@@ -230,6 +314,7 @@ export async function buildScene(model: ModelJ, opts: { showCollision?: boolean;
       if (!r.ok) console.warn(`[linkage] ${model.name}: ${r.name} (${r.equality}) cannot close: tip is ${(r.separation * 1000).toFixed(1)} mm from its anchor${r.stretched ? " (reach limit)" : ""} at ${pose}`);
       else if (was === false) console.info(`[linkage] ${model.name}: ${r.name} closes again at ${pose}`);
     }
+    updateCables();
     return { changed, results };
   }
 
@@ -284,9 +369,10 @@ export async function buildScene(model: ModelJ, opts: { showCollision?: boolean;
     names.forEach((name,i)=>{const h=joints.get(name);if(h&&Number.isFinite(values[i])){h.q=values[i];applyJoint(h);}});
     loopsDirty=false;
     root.updateMatrixWorld(true);
+    updateCables();
   }
   const out: BuiltScene = {
-    root, joints, bodies, bounds, setJoint, solveLoops, setDiagnostic, setRecordedJoints,
+    root, joints, bodies, bounds, setJoint, solveLoops, setDiagnostic, setRecordedJoints, setRecordedCables,
     get loopResults() { return built.loopResults!; },
     get loopWarnings() { return built.loopWarnings!; },
     dispose: () => { root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); } }); for (const m of matCache.values()) m.dispose(); for(const m of diagnosticMaterials.values()) m.dispose(); },

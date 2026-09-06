@@ -18,7 +18,7 @@ export interface GeomJ {
 
 export interface JointJ {
   name: string;
-  type: "hinge" | "slide";
+  type: "hinge" | "slide" | "free";
   axis: Vec3;
   pos: Vec3;
   range: [number, number] | null;
@@ -122,6 +122,8 @@ export interface ModelJ {
   materials: Record<string, MaterialJ>;
   equalities: EqualityJ[];
   tendons: TendonJ[];
+  spatial_springs?: {name: string; sites: [string,string]; stiffness: number; springlength: number; damping: number; width: number; label: string}[];
+  spatial_cables?: {name:string;path:({site:string}|{geom:string;sidesite?:string})[];max_length:number;width:number;label:string}[];
   linkages?: LinkageJ[];
   meta: Record<string, any>;
 }

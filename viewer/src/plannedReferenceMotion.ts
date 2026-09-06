@@ -5,6 +5,8 @@ import { buildScene, geomMesh, type BuiltScene } from './scene';
 import type { GeomJ, ModelJ } from './types';
 import { frameAt } from './referenceMotion';
 import {fetchReadOnly,ReadRetryBudget} from './readOnlyFetch';
+import {applyBodyWorld} from './nativeBodyPose';
+export {applyBodyWorld} from './nativeBodyPose';
 
 export interface WebFile {path:string;sha256:string;bytes:number;json_sha256?:string}
 export const SOURCE_SCENARIOS=['open_and_traverse','unlock_and_traverse','locked_recognize'] as const;
@@ -136,12 +138,6 @@ export async function buildVerifiedDoor(model:ModelJ,files:Map<string,ArrayBuffe
   }catch(e){built.dispose();materials.forEach(m=>m.dispose());throw e;}
 }
 
-export function applyBodyWorld(container:THREE.Object3D,position:THREE.Vector3,quaternion:THREE.Quaternion) {
-  container.parent?.updateWorldMatrix(true,false);
-  const world=new THREE.Matrix4().compose(position,quaternion,new THREE.Vector3(1,1,1));
-  if(container.parent)world.premultiply(container.parent.matrixWorld.clone().invert());
-  world.decompose(container.position,container.quaternion,container.scale);container.updateMatrixWorld(true);
-}
 export function buildPlannedPlayer(clip:PlannedClip,built:BuiltScene) {
   const group=new THREE.Group();group.name='planned_actor';const bodies=new Map(clip.actor.body_names.map(name=>[name,new THREE.Group()]));
   const material=new THREE.MeshStandardMaterial({color:0x4b797d,roughness:.6,metalness:.08});

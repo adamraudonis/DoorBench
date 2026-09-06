@@ -16,8 +16,8 @@ G = 9.80665
 AIR_DENSITY = 1.204
 
 
-def leaf_mass(spec: dict) -> dict:
-    """Mass breakdown of one leaf: slab + glazing + hardware."""
+def _unit_leaf_mass(spec: dict) -> dict:
+    """One declared panel, before physical assembly/ownership expansion."""
     leaf = spec["leaf"]
     slab = M.SLABS[leaf["slab"]]
     W, Hh, t = leaf["width"], leaf["height"], leaf["thickness"]
@@ -25,15 +25,24 @@ def leaf_mass(spec: dict) -> dict:
     glaz = leaf.get("glazing") or {}
     glass_area = float(glaz.get("area_fraction", 0.0)) * area
     slab_area = area - glass_area
-    if slab.monolithic:
+    if leaf["slab"] == "chain_link_gate" and leaf.get("infill_thickness") is not None:
+        # Structural tube diameter must not be interpreted as a solid sheet.
+        # 1.6 mm galvanized tube wall; mesh area mass and perimeter tube mass
+        # are separate contributions, including the infill-free edge band.
+        radius, wall = t / 2, 0.0016
+        tube_per_m = math.pi * (radius ** 2 - (radius - wall) ** 2) * M.MATERIALS["steel_galvanized"].density
+        ad = (2 * (W + Hh) * tube_per_m + 2.4 * max(0, W - 2*t) * max(0, Hh - 2*t)) / area
+    elif slab.monolithic:
         ad = slab.area_density(t)
     else:
         ad = slab.area_density(t)
     slab_mass = ad * slab_area
     fam = spec.get("family", "")
     if fam == "turnstile_tripod":
-        # 3 arms: 38 mm OD x 1.5 mm wall stainless tube, 0.5 m + hub
-        slab_mass = 3 * (math.pi * (0.019 ** 2 - 0.0175 ** 2) * W * 7900) + 3.0
+        # Drop arms begin at the physical hinge 65 mm from the rotor axis.
+        # Their material transfers to moving tube bodies; it is not added twice.
+        arm_length = W - .065 if spec['kinematics'].get('drop_arm') else W
+        slab_mass = 3 * (math.pi * (0.019 ** 2 - 0.0175 ** 2) * arm_length * 7900) + 3.0
     elif fam == "turnstile_fullheight":
         arms = leaf.get("arms_per_wing", 8)
         slab_mass = arms * (math.pi * (0.019 ** 2 - 0.0175 ** 2) * W * 7900) + 4.0  # per wing incl. share of rotor column
@@ -44,6 +53,11 @@ def leaf_mass(spec: dict) -> dict:
         gm = M.MATERIALS[glaz.get("material", "glass_clear")]
         gt = float(glaz.get("thickness", 0.006))
         glass_mass = glass_area * gt * gm.density
+    if leaf["slab"] in M.FRAMED_GLASS_SLABS:
+        profile = M.framed_glass_profile(leaf["slab"], W, Hh, t)
+        slab_mass = profile["frame_kg"] + profile["gasket_kg"]
+        glass_mass = profile["glass_kg"]
+        ad = slab_mass / area
     # louvers: open area reduces mass (already in fill fraction for louver slab)
     hw = 0.0
     parts = {}
@@ -60,12 +74,82 @@ def leaf_mass(spec: dict) -> dict:
         parts[e] = EXTRA_MASS.get(e, 0.0)
     hw = sum(parts.values())
     total = slab_mass + glass_mass + hw
+    formula = "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware"
+    if leaf["slab"] in M.FRAMED_GLASS_SLABS:
+        formula = "hollow frame-wall volumes*rho_frame + actual glass-ply volumes*rho_glass + edge gaskets + hardware"
+    elif fam == "turnstile_tripod":
+        formula = "3*pi*(0.019^2-0.0175^2)*arm_length*7900 + 3 kg hub + shared hardware (three arms already included)"
+    elif fam == "turnstile_fullheight":
+        formula = "arms_per_wing*pi*(0.019^2-0.0175^2)*arm_length*7900 + 4 kg column allocation per wing + shared hardware"
     return {
         "slab_kg": slab_mass, "slab_area_density_kg_m2": ad, "glass_kg": glass_mass, "hardware_kg": hw,
         "hardware_parts": parts, "total_kg": total,
-        "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
+        "formula": formula,
         "source": slab.source,
     }
+
+
+def leaf_mass(spec: dict) -> dict:
+    """Assembly mass plus explicit physical panel and driven-unit budgets.
+
+    A material unit may be a panel, a full hatch or one rotor wing. Hardware is
+    assigned by its installation scope rather than multiplying every catalogue
+    entry by a generic count. Geometry reconciliation consumes per_body.
+    """
+    from .mass_layout import mass_panels
+    reference = _unit_leaf_mass(spec)
+    rows = []
+    for panel in mass_panels(spec):
+        sub = {**spec, "leaf": {**spec["leaf"], "width":panel["width"], "height":panel["height"]}}
+        if panel.get("embedded_slab"):
+            sub = {**sub, "leaf":{**sub["leaf"],"slab":panel["embedded_slab"],"thickness":panel["thickness"],"glazing":None},
+                   "operator":{**spec["operator"],"model":"none"},"lock":{**spec["lock"],"model":"none"},
+                   "closer":{**spec["closer"],"model":"none"},"hinge":{**spec["hinge"],"count":0},"extras":[]}
+        if panel.get("inactive"):
+            sub = {**sub, "operator":{**spec["operator"],"model":"none"}, "lock":{**spec["lock"],"model":"none"}, "closer":{**spec["closer"],"model":"none"}, "extras":[e for e in spec.get("extras",[]) if e=="kick_plate"]}
+        elif panel.get("secondary_pair"):
+            sub = {**sub, "lock":{**spec["lock"],"model":"none"}}
+        unit = _unit_leaf_mass(sub)
+        units = panel.get("material_units",1)
+        parts = {k:v*panel.get("hardware_fraction",1) for k,v in unit["hardware_parts"].items()}
+        if "operator_fraction" in panel:
+            parts["operator"] = unit["hardware_parts"]["operator"]*panel["operator_fraction"]
+        replaced_operator = 0.
+        replaced_rotary_bearing = 0.
+        if spec['family']=='ship_watertight':
+            # Every marine dog/shaft/handle and wheel transmission is now an
+            # explicit geometry-backed mechanism. Do not also hide the old
+            # single-operator allowance in the leaf's residual mass. Bearings,
+            # locks and hinge allowances are otherwise unchanged.
+            replaced_operator = parts.get('operator', 0.)
+            parts['operator'] = 0.
+        if spec['family']=='turnstile_tripod' and spec['kinematics'].get('drop_arm'):
+            # The extended rotating steel journal is now its own exact BOM
+            # body. Fixed bearing housings are outside the moving assembly.
+            replaced_rotary_bearing = parts.get('hinges_half', 0.)
+            parts['hinges_half'] = 0.
+        if spec["kinematics"].get("track")=="top_hung_pocket":
+            parts["edge_pull_fitting"] = .20  # original 98 mm case/rocker, separate from face grip
+        slab, glass = unit["slab_kg"]*units, unit["glass_kg"]*units
+        if panel.get("cutout_area_m2"):
+            retained=max(0.,1-panel["cutout_area_m2"]/(panel["width"]*panel["height"]))
+            slab*=retained;glass*=retained
+        hardware = sum(parts.values())
+        rows.append({**panel,"slab_kg":slab,"glass_kg":glass,"hardware_kg":hardware,"hardware_parts":parts,"total_kg":slab+glass+hardware})
+        if replaced_operator:
+            rows[-1]['catalogue_operator_replaced_kg']=replaced_operator
+            rows[-1]['operator_mass_source']='Explicit marine operator/shaft/bearing/transmission geometry BOM'
+        if replaced_rotary_bearing:
+            rows[-1]['catalogue_rotary_bearing_replaced_kg']=replaced_rotary_bearing
+            rows[-1]['rotary_bearing_mass_source']='Explicit steel journal geometry BOM; fixed bearing housing excluded from moving mass'
+    if spec['family']=='strip_curtain':
+        for row in rows:
+            row['carried_mass_kg']=sum(p['total_kg'] for p in rows if p['strip_index']==row['strip_index'] and p['segment_index']>=row['segment_index'])
+    slab=sum(p["slab_kg"] for p in rows);glass=sum(p["glass_kg"] for p in rows);hardware=sum(p["hardware_kg"] for p in rows)
+    parts={}
+    for row in rows:
+        for name,value in row["hardware_parts"].items():parts[name]=parts.get(name,0.)+value
+    return {"slab_kg":slab,"glass_kg":glass,"hardware_kg":hardware,"hardware_parts":parts,"total_kg":slab+glass+hardware,"slab_area_density_kg_m2":reference["slab_area_density_kg_m2"],"reference_unit":reference,"per_body":rows,"scope":"moving_assembly","dynamics_mass_kg":rows[0].get('carried_mass_kg',rows[0]["total_kg"]),"dynamics_mass_scope":"primary carried panel or complete strip chain; rotor/lift records contain their complete moving assembly","formula":"sum(per_body material mass + installed hardware budget); panel dimensions and count follow each family construction","source":reference["source"]}
 
 
 EXTRA_MASS = {
@@ -168,6 +252,12 @@ def closer_params(spec: dict, mass_kg: float, friction_Nm: float = 0.0) -> dict:
                     "formula": "n_hinges * (0.9 N*m + 2.2 N*m/rad * theta)", "source": "Bommer 4310 adjustable spring hinge"})
     elif cl.kind == "gas_strut":
         F = spec["closer"].get("gas_force_N", 250.0)
+        if spec['family'] in ('hatch_floor', 'hatch_ceiling'):
+            out.update({'spring_stiffness_Nm_per_rad': 0., 'spring_preload_Nm': 0.,
+                        'damping_closing': 0., 'damping_opening': 0., 'axial_force_N': F,
+                        'formula': 'Native axial spring between frame and lid pivots; moment varies with linkage geometry.',
+                        'source': 'Original telescopic gas-spring model; inspect model.meta.hatch_support for anchors and force law.'})
+            return out
         arm = 0.25
         out.update({"spring_stiffness_Nm_per_rad": -F * arm * 0.3, "spring_preload_Nm": -F * arm,
                     "damping_closing": 30.0, "damping_opening": 30.0,
@@ -219,7 +309,11 @@ def lock_params(spec: dict) -> dict:
 
 
 def compliance(spec: dict, phys: dict) -> dict:
-    """ADA / IBC style checks on the *simulated* door as built."""
+    """Limited analytical estimates; legacy compliance booleans are unassessed.
+
+    A spring/friction calculation is not a continuous measured opening-force
+    curve, a clear-width survey or a regulatory assessment.
+    """
     W = spec["leaf"]["width"]
     op = H.OPERATORS[spec["operator"]["model"]]
     arm = max(W - (H.LATCHES[spec["latch"]["model"]].backset or 0.06) - 0.02, 0.3)
@@ -227,6 +321,10 @@ def compliance(spec: dict, phys: dict) -> dict:
     tau_90 = phys["hinge"]["coulomb_torque_Nm"] + phys["closer"]["spring_preload_Nm"] + phys["closer"]["spring_stiffness_Nm_per_rad"] * math.pi / 2
     F_start = tau_static / arm
     F_90 = tau_90 / arm
+    hinge = H.HINGES[spec['hinge']['model']]
+    simple_hinge = spec['family'] in ('swing_single','swing_double','dutch','saloon') and not spec['hinge'].get('axis_tilt_deg') and not hinge.axis_tilt_deg and hinge.kind not in ('rising_butt','cam_lift','gravity_pivot')
+    if not simple_hinge:
+        F_start = F_90 = None
     op_force = 0.0
     if op.kind == "paddle" and op.motion == "rotate_horizontal" and op.grip_offset > 0:
         # Face-normal force about the horizontal rocker pin.  Match the
@@ -237,18 +335,14 @@ def compliance(spec: dict, phys: dict) -> dict:
         op_force = (op.spring_torque_preload + op.spring_rate * op.travel) / op.grip_offset
     elif op.motion == "push_in":
         op_force = op.spring_torque_preload + op.spring_rate * op.travel
-    is_fire = M.SLABS[spec["leaf"]["slab"]].fire_rating_min > 0 or spec.get("context") == "fire_egress"
-    exterior = spec.get("context") in ("residential_exterior", "storefront_glass", "fire_egress") or spec["family"].startswith("gate")
     return {
         "opening_force_start_N": F_start, "opening_force_90deg_N": F_90, "operator_force_N": op_force,
-        "ada_interior_5lbf_ok": (F_start <= 22.2 and F_90 <= 22.2) if not (is_fire or exterior) else None,
-        "ibc_fire_exterior_ok": (F_start <= 133.4 and F_90 <= 66.7) if (is_fire or exterior) else None,
-        "hardware_operable_5lbf_ok": op_force <= 22.2,
-        "panic_unlatch_15lbf_ok": (op_force <= 66.7) if op.kind.startswith("panic") else None,
-        "lever_or_ada_hardware": op.kind in ("lever", "pull", "push_plate", "panic_touchbar", "panic_crossbar", "paddle", "keypad_lever", "card_lever", "none", "flush_pull"),
-        "handle_height_ada_ok": 0.864 <= spec["operator"]["height"] <= 1.219 if spec["operator"]["height"] > 0 else None,
-        "clear_width_ada_ok": (W - spec["leaf"]["thickness"] - 0.03) >= 0.815,
-        "notes": "ADA 2010 §404.2.9 (5 lbf interior), IBC §1010.1.3 (30 lbf set in motion / 15 lbf full open), §1010.1.10 (panic 15 lbf)",
+        "ada_interior_5lbf_ok": None, "ibc_fire_exterior_ok": None,
+        "hardware_operable_5lbf_ok": None, "panic_unlatch_15lbf_ok": None,
+        "lever_or_ada_hardware": None, "handle_height_ada_ok": None, "clear_width_ada_ok": None,
+        "opening_force_model": "single_vertical_hinge_friction_and_spring" if simple_hinge else "requires_native_mechanism_force_curve",
+        "assessment": "not_assessed",
+        "notes": "Analytical spring/friction estimates after latch release, excluding contact friction and pressure loads. Nonlinear lifting, folding, sliding and coupled mechanisms need native force curves. Regulatory compliance is not assessed.",
     }
 
 
@@ -287,9 +381,23 @@ def roller_friction(spec: dict, mass_kg: float) -> dict:
 
 
 def derive(spec: dict) -> dict:
-    """Full physics block for a spec."""
+    """Assembly report with per-carried-panel joint/closer dynamics."""
     lm = leaf_mass(spec)
-    m = lm["total_kg"]
+    result = _derive_for_mass(spec, lm)
+    result["per_body_dynamics"] = {}
+    for panel in lm["per_body"]:
+        sub = {**spec, "leaf":{**spec["leaf"],"width":panel["width"],"height":panel["height"]}}
+        if panel.get("inactive") or panel.get("embedded_slab"):
+            sub = {**sub,"closer":{**spec["closer"],"model":"none"},"operator":{**spec["operator"],"model":"none"},"lock":{**spec["lock"],"model":"none"}}
+        elif panel.get("secondary_pair"):
+            sub = {**sub,"lock":{**spec["lock"],"model":"none"}}
+        local = {**panel,"dynamics_mass_kg":panel.get('carried_mass_kg',panel["total_kg"])}
+        result["per_body_dynamics"][panel["body"]] = _derive_for_mass(sub, local)
+    return result
+
+
+def _derive_for_mass(spec: dict, lm: dict) -> dict:
+    m = lm["dynamics_mass_kg"]
     W, Hh = spec["leaf"]["width"], spec["leaf"]["height"]
     phys = {"mass": lm}
     kin = spec["kinematics"]["type"]

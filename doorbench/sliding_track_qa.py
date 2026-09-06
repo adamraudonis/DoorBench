@@ -31,6 +31,7 @@ def run_sliding_track_qa(model, metadata, samples=25, tolerance=0.003):
             rail = model.geom(support["rail"]).id
             body = model.body(name).id
             wheels = [model.geom(n).id for n in support.get("rollers", [])]
+            wheel_rails = {model.geom(n).id: model.geom(r).id for n, r in support.get("wheel_running_rails", {}).items()}
             stops = [model.geom(n).id for n in support.get("end_stops", [])]
             guides = [([model.geom(n).id for n in station["jaws"]], [model.geom(n).id for n in station["feet"]])
                       for station in support.get("floor_guides", [])]
@@ -43,6 +44,9 @@ def run_sliding_track_qa(model, metadata, samples=25, tolerance=0.003):
             continue
         if not wheels:
             rail_only.append(name)
+        trolley_sweep = support.get("rail_coverage_mode") == "trolley_sweep"
+        if trolley_sweep and len(wheels) < 2:
+            failures.append({"check": "missing_trolleys", "body": name})
         if support.get("floor_guides_required") and (not guides or not guide_leaf_geoms):
             failures.append({"check": "floor_guide_missing", "body": name})
         guide_stations_checked += len(guides)
@@ -82,7 +86,7 @@ def run_sliding_track_qa(model, metadata, samples=25, tolerance=0.003):
             rail_low, rail_high = rp[0] - rs[0], rp[0] + rs[0]
             leaf_low = data.xpos[body, 0] - support["leaf_width_m"] / 2
             leaf_high = data.xpos[body, 0] + support["leaf_width_m"] / 2
-            overhang = max(rail_low - leaf_low, leaf_high - rail_high, 0.0)
+            overhang = 0.0 if trolley_sweep else max(rail_low - leaf_low, leaf_high - rail_high, 0.0)
             worst_overhang = max(worst_overhang, float(overhang))
             lane_gap = max(abs(float(data.xpos[body, 1] - rp[1])) - float(rs[1]) - 0.02, 0.0)
             if overhang > tolerance or lane_gap > tolerance:
@@ -91,10 +95,15 @@ def run_sliding_track_qa(model, metadata, samples=25, tolerance=0.003):
             for wheel in wheels:
                 wp = data.geom_xpos[wheel]
                 radius, half_width = model.geom_size[wheel][:2]
+                running_rail = wheel_rails.get(wheel, rail)
+                if int(model.geom_type[running_rail]) != int(mujoco.mjtGeom.mjGEOM_BOX):
+                    failures.append({"check": "rail_type", "body": name, "wheel": model.geom(wheel).name})
+                    continue
+                wrp, wrs = data.geom_xpos[running_rail], model.geom_size[running_rail]
                 # Wheels have their cylinder axis along y and roll on the rail's upper x face.
-                vertical_gap = abs(float(wp[2] - radius - (rp[2] + rs[2])))
-                lateral_gap = max(abs(float(wp[1] - rp[1])) - float(rs[1] + half_width), 0.0)
-                tread_overhang = max(float(rail_low - (wp[0] - radius)), float(wp[0] + radius - rail_high), 0.0)
+                vertical_gap = abs(float(wp[2] - radius - (wrp[2] + wrs[2])))
+                lateral_gap = max(abs(float(wp[1] - wrp[1])) - float(wrs[1] + half_width), 0.0)
+                tread_overhang = max(float(wrp[0]-wrs[0] - (wp[0] - radius)), float(wp[0] + radius - (wrp[0]+wrs[0])), 0.0)
                 gap = max(vertical_gap, lateral_gap, tread_overhang)
                 worst_contact_gap = max(worst_contact_gap, gap)
                 if gap > tolerance:

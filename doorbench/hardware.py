@@ -222,8 +222,8 @@ _o(OperatorModel("knob_porcelain", "Porcelain knob (vintage)", "knob", "rotate_n
                  {"shape": "round", "diameter": 0.055, "depth": 0.060, "rose_diameter": 0.055}, "hpl", "Vintage porcelain knob"))
 _o(OperatorModel("knob_rim_lock", "Knob w/ surface-mounted rim lock (heritage)", "knob", "rotate_normal", 0.85, 0.08, 0.30, 0.6, 22.2, 0.028, 10.0, 1.6, True,
                  {"shape": "round", "diameter": 0.050, "depth": 0.060, "rose_diameter": 0.050, "rim_box": (0.10, 0.16, 0.03)}, "cast_iron", "Carpenter rim lock"))
-_o(OperatorModel("knob_childproof", "Knob w/ child-proof cover (must squeeze to grip)", "knob", "rotate_normal", 0.87, 0.06, 0.25, 0.5, 22.2, 0.040, 8.0, 0.95, True,
-                 {"shape": "round", "diameter": 0.054, "depth": 0.060, "rose_diameter": 0.064, "childproof_cover": 0.082}, "pvc", "Safety 1st knob cover; grip slips unless squeezed"))
+_o(OperatorModel("knob_childproof", "Knob with free-spinning cover (grip through openings)", "knob", "rotate_normal", 0.87, 0.06, 0.25, 0.5, 22.2, 0.040, 8.0, 0.95, True,
+                 {"shape": "round", "diameter": 0.054, "depth": 0.060, "rose_diameter": 0.064, "childproof_cover": 0.082}, "pvc", "Generic access-hole cover, informed by Safety 1st Grip 'n Twist instructions; no child-resistance certification"))
 _o(OperatorModel("knob_keypad_deadbolt", "Knob + electronic keypad deadbolt above", "keypad_deadbolt", "rotate_normal", 0.87, 0.06, 0.25, 0.5, 22.2, 0.027, 12.0, 1.4, True,
                  {"shape": "round", "diameter": 0.054, "depth": 0.060, "rose_diameter": 0.064, "keypad": (0.070, 0.150), "keys": 10}, "nickel_satin", "Schlage BE365 keypad deadbolt + passage knob"))
 
@@ -273,7 +273,7 @@ _o(OperatorModel("paddle_hospital_arm", "Hospital arm-pull paddle (elbow operate
 # Gate & rustic latches
 _o(OperatorModel("thumb_latch_suffolk", "Suffolk thumb latch (garden/cottage)", "thumb_latch", "rotate_horizontal", 0.30, 0.02, 0.3, 0.6, 22.2, 0.04, 20.0, 0.6, True,
                  {"shape": "suffolk", "handle_length": 0.20, "bar_length": 0.18}, "wrought_iron", "Suffolk latch; thumb press lifts latch bar"))
-_o(OperatorModel("gate_latch_fork", "Fork gravity gate latch (chain-link)", "gate_latch_fork", "lift", 0.06, 0.005, 2.0, 40.0, 22.2, 0.04, 200.0, 0.6, False,
+_o(OperatorModel("gate_latch_fork", "Fork gravity gate latch (chain-link)", "gate_latch_fork", "lift", 1.55, 0.005, 2.0, 40.0, 22.2, 0.04, 200.0, 0.6, False,
                  {"shape": "fork", "length": 0.15}, "steel_galvanized", "Chain link fork latch; lift to release"))
 _o(OperatorModel("gate_latch_magnetic", "Magnetic pool gate latch (child safe, top-pull)", "lift_latch", "lift", 0.03, 0.002, 6.0, 150.0, 22.2, 0.03, 300.0, 0.9, False,
                  {"shape": "magnalatch", "height": 0.20}, "black_matte_metal", "D&D MagnaLatch; 1.5 m mounting height"))
@@ -304,6 +304,8 @@ _o(OperatorModel("wheel_ship_hatch", "Ship hatch handwheel (central dogging)", "
                  {"shape": "spoked_wheel", "diameter": 0.36, "spokes": 4, "bar_diameter": 0.020}, "brass", "Quick-acting watertight door wheel"))
 _o(OperatorModel("dog_lever", "Individual dog lever (watertight door)", "lever", "rotate_normal", 1.5708, 0.05, 1.5, 2.0, 66.7, 0.20, 200.0, 1.2, True,
                  {"shape": "dog", "length": 0.22, "diameter": 0.025}, "steel_painted", "Watertight door dogs, 6-8 per door"))
+_o(OperatorModel("vault_lever", "Independent vault bolt lever (quarter turn)", "lever", "rotate_normal", 1.5708, 0.0, 0.0, 0.0, 66.7, 0.20, 200.0, 1.2, True,
+                 {"shape": "dog", "length": 0.22, "diameter": 0.025, "standoff": 0.14}, "stainless", "Original supported crank/rod boltwork; actual geometry BOM replaces this legacy mass allowance; no strength rating"))
 _o(OperatorModel("cold_storage_handle", "Cold storage door handle w/ inside release", "lever", "rotate_horizontal", 0.5, 0.03, 1.2, 2.5, 66.7, 0.15, 60.0, 2.5, True,
                  {"shape": "safeguard", "length": 0.25}, "chrome", "Kason 58 SafeGuard latch w/ inside release"))
 _o(OperatorModel("cremone_bolt", "Cremone bolt (french door)", "cremone", "rotate_normal", 1.5708, 0.05, 0.4, 0.6, 22.2, 0.08, 20.0, 2.5, False,
@@ -369,6 +371,7 @@ _l(LatchModel("gravity_bar", "Gravity latch bar (Suffolk / barn)", "gravity_bar"
 _l(LatchModel("slide_bolt", "Slide bolt (manual)", "slide_bolt", 0.030, (0.012, 0.012), 0.0, 0, 0.0, 0, 3000, "Barrel bolt"))
 _l(LatchModel("slide_bolt_heavy", "Heavy slide bolt / drop bar", "slide_bolt", 0.060, (0.020, 0.020), 0.0, 0, 0.0, 0, 15000, "Cane bolt"))
 _l(LatchModel("dogs_6", "Watertight door dogs (6 wedge dogs)", "dogs", 0.030, (0.020, 0.050), 0.0, 0, 0.0, 0, 50000, "Quick-acting WT door"))
+_l(LatchModel("vault_bolts_2", "Vault boltwork (2 independently driven 32 mm bolts)", "multi_bolt", 0.050, (0.032, 0.032), 0.0, 0, 0.0, 0, 50000, "Original supported boltwork; 50 kN legacy damage threshold is not a verified strength rating"))
 _l(LatchModel("multi_bolt_4", "Vault multi-bolt (4 x 25 mm bolts)", "multi_bolt", 0.040, (0.025, 0.025), 0.0, 0, 0.0, 0, 200000, "Vault boltwork"))
 _l(LatchModel("multi_bolt_8", "Vault multi-bolt (8 x 32 mm bolts)", "multi_bolt", 0.050, (0.032, 0.032), 0.0, 0, 0.0, 0, 400000, "Vault boltwork"))
 _l(LatchModel("electric_strike", "Electric strike (fail-secure) on tubular latch", "electric_strike", 0.0127, (0.0127, 0.0254), 3.5, 400, 0.070, 0, 3000, "HES 1006; released by access control", strike_type="electric"))
@@ -419,13 +422,14 @@ _k(LockModel("deadbolt_single", "Single-cylinder deadbolt (key outside, thumbtur
 _k(LockModel("deadbolt_double", "Double-cylinder deadbolt (key both sides)", "deadbolt_double", "key", "key", 0.0, 0.0254, 1.5708, 0.35, 0.0, 0.6, "Schlage B62"))
 _k(LockModel("mortise_deadbolt", "Mortise lock w/ integral deadbolt (thumbturn inside)", "mortise_deadbolt", "key", "thumbturn", 0.03, 0.0254, 1.5708, 0.40, 0.0, 1.5, "Sargent 8200 function 04"))
 _k(LockModel("chain", "Door chain (engaged; limits opening ~ 8 cm)", "chain", "none_locked", "slide", 0.0, 0.0, 0.0, 0.0, 0.08, 0.15, "Door chain 4 in"))
-_k(LockModel("swing_bar_guard", "Swing bar door guard (hotel), ~ 6 cm opening", "swing_bar_guard", "none_locked", "slide", 0.0, 0.0, 1.0, 0.1, 0.06, 0.25, "Ives U9800 swing bar"))
+_k(LockModel("swing_bar_guard", "Swing bar door guard (hotel), ~ 6 cm opening", "swing_bar_guard", "none_locked", "slide", 0.0, 0.0, 1.0, 0.1, 0.06, 0.25, "Generic solid bar guard; Ives 482 installation drawing is a dimensional reference, not an OEM replica"))
 _k(LockModel("padlock", "Padlock on hasp", "padlock", "key", "key", 0.0, 0.0, 0.0, 0.0, 0.0, 0.35, "Padlock 40 mm"))
 _k(LockModel("keypad_code_4", "Electronic keypad (4-digit code) + lever", "keypad_code", "code", "lever", 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, "Schlage FE595"))
 _k(LockModel("keypad_code_6", "Electronic keypad (6-digit code) deadbolt", "keypad_code", "code", "thumbturn", 0.0, 0.0254, 1.5708, 0.30, 0.0, 0.8, "Schlage BE365 / Yale Assure"))
 _k(LockModel("keypad_mechanical", "Mechanical pushbutton lock (Simplex 1000, 5-button)", "keypad_code", "code", "lever", 0.05, 0.0, 0.0, 0.0, 0.0, 2.2, "Kaba Simplex 1000; 2-5 button combination"))
 _k(LockModel("card_reader", "RFID card reader lock (hotel)", "card_reader", "card", "lever", 0.05, 0.0254, 1.5708, 0.30, 0.0, 0.6, "Saflok / Onity"))
 _k(LockModel("mag_lock", "Maglock w/ REX button inside (fail-safe)", "mag_lock", "card", "rex_button", 0.0, 0.0, 0.0, 0.0, 0.0, 3.2, "Securitron M62 + REX"))
+_k(LockModel("turnstile_index_bolt", "Turnstile credential index bolt (fail-secure; geometry-backed mass)", "credential_index_bolt", "card", "card", 0.0, 0.022, 0.0, 0.0, 0.0, 0.0, "Generic contact slot wheel and spring bolt; actual moving parts use the geometry BOM, no additional catalogue mass"))
 _k(LockModel("electric_strike", "Electric strike w/ card reader (fail-secure)", "electric_strike", "card", "lever", 0.05, 0.0, 0.0, 0.0, 0.0, 0.9, "HES 1006 + reader"))
 _k(LockModel("slide_bolt", "Slide bolt engaged (inside)", "slide_bolt", "none_locked", "slide", 0.0, 0.0, 0.0, 0.0, 0.0, 0.2, "Barrel bolt"))
 _k(LockModel("hook_lock", "Sliding door hook lock (thumb latch inside)", "hook_lock", "key", "thumbturn", 0.0, 0.020, 1.0, 0.25, 0.0, 0.3, "Patio hook lock"))
@@ -433,6 +437,7 @@ _k(LockModel("thumbturn_only", "Thumbturn-only deadbolt (interior)", "thumbturn_
 _k(LockModel("night_latch", "Rim night latch (Yale) w/ snib", "night_latch", "key", "thumbturn", 0.0, 0.016, 1.0, 0.25, 0.0, 0.7, "Yale 77 night latch"))
 _k(LockModel("multipoint", "Multipoint lock (uPVC door, lift lever to engage 3 points)", "multipoint", "key", "thumbturn", 0.03, 0.020, 0.0, 0.0, 0.0, 2.5, "Yale/Winkhaus multipoint"))
 _k(LockModel("dogs", "Dogged watertight door (6 dogs closed)", "dogs", "lever", "lever", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "WT door dogs"))
+_k(LockModel("vault_lever_boltwork", "Two independent vault bolts thrown (both levers must turn)", "vault_lever_boltwork", "lever", "lever", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "Original crank/rod bolt carriers; actual native geometry controls release"))
 _k(LockModel("vault_wheel", "Vault boltwork thrown (wheel must be turned)", "vault_wheel", "none_locked", "lever", 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, "Vault"))
 _k(LockModel("jam_stuck", "Door stuck (swollen / paint-sealed), no lock", "jam_stuck", "none", "lever", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "Swollen wood door; breakaway torque added"))
 _k(LockModel("child_lock_cover", "Child-proof knob cover", "child_lock_cover", "none", "lever", 0.0, 0.0, 0.0, 0.0, 0.0, 0.05, "Knob cover"))

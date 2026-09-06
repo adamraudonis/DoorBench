@@ -7,11 +7,11 @@ import { FAMILY_LABELS } from "./types";
 import { buildScene, type BuiltScene, type JointHandle } from "./scene";
 import { buildEvaluationOverlay, type EvalOverlay } from "./evaluation";
 import { GLOSSARY, REWARD_LABELS, type GlossaryEntry } from "./glossary";
-import { activeLeaf, isLocked, isSwingPair, openClosePhases, parsePoseQuery, sliderReaction, type Phase } from "./doorLogic";
+import { activeLeaf, isLocked, isSwingPair, openClosePhases, parsePoseQuery, sliderReaction, requiresRecordedPhysics, type Phase } from "./doorLogic";
 import { ASSETS } from "./App";
 import { BaselineBadges } from "./ResultBadges";
 import { AppearancePanel } from "./Appearance";
-import { fetchReference, buildReferencePlayer, type ReferenceClip, type ReferencePlayer } from "./referenceMotion";
+import { fetchReference, buildReferencePlayer, isNativeReference, type ReferenceClip, type ReferencePlayer } from "./referenceMotion";
 import "./referenceMotion.css";
 
 function fmt(x: any, digits = 3): string {
@@ -295,7 +295,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
       const ext: number = model.meta?.scene_extent ?? size * 0.5;
       const wy: number = model.meta?.wall_y ?? 0;
       const tgt = new THREE.Vector3(model.meta?.cam_target_x ?? c.x, wy, model.meta?.cam_target_z ?? c.z);
-      t.camera.position.set(tgt.x + 0.9 * ext * u, wy - 1.7 * ext, tgt.z + 0.55 * ext);
+      t.camera.position.set(tgt.x + 0.9 * ext * u, wy + (model.meta.approach_face??-1) * 1.7 * ext, tgt.z + 0.55 * ext);
       t.controls.target.copy(tgt);
       t.controls.update();
       setJoints(Array.from(b.joints.values()));
@@ -471,8 +471,9 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
       <div className="viewport">
         <div className="scene-mount" ref={mountRef} />
         <div className="hud">
-          {primaryH && <button className="primary" onClick={openClose} title="Kinematic mechanism preview: retracts each leaf's latch, moves the free leaves, and releases the operators. Secured leaves stay locked.">{model && isSwingPair(model) ? "Open / close pair" : "Open / close door"}</button>}
-          {opH && <button onClick={() => animate(operator, opH.range ? (opH.q > (opH.range[0] + opH.range[1]) / 2 ? opH.range[0] : opH.range[1]) : opH.q + 1)}>Actuate operator</button>}
+          {primaryH && model && !requiresRecordedPhysics(model) && <button className="primary" onClick={openClose} title="Kinematic mechanism preview: retracts each leaf's latch, moves the free leaves, and releases the operators. Secured leaves stay locked.">{isSwingPair(model) ? "Open / close pair" : "Open / close door"}</button>}
+          {model && requiresRecordedPhysics(model) && <span className="muted">Inspect this mechanism through recorded physics. Its connected parts and contacts determine the motion.</span>}
+          {opH && model && !requiresRecordedPhysics(model) && <button onClick={() => animate(operator, opH.range ? (opH.q > (opH.range[0] + opH.range[1]) / 2 ? opH.range[0] : opH.range[1]) : opH.q + 1)}>Actuate operator</button>}
           <button onClick={() => { pauseReference(); const b = built.current; queue.current = []; if (b) { for (const h of b.joints.values()) b.setJoint(h.name, h.modeledAt); b.solveLoops(); } force((x) => x + 1); }}>Reset</button>
           <button className={diagnostic ? "active" : ""} aria-pressed={diagnostic} title="Brown door, gold mechanisms, neutral surroundings; glass remains transparent" onClick={() => setDiagnostic(v=>!v)}>Mechanism contrast</button>
           <button onClick={() => setShowEnv((v) => !v)}>{showEnv ? "Hide" : "Show"} walls</button>
@@ -484,7 +485,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
           {model && isSwingPair(model) && <p className="pair-preview-note">Mechanism preview · operates each leaf’s hardware, including inside panic bars. Robot access depends on the approach side.</p>}
         </div>
         {!referenceBlocked && (<div className="reference-player" data-review-shortcuts="off">
-          <div className="reference-heading"><strong>Original illustrative reference</strong><span>Recorded MuJoCo door · kinematic figure</span></div>
+          <div className="reference-heading"><strong>{reference&&isNativeReference(reference)?'Scripted mechanism baseline':'Original illustrative reference'}</strong><span>{reference&&isNativeReference(reference)?'Recorded MuJoCo states · oracle inputs':'Recorded MuJoCo door · kinematic figure'}</span></div>
           {reference ? <>
             <div className="reference-controls">
               <button className="primary" disabled={!model || builtModel.current!==model} onClick={() => {
@@ -496,16 +497,16 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
                 onChange={e=>{referenceState.current.playing=false;setReferencePlaying(false);seekReference(Number(e.target.value));}} />
               <output>{referenceTime.toFixed(1)} / {reference.duration.toFixed(1)} s</output>
               <select aria-label="Reference playback speed" defaultValue="1" onChange={e=>referenceState.current.speed=Number(e.target.value)}><option value=".25">¼×</option><option value=".5">½×</option><option value="1">1×</option><option value="2">2×</option></select>
-              {referenceVisible && <button onClick={pauseReference}>Hide figure</button>}
+              {referenceVisible && <button onClick={pauseReference}>{isNativeReference(reference)?'Exit playback':'Hide figure'}</button>}
             </div>
             <div className="reference-status"><span className={reference.outcome.success ? "ok" : "bad"}>Door task: {nice(reference.outcome.outcome)}</span><span>{nice(reference.scenario)} · {nice(referencePhase)}</span>
               {referenceVisible && referenceReach>.08 && <span className="bad">Hand target out of reach: {(referenceReach*100).toFixed(0)} cm</span>}
               <a href={`#/door/${id}?reference=1&rt=${referenceTime.toFixed(2)}&contrast=${diagnostic?1:0}`}>Link to this moment</a>
               <a href={`./reference-motions/clips/${id}.json.gz`} download>Download clip</a>
-              <a href="https://huggingface.co/datasets/adamraudonis/DoorBench" target="_blank" rel="noreferrer">Native trajectories ↗</a>
+              <a href={`./reference-motions/trajectories/${id}.npz`} download>Native trajectory</a>
             </div>
           </> : <p>{referenceError || "Loading reference recording…"}</p>}
-          <p className="reference-note">Generalized forces move the door; this original figure has known contact and clearance errors. <a href={`#/motions?door=${encodeURIComponent(id)}`}>Open Motion Lab for independently checked candidates and this door’s results →</a></p>
+          <p className="reference-note">{reference&&isNativeReference(reference)?'Orange points and arrows show contact locations and forces; blue arrows mark grasp torque axes. Joint efforts and motors also drive the mechanism. This is an idealized physics baseline: it does not validate human reach, grip or balance. Failed attempts are retained.':'Generalized forces move the door; this original figure has known contact and clearance errors.'} <a href={`#/motions?door=${encodeURIComponent(id)}`}>Motion Lab and validation details →</a></p>
         </div>)}
         {showEval && scenario?.human && (
           <div className="timeline">
@@ -527,6 +528,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
         <AppearancePanel id={id} />
         <div className="use">{entry.id} · <a href={supplementary ? "#/pets" : `#/?family=${entry.family}`}>{FAMILY_LABELS[entry.family] ?? entry.family}</a> · {entry.context}{!supplementary && <> · task: {nice(entry.task)} · difficulty {entry.difficulty}/5</>}</div>
         <div style={{ marginTop: 6 }} className="chips">
+          {spec?.lock && <span className="chip" title="Initial native lock state; the presence of lock hardware does not mean it is engaged.">{spec.lock.engaged ? "Initially locked" : "Initially unlocked"}</span>}
           <span className={"chip " + (entry.signed_off ? "ok" : "bad")}>{entry.signed_off ? "Automated QA passed" : "QA: " + (entry.qa_failed?.join(", ") || "needs review")}</span>
           {!supplementary && parityStatus && parityStatus !== "untested" && (
             <span className={"chip res " + (parityStatus === "ok" ? "ok" : "bad")} title={parityStatus === "ok" ? `Isaac parity gate: behaves the same in Isaac Sim / PhysX as in MuJoCo (grade ${parityGrade}); details in the Isaac parity section` : `Isaac parity gate: behaves differently in Isaac Sim / PhysX than in MuJoCo (grade ${parityGrade ?? "X"}${ip?.classes?.length ? ": " + ip.classes.join(", ") : ""}); details in the Isaac parity section`}>
@@ -601,8 +603,9 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
         <KV rows={[["model", nice(phys.closer?.model), "closer_model"], ["EN 1154 size", phys.closer?.en_size, "en_size"], ["spring preload", phys.closer ? `${fmt(phys.closer.spring_preload_Nm)} N·m` : "–", "preload"], ["spring rate", phys.closer ? `${fmt(phys.closer.spring_stiffness_Nm_per_rad)} N·m/rad` : "–", "spring_rate"], ["damping close / open", phys.closer ? `${fmt(phys.closer.damping_closing)} / ${fmt(phys.closer.damping_opening)} N·m·s/rad` : "–", "closer_damping"], ["closing time (est.)", phys.closer?.closing_time_est_s != null ? `${fmt(phys.closer.closing_time_est_s)} s` : "–", "closing_time"]]} />
         <h3>Operator · latch · lock</h3>
         <KV rows={[["operator", `${nice(spec?.operator?.model)}${opType ? ` (${opType === "slide" ? "linear" : "rotary"})` : ""}`, "operator"], ["height", spec ? `${spec.operator.height} m` : "–", "op_height"], ["travel", travelStr, "op_travel"], ["return spring", springStr, "op_return_spring"], ["yield (damage)", yieldStr, "op_yield"], ["latch", nice(phys.latch?.model), "latch"], ["throw", phys.latch ? `${fmt((phys.latch.throw_m ?? 0) * 1000, 1)} mm` : "–", "throw"], ["bolt spring", phys.latch ? `${fmt(phys.latch.bolt_spring_preload_N)} N + ${fmt(phys.latch.bolt_spring_rate_N_per_m)} N/m` : "–", "bolt_spring"], ["lock", nice(phys.lock?.model), "lock"], ["engaged", phys.lock?.engaged, "lock_engaged"], ["robot-side release", phys.lock?.robot_side_release, "robot_side_release"], ["locked backlash", backlashStr, "backlash"], ["deadbolt throw", phys.lock ? `${fmt((phys.lock.deadbolt_throw_m ?? 0) * 1000, 1)} mm` : "–", "deadbolt_throw"], ["code", phys.lock?.code ?? "–", "code"]]} />
-        <h3>Compliance (as simulated)</h3>
-        <KV rows={[["opening force (start)", phys.compliance?.opening_force_start_N != null ? `${fmt(phys.compliance.opening_force_start_N)} N` : "–", "force_start"], ["opening force (90°)", phys.compliance?.opening_force_90deg_N != null ? `${fmt(phys.compliance.opening_force_90deg_N)} N` : "–", "force_90"], ["operator force", phys.compliance?.operator_force_N != null ? `${fmt(phys.compliance.operator_force_N)} N` : "–", "operator_force"], ["ADA 5 lbf interior", phys.compliance?.ada_interior_5lbf_ok, "ada_5lbf"], ["IBC fire/exterior", phys.compliance?.ibc_fire_exterior_ok, "ibc_fire"], ["hardware ≤ 5 lbf", phys.compliance?.hardware_operable_5lbf_ok, "hardware_5lbf"], ["ADA clear width", phys.compliance?.clear_width_ada_ok, "clear_width"]]} />
+        <h3>Analytical force estimates</h3>
+        <KV rows={[["opening force (start)", phys.compliance?.opening_force_start_N != null ? `${fmt(phys.compliance.opening_force_start_N)} N` : "Not assessed", "force_start"], ["opening force (90°)", phys.compliance?.opening_force_90deg_N != null ? `${fmt(phys.compliance.opening_force_90deg_N)} N` : "Not assessed", "force_90"], ["operator spring estimate", phys.compliance?.operator_force_N != null ? `${fmt(phys.compliance.operator_force_N)} N` : "Not assessed", "operator_force"]]} />
+        <p className="muted">Spring and friction estimates do not establish a measured force curve or regulatory compliance.</p>
         <h3>Damage thresholds</h3>
         <KV rows={[["leaf dent", phys.damage ? `${fmt(phys.damage.leaf_dent_force_N)} N` : "–", "dent"], ["leaf puncture", phys.damage ? `${fmt(phys.damage.leaf_puncture_force_N)} N` : "–", "puncture"], ["glass break", phys.damage?.glass_break_force_N != null ? `${fmt(phys.damage.glass_break_force_N)} N` : "–", "glass_break"], ["operator yield", phys.damage ? `${fmt(phys.damage.operator_yield_torque_Nm)} ${rotary ? "N·m" : "N"}` : "–", "op_yield_dmg"], ["latch shear", phys.damage ? `${fmt(phys.damage.latch_shear_yield_N)} N` : "–", "latch_shear"], ["hinge tear-out", phys.damage ? `${fmt(phys.damage.hinge_tearout_force_N)} N` : "–", "hinge_tearout"], ["slam velocity", phys.damage ? `${fmt(phys.damage.slam_velocity_rad_s)} ${spec?.kinematics?.type?.startsWith("hinge") || spec?.kinematics?.type === "rotor" ? "rad/s" : "m/s"}` : "–", "slam_velocity"]]} />
         {qa && (<><h3>QA sign-off</h3><KV rows={qaRows} /></>)}
