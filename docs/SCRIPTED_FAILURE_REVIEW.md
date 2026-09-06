@@ -37,6 +37,40 @@ Examples from retained event traces:
   notes identify impossible fold coupling/range combinations in earlier models.
   Validate the corrected source and rerun; old results must not be relabeled.
 
+## Saved reference recordings
+
+I also checked all **985 non-pet saved clips**, verifying each uncompressed clip
+checksum against the published reference index. These one-seed recordings differ
+from the multi-seed benchmark above: **879 succeeded and 106 failed**.
+
+| Observed failure pattern | Clips |
+|---|---:|
+| Operator never actuated and door never opened | 75 |
+| Traversed without the required unlock event | 9 |
+| Opened but did not traverse | 9 |
+| Other unmet task criteria | 13 |
+
+DB0019's recorded attempt touched the door but never actuated an operator or
+released its latch, then timed out after 60 seconds with only 0.0022 radians of
+leaf movement. Its inside panic bars and approach-side permissions must be
+reconciled; turning up the push force is not an opening procedure. DB0021 actually
+opened and passed through, but never recorded the required unlock event. Its
+failure cannot be diagnosed from the animation alone. These are recorded event
+patterns, not proof that all 75 operator failures share one root cause.
+
+**Exclude the 106 failed clips from positive demonstration training**, while
+retaining them for diagnosis and keeping valid failed tests in evaluation.
+The [per-door audit](review/scripted-baseline/reference-outcome-audit.json) supplies
+outcomes, unmet criteria and exact source/clip hashes for selection. Check those
+hashes before replaying against a revised door; an older success is not a new
+mechanical signoff.
+
+Even successful clips are not ground-truth human demonstrations: **531** have
+unreachable avatar frames and **669** have a maximum avatar hand error above
+5 cm. The native door trajectory and the experimental figure overlay are distinct
+products. None of these figures should be silently promoted into human motion
+training data based only on the task's success flag.
+
 ## Exclusion decision
 
 **Do not exclude a test because the scripted policy fails it.** Keep timeouts,
