@@ -21,6 +21,9 @@ out = Path(a.out).resolve()
 out.mkdir(parents=True, exist_ok=False)
 suite = json.loads((assets / "demo-suite.json").read_text())
 cases = suite["cases"]
+from run_progress import RunProgress
+
+progress = RunProgress(out, len(cases), a.batch)
 assert len({c["id"] for c in cases}) == len(cases), "Duplicate door IDs"
 for case in cases:
     if case.get("export_error"):
@@ -60,6 +63,16 @@ def stamp():
 
 def batch(ids, folder, video=False):
     folder.mkdir(parents=True, exist_ok=False)
+    progress.update(
+        "hero"
+        if video
+        else "retrying"
+        if folder.name.startswith("retry-")
+        else "running",
+        folder=folder.name,
+        ids=ids,
+        batch_started_at_utc=datetime.now(timezone.utc).isoformat(),
+    )
     cmd = [
         sys.executable,
         str(ROOT / "scripts/isaaclab" / ("hero_g1.py" if video else "grid_g1.py")),
@@ -149,6 +162,7 @@ for offset in range(0, len(cases), a.batch):
 final = stamp()
 final["completed_at_utc"] = datetime.now(timezone.utc).isoformat()
 (out / "results.json").write_text(json.dumps(final, indent=2) + "\n")
+progress.update("auditing", folder="", ids=[])
 audit_path = out / "traversal-audit.json"
 subprocess.run(
     [
@@ -216,4 +230,5 @@ if a.hero:
                 ],
                 check=True,
             )
+progress.update("completed", folder="", ids=[])
 print("CATALOGUE_COMPLETE", flush=True)
