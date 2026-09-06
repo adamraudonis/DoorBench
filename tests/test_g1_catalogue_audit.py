@@ -80,3 +80,37 @@ def test_audit_checks_crossing_sources_and_applicability(tmp_path):
     assert [r["door_id"] for r in data["per_door"] if r["traversal_success"]] == [
         "pass"
     ]
+
+
+def test_hero_requires_audited_supported_successes(tmp_path):
+    import importlib.util
+    import pytest
+
+    source = SCRIPT.with_name("select_g1_hero.py")
+    spec = importlib.util.spec_from_file_location("select_hero", source)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    rows = []
+    for id, success, vertical, supported in [
+        ("valid", True, True, True),
+        ("raw_only", False, True, True),
+        ("hatch", True, False, True),
+        ("unsupported", True, True, False),
+    ]:
+        folder = tmp_path / "doors" / id
+        folder.mkdir(parents=True)
+        (folder / "spec.json").write_text(
+            json.dumps({"opening": {"width": 1.0, "height": 2.0}})
+        )
+        rows.append(
+            {
+                "door_id": id,
+                "family": id,
+                "traversal_success": success,
+                "vertical_traversal_applicable": vertical,
+                "native_spatial_elements_supported": supported,
+            }
+        )
+    assert module.select({"per_door": rows}, tmp_path, count=1) == ["valid"]
+    with pytest.raises(ValueError, match="distinct audited successes"):
+        module.select({"per_door": rows}, tmp_path, count=2)

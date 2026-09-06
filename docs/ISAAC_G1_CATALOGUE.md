@@ -1,0 +1,74 @@
+# Catalogue-wide Unitree G1 diagnostic in Isaac Sim
+
+This is a native PhysX rollout of Unitree’s unchanged locomotion checkpoint, with one closed-start attempt for each of the **985 non-pet doors**. It is a diagnostic of approaching and passing through a doorway. It is separate from the assigned manipulation, locking, closing and safety tasks in the core DoorBench benchmark.
+
+The G1 controls its legs and holds a fixed upper-body posture. It has no door perception, grasp planner or handle-turning controller. Manual doors move through physical contact; automatic sliders receive their own proximity-sensor and motor commands. The policy cannot write door joint state or directly command a door actuator.
+
+## Task and accounting
+
+- Seed 0, at most 16 simulated seconds per case; physics and PD at 500 Hz, policy at 50 Hz.
+- Initial root position `(0, -1.5, 0.79)` relative to each door, facing `+y`; the primary door joint starts closed. This fixed approach differs from some doors’ assigned benchmark approach.
+- Raw goal: root reaches `y >= 1.2 m`, remains within the opening width with a 20 cm side margin, and stays upright for 0.5 seconds. Root height below 0.45 m or a tilt beyond 60° terminates the episode as a fall.
+- The reported traversal additionally requires the saved root trajectory to cross the actual wall plane *inside* the opening width and height. Reaching the far-side goal by going around or below an opening receives no credit.
+- All 985 fixtures are attempted. The **18 horizontal hatches** are not upright doorway-transit tasks; the applicable vertical collection contains **967 doors**. The **15 pet doors** are excluded before export.
+- A simulator/export error remains a failed attempt. Missing or invalid native results receive one isolated retry; ordinary policy failures are not retried. Report unresolved errors and retry counts separately.
+- The canonical USD representation has explicit limitations on spatial springs, cables and other mechanisms. Its unsupported cases remain visible in the inventory. A root crossing does not certify complete mechanism parity, full-body clearance, safe forces or successful unlocking.
+
+The four-door [earlier integration demo](ISAAC_G1_DEMO.md) contains an already-open doorway and selected easy cases. Its 3/4 result is not comparable to this closed-start catalogue sweep.
+
+## Reproduce the evaluation
+
+Use Linux with an RTX-capable GPU and the [tested installation procedure](RUNPOD.md). The evaluation runner was frozen at `a0d8248cc`; the source hashes and frozen inputs accompanying the recorded run take precedence over a newly generated dataset.
+
+```bash
+git clone https://github.com/adamraudonis/DoorBench.git
+cd DoorBench
+git checkout a0d8248cc
+DOORBENCH_WORK=/opt/doorbench-runtime bash scripts/pod_bootstrap.sh
+source isaaclab/cloud/env.sh
+python scripts/isaaclab/check_g1_runtime.py
+python scripts/isaaclab/fetch_g1_policy.py
+```
+
+The tested runtime is Isaac Sim 5.1.0, Isaac Lab v2.3.2, Python 3.11 and PyTorch 2.7.0+cu128. ONNX is pinned to 1.21.0 because a later ONNX release conflicts with Isaac’s pinned typing-extensions. Install the runtime on local disk; this run’s network-mounted `/workspace` volume produced stale-file-handle errors during package installation.
+
+For a new geometry revision, generate a new, separate fixture directory in a CPU environment with DoorBench and `usd-core` installed:
+
+```bash
+python scripts/isaaclab/prepare_g1_catalogue.py --out out/g1-inputs
+```
+
+For an exact reproduction, use the recorded run’s frozen `assets/` instead. Then run with a new output directory:
+
+```bash
+python scripts/isaaclab/run_g1_catalogue.py \
+  --assets /absolute/path/to/assets \
+  --batch 32 --out out/g1-catalogue
+python scripts/isaaclab/summarize_g1_catalogue.py \
+  --assets /absolute/path/to/assets \
+  --results out/g1-catalogue --out out/g1-catalogue/traversal-audit.json
+```
+
+The runner verifies input hashes before starting. Every batch gets a fresh simulator process and policy state. Receipts record exact source/checkpoint hashes, simulator versions and UTC timestamps; traces retain robot root poses and native door joint positions at 50 Hz. The audit verifies trace and source hashes. Keep native logs as well as the aggregate JSON: a process exit code alone is insufficient evidence of completion.
+
+The current runner also audits automatically at completion. For researcher policy integration, start with the [single-door policy adapter](ISAAC_G1_DEMO.md#5-replace-the-policy-with-yours); the catalogue grid is specifically the Unitree checkpoint diagnostic.
+
+## Native 4×4 recording
+
+The hero view uses sixteen distinct successful vertical cases selected from the audited run, then **reruns them together** in Isaac Sim. It is an illustration of selected successes, not a random performance sample. Its receipts and trajectories must be checked separately from the original sweep.
+
+The presentation changes lighting, the floor’s visual material and cell spacing. It retains the robot asset, door inputs, collision geometry, physical materials and policy. A runtime assertion verifies that the presentation material preserves the floor’s physics binding. The original and presentation runners have separate hashes. No human animation or door-joint playback substitutes for the native policy rollout.
+
+On the current source revision:
+
+```bash
+python scripts/isaaclab/select_g1_hero.py \
+  --audit out/g1-catalogue/traversal-audit.json \
+  --assets /absolute/path/to/assets --out out/hero-selection.json
+# Pass the sixteen IDs printed above to --batch-doors:
+python scripts/isaaclab/hero_g1.py --headless --device cuda:0 \
+  --assets /absolute/path/to/assets --out out/g1-hero \
+  --video --batch-doors <the sixteen selected IDs>
+```
+
+The camera records 1920×1080 video at 25 fps, plus several still frames. Keep the complete recording when choosing a README image, so a pleasing pose cannot conceal a failed attempt.

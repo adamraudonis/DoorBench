@@ -345,6 +345,8 @@ def main(spacing=12.0, presentation=False):
 
         next_frame = 0.0
         hero_saved = False
+        still_times = iter((5.0, 7.0, 9.0, 11.0))
+        next_still = next(still_times, None)
         for step in range(round(args.duration / dt)):
             t = step * dt
             pos_batch = robot_all.data.root_pos_w.cpu().numpy()
@@ -469,6 +471,9 @@ def main(spacing=12.0, presentation=False):
                 camera.update(dt, force_recompute=True)
                 rgb = camera.data.output["rgb"][0, :, :, :3].cpu().numpy()
                 writer.append_data(rgb)
+                if presentation and next_still is not None and t >= next_still:
+                    imageio.imwrite(out / f"g1-grid-{int(next_still):02d}.png", rgb)
+                    next_still = next(still_times, None)
                 next_frame += 1 / 25
                 if t >= 7.0 and not hero_saved:
                     imageio.imwrite(out / "g1-grid.png", rgb)
