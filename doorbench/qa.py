@@ -540,6 +540,15 @@ def run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict)
     track_support = run_sliding_track_qa(m, model_meta)
     checks["sliding_track_support"] = bool(track_support["ok"])
     metrics["sliding_track_support"] = track_support
+    # A vertically guided assembly (a coiling curtain, a sectional door on its tracks) is the other half of the
+    # same requirement, and the surrounding structure is the third: nothing may leave its guides anywhere in the
+    # travel, and the hole in the wall has to be the door's opening rather than the door's lift envelope.
+    from .enclosure_qa import run_enclosure_qa
+    enc = run_enclosure_qa(m, model_meta, spec)
+    checks["guided_travel"] = bool(enc["guided_travel"]["ok"])
+    checks["wall_opening"] = bool(enc["wall_opening"]["ok"])
+    metrics["guided_travel"] = enc["guided_travel"]
+    metrics["wall_opening"] = enc["wall_opening"]
     # Collision clearance alone cannot detect impossible closed-loop mechanisms.
     from .linkage_qa import run_linkage_qa
     linkage = run_linkage_qa(door_dir)

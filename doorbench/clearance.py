@@ -111,6 +111,26 @@ def gate_model(xml_path: str, margin: float = 0.0):
 COUPLING_TOL = 1e-3   # rad / m; a driven joint may leave its range by no more than this over the driver's travel
 
 
+def resolve_joint_equalities(m, q: np.ndarray, mujoco) -> np.ndarray:
+    """Drive every joint-polynomial equality's DRIVEN joint from its driver, in place.
+
+    One pass of ``Clearance.resolve``'s coupling step, factored out so that any gate that has to pose a coupled
+    mechanism kinematically (doorbench/enclosure_qa.py sweeps a coiling curtain's courses this way) uses the same
+    law the clearance gates do rather than its own copy of it.  Chains need two passes; callers that may have them
+    call this twice, as ``resolve`` does."""
+    for e in range(m.neq):
+        if int(m.eq_type[e]) != int(mujoco.mjtEq.mjEQ_JOINT):
+            continue
+        j1, j2 = int(m.eq_obj1id[e]), int(m.eq_obj2id[e])
+        c = m.eq_data[e][:5]
+        if j2 < 0:
+            q[m.jnt_qposadr[j1]] = c[0]
+            continue
+        x = q[m.jnt_qposadr[j2]]
+        q[m.jnt_qposadr[j1]] = c[0] + c[1] * x + c[2] * x ** 2 + c[3] * x ** 3 + c[4] * x ** 4
+    return q
+
+
 def coupling_range_failures(m, tol: float = COUPLING_TOL, n_samples: int = 49) -> List[dict]:
     """Joint equalities whose driven joint cannot follow its driver over the driver's whole range.
 
@@ -224,16 +244,7 @@ class Clearance:
         """Apply joint-polynomial equalities and one-sided tendon couplings to make q consistent."""
         m, mujoco = self.m, self.mj
         for _ in range(2):
-            for e in range(m.neq):
-                if int(m.eq_type[e]) != int(mujoco.mjtEq.mjEQ_JOINT):
-                    continue
-                j1, j2 = int(m.eq_obj1id[e]), int(m.eq_obj2id[e])
-                c = m.eq_data[e][:5]
-                if j2 < 0:
-                    q[m.jnt_qposadr[j1]] = c[0]
-                    continue
-                x = q[m.jnt_qposadr[j2]]
-                q[m.jnt_qposadr[j1]] = c[0] + c[1] * x + c[2] * x ** 2 + c[3] * x ** 3 + c[4] * x ** 4
+            resolve_joint_equalities(m, q, mujoco)
             for lo, terms in self.tendons:
                 length = sum(coef * q[adr] for adr, coef in terms)
                 if length < lo - 1e-9:

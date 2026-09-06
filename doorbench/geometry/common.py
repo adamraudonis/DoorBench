@@ -205,6 +205,10 @@ def add_floor_and_wall(model: Model, spec: dict, wall_half_width=2.5, wall_heigh
     # the space above it open, including callers supplying an explicit frame hole.
     if z1 < wall_height and spec["family"] != "baby_gate":
         world.geoms.append(box("wall_header", ((x0 + x1) / 2, y_wall, (z1 + wall_height) / 2), ((x1 - x0) / 2, wt / 2, (wall_height - z1) / 2), wall_mat, 800, semantic="wall", label="Wall header"))
+    elif spec["family"] == "baby_gate":
+        # the hole in the wall is the passage, not the gate: say so, because checks["wall_opening"] otherwise reads
+        # the open space above a 0.77 m gate as 1.9 m of missing wall (doorbench/enclosure_qa.WALL_OPENING_EXEMPT)
+        model.meta["wall_opening"] = [x0, x1, z0, wall_height]
     return world
 
 

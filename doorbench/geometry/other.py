@@ -7,7 +7,7 @@ import math
 import numpy as np
 
 from ..ir import (Body, Geom, Joint, Site, Equality, Tendon, Model, ALL_TIERS, FULL_ONLY, FULL_SIMPLE, QUAT_ID,
-                  quat_from_axis_angle, quat_z_to)
+                  quat_from_axis_angle, quat_to_mat, quat_z_to)
 from .. import materials as M
 from .. import hardware as H
 from ..folding import (FOLD_TRACK_H, FOLD_TRACK_GAP, FOLD_FLOOR_GAP, FOLD_HINGE_GAP, FOLD_PIVOT_MAX_DEG, FOLD_PIVOT_IN, FOLD_JAMB_GAP, fold_jamb_gap,
@@ -802,134 +802,204 @@ def build_turnstile(spec, phys, model: Model, full_height=False):
 
 # ---------------------------------------------------------------------------
 # Vertical lift: garage sectional, roll-up
+#
+# Both families lift on the INSIDE face of the wall, which is where a vertical-lift sectional door and a coiling
+# door are really mounted.  Both used to be drawn as if they lifted through the building instead:
+#
+#   finding 1 (15/15 rollup)   the curtain rose as a rigid slab, left the top of its guides and ended up hanging in
+#                              the air above the wall with sky between it and the building.  A curtain COILS: the
+#                              length that has wound onto the barrel is no longer hanging in the guides.  It is
+#                              modelled here as a chain of courses that close up into the hood as the bar rises, so
+#                              the exposed curtain shortens by exactly the distance travelled.
+#   finding 2 (18/18 garage)   the wall was cut open over the whole lift envelope (Ho + Hh + 0.08) so that the leaf
+#                              could travel inside the wall plane, leaving a 2.0-2.5 m hole above the door, open to
+#                              the sky.  The leaf now runs up the INSIDE face on tracks bolted back to the wall, so
+#                              the wall's opening is the door's opening and the header closes over it.
+#   finding 11 (7 garage)      the opener hung on the end of a 2.9 m unsupported rail in a scene with no ceiling.  A
+#                              vertical-lift door is worked by a jackshaft (wall-mount) opener on the end of the
+#                              torsion shaft; nothing cantilevers off anything.
+#
+# Both are re-checked deterministically over the whole travel by doorbench/enclosure_qa.py -
+# checks["guided_travel"] (no part of the moving assembly ever leaves its guides) and checks["wall_opening"] (the
+# hole in the wall is the declared opening, to the frame's own margin).
 # ---------------------------------------------------------------------------
+GARAGE_JAMB_T = 0.04          # m; jamb lining board.  The wall is cut Wo + 2*JAMB_T x Ho + JAMB_T and the lining
+#                               brings it back to the DECLARED opening, so the hole in the wall is the door's own.
+GARAGE_STOP_T = 0.019         # m; stop moulding nailed to the jamb inside the opening (the door closes on its seal)
+GARAGE_STOP_LAP = 0.045       # m; how far stop / header seal laps over the door, covering the door-to-jamb gap
+GARAGE_FACE_CLEAR = 0.004     # m; running clearance between the door face and the seal it passes
+GARAGE_WALL_CLEAR = 0.005     # m; the outermost part of the door assembly (its exterior handle) stays this far
+#                               inboard of the wall's inner face: a vertical-lift door carries it past the head.
+ROLLUP_COURSE_H = 0.35        # m; nominal height of one modelled curtain course
+ROLLUP_GUIDE_LAP = 0.06       # m; the side guides run this far past the opening head, into the hood
+SLAT_PITCH = 0.075            # m; roll-up slat pitch (the visible joint lines)
+
+
+def _geom_half_y(g) -> float:
+    """Conservative half-extent of one geom along y, in its parent body's frame."""
+    if g.type == "box":
+        return float(np.abs(quat_to_mat(np.asarray(g.quat, float)))[1] @ np.asarray(g.size[:3], float))
+    if g.type in ("cylinder", "capsule"):
+        return float(g.size[0] + g.size[1])
+    if g.type == "sphere":
+        return float(g.size[0])
+    ext = getattr(g.mesh, "extents", None)
+    return float(np.max(np.abs(np.asarray(ext, float))) / 2) if ext is not None else 0.08
+
+
+def _assembly_y_extent(model: Model, root: Body):
+    """(min, max) y of a body and everything hanging off it, in the root body's own frame."""
+    lo, hi = 0.0, 0.0
+    stack = [(root, 0.0)]
+    while stack:
+        b, off = stack.pop()
+        for g in b.geoms:
+            h = _geom_half_y(g)
+            lo, hi = min(lo, off + float(g.pos[1]) - h), max(hi, off + float(g.pos[1]) + h)
+        for ch in model.bodies:
+            if ch.parent == b.name:
+                stack.append((ch, off + float(ch.pos[1])))
+    return lo, hi
+
+
+def _slat_lines(model, body, W, t, z0, h, prefix):
+    """The visible slat joints of one curtain course (drawn on the weather face)."""
+    mat = C.mat_rgba(model, "mat_slat_line", (0.25, 0.25, 0.25, 1), 0.7)
+    for k in range(1, max(1, int(round(h / SLAT_PITCH)))):
+        body.geoms.append(C.box(f"{prefix}_slat_line_{k}", (0, -t / 2 - 0.001, z0 + k * h / max(1, int(round(h / SLAT_PITCH)))),
+                                (W / 2, 0.001, 0.003), mat, 1.0, False, True, FULL_ONLY, "leaf", "Slat joint"))
+
+
+def _add_curtain_courses(model, spec, phys, lb, W, Hh, t, z_bot, travel):
+    """The coiling curtain: a chain of courses whose exposed length shrinks by the distance travelled.
+
+    A roll-up curtain is inextensible.  When the bottom bar has risen by s, exactly s of curtain has wound onto the
+    barrel and what is left hanging runs from the bar (z = s) up to the head, where it enters the coil - the exposed
+    curtain is SHORTER by s.  A rigid slab cannot do that: it carries its whole length past the head and out of the
+    top of its guides, which is what 15 of 15 roll-ups did.
+
+    Modelled with K courses of Hh/K each: course k hangs under course k-1 and slides DOWN relative to it by s/K, so
+    the bottom edge follows the bar, the courses close up on each other, and the surplus disappears into the hood at
+    the head - the coil is where a curtain's length goes.  Courses overlap as they close up: they are one sheet of
+    steel 0.8-10 mm thick winding onto itself, and the overlap is the wind, not a defect (contact excluded between
+    them, and declared in meta["clearance_allow"]).  Every course stays inside the side guides at every s, which
+    checks["guided_travel"] measures.
+    """
+    leaf = spec["leaf"]
+    K = int(min(8, max(4, round(Hh / ROLLUP_COURSE_H))))
+    hp = Hh / K
+    phys_k = {"mass": {"slab_kg": phys["mass"]["slab_kg"] / K}}
+    rf = phys["roller"]
+    courses = [lb]
+    for k in range(K):
+        prefix = "curtain" if k == 0 else f"curtain_{k}"
+        if k == 0:
+            body, z0 = lb, z_bot
+        else:
+            body = Body(f"curtain_course_{k}", courses[-1].name, (0, 0, z_bot + hp if k == 1 else hp), QUAT_ID, None, [], [],
+                        ALL_TIERS, "leaf", f"Curtain course {k + 1} of {K}")
+            body.joint = Joint(f"curtain_course_{k}_slide", "slide", (0, 0, 1), (0, 0, 0), (-travel / K - 1e-4, 1e-4),
+                               damping=max(0.5, rf["viscous_damping_N_s_per_m"] / K), frictionloss=rf["coulomb_force_N"] / K,
+                               armature=0.002, role="mechanism", robot_interactive=False,
+                               label=f"Curtain course {k + 1} (coils: -1/{K} of the lift)")
+            model.add_body(body)
+            model.equalities.append(Equality("joint", f"curtain_course_{k}_couple", body.joint.name, lb.joint.name,
+                                             (0, -1.0 / K, 0, 0, 0), tiers=ALL_TIERS,
+                                             label=f"course {k + 1} = -1/{K} x lift (curtain winding onto the barrel)"))
+            courses.append(body)
+            z0 = 0.0
+        sub = {**leaf, "height": hp}
+        C.add_leaf_geoms(model, body, spec, sub, 1.0, -W / 2, z0, phys_k, name_prefix=prefix, Hh=hp)
+        _slat_lines(model, body, W, t, z0, hp, prefix)
+    for a in range(len(courses)):
+        for b in range(a + 1, len(courses)):
+            model.contact_excludes.append((courses[a].name, courses[b].name))
+    return courses, hp, K
+
+
 def build_vertical(spec, phys, model: Model):
     leaf = spec["leaf"]
     W, Hh, t = leaf["width"], leaf["height"], leaf["thickness"]
     op = spec["opening"]
     Wo, Ho = op["width"], op["height"]
+    wt2 = op["wall_thickness"] / 2
     kin = spec["kinematics"]
     fam = spec["family"]
-    rough = 0.12 if fam == "garage_sectional" else 0.0
-    # vertical-lift approximation: the door rises straight up, so the wall above the opening is left open (high-lift bay)
-    world = C.add_floor_and_wall(model, spec, wall_half_width=max(3.0, W / 2 + 1.0), wall_height=Ho + Hh + 0.3 if fam == "garage_sectional" else (Ho + 1.6 if fam == "rollup" else Ho + 1.2), hole=(-Wo / 2 - rough, Wo / 2 + rough, 0.0, Ho + Hh + 0.08) if rough else None)
+    sectional = fam == "garage_sectional"
+    travel = float(kin["travel_m"])
+    z_bot = 0.01                          # bottom edge of the door / curtain when closed
+    z_open_top = z_bot + Hh + travel      # top edge of the door when fully raised
+    # ---------------------------------------------------------------- the building
+    if sectional:
+        z_track_top = z_open_top + 0.10   # the tracks run the full lift: the top roller never reaches their end
+        z_shaft = z_track_top + 0.14      # torsion shaft + cable drums at the top of the lift (vertical-lift door)
+        # the wall is cut to the ROUGH opening and the jamb lining below brings it back to the declared opening
+        hole = (-(Wo / 2 + GARAGE_JAMB_T), Wo / 2 + GARAGE_JAMB_T, 0.0, Ho + GARAGE_JAMB_T)
+        wall_height = z_shaft + 0.30
+    else:
+        hole = None                       # (-Wo/2, Wo/2, 0, Ho): a coiling door's opening is its own opening
+        z_track_top = z_shaft = 0.0
+        wall_height = Ho + 1.6
+    world = C.add_floor_and_wall(model, spec, wall_half_width=max(3.0, W / 2 + 1.0), wall_height=wall_height, hole=hole)
     fm = C.mat_from_material(model, op["frame"]["material"], "mat_frame")
     tm = C.mat_from_material(model, "steel_galvanized", "mat_track")
-    if rough:
-        # jamb fill beside the track / lock channel
-        for sgn in (-1, 1):
-            world.geoms.append(C.box(f"garage_jamb_{'r' if sgn > 0 else 'l'}", (sgn * (Wo / 2 + rough - 0.04), 0, Ho / 2), (0.04, op["wall_thickness"] / 2, Ho / 2), fm, 400, True, True, ALL_TIERS, "frame", "Garage jamb"))
     m = phys["mass"]["total_kg"]
     cb = kin.get("counterbalance_fraction", 0.0)
-    lb = Body("curtain" if fam == "rollup" else "door", None, (0, 0, 0), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Vertical lift door")
-    j = slide_joint(spec, phys, (0, 0, 1), kin["travel_m"], f"{lb.name}_slide", counterbalance=cb, mass=m)
+    # ---------------------------------------------------------------- the moving door, in its OWN frame
+    # (leaf mid-plane at y = 0).  It is placed in the opening further down, once the outermost piece of hardware on
+    # its weather face is known: everything the door carries has to pass the head, so nothing on it may stick out
+    # past the wall's inner face.
+    lb = Body("door" if sectional else "curtain", None, (0, 0, 0), QUAT_ID, None, [], [], ALL_TIERS, "leaf", "Vertical lift door")
+    j = slide_joint(spec, phys, (0, 0, 1), travel, f"{lb.name}_slide", counterbalance=cb, mass=m)
     j.label = "Vertical lift (0 = closed, + = raised)"
     lb.joint = j
     model.add_body(lb)
-    y_leaf = 0.0 if fam != "rollup" else (op["wall_thickness"] / 2 + 0.085)   # curtain stands off the wall so the inside lift handle clears the header
-    if fam == "garage_sectional":
-        ns = kin.get("n_sections", 4)
+    y_roller = t / 2 + 0.06               # roller plane, inboard of the door face (body frame)
+    moving_bodies = [lb.name]
+    lift_factor = 1.0                     # share of the door's weight the lift actually carries (see below)
+    if sectional:
+        ns = int(kin.get("n_sections", 4))
         sh = Hh / ns
         phys_k = {"mass": {"slab_kg": phys["mass"]["slab_kg"] / ns}}
         for k in range(ns):
             sub = {**leaf, "height": sh, "panel_style": leaf["panel_style"]}
-            C.add_leaf_geoms(model, lb, spec, sub, 1.0, -W / 2, 0.01 + k * sh, phys_k, name_prefix=f"section_{k}", Hh=sh)
+            C.add_leaf_geoms(model, lb, spec, sub, 1.0, -W / 2, z_bot + k * sh, phys_k, name_prefix=f"section_{k}", Hh=sh)
             if k > 0:
-                # hinge line visual
-                lb.geoms.append(C.box(f"section_hinge_line_{k}", (0, y_leaf + t / 2 + 0.001, 0.01 + k * sh), (W / 2 - 0.02, 0.001, 0.004), C.mat_rgba(model, "mat_hinge_line", (0.2, 0.2, 0.2, 1), 0.7), 1.0, False, True, FULL_ONLY, "leaf", "Section joint"))
+                lb.geoms.append(C.box(f"section_hinge_line_{k}", (0, t / 2 + 0.001, z_bot + k * sh), (W / 2 - 0.02, 0.001, 0.004),
+                                      C.mat_rgba(model, "mat_hinge_line", (0.2, 0.2, 0.2, 1), 0.7), 1.0, False, True, FULL_ONLY, "leaf", "Section joint"))
                 for xh in (-W / 2 + 0.1, 0.0, W / 2 - 0.1):
-                    lb.geoms.append(C.box(f"section_hinge_{k}_{int((xh + W) * 100)}", (xh, y_leaf + t / 2 + 0.01, 0.01 + k * sh), (0.04, 0.01, 0.05), tm, 7850, False, True, FULL_ONLY, "hinge", "Section hinge"))
-        # vertical tracks
-        track_y = t / 2 + 0.06
+                    lb.geoms.append(C.box(f"section_hinge_{k}_{int((xh + W) * 100)}", (xh, t / 2 + 0.01, z_bot + k * sh), (0.04, 0.01, 0.05),
+                                          tm, 7850, False, True, FULL_ONLY, "hinge", "Section hinge"))
+        # one roller pair per section joint, on stub axles through the end hinges into the track
         for sgn in (-1, 1):
-            # C-channel track: web outboard of the rollers + two flanges; rollers (r 25 mm) run in the cavity
-            zt_, hz_ = Ho / 2 + Hh / 2, Ho / 2 + Hh / 2
-            world.geoms.append(C.box(f"track_{'r' if sgn > 0 else 'l'}", (sgn * (W / 2 + 0.05), track_y, zt_), (0.004, 0.033, hz_), tm, 7850, True, True, FULL_SIMPLE, "track", "Vertical track web"))
-            for sy in (-1, 1):
-                world.geoms.append(C.box(f"track_{'r' if sgn > 0 else 'l'}_flange_{'p' if sy > 0 else 'n'}", (sgn * (W / 2 + 0.032), track_y + sy * 0.029, zt_), (0.022, 0.004, hz_), tm, 7850, True, True, FULL_SIMPLE, "track", "Track flange"))
+            nm_ = 'r' if sgn > 0 else 'l'
             for k in range(ns + 1):
-                nm_ = 'r' if sgn > 0 else 'l'
-                zr_ = (max(0.04, 0.01 + k * (Hh / ns)) if k < ns else Hh - 0.05)
-                lb.geoms.append(C.cyl(f"roller_{nm_}_{k}", (sgn * (W / 2 + 0.03), track_y, zr_), 0.025, 0.01, tm, (1, 0, 0), 7850, False, True, FULL_ONLY, "track", "Track roller"))
+                zr_ = (max(0.04, z_bot + k * sh) if k < ns else z_bot + Hh - 0.06)
+                lb.geoms.append(C.cyl(f"roller_{nm_}_{k}", (sgn * (W / 2 + 0.03), y_roller, zr_), 0.025, 0.01, tm, (1, 0, 0), 7850, False, True, FULL_ONLY, "track", "Track roller"))
                 # the roller's stem runs from the hinge arm out through the track's open side into the wheel hub -
                 # without it the wheel hangs 10 mm off the door with nothing between them
-                lb.geoms.append(C.cyl(f"roller_stem_{nm_}_{k}", (sgn * (W / 2 + 0.005), track_y, zr_), 0.006, 0.027, tm, (1, 0, 0), 7850, False, True, FULL_ONLY, "track", "Roller stem"))
-                lb.geoms.append(C.box(f"roller_arm_{nm_}_{k}", (sgn * (W / 2 - 0.02), track_y / 2 + t / 4, zr_), (0.03, track_y / 2 - t / 4, 0.006), tm, 7850, False, True, FULL_ONLY, "track", "Roller hinge arm"))
-        # torsion spring shaft, carried on end bearing plates bolted to the wall beside the opening (a shaft and a
-        # spring floating in mid-air above the door is exactly what this looked like before)
-        wt2_ = op["wall_thickness"] / 2
-        y_sh = max(0.17, wt2_ + 0.07)
-        x_br = Wo / 2 + rough + 0.06
-        world.geoms.append(C.cyl("torsion_shaft", (0, y_sh, Ho + 0.25), 0.013, max(W / 2 + 0.2, x_br + 0.05), tm, (1, 0, 0), 7850, True, True, FULL_SIMPLE, "mechanism", "Torsion spring shaft"))
-        world.geoms.append(C.cyl("torsion_spring", (0, y_sh, Ho + 0.25), 0.03, 0.35, C.mat_from_material(model, "steel", "mat_spring"), (1, 0, 0), 7850, False, True, FULL_ONLY, "mechanism", "Torsion spring"))
-        for sgn in (-1, 1):
-            nb_ = 'r' if sgn > 0 else 'l'
-            world.geoms.append(C.box(f"torsion_bearing_plate_{nb_}", (sgn * x_br, wt2_ + 0.004, Ho + 0.25), (0.055, 0.004, 0.055), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Torsion end bearing plate"))
-            world.geoms.append(C.box(f"torsion_bearing_arm_{nb_}", (sgn * x_br, (wt2_ + y_sh) / 2 + 0.004, Ho + 0.25), (0.008, (y_sh - wt2_) / 2 + 0.014, 0.03), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Torsion end bearing bracket"))
-        if kin.get("opener", "none_manual") != "none_manual":
-            # header angle across the opening on two wall gussets: the opener rail's front end bolts to it, exactly
-            # as it does in a real garage (the rail used to start 0.5 m out in mid-air).  The angle stands clear of
-            # the roller/track envelope (y <= track_y + 0.033) so the door still runs past it.
-            y_ang = max(wt2_ + 0.025, 0.145)
-            x_ang = Wo / 2 + rough + 0.06
-            world.geoms.append(C.box("opener_header_angle", (0, y_ang, Ho + 0.15), (x_ang + 0.055, 0.025, 0.025), tm, 7850, False, True, FULL_ONLY, "mechanism", "Opener header angle"))
-            for sgn in (-1, 1):
-                world.geoms.append(C.box(f"opener_header_gusset_{'r' if sgn > 0 else 'l'}", (sgn * x_ang, (wt2_ + y_ang + 0.025) / 2, Ho + 0.15),
-                                         (0.05, (y_ang + 0.025 - wt2_) / 2, 0.05), tm, 7850, False, True, FULL_ONLY, "mechanism", "Header angle wall gusset"))
-            y_r0 = y_ang - 0.025
-            world.geoms.append(C.box("opener_rail", (0, (y_r0 + 3.0) / 2, Ho + 0.15), (0.03, (3.0 - y_r0) / 2, 0.03), tm, 7850, True, True, FULL_ONLY, "mechanism", "Opener rail"))
-            world.geoms.append(C.box("opener_unit", (0, 3.0, Ho + 0.1), (0.15, 0.2, 0.1), C.mat_from_material(model, "black_matte_metal", "mat_opener"), 500, True, True, FULL_ONLY, "mechanism", "Opener unit"))
-    elif fam == "rollup":
-        C.add_leaf_geoms(model, lb, spec, leaf, 1.0, -W / 2, 0.01, phys, name_prefix="curtain", y_center=y_leaf)
-        # slats visual lines
-        ns = int(Hh / 0.075)
-        for k in range(1, ns):
-            lb.geoms.append(C.box(f"slat_line_{k}", (0, y_leaf - t / 2 - 0.001, 0.01 + k * Hh / ns), (W / 2, 0.001, 0.003), C.mat_rgba(model, "mat_slat_line", (0.25, 0.25, 0.25, 1), 0.7), 1.0, False, True, FULL_ONLY, "leaf", "Slat joint"))
-        # guides + drum + hood
-        for sgn in (-1, 1):
-            if sgn < 0 and spec["lock"]["model"] == "garage_slide_lock":
-                # left guide split around the slide-lock bar (bottom-bar height): the guide segments are the keeper
-                zsl_ = 0.30
-                world.geoms.append(C.box("guide_l", (sgn * (W / 2 + 0.035), y_leaf, (zsl_ - 0.015) / 2), (0.03, 0.025, (zsl_ - 0.015) / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
-                world.geoms.append(C.box("guide_l_upper", (sgn * (W / 2 + 0.035), y_leaf, (zsl_ + 0.015 + Ho) / 2), (0.03, 0.025, (Ho - zsl_ - 0.015) / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
-                continue
-            world.geoms.append(C.box(f"guide_{'r' if sgn > 0 else 'l'}", (sgn * (W / 2 + 0.035), y_leaf, Ho / 2), (0.03, 0.025, Ho / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
-        # the guides are surface-mounted: angle brackets bolt them back to the wall (without them the guide only
-        # reaches the world through the floor, and a split guide's upper half reaches nothing at all)
-        wt2_ = op["wall_thickness"] / 2
-        y_br = (wt2_ + y_leaf - 0.025) / 2
-        h_br = max(0.006, (y_leaf - 0.025 - wt2_) / 2 + 0.004)
-        for sgn in (-1, 1):
-            for iz, zb_ in enumerate((0.12, Ho * 0.5, Ho - 0.12)):
-                world.geoms.append(C.box(f"guide_bracket_{'r' if sgn > 0 else 'l'}_{iz}", (sgn * (W / 2 + 0.035), y_br, zb_), (0.028, h_br, 0.02), tm, 7850, False, True, FULL_SIMPLE, "track", "Guide mounting bracket"))
-        # the curtain translates rigidly (no coiling is simulated): the coil sits in FRONT of the curtain plane, tangent to
-        # it, inside an open-topped hood, so the raised curtain never intersects drum or hood (visual parts, no collision)
-        world.geoms.append(C.cyl("coil_drum", (0, y_leaf + 0.278, Ho + 0.3), 0.25, W / 2 + 0.05, fm, (1, 0, 0), 300, False, True, FULL_SIMPLE, "mechanism", "Coil (visual)"))
-        # barrel shaft through the coil into both end plates (the coil floated between them)
-        world.geoms.append(C.cyl("coil_shaft", (0, y_leaf + 0.278, Ho + 0.3), 0.022, W / 2 + 0.13, tm, (1, 0, 0), 7850, False, True, FULL_SIMPLE, "mechanism", "Barrel shaft"))
-        world.geoms.append(C.box("hood_front", (0, y_leaf + 0.54, Ho + 0.30), (W / 2 + 0.12, 0.02, 0.30), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Hood front"))
-        for sx in (-1, 1):
-            # the end plates run back to the wall they are bolted to
-            y0_, y1_ = wt2_, y_leaf + 0.56
-            world.geoms.append(C.box(f"hood_end_{'r' if sx > 0 else 'l'}", (sx * (W / 2 + 0.12), (y0_ + y1_) / 2, Ho + 0.30), (0.02, (y1_ - y0_) / 2, 0.30), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Hood end plate"))
+                lb.geoms.append(C.cyl(f"roller_stem_{nm_}_{k}", (sgn * (W / 2 + 0.005), y_roller, zr_), 0.006, 0.027, tm, (1, 0, 0), 7850, False, True, FULL_ONLY, "track", "Roller stem"))
+                lb.geoms.append(C.box(f"roller_arm_{nm_}_{k}", (sgn * (W / 2 - 0.02), y_roller / 2 + t / 4, zr_), (0.03, y_roller / 2 - t / 4, 0.006), tm, 7850, False, True, FULL_ONLY, "track", "Roller hinge arm"))
+    else:
+        courses, course_h, n_courses = _add_curtain_courses(model, spec, phys, lb, W, Hh, t, z_bot, travel)
+        moving_bodies = [b.name for b in courses]
+        # What the counterbalance has to hold is the curtain that is still HANGING, not the whole curtain: course k
+        # rises 1 - k/K per metre of lift, so the lift carries sum_k m_k (1 - k/K) = (K+1)/2K of the curtain's
+        # weight.  (A real coiling door's hanging weight falls from all of it to none of it as the barrel takes it;
+        # the uniform-collapse kinematics here make it the constant average of that, which is what the spring sees.)
+        lift_factor = sum(1.0 - k / n_courses for k in range(n_courses)) / n_courses
         # A real roll-up closes onto its rubber bottom astragal, not on bare steel: the bar is carried ROLLUP_ASTRAGAL
         # above the slab and the seal spans the gap.  (The steel bar used to end exactly on the floor - a 0.000 m
         # structural touch that MuJoCo at margin 0 ignores and PhysX resolves inside its contact offset.)
-        lb.geoms.append(C.box("bottom_bar", (0, y_leaf, ROLLUP_ASTRAGAL + 0.03), (W / 2, t / 2 + 0.015, 0.03), tm, 7850, True, True, ALL_TIERS, "leaf", "Bottom bar", mass=3.0 * W))
-        lb.geoms.append(C.box("bottom_astragal", (0, y_leaf, ROLLUP_ASTRAGAL / 2), (W / 2, t / 2 + 0.010, ROLLUP_ASTRAGAL / 2),
+        lb.geoms.append(C.box("bottom_bar", (0, 0, ROLLUP_ASTRAGAL + 0.03), (W / 2, t / 2 + 0.015, 0.03), tm, 7850, True, True, ALL_TIERS, "leaf", "Bottom bar", mass=3.0 * W))
+        lb.geoms.append(C.box("bottom_astragal", (0, 0, ROLLUP_ASTRAGAL / 2), (W / 2, t / 2 + 0.010, ROLLUP_ASTRAGAL / 2),
                               C.mat_rgba(model, "mat_astragal", (0.09, 0.09, 0.10, 1), 0.9), 1100, True, True, ALL_TIERS, "seal",
                               "Bottom astragal (rubber; the curtain seats on this, not on the steel bar)"))
-        if kin.get("opener") == "chain_hoist":
-            world.geoms.append(C.cyl("hoist_chain", (W / 2 + 0.12, y_leaf, Ho / 2 + 0.3), 0.005, Ho / 2 + 0.3, C.mat_from_material(model, "steel", "mat_chain"), (0, 0, 1), 7850, True, True, FULL_ONLY, "mechanism", "Hoist chain"))
-    # operator (lift handle / T-handle)
+    # ---------------------------------------------------------------- operator (lift handle / T-handle) and lock
     opm = H.OPERATORS[spec["operator"]["model"]]
     hz = spec["operator"]["height"]
-    if fam == "rollup" and opm.kind in ("pull", "ring_pull", "none"):
+    if not sectional and opm.kind in ("pull", "ring_pull", "none"):
         C.add_pull(model, lb, H.OPERATORS["pull_lift_garage"], 1.0, 0.0, 0.16, t, -1.0, name="lift_handle")
-        # add_pull assumes leaf centered at y=0; shift for the curtain plane offset
-        for g in lb.geoms[-2:]:
-            g.pos = (g.pos[0], g.pos[1] + y_leaf, g.pos[2])
-        lb.sites[-1].pos = (lb.sites[-1].pos[0], lb.sites[-1].pos[1] + y_leaf, lb.sites[-1].pos[2])
     elif opm.kind == "pull":
         for f in (-1.0, 1.0):
             C.add_pull(model, lb, opm, 1.0, 0.0, hz, t, f, name="lift_handle")
@@ -947,43 +1017,161 @@ def build_vertical(spec, phys, model: Model):
             # is relative to qpos0, so an unlocked door must not start with the bars already retracted (it drove them
             # to 60 mm against a 30 mm limit and locked the handle against its own coupling)
             model.equalities.append(Equality("joint", f"lock_bar_{'r' if sgn > 0 else 'l'}_couple", bar.joint.name, hb.joint.name, (0, 0.03 / opm.travel, 0, 0, 0), tiers=FULL_SIMPLE, label="lock bar = T-handle * 0.03/travel"))
+    slide_lock = None
+    if spec["lock"]["model"] == "garage_slide_lock":
+        sm = C.mat_from_material(model, "steel_galvanized", "mat_slidelock")
+        z_sl = 0.30 if not sectional else (z_bot + (int((1.0 - z_bot) / (Hh / max(1, int(kin.get("n_sections", 4))))) + 0.5) * (Hh / max(1, int(kin.get("n_sections", 4)))))
+        # roll-up: on the bottom bar, below the coil when raised.  Sectional: mid-section, clear of the section
+        # hinges and the roller arms.
+        eng = bool(spec["lock"].get("engaged"))
+        # garage inside slide lock (e.g. National Hardware garage door side lock): plate + guides + spring bar with a
+        # knob on the inside face; the bar shoots through a slot / keeper in the vertical track (roll-up: the split guide)
+        C.add_barrel_bolt(model, lb, "garage_slide_lock", (-W / 2, t / 2, z_sl), (-1, 0, 0), (0, 1, 0), 0.14, 0.012, 0.05, eng, sm,
+                          protrusion=0.045, standoff=0.010, tiers=FULL_SIMPLE, role="lock", label="Slide lock (0 = in track, + = withdrawn)",
+                          joint_name="garage_slide_lock_slide", grip_site="slide_lock_grip", rod_semantic="lock")
+        slide_lock = (z_sl, sm)
+    # ---------------------------------------------------------------- place the door in the opening
+    # The door hangs on the inside face.  Whatever sticks furthest out of its weather face (an exterior lift handle,
+    # a T-handle rose) has to pass the head jamb on every open, so it is what sets the standoff - not the slab.
+    y_out, _ = _assembly_y_extent(model, lb)
+    if sectional:
+        y_leaf = max(wt2 + GARAGE_WALL_CLEAR - y_out, wt2 + GARAGE_STOP_T + 0.010 + GARAGE_FACE_CLEAR + t / 2)
+    else:
+        y_leaf = max(wt2 + GARAGE_WALL_CLEAR - y_out, wt2 + 0.085)
+    lb.pos = (0.0, y_leaf, 0.0)
+    y_face = y_leaf - t / 2               # the door's weather face
+    y_track = y_leaf + y_roller
+    sealm = C.mat_rgba(model, "mat_door_seal", (0.10, 0.10, 0.11, 1), 0.9)
+    zones = []
+    # ---------------------------------------------------------------- static structure around the door
+    if sectional:
+        # jamb lining: the rough opening minus the lining IS the declared opening
+        for sgn in (-1, 1):
+            world.geoms.append(C.box(f"garage_jamb_{'r' if sgn > 0 else 'l'}", (sgn * (Wo / 2 + GARAGE_JAMB_T / 2), 0, (Ho + GARAGE_JAMB_T) / 2),
+                                     (GARAGE_JAMB_T / 2, wt2, (Ho + GARAGE_JAMB_T) / 2), fm, 500, True, True, ALL_TIERS, "frame", "Garage jamb"))
+        world.geoms.append(C.box("garage_jamb_head", (0, 0, Ho + GARAGE_JAMB_T / 2), (Wo / 2, wt2, GARAGE_JAMB_T / 2), fm, 500, True, True, ALL_TIERS, "frame", "Garage head jamb"))
+        y_seal1 = y_face - GARAGE_FACE_CLEAR
+        for sgn in (-1, 1):
+            nm_ = 'r' if sgn > 0 else 'l'
+            xa, xb = sgn * (Wo / 2 - GARAGE_STOP_LAP), sgn * (Wo / 2 + 0.010)
+            xc_, xh_ = (xa + xb) / 2, abs(xb - xa) / 2
+            zt_ = Ho - GARAGE_STOP_LAP
+            world.geoms.append(C.box(f"door_stop_{nm_}", (xc_, wt2 + GARAGE_STOP_T / 2, zt_ / 2), (xh_, GARAGE_STOP_T / 2, zt_ / 2),
+                                     fm, 500, True, True, FULL_SIMPLE, "frame", "Stop moulding"))
+            world.geoms.append(C.box(f"jamb_seal_{nm_}", (xc_, (wt2 + GARAGE_STOP_T + y_seal1) / 2, zt_ / 2), (xh_, (y_seal1 - wt2 - GARAGE_STOP_T) / 2, zt_ / 2),
+                                     sealm, 900, True, True, FULL_SIMPLE, "seal", "Jamb weatherstrip"))
+        # The head is closed by the header weatherstrip alone.  A rigid stop cannot run across it: the exterior lift
+        # handle passes the head on EVERY open, so a rigid one stops the door on its own handle at 64 % of the
+        # travel (measured, 400 N: q stopped at 1.53 of 2.39 m).  A real header seal is a compliant vinyl flap that
+        # wipes over the door face and everything screwed to it, so it is drawn but not simulated as a collider -
+        # the same treatment the strip curtain's overlapping PVC gets, and it is declared in clearance_allow.
+        world.geoms.append(C.box("header_seal", (0, (wt2 + y_seal1) / 2, Ho + 0.005 - (GARAGE_STOP_LAP + 0.005) / 2),
+                                 (Wo / 2, (y_seal1 - wt2) / 2, (GARAGE_STOP_LAP + 0.005) / 2), sealm, 900, False, True, FULL_SIMPLE, "seal", "Header weatherstrip (compliant: drawn, not a collider)"))
+        model.meta.setdefault("clearance_allow", []).append(
+            ["header_seal", "*lift_handle*", "the vinyl header weatherstrip wipes over the exterior lift handle as the door passes the head (compliant part)"])
+        model.meta.setdefault("clearance_allow", []).append(
+            ["header_seal", "*t_handle*", "the vinyl header weatherstrip wipes over the exterior T-handle as the door passes the head (compliant part)"])
+        # C-channel tracks running the FULL lift, bolted back to the wall beside the opening
+        for sgn in (-1, 1):
+            nm_ = 'r' if sgn > 0 else 'l'
+            world.geoms.append(C.box(f"track_{nm_}", (sgn * (W / 2 + 0.05), y_track, z_track_top / 2), (0.004, 0.033, z_track_top / 2), tm, 7850, True, True, FULL_SIMPLE, "track", "Vertical track web"))
+            for sy in (-1, 1):
+                world.geoms.append(C.box(f"track_{nm_}_flange_{'p' if sy > 0 else 'n'}", (sgn * (W / 2 + 0.032), y_track + sy * 0.029, z_track_top / 2), (0.022, 0.004, z_track_top / 2), tm, 7850, True, True, FULL_SIMPLE, "track", "Track flange"))
+            # 4-5 m of C-channel standing on the slab with nothing behind it is not how a track is hung, and the
+            # whole door hangs on it: angle brackets bolt it back to the wall every ~0.8 m.
+            n_br = max(2, int(z_track_top / 0.8))
+            for i in range(n_br):
+                zb_ = 0.25 + i * (z_track_top - 0.45) / max(n_br - 1, 1)
+                world.geoms.append(C.box(f"track_bracket_{nm_}_{i}", (sgn * (W / 2 + 0.085), (wt2 + y_track) / 2, zb_), (0.031, (y_track - wt2) / 2, 0.02),
+                                         tm, 7850, False, True, FULL_SIMPLE, "track", "Track wall bracket"))
+        # torsion shaft, cable drums and springs at the TOP of the lift (where a vertical-lift door's counterbalance
+        # is), on end bearing plates bolted to the wall
+        x_br = Wo / 2 + GARAGE_JAMB_T + 0.06
+        world.geoms.append(C.cyl("torsion_shaft", (0, y_leaf, z_shaft), 0.013, max(W / 2 + 0.2, x_br + 0.05), tm, (1, 0, 0), 7850, True, True, FULL_SIMPLE, "mechanism", "Torsion spring shaft"))
+        world.geoms.append(C.cyl("torsion_spring", (0, y_leaf, z_shaft), 0.03, 0.35, C.mat_from_material(model, "steel", "mat_spring"), (1, 0, 0), 7850, False, True, FULL_ONLY, "mechanism", "Torsion spring"))
+        for sgn in (-1, 1):
+            nb_ = 'r' if sgn > 0 else 'l'
+            world.geoms.append(C.cyl(f"cable_drum_{nb_}", (sgn * (W / 2 + 0.05), y_leaf, z_shaft), 0.06, 0.035, tm, (1, 0, 0), 7850, False, True, FULL_SIMPLE, "mechanism", "Cable drum"))
+            world.geoms.append(C.box(f"torsion_bearing_plate_{nb_}", (sgn * x_br, wt2 + 0.004, z_shaft), (0.055, 0.004, 0.055), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Torsion end bearing plate"))
+            world.geoms.append(C.box(f"torsion_bearing_arm_{nb_}", (sgn * x_br, (wt2 + y_leaf) / 2 + 0.004, z_shaft), (0.008, (y_leaf - wt2) / 2 + 0.014, 0.03), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Torsion end bearing bracket"))
+        if kin.get("opener", "none_manual") != "none_manual":
+            # Jackshaft (wall-mount) opener on the end of the torsion shaft - the operator a vertical-lift door
+            # actually takes.  The old trolley opener hung its motor on the end of a 2.9 m rail cantilevered into a
+            # scene with no ceiling to hang it from (finding 11); this one is bolted to the wall, 0.24 m of it.
+            xo = Wo / 2 + GARAGE_JAMB_T + 0.30
+            world.geoms.append(C.box("opener_wall_plate", (xo, wt2 + 0.008, z_shaft), (0.11, 0.008, 0.11), tm, 7850, False, True, FULL_ONLY, "mechanism", "Opener wall plate"))
+            world.geoms.append(C.box("opener_unit", (xo, wt2 + 0.016 + 0.11, z_shaft), (0.10, 0.11, 0.09),
+                                     C.mat_from_material(model, "black_matte_metal", "mat_opener"), 500, True, True, FULL_ONLY, "mechanism", "Opener unit (jackshaft, wall mounted)"))
+            world.geoms.append(C.cyl("opener_shaft_sprocket", (x_br + 0.03, y_leaf, z_shaft), 0.05, 0.008, tm, (1, 0, 0), 7850, False, True, FULL_ONLY, "mechanism", "Shaft sprocket"))
+            xa_, xb_ = x_br + 0.03, xo - 0.10
+            world.geoms.append(C.box("opener_drive_chain", ((xa_ + xb_) / 2, y_leaf, z_shaft), (abs(xb_ - xa_) / 2, 0.005, 0.05), tm, 7850, False, True, FULL_ONLY, "mechanism", "Opener drive chain"))
+        if slide_lock is not None:
+            z_sl, sm = slide_lock
+            # keeper on the track: the bar tip (x ~ -W/2-0.045 when engaged) is captured by a U-loop off the flange
+            C.add_keeper_loop(world.geoms, "slide_lock_keeper", (-W / 2 - 0.045, y_track - 0.027, z_sl), (-W / 2 - 0.045, y_leaf + t / 2 + 0.01, z_sl),
+                              (-1, 0, 0), (0, -1, 0), 0.006, tm, FULL_SIMPLE, base=0.03)
+        zones.append({"x": [-(W / 2 + 0.054), W / 2 + 0.054], "z": [0.0, z_track_top],
+                      "backed_by": [f"track_{s}" for s in ("l", "r")] + [f"track_{s}_flange_{p}" for s in ("l", "r") for p in ("p", "n")],
+                      "label": "vertical tracks"})
+    else:
+        z_guide_top = Ho + ROLLUP_GUIDE_LAP
+        wt2_ = wt2
+        for sgn in (-1, 1):
+            if sgn < 0 and spec["lock"]["model"] == "garage_slide_lock":
+                # left guide split around the slide-lock bar (bottom-bar height): the guide segments are the keeper
+                zsl_ = 0.30
+                world.geoms.append(C.box("guide_l", (sgn * (W / 2 + 0.035), y_leaf, (zsl_ - 0.015) / 2), (0.03, 0.025, (zsl_ - 0.015) / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
+                world.geoms.append(C.box("guide_l_upper", (sgn * (W / 2 + 0.035), y_leaf, (zsl_ + 0.015 + z_guide_top) / 2), (0.03, 0.025, (z_guide_top - zsl_ - 0.015) / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
+                continue
+            world.geoms.append(C.box(f"guide_{'r' if sgn > 0 else 'l'}", (sgn * (W / 2 + 0.035), y_leaf, z_guide_top / 2), (0.03, 0.025, z_guide_top / 2), tm, 7850, True, True, ALL_TIERS, "track", "Curtain guide"))
+        # the guides are surface-mounted: angle brackets bolt them back to the wall (without them the guide only
+        # reaches the world through the floor, and a split guide's upper half reaches nothing at all)
+        y_br = (wt2_ + y_leaf - 0.025) / 2
+        h_br = max(0.006, (y_leaf - 0.025 - wt2_) / 2 + 0.004)
+        for sgn in (-1, 1):
+            for iz, zb_ in enumerate((0.12, Ho * 0.5, Ho - 0.12, z_guide_top - 0.04)):
+                world.geoms.append(C.box(f"guide_bracket_{'r' if sgn > 0 else 'l'}_{iz}", (sgn * (W / 2 + 0.035), y_br, zb_), (0.028, h_br, 0.02), tm, 7850, False, True, FULL_SIMPLE, "track", "Guide mounting bracket"))
+        # the coil: the curtain winds onto the barrel inside the hood, which is where the courses close up to
+        world.geoms.append(C.cyl("coil_drum", (0, y_leaf + 0.278, Ho + 0.3), 0.25, W / 2 + 0.05, fm, (1, 0, 0), 300, False, True, FULL_SIMPLE, "mechanism", "Coil (visual)"))
+        # barrel shaft through the coil into both end plates (the coil floated between them)
+        world.geoms.append(C.cyl("coil_shaft", (0, y_leaf + 0.278, Ho + 0.3), 0.022, W / 2 + 0.13, tm, (1, 0, 0), 7850, False, True, FULL_SIMPLE, "mechanism", "Barrel shaft"))
+        world.geoms.append(C.box("hood_front", (0, y_leaf + 0.54, Ho + 0.30), (W / 2 + 0.12, 0.02, 0.30), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Hood front"))
+        for sx in (-1, 1):
+            # the end plates run back to the wall they are bolted to
+            y0_, y1_ = wt2_, y_leaf + 0.56
+            world.geoms.append(C.box(f"hood_end_{'r' if sx > 0 else 'l'}", (sx * (W / 2 + 0.12), (y0_ + y1_) / 2, Ho + 0.30), (0.02, (y1_ - y0_) / 2, 0.30), tm, 7850, False, True, FULL_SIMPLE, "mechanism", "Hood end plate"))
+        if kin.get("opener") == "chain_hoist":
+            world.geoms.append(C.cyl("hoist_chain", (W / 2 + 0.12, y_leaf, Ho / 2 + 0.3), 0.005, Ho / 2 + 0.3, C.mat_from_material(model, "steel", "mat_chain"), (0, 0, 1), 7850, True, True, FULL_ONLY, "mechanism", "Hoist chain"))
+        model.meta.setdefault("clearance_allow", []).append(
+            ["curtain*", "curtain*", "the curtain coils: its courses close up on each other as the sheet winds onto the barrel"])
+        model.meta.setdefault("clearance_allow", []).append(
+            ["curtain*", "bottom_bar", "the bottom course closes onto its own bottom bar as the curtain winds up"])
+        if slide_lock is not None:
+            model.meta.setdefault("clearance_allow", []).append(
+                ["coil_drum", "garage_slide_lock*", "the slide lock rides up into the hood with the bottom bar"])
+        zones.append({"x": [-(W / 2 + 0.065), W / 2 + 0.065], "z": [0.0, z_guide_top],
+                      "backed_by": ["guide_l", "guide_r", "guide_l_upper"], "label": "side guides"})
+        zones.append({"x": [-(W / 2 + 0.14), W / 2 + 0.14], "z": [z_guide_top, Ho + 0.60],
+                      "backed_by": ["hood_end_l", "hood_end_r", "hood_front", "coil_drum"], "label": "hood / coil"})
     if spec["lock"].get("engaged") and spec["lock"]["model"] in ("garage_slide_lock", "padlock", "keyed_cylinder") and (not spec["lock"].get("robot_side_release") or spec["lock"]["model"] == "keyed_cylinder"):
         j.range = (0.0, 0.003)
         j.notes = f"{spec['lock']['model']}: locked (T-handle lock bars engaged; env unlock frees the joint)"
         model.meta["locked"] = True
     # counterbalance from the actual body mass (sections + hardware)
-    mtot = float(phys["mass"]["total_kg"])     # the leaf mass is reconciled to the spec after building; size the spring from it
+    mtot = float(phys["mass"]["total_kg"]) * lift_factor   # the leaf mass is reconciled to the spec after building
     if cb and mtot > 0:
-        k_ = 0.3 * cb * mtot * 9.81 / max(kin["travel_m"], 0.1)
+        k_ = 0.3 * cb * mtot * 9.81 / max(travel, 0.1)
         j.stiffness = k_
         j.springref = cb * mtot * 9.81 / k_
-        j.notes = (j.notes + " " if j.notes else "") + f"counterbalance ~{cb:.0%} of {mtot:.0f} kg"
-    if spec["lock"]["model"] == "garage_slide_lock":
-        sm = C.mat_from_material(model, "steel_galvanized", "mat_slidelock")
-        inside = 1.0
-        y_sl = (y_leaf if fam == "rollup" else 0.0) + inside * (t / 2 + 0.01)
-        z_sl = 1.0 if fam != "rollup" else 0.30         # roll-up: on the bottom bar, below the coil when raised
-        if fam == "garage_sectional":
-            sh_ = Hh / max(1, int(kin.get("n_sections", 4)))
-            z_sl = 0.01 + (int((1.0 - 0.01) / sh_) + 0.5) * sh_      # mid-section, clear of the section hinges / roller arms
-        # garage inside slide lock (e.g. National Hardware garage door side lock): plate + guides + spring bar with a
-        # knob on the inside face; the bar shoots through a slot / keeper in the vertical track (roll-up: the split guide)
-        eng = bool(spec["lock"].get("engaged"))
-        y_face = (y_leaf if fam == "rollup" else 0.0) + inside * t / 2
-        sl, _ = C.add_barrel_bolt(model, lb, "garage_slide_lock", (-W / 2, y_face, z_sl), (-1, 0, 0), (0, inside, 0), 0.14, 0.012, 0.05, eng, sm, protrusion=0.045, standoff=0.010, tiers=FULL_SIMPLE, role="lock", label="Slide lock (0 = in track, + = withdrawn)", joint_name="garage_slide_lock_slide", grip_site="slide_lock_grip", rod_semantic="lock")
-        # keeper on the track: bar tip (x ~ -W/2-0.045 when engaged) captured by a U-loop off the track flange
-        if fam != "rollup":
-            C.add_keeper_loop(world.geoms, "slide_lock_keeper", (-W / 2 - 0.045, t / 2 + 0.027, z_sl), (-W / 2 - 0.045, y_sl, z_sl), (-1, 0, 0), (0, -1, 0), 0.006, tm, FULL_SIMPLE, base=0.03)
-        else:
-            # the curtain is modelled as a rigid translating sheet: raised, it (and its hardware) occupies the coil volume
-            model.meta.setdefault("clearance_allow", []).append(["coil_drum", "garage_slide_lock*", "curtain coils into the drum (translation approximation)"])
+        j.notes = (j.notes + " " if j.notes else "") + (f"counterbalance ~{cb:.0%} of {mtot:.0f} kg"
+                                                        + (f" (the {lift_factor:.0%} of the curtain still hanging)" if lift_factor < 1 else ""))
     _sites(world, Ho, -2.0, 2.0)
-    model.meta.update({"primary_joint": j.name, "handle_height": hz, "counterbalance_fraction": cb})
+    model.meta.update({"primary_joint": j.name, "handle_height": hz, "counterbalance_fraction": cb,
+                       "guided_travel": {"joint": j.name, "bodies": moving_bodies, "y_min": -wt2 - 0.001,
+                                         "zones": zones, "label": "vertical lift: the door stays in its guides"}})
     if "operator_joint" not in model.meta:
         model.meta["operator_joint"] = None
     return lb
-
-
 # ---------------------------------------------------------------------------
 # Horizontal hinge axis: hatches, pet doors, strip curtains, tilt-up garage
 # ---------------------------------------------------------------------------

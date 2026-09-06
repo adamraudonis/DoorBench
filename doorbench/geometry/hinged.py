@@ -1203,7 +1203,11 @@ def build_stall(spec, phys, model: Model):
     Wo = op["width"]
     zb = leaf.get("bottom_clearance", 0.3)
     u, v = _uv(spec)
-    world = C.add_floor_and_wall(model, spec, hole=(-Wo / 2 - 0.1, Wo / 2 + 0.1, 0.0, max(2.1, zb + Hh + 0.15)))
+    stall_hole = (-Wo / 2 - 0.1, Wo / 2 + 0.1, 0.0, max(2.1, zb + Hh + 0.15))
+    world = C.add_floor_and_wall(model, spec, hole=stall_hole)
+    # the entrance is the height of the partition, not of the door: the leaf hangs zb off the floor and stops short
+    # of the headrail (the statutory gap).  checks["wall_opening"] is told so rather than reading it as missing wall.
+    model.meta["wall_opening"] = list(stall_hole)
     # pilasters
     pm = C.mat_from_material(model, op["frame"]["material"], "mat_frame")
     pw = 0.1
