@@ -62,7 +62,7 @@ def batch(ids, folder, video=False):
     folder.mkdir(parents=True, exist_ok=False)
     cmd = [
         sys.executable,
-        str(ROOT / "scripts/isaaclab/grid_g1.py"),
+        str(ROOT / "scripts/isaaclab" / ("hero_g1.py" if video else "grid_g1.py")),
         "--headless",
         "--device",
         "cuda:0",
@@ -128,7 +128,11 @@ for offset in range(0, len(cases), a.batch):
                         "simulator_error": e or "missing_receipt",
                     },
                 )
-                r["initial_batch_error"] = error
+                r["initial_batch_error"] = (
+                    results.get(id, {}).get("simulator_error")
+                    or error
+                    or "missing_receipt"
+                )
                 results[id] = r
         rows.update(results)
     print(
@@ -145,38 +149,42 @@ for offset in range(0, len(cases), a.batch):
 final = stamp()
 final["completed_at_utc"] = datetime.now(timezone.utc).isoformat()
 (out / "results.json").write_text(json.dumps(final, indent=2) + "\n")
+audit_path = out / "traversal-audit.json"
+subprocess.run(
+    [
+        sys.executable,
+        str(ROOT / "scripts/isaaclab/summarize_g1_catalogue.py"),
+        "--results",
+        str(out),
+        "--assets",
+        str(assets),
+        "--out",
+        str(audit_path),
+    ],
+    check=True,
+)
 if a.hero:
-    passing = [c for c in cases if rows[c["id"]].get("success")]
-    chosen = []
-    families = set()
-    for c in passing:
-        if c["family"] not in families:
-            chosen.append(c["id"])
-            families.add(c["family"])
-    chosen = (chosen + [c["id"] for c in passing if c["id"] not in chosen])[:16]
-    if len(chosen) == 16:
+    from select_g1_hero import select
+
+    try:
+        chosen = select(json.loads(audit_path.read_text()), assets)
+    except ValueError as e:
+        (out / "hero-selection.json").write_text(json.dumps({"error": str(e)}) + "\n")
+    else:
         hero, error = batch(chosen, out / "hero", True)
         (out / "hero-selection.json").write_text(
             json.dumps(
                 {
-                    "scope": "Sixteen successful catalogue cases selected for illustration; rerun together, not a random sample",
+                    "scope": "Sixteen audited successful vertical cases selected for illustration; rerun together, not a random sample",
+                    "audit_sha256": hashlib.sha256(audit_path.read_bytes()).hexdigest(),
                     "ids": chosen,
                     "rerun_error": error,
-                    "rerun_successes": sum(
+                    "rerun_raw_goal_successes": sum(
                         r.get("success", False) for r in hero.values()
                     ),
+                    "per_door": hero,
                 },
                 indent=2,
-            )
-            + "\n"
-        )
-    else:
-        (out / "hero-selection.json").write_text(
-            json.dumps(
-                {
-                    "error": "Fewer than sixteen successful distinct cases; do not imply sixteen successful traversals",
-                    "successes": len(passing),
-                }
             )
             + "\n"
         )
