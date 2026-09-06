@@ -104,12 +104,25 @@ rather than the geometry faked:
   field says whether the set is two-sided; a chain-link fork latch, a barrel bolt, a garage T-handle,
   a MagnaLatch, a baby-gate latch, a ring pull and a handwheel are not, and `spec.make_specs` narrows
   the declaration to the face the hardware is on.
+* A ring pull's grip bar lies across the leaf, so it fouls the jamb reveal the moment a horizontally
+  sliding leaf passes it; those four doors now declare the recessed pull they can actually take (the
+  builder drew nothing at all for a ring pull on a slider).  A vertical lift keeps its ring - a
+  shutter's bottom bar passes no jamb.
 * Extras the leaf cannot carry are not declared: a louvre vent on an already-louvred leaf, a vent or a
   kick plate in the bottom third of a leaf a pet flap already occupies, a knocker on a face crossed by
   its own bracing.  The builders used to skip these silently.
 * `dogs_6` on every watertight door became `dogs_4` / `dogs_6` / `dogs_8` to match the dogs built, and
-  the lever-bolt vault and blast doors got a sampled bolt count with one lever per bolt and a
-  `multi_bolt_N` latch model that names it.
+  the lever-bolt vault and blast doors got a bolt count with one lever per bolt and a `multi_bolt_N`
+  latch model that names it: the 24 doors that all said `dogs_6` / `multi_bolt_4` / `multi_bolt_8` now
+  say `dogs_4` (3), `dogs_6` (5), `dogs_8` (2), `multi_bolt_2` (6), `multi_bolt_4` (5),
+  `multi_bolt_8` (3), and each builds exactly that many stations.
+
+## Verified
+
+Regenerated: **1000/1000 signed off**; clearance and running_clearance 1000/1000; attachment
+1000/1000; USD static validation 1000/1000; Isaac parity 1000/1000 with no failing doors; 1648 tests
+pass.  `tests/test_spec_realized.py` holds the contract, including a synthetic door whose spec
+declares an extra the builder never saw.
 
 ## Pictures
 
