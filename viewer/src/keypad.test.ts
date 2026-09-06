@@ -6,7 +6,7 @@ import path from "node:path";
 import type { ModelJ } from "./types";
 import { CodeLock, keypadOf, keypadRows, type KeypadJ } from "./keypad";
 
-const ASSETS = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "assets", "doors");
+const ASSETS = path.resolve(process.env.DOORBENCH_TEST_ASSETS || path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "assets"), "doors");
 const have = existsSync(ASSETS);
 
 const seq = (code = "4821") => new CodeLock({ code, code_kind: "sequence", code_timeout_s: 5, lockout_s: 30, max_attempts: 3 });
