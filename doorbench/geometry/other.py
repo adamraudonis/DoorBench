@@ -108,6 +108,13 @@ def build_sliding(spec, phys, model: Model):
         y_leaf = -(wt / 2 + t / 2 + 0.02)   # barn / industrial / wall-mounted top-hung: hangs in front of the wall on the robot side
     elif fam in ("gate_sliding",):
         y_leaf = -(0.06)
+    elif fam == "elevator":
+        # Landing doors hang IN THE HOISTWAY, behind the entrance frame, and slide back into the shaft either side
+        # of the opening - which is the only place they can go, because a centre-opening pair travels half the
+        # opening width each way and there is a jamb and a wall standing there.  With the leaves in the wall plane
+        # (as they were, unnoticed because every elevator's interlock had its joint clamped to 2 mm and nothing
+        # ever swept the travel) each leaf drove 140 mm into its own jamb.
+        y_leaf = wt / 2 + t / 2 + 0.012
     else:
         y_leaf = 0.0
     # wall + hole; for pockets create a cavity in the wall on the opening side
@@ -440,10 +447,22 @@ def build_sliding(spec, phys, model: Model):
                 b.geoms.append(C.box(f"{name}_ebolt_keeper_{'p' if sx_ > 0 else 'n'}", (x_latch_edge + dir_ * 0.08 + sx_ * 0.018, f_eb * (t / 2 + 0.014), zk), (0.006, 0.014, 0.02), ebm, 7900, True, True, FULL_SIMPLE, "lock", "Keeper block"))
             b.geoms.append(C.box(f"{name}_ebolt_keeper_base", (x_latch_edge + dir_ * 0.08, f_eb * (t / 2 + 0.002), zk), (0.03, 0.002, 0.03), ebm, 7900, False, True, FULL_SIMPLE, "lock", "Keeper plate"))
             model.meta["env_release_joint"] = eb.joint.name
-        # electric bolt / keyed lock -> lock joint
+        # electric bolt / interlock / keyed lock: hold the leaf.  A lock that access control (or the lift car's
+        # own interlock) releases must never be a joint range - the range is static in every exported format, so
+        # a clamped leaf cannot open after the release and every pose of the door renders identically.  An
+        # interlock / electric strike / drop bolt is held by C.hold_leaf_locked (a weld the release drops, exported
+        # as a breakable PhysX fixed joint); a padlock or a keyed cylinder with no key on this side really does
+        # fix the leaf, and keeps its 2 mm rattle.
         if engaged and lk.kind in ("electric_strike", "keyed_cylinder", "padlock", "slide_bolt", "interlock") and opm.kind not in ("slide_bolt_handle",) and (not release or lk.kind in ("interlock", "electric_strike")):
-            j.range = (0.0, 0.002)
-            j.notes = f"{lk.name}: leaf locked (env releases on credential / call button)" if release else f"{lk.name}: leaf locked"
+            if lk.kind in ("interlock", "electric_strike") or release:
+                hold_N = float(H.LATCHES["elevator_interlock"].holding_force if lk.kind == "interlock" else H.LATCHES["electric_bolt"].holding_force)
+                C.hold_leaf_locked(model, b, j, name=f"{name}_{lk.kind}_hold", holding_force_N=hold_N,
+                                   label=f"{lk.name} (env releases on credential / call button)",
+                                   release="env", lock_model=spec["lock"]["model"],
+                                   note=f"{lk.name}: held by the {lk.kind} until the environment releases it (full travel kept)")
+            else:
+                j.range = (0.0, 0.002)
+                j.notes = f"{lk.name}: leaf locked"
         b.sites.append(Site(f"{name}_edge_mid", (x_latch_edge, 0, zb + Hh / 2), QUAT_ID, 0.02, "leaf_edge"))
         if fam in ("automatic_sliding", "elevator"):
             act = kin.get("actuator", {})
@@ -480,11 +499,16 @@ def build_sliding(spec, phys, model: Model):
     if fam == "elevator":
         # car doors behind (visual) and sill
         sm = C.mat_from_material(model, "stainless", "mat_sill")
-        world.geoms.append(C.box("sill", (0, 0.0, 0.01), (Wo / 2 + 0.1, 0.06, 0.01), sm, 7900, True, True, ALL_TIERS, "frame", "Elevator sill"))
-        world.geoms.append(C.box("car_floor", (0, 1.2, -0.01), (Wo / 2 + 0.6, 1.1, 0.01), sm, 7900, True, True, ALL_TIERS, "floor", "Car floor"))
+        # the sill runs from the landing across the threshold and under the door plane (the doors' bottom guides run in it)
+        y0_s, y1_s = -0.06, y_leaf + t / 2 + 0.03
+        world.geoms.append(C.box("sill", (0, (y0_s + y1_s) / 2, 0.01), (Wo / 2 + 0.1, (y1_s - y0_s) / 2, 0.01), sm, 7900, True, True, ALL_TIERS, "frame", "Elevator sill"))
+        # the car is wide enough for the landing doors to park inside it: a centre-opening pair runs half the
+        # opening width each way, and the car walls used to stand exactly where the open leaf ends up
+        x_car = Wo / 2 + max(0.6, float(kin["travel_m"]) + 0.12)
+        world.geoms.append(C.box("car_floor", (0, 1.2, -0.01), (x_car, 1.1, 0.01), sm, 7900, True, True, ALL_TIERS, "floor", "Car floor"))
         for sgn in (-1, 1):
-            world.geoms.append(C.box(f"car_wall_{'r' if sgn > 0 else 'l'}", (sgn * (Wo / 2 + 0.6), 1.2, Ho / 2 + 0.1), (0.02, 1.1, Ho / 2 + 0.1), sm, 7900, True, True, FULL_SIMPLE, "wall", "Car wall"))
-        world.geoms.append(C.box("car_back", (0, 2.3, Ho / 2 + 0.1), (Wo / 2 + 0.6, 0.02, Ho / 2 + 0.1), sm, 7900, True, True, FULL_SIMPLE, "wall", "Car back wall"))
+            world.geoms.append(C.box(f"car_wall_{'r' if sgn > 0 else 'l'}", (sgn * x_car, 1.2, Ho / 2 + 0.1), (0.02, 1.1, Ho / 2 + 0.1), sm, 7900, True, True, FULL_SIMPLE, "wall", "Car wall"))
+        world.geoms.append(C.box("car_back", (0, 2.3, Ho / 2 + 0.1), (x_car, 0.02, Ho / 2 + 0.1), sm, 7900, True, True, FULL_SIMPLE, "wall", "Car back wall"))
     C.add_extras(model, world, bodies[0], spec, 1.0, 1.0, -W / 2, 0.012, W, Hh, t, Wo, Ho)
     # A surface-run door hangs in front of its wall, so the frame hardware it works against - keepers, bolt
     # housings, the track header - is drawn out there with it.  Every one of those is really screwed to the wall on
@@ -703,6 +727,53 @@ def build_revolving(spec, phys, model: Model):
     return rotor
 
 
+def _lock_rotor(model: Model, spec, rotor: Body, world, geometry: bool, wings: int = 3, z_cam: float = 0.0,
+                r_cam: float = 0.11, cage_soffit: float = 0.0):
+    """A credential-locked turnstile rotor keeps its whole range and is HELD by its solenoid.
+
+    The rotor used to be clamped to +-0.05 rad, which is not a lock: a joint range is a static property of the
+    exported model, so "closed", "mid travel" and "fully open" were the same picture and the benchmark task on the
+    door could not be performed at all.  The holding constraint (``C.hold_leaf_locked``) is released by the
+    environment on a valid credential, exactly like a maglock, and exports as a breakable PhysX fixed joint.
+
+    ``geometry`` also draws the mechanism: ``wings`` cam dogs on the rotor head and a solenoid hanging from the cage
+    roof whose plunger drops into the gap between two of them.  The plunger is a real body on a slide joint (role
+    "lock"), so the clearance sweep retracts it exactly as it retracts an electric bolt.  The waist-high tripod has
+    no static structure anywhere near its hub - its head casing is a cabinet 290 mm away, and every point between
+    is inside the arms' own sweep - so on that family the constraint is drawn as hardware nowhere and the rotor
+    carries the note instead.
+    """
+    lat = H.LATCHES["mag_lock_1200"]
+    C.hold_leaf_locked(model, rotor, rotor.joint, name="rotor_solenoid_hold", holding_force_N=lat.holding_force,
+                       label="Turnstile solenoid lock (released on a valid credential)", release="env",
+                       lock_model=spec["lock"]["model"],
+                       note="locked until a credential is presented: held by the rotor_solenoid_hold constraint, not by the joint range")
+    if not geometry or world is None:
+        model.meta.setdefault("notes", []).append("tripod head: the solenoid lock is modelled as the rotor_solenoid_hold constraint; the cabinet is 290 mm clear of the hub and every point between is inside the arms' sweep, so no pawl is drawn")
+        return
+    sm = C.mat_from_material(model, "aluminum_dark", "mat_rotor_lock")
+    half_gap = math.pi / wings                      # angular half-pitch of the dogs
+    for k in range(wings):
+        a = 2 * math.pi * k / wings
+        d = np.array([math.cos(a), math.sin(a), 0.0])
+        rotor.geoms.append(C.box(f"rotor_lock_dog_{k}", tuple(d * r_cam + np.array([0, 0, z_cam])), (0.025, 0.016, 0.020),
+                                 sm, 7850, True, True, FULL_SIMPLE, "lock", "Rotor lock cam dog", quat=tuple(C.q_axis_x_to(d))))
+    a_p = half_gap                                   # plunger sits midway between dog 0 and dog 1
+    xp, yp = r_cam * math.cos(a_p), r_cam * math.sin(a_p)
+    # visual-only: the plunger runs THROUGH the solenoid body it is carried by, so it must not collide with it
+    world.geoms.append(C.cyl("rotor_solenoid_housing", (xp, yp, cage_soffit - 0.040), 0.022, 0.042, sm, (0, 0, 1), 7850, False, True, FULL_SIMPLE, "lock", "Rotor solenoid body"))
+    plunger = Body("rotor_solenoid_plunger", None, (xp, yp, 0.0), QUAT_ID, None, [], [], FULL_SIMPLE, "lock", "Solenoid plunger")
+    plunger.joint = Joint("rotor_solenoid_plunger_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, 0.040), damping=2.0, frictionloss=1.0,
+                          role="lock", label="Solenoid plunger (0 = dropped between the cam dogs, + = withdrawn)",
+                          robot_interactive=False, initial=0.0)
+    plunger.geoms.append(C.cyl("rotor_solenoid_plunger_geom", (0, 0, z_cam + 0.030), 0.009, 0.048, sm, (0, 0, 1), 7850, True, True, FULL_SIMPLE, "lock", "Solenoid plunger"))
+    model.add_body(plunger)
+    model.meta.setdefault("clearance_allow", []).append(["rotor_solenoid_plunger_geom", "rotor_solenoid_housing", "the plunger slides inside its own solenoid body"])
+    for w in model.meta.get("breakable_welds", []):
+        if w["name"] == "rotor_solenoid_hold":
+            w["release_part_joint"] = plunger.joint.name
+
+
 def build_turnstile(spec, phys, model: Model, full_height=False):
     op = spec["opening"]
     Wo = op["width"]
@@ -749,8 +820,10 @@ def build_turnstile(spec, phys, model: Model, full_height=False):
         model.meta.update({"primary_joint": "rotor_hinge", "operator_joint": None, "handle_height": 0.95, "ratchet_deg": 120, "one_way": True,
                            "locked": bool(spec["kinematics"].get("locked_until_credential")), "running_clearance_min": ROTOR_MIN_CLEAR})
         if spec["kinematics"].get("locked_until_credential"):
-            rotor.joint.range = (-0.05, 0.05)
-            rotor.joint.notes = "locked until credential (env releases: set range None)"
+            # The rotor keeps its full 360 deg: a solenoid holds it until the reader accepts a credential.  Clamping
+            # the joint to +-2.9 deg made every pose of the turnstile the same picture and made its benchmark task
+            # impossible - a joint range is static in MJCF / URDF / USD and no release can widen it.
+            _lock_rotor(model, spec, rotor, world=None, geometry=False)
         return rotor
     # full height
     wings = spec["kinematics"]["wings"]
@@ -796,7 +869,9 @@ def build_turnstile(spec, phys, model: Model, full_height=False):
     model.meta.update({"primary_joint": "rotor_hinge", "operator_joint": None, "handle_height": 1.0, "ratchet_deg": 360 / wings, "one_way": bool(spec["kinematics"].get("one_way")),
                        "locked": bool(spec["kinematics"].get("locked_until_credential")), "running_clearance_min": ROTOR_MIN_CLEAR})
     if spec["kinematics"].get("locked_until_credential"):
-        rotor.joint.range = (-0.05, 0.05)
+        # solenoid lock in the cage roof over the rotor head: a plunger drops between the cam dogs on the rotor.
+        # The rotor keeps its full range; the holding constraint is what the credential releases.
+        _lock_rotor(model, spec, rotor, world=world, geometry=True, wings=wings, z_cam=Hh - 0.02, r_cam=0.082, cage_soffit=Hh + 0.10)
     return rotor
 
 
@@ -948,9 +1023,19 @@ def build_vertical(spec, phys, model: Model):
             # to 60 mm against a 30 mm limit and locked the handle against its own coupling)
             model.equalities.append(Equality("joint", f"lock_bar_{'r' if sgn > 0 else 'l'}_couple", bar.joint.name, hb.joint.name, (0, 0.03 / opm.travel, 0, 0, 0), tiers=FULL_SIMPLE, label="lock bar = T-handle * 0.03/travel"))
     if spec["lock"].get("engaged") and spec["lock"]["model"] in ("garage_slide_lock", "padlock", "keyed_cylinder") and (not spec["lock"].get("robot_side_release") or spec["lock"]["model"] == "keyed_cylinder"):
-        j.range = (0.0, 0.003)
-        j.notes = f"{spec['lock']['model']}: locked (T-handle lock bars engaged; env unlock frees the joint)"
         model.meta["locked"] = True
+        if spec["lock"].get("robot_side_release") and model.meta.get("operator_joint"):
+            # keyed T-handle: the lock bars ARE the lock and the handle withdraws them.  The leaf keeps its whole
+            # lift, and the bars hold it until the handle has been turned - a clamped joint made "open and traverse"
+            # and "close" impossible on a door whose own hardware releases it.
+            C.hold_leaf_locked(model, lb, j, name="garage_lock_bars_hold", holding_force_N=6000.0,
+                               label=f"{spec['lock']['model']}: lock bars engaged in the track slots",
+                               release="robot", lock_model=spec["lock"]["model"],
+                               release_joint=model.meta["operator_joint"], release_fraction=0.8,
+                               note="lock bars engaged: held until the T-handle withdraws them (full lift kept)")
+        else:
+            j.range = (0.0, 0.003)
+            j.notes = f"{spec['lock']['model']}: locked (no release on this side; T-handle lock bars engaged)"
     # counterbalance from the actual body mass (sections + hardware)
     mtot = float(phys["mass"]["total_kg"])     # the leaf mass is reconciled to the spec after building; size the spring from it
     if cb and mtot > 0:
@@ -1135,8 +1220,12 @@ def build_horizontal(spec, phys, model: Model):
             world.geoms.append(C.box("sill_magnet", (0, -t / 2 - 0.003, 0.05 + 0.01), (W / 2 - 0.02, 0.002, 0.008), mm, 7850, False, True, FULL_ONLY, "latch", "Sill magnet"))
             model.meta.setdefault("notes", []).append(f"flap magnet {kin['magnet_force_N']} N not simulated natively (env applies detent torque near closed)")
         if spec["lock"]["model"] == "slide_bolt" and spec["lock"].get("engaged"):
-            flap.joint.range = (-0.001, 0.001)
-            flap.joint.notes = "locking panel slid in: flap blocked"
+            # the 4-way lock's slide-in panel: it holds the flap, it does not shorten the flap's swing.  Modelled as
+            # the holding constraint the panel is (withdrawn by hand / by the environment), so the flap keeps its
+            # real +-75 deg and the unlocked pose is reachable.
+            C.hold_leaf_locked(model, flap, flap.joint, name="pet_lock_panel_hold", holding_force_N=400.0,
+                               label="Pet-door locking panel slid in", release="env", lock_model="slide_bolt",
+                               note="locking panel slid in: the flap is held by the panel, not by a shortened range")
             model.meta["locked"] = True   # like a credential-locked turnstile: QA / parity expect it to hold, not to swing
         world.sites.append(Site("approach_point", (0, -1.0, 0), QUAT_ID, 0.05, "approach"))
         world.sites.append(Site("goal_point", (0, 1.0, 0), QUAT_ID, 0.05, "goal"))

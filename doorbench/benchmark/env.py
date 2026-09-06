@@ -597,7 +597,17 @@ class DoorEnv:
             eid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_EQUALITY, name)
             if eid < 0 or not d.eq_active[eid]:
                 continue
-            release = self.unlocked_by_env or (L is not None and L.lock_released)
+            kind = w.get("release", "env")
+            release = (self.unlocked_by_env or (L is not None and L.lock_released)) if kind != "none" else False
+            if kind == "robot":
+                # the hardware itself releases this one (a keyed T-handle withdrawing its lock bars): the weld drops
+                # when the part that withdraws them has been driven past its release fraction, and nothing else does it
+                rj = self._jid(w.get("release_joint") or "")
+                release = False
+                if rj >= 0:
+                    lo_r, hi_r = float(m.jnt_range[rj][0]), float(m.jnt_range[rj][1])
+                    q_r = float(d.qpos[m.jnt_qposadr[rj]])
+                    release = hi_r - lo_r > 1e-9 and (q_r - lo_r) >= float(w.get("release_fraction", 0.8)) * (hi_r - lo_r)
             if lock.get("model") == "delayed_egress" and self.oj >= 0:
                 # 3 s sustained push on the bar -> release 15 s later (IBC 1010.1.9.7 simplified: 15 s after initiation)
                 q = d.qpos[m.jnt_qposadr[self.oj]]
@@ -607,6 +617,10 @@ class DoorEnv:
                     release = True
             if release:
                 d.eq_active[eid] = 0
+                # a solenoid plunger / bolt that is drawn as a moving part goes with the constraint it stands for
+                pjn = self._jid(w.get("release_part_joint") or "")
+                if pjn >= 0 and m.jnt_limited[pjn]:
+                    d.qpos[m.jnt_qposadr[pjn]] = float(m.jnt_range[pjn][1])
                 continue
             # breakaway
             for i in range(d.nefc):
@@ -632,9 +646,9 @@ class DoorEnv:
                     full = self._operator_full_travel()
                     if full and m.jnt_range[self.oj][1] < full - 1e-6:
                         m.jnt_range[self.oj][1] = full
-        # turnstile credential release
-        if self.meta.get("locked") and self.pj >= 0 and (self.unlocked_by_env or (L is not None and L.lock_released)):
-            m.jnt_limited[self.pj] = 0
+        # A locked leaf is held by a constraint (meta["breakable_welds"]), never by a shortened joint range: a range
+        # is static in the exported model, so widening it at run time here would have made the door's travel differ
+        # between MuJoCo and every other consumer of the same asset.  The loop above is the whole release path.
 
     def _operator_full_travel(self):
         from .. import hardware as H

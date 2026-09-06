@@ -478,7 +478,9 @@ def assign_scenarios(spec: dict) -> list:
     self_closing = (spec["closer"]["model"] not in ("none", "gas_strut")) or bool(spec["kinematics"].get("self_closing")) or fam in ("automatic_swing", "automatic_sliding", "elevator")
     if fam in SLIDING_LIKE and not (locked and not releasable):
         out.append("open_then_close")
-        if rng.random() < 0.35:
+        # `close_only` starts the door OPEN.  A door whose lock holds it shut in the shipped pose cannot be handed
+        # to the robot already open without the lock having been released first, so it is never asked of one.
+        if rng.random() < 0.35 and not locked:
             out.append("close_only")
     elif kin == "hinge_vertical" and not locked and not self_closing and fam not in FREE_SWING and fam not in ("baby_gate", "stall"):
         if rng.random() < 0.30:

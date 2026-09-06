@@ -175,6 +175,13 @@ def choose_lock_engagement(spec: dict, B: Balanced, rng: random.Random, p_engage
         rel = lk.inside_release in ("thumbturn", "button", "lever", "rex_button", "slide")
     if lk.kind in ("padlock", "jam_stuck", "interlock", "delayed_egress"):
         rel = lk.kind == "delayed_egress"
+    if lk.kind in ("chain", "swing_bar_guard"):
+        # A door chain and a hotel swing bar are released by lifting the chain's ball out of its slotted track, or
+        # the bar off its knob - hardware DoorBench draws but does not articulate.  The leaf's slack limit IS the
+        # chain, and it is honest; claiming the robot can release it is not, because there is no part in the model
+        # for a policy to move.  Declaring it unreleasable puts these doors on `locked_recognize`, which is exactly
+        # the task a robot meeting a chained door should perform: push, feel the 60 mm stop, and declare it locked.
+        rel = False
     # panic hardware: the bar side always exits (key cylinders only lock the outside trim)
     if spec["operator"]["model"].startswith("panic") and not robot_outside and lk.kind in ("keyed_cylinder", "privacy_button", "card_reader", "electric_strike", "keypad_code"):
         rel = True

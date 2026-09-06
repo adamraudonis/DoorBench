@@ -810,6 +810,42 @@ def add_strike_plate(geoms, prefix, sx_w, u, y, z, half_w, half_h, material, tie
 
 
 # ---------------------------------------------------------------------------
+# Releasable holding constraints: a lock that can be released must NOT be a joint range
+# ---------------------------------------------------------------------------
+# A joint's range in MJCF / URDF / USD is a static property of the model: nothing at run time can widen it,
+# and every consumer of the asset (the review renderer, the viewer, the Isaac Lab export, a policy reading
+# jnt_range) reads it as the leaf's physical travel.  Clamping it to model an ENGAGED lock therefore says
+# "this door cannot open, ever" - which is false for every lock the environment or the robot is meant to
+# release, and it makes "closed", "mid travel" and "fully open" the same picture.
+#
+# The leaf keeps its real range, and the lock holds it with a constraint that the release can undo:
+# an equality weld leaf <-> world, authored closed in the shipped pose (MuJoCo's default relpose is taken
+# from qpos0), carrying the hardware's own holding force.  It is exported to USD as a breakable
+# UsdPhysics.FixedJoint outside the articulation (export/usd.py env_release_welds) and released by
+# benchmark/env.py, which also breaks it when the constraint force exceeds the holding force.
+#
+# `release` says who can undo it and is the ground truth the QA task-achievability gate and DoorEnv both read:
+#   "env"    access control / an interlock / a timer opens it (badge, REX, the lift car arriving)
+#   "robot"  a part of the modelled hardware opens it - `release_joint` past `release_fraction` of its travel
+#   "none"   nothing in the model opens it (a padlock with no key on this side): the door is genuinely shut
+def hold_leaf_locked(model: Model, leaf_body: Body, joint, *, name: str, holding_force_N: float, label: str,
+                     release: str, lock_model: str, release_joint: str | None = None, release_fraction: float = 0.8,
+                     tiers=ALL_TIERS, note: str | None = None) -> str:
+    """Hold `leaf_body` shut with a releasable weld instead of clamping `joint.range`.  Returns the weld name."""
+    assert release in ("env", "robot", "none"), release
+    model.equalities.append(Equality("weld", name, leaf_body.name, "world", (0, 0, 0, 0, 0), (0, 0, 0), tiers, label, active=True))
+    w = {"name": name, "body": leaf_body.name, "joint": getattr(joint, "name", None), "holding_force_N": float(holding_force_N),
+         "release": release, "lock_model": lock_model, "holds_primary": True}
+    if release == "robot":
+        w["release_joint"] = release_joint
+        w["release_fraction"] = float(release_fraction)
+    model.meta.setdefault("breakable_welds", []).append(w)
+    if joint is not None:
+        joint.notes = ((joint.notes + " ") if joint.notes else "") + (note or f"{label}: held by the {name} constraint (full range kept; release drops the weld)")
+    return name
+
+
+# ---------------------------------------------------------------------------
 # Surface-mounted bolt hardware: barrel / slide / drop bolts with mounting plate, guide loops, handle and keeper;
 # hasp + staple + padlock; strike / face plates.  All built from convex primitives (boxes, capsules, spheres).
 # ---------------------------------------------------------------------------
