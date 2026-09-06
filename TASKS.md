@@ -4,6 +4,39 @@ Living tracker for everything in flight. One line per task, newest requests at t
 Status: `todo` · `doing` · `review` · `done` · `blocked`. Owner `main` = the coordinating session; `agent:<name>` = a
 a collaborating agent; current release agents use explicitly separated file ownership.
 
+## Core mechanical rebuild — current priority (2026-09-05)
+
+The older completed rows below record historical checks, not a current mechanical
+certification. The owner's eight counterexamples invalidate any inference that
+automated sign-off or static screening establishes correct human operation.
+Appearance generation is paused for this work. See
+[the current review](docs/review/mechanical-foundations/README.md).
+
+| Task | Status | Owner | Required evidence |
+|---|---|---|---|
+| DB0005 and every tilt-up: supported retractable linkage and real head clearance | doing | agent:diversity_audit | Native full-travel cycles, roller support, loop residuals, spring/load accounting |
+| DB0008/DB0009: independent bypass leaves and sequential bifold banks | doing | main + sliding/folding agents | Per-leaf native effort/contact trace and actual free passage |
+| DB0011: functional wall activation, bar/latch retraction before powered swing | doing | main | Button versus presence negative test; actual bar/latch motion before leaf |
+| DB0012/DB0016: correct access side, unlocked state, real pull hardware | doing | main | Native contact selection, no force or grasp on already released lock |
+| DB0014 and all gates: attached release, striker, guides, grips and frame | doing | agent:physics_audit | Attachment distances and continuous hold/release/reclose cycles |
+| DB0018 and all pocket doors: reachable press/deploy/extract edge pull | doing | agent:sliding_track_fix + main | Fingertip contact, recessed extraction, return, full stroke clearance |
+| Every door: mechanism and action audit, including known historical approximations | doing | main + agents | Per-door source-bound ledger; unresolved cases remain explicit |
+| Sectional/roll-up: replace rigid translation and false upper aperture | doing | agent:diversity_audit | Real supported panel/curtain path; no change to appearance renders |
+| All 233 surface/track closers: real mounts, pinion springs, valves and magnetic release | doing | agent:physics_audit + main | Actual return and latch engagement, numerical convergence, power-loss release |
+| Flexible PVC strips and hatch stays: physical material/support connections | review | agent:sliding_track_fix + main | All-eight strip cycles and 18 hatch fixtures; preserve neighboring contacts |
+| Childproof covers, chains/guards, Dutch joining bolts and turnstile catches | doing | main + agents | Genuine release/load path, accessible inputs, positive and negative native trials |
+| Native baseline export/player: exact source-bound states without a generated human | review | main | Every-frame pose/contact validation, exact replay, failed attempts retained |
+| Crossing bands and accessible inputs on all 1000 native exports | doing | main | 1000 compile/site transforms pass; zero closed apertures reported clear; access triage ongoing; earlier unserved-input count is stale after gate/inside-control repairs; offset-curtain negative and actual chain-input recording |
+| Lock preparation and final latch stroke | review | agent:sliding_track_fix + main | 467 doors/542 bolts across three tiers; 490 final coupling endpoints; seven multipoint doors pass fresh full QA and native primary recordings |
+| Ship/vault supported locking mechanisms and six tripod drop arms | doing | diversity/physics agents | Actual bearings, transmission, catches and indexed power-loss release; old equalities and appearance alone are insufficient |
+| Wall switches and all eight elevator landing doors | doing | main | Eight stationary level-car elevators pass physical interlock, guide, drive, obstruction/presence and mount checks. Wall station control-rate regression covers seven powered inputs and two unpowered manual fallbacks; two locked sectional cases remain recognition tasks. |
+| Six chain-hoist approach sides and hand-free holding | doing | main + diversity agent | Inside chain requires inside approach; DB0419 falls 1.862 m in five seconds after hand release; traversal withheld pending physical keeper/brake proof |
+| Installed sectional floor support and button operation | review | diversity agent + main | All 18 whole-door QA pass after actual EPDM astragal/retainer, 63 focused checks and causal removed-seal test; primary task rerun pending |
+| Independent conventional rotary locksets | doing | physics agent + main | 97 assemblies; physical exterior catch, free inside input, prepared separate shafts; all static/tier checks pass, native operation still under test |
+| Vault primary and closing controllers | review | main | 14 primary tasks and 28 closing tasks pass; exact native frames validated; 63 diagnostic views personally inspected; top/sill frame-fit repair still under test |
+| Global native solver warnings | review | main | QA and runner reject counter-free callback warnings; native_failure and mechanism_failure preserved in result schema; ten focused runtime/warning tests pass |
+| Publish corrected native models and matching references to master/Pages | todo | main | Source/asset hashes, regression results, live mechanical inspection |
+
 ## Quality gates (blocking for every release)
 
 | # | Task | Status | Owner | Notes |

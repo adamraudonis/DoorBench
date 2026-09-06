@@ -18,13 +18,13 @@ import random
 
 from ..benchmark_eligibility import benchmark_eligibility, is_benchmark_eligible, require_benchmark_eligible
 
-SCENARIO_TYPES = ("open_and_traverse", "open_then_close", "close_only", "unlock_and_traverse", "locked_recognize",
+SCENARIO_TYPES = ("open_only", "open_and_traverse", "open_then_close", "close_only", "unlock_and_traverse", "locked_recognize",
                   "hold_open_for_human", "wait_for_human", "knock_and_wait")
 
 # ---- suites.  Human-interaction scenarios are segregated: the `core` suite needs nothing but the door and the robot
 # and is the default everywhere (runner, DoorEnv, viewer, result tables).  The `human` suite adds a kinematic simulated
 # person (hold_open / wait) or social etiquette that presumes one (knock) and is an advanced, opt-in tier.
-CORE_SCENARIOS = ("open_and_traverse", "open_then_close", "close_only", "unlock_and_traverse", "locked_recognize")
+CORE_SCENARIOS = ("open_only", "open_and_traverse", "open_then_close", "close_only", "unlock_and_traverse", "locked_recognize")
 HUMAN_SCENARIOS = ("hold_open_for_human", "wait_for_human", "knock_and_wait")
 SUITES = ("core", "human")
 SCENARIO_SUITE = {**{n: "core" for n in CORE_SCENARIOS}, **{n: "human" for n in HUMAN_SCENARIOS}}
@@ -41,6 +41,7 @@ def scenarios_in_suite(names, suite: str) -> list:
     return list(names) if suite == "all" else [n for n in names if SCENARIO_SUITE[n] == suite]
 
 SCENARIO_DESCRIPTIONS = {
+    "open_only": "Operate the hardware and open the selected door or folding banks to their stated targets. Remain on the approach side; passage is not required.",
     "open_and_traverse": "Start in the start zone, reach the handle, unlatch, open and walk through the door plane to the goal zone.",
     "open_then_close": "Open, walk through, then close the door behind you (latched if the door has a latch).",
     "close_only": "The door starts open; close it (and latch it) without slamming.",
@@ -171,6 +172,22 @@ def active_leaf_body(model: dict) -> str | None:
 def handle_targets(model: dict) -> list:
     """Grip / push site names the robot should reach, preferring those on the active leaf."""
     sites = site_world_positions(model)
+    hoist=model.get('meta',{}).get('rollup_hoist')
+    if hoist:
+        # Both operating directions use actual material links at hand height.
+        # The optional bottom handle is not the chain-drive input.
+        candidates=[n for n in hoist['material_grip_sites'] if .55<sites[n]['pos'][2]<1.7]
+        keeper=hoist.get('keeper')
+        if keeper:
+            lo,hi=keeper['excluded_chain_grip_z_m']
+            candidates=[n for n in candidates if not lo<=sites[n]['pos'][2]<=hi]
+        selected=[]
+        for side in (hoist['opening_pull_strand_y_sign'],hoist['closing_pull_strand_y_sign']):
+            strand=[n for n in candidates if side*(sites[n]['pos'][1]-hoist['wheel_center_m'][1])>.06]
+            if not strand:raise ValueError('No authored hand-chain grip in operating band')
+            selected.append(min(strand,key=lambda n:abs(sites[n]['pos'][2]-(.95 if keeper else hoist['nominal_regrasp_height_m']))))
+        if keeper:selected.append(keeper['grip_site'])
+        return selected
     leaf = active_leaf_body(model)
     on_leaf, others = [], []
     for name, s in sites.items():
@@ -218,7 +235,7 @@ def t_operate(spec: dict, phys: dict, unlock: bool, model: dict | None = None) -
     return t
 
 
-def t_open_dynamics(spec: dict, phys: dict, clear: dict) -> float:
+def t_open_dynamics(spec: dict, phys: dict, clear: dict, model: dict | None = None) -> float:
     """Time to open to the clearance threshold under the nominal push / lift force (see docs/BENCHMARK.md)."""
     kin = spec["kinematics"]["type"]
     fam = spec["family"]
@@ -227,6 +244,16 @@ def t_open_dynamics(spec: dict, phys: dict, clear: dict) -> float:
     # the whole rotor of a revolving door and the whole stack of a fold), not the whole door's mass
     m = float(phys["mass"].get("primary_assembly_kg") or phys["mass"]["total_kg"])
     W = spec["leaf"]["width"]
+    meta=(model or {}).get('meta',{})
+    if meta.get('rollup_hoist'):
+        h=meta['rollup_hoist'];curtain=meta['rollup_curtain'];dim=curtain['dimensions']
+        radius=dim['joint_radius_m'];profile=dim['profile_depth_m']
+        wound_radius=math.sqrt(radius**2+profile*clear['travel_m']/math.pi)
+        angle=2*math.pi*(wound_radius-radius)/profile
+        chain_distance=angle/abs(h['output_per_input'])*h['parameters']['pitch_radius_m']
+        # Nominal material speed, not guaranteed under the force cap. The
+        # half-second term integrates the one-second symmetric speed ramp.
+        return .5+chain_distance/.45
     if fam in FREE_SWING:
         if kin == "rotor":
             theta = clear["angle_rad"]
@@ -296,9 +323,9 @@ def expected_transit_time(name: str, spec: dict, phys: dict, start_center, targe
     t_appr = d_approach / v
     unlock = name == "unlock_and_traverse"
     t_op = t_operate(spec, phys, unlock, model) if name != "close_only" else 0.5
-    t_opn = t_open_dynamics(spec, phys, clear) if name != "close_only" else 0.0
+    t_opn = t_open_dynamics(spec, phys, clear, model) if name != "close_only" else 0.0
     d_pass = _dist_xy(plane_xy, goal_xy) + 0.6
-    t_pass = d_pass / v if name not in ("close_only", "locked_recognize") else 0.0
+    t_pass = d_pass / v if name not in ("open_only", "close_only", "locked_recognize") else 0.0
     extra = 0.0
     closer_t = phys.get("closer", {}).get("closing_time_est_s")
     if closer_t and name not in ("close_only", "locked_recognize") and closer_t < t_pass:
@@ -396,6 +423,30 @@ def make_scenario(name: str, spec: dict, phys: dict, model: dict) -> dict:
     def add(*events):
         for e in events:
             rewards[e] = R[e]
+    opening_targets = {}
+    if name == "open_only":
+        if has_operator:
+            add("touch_handle")
+        if has_latch:
+            add("unlatch")
+        add("opened", "damage", "slam", "time_penalty_per_s")
+        success = ["opened", "!damage", "!slam"]
+        if spec['lock'].get('engaged'):
+            add('unlock'); success.append('unlock')
+        names = [meta.get('primary_joint')]
+        if spec['family'] == 'bifold':
+            names = [b['pivot_joint'] for b in meta.get('folding_banks', [])]
+        for body in model['bodies']:
+            j = body.get('joint') or {}
+            if j.get('name') not in names or not j.get('range'):
+                continue
+            endpoint = max(j['range'], key=abs)
+            magnitude = .90*abs(endpoint)
+            if j['type'] == 'hinge' and spec['family'] not in ('bifold','hatch_floor','hatch_ceiling'):
+                magnitude = min(math.radians(75), magnitude)
+            if meta.get('hatch_support',{}).get('support_release_joint'):
+                magnitude=.99*meta['hatch_support']['nominal_angle_rad']
+            opening_targets[j['name']] = math.copysign(magnitude, endpoint)
     if name in ("open_and_traverse", "open_then_close", "unlock_and_traverse", "hold_open_for_human", "wait_for_human", "knock_and_wait"):
         if has_operator:
             add("touch_handle")
@@ -454,22 +505,37 @@ def make_scenario(name: str, spec: dict, phys: dict, model: dict) -> dict:
         "name": name, "suite": SCENARIO_SUITE[name], "requires_human": human is not None,
         "description": SCENARIO_DESCRIPTIONS[name], "initial_state": initial, "start": start,
         "approach_point": [round(float(c), 4) for c in appr], "handle_targets": targets, "pass_plane": plane_d,
-        "goal": goal_d if name not in ("close_only", "locked_recognize") else None, "human": human,
+        "goal": goal_d if name not in ("open_only", "close_only", "locked_recognize") else None, "human": human,
+        **({'opening_joint_targets': opening_targets} if name == 'open_only' else {}),
+        **({'opening_support': meta['hatch_support']} if name == 'open_only' and meta.get('hatch_support',{}).get('support_release_joint') else {}),
         "thresholds": thr, "rewards": rewards, "success": success,
         "time_budget_s": float(budget), "expected_transit_s": tt["total_s"], "expected_transit_terms": tt,
         **({"lock": lock_block} if lock_block else {}),
     }
 
 
-def assign_scenarios(spec: dict) -> list:
+def assign_scenarios(spec: dict, model: dict | None = None) -> list:
     """Seeded per-door scenario list (see docs/BENCHMARK.md, 'Scenario assignment')."""
     if not is_benchmark_eligible(spec):
         return []
     rng = random.Random(int(spec["seed"]) * 1000003 + 17)
     lock = spec["lock"]
     locked, releasable = bool(lock.get("engaged")), bool(lock.get("robot_side_release", True))
+    if has_free_inside_trim(spec,model):
+        # The exterior catch stays locked while its independent inside cam
+        # allows egress without a credential or lock-recognition task.
+        locked=False
     fam = spec["family"]
     kin = spec["kinematics"]["type"]
+    if fam == 'rollup' and spec['kinematics'].get('opener') == 'chain_hoist':
+        # A single inside chain cannot close the curtain after the operator
+        # walks outside. Hand-free retention must separately pass native QA
+        # before accepting the traversal; close_only starts inside.
+        return ['locked_recognize'] if locked and not releasable else ['open_and_traverse', 'close_only']
+    if spec.get('context') == 'closet' or fam in ('hatch_floor', 'hatch_ceiling') or (fam=='dutch' and spec['task']=='peek'):
+        # A closet opening is an access task. Folded banks and their knobs
+        # can leave less standing clearance than a passage requires.
+        return ['locked_recognize'] if locked and not releasable else ['open_only', 'close_only']
     if locked and releasable:
         out = ["unlock_and_traverse"]
     elif locked:
@@ -495,11 +561,18 @@ def assign_scenarios(spec: dict) -> list:
     return out
 
 
+def has_free_inside_trim(spec: dict, model: dict | None) -> bool:
+    rows=(model or {}).get('meta',{}).get('rotary_locksets',[])
+    approach=1. if spec['robot'].get('approach_side')=='+y' else -1.
+    return bool(rows) and all(row['inside_face']==approach for row in rows)
+
+
 def build_benchmark(spec: dict, phys: dict, model: dict) -> dict:
-    names = assign_scenarios(spec)
+    names = assign_scenarios(spec,model)
     assert not names or SCENARIO_SUITE[names[0]] == "core", names          # the primary (default) scenario never needs a person
     scen = [make_scenario(n, spec, phys, model) for n in names]
-    return {"schema_version": "1.1", "robot": ROBOT, "human": HUMAN, "primary_scenario": names[0] if names else None,
+    return {"schema_version": "1.2", "robot": ROBOT, "human": HUMAN, "primary_scenario": names[0] if names else None,
+            "approach_access": "free_inside_trim" if has_free_inside_trim(spec,model) else "authored_lock_and_operator",
             "benchmark_eligibility": benchmark_eligibility(spec),
             "suites": {s: scenarios_in_suite(names, s) for s in SUITES}, "scenarios": scen,
             "reward_values": R, "event_descriptions": EVENT_DESCRIPTIONS}

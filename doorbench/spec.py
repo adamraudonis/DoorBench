@@ -1054,7 +1054,7 @@ def gen_garage(i, ctx, B, rng, kind):
         if slab == "plywood":
             slab = "garage_wood_carriage"
         panel = B.pick("gt:panel", {"sectional_flush": 1, "raised_carriage": 1, "plank_vertical": 1})
-        s["kinematics"] = {"type": "hinge_horizontal", "max_open_deg": 88, "stop": "track_end", "pivot_height_frac": 0.5, "counterbalance_fraction": _round(B.pick("gt:cb", {0.9: 2, 0.7: 1}), 0.01)}
+        s["kinematics"] = {"type": "hinge_horizontal", "max_open_deg": 88, "stop": "track_end", "mechanism": "retractable_top_roller_side_arm", "counterbalance_fraction": _round(B.pick("gt:cb", {0.9: 2, 0.7: 1}), 0.01)}
         op = B.pick("gt:op", {"pull_t_handle_garage": 2, "pull_lift_garage": 1})
         use = B.pick("gt:use", ["1960s tilt-up garage door", "carport tilt-up door"])
     else:  # rollup
@@ -1525,17 +1525,111 @@ def generate_all(seed: int = 20260903) -> list[dict]:
         if s["kinematics"].get("double_egress"):
             s["opening"]["wall_thickness"] = 0.10      # double-egress pairs sit in a thin partition (each leaf swings its own way)
             s["opening"]["frame"]["jamb_depth"] = 0.10
-        if (s["family"] == "sliding_bypass" or s["kinematics"].get("track") == "top_hung_pocket") and H.OPERATORS[s["operator"]["model"]].kind in ("pull", "ring_pull"):
+        if s['leaf']['slab'].startswith('glass_frameless_'):
+            s['leaf']['thickness'] = M.SLABS[s['leaf']['slab']].typical_thickness[0]
+        if (s["family"] == "sliding_bypass" or s["kinematics"].get("track") == "top_hung_pocket") and H.OPERATORS[s["operator"]["model"]].kind in ("pull", "ring_pull", "knob", "none"):
             s["operator"]["model"] = "pull_flush_recessed"    # leaves that pass each other / enter a pocket need flush pulls
             s.setdefault("tags", []).append("flush_pull_required")
+        if s["kinematics"].get("track") in ("top_hung_pocket", "top_hung_bypass"):
+            # Clear suspension space for the roller channel, axle and hanger.
+            s["opening"]["height"] = _round(max(s["opening"]["height"], s["leaf"]["height"] + 0.095))
+        if s["kinematics"].get("track") == "top_hung_bypass":
+            depth = max(.145, (s["kinematics"].get("n_leaves", 2)-1)*(s["leaf"]["thickness"]+.05)+.052)
+            s["opening"]["wall_thickness"] = depth
+            s["opening"]["frame"]["jamb_depth"] = depth
+        if s["kinematics"].get("track") == "top_hung_pocket":
+            s["kinematics"]["travel_m"] = (s["leaf"]["width"] + s["opening"]["width"]) / 2
+            s["kinematics"]["edge_pull"] = "press_to_deploy"
+            if s["leaf"]["slab"].startswith("glass_frameless"):
+                s["leaf"]["thickness"] = M.SLABS[s["leaf"]["slab"]].typical_thickness[0]
+        if s["family"] == "sliding_single" and s["operator"]["model"] in ("cold_storage_handle", "none"):
+            # These leaves have independent boltwork, not a cold-room cam
+            # latch driven by a hinged-door handle. Give the leaf a fixed grip.
+            s["operator"]["model"] = "pull_d"
+        if s['family'] == 'hatch_ceiling' and s['operator']['model'] == 'none':
+            s['operator']['model'] = 'hatch_ring'
+        if s['id']=='db0264_swing_single':
+            # The selected keypad-entry function has independent free inside
+            # lever egress; a fixed far pull cannot perform that operation.
+            s['operator']['sides']='both'
+            s['operator']['far_side']=None
+        if s['family'] in ('vault', 'blast') and H.OPERATORS[s['operator']['model']].kind != 'wheel':
+            # Preserve all random draws and credential/condition decisions.
+            # These are two independent sliding bolts, not six marine dogs.
+            s['operator']['model'] = 'vault_lever'
+            s['latch']['model'] = 'vault_bolts_2'
+            s['lock']['model'] = 'vault_lever_boltwork'
+            s.setdefault('tags', []).append('independent_vault_lever_bolts')
+        if s['family'] == 'garage_sectional':
+            kin = s['kinematics']
+            fraction = kin['counterbalance_fraction']
+            kin['counterbalance_state'] = 'failed' if fraction == 0 else 'weak' if fraction <= .6 else 'under_tensioned' if fraction < .95 else 'balanced'
+            if fraction == 0:
+                s['condition'] = 'damaged'
+                s.setdefault('tags', []).append('failed_counterbalance')
+            elif fraction <= .6:
+                s.setdefault('tags', []).append('weak_counterbalance')
+            if kin.get('opener') != 'belt_drive_engaged' and s['operator']['model'] == 'none':
+                s['operator']['model'] = 'pull_lift_garage'
+        if s["family"] in ("gate_swing", "gate_sliding") and s["leaf"]["slab"] == "chain_link_gate":
+            s["leaf"]["infill_thickness"] = s["leaf"]["thickness"]
+            s["leaf"]["thickness"] = 0.041275  # 1-5/8 inch structural frame, not mesh-equivalent sheet thickness
+        if s["operator"]["model"] == "gate_latch_magnetic":
+            s["opening"]["width"] = s["leaf"]["width"] + 0.022
+        if s["operator"]["model"] == "gate_latch_fork":
+            s["opening"]["width"] = s["leaf"]["width"] + 0.054
+            s["operator"]["height"] = min(s["operator"]["height"], s["opening"].get("ground_clearance", .05) + s["leaf"]["height"] - .20)
+        if s["family"] == "gate_swing" and s["operator"]["model"] == "thumb_latch_suffolk":
+            s["operator"]["height"] = min(s["operator"]["height"], s["opening"].get("ground_clearance", .05) + s["leaf"]["height"] - .15)
+        if s["kinematics"].get("stop") == "wall_bumper":
+            # This environment has no return wall behind the open leaf. A
+            # floor-mounted post provides the bumper's actual structural load path.
+            s["kinematics"]["stop"] = "floor_post"
+        if H.LOCKS[s['lock']['model']].kind == 'multipoint':
+            # Lift-operated boltwork needs a bidirectional lever spindle.
+            # A round knob, thumb press or cremone knob cannot perform that lift.
+            s['operator']['model']='lever_euro_backplate'
+            s['operator']['sides']='both'
+            s['operator'].pop('far_side',None)
+            s['latch']['model']='tubular_residential_70'
+            s.setdefault('tags',[]).append('multipoint_lift_lever')
+        if H.LOCKS[s['lock']['model']].kind in ('chain', 'swing_bar_guard'):
+            # Interior security guards bridge an inward-opening leaf and
+            # frame. Preserve the seeded inside/outside access choice, then
+            # put the swing on that same physical side (Ives 481/482 layout).
+            if s['robot']['is_push'] != s['robot']['robot_outside']:
+                s['robot']['is_push'] = s['robot']['robot_outside']
+                s.setdefault('tags', []).append('security_guard_inward_swing')
+        if H.OPERATORS[s["operator"]["model"]].kind in ("panic_touchbar", "panic_crossbar"):
+            # The panic bar defines the interior/push face. Side permissions
+            # must follow the actual swing, not an independent random bit.
+            s["robot"]["robot_outside"] = not s["robot"]["is_push"]
+        if "keypad_reader_wall" in s.get("extras", []) and H.LOCKS[s["lock"]["model"]].kind not in ("keypad_code", "card_reader", "mag_lock", "electric_strike"):
+            s["extras"].remove("keypad_reader_wall")
         if s["family"] == "saloon":
             s["kinematics"]["max_open_deg"] = min(s["kinematics"].get("max_open_deg") or 90, 90)
+        if s['family']=='dutch' and H.OPERATORS[s['operator']['model']].kind=='handleset':
+            # The former Dutch-only handleset had a fixed exterior grip but
+            # no thumb latch. Use an actual through-spindle knob set with
+            # both operating faces and its real latch coupling.
+            s['operator']['model']='knob_round';s['operator']['sides']='both'
+            s['operator'].pop('far_side',None)
+            s.setdefault('tags',[]).append('dutch_supported_spindle_set')
         if s["family"] == "stall":
             s["kinematics"]["max_open_deg"] = min(s["kinematics"].get("max_open_deg") or 110, 110)
         if s["family"] == "stall" and s["lock"].get("engaged"):
             s["kinematics"]["rest_angle_deg"] = 0     # occupied stall: latched shut (rest angle applies only when vacant)
             s["lock"]["robot_side_release"] = not s["robot"]["is_push"]   # slide latch sits on the swing-side face
             s["robot"]["robot_outside"] = bool(s["robot"]["is_push"])
+        if s['family'] == 'hatch_ceiling' and s['lock']['model'] == 'slide_bolt':
+            s['lock']['robot_side_release'] = False  # loft-side bolt is inaccessible from below
+        if s['family'] == 'strip_curtain':
+            width=s['leaf']['width'];opening=s['opening']['width']
+            count=min(s['leaf']['count'], math.floor((opening-.02-width)/(width/2)+1e-9)+1)
+            s['leaf']['count']=count
+            pitch=(opening-.02-width)/max(1,count-1)
+            s['leaf']['overlap']=1-pitch/width
+            s['leaf']['overlap_definition']='neighbor_fraction'
         if s["lock"]["model"] == "electric_strike" and s["latch"]["model"] == "none":
             s["lock"]["model"] = "mag_lock"           # a strike needs a latch bolt; pull-only doors get a maglock instead
         if s["family"] == "swing_double" and (s["leaf"]["panel_style"] == "glass_frameless" or s["leaf"]["slab"].startswith(("glass", "storefront"))) and H.LOCKS[s["lock"]["model"]].kind in ("deadbolt_single", "deadbolt_double", "thumbturn_only", "mortise_deadbolt", "night_latch", "multipoint", "keypad_code"):
@@ -1544,6 +1638,40 @@ def generate_all(seed: int = 20260903) -> list[dict]:
         if s["operator"]["model"] in ("slide_bolt_barrel", "slide_bolt_heavy", "cane_bolt_drop") and s["lock"]["model"] == "none":
             s["lock"] = {"model": "slide_bolt", "engaged": True, "robot_side_release": True}
         assign_task(s, B)
+        if H.LOCKS[s['lock']['model']].kind=='jam_stuck':
+            # Preserve the seeded catalogue draw, then describe this as the
+            # authored breakaway-friction condition. It is not a security lock.
+            s['lock'].update(engaged=False,robot_side_release=True)
+            s['kinematics']['breakaway_friction_model']='hinge_coulomb_proxy'
+            s['kinematics']['extra_stick_torque_multiplier']=2.
+            s.setdefault('tags',[]).append('high_breakaway_friction')
+            s['task']='open_and_traverse'
+        if s['family'] in ('sliding_bypass', 'bifold', 'hatch_floor', 'hatch_ceiling') and not (s['lock']['engaged'] and not s['lock'].get('robot_side_release', True)):
+            # These authored closet openings expose storage. They need not
+            # provide a human passage between the stacked panels and handles.
+            s['task'] = 'open_only'
+        if s['family'] in ('garage_tiltup','garage_sectional','rollup'):
+            # These authored tracks/curtains store into +Y. The fixed -Y
+            # approach is outside; an interior slide lock or rear hasp has
+            # no modeled front key release. Normalize after all RNG draws.
+            s['robot']['robot_outside']=True
+            if s['lock']['model'] in ('garage_slide_lock','keyed_cylinder','padlock'):
+                s['lock']['robot_side_release']=False
+                if s['lock']['engaged']:s['task']='locked_recognize'
+        if s['family']=='rollup' and s['kinematics'].get('opener')=='chain_hoist':
+            # The hand chain is installed inside the garage. Operating it
+            # through the outside wall is not an approach-side interaction.
+            s['robot']['approach_side']='+y'
+            s['robot']['robot_outside']=False
+        if H.LOCKS[s['lock']['model']].kind not in ('mag_lock','delayed_egress','card_reader','electric_strike'):
+            s['extras']=[e for e in s['extras'] if e!='rex_button']
+        if H.LOCKS[s['lock']['model']].kind not in ('mag_lock','card_reader','electric_strike'):
+            s['extras']=[e for e in s['extras'] if e!='keypad_reader_wall']
+        if s['family'] in ('turnstile_tripod','turnstile_fullheight'):
+            # Normalize only after all source RNG draws and availability/task
+            # decisions. Every rotor has an actual fail-secure index bolt,
+            # including initially powered cases; no M62 maglock is installed.
+            s['lock']['model']='turnstile_index_bolt'
         specs.append(s)
         i += 1
     assert len(specs) == 1000

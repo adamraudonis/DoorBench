@@ -33,7 +33,7 @@ export interface KeypadJ {
   code_timeout_s: number | null;
   lockout_s: number | null;
   max_attempts: number | null;
-  release: "clutch" | "motor_bolt" | "none";
+  release: "clutch" | "motor_bolt" | "physical_catch" | "none";
   clutch_joint: string | null;
   bolt_joint: string | null;
   clutch_locked_rad: number | null;

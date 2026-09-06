@@ -34,7 +34,7 @@ from doorbench.benchmark_eligibility import is_benchmark_eligible, POLICY_VERSIO
 
 SUBMISSION_MIN_SEEDS = 3
 # mirrors doorbench.benchmark.scenarios.SCENARIO_SUITE (kept inline so CI can validate without the package's dependencies)
-CORE_SCENARIOS = ("open_and_traverse", "open_then_close", "close_only", "unlock_and_traverse", "locked_recognize")
+CORE_SCENARIOS = ("open_only", "open_and_traverse", "open_then_close", "close_only", "unlock_and_traverse", "locked_recognize")
 HUMAN_SCENARIOS = ("hold_open_for_human", "wait_for_human", "knock_and_wait")
 SUITE_OF = {**{n: "core" for n in CORE_SCENARIOS}, **{n: "human" for n in HUMAN_SCENARIOS}}
 SUITES = ("core", "human")

@@ -922,6 +922,7 @@ def joint_couplings(model: Model, tier: str, joint_types: dict, wt: dict, body_o
 # full-fidelity export
 # ---------------------------------------------------------------------------
 def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full", filename: str = "door.usda"):
+    model.validate_free_joints()
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, filename)
     W = _Writer(model, path, hardware_dir, out_dir)
@@ -986,6 +987,14 @@ def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full",
             W.add_fixed_joint(jp, body0, body_paths[b.name], p0, q0, [0, 0, 0], [1, 0, 0, 0], label=f"{b.name} rigidly attached")
             continue
         jt = b.joint
+        if jt.type == "free":
+            # This fixed-base articulation cannot carry the independent
+            # six-DOF root of a circulating material chain. Freeze this
+            # inspection export explicitly; native MJCF is authoritative.
+            p0, q0 = wt[b.name]
+            W.add_fixed_joint(jp, body0, body_paths[b.name], p0, q0, [0, 0, 0], [1, 0, 0, 0],
+                              label="Unsupported free-root mechanism, fixed for inspection only")
+            continue
         axis = np.asarray(jt.axis, float)
         qa = _quat_x_to(axis)
         jpos = np.asarray(jt.pos, float)
@@ -1027,6 +1036,11 @@ def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full",
         return None
 
     couplings = []
+    unsupported_free = [dict(body=b.name, joint=b.joint.name, qpos_width=7, qvel_width=6,
+        type="free_root_unsupported", native_support=False,
+        note="Circulating material-chain root is fixed for USD inspection. Its free pose and closed-loop contact dynamics require native MJCF; mechanical parity is unsupported.")
+        for b in bodies if b.joint is not None and b.joint.type == "free"]
+    couplings.extend(unsupported_free)
     coupling_specs = joint_couplings(model, tier, joint_types, wt, _body_of_joint, servo_joints=set(servo_joints))
     reflected = {}
     for c in sorted(coupling_specs, key=lambda c: c["chain_order"]):
@@ -1079,10 +1093,20 @@ def write_usd(model: Model, out_dir: str, hardware_dir: str, tier: str = "full",
     #     contact_excludes -> author the difference (and the adjacent ones, harmlessly) so both engines agree
     filtered = mujoco_filtered_pairs(model, bodies, tier)
     n_filtered = W.add_filtered_pairs([(body_paths[a], body_paths[b]) for a, b in filtered if a in body_paths and b in body_paths])
+    for spring in model.spatial_springs:
+        if tier in spring.tiers:
+            couplings.append(dict(spring.to_dict(), type="spatial_spring_unsupported", native_support=False,
+                note="No native spatial spring is authored in this USD export. Requires an endpoint-force implementation; loading the asset does not establish mechanical parity."))
+    for cable in model.spatial_cables:
+        if tier in cable.tiers:
+            couplings.append(dict(cable.to_dict(),type="spatial_cable_unsupported",native_support=False,
+                note="No native tension-only routed cable or pulley wrap is authored; loading is not mechanical parity."))
     W.set_json(W.root.GetPrim(), "doorbench:couplings", couplings)
     W.set_json(W.root.GetPrim(), "doorbench:env_release", env_release)
     W.set_json(W.root.GetPrim(), "doorbench:filtered_pairs", [list(x) for x in filtered])
     meta = {k: v for k, v in model.meta.items() if k not in ("notes",)}
+    if unsupported_free:
+        meta.update(unsupported_free_roots=unsupported_free, mechanical_parity_supported=False)
     meta["usd_layout"] = "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)"
     meta["joints"] = {name: str(p) for name, p in joint_paths.items()}
     meta["self_collisions"] = True
@@ -1212,6 +1236,7 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
             (release-type parts released) and further leaf-like panels beyond the second are omitted.
     Meta    ``doorbench:rl`` (JSON) on the default prim describes the slots, thresholds, grip points and sites.
     """
+    model.validate_free_joints()
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, filename)
     W = _Writer(model, path, hardware_dir, out_dir)
@@ -1704,6 +1729,15 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
         "welded_engaged": [w for w in weld_record if not w["released"] and w["holding"]],
         "operator_driven_joints": sorted(op_driven),
         "couplings": rl_couplings,
+        **({"unsupported_spatial_springs": [s.to_dict() for s in model.spatial_springs if tier in s.tiers],
+            "mechanical_parity_supported": False} if model.spatial_springs else {}),
+        **({"unsupported_spatial_cables": [c.to_dict() for c in model.spatial_cables if tier in c.tiers],
+            "mechanical_parity_supported": False} if model.spatial_cables else {}),
+        **({"unsupported_free_roots": [dict(body=b.name, joint=b.joint.name,
+                reason="Independent circulating material-chain free root is fixed/omitted by the canonical articulation; native MJCF is required.")
+                for b in bodies if b.joint is not None and b.joint.type == "free"],
+            "mechanical_parity_supported": False}
+           if any(b.joint is not None and b.joint.type == "free" for b in bodies) else {}),
         "coupling_reflected_armature": reflected_rl,
         "self_collisions": True,
         "filtered_pairs": [list(x) for x in sorted(link_pairs)],

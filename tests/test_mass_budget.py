@@ -37,19 +37,17 @@ def _one(specs, family, pred=None):
 # ---------------------------------------------------------------------------
 # the budget itself
 # ---------------------------------------------------------------------------
-def test_door_mass_is_every_leaf(specs):
-    """total_kg is leaf_count leaves of material plus the door's hardware; per_leaf_kg is ONE of them."""
+def test_door_mass_is_every_physical_panel(specs):
+    """A repeated nominal slab must not replace the actual panel dimensions."""
+    from doorbench.mass_layout import mass_panels
     for fam in ("swing_double", "revolving", "sliding_bypass", "accordion", "strip_curtain"):
         s = _one(specs, fam)
         mb = P.mass_budget(s)
-        n = mb["leaf_count"]
-        assert n > 1, fam
-        assert mb["slab_kg"] == pytest.approx(n * mb["leaf_slab_kg"])
-        assert mb["glass_kg"] == pytest.approx(n * mb["leaf_glass_kg"])
-        assert mb["total_kg"] == pytest.approx(n * (mb["leaf_slab_kg"] + mb["leaf_glass_kg"]) + mb["hardware_kg"])
-        assert mb["per_leaf_kg"] == pytest.approx(mb["leaf_slab_kg"] + mb["leaf_glass_kg"] + mb["leaf_hardware_kg"])
-        # the whole door is heavier than one leaf by the leaves it has, not by a rounding error
-        assert mb["total_kg"] > 1.8 * mb["per_leaf_kg"]
+        assert mb["leaf_count"] > 1, fam
+        assert [r["body"] for r in mb["per_body"]] == [r["body"] for r in mass_panels(s)]
+        assert mb["slab_kg"] == pytest.approx(sum(r["slab_kg"] for r in mb["per_body"]))
+        assert mb["glass_kg"] == pytest.approx(sum(r["glass_kg"] for r in mb["per_body"]))
+        assert mb["total_kg"] == pytest.approx(sum(r["total_kg"] for r in mb["per_body"]))
 
 
 def test_leaf_material_is_area_density_times_the_leafs_own_area(specs):
@@ -57,8 +55,13 @@ def test_leaf_material_is_area_density_times_the_leafs_own_area(specs):
     leaf = s["leaf"]
     ad = M.SLABS[leaf["slab"]].area_density(leaf["thickness"])
     mat = P.one_leaf_material(s)
-    assert mat["slab_kg"] == pytest.approx(ad * leaf["width"] * leaf["height"])
-    assert P.mass_budget(s)["slab_kg"] == pytest.approx(leaf["count"] * ad * leaf["width"] * leaf["height"])
+    # Independently derive two equal leaves after the real jamb/meeting gaps.
+    from doorbench import hardware as H
+    inset = .006 if H.HINGES[s['hinge']['model']].kind in ('pivot_center','pivot_center_heavy') else .003
+    meeting = .056 if leaf.get('astragal')=='removable_mullion' else .003
+    width = (s['opening']['width']-2*inset-meeting)/2
+    assert mat["slab_kg"] == pytest.approx(ad * width * leaf["height"])
+    assert P.mass_budget(s)["slab_kg"] == pytest.approx(2 * ad * width * leaf["height"])
 
 
 def test_single_leaf_door_is_unchanged_by_the_leaf_count(specs):
@@ -68,22 +71,26 @@ def test_single_leaf_door_is_unchanged_by_the_leaf_count(specs):
     assert mb["total_kg"] == pytest.approx(mb["per_leaf_kg"])
 
 
-def test_tripod_turnstile_slab_is_one_arm(specs):
+def test_tripod_turnstile_slab_is_complete_rotor(specs):
     """The tripod special case builds THREE arms in a family whose leaf count is 3; per arm, or it triples."""
     s = _one(specs, "turnstile_tripod")
     mb = P.mass_budget(s)
     assert mb["leaf_count"] == 3
     # one 38 mm x 1.5 mm stainless arm of the sampled length, plus a third of the hub
-    tube = math.pi * (0.019 ** 2 - 0.0175 ** 2) * s["leaf"]["width"] * 7900
-    assert mb["leaf_slab_kg"] == pytest.approx(tube + 1.0)
+    length = s["leaf"]["width"] - (.065 if s["kinematics"].get("drop_arm") else 0.)
+    tube = math.pi * (0.019 ** 2 - 0.0175 ** 2) * length * 7900
+    assert mb["leaf_slab_kg"] == pytest.approx(3 * tube + 3.0)
     assert mb["slab_kg"] == pytest.approx(3 * tube + 3.0)
 
 
-def test_latch_hardware_is_charged(specs):
-    """A watertight door's six dogs are 15 kg the geometry models; the budget used to charge nothing for them."""
+def test_latch_hardware_is_charged_from_actual_geometry(specs):
+    """The six marine dogs have their own BOM; do not add a second 15 kg proxy."""
     s = _one(specs, "ship_watertight", lambda x: x["latch"]["model"] == "dogs_6")
-    parts = P.mass_budget(s)["hardware_parts"]
-    assert parts["latch"] == pytest.approx(15.0)
+    phys=P.derive(s);model=B.build_model(s,phys)
+    dogs=[b for b in model.bodies if b.joint and b.joint.name in model.meta['dog_joints']]
+    assert len(dogs)==6
+    assert all(b.inertial('full')[0]>0 for b in dogs)
+    assert phys['mass']['total_kg']==pytest.approx(sum(b.inertial('full')[0] for b in model.bodies if not b.static))
 
 
 # ---------------------------------------------------------------------------
@@ -180,8 +187,8 @@ def test_gate_catches_one_leafs_mass_split_across_the_leaves(tmp_path, specs):
                     b["mass"] = b["mass"] / n
         spec, phys, d = _door_dir(tmp_path / fam, spec, mutate=split)
         res = QA.leaf_mass_checks(spec, phys, d)
-        assert not res["ok"] and not res["checks"]["leaf_material_mass"], (fam, res["metrics"])
-        assert res["metrics"]["leaf_mass_ratio"] == pytest.approx(1.0 / n, rel=0.05)
+        assert not res["ok"] and not res["checks"]["leaf_mass_share"], (fam, res["metrics"])
+        assert all(r["actual_panel_assembly_kg"] < r["expected_panel_assembly_kg"] for r in res["metrics"]["panels"])
 
 
 def test_gate_catches_an_uneven_split_that_sums_correctly(tmp_path, specs):

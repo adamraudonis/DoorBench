@@ -2,6 +2,16 @@
 import type { ModelJ } from "./types";
 import type { JointHandle } from "./scene";
 
+/** Contact-dependent assemblies have no valid independent leaf slider. */
+export function requiresRecordedPhysics(model: ModelJ): boolean {
+  return ['sectional_track','rollup_curtain','strip_curtain','elevator_interlocks',
+    'security_guards','turnstile_locks','turnstile_drop_arm','marine_dog_mounts',
+    'multipoint_locks','gate_hardware','closer_track_holds','pocket_edge_pull',
+    'hatch_support','dutch_joining_bolt','paired_leaf_holds','vault_boltwork','rotary_locksets'].some(key => {
+      const value=model.meta?.[key];return Array.isArray(value)?value.length>0:!!value;
+    });
+}
+
 /** A joint whose range is (almost) zero is locked: the mechanism cannot be worked (e.g. a keyed lever, a jammed bolt). */
 export function isLocked(h: JointHandle | undefined): boolean {
   return !!h && !!h.range && h.range[1] - h.range[0] < 0.006;
@@ -269,6 +279,7 @@ function pairedOpenClosePhases(model: ModelJ, joints: Map<string, JointLike>): {
  * release the operator.  A locked operator (range < 0.006) is never driven.
  */
 export function openClosePhases(model: ModelJ, joints: Map<string, JointLike>): { phases: Phase[]; note: string | null } {
+  if(requiresRecordedPhysics(model)) return {phases:[],note:'Use recorded physics to inspect this contact-dependent mechanism.'};
   if (isSwingPair(model)) return pairedOpenClosePhases(model, joints);
   const meta = model.meta ?? {};
   const operator: string | undefined = meta.operator_joint ?? undefined;
@@ -335,6 +346,7 @@ export function sliderReaction(model: ModelJ, joints: Map<string, JointLike>, le
   const operator = previewOperatorForLeaf(model, leafJoint);
   const h = joints.get(leafJoint);
   const out = { operator: null as string | null, operatorTo: null as number | null, operatorsTo: [] as { joint: string; q: number }[], blocked: false, mirror: null as { joint: string; q: number } | null, note: null as string | null };
+  if(requiresRecordedPhysics(model)) return {...out,blocked:true,note:'Use recorded physics to inspect this contact-dependent mechanism.'};
   if (!h || (leafJoint !== primary && leafJoint !== secondary)) return out;
   if (isSwingPair(model)) {
     const reason = pairLeafBlock(model, joints, h) || astragalBlock(model, joints, h, q);

@@ -9,6 +9,14 @@ from . import common as C
 CARRIER_MIN_GAP = 0.03   # m; below this there is no room for a hanger: the leaf runs directly under its header
 
 
+def bypass_leaf_range(spec, index):
+    """The same unlocked stroke is used by native joints, rails and guide sweeps."""
+    width, count = spec["leaf"]["width"], spec["leaf"]["count"]
+    span = spec["opening"]["width"] - 2*C.GAP
+    pitch = (span-width)/max(count-1, 1)
+    return (0.0, span-width-0.020 if index == 0 else index*pitch-0.020)
+
+
 def add_tracks(model, world, spec, leaf_defs, y_leaf, jamb_t, material):
     """Build a rail for each lane, retaining nominal travel when the lock limits q."""
     W = spec["leaf"]["width"]
@@ -19,10 +27,8 @@ def add_tracks(model, world, spec, leaf_defs, y_leaf, jamb_t, material):
     for i, (name, direction, xc, yl) in enumerate(leaf_defs):
         lo, hi = (0.0, travel)
         if spec["family"] == "sliding_bypass":
-            hi = W - 0.03
+            lo, hi = bypass_leaf_range(spec, i)
             direction = 1.0 if i == 0 else -1.0
-            if 0 < i < len(leaf_defs) - 1:
-                lo = -hi
         xs = (xc + direction * lo, xc + direction * hi)
         x0, x1 = min(xs) - W / 2 - 0.05, max(xs) + W / 2 + 0.05
         center, half = (x0 + x1) / 2, (x1 - x0) / 2
@@ -46,7 +52,7 @@ def add_tracks(model, world, spec, leaf_defs, y_leaf, jamb_t, material):
             world.geoms.append(C.box(prefix + "kamoi", (center, yl, Ho + 0.03), (half, 0.025, 0.03), rail_material, 410, True, True, ALL_TIERS, "track", "Kamoi (head rail)"))
         definition = {"joint": name + "_slide", "body": name, "rail": rail_name,
                       "nominal_range": [lo, hi], "leaf_width_m": W, "rollers": [], "end_stops": [],
-                      "floor_guides_required": track == "surface_flat_track" or "floor_guide" in spec.get("extras", []),
+                      "floor_guides_required": track in ("surface_flat_track", "top_hung_pocket", "top_hung_bypass") or "floor_guide" in spec.get("extras", []),
                       "floor_guides": []}
         definitions[name] = definition
         if track == "surface_flat_track":
@@ -59,6 +65,70 @@ def add_tracks(model, world, spec, leaf_defs, y_leaf, jamb_t, material):
                 world.geoms.append(C.cyl(f"track_standoff_{k}", (x, (rear + wall_face) / 2, z), 0.012, (wall_face - rear) / 2, material, (0, 1, 0), 7850, False, True, FULL_ONLY, "track", "Wall-to-track spacer"))
     model.meta["sliding_track_supports"] = list(definitions.values())
     return definitions
+
+
+def add_enclosed_hangers(model, world, body, spec, bottom_z, support, roller_material, track_material):
+    """Two leaf-mounted trolleys on a slotted overhead channel, with end stops.
+
+    Independent 25 mm wheels, running ledges and a central stem slot follow the
+    topology of commercial pocket/bypass tracks. Wheels remain rigid proxies on
+    the translating carriage; rolling resistance belongs to the native slide.
+    """
+    W, Hh = spec["leaf"]["width"], spec["leaf"]["height"]
+    rail = next(g for g in world.geoms if g.name == support["rail"])
+    top = bottom_z+Hh
+    # All mechanism parts fit in the 95 mm specification head clearance.
+    radius, tread_top, roof_z = 0.0125, top+0.031, top+0.064
+    if roof_z+0.003 > spec["opening"]["height"]:
+        raise ValueError(f"{spec['id']}: top-hung track requires >= 95 mm head clearance")
+    lo,hi=support["nominal_range"]
+    centers=[body.pos[0]+body.joint.axis[0]*q for q in (lo,hi)]
+    inset = min(0.100,W*.18)
+    x0=min(centers)-W/2+inset-radius-0.020
+    x1=max(centers)+W/2-inset+radius+0.020
+    cx, hx, lane = (x0+x1)/2, (x1-x0)/2, body.pos[1]
+    support["rail_coverage_mode"]="trolley_sweep"
+    rail.pos, rail.size = (cx, lane-0.012, tread_top-0.002), (hx, 0.008, 0.002)
+    rail.part_label = "Left trolley running ledge"
+    right_name = support["rail"]+"_right"
+    world.geoms.append(C.box(right_name, (cx,lane+0.012,tread_top-0.002), (hx,0.008,0.002), track_material,2700,True,True,FULL_SIMPLE,"track","Right trolley running ledge"))
+    world.geoms.append(C.box(support["rail"]+"_roof", (cx,lane,roof_z), (hx,0.024,0.003),track_material,2700,True,True,FULL_SIMPLE,"track","Header-mounted channel roof"))
+    # Bolted spacers meet both the channel and the structural header; there is
+    # no floating decorative suspension above the leaf.
+    mounts=[]
+    mount_low, mount_high=roof_z+0.003,spec["opening"]["height"]
+    count=max(2,math.ceil((x1-x0)/0.45)+1)
+    for k in range(count):
+        x=x0+0.025+(x1-x0-0.050)*k/(count-1)
+        name=support["rail"]+f"_header_mount_{k}"
+        world.geoms.append(C.box(name,(x,lane,(mount_low+mount_high)/2),(0.015,0.020,(mount_high-mount_low)/2),track_material,2700,True,True,FULL_SIMPLE,"track","Bolted channel-to-header spacer"))
+        mounts.append(name)
+    support["header_mounts"]=mounts
+    support["header_geom"]="pocket_structural_header" if spec["kinematics"]["track"]=="top_hung_pocket" else "jamb_head"
+    for side in (-1,1):
+        world.geoms.append(C.box(support["rail"]+f"_side_{side}", (cx,lane+side*0.022,(roof_z+tread_top)/2),
+                                (hx,0.002,(roof_z-tread_top)/2),track_material,2700,True,True,FULL_SIMPLE,"track","Channel cheek"))
+    support["channel_running_rails"] = [support["rail"],right_name]
+    support["wheel_running_rails"] = {}
+    support["suspension_model"] = "two_trolleys_four_rigid_wheel_proxies"
+    support["carriage_collision_geoms"] = []
+    wheel_z = tread_top+radius
+    for k, x in enumerate((-W/2+inset,W/2-inset)):
+        body.geoms.append(C.box(f"{body.name}_hanger_plate_{k}", (x,0,top-0.002), (0.032,min(spec["leaf"]["thickness"]/2,0.014),0.003),roller_material,7850,True,True,FULL_SIMPLE,"track","Leaf-mounted trolley plate"))
+        body.geoms.append(C.cyl(f"{body.name}_hanger_stem_{k}", (x,0,(top+wheel_z)/2),0.003,(wheel_z-top)/2,roller_material,(0,0,1),7850,True,True,FULL_SIMPLE,"track","Trolley stem through channel slot"))
+        body.geoms.append(C.cyl(f"{body.name}_hanger_axle_{k}", (x,0,wheel_z),0.003,0.017,roller_material,(0,1,0),7850,False,True,FULL_SIMPLE,"track","Trolley axle"))
+        carriage=f"{body.name}_trolley_carriage_{k}"
+        body.geoms.append(C.box(carriage,(x,0,wheel_z),(radius,0.003,0.005),roller_material,7850,True,True,FULL_SIMPLE,"track","Trolley carriage; physical end-stop contact"))
+        support["carriage_collision_geoms"].append(carriage)
+        for side in (-1,1):
+            wheel_name=f"{body.name}_trolley_wheel_{k}_{side}"
+            body.geoms.append(C.cyl(wheel_name,(x,side*0.012,wheel_z),radius,0.005,roller_material,(0,1,0),1200,False,True,FULL_SIMPLE,"track","25 mm trolley wheel (rigid rolling proxy)"))
+            support["rollers"].append(wheel_name)
+            support["wheel_running_rails"][wheel_name] = support["rail"] if side < 0 else right_name
+    for sign,x in ((-1,min(centers)-W/2+inset-radius),(1,max(centers)+W/2-inset+radius)):
+        name=f"{body.name}_track_stop_{'l' if sign<0 else 'r'}"
+        world.geoms.append(C.box(name,(x+sign*0.006,lane,wheel_z),(0.006,0.020,0.015),track_material,2700,True,True,FULL_SIMPLE,"track","Bolted channel end stop"))
+        support["end_stops"].append(name)
 
 
 def add_barn_hangers(model, world, body, spec, zb, support, roller_material, track_material):
@@ -111,7 +181,9 @@ def add_lane_floor_guides(model, world, body, spec, bottom_z, support, material)
     W, t = spec["leaf"]["width"], spec["leaf"]["thickness"]
     centers = [body.pos[0] + body.joint.axis[0] * q for q in support["nominal_range"]]
     low, high = min(centers), max(centers)
-    count = max(1, math.ceil((high - low) / (W - 0.02)))  # at least 10 mm panel overlap at the furthest center
+    # The 56 mm-wide jaw can straddle a panel edge; keep >= 10 mm actual
+    # overlap. In particular, one pocket guide at the mouth covers both ends.
+    count = max(1, math.ceil((high - low) / (W + 2*0.028 - 0.02)))
     top = bottom_z + 0.008  # 8 mm of lateral restraint above the panel's lower edge
     for station in range(count):
         x = low + (station + 0.5) * (high - low) / count

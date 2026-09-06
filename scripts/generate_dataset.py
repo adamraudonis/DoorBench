@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 import time
@@ -71,6 +72,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="assets")
     ap.add_argument("--workers", type=int, default=6)
+    ap.add_argument("--worker-timeout",type=float,default=900.,help="Seconds without a completed worker before serial recovery; detailed native chain tests can take several minutes")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--ids", default="")
     ap.add_argument("--families", default="")
@@ -78,6 +80,8 @@ def main():
     ap.add_argument("--formats", default="mjcf,urdf,usd,json")
     ap.add_argument("--seed", type=int, default=20260903)
     a = ap.parse_args()
+    if a.workers<1 or not math.isfinite(a.worker_timeout) or a.worker_timeout<=0:
+        ap.error('workers and worker-timeout must be positive and finite')
     specs = generate_all(a.seed)
     if a.ids:
         want = set(a.ids.split(","))
@@ -108,7 +112,7 @@ def main():
     def report(i, row):
         if "error" in row:
             print(f"[{i + 1}/{len(jobs)}] ERROR {row['id']}: {row['error']}", flush=True)
-        elif (i + 1) % 25 == 0 or not row["signed_off"]:
+        elif len(jobs)<=25 or (i + 1) % 25 == 0 or not row["signed_off"]:
             print(f"[{i + 1}/{len(jobs)}] {row['id']} signed_off={row['signed_off']} failed={row.get('qa_failed')} ({time.time() - t0:.0f}s)", flush=True)
 
     # crash-tolerant pool: a worker that dies (e.g. offscreen GL) loses only its current job, which is redone serially
@@ -117,7 +121,7 @@ def main():
     it = pool.imap_unordered(one, jobs, chunksize=1)
     while True:
         try:
-            row = it.next(timeout=240)
+            row = it.next(timeout=a.worker_timeout)
         except StopIteration:
             break
         except multiprocessing.TimeoutError:

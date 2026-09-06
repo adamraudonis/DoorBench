@@ -267,6 +267,14 @@ def _strike_column(geoms, prefix, sx, u, v, jamb_t, ya, yb, z_top, pockets, mat,
             yp0, yp1 = sorted((yc + v * pw / 2, y_m))
             if yp1 - yp0 > 1e-4:
                 geoms.append(box(f"{tag}_wall_p", (sx + u * jamb_t / 2, (yp0 + yp1) / 2, zc), (jamb_t / 2, (yp1 - yp0) / 2, ph / 2), mat, dens, semantic="frame", label="Strike lip (flat)"))
+                if pk.get('strike_material'):
+                    # Mortise the plate flush. A proud 1.5 mm plate consumes
+                    # the designed leaf gap and can arrest the slab itself.
+                    backing=geoms[-1]
+                    backing.pos=(backing.pos[0]+u*.00075,*backing.pos[1:])
+                    backing.size=(backing.size[0]-.00075,*backing.size[1:])
+                    geoms.append(box(f'{tag}_lip_plate',(sx+u*.00075,(yp0+yp1)/2,zc),(.00075,(yp1-yp0)/2,ph/2),
+                        pk['strike_material'],7900,semantic='frame',label='Flush steel strike lip in prepared frame',friction=(.12,.005,.0001)))
             # the ramp always runs out ~20 mm past the member's swing-side face: a bolt tip descending onto the member
             # as the door closes must meet the ramp, never a flat face beyond it
             y_top = (y_edge_p + v * 0.02) if v * (y_edge_p + v * 0.02 - y_m) > 0.03 else (y_m + v * 0.03)
@@ -279,6 +287,12 @@ def _strike_column(geoms, prefix, sx, u, v, jamb_t, ya, yb, z_top, pockets, mat,
             cy = (y_m + y_top) / 2 + v * (jamb_t / 2) * ny
             q = quat_from_axis_angle([0, 0, 1], -u * v * ang)
             geoms.append(box(f"{tag}_ramp", (cx, cy, zc), (jamb_t / 2, L / 2, ph / 2), mat, dens, semantic="frame", label="Strike lip (ramp)", quat=q, friction=(0.12, 0.005, 0.0001)))
+            if pk.get('strike_material'):
+                backing=geoms[-1]
+                backing.pos=(cx+u*math.cos(ang)*.00075,cy-v*math.sin(ang)*.00075,zc)
+                backing.size=(backing.size[0]-.00075,*backing.size[1:])
+                geoms.append(box(f'{tag}_ramp_plate',(sx+u*rise/2+u*math.cos(ang)*.00075,(y_m+y_top)/2-v*math.sin(ang)*.00075,zc),
+                    (.00075,L/2,ph/2),pk['strike_material'],7900,semantic='frame',label='Formed steel strike ramp',quat=q,friction=(.12,.005,.0001)))
             y_fill0 = y_top + v * ((jamb_t / 2) * math.sin(ang) + 0.001)
             if v * (y_edge_p - y_fill0) > 0.002:
                 yf0, yf1 = sorted((y_fill0, y_edge_p))
@@ -318,6 +332,9 @@ def add_head(geoms, name, x0, x1, yw, depth, z0, thick, mat, dens, head_pockets=
             yw0, yw1 = sorted((yc + sy * p["w"] / 2, yw + sy * depth / 2))
             if yw1 - yw0 > 1e-4:
                 geoms.append(box(f"{name}_pwall_{int(p['x'] * 1000)}_{'p' if sy > 0 else 'n'}", (p["x"], (yw0 + yw1) / 2, z0 + thick / 2), (p["hx"], (yw1 - yw0) / 2, thick / 2), mat, dens, semantic="frame", label="Head strike wall"))
+                if p.get('strike_material') and sy==p.get('swing_direction'):
+                    geoms.append(box(f"{name}_strike_plate_{int(p['x']*1000)}",(p['x'],yw+sy*(depth/2+.00075),z0+thick/2),
+                        (p['hx'],.00075,thick/2),p['strike_material'],7900,semantic='frame',label='Steel head strike approach plate',friction=(.12,.005,.0001)))
         back = thick - p["depth"]
         if back > 0.003:
             geoms.append(box(f"{name}_pback_{int(p['x'] * 1000)}", (p["x"], yc, z0 + p["depth"] + back / 2), (p["hx"], p["w"] / 2, back / 2), mat, dens, semantic="frame", label="Head strike back"))
@@ -485,11 +502,41 @@ def add_leaf_geoms(model: Model, leaf_body: Body, spec: dict, leaf: dict, u: flo
     fin = leaf["finish"]
     lm = mat_from_finish(model, fin, f"mat_{name_prefix}")
     face = M.slab_face_material(slab)
-    mass = phys["mass"]["leaf_slab_kg"] if phys else None      # ONE leaf's slab: this draws one leaf
+    mass = phys['mass'].get('leaf_slab_kg',phys['mass'].get('slab_kg')) if phys else None
     xc = x0 + u * W / 2
     zc = z0 + Hh / 2
     style = leaf.get("panel_style", "flush")
     glazing = leaf.get("glazing")
+    if leaf["slab"] in M.FRAMED_GLASS_SLABS:
+        profile = M.framed_glass_profile(leaf["slab"], W, Hh, t)
+        for part in profile["parts"]:
+            px, py, pz = part["pos"]
+            material = mat_from_material(model, part["material"], f"mat_framed_{part['material']}")
+            leaf_body.geoms.append(box(
+                f"{name_prefix}_{part['name']}", (x0 + u*px, y_center + py, z0 + pz),
+                tuple(part["size"]), material, M.MATERIALS[part["material"]].density,
+                True, True, collision_tiers, part["semantic"], part["name"].replace("_", " ").title()))
+        # The leaves can be strike surfaces or contain an embedded flap. Cut
+        # actual frame/pane pieces; never cover the glazing with a slab proxy.
+        if hole:
+            from .pocket_hardware import cut_box_recess
+            hx, hz, hw, hh = hole
+            cut_box_recess(leaf_body, (hx-hw/2,y_center-t,hz-hh/2), (hx+hw/2,y_center+t,hz+hh/2), "framed_opening")
+        if edge_pockets:
+            from .pocket_hardware import cut_box_recess
+            for index, pocket in enumerate(edge_pockets):
+                z = pocket["z"]
+                height = pocket.get("h", pocket.get("height", .04))
+                depth = pocket.get("depth", .04)
+                # Same strike-side allowance as the ordinary leaf column.
+                edge = x0 + u*W
+                xx = sorted((edge, edge-u*depth))
+                cut_box_recess(leaf_body, (xx[0],y_center-t,z-height/2), (xx[1],y_center+t,z+height/2), f"framed_strike_{index}")
+        model.meta.setdefault("framed_glass_constructions", []).append({
+            **{k:v for k,v in profile.items() if k!="parts"}, "body":leaf_body.name,
+            "prefix":name_prefix, "x0":x0, "z0":z0, "u":u,
+        })
+        return
     is_frameless_glass = style == "glass_frameless" or slab.core_material in ("glass_clear", "mirror") and slab.monolithic
     is_mesh = style in ("mesh_panel", "pickets", "bar_grille", "ornamental_scroll", "grille_rollup", "strips")
     slab_fric = (face.friction_kinetic, 0.005, 0.0001)
@@ -748,59 +795,122 @@ def add_spring_latch(model: Model, leaf_body: Body, spec: dict, phys: dict, u: f
     body.joint = Joint(f"{name}_slide", "slide", (-u, 0, 0), (0, 0, 0), (0.0, throw), damping=2.0, frictionloss=0.3,
                        stiffness=latch.spring_rate, springref=-latch.spring_preload / max(latch.spring_rate, 1e-6), armature=1e-4,
                        role="latch", label="Latch bolt (0 = extended, + = retracted)", robot_interactive=False)
-    # capsule bolt (round tip rides over the strike lip on closing): axis along u, from x=-inside to x=+throw
-    r = bw / 2
-    half = (throw + inside) / 2 - r
-    body.geoms.append(Geom(f"{name}_capsule", "capsule", (r, max(half, 0.002)), (u * (throw - inside) / 2, 0, 0), tuple(quat_z_to((u, 0, 0))), bm, True, True, 8500, None, (0.2, 0.005, 0.0001), None, None, False, None, None, 0.0, tiers, "latch", "Latch bolt"))
+    if latch.kind in ('tubular_latch','deadlatch','mortise_latch','rim_latch'):
+        # A rounded capsule can meet the strike with a purely sideways
+        # normal and arrest the closer. A real spring bolt has a closing bevel.
+        key,mesh=MESH.beveled_bolt_mesh(throw=throw,inside=inside,width=bw,height=bh)
+        rotation=mat_to_quat(np.diag([u,v,u*v]))
+        body.geoms.append(mesh_geom(f'{name}_capsule',key,mesh,(0,0,0),rotation,bm,8500,True,tiers,'latch','Beveled spring latch bolt'))
+        body.geoms[-1].friction=(.2,.005,.0001)
+    else:
+        r=bw/2;half=(throw+inside)/2-r
+        body.geoms.append(Geom(f"{name}_capsule", "capsule", (r, max(half, 0.002)), (u * (throw - inside) / 2, 0, 0), tuple(quat_z_to((u, 0, 0))), bm, True, True, 8500, None, (0.2, 0.005, 0.0001), None, None, False, None, None, 0.0, tiers, "latch", "Rounded roller/ball catch proxy"))
+    from .lock_stock import add_bolt_cartridge
+    stock_record=add_bolt_cartridge(model,leaf_body,body,name=name,u=u,t=t,edge=x_edge,z=z,y=y,faceplate=faceplate)
     model.add_body(body)
     tendons = []
     if handle_joint_name and coupling_scale > 0:
+        driver=next((b.joint for b in model.bodies if b.joint and b.joint.name==handle_joint_name),None)
+        if driver is not None and driver.range and driver.range[1]>0:
+            coupling_scale=min(coupling_scale,throw/driver.range[1])
+        stock_record['handle_coupling']={'joint':handle_joint_name,'bolt_m_per_joint_unit':coupling_scale,
+                                       'bolt_throw_m':throw,'scope':'One-sided concealed linkage; calibrated to actual operator endpoint.'}
         tendons.append(Tendon(f"{name}_coupling", [(f"{name}_slide", 1.0), (handle_joint_name, -coupling_scale)], (0.0, 10.0), 0.0, 0.0, tiers, "bolt_q >= scale*handle_q (one-sided)"))
         tendons[-1].kind = "fixed"
     pocket = {"z": z, "h": bh + 0.008, "w": bw + 0.003, "depth": throw + 0.004, "ramp": True, "ramp_rise": throw - GAP + 0.004, "y": y}
+    pocket['strike_material']=mat_from_material(model,'stainless','mat_strike_steel')
     return LatchResult(body, [pocket], tendons)
 
 
-def add_deadbolt(model: Model, leaf_body: Body, spec: dict, u: float, v: float, x_edge: float, z: float, t: float, throw: float, engaged: bool, thumbturn_side: float | None, thumbturn_travel: float, thumbturn_torque: float, name="deadbolt", tiers=FULL_SIMPLE, keyed_side: float | None = None, tt_standoff: float = 0.0, couple_to: tuple | None = None, faceplate: bool = True):
+def add_deadbolt(model: Model, leaf_body: Body, spec: dict, u: float, v: float, x_edge: float, z: float, t: float, throw: float, engaged: bool, thumbturn_side: float | None, thumbturn_travel: float, thumbturn_torque: float, name="deadbolt", tiers=ALL_TIERS, keyed_side: float | None = None, tt_standoff: float = 0.0, couple_to: tuple | None = None, faceplate: bool = True):
     """Deadbolt: slide body (axis -u, + = retracted); thumbturn body on the given face drives it (bilateral equality).
     tt_standoff: thumbturn / cylinder faces stand off the leaf face (on a rim case).  couple_to=(joint, ratio): the bolt
     is driven by another joint instead of its own thumbturn (multipoint lock points)."""
     bw, bh = 0.016, 0.025
     inside = 0.030
+    case_side=thumbturn_side if thumbturn_side is not None else (1. if spec['robot']['robot_outside'] else -1.)
+    bolt_y=case_side*(t/2+tt_standoff/2) if tt_standoff>0 else 0.
     bm = mat_from_material(model, "brass", "mat_deadbolt")
     if faceplate:
         leaf_body.geoms.append(box(f"{name}_faceplate", (x_edge - u * 0.0006, 0.0, z), (0.0006, min(bw / 2 + 0.006, t / 2 - 0.002), bh / 2 + 0.012), bm, 8500, False, True, FULL_SIMPLE, "leaf", "Deadbolt faceplate (flush in the edge)"))
-    body = Body(name, leaf_body.name, (x_edge, 0.0, z), QUAT_ID, None, [], [], tiers, "lock", "Deadbolt")
+    body = Body(name, leaf_body.name, (x_edge, bolt_y, z), QUAT_ID, None, [], [], tiers, "lock", "Deadbolt")
     q0 = 0.0 if engaged else throw
     if thumbturn_side is not None or couple_to is not None:
         body.joint = Joint(f"{name}_slide", "slide", (-u, 0, 0), (0, 0, 0), (0.0, throw), damping=5.0, frictionloss=1.5, armature=1e-4, role="lock", label="Deadbolt (0 = thrown, + = retracted)", robot_interactive=False, initial=q0, modeled_at=q0)
     else:
-        body.joint = None  # fixed in place (keyed both sides / no robot release)
+        body.joint = None  # Key-only lock: inserted-key mechanics are not modeled.
     xoff = 0.0 if engaged else -u * throw
     body.geoms.append(box(f"{name}_box", (u * (throw - inside) / 2 + xoff, 0, 0), ((throw + inside) / 2, bw / 2, bh / 2), bm, 8500, True, True, tiers, "lock", "Deadbolt", friction=(0.3, 0.005, 0.0001)))
+    from .lock_stock import add_bolt_cartridge,cut_stock,expand_box_mesh_stock
+    stock_record=add_bolt_cartridge(model,leaf_body,body,name=name,u=u,t=t,edge=x_edge,z=z,y=bolt_y,faceplate=faceplate)
+    rim_case=f'{leaf_body.name}_night_latch_case'
+    if any(g.name==rim_case for g in leaf_body.geoms):
+        stock_record['rim_case_cut']=cut_stock(leaf_body,stock_record['stock_cut']['lower'],stock_record['stock_cut']['upper'],name+'_case_cavity',names={rim_case})
     model.add_body(body)
     eqs = []
     if couple_to is not None:
         eqs.append(Equality("joint", f"{name}_couple", f"{name}_slide", couple_to[0], (0.0, couple_to[1], 0, 0, 0), tiers=tiers, label="lock point follows the main bolt"))
     elif thumbturn_side is not None:
-        tt = Body(f"{name}_thumbturn", leaf_body.name, (x_edge - u * 0.065, thumbturn_side * (t / 2 + tt_standoff), z), QUAT_ID, None, [], [], tiers, "lock", "Thumbturn")
+        turn_standoff=max(tt_standoff,max(abs(stock_record['stock_cut']['lower'][1]),abs(stock_record['stock_cut']['upper'][1]))-t/2)
+        tt = Body(f"{name}_thumbturn", leaf_body.name, (x_edge - u * 0.065, thumbturn_side * (t / 2 + turn_standoff), z), QUAT_ID, None, [], [], tiers, "lock", "Thumbturn")
         tt.joint = Joint(f"{name}_thumbturn_hinge", "hinge", (0, -thumbturn_side, 0), (0, 0, 0), (0.0, thumbturn_travel), damping=0.05, frictionloss=thumbturn_torque, armature=1e-5, role="lock", label="Thumbturn (rotate to retract deadbolt)", initial=0.0 if engaged else thumbturn_travel)
-        key, mesh = MESH.thumbturn_mesh()
-        tt.geoms.append(mesh_geom(f"{name}_thumbturn_mesh", key, mesh, (0, 0, 0), q_face(thumbturn_side, u), bm, 7100, True, tiers, "lock", "Thumbturn"))
-        tt.geoms.append(box(f"{name}_thumbturn_col", (0, thumbturn_side * 0.02, 0), (0.006, 0.012, 0.016), bm, 7100, True, False, tiers, "lock", "Thumbturn collision"))
+        tt.joint.robot_interactive = thumbturn_side < 0
+        spindle_x=x_edge-u*.065
+        bore=cut_stock(leaf_body,(spindle_x-.004,-t/2-.0001,z-.004),
+                       (spindle_x+.004,t/2+.0001,z+.004),name+'_spindle_bore')
+        stock_record['spindle_bore']=bore
+        keypad_cases={g.name for g in leaf_body.geoms if g.name.endswith('_keypad_body')}
+        keypad_cases=expand_box_mesh_stock(leaf_body,keypad_cases)
+        if keypad_cases:
+            stock_record['keypad_spindle_socket']=cut_stock(leaf_body,(spindle_x-.004,-t/2-.0035,z-.004),
+                (spindle_x+.004,t/2+.0035,z+.004),name+'_keypad_socket',names=keypad_cases)
+        push_plates={g.name for g in leaf_body.geoms if '_push_plate_' in g.name}
+        push_plates=expand_box_mesh_stock(leaf_body,push_plates)
+        if push_plates:
+            stock_record['plate_spindle_bores']=cut_stock(leaf_body,(spindle_x-.004,-t/2-.2,z-.004),
+                (spindle_x+.004,t/2+.2,z+.004),name+'_plate_spindle',names=push_plates)
+        case_pieces={g.name for g in leaf_body.geoms if g.name.startswith(rim_case)}
+        if case_pieces:
+            stock_record['rim_spindle_bore']=cut_stock(leaf_body,(spindle_x-.004,-t/2-tt_standoff-.0001,z-.004),
+                (spindle_x+.004,t/2+tt_standoff+.0001,z+.004),name+'_case_spindle',names=case_pieces)
+        # A real 6 mm spindle passes through an 8 mm prepared bore. Separate
+        # primitive hub and thumb paddle avoid a convex hull across empty space.
+        tt.geoms.append(cyl(f'{name}_spindle',(0,-thumbturn_side*(t+turn_standoff-.018)/2,0),.003,
+            (t+turn_standoff+.018)/2,bm,(0,1,0),7100,True,True,tiers,'lock','Deadbolt spindle through prepared stock'))
+        tt.geoms.append(cyl(f'{name}_thumbturn_hub',(0,thumbturn_side*.012,0),.010,.006,bm,(0,1,0),7100,
+            True,True,tiers,'lock','Thumbturn hub'))
+        tt.geoms.append(box(f'{name}_thumbturn_col',(0,thumbturn_side*.024,0),(.004,.006,.015),bm,7100,
+            True,True,tiers,'lock','Thumbturn paddle'))
+        for side in (-1,1):
+            tt.sites.append(Site(f'{name}_thumbturn_grip_{side}',(side*.004,thumbturn_side*.024,.010),QUAT_ID,.002,'grip'))
+        stock_record['thumbturn_grip_sites']=[s.name for s in tt.sites]
+        stock_record['thumbturn_face']=thumbturn_side
+        stock_record['thumbturn_accessible_from_robot']=bool(thumbturn_side<0)
+        stock_record['thumbturn_body']=tt.name
+        stock_record['thumbturn_joint']=tt.joint.name
+        stock_record['thumbturn_geoms']=[g.name for g in tt.geoms]
+        stock_record['thumbturn_clearance_m']=.0005
+        # Fixed four-piece rosette surrounds the rotating hub/spindle. Its
+        # 21 mm central aperture leaves 0.5 mm radial clearance to the hub.
+        for axis in (0,2):
+            for side in (-1,1):
+                rose_depth=max(.006,turn_standoff-tt_standoff+.006)
+                p=[spindle_x,thumbturn_side*(t/2+tt_standoff+rose_depth/2),z];h=[.0225,rose_depth/2,.0225]
+                p[axis]+=side*.0165;h[axis]=.006
+                if axis==2:h[0]=.0105
+                leaf_body.geoms.append(box(f'{name}_thumbturn_rose_{axis}_{side}',p,h,bm,7100,
+                    True,True,tiers,'lock','Fixed open thumbturn rosette'))
+        rose_names={g.name for g in leaf_body.geoms if g.name.startswith(f'{name}_thumbturn_rose_')}
+        stock_record['rose_bolt_passage']=cut_stock(leaf_body,stock_record['stock_cut']['lower'],stock_record['stock_cut']['upper'],name+'_rose_passage',names=rose_names)
         model.add_body(tt)
-        # The thumbturn's spindle passes THROUGH the lock case to drive the bolt: `{name}_thumbturn_mesh` and
-        # `{name}_box` overlap by 2-5 mm at rest by construction (clearance.DEFAULT_ALLOW documents the same pair).
-        # MuJoCo resolves that overlap softly and PhysX - since self-collision was enabled on the articulation -
-        # resolves it rigidly, fighting the very equality below that makes the deadbolt work.  Excluding the pair
-        # keeps both engines free of a contact that no real lock has (the case is bored for the spindle), and the
-        # exporter mirrors the exclude into PhysxFilteredPairsAPI automatically.
-        model.contact_excludes.append((body.name, tt.name))
         eqs.append(Equality("joint", f"{name}_couple", f"{name}_slide", f"{name}_thumbturn_hinge", (0.0, throw / thumbturn_travel, 0, 0, 0), tiers=tiers, label="deadbolt = throw/travel * thumbturn"))
     if keyed_side is not None:
         key, mesh = MESH.cylinder_face_mesh()
         leaf_body.geoms.append(mesh_geom(f"{name}_cylinder_face", key, mesh, (x_edge - u * 0.065, keyed_side * (t / 2 + (tt_standoff if keyed_side == thumbturn_side else 0.0)), z), q_face(keyed_side, u), bm, 7100, False, FULL_ONLY, "lock", "Key cylinder"))
-    pocket = {"z": z, "h": bh + 0.006, "w": bw + 0.003, "depth": throw + 0.004, "ramp": False}
+        stock_record['key_input']={'side':keyed_side,'supported':False,'reason':'Visible cylinder only; no inserted key or key-contact mechanics are implemented.'}
+    pocket = {"z": z, "h": bh + 0.006, "w": bw + 0.003, "depth": throw + 0.004, "ramp": False,"y":bolt_y}
+    if stock_record['thin_stock_edge_cartridge']:
+        pocket['stop_cut_half']=max(z-stock_record['stock_cut']['lower'][2],stock_record['stock_cut']['upper'][2]-z)+.019
     return body, [pocket], eqs
 
 
@@ -1075,12 +1185,22 @@ def add_paddle_operator(model: Model, leaf_body: Body, spec: dict, op: H.Operato
         body.geoms.append(box(geom_name, tuple(center), (half_width, 0.006, half_height), mat,
                               3000, True, True, tiers, "operator", "Paddle grip plate", quat=tuple(q)))
         neck_length = arm - half_height + 0.015
+        neck_top = .0065  # below the fixed 4 mm pin, welded to the rotating hub
         body.geoms.append(box(f"{name}_paddle_neck_{tag}",
-                              tuple(quat_rotate(q, (0, 0, -neck_length / 2))),
-                              (0.012, 0.004, neck_length / 2), mat, 3000, True, True, tiers,
+                              tuple(quat_rotate(q, (0, 0, -(neck_length + neck_top) / 2))),
+                              (0.012, 0.004, (neck_length - neck_top) / 2), mat, 3000, True, True, tiers,
                               "operator", "Paddle neck", quat=tuple(q)))
-        body.geoms.append(cyl(f"{name}_paddle_hub_{tag}", (0, 0, 0), 0.008, 0.016,
-                              mat, (1, 0, 0), 3000, False, True, tiers, "mechanism", "Paddle pivot hub"))
+        # Separate convex ring sectors preserve an actual pin bore in MuJoCo;
+        # a single convex mesh/cylinder would fill the bore back in.
+        import trimesh
+        for sector in range(12):
+            angles = [2*math.pi*sector/12, 2*math.pi*(sector+1)/12]
+            points = [(xx,rr*math.cos(a),rr*math.sin(a)) for xx in (-.016,.016)
+                      for rr in (.0045,.008) for a in angles]
+            mesh = trimesh.convex.convex_hull(points)
+            body.geoms.append(mesh_geom(f"{name}_paddle_hub_{tag}_{sector}", f"paddle_bearing_{sector}",
+                                        mesh, (0,0,0), QUAT_ID, mat, 3000, True, tiers,
+                                        "mechanism", "Paddle hub with open pin bore"))
         # A contact force INTO this face produces +arm N*m per newton.  It is
         # the outer face on the push side, and the finger-accessible inner
         # face on the pull side.  Site local +Z is the outward surface normal.
@@ -1131,9 +1251,18 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
     if op.kind == "paddle":
         return add_paddle_operator(model, leaf_body, spec, op, u, v, x_spindle, z, t,
                                    faces, locked_backlash, name, tiers)
+    if op.style_params.get('childproof_cover'):
+        from .knob_cover import add_knob_cover_operator
+        return add_knob_cover_operator(model,leaf_body,spec,op,u,x_spindle,z,t,faces,locked_backlash,name)
+    from .rotary_lockset import applicable as independent_entry_trim
+    if independent_entry_trim(spec,op,faces):
+        approach_face=1. if spec['robot'].get('approach_side','-y')=='+y' else -1.
+        trim_outside=approach_face if spec['robot']['robot_outside'] else -approach_face
+        if cylinder_face is not None:cylinder_face=trim_outside
+        if button_face is not None:button_face=-trim_outside
     mat = mat_from_material(model, op.material, f"mat_op_{op.material}")
     body = Body(name, leaf_body.name, (x_spindle, 0.0, z), QUAT_ID, None, [], [], tiers, "operator", op.name)
-    outside = 1.0 if not spec["robot"].get("robot_outside") else -1.0
+    outside = trim_outside if independent_entry_trim(spec,op,faces) else (1.0 if not spec["robot"].get("robot_outside") else -1.0)
     sp = op.style_params
     if rim_case_face is not None and sp.get("rim_box"):
         # surface rim lock case (Carpenter rim lock): box on the inside face around the spindle, up to the latch edge
@@ -1183,7 +1312,7 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
                 body.geoms.append(box(f"{name}_keyway_{'p' if f > 0 else 'n'}", (0, f * (t / 2 + 0.055 + d / 2 + 0.0045), 0), (0.0012, 0.0008, 0.006), mat_rgba(model, "mat_keyway", (0.05, 0.05, 0.05, 1), 0.5), 7100, False, True, FULL_ONLY, "lock", "Keyway"))
             if button_face is not None and f == button_face:
                 body.geoms.append(cyl(f"{name}_turn_button_{'p' if f > 0 else 'n'}", (0, f * (t / 2 + 0.055 + d / 2 + 0.001), 0), 0.006, 0.005, trim_m, (0, 1, 0), 7100, False, True, FULL_ONLY, "lock", "Privacy turn button"))
-        elif op.kind in ("knob",):
+        elif op.kind in ("knob", "keypad_deadbolt"):
             key, mesh = MESH.knob_mesh(shape=sp.get("shape", "round"), diameter=sp.get("diameter", 0.054), depth=sp.get("depth", 0.06), rose_diameter=sp.get("rose_diameter", 0.064), childproof_cover=sp.get("childproof_cover", 0.0), privacy_button=bool(sp.get("privacy_button", False)) and f == outside * -1.0)
             body.geoms.append(mesh_geom(f"{name}_knob_{'p' if f > 0 else 'n'}", key, mesh, (0, f * (t / 2 + so_f), 0), q, mat, 3000, False, ALL_TIERS, "operator", "Knob"))
             D, dep = sp.get("diameter", 0.054), sp.get("depth", 0.06)
@@ -1241,6 +1370,8 @@ def add_rotary_operator(model: Model, leaf_body: Body, spec: dict, phys: dict, o
         key, mesh = MESH.card_reader_mesh(w=sp["escutcheon"][1] if sp.get("escutcheon") else 0.075, h=sp["escutcheon"][0] if sp.get("escutcheon") else 0.26)
         leaf_body.geoms.append(mesh_geom(f"{name}_reader", key, mesh, (x_spindle, outside * t / 2, z + 0.16), q_face_upright(outside), rm, 2000, False, FULL_SIMPLE, "lock", "Card reader"))
     model.add_body(body)
+    from .rotary_lockset import split_rotary_lockset
+    split_rotary_lockset(model,leaf_body,body,spec,phys,op,u,t,faces)
     return body
 
 
@@ -1316,7 +1447,7 @@ def add_keypad_buttons(model: Model, leaf_body: Body, u: float, x_center: float,
             b.geoms.append(cyl(f"{name}_key_{safe}_geom", (0, face * kp.proud / 2, 0), kp.key_size[0], kp.proud / 2, bm, (0, face, 0), 1200, True, True, FULL_ONLY, "lock", f"Button {lab}"))
         else:
             b.geoms.append(box(f"{name}_key_{safe}_geom", (0, face * kp.proud / 2, 0), (kp.key_size[0], kp.proud / 2, kp.key_size[1]), bm, 1200, True, True, FULL_ONLY, "lock", f"Button {lab}"))
-        b.sites.append(Site(f"{name}_key_{safe}_press", (0, face * (kp.proud + 0.002), 0), QUAT_ID, 0.008, "press"))
+        b.sites.append(Site(f"{name}_key_{safe}_press", (0, face * kp.proud, 0), QUAT_ID, 0.008, "push"))
         model.add_body(b)
         out.append({"label": lab, "body": b.name, "joint": b.joint.name, "site": f"{name}_key_{safe}_press",
                     "pos": [round(float(px), 5), round(float(face * (t / 2 + kd)), 5), round(float(pz), 5)]})
@@ -1712,6 +1843,14 @@ def brace_to_structure(world: Body, g: Geom, d: float, mat, name: str | None = N
 
 def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dict, u: float, v: float, x_hinge_axis: float, Hh: float, t: float, Wo: float, jamb_t: float, tier_full_arms=True):
     cl = H.CLOSERS[spec["closer"]["model"]]
+    if cl.kind in ("surface_overhead","electromagnetic_hold") and not tier_full_arms:
+        # Paired heads/keepers are authored after the leaves. Build the real
+        # mechanism after those supports exist, instead of omitting its arms.
+        if not hasattr(model,'_deferred_closers'):model._deferred_closers=[]
+        model._deferred_closers.append((world,leaf_body,spec,phys,u,v,x_hinge_axis,Hh,t,Wo,jamb_t))
+        return
+    phys=phys.get('per_body_dynamics',{}).get(leaf_body.name,phys)
+    before_geoms={id(g) for body in model.bodies for g in body.geoms}
     if cl.kind in ("none", "spring_hinge", "gate", "gas_strut", "pneumatic"):
         if cl.kind == "pneumatic":
             m = mat_from_material(model, "aluminum", "mat_closer")
@@ -1734,44 +1873,48 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
         leaf_body.geoms.append(box("auto_operator_arm", (u * 0.25, -v * (t / 2 + 0.03), Hh - 0.02), (0.22, 0.008, 0.008), m, 2700, False, True, FULL_ONLY, "closer", "Operator arm"))
         leaf_body.geoms.append(box("auto_operator_arm_shoe", (u * 0.44, -v * (t / 2 + 0.016), Hh - 0.02), (0.03, 0.016, 0.014), m, 2700, False, True, FULL_ONLY, "closer", "Operator arm door shoe"))
         return
+    if cl.kind == 'electromagnetic_hold':
+        from .closer_track import add_track_closer
+        return add_track_closer(model,world,leaf_body,spec,phys,u,v,x_hinge_axis,Hh,t,Wo,jamb_t)
     # surface closer: regular arm, body on pull face (+v side) near top, pinion at x_p from hinge
-    x_p = u * 0.30
-    y_body = v * (t / 2 + h / 2)
+    x_p = u * 0.25
     zc = Hh - 0.06 - 0.02
+    from .closer_mounts import frame_face, fixed_shoe, shoe_ring, frame_backing
+    Ho_ = float(spec["opening"]["height"])
+    rise_coupling = next((e for e in model.equalities if e.kind == "joint"
+                          and e.b == leaf_body.joint.name and e.a.endswith("_rise")), None)
+    stroke = max(0.0,rise_coupling.polycoeff[1]*leaf_body.joint.range[1])+.002 if rise_coupling is not None else 0.
+    shoe_drop = stroke+.022 if rise_coupling is not None else .018
+    pin_z = Ho_ + .03 + stroke
+    x_b_rel = u*.30
+    leaf_world = body_world_pos(model, leaf_body)
+    surface, mount_geom = frame_face(world, x_hinge_axis+x_b_rel,
+                                      leaf_world[2]+pin_z, v) if tier_full_arms else (0.,None)
+    # Offset-casing depth is measured in the actual world frame. The old use
+    # of wall_thickness/2 omitted wall_y and displaced mounts by up to 133 mm.
+    clearance_depth = v*(surface-leaf_world[1])+.014 if tier_full_arms else 0.
+    stand = max(0., clearance_depth-(t/2+h/2))
+    y_body = v*(t/2+stand+h/2)
+    if stand>1e-6:
+        leaf_body.geoms.append(box("closer_mount_spacer",(x_p,v*(t/2+stand/2),zc),
+            (l/2,stand/2,w/2),m,2700,True,True,ALL_TIERS,"closer","Rigid closer mounting spacer"))
     key, mesh = MESH.closer_body_mesh(l=l, w=w, h=h)
     # mesh frame: z away from face -> world v*y; length along x
     q = q_face(v, u)
-    leaf_body.geoms.append(mesh_geom("closer_body", key, mesh, (x_p, v * t / 2, zc), q, m, 2000, False, FULL_SIMPLE, "closer", cl.name))
-    leaf_body.geoms.append(box("closer_body_col", (x_p, v * (t / 2 + h / 2), zc), (l / 2, h / 2, w / 2), m, 2000, True, False, FULL_SIMPLE, "closer", "Closer body"))
+    leaf_body.geoms.append(mesh_geom("closer_body", key, mesh, (x_p, v * (t / 2 + stand), zc), q, m, 2000, False, FULL_SIMPLE, "closer", cl.name))
+    leaf_body.geoms.append(box("closer_body_col", (x_p, y_body, zc), (l / 2, h / 2, w / 2), m, 2000, True, False, ALL_TIERS, "closer", "Closer body"))
     # arm kinematic loop (full tier)
     if not tier_full_arms:
         return
-    wt_ = float(spec["opening"]["wall_thickness"])
-    Ho_ = float(spec["opening"]["height"])
-    # The frame head spans the whole wall depth, so its face on the closer side is where the shoe is screwed on.
-    # The wall is offset from the leaf plane (meta["wall_y"]), so the face is NOT at +-wall_thickness/2 - reading it
-    # off the origin instead put the shoe (and with it the pinion) up to 133 mm out in front of the frame.
-    depth_ = wt_ if spec["opening"]["frame"]["kind"] != "aluminum_storefront" else max(0.114, wt_)
-    pin_z = Ho_ + 0.03                                       # arm plane above the head: the leaf swings under it
-    BRK_T = 0.012                                            # m; half thickness of the soffit shoe / mounting plate
-    # the shoe is bolted to the surface that is really there above the opening (head face, or casing where trim
-    # stands proud of it) - taking +-wall_thickness/2 off the origin put it up to 133 mm out in front of the frame
-    face_v = max(t / 2 + 0.005, v * float(model.meta.get("wall_y", 0.0)) + depth_ / 2,
-                 mount_face(world, x_hinge_axis + u * 0.10, pin_z, 0.030, 0.014, v, skip_semantics=("closer",)))
-    y_face = v * face_v
-    pin_y = v * max(t / 2 + h / 2, face_v + 0.035)           # pinion inside the closer body, clear of the head/casing face
-    leaf_body.geoms.append(cyl("closer_pinion_shaft", (x_p, pin_y, (zc + pin_z) / 2), 0.008, (pin_z - zc) / 2, m, (0, 0, 1), 2700, False, True, FULL_ONLY, "closer", "Pinion shaft"))
-    # shoe on the frame casing face above the opening, 10 cm from the hinge line (bolted flat to that face)
-    # A cam-lift leaf raises both arms.  A fixed planar shoe would oppose that rise, so that variant uses a shoe
-    # block sliding in a frame-mounted guide; its pivot then sits one plate thickness further out.
-    rise_coupling = next((e for e in model.equalities if e.kind == "joint"
-                          and e.b == leaf_body.joint.name and e.a.endswith("_rise")), None)
-    x_b_rel = u * 0.10
-    y_b = y_face + v * (0.018 if rise_coupling is not None else BRK_T)
+    pin_y = y_body  # shaft enters the real housing along its own pinion axis
+    # Regular-arm ordering from the manufacturer pull-side template: frame
+    # shoe further from the hinge than the pinion; generic metric dimensions.
+    y_b = surface + v*.028
     L1, L2 = 0.28, 0.26
     pfx = "" if leaf_body.name == "leaf" else leaf_body.name + "_"
-    arm1 = Body(pfx + "closer_arm_main", leaf_body.name, (x_p, pin_y, pin_z), QUAT_ID, None, [], [], FULL_ONLY, "closer", "Closer main arm")
+    arm1 = Body(pfx + "closer_arm_main", leaf_body.name, (x_p, pin_y, pin_z), QUAT_ID, None, [], [], ALL_TIERS, "closer", "Closer main arm")
     arm1.joint = Joint(pfx + "closer_pinion", "hinge", (0, 0, 1), (0, 0, 0), None, damping=0.01, role="mechanism", label="Closer pinion", robot_interactive=False)
+    arm1.geoms.append(cyl("closer_pinion_shaft", (0, 0, (zc-pin_z)/2), .008, (pin_z-zc)/2, m, (0,0,1), 7850, False, True, ALL_TIERS, "closer", "Rotating steel pinion shaft entering closer housing"))
     # initial arm geometry at door closed: solve elbow position (2-link IK) in leaf frame
     px, py = x_p, pin_y
     bx, by = x_hinge_axis * 0 + x_b_rel, y_b   # bracket in leaf frame at q=0 (leaf frame coincides w/ world at hinge axis)
@@ -1786,55 +1929,73 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
     ex, ey = e1 if v * e1[1] > v * e2[1] else e2
     th1 = math.atan2(ey - py, ex - px)
     arm1.quat = tuple(quat_from_axis_angle([0, 0, 1], th1))
-    arm1.geoms.append(box("closer_arm_main_geom", (L1 / 2, 0, 0), (L1 / 2, 0.008, 0.005), m, 2700, False, True, FULL_ONLY, "closer", "Main arm"))
+    arm1.geoms.append(box("closer_arm_main_geom", (L1 / 2, 0, 0), (L1 / 2, 0.008, 0.005), m, 7850, False, True, ALL_TIERS, "closer", "Main arm"))
     model.add_body(arm1)
-    arm2 = Body(pfx + "closer_arm_fore", arm1.name, (L1, 0, 0), QUAT_ID, None, [], [], FULL_ONLY, "closer", "Closer forearm")
+    arm2 = Body(pfx + "closer_arm_fore", arm1.name, (L1, 0, 0), QUAT_ID, None, [], [], ALL_TIERS, "closer", "Closer forearm")
     arm2.joint = Joint(pfx + "closer_elbow", "hinge", (0, 0, 1), (0, 0, 0), None, damping=0.01, role="mechanism", label="Closer elbow", robot_interactive=False)
     th2 = math.atan2(by - ey, bx - ex) - th1
     arm2.quat = tuple(quat_from_axis_angle([0, 0, 1], th2))
-    arm2.geoms.append(box("closer_arm_fore_geom", ((L2 - 0.035) / 2, 0, 0), ((L2 - 0.035) / 2, 0.007, 0.004), m, 2700, False, True, FULL_ONLY, "closer", "Forearm"))
+    arm2.geoms.append(box("closer_arm_fore_geom", ((L2 - 0.035) / 2, 0, 0), ((L2 - 0.035) / 2, 0.007, 0.004), m, 7850, False, True, ALL_TIERS, "closer", "Forearm"))
+    # Continuous forearm end and its vertical pin, above the open bearing.
+    arm2.geoms.append(box("closer_shoe_neck",(L2-.0175,0,0),(.0175,.003,.003),m,2700,False,True,ALL_TIERS,"closer","Forearm clevis neck"))
+    arm2.geoms.append(cyl("closer_shoe_pivot",(L2,0,-(shoe_drop+.004)/2),.005,(shoe_drop+.020)/2,m,(0,0,1),2700,False,True,ALL_TIERS,"closer","Shoe pivot pin"))
     model.add_body(arm2)
-    # Its translation is passive: the connect constraint carries the shoe with the arm, without cancelling the
-    # helical hinge's gravity load or inventing another closing spring.
+    # A cam-lift leaf raises both arms. A fixed planar shoe would oppose that rise,
+    # so use a vertical shoe in a frame-mounted guide. Its translation is
+    # passive: the connect constraint carries it with the arm, without cancelling
+    # the helical hinge's gravity load or inventing another closing spring.
     anchor_body = "world"
     if rise_coupling is not None:
         max_rise = max(0.0, rise_coupling.polycoeff[1] * leaf_body.joint.range[1])
         stroke = max_rise + 0.002  # 2 mm assembly/end-travel allowance beyond the cam rise
         anchor_body = pfx + "closer_shoe"
-        shoe = Body(anchor_body, None, (x_hinge_axis + bx, by, pin_z), QUAT_ID, None, [], [], FULL_ONLY, "closer", "Vertically sliding closer shoe")
+        shoe = Body(anchor_body, None, (x_hinge_axis + bx, by, pin_z), QUAT_ID, None, [], [], ALL_TIERS, "closer", "Vertically sliding closer shoe")
         shoe.joint = Joint(pfx + "closer_shoe_slide", "slide", (0, 0, 1), (0, 0, 0), (0.0, stroke),
                            damping=0.1, frictionloss=0.0, role="mechanism", robot_interactive=False,
                            label="Closer shoe lift (passive cam-lift accommodation)")
-        shoe.geoms.append(box("closer_shoe_block", (0, 0, 0), (0.0195, 0.010, 0.008), m, 2700, False, True, FULL_ONLY, "closer", "Sliding shoe block"))
-        # Continue the forearm to a visible pin; the ordinary fixed-shoe
-        # arm drawing ends 35 mm short and would float beside this smaller shoe.
-        arm2.geoms.append(box("closer_shoe_neck", (L2 - 0.0175, 0, 0), (0.0175, 0.003, 0.003), m, 2700, False, True, FULL_ONLY, "closer", "Forearm clevis neck"))
-        arm2.geoms.append(cyl("closer_shoe_pivot", (L2, 0, 0), 0.005, 0.011, m, (0, 0, 1), 2700, False, True, FULL_ONLY, "closer", "Shoe pivot pin"))
-        model.meta.setdefault("clearance_allow", []).extend([
-            ["closer_shoe_pivot", "closer_shoe_block", "pivot pin occupies the sliding shoe's bore"],
-            ["closer_shoe_neck", "closer_shoe_block", "forearm clevis enters the shoe around its pivot"],
-        ])
+        shoe_parts=shoe_ring(shoe.geoms,(0,0,-shoe_drop),m)
         model.add_body(shoe)
-        center_z = pin_z + stroke / 2
-        # mounting plate flat on the frame face (its back face IS the frame face), shoe block riding on it
-        world.geoms.append(box("closer_bracket", (x_hinge_axis + bx, y_face + v * 0.004, center_z),
-                               (0.032, 0.004, stroke / 2 + 0.018), m, 2700, False, True, FULL_ONLY, "closer", "Slotted shoe mounting plate"))
+        center_z = pin_z - shoe_drop + stroke / 2
+        world.geoms.append(box("closer_bracket", (x_hinge_axis + bx, surface + v*.004, center_z),
+                               (0.032, 0.004, stroke / 2 + 0.010), m, 2700, False, True, ALL_TIERS, "closer", "Slotted shoe mounting plate"))
         for side in (-1, 1):
-            world.geoms.append(box(f"closer_shoe_guide_{side:+d}", (x_hinge_axis + bx + side * 0.026, y_face + v * 0.016, center_z),
-                                   (0.006, 0.016, stroke / 2 + 0.018), m, 2700, False, True, FULL_ONLY, "closer", "Shoe guide (0.5 mm running clearance)"))
-        model.meta.setdefault("notes", []).append("Cam-lift closer has a passive vertically sliding frame shoe; retaining lips/end caps are not modeled, and hydraulic torque remains the joint-level closer approximation.")
+            world.geoms.append(box(f"closer_shoe_guide_{side:+d}", (x_hinge_axis + bx + side * 0.026, by, center_z),
+                                   (0.006, 0.020, stroke / 2 + 0.010), m, 2700, False, True, ALL_TIERS, "closer", "Shoe guide (0.5 mm running clearance)"))
+        model.meta.setdefault("notes", []).append("Cam-lift closer has a passive vertically sliding frame shoe; retaining lips/end caps are not modeled; closing spring and valve torque act on the pinion through the native arms.")
     else:
-        # soffit shoe bolted flat to the frame face; the forearm's pivot pin drops into its bore
-        world.geoms.append(box("closer_bracket", (x_hinge_axis + bx, y_face + v * BRK_T, pin_z), (0.030, BRK_T, 0.014), m, 2700, False, True, FULL_ONLY, "closer", "Closer soffit shoe"))
-        arm2.geoms.append(box("closer_fore_neck", (L2 - 0.0175, 0, 0), (0.0175, 0.003, 0.003), m, 2700, False, True, FULL_ONLY, "closer", "Forearm clevis neck"))
-        arm2.geoms.append(cyl("closer_fore_pivot", (L2, 0, 0), 0.005, 0.012, m, (0, 0, 1), 2700, False, True, FULL_ONLY, "closer", "Shoe pivot pin"))
-        model.meta.setdefault("clearance_allow", []).extend([
-            ["*closer_fore_pivot", "closer_bracket", "pivot pin occupies the soffit shoe's bore"],
-            ["*closer_fore_neck", "closer_bracket", "forearm clevis enters the shoe around its pivot"],
-            ["*closer_arm_fore_geom", "closer_bracket", "forearm reaches into the shoe it is pinned to"],
-        ])
-    model.equalities.append(Equality("connect", pfx + "closer_arm_connect", arm2.name, anchor_body, (0, 0, 0, 0, 0), (L2, 0, 0), FULL_ONLY, "Closer forearm pinned to frame shoe"))
+        shoe_parts=fixed_shoe(world,x_hinge_axis+bx,by,pin_z,v,surface,m)
+    frame_z=center_z if rise_coupling is not None else pin_z
+    frame_half=stroke/2+.010 if rise_coupling is not None else .024
+    mount_geom,frame_spacer=frame_backing(world,x_hinge_axis+bx,frame_z,frame_half,v,surface,m)
+    # Retain the actual contacted frame support in reduced native tiers too.
+    for support in world.geoms:
+        if support.name==mount_geom:support.tiers=ALL_TIERS
+    model.meta.setdefault("closer_mounts",[]).append({"schema":"doorbench.closer-mount.v1",
+        "leaf_joint":leaf_body.joint.name,"leaf_body":leaf_body.name,
+        "leaf_support_geoms":[g.name for g in leaf_body.geoms if g.semantic in ('leaf','glass')],
+        "housing_spacer_geom":"closer_mount_spacer" if stand>1e-6 else None,
+        "main_geom":"closer_arm_main_geom","fore_geom":"closer_arm_fore_geom","neck_geom":"closer_shoe_neck",
+        "body_geom":"closer_body_col","shaft_geom":"closer_pinion_shaft",
+        "frame_plate":"closer_bracket","frame_geom":mount_geom,"frame_spacer":frame_spacer,"shoe_geoms":shoe_parts,
+        "pivot_geom":"closer_shoe_pivot","spacer_m":stand,"frame_surface_y_m":surface,
+        "main_joint":arm1.joint.name,"elbow_joint":arm2.joint.name,"connect":pfx+"closer_arm_connect",
+        "shoe_joint":shoe.joint.name if rise_coupling is not None else None,
+        "scope":"Connected generic extension mount; spring and hydraulic valve torque act on pinion through native arms; ideal joints and internal rack remain"})
+    model.equalities.append(Equality("connect", pfx + "closer_arm_connect", arm2.name, anchor_body, (0, 0, 0, 0, 0), (L2, 0, 0), ALL_TIERS, "Closer forearm pinned to frame shoe", solref=(.004,1.), solimp=(.99,.999,.001)))
     model.contact_excludes += [(arm1.name, leaf_body.name), (arm2.name, leaf_body.name), (arm1.name, arm2.name)]
+
+    if pfx:
+        names={}
+        for body in model.bodies:
+            for geom in body.geoms:
+                if id(geom) not in before_geoms:
+                    names[geom.name]=pfx+geom.name;geom.name=pfx+geom.name
+        row=model.meta['closer_mounts'][-1]
+        for key,value in row.items():
+            if isinstance(value,str):row[key]=names.get(value,value)
+            elif isinstance(value,list):row[key]=[names.get(x,x) if isinstance(x,str) else x for x in value]
+    from ..closer_pinion import configure_pinion
+    configure_pinion(model,leaf_body,arm1,spec,phys,pinion=(px,py),shoe=(bx,by),elbow=(ex,ey),lengths=(L1,L2))
 
 
 # ---------------------------------------------------------------------------
@@ -1958,33 +2119,22 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
         x_wall_max = max([abs(float(g.pos[0])) + float(g.size[0]) for g in world.geoms if g.name.startswith("wall_") and g.type == "box"] or [abs(xw) + 0.2])
         xw = math.copysign(min(abs(xw), x_wall_max - 0.15), xw)
         if "keypad_reader_wall" in ex:
-            world.geoms.append(box("wall_reader", (xw, yw - (spec["opening"]["wall_thickness"] / 2 + 0.015), 1.1), (0.04, 0.015, 0.06), wm, 1000, True, True, FULL_SIMPLE, "sensor", "Wall card/keypad reader"))
+            outside=-1. if spec['robot']['robot_outside'] else 1.
+            world.geoms.append(box("wall_reader", (xw, yw + outside*(spec["opening"]["wall_thickness"] / 2 + 0.015), 1.1), (0.04, 0.015, 0.06), wm, 1000, True, True, FULL_SIMPLE, "sensor", "Outside credential reader"))
         if "rex_button" in ex:
-            # the button sits ON its wall plate (it used to float 6 mm in front of it - and 15 cm above it when a
-            # wave sensor pushed the button up the wall)
-            z_rex = 1.25 if "wave_sensor" in ex else 1.1
-            y_plate = yw + spec["opening"]["wall_thickness"] / 2
-            rb = Body("rex_button", "world_env", (xw, y_plate + 0.006, z_rex), QUAT_ID, None, [], [], FULL_SIMPLE, "sensor", "Request-to-exit button")
-            rb.joint = Joint("rex_button_slide", "slide", (0, -1, 0), (0, 0, 0), (0.0, 0.004), damping=1.0, stiffness=1500.0, springref=-0.004, role="lock", label="REX button (press to release maglock)")
-            rb.geoms.append(cyl("rex_button_geom", (0, 0.004, 0), 0.02, 0.004, mat_rgba(model, "mat_rex", (0.1, 0.6, 0.2, 1), 0.4), (0, 1, 0), 1000, True, True, FULL_SIMPLE, "lock", "REX button"))
-            model.add_body(rb)
-            world.geoms.append(box("rex_plate", (xw, y_plate + 0.003, z_rex), (0.04, 0.003, 0.06), wm, 1000, False, True, FULL_SIMPLE, "sensor", "REX plate"))
-        if "wave_sensor" in ex:
-            # a sliding door sweeps the wall beside its opening: its motion sensor goes over the head, as on the
-            # real thing, not at hand height where the leaf runs
-            z_ws = (Ho + 0.07) if spec["family"] in ("automatic_sliding", "sliding_single", "sliding_bypass", "elevator") else 1.05
-            x_ws = 0.0 if z_ws > 1.05 else xw
+            from .wall_buttons import add_wall_button
+            inside=1. if spec['robot']['robot_outside'] else -1.
+            add_wall_button(model,world,spec,name='rex_button',x=xw,height=1.25 if 'wave_sensor' in ex else 1.1,
+                            face=inside,radius=.02,travel=.004,colour=(.1,.6,.2,1))
+        if "wave_sensor" in ex and spec["family"] not in ("automatic_swing", "automatic_sliding"):
             for f in (-1, 1):
                 world.geoms.append(box(f"wave_sensor_{'p' if f > 0 else 'n'}", (x_ws, yw + f * (spec["opening"]["wall_thickness"] / 2 + 0.012), z_ws), (0.05, 0.012, 0.05), wm, 1000, True, True, FULL_SIMPLE, "sensor", "Wave-to-open / push plate sensor"))
                 brace_to_structure(world, world.geoms[-1], float(f), wm, name=f"wave_sensor_{'p' if f > 0 else 'n'}_pad",
                                    semantic="sensor", label="Sensor wall pad", tiers=FULL_SIMPLE, span=0.8, axes=("y",))
         if "call_button" in ex:
-            y_cp = yw - spec["opening"]["wall_thickness"] / 2
-            world.geoms.append(box("call_plate", (xw, y_cp - 0.003, 1.05), (0.03, 0.003, 0.05), wm, 1000, False, True, FULL_SIMPLE, "sensor", "Call button plate"))
-            cb = Body("call_button", "world_env", (xw, y_cp - 0.006, 1.05), QUAT_ID, None, [], [], FULL_SIMPLE, "sensor", "Elevator call button")
-            cb.joint = Joint("call_button_slide", "slide", (0, 1, 0), (0, 0, 0), (0.0, 0.003), damping=1.0, stiffness=1500.0, springref=-0.003, role="lock", label="Call button (press)")
-            cb.geoms.append(cyl("call_button_geom", (0, -0.003, 0), 0.015, 0.003, mat_rgba(model, "mat_callbtn", (0.9, 0.9, 0.9, 1), 0.3, 0.8), (0, 1, 0), 1000, True, True, FULL_SIMPLE, "lock", "Call button"))
-            model.add_body(cb)
+            from .wall_buttons import add_wall_button
+            add_wall_button(model,world,spec,name='call_button',x=xw,height=1.05,
+                            face=-1.,radius=.015,travel=.003,colour=(.9,.9,.9,1))
     if "sidelite" in ex and spec["opening"].get("sidelite"):
         gm = mat_from_material(model, "glass_clear", "mat_sidelite")
         fm = mat_from_material(model, spec["opening"]["frame"]["material"], "mat_frame")

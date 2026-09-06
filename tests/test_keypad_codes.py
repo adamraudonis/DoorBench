@@ -222,17 +222,23 @@ def test_locked_outside_lever_retracts_nothing(built, did):
 
     spec, m, model_json = built[did]
     kp = model_json["meta"]["keypad"]
-    assert kp["release"] == "clutch"
-    j = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, kp["clutch_joint"])
-    assert m.jnt_range[j][1] == pytest.approx(kp["clutch_locked_rad"], rel=0.02)
-    assert kp["clutch_open_rad"] > 5 * kp["clutch_locked_rad"]
+    assert kp["release"] == "physical_catch"
+    j = m.joint(kp["clutch_joint"]).id
+    row = model_json["meta"]["rotary_locksets"][0]
+    original = m.jnt_range.copy()
+    assert m.jnt_range[j][1] >= row['operator_travel_rad']
     d = mujoco.MjData(m)
-    bolt = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, "leaf_latch_bolt_slide")
-    for _ in range(1000):
+    mujoco.mj_forward(m,d)
+    keypad = keypad_for(mujoco,m,model_json['meta'],spec)
+    bolt=m.joint(row['latch_joint']).id
+    for _ in range(round(.5/m.opt.timestep)):
         d.qfrc_applied[:] = 0
-        d.qfrc_applied[m.jnt_dofadr[j]] = 6.0          # lean on the outside lever
-        mujoco.mj_step(m, d)
-    assert float(d.qpos[m.jnt_qposadr[bolt]]) < 0.2 * m.jnt_range[bolt][1]
+        keypad.turn(d)
+        mujoco.mj_step(m,d)
+    import numpy as np
+    assert np.array_equal(m.jnt_range,original)
+    assert float(d.qpos[m.jnt_qposadr[j]]) < .06
+    assert float(d.qpos[m.jnt_qposadr[bolt]]) < .002
 
 
 # ---------------------------------------------------------------------------
@@ -256,12 +262,22 @@ def test_env_enter_code(built, did, tmp_path_factory, specs):
     assert env.keypad.lock.wrong_attempts == 1
     assert env.enter_code() is True
     L = env.labels()
-    assert L.lock_released and L.code_entered and L.wrong_code_attempts == 1
-    rel = env.keypad.clutch if env.keypad.release_mode == "clutch" else env.oj
-    for _ in range(1500):
+    assert L.credential_accepted and L.code_entered and L.wrong_code_attempts == 1
+    rel = env.keypad.clutch if env.keypad.release_mode in ("clutch","physical_catch") else env.oj
+    for _ in range(round(2./env.m.opt.timestep)):env.step()
+    assert env.labels().lock_released
+    import numpy as np
+    from doorbench.qa import qa_push
+    push=qa_push(env.m,mujoco.MjData(env.m),env.pj,env.spec['physics']['mass']['dynamics_mass_kg'],specs[did]['leaf']['width'],env.meta)['push']
+    row=env.meta['rotary_locksets'][0]
+    site=env.m.site(row['input_sites'][row['outside_joint']][0]).id
+    for _ in range(round(3./env.m.opt.timestep)):
         if rel >= 0:
-            env.d.qfrc_applied[env.m.jnt_dofadr[rel]] += 4.0
-        env.d.qfrc_applied[env.m.jnt_dofadr[env.pj]] += 30.0
+            env.keypad.turn(env.d)
+        tangent=np.cross(env.d.xaxis[env.pj],env.d.site_xpos[site]-env.d.xanchor[env.pj])
+        radius=float(np.linalg.norm(tangent))
+        force=tangent/radius*min(120.,push/radius)
+        mujoco.mj_applyFT(env.m,env.d,force,np.zeros(3),env.d.site_xpos[site],int(env.m.site_bodyid[site]),env.d.qfrc_applied)
         env.step()
     assert float(env.d.qpos[env.m.jnt_qposadr[env.pj]]) > math.radians(20)
     env.close()
@@ -272,7 +288,7 @@ def test_scenario_carries_the_code(built):
     sc = make_scenario("unlock_and_traverse", spec, derive(spec), model_json)
     lock = sc["lock"]
     assert lock["code"] == spec["lock"]["code"]
-    assert lock["code_kind"] == "sequence" and lock["release"] == "clutch"
+    assert lock["code_kind"] == "sequence" and lock["release"] == "physical_catch"
     assert len(lock["buttons"]) == 10 and all(b["pos"] and b["joint"] for b in lock["buttons"])
     assert lock["code_timeout_s"] == 5.0 and lock["lockout_s"] == 30.0 and lock["max_attempts"] == 3
 
@@ -288,24 +304,20 @@ def test_scenario_of_a_mechanical_lock_says_so(built):
 def test_gate_catches_a_keypad_that_releases_nothing(tmp_path_factory, specs):
     """The gate has teeth: with the clutch left engaged (the old behaviour - the keypad was a decoration and the
     lever opened the door on its own) `keypad_code_works` must fail."""
-    import re
-
     import mujoco
-
     from doorbench.qa import qa_push
-
     did = "db0526_swing_single"
     root = str(tmp_path_factory.mktemp("broken"))
     spec = specs[did]
     summary = export_door(spec, os.path.join(root, "doors"), os.path.join(root, "hardware"), formats=("mjcf", "json"))
     path = summary["files"]["mjcf"]["full"]
-    xml = open(path).read()
-    broken = re.sub(r'(name="leaf_handle_out_hinge"[^>]*?range=")[^"]*(")', r"\g<1>0 0.87\g<2>", xml)
-    assert broken != xml
-    bad_path = os.path.join(os.path.dirname(path), "door_broken.xml")
-    with open(bad_path, "w") as f:
-        f.write(broken)
-    m = mujoco.MjModel.from_xml_path(bad_path)
+    model_json = json.load(open(os.path.join(root, "doors", did, "model.json")))
+    row=model_json['meta']['rotary_locksets'][0]
+    source=mujoco.MjSpec.from_file(path)
+    pin=source.geom(row['catch_geom'])
+    pin.contype=pin.conaffinity=0
+    # Recompile the source-level negative; keep pin mass and every joint range.
+    m=source.compile()
     model_json = json.load(open(os.path.join(root, "doors", did, "model.json")))
     meta = model_json["meta"]
     phys = derive(spec)

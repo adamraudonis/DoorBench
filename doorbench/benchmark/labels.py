@@ -42,6 +42,7 @@ class EpisodeLabels:
     lock_released: bool = False
     code_entered: bool = False
     wrong_code_attempts: int = 0
+    credential_accepted: bool = False
     door_opened: bool = False
     door_open_clear: bool = False
     robot_passed_through: bool = False
@@ -105,6 +106,8 @@ class LabelTracker:
         if spec.get("kinematics", {}).get("type") == "slide_vertical":
             self.clear_travel = max(self.clear_travel, 1.9)      # overhead / garage / roll-up: the opening must clear the robot's height
         self.robot_width = robot_width_m
+        from .passage import Passage
+        self.passage = Passage(model, spec, meta, width=robot_width_m, exclude_bodies=self.robot_bodies | {'human'})
         # joint ids
         self.pj = self._jid(meta.get("primary_joint"))
         self.oj = self._jid(meta.get("operator_joint")) if meta.get("operator_joint") else -1
@@ -133,6 +136,8 @@ class LabelTracker:
             lj = cand
         self.latch_joints = lj or ([self.bj] if self.bj >= 0 else [])
         self.is_hinge = self.pj >= 0 and int(model.jnt_type[self.pj]) == int(mujoco.mjtJoint.mjJNT_HINGE)
+        if meta.get('rollup_curtain'):
+            self.is_hinge = False  # Progress is measured at the curtain bottom.
         self.open_thr = math.radians(10) if self.is_hinge else 0.10
         self.closed_thr = math.radians(3) if self.is_hinge else 0.03
         # geom classification
@@ -155,6 +160,9 @@ class LabelTracker:
             if "glass" in gname:
                 self.glass_geoms.add(g)
         self.robot_geoms = {g for g in range(model.ngeom) if (mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, model.geom_bodyid[g]) in self.robot_bodies)}
+        self.door_dofs=np.array([dof for j in range(model.njnt)
+            if model.body(int(model.jnt_bodyid[j])).name not in self.robot_bodies
+            for dof in range(int(model.jnt_dofadr[j]),int(model.jnt_dofadr[j+1]) if j+1<model.njnt else model.nv)],dtype=int)
         self.pass_plane_site = self._sid("door_plane_center")
         self.goal_site = self._sid("goal_point")
         self.approach_site = self._sid("approach_point")
@@ -164,13 +172,22 @@ class LabelTracker:
         self._f = np.zeros(6)
         self.lock_engaged = bool(spec.get("lock", {}).get("engaged"))
         self.lock_releasable = bool(spec.get("lock", {}).get("robot_side_release", True))
+        self.security_guards=meta.get('security_guards',[])
+        self.vault_boltwork=meta.get('vault_boltwork')
+        self.rotary_locksets=meta.get('rotary_locksets')
         names = list(lock_joints) if lock_joints is not None else [n for n in LEGACY_LOCK_JOINTS if self._jid(n) >= 0]
         names = [n for n in names if self._jid(n) >= 0 and not any(p in n for p in LOCK_IGNORE_PATTERNS)]
         self.release_buttons = [self._jid(n) for n in names if any(p in n for p in RELEASE_BUTTON_PATTERNS)]
+        if meta.get('elevator_interlocks'):
+            # A call requests the controller; the actual hook/cam movement
+            # establishes release. Pressing the switch alone cannot do so.
+            self.release_buttons=[j for j in self.release_buttons if 'call_button' not in model.joint(j).name]
         self.lock_release_joints = [self._jid(n) for n in names if any(p in n for p in LOCK_RELEASE_PATTERNS) and not any(p in n for p in RELEASE_BUTTON_PATTERNS)]
         # a lift pin (gates, baby gates) is modelled as the operator but is what releases the lock
         self.lock_release_joints += [j for j in range(model.njnt) if "pin_slide" in (mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j) or "")]
         self.lock_release_joints = [j for j in dict.fromkeys(self.lock_release_joints) if model.jnt_range[j][1] - model.jnt_range[j][0] > 1e-6]
+        if self.vault_boltwork or self.rotary_locksets:
+            self.lock_release_joints=[]  # Physical bolt stroke is not its wider safety range.
         # keypad codes are owned by doorbench.keypad (DoorEnv drives it): the tracker only reports the result
         self.step_leaf_force = 0.0
 
@@ -185,7 +202,7 @@ class LabelTracker:
     def _under(self, body: int, ancestor: int) -> bool:
         """True if `body` is `ancestor` or one of its descendants."""
         b = int(body)
-        for _ in range(32):
+        for _ in range(self.m.nbody):
             if b == ancestor:
                 return True
             if b == 0:
@@ -204,7 +221,11 @@ class LabelTracker:
         m, L, mj = self.m, self.L, self.mj
         L.steps += 1
         L.sim_time = float(d.time)
-        qd = self.q(d, self.pj)
+        lift = None
+        if self.meta.get('sectional_track') or self.meta.get('rollup_curtain'):
+            from .lift_state import lift_state
+            lift = lift_state(m, d, self.meta, with_velocity=True)
+        qd = lift['travel_m'] if lift else self.q(d, self.pj)
         L.max_door_angle = max(L.max_door_angle, abs(qd))
         # ---- contacts
         max_leaf_f = 0.0
@@ -257,6 +278,24 @@ class LabelTracker:
         else:
             L.latch_released = True
         if self.lock_engaged and not L.lock_released and self.lock_releasable:
+            if self.rotary_locksets:
+                from ..keypad import physical_release_ready
+                L.lock_released=physical_release_ready(m,d,self.meta)
+            if self.vault_boltwork:
+                L.lock_released=all(self.q(d,self._jid(r['carrier_joint']))>=r['stroke_m']-.0005
+                                    for r in self.vault_boltwork['groups'])
+            if self.security_guards:
+                released=[]
+                for guard in self.security_guards:
+                    if guard['kind']=='chain':
+                        leaf=m.body(guard['leaf_body']).id;head=m.geom(guard['head_geom']).id
+                        local=d.xmat[leaf].reshape(3,3).T@(d.geom_xpos[head]-d.xpos[leaf])
+                        normal=np.asarray(guard['release_sequence'][2]['direction'])
+                        withdrawn=float(np.dot(local-np.asarray(guard['keyhole_center_leaf']),normal))
+                        released.append(withdrawn>.015)
+                    else:
+                        released.append(self.q(d,self._jid(guard['guard_joint']))>np.pi-.05)
+                if all(released):L.lock_released=True
             if self.lock_release_joints and all((self.q(d, j) - m.jnt_range[j][0]) > 0.8 * (m.jnt_range[j][1] - m.jnt_range[j][0]) for j in self.lock_release_joints):
                 L.lock_released = True
             for j in self.release_buttons:
@@ -268,10 +307,12 @@ class LabelTracker:
             L.door_opened = True
             L.time_to_open = float(d.time)
         clear = (abs(qd) >= self.clear_angle) if self.is_hinge else (abs(qd) >= min(self.clear_travel, 0.95 * m.jnt_range[self.pj][1] if self.pj >= 0 and m.jnt_limited[self.pj] else self.clear_travel))
+        if self.passage.enabled:
+            clear = bool(self.passage.intervals(d))
         if clear:
             L.door_open_clear = True
         # slam: closing speed when reaching closed
-        dqd = self.dq(d, self.pj)
+        dqd = lift['speed_m_s'] if lift else self.dq(d, self.pj)
         if self._prev_qd is not None and abs(qd) < self.closed_thr and abs(self._prev_qd) >= self.closed_thr:
             vthr = self.damage.get("slam_velocity_rad_s", 4.0)
             if abs(dqd) > vthr:
@@ -284,16 +325,24 @@ class LabelTracker:
             side = 1 if y > 0 else -1
             Wo = self.spec["opening"]["width"]
             if self._prev_side is not None and side != self._prev_side and abs(x) < Wo / 2 + 0.3 and not L.robot_passed_through:
-                L.robot_passed_through = True
-                L.time_to_pass = float(d.time)
+                intervals=self.passage.intervals(d)
+                if intervals is None or any(lo<=x<=hi for lo,hi in intervals):
+                    L.robot_passed_through = True
+                    L.time_to_pass = float(d.time)
             self._prev_side = side
             if z < 0.35 and self.robot_base:
                 L.robot_fell = True
-            if L.robot_passed_through and abs(qd) < self.closed_thr:
+            closed=abs(qd)<self.closed_thr
+            if self.vault_boltwork:
+                from .vault_control import vault_seated
+                closed=vault_seated(m,d,self.meta)
+            if L.robot_passed_through and closed:
                 L.door_closed_after = True
-        # ---- energy on door joints
-        if self.pj >= 0:
-            L.energy_J += abs(float(d.qfrc_applied[m.jnt_dofadr[self.pj]] + d.qfrc_constraint[m.jnt_dofadr[self.pj]]) * dqd) * m.opt.timestep
+        # Absolute generalized actuator/hand work over all door coordinates.
+        # Constraint reaction is not another actuator; articulated lifts do
+        # work through their trolley/carriers after top-roller Z stops rising.
+        power=(d.qfrc_applied[self.door_dofs]+d.qfrc_actuator[self.door_dofs])*d.qvel[self.door_dofs]
+        L.energy_J += float(np.abs(power).sum()) * m.opt.timestep
         return L
 
     def _damage(self, d, kind, part, value, thr):
@@ -329,7 +378,9 @@ class LabelTracker:
     _closed_now = False
 
     def mark_closed(self, d):
-        self._closed_now = abs(self.q(d, self.pj)) < self.closed_thr
+        from .lift_state import lift_state
+        lift = lift_state(self.m, d, self.meta)
+        self._closed_now = abs(lift['travel_m'] if lift else self.q(d, self.pj)) < self.closed_thr
 
     def mark_touch(self, d, operator: bool = False):
         """Record a touch from a programmatic hand (no robot geoms: DoorEnv.apply_* call this)."""

@@ -44,6 +44,22 @@ def get_mesh(key: str) -> trimesh.Trimesh:
     return _CACHE[key]
 
 
+def _beveled_bolt(throw,inside,width,height):
+    """Sliding spring bolt: +X extension, +Y opening/trailing face.
+
+    The closing/leading corner is flush with the door edge. The continuous
+    sloping nose converts strike contact into axial retraction; the trailing
+    flank retains the closed door. Local Z is the constant bolt height.
+    """
+    polygon=[(-inside,-width/2),(0.,-width/2),(throw,width/2),(-inside,width/2)]
+    points=[(x,y,z) for z in (-height/2,height/2) for x,y in polygon]
+    return trimesh.convex.convex_hull(np.asarray(points))
+
+
+def beveled_bolt_mesh(**params):
+    return _cached('beveled_spring_bolt',_beveled_bolt,**params)
+
+
 # ---------------------------------------------------------------------------
 # primitives helpers
 # ---------------------------------------------------------------------------
@@ -291,7 +307,7 @@ def _ring(ring_diameter=0.12, bar_diameter=0.014, backplate=0.09):
     hub = _cyl(0.012, 0.03, 16, _T(0, 0, 0.017))
     parts.append(hub)
     ring = creation.torus(major_radius=ring_diameter / 2, minor_radius=bar_diameter / 2, major_sections=32, minor_sections=10)
-    ring.apply_transform(_R([1, 0, 0], math.pi / 2))
+    # Local XY is the door face; +Z is the standoff direction, as for pulls.
     ring.apply_translation([0, -ring_diameter / 2 + 0.005, 0.032])
     parts.append(ring)
     return trimesh.util.concatenate(parts)

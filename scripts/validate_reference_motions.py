@@ -11,7 +11,11 @@ import mujoco
 def sha(p): return hashlib.sha256(p.read_bytes()).hexdigest()
 def validate(root:Path,assets:Path):
     index=json.loads((root/'index.json').read_text());manifest=json.loads((assets/'manifest.json').read_text())
-    ids={d['id'] for d in manifest['doors']};rows=index['clips']
+    if index['schema']=='doorbench.native-motion.v1':
+        from doorbench.reference.native_validation import validate_native
+        return validate_native(root,assets)
+    from doorbench.benchmark_eligibility import is_benchmark_eligible
+    ids={d['id'] for d in manifest['doors'] if is_benchmark_eligible(d)};rows=index['clips']
     assert index['schema']=='doorbench.reference-motion.v1'
     assert len(rows)==len(ids) and {r['door_id'] for r in rows}==ids
     assert index['manifest_sha256']==sha(assets/'manifest.json')

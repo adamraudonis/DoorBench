@@ -123,7 +123,12 @@ class DoorEnv:
             body = spec.worldbody.add_body(name="human", mocap=True, pos=[0.0, -50.0, h / 2])
             body.add_geom(name="human_capsule", type=mujoco.mjtGeom.mjGEOM_CAPSULE, size=[r, max(0.05, h / 2 - r), 0.0], rgba=[0.95, 0.55, 0.3, 0.9], group=0)
         m = spec.compile()
-        if self.timestep:
+        if self.timestep is not None:
+            if not math.isfinite(self.timestep) or self.timestep<=0:
+                raise ValueError('timestep must be positive and finite')
+            bound=self.meta.get('native_timestep_s')
+            if bound is not None and self.timestep>bound:
+                raise ValueError(f'This mechanism requires timestep <= {bound} s')
             m.opt.timestep = self.timestep
         return m, mujoco.MjData(m)
 
@@ -154,6 +159,10 @@ class DoorEnv:
         self.latch_joints = [j["name"] for b in self.model_json["bodies"] if (j := b.get("joint")) and j.get("role") == "latch" and self._jid(j["name"]) >= 0]
         self._breakable = {w["name"]: w for w in self.meta.get("breakable_welds", [])}
         self.keypad = keypad_for(mujoco, m, self.meta, self.spec)
+        if self.keypad is not None:
+            # DoorEnv already applies this same actuator in its passive
+            # force callback. Standalone keypad fixtures use Keypad.apply.
+            self.keypad.actuate_physical_catch=False
         hid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "human")
         self._human_mocap = int(m.body_mocapid[hid]) if hid >= 0 else -1
         self._human_geoms = {g for g in range(m.ngeom) if m.geom_bodyid[g] == hid} if hid >= 0 else set()
@@ -191,11 +200,31 @@ class DoorEnv:
         if pet_magnet and self.pj >= 0:
             rules.append(("magnet", m.jnt_dofadr[self.pj], float(pet_magnet), 0.0, 0.0, None, 0.0))
 
-        sig = (int(m.nv), int(m.nbody), int(m.ngeom), int(m.njnt))
+        from ..geometry.gate_hardware import compile_magnetic_latches, apply_magnetic_latches
+        magnetic_latches = compile_magnetic_latches(m, self.meta)
+        from ..closer_pinion import compile_pinion_closers, apply_pinion_closers
+        pinion_closers = compile_pinion_closers(m, self.meta)
+        from ..closer_track_hold import compile_track_holds, apply_track_holds
+        track_holds = compile_track_holds(m,self.meta)
+        self._track_hold_names = {r.name for r in track_holds}
+        if not hasattr(self,'closer_power'):self.closer_power = None
+        from ..turnstile_locks import compile_turnstile_locks, apply_turnstile_locks
+        turnstile_locks = compile_turnstile_locks(m,self.meta)
+        self._turnstile_lock_names = {r.name for r in turnstile_locks}
+        self.turnstile_power = None
+        from ..turnstile_drop import compile_turnstile_drop,apply_turnstile_drop
+        turnstile_drops=compile_turnstile_drop(m,self.meta)
+        self._turnstile_drop_names={r.name for r in turnstile_drops}
+        self.turnstile_drop_power=None
+        self.turnstile_supply=None
+        self.elevator_power=None
+        from ..rotary_lockset import compile_rotary_catches,apply_rotary_catches
+        rotary_catches=compile_rotary_catches(m,self.meta)
+        self.rotary_release_requested=False
 
         def cb(model, data):
             # the callback is global to the process: ignore models that are not ours (other envs, plain mujoco use)
-            if (int(model.nv), int(model.nbody), int(model.ngeom), int(model.njnt)) != sig:
+            if model is not m:
                 return
             for kind, dof, b_close, b_open, b_base, bc_ang, bc_damp in self._rules:
                 v = data.qvel[dof]
@@ -214,16 +243,77 @@ class DoorEnv:
                     arm = self.spec["leaf"]["height"]
                     if abs(q) < math.radians(3):
                         data.qfrc_passive[dof] += -math.copysign(b_close * arm, q) * (1 - abs(q) / math.radians(3))
+            if magnetic_latches:
+                apply_magnetic_latches(model, data, magnetic_latches)
+            if pinion_closers:
+                apply_pinion_closers(model, data, pinion_closers)
+            if track_holds:
+                apply_track_holds(model,data,track_holds,powered=self.closer_power)
+            if turnstile_locks:
+                apply_turnstile_locks(model,data,turnstile_locks,powered=False if self.turnstile_supply is False else self.turnstile_power)
+            if turnstile_drops:
+                apply_turnstile_drop(model,data,turnstile_drops,powered=False if self.turnstile_supply is False else self.turnstile_drop_power)
+            if rotary_catches:
+                apply_rotary_catches(model,data,rotary_catches,True if self.rotary_release_requested else None)
         self._cb = cb      # installed only around mj_step / mj_forward (see _with_passive): a permanently installed
                            # global callback breaks MjModel.from_xml_path / MjSpec.compile elsewhere in the process
 
     def _with_passive(self, fn):
         mujoco = self.mj
-        mujoco.set_mjcb_passive(self._cb)
+        previous=mujoco.get_mjcb_passive()
+        owners=getattr(previous,'_doorbench_owners',frozenset())
+        if previous is self._cb or id(self) in owners:
+            return fn()
+        def callback(model,data):
+            if previous is not None and previous is not self._cb:
+                previous(model,data)
+            self._cb(model,data)
+        callback._doorbench_owners=owners|{id(self)}
+        mujoco.set_mjcb_passive(callback)
         try:
             return fn()
         finally:
-            mujoco.set_mjcb_passive(None)
+            mujoco.set_mjcb_passive(previous)
+
+    def set_closer_power(self, powered):
+        """Set external hold-open power; the physical test switch overrides it.
+
+        None restores each authored supply state. Power changes coil force on
+        the real plunger, without changing door poses, ranges or constraints.
+        """
+        if powered is not None and type(powered) is not bool:
+            if not isinstance(powered,dict) or set(powered)-self._track_hold_names or any(type(v) is not bool for v in powered.values()):
+                raise ValueError('Closer power must be a bool, None, or known plunger names mapped to bools')
+            powered=dict(powered)
+        self.closer_power=powered
+
+    def set_turnstile_power(self, powered):
+        """Supply the physical index-bolt coil without changing rotor constraints."""
+        if powered is not None and type(powered) is not bool:
+            if not isinstance(powered,dict) or set(powered)-self._turnstile_lock_names or any(type(v) is not bool for v in powered.values()):
+                raise ValueError('Turnstile power must be a bool, None, or known bolt names mapped to bools')
+            powered=dict(powered)
+        self.turnstile_power=powered
+
+    def set_turnstile_drop_power(self,powered):
+        """Supply the drop-release coil; restored power never lifts an arm."""
+        if powered is not None and type(powered) is not bool:
+            if not isinstance(powered,dict) or set(powered)-self._turnstile_drop_names or any(type(v) is not bool for v in powered.values()):
+                raise ValueError('Drop power must be a bool, None, or known release names mapped to bools')
+            powered=dict(powered)
+        self.turnstile_drop_power=powered
+
+    def set_turnstile_supply(self,powered):
+        """Gate both coils; restoring supply does not issue a credential."""
+        if powered is not None and type(powered) is not bool:
+            raise ValueError('Whole turnstile supply must be bool or None')
+        self.turnstile_supply=powered
+
+    def set_elevator_power(self,powered):
+        """Gate the landing operator supply; restoring it is not a call."""
+        if powered is not None and type(powered) is not bool:
+            raise ValueError('Elevator power must be bool or None')
+        self.elevator_power=powered
 
     # ------------------------------------------------------------------
     # scenarios
@@ -259,22 +349,72 @@ class DoorEnv:
             self._human_enabled = True
             self._rebind()
         mujoco.mj_resetData(self.m, self.d)
+        self.last_applied_qfrc=np.zeros(self.m.nv)
+        self.turnstile_power = None
+        self.turnstile_drop_power = None
+        self.turnstile_supply = None
+        self.elevator_power = None
+        self.rotary_release_requested=False
+        self.initialization_evidence = None
         # initial joint values from the IR (e.g. retracted deadbolts, rest angles)
         for b in self.model_json["bodies"]:
             j = b.get("joint")
-            if j and j.get("initial"):
+            if j and j.get('type')!='free' and j.get("initial"):
                 jid = self._jid(j["name"])
                 if jid >= 0:
                     self.d.qpos[self.m.jnt_qposadr[jid]] = j["initial"]
         starts_open = sc["initial_state"].get("door") == "open" or self._legacy_task in ("traverse_open", "close")
-        if starts_open and self.pj >= 0:
+        if starts_open and self.meta.get('rollup_curtain'):
+            if self.meta.get('rollup_hoist'):
+                from ..rollup_hoist import prepare_hoist_open
+                opened = prepare_hoist_open(self.m,self.meta,self.d.qpos)
+            else:
+                from ..rollup import prepare_rollup_open
+                opened = prepare_rollup_open(self.m, self.meta, self.d.qpos)
+            if not opened['ok']:
+                raise ValueError(f"Native rollup open initialization failed: {opened['reason']}")
+            self.d.qpos[:] = opened['qpos']
+            self.d.qvel[:] = opened['qvel']
+            self.initialization_evidence = {k:v for k,v in opened.items() if k not in ('qpos','qvel','trace')}
+        elif starts_open and self.pj >= 0:
             if self.m.jnt_limited[self.pj]:
                 lo, hi = self.m.jnt_range[self.pj]
-                self.d.qpos[self.m.jnt_qposadr[self.pj]] = lo + 0.8 * (hi - lo)
+                pocket = self.meta.get("pocket_edge_pull")
+                initial = pocket["recessed_leaf_q"] if pocket else lo + 0.8 * (hi - lo)
+                self.d.qpos[self.m.jnt_qposadr[self.pj]] = initial
             else:
                 self.d.qpos[self.m.jnt_qposadr[self.pj]] = 1.2
             if self.bj >= 0:
                 self.d.qpos[self.m.jnt_qposadr[self.bj]] = 0.0
+            from ..initial_configuration import resolve_joint_followers
+            resolve_joint_followers(self.m,self.d.qpos,[self.meta['primary_joint']])
+            if self.meta.get("garage_tiltup_linkage"):
+                from ..geometry.garage_tiltup import resolve_garage_configuration
+                resolve_garage_configuration(self.m, self.d.qpos, self.meta)
+            for bank in self.meta.get('folding_banks', []):
+                pivot = self._jid(bank['pivot_joint'])
+                fold = self._jid(bank['fold_joint'])
+                angle = .95*bank['open_q']
+                self.d.qpos[self.m.jnt_qposadr[pivot]] = angle
+                self.d.qpos[self.m.jnt_qposadr[fold]] = -2*angle
+            support = self.meta.get('hatch_support')
+            if support:
+                # A hold-open stay catches only at full extension. Start the
+                # lid there, with its knob withdrawn; native spring/contact
+                # dynamics engage the pin during the first steps.
+                if support.get('support_release_joint'):
+                    self.d.qpos[self.m.jnt_qposadr[self.pj]] = support['nominal_angle_rad']
+                from ..geometry.hatch_supports import resolve_hatch_configuration
+                resolve_hatch_configuration(self.m, self.d.qpos, self.meta)
+            if self.meta.get('sectional_track'):
+                from ..geometry.sectional import resolve_sectional_configuration
+                resolve_sectional_configuration(self.m, self.d.qpos, self.meta, progress=1.)
+            if self.meta.get('vault_boltwork'):
+                from ..initial_configuration import prepare_vault_open_fixture
+                self.initialization_evidence=prepare_vault_open_fixture(self.m,self.d.qpos,self.meta)
+            if self.meta.get('closer_mounts'):
+                from ..geometry.closer_mounts import resolve_closer_configuration
+                resolve_closer_configuration(self.m, self.d.qpos, self.meta)
         self._was_open = starts_open
         if randomize:
             self._domain_randomize()
@@ -352,15 +492,16 @@ class DoorEnv:
         self._lock_logic()
         if self._human is not None:
             self._human_motion()
+        self.last_applied_qfrc=self.d.qfrc_applied.copy()
         self._with_passive(lambda: self.mj.mj_step(self.m, self.d))
-        self.d.qfrc_applied[:] = 0
-        self.d.xfrc_applied[:] = 0
         if robot_base_pos is None and self.robot_base:
             bid = self.mj.mj_name2id(self.m, self.mj.mjtObj.mjOBJ_BODY, self.robot_base)
             robot_base_pos = self.d.xpos[bid].copy() if bid >= 0 else None
         self._robot_base_pos = None if robot_base_pos is None else np.asarray(robot_base_pos, float)
         if self.keypad is not None and self.keypad.step(self.d) and self.tracker is not None:
-            self.tracker.L.lock_released = True
+            self.tracker.L.credential_accepted = True
+            if not self.meta.get('rotary_locksets'):
+                self.tracker.L.lock_released = True
             self.tracker.L.notes.append(f"keypad code entered at t={self.d.time:.2f}")
         self.tracker.step(self.d, robot_base_pos)
         self._last_reward = 0.0
@@ -369,6 +510,10 @@ class DoorEnv:
         self._update_rewards()
         sc = self._scenario
         done = self.tracker.L.steps >= self.max_steps or self._done or (sc is not None and self.d.time - self._t0 >= sc["time_budget_s"])
+        # Labels must see the effort that actually drove this step. Clearing
+        # it before tracking concealed applied operator overload and work.
+        self.d.qfrc_applied[:] = 0
+        self.d.xfrc_applied[:] = 0
         return self.observation(), done
 
     # --- rewards ---------------------------------------------------------
@@ -383,9 +528,14 @@ class DoorEnv:
         self._last_reward += v
 
     def _door_q(self):
+        if self.meta.get('sectional_track') or self.meta.get('rollup_curtain'):
+            from .lift_state import lift_state
+            return lift_state(self.m, self.d, self.meta)['travel_m']
         return float(self.d.qpos[self.m.jnt_qposadr[self.pj]]) if self.pj >= 0 else 0.0
 
     def _door_clear_now(self):
+        if self.tracker.passage.enabled:
+            return bool(self.tracker.passage.intervals(self.d))
         thr = self._scenario["thresholds"]
         q = abs(self._door_q())
         if thr.get("clear_rad") is not None:
@@ -393,11 +543,24 @@ class DoorEnv:
         return q >= (thr.get("clear_m") or 0.5) - 1e-6
 
     def _door_opened_now(self):
+        support=self._scenario.get('opening_support')
+        if support:
+            pin=self._jid(support['support_release_joint'])
+            if pin<0 or self.d.qpos[self.m.jnt_qposadr[pin]]>.002:
+                return False
+        targets = self._scenario.get('opening_joint_targets')
+        if targets:
+            return all((1. if target >= 0 else -1.) * self.d.qpos[self.m.jnt_qposadr[self._jid(name)]] >= abs(target)
+                       for name, target in targets.items())
         thr = self._scenario["thresholds"]
         q = abs(self._door_q())
         return q >= (thr["open_rad"] if thr.get("open_rad") is not None else (thr.get("open_m") or 0.3))
 
     def _bolt_extended(self):
+        if self.meta.get('vault_boltwork'):
+            return all(abs(float(self.d.qpos[self.m.jnt_qposadr[self.m.joint(r['carrier_joint']).id]]))<.0005
+                       and abs(float(self.d.qpos[self.m.jnt_qposadr[self.m.joint(r['operator_joint']).id]]))<.01
+                       for r in self.meta['vault_boltwork']['groups'])
         if self.bj < 0:
             return True
         throw = self.m.jnt_range[self.bj][1]
@@ -441,6 +604,10 @@ class DoorEnv:
             self._fire("traversed")
         closed_now = abs(self._door_q()) < self.tracker.closed_thr
         shut = abs(self._door_q()) < (math.radians(1.0) if self.tracker.is_hinge else 0.01)   # bolt can only drop into the keeper when fully shut
+        if self.meta.get('vault_boltwork'):
+            from .vault_control import vault_seated
+            closed_now=vault_seated(m,d,self.meta)
+            shut=abs(self._door_q())<.001
         if L.door_closed_after:
             self._fire("closed_behind")
             if shut and self._bolt_extended():
@@ -470,6 +637,11 @@ class DoorEnv:
     def _flag(self, crit: str) -> bool:
         neg = crit.startswith("!")
         name = crit.lstrip("!")
+        if name == 'opened' and self._scenario.get('opening_joint_targets'):
+            # The generic few-degree movement label cannot satisfy a
+            # manipulation-only target that requires the actual banks open.
+            v = name in self._fired or (self._door_opened_now() and not self._was_open)
+            return not v if neg else v
         v = name in self._fired
         if not v and self.tracker is not None:
             alias = LABEL_ALIASES.get(name, name)
@@ -638,14 +810,32 @@ class DoorEnv:
                 self.keypad.lock.unlocked = True
                 self.keypad.lock.events.append({"t": round(float(d.time), 4), "event": "released_by_env"})
             self.keypad.apply(d)
-        # card / electric strike / keyed trim: restore operator range when released
-        if L is not None and (L.lock_released or self.unlocked_by_env) and self.oj >= 0 and lock.get("engaged") and lock.get("model") in ("keypad_code_4", "keypad_code_6", "keypad_mechanical", "card_reader", "electric_strike", "electric_bolt", "privacy_button", "keyed_cylinder"):
+        rotary=self.meta.get('rotary_locksets')
+        if rotary and (self.unlocked_by_env or (L is not None and L.credential_accepted)):
+            self.rotary_release_requested=True
+        # Legacy ideal locks restore their range. Physical rotary catches
+        # keep all ranges unchanged and withdraw under the bounded actuator.
+        if not rotary and L is not None and (L.lock_released or self.unlocked_by_env) and self.oj >= 0 and lock.get("engaged") and lock.get("model") in ("keypad_code_4", "keypad_code_6", "keypad_mechanical", "card_reader", "electric_strike", "electric_bolt", "privacy_button", "keyed_cylinder"):
             for b in self.model_json["bodies"]:
                 j = b.get("joint")
                 if j and j["name"] == self.meta.get("operator_joint"):
                     full = self._operator_full_travel()
                     if full and m.jnt_range[self.oj][1] < full - 1e-6:
                         m.jnt_range[self.oj][1] = full
+        # turnstile credential release
+        turnstile = self.meta.get('turnstile_locks')
+        if turnstile:
+            bolt = self._jid(turnstile['bolt_joint'])
+            if L is not None and d.qpos[m.jnt_qposadr[bolt]] >= turnstile['stroke_m']-.0005:
+                L.lock_released = True
+        elif self.meta.get('elevator_interlocks'):
+            if L is not None and all(float(d.qpos[m.jnt_qposadr[self._jid(r['hook_joint'])]])>=r['released_angle_rad']
+                                     for r in self.meta['elevator_interlocks']['leaves']):
+                L.lock_released=True
+        elif rotary:
+            from ..keypad import physical_release_ready
+            if L is not None and physical_release_ready(m,d,self.meta):
+                L.lock_released=True
         # A locked leaf is held by a constraint (meta["breakable_welds"]), never by a shortened joint range: a range
         # is static in the exported model, so widening it at run time here would have made the door's travel differ
         # between MuJoCo and every other consumer of the same asset.  The loop above is the whole release path.
@@ -676,7 +866,7 @@ class DoorEnv:
                 self.step()
         if self.keypad.lock.code_kind == "set" and self.keypad.clutch >= 0:
             for _ in range(max(1, int(round(0.25 / dt)))):
-                self.d.qfrc_applied[self.m.jnt_dofadr[self.keypad.clutch]] += 4.0
+                self.keypad.turn(self.d)
                 self.step()
             for _ in range(max(1, int(round(gap_s / dt)))):
                 self.step()
@@ -688,10 +878,21 @@ class DoorEnv:
 
     def badge(self):
         """Present a valid credential (card reader / turnstile / maglock)."""
+        lock=self.spec.get('lock',{})
+        if (not lock.get('robot_side_release',True) or
+            not (self.meta.get('turnstile_locks') or lock.get('model') in ('card_reader','mag_lock','electric_strike','electric_bolt'))):
+            return False
         self.unlocked_by_env = True
+        if self.meta.get('rotary_locksets'):
+            self.rotary_release_requested=True
+        if self.meta.get('turnstile_locks'):
+            self.set_turnstile_power(True)
         if self.tracker:
-            self.tracker.L.lock_released = True
+            self.tracker.L.credential_accepted=True
+            if not self.meta.get('turnstile_locks') and not self.meta.get('rotary_locksets'):
+                self.tracker.L.lock_released = True
             self.tracker.L.notes.append(f"badge presented at t={self.d.time:.2f}")
+        return True
 
     # --- programmatic hand -------------------------------------------------
     # Without a robot model there are no robot geoms, so the tracker cannot see contacts: applying a wrench with
@@ -710,15 +911,11 @@ class DoorEnv:
         j = self._jid(joint_name)
         if j < 0:
             raise KeyError(joint_name)
+        if int(self.m.jnt_type[j])==int(self.mj.mjtJoint.mjJNT_FREE):
+            raise ValueError('A free body requires a world wrench; it has no scalar joint torque')
         self.d.qfrc_applied[self.m.jnt_dofadr[j]] += tau
         if self.tracker and tau:
             self.tracker.mark_touch(self.d, operator=joint_name in self.operator_joints)
-
-    def close(self):
-        """Remove the global passive-force callback (it references this env's model); call when done with the env."""
-        if getattr(self, "_cb", None) is not None:
-            self.mj.set_mjcb_passive(None)
-            self._cb = None
 
     def grip_sites(self):
         return [self.mj.mj_id2name(self.m, self.mj.mjtObj.mjOBJ_SITE, i) for i in range(self.m.nsite) if "grip" in (self.mj.mj_id2name(self.m, self.mj.mjtObj.mjOBJ_SITE, i) or "") or "push" in (self.mj.mj_id2name(self.m, self.mj.mjtObj.mjOBJ_SITE, i) or "")]
@@ -738,7 +935,7 @@ class DoorEnv:
 
     def close(self):
         """Nothing to release: the passive callback is only installed around the env's own mj_step / mj_forward calls."""
-        self.mj.set_mjcb_passive(None)
+        pass
 
     def render(self, camera="iso", width=640, height=480):
         r = self.mj.Renderer(self.m, height=height, width=width)

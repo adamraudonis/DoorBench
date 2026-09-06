@@ -115,8 +115,8 @@ export class Articulation {
       const parent = hasParent ? this.index.get(b.parent!)! : -1;
       const local = new Matrix4().compose(v3(b.pos), new Quaternion(b.quat[1], b.quat[2], b.quat[3], b.quat[0]), ONE);
       let joint: KJoint | null = null;
-      if (b.joint) {
-        const j = b.joint;
+      const j = b.joint;
+      if (j && j.type !== 'free') {
         joint = {
           name: j.name, body: index, type: j.type, axis: v3(j.axis).normalize(), pos: v3(j.pos), range: j.range, modeledAt: j.modeled_at ?? 0,
           role: j.role, interactive: !!j.robot_interactive, q: j.modeled_at ?? 0,
@@ -246,6 +246,8 @@ export class LoopSolver {
   readonly warnings: string[] = [];
   private readonly tol: number;
   private readonly forceGeneric: boolean;
+  private readonly garage: ModelJ["meta"]["garage_tiltup_linkage"];
+  private readonly marine: ModelJ["meta"]["marine_dog_linkage"];
   // scratch
   private readonly P = new Vector3(); private readonly N = new Vector3(); private readonly T = new Vector3();
   private readonly D = new Vector3(); private readonly U = new Vector3(); private readonly E = new Vector3();
@@ -254,10 +256,15 @@ export class LoopSolver {
   constructor(model: ModelJ, opts: LoopSolverOptions = {}) {
     this.tol = opts.tolerance ?? 1e-4;
     this.forceGeneric = !!opts.forceGeneric;
+    this.garage = model.meta.garage_tiltup_linkage;
+    this.marine = model.meta.marine_dog_linkage;
     this.art = new Articulation(model);
     // polynomial joint couplings (rising hinges, bolt <- handle) and one-sided tendons are set by the scene each frame
     for (const e of model.equalities ?? []) if (e.kind === "joint" && e.b) this.coupled.add(e.a);
     for (const t of model.tendons ?? []) if (t.sites?.[0]?.[0]) this.coupled.add(t.sites[0][0]);
+    if(this.marine) for(const name of [this.marine.output_joint,...this.marine.dog_joints,...this.marine.rod_joints]) {
+      this.coupled.add(name);this.owned.add(name);
+    }
     const schema = new Map<string, LinkageJ>();
     for (const l of model.linkages ?? []) if (l && typeof l === "object" && l.equality) schema.set(l.equality, l);
     for (const e of model.equalities ?? []) {
@@ -307,8 +314,13 @@ export class LoopSolver {
     const base = { name: link?.name ?? e.name.replace(/_connect$/, ""), equality: e.name, source: link ? "schema" as const : "derived" as const, warnings, stretched: false, lastSeparation: 0 };
     const restore = () => { for (const [n, q] of saved) art.setQ(n, q); art.update(); };
     if (!ownedA.length && !ownedB.length) {
-      warnings.push(`${e.name}: no mechanism joint between ${e.a} and ${e.b ?? "world"}; the loop cannot be solved`);
-      this.warnings.push(...warnings);
+      // The marine parallelogram has an explicit branch in solve(). Keep
+      // these pin residuals in the normal loop results, but do not call its
+      // deliberately owned followers missing numerical unknowns.
+      if(!this.marine?.connect_equalities.includes(e.name)) {
+        warnings.push(`${e.name}: no mechanism joint between ${e.a} and ${e.b ?? "world"}; the loop cannot be solved`);
+        this.warnings.push(...warnings);
+      }
       restore();
       return { ...base, type: "generic", tipBody: a, tipLocal: anchorA, anchorBody: b, anchorLocal: anchorB, joints: [] };
     }
@@ -407,6 +419,27 @@ export class LoopSolver {
   solve(): LoopResult[] {
     const art = this.art;
     const out: LoopResult[] = [];
+    if(this.marine) {
+      // Exact pinned-parallelogram branch for manual inspection. Recorded
+      // native poses bypass this solver and retain their measured residuals.
+      const r=this.marine,q=art.getQ(r.input_joint)*r.ratio;
+      art.setQ(r.output_joint,q);
+      for(const name of r.dog_joints) art.setQ(name,q);
+      for(const name of r.rod_joints) art.setQ(name,q*r.rod_ratio);
+    }
+    if (this.garage) {
+      // Exact planar loop branch shared with garage_tiltup.linkage_pose.
+      // Prescribed viewer poses only; native physics uses connect constraints.
+      const g = this.garage, d = g.dimensions, angle = art.getQ(g.primary_joint);
+      const length = d.attach_below_top_m, offset = d.attach_rear_offset_m;
+      const dz = d.top_height_m - offset * Math.sin(angle) - length * Math.cos(angle) - d.pivot_height_m;
+      const radial = d.arm_length_m ** 2 - dz ** 2;
+      if (radial < -1e-9) throw new Error("Tilt-up pose exceeds lifting-arm reach");
+      const y = Math.sqrt(Math.max(0, radial));
+      art.setQ(g.carriage_joint, y - offset * Math.cos(angle) + length * Math.sin(angle));
+      const initial = Math.atan2(d.top_height_m - length - d.pivot_height_m, offset);
+      for (const name of g.arm_joints) art.setQ(name, Math.atan2(dz, y) - initial);
+    }
     art.update();
     for (const loop of this.loops) {
       if (loop.joints.length) {

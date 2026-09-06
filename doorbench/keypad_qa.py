@@ -38,6 +38,34 @@ def _wrong_code(kp) -> str:
 
 
 def run_keypad_qa(m, spec: dict, meta: dict, phys: dict, push: float, oj: int, pj: int) -> dict:
+    """Exercise code locks with their installed closer's native valve law."""
+    import mujoco
+    from .closer_pinion import compile_pinion_closers, apply_pinion_closers
+    from .closer_track_hold import compile_track_holds, apply_track_holds
+    from .native_warnings import capture_native_warnings
+    pinions=compile_pinion_closers(m,meta)
+    holds=compile_track_holds(m,meta)
+    previous=mujoco.get_mjcb_passive()
+    def passive(model,data):
+        if model is m:
+            apply_pinion_closers(model,data,pinions)
+            apply_track_holds(model,data,holds)
+        elif previous is not None:
+            previous(model,data)
+    try:
+        mujoco.set_mjcb_passive(passive)
+        with capture_native_warnings() as warnings:
+            result=_run_keypad_qa(m,spec,meta,phys,push,oj,pj)
+        if result.get('ok') is not None:
+            result['checks']['native_warnings']=not warnings
+            result['metrics']['native_warning_messages']=list(warnings)
+            result['ok']=all(result['checks'].values())
+        return result
+    finally:
+        mujoco.set_mjcb_passive(previous)
+
+
+def _run_keypad_qa(m, spec: dict, meta: dict, phys: dict, push: float, oj: int, pj: int) -> dict:
     """Returns {"ok", "checks", "metrics"}; ok is None when the door has no keypad."""
     import mujoco
 
@@ -72,10 +100,11 @@ def run_keypad_qa(m, spec: dict, meta: dict, phys: dict, push: float, oj: int, p
     def drive(seconds: float, lever: float = 0.0, operator: float = 0.0, push_leaf: bool = True):
         """Work the released hardware: the outside trim (clutch) / the operator, and lean on the leaf."""
         n = int(seconds / dt)
-        rel = kp.clutch if kp.release_mode == "clutch" else oj
+        rel = kp.clutch if kp.release_mode in ("clutch","physical_catch") else oj
         for _ in range(n):
             if lever and rel >= 0:
-                d.qfrc_applied[m.jnt_dofadr[rel]] += lever
+                if kp.physical_catch:kp.turn(d,lever)
+                else:d.qfrc_applied[m.jnt_dofadr[rel]] += lever
             if operator and oj >= 0:
                 d.qfrc_applied[m.jnt_dofadr[oj]] += operator
             if push_leaf and pj >= 0 and (not is_hinge or _q(m, d, pj) < math.radians(50)):
@@ -106,10 +135,11 @@ def run_keypad_qa(m, spec: dict, meta: dict, phys: dict, push: float, oj: int, p
     kp.press_sequence(d, code, step=stepper())
     metrics["unlocked_on_code"] = bool(kp.unlocked)
     metrics["unlock_time_s"] = round(float(d.time), 3)
-    if kp.release_mode == "motor_bolt":
+    if kp.release_mode in ("motor_bolt", "physical_catch"):
         for _ in range(int(2.0 / dt)):
             stepper()()
-        metrics["bolt_after_motor_m"] = round(_q(m, d, kp.bolt), 5)
+        if kp.bolt>=0:metrics["bolt_after_motor_m"] = round(_q(m, d, kp.bolt), 5)
+        metrics['catch_after_code_m']=[round(float(d.qpos[c.qpos]),5) for c in kp.catch_rules]
     opened = drive(3.0, lever=4.0 if kp.release_mode != "motor_bolt" else 0.0, operator=4.0 if kp.release_mode == "motor_bolt" else 0.0)
     metrics["opened_after_code_rad"] = round(opened, 4)
     checks["code_opens"] = bool(kp.unlocked and opened > target)
@@ -119,10 +149,10 @@ def run_keypad_qa(m, spec: dict, meta: dict, phys: dict, push: float, oj: int, p
     kp.press_sequence(d, wrong, step=stepper())
     metrics["unlocked_on_wrong"] = bool(kp.unlocked)
     metrics["wrong_attempts"] = kp.lock.wrong_attempts
-    if kp.release_mode == "motor_bolt":
+    if kp.release_mode in ("motor_bolt", "physical_catch"):
         for _ in range(int(2.0 / dt)):
             stepper()()
-        metrics["bolt_after_wrong_m"] = round(_q(m, d, kp.bolt), 5)
+        if kp.bolt>=0:metrics["bolt_after_wrong_m"] = round(_q(m, d, kp.bolt), 5)
     shut = drive(3.0, lever=4.0 if kp.release_mode != "motor_bolt" else 0.0, operator=4.0 if kp.release_mode == "motor_bolt" else 0.0)
     metrics["opened_after_wrong_rad"] = round(shut, 4)
     bolt_ok = kp.release_mode != "motor_bolt" or _q(m, d, kp.bolt) < 0.2 * max(kp.bolt_throw, 1e-6)
@@ -164,11 +194,11 @@ def run_keypad_qa(m, spec: dict, meta: dict, phys: dict, push: float, oj: int, p
 
     # a keypad whose lock is not thrown has nothing to release: the code is still read (checks 1, 4) but the door
     # opens with or without it, so the release-dependent sub-checks do not apply
-    if kp.release_mode == "none":
+    if not kp.cfg.get('engaged') or kp.release_mode == "none":
         for k in ("code_opens", "wrong_holds"):
             metrics[f"{k}_note"] = "lock not engaged: nothing to release"
             checks[k] = True
 
     metrics["events"] = kp.lock.events[-12:]
-    kp.reset(d)          # the gate mutates the clutch's joint range: hand the model back locked, as it was built
+    kp.reset(d)          # Reset logical state and any legacy clutch range; physical catch ranges never change.
     return {"ok": all(checks.values()), "checks": checks, "metrics": metrics}

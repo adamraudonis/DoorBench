@@ -45,7 +45,9 @@ def test_assignment_rule(specs):
             assert names == []
             continue
         lock = s["lock"]
-        if lock["engaged"] and lock["robot_side_release"]:
+        if (s.get('context') == 'closet' or s['family'] in ('hatch_floor', 'hatch_ceiling')) and (not lock['engaged'] or lock['robot_side_release']):
+            assert names == ['open_only', 'close_only']
+        elif lock["engaged"] and lock["robot_side_release"]:
             assert names[0] == "unlock_and_traverse"
         elif lock["engaged"]:
             assert names[0] == "locked_recognize"
@@ -54,7 +56,7 @@ def test_assignment_rule(specs):
         for n in names:
             assert n in SCENARIO_TYPES
             counts[n] = counts.get(n, 0) + 1
-    assert counts["open_and_traverse"] + counts["unlock_and_traverse"] + counts["locked_recognize"] == 985
+    assert counts["open_only"] + counts["open_and_traverse"] + counts["unlock_and_traverse"] + counts["locked_recognize"] == 985
     assert counts["hold_open_for_human"] + counts["wait_for_human"] > 30
     assert counts["open_then_close"] > 100
 
@@ -86,7 +88,7 @@ def test_sample_start_is_seeded_and_in_zone(door):
         assert sc["start"]["yaw_range"][0] - 1e-9 <= p["yaw"] <= sc["start"]["yaw_range"][1] + 1e-9
 
 
-def _press_operator(env, frac=0.9, tau_max=2.0, kp=30.0):
+def _press_operator(env, frac=1.0, tau_max=2.0, kp=60.0):
     """A hand on the lever: a saturating position servo toward `frac` of the travel (a constant torque would slam the
     lever into its stop and trip the operator-overload damage label).
 

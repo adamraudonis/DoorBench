@@ -30,6 +30,16 @@ episode is one traversal, so the re-lock timer is not modelled.
 from __future__ import annotations
 
 
+def physical_release_ready(model, data, meta):
+    """All installed credential-operated catches and bolts have withdrawn."""
+    rows=meta.get('rotary_locksets',[])
+    ready=all(float(data.qpos[model.joint(r['catch_joint']).qposadr[0]])>=r['released_threshold_m'] for r in rows)
+    cfg=meta.get('keypad') or {}
+    if cfg.get('bolt_joint') and cfg.get('bolt_throw_m'):
+        ready=ready and float(data.qpos[model.joint(cfg['bolt_joint']).qposadr[0]])>=float(cfg['bolt_throw_m'])-.0005
+    return bool(rows) and ready
+
+
 class CodeLock:
     """The lock's logic, with no simulator in it (mirrored by ``viewer/src/keypad.ts``).
 
@@ -155,6 +165,11 @@ class Keypad:
         self.motor_force = float(self.cfg.get("motor_force_N") or 0.0)
         self.bolt_throw = float(self.cfg.get("bolt_throw_m") or 0.0)
         self.release_mode = self.cfg.get("release", "none")
+        self.physical_catch=self.release_mode=='physical_catch'
+        self.actuate_physical_catch=True
+        from .rotary_lockset import compile_rotary_catches
+        self.catch_rules=compile_rotary_catches(model,meta) if self.physical_catch else ()
+        self.rotary_rows=meta.get('rotary_locksets',[])
         self._down = {}
         self._latched = {}
         self._lever_high = False
@@ -180,7 +195,7 @@ class Keypad:
         self._down = {b["label"]: None for b in self.buttons}
         self._latched = {b["label"]: False for b in self.buttons}
         self._lever_high = False
-        if self.clutch >= 0 and self._clutch_range0 is not None:
+        if not self.physical_catch and self.clutch >= 0 and self._clutch_range0 is not None:
             self.m.jnt_range[self.clutch] = self._clutch_range0
 
     # -- per-step ------------------------------------------------------
@@ -211,6 +226,8 @@ class Keypad:
             lo, hi = (float(x) for x in self.m.jnt_range[self.clutch])
             q = float(d.qpos[self.m.jnt_qposadr[self.clutch]])
             span = max(hi - lo, 1e-9)
+            if self.physical_catch:
+                span=float(self.cfg.get('clutch_locked_rad') or .03)
             if not self._lever_high and (q - lo) >= 0.5 * span:
                 self._lever_high = True
                 self.lock.lever(t)
@@ -222,12 +239,17 @@ class Keypad:
 
     def apply(self, d):
         """Hold the release: free the outside trim (clutch) or run the bolt motor."""
+        if self.physical_catch:
+            if self.actuate_physical_catch:
+                for catch in self.catch_rules:
+                    if self.lock.unlocked or catch.released:
+                        d.qfrc_applied[catch.dof]+=catch.force
         if not self.lock.unlocked:
             return
         if self.release_mode == "clutch" and self.clutch >= 0 and self.clutch_open > 0:
             if self.m.jnt_range[self.clutch][1] < self.clutch_open - 1e-9:
                 self.m.jnt_range[self.clutch] = [self._clutch_range0[0] if self._clutch_range0 else 0.0, self.clutch_open]
-        elif self.release_mode == "motor_bolt" and self.bolt >= 0 and self.motor_force > 0:
+        elif self.release_mode in ("motor_bolt", "physical_catch") and self.bolt >= 0 and self.motor_force > 0:
             q = float(d.qpos[self.m.jnt_qposadr[self.bolt]])
             if q < self.bolt_throw - 1e-4:
                 d.qfrc_applied[self.m.jnt_dofadr[self.bolt]] += self.motor_force
@@ -242,7 +264,30 @@ class Keypad:
         b = self.by_label.get(label)
         if b is None:
             raise KeyError(f"{label}: not a button of this keypad ({sorted(self.by_label)})")
-        d.qfrc_applied[b["dof"]] += self.press_force() if force is None else float(force)
+        import numpy as np
+        sid=self.m.site(b['site']).id
+        bid=int(self.m.jnt_bodyid[b['jid']])
+        if self.m.site_bodyid[sid]!=bid:
+            raise ValueError('Keypad finger must touch its own articulated button')
+        effort=self.press_force() if force is None else float(force)
+        self.mj.mj_applyFT(self.m,d,d.xaxis[b['jid']]*effort,np.zeros(3),d.site_xpos[sid],bid,d.qfrc_applied)
+
+    def turn(self, d, effort=4.):
+        """Turn the outside trim through bounded forces at its real surfaces."""
+        if self.clutch < 0:
+            return
+        if not self.physical_catch:
+            d.qfrc_applied[self.m.jnt_dofadr[self.clutch]]+=effort
+            return
+        import numpy as np
+        from types import SimpleNamespace
+        from .benchmark.rotary_control import surface_action
+        action=surface_action(SimpleNamespace(m=self.m,d=d),self.rotary_rows,
+                              {'torques':{self.m.joint(self.clutch).name:effort}})
+        for name, force in action.get('site_forces',{}).items():
+            sid=self.m.site(name).id
+            self.mj.mj_applyFT(self.m,d,np.asarray(force),np.zeros(3),d.site_xpos[sid],
+                               int(self.m.site_bodyid[sid]),d.qfrc_applied)
 
     def press_sequence(self, d, code: str | None = None, step=None, hold_s: float = 0.08, gap_s: float = 0.06, lever_s: float = 0.25, lever_torque: float = 4.0):
         """Physically enter a code: press each button in turn (and, on a mechanical lock, turn the outside lever).
@@ -269,7 +314,7 @@ class Keypad:
                 adv()
         if self.lock.code_kind == "set" and self.clutch >= 0:
             for _ in range(max(1, int(round(lever_s / dt)))):
-                d.qfrc_applied[self.m.jnt_dofadr[self.clutch]] += lever_torque
+                self.turn(d,lever_torque)
                 adv()
             for _ in range(max(1, int(round(gap_s / dt)))):
                 adv()

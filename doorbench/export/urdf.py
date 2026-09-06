@@ -63,6 +63,7 @@ def _geom_elems(link, g: Geom, shift, tier, mesh_dir_rel, materials_used):
 
 
 def build_urdf(model: Model, tier="full", mesh_dir_rel="../../hardware") -> ET.Element:
+    model.validate_free_joints()
     bodies = model.bodies_in_tier(tier)
     names = {b.name for b in bodies}
     robot = ET.Element("robot", name=f"{model.name}_{tier}")
@@ -81,7 +82,14 @@ def build_urdf(model: Model, tier="full", mesh_dir_rel="../../hardware") -> ET.E
                 m, com, I = 0.01, np.zeros(3), np.eye(3) * 1e-6
             _origin(inert, np.asarray(com) - shift, (1, 0, 0, 0))
             ET.SubElement(inert, "mass", value=_f(m))
-            ET.SubElement(inert, "inertia", ixx=_f(I[0, 0], 9), ixy=_f(I[0, 1], 9), ixz=_f(I[0, 2], 9), iyy=_f(I[1, 1], 9), iyz=_f(I[1, 2], 9), izz=_f(I[2, 2], 9))
+            # Small steel pins/eyes have valid inertia below 0.5e-9 kg m².
+            # Decimal-place rounding erases it and creates a massless axis.
+            # Preserve the physical tensor with round-trip significant digits.
+            ET.SubElement(inert, "inertia", **{
+                name: format(float(I[i, j]), ".17g")
+                for name, i, j in (("ixx", 0, 0), ("ixy", 0, 1), ("ixz", 0, 2),
+                                   ("iyy", 1, 1), ("iyz", 1, 2), ("izz", 2, 2))
+            })
         for g in b.geoms:
             if tier in g.tiers:
                 _geom_elems(link, g, shift, tier, mesh_dir_rel, materials_used)
@@ -107,6 +115,14 @@ def build_urdf(model: Model, tier="full", mesh_dir_rel="../../hardware") -> ET.E
             ET.SubElement(j, "child", link=b.name)
             continue
         jt = b.joint
+        if jt.type == "free":
+            j = ET.SubElement(robot, "joint", name=jt.name, type="floating")
+            _origin(j, origin_pos, b.quat)
+            ET.SubElement(j, "parent", link=parent)
+            ET.SubElement(j, "child", link=b.name)
+            ET.SubElement(j, "doorbench:free_pose", qpos_width="7", qvel_width="6",
+                          note="Native world position plus WXYZ quaternion; scalar joint offsets and controls are unavailable.")
+            continue
         typ = {"hinge": "revolute", "slide": "prismatic"}[jt.type]
         if jt.range is None:
             typ = "continuous" if jt.type == "hinge" else "prismatic"
@@ -163,6 +179,18 @@ def build_urdf(model: Model, tier="full", mesh_dir_rel="../../hardware") -> ET.E
             ET.SubElement(robot, "doorbench:weld", body1=q.a, body2=q.b or "world", label=q.label, active="true" if q.active else "false")
         if q.kind == "connect" and tier in q.tiers and q.a in names:
             ET.SubElement(robot, "doorbench:loop_closure", body1=q.a, body2=q.b or "world", anchor=_f(q.anchor), label=q.label)
+    for spring in model.spatial_springs:
+        if tier in spring.tiers:
+            ET.SubElement(robot, "doorbench:spatial_spring", name=spring.name,
+                site1=spring.sites[0], site2=spring.sites[1], stiffness=_f(spring.stiffness),
+                springlength=_f(spring.springlength), damping=_f(spring.damping),
+                native_support="false", note="URDF has no native spatial spring; simulation requires a force plugin and loop constraints.")
+    for cable in model.spatial_cables:
+        if tier in cable.tiers:
+            ce=ET.SubElement(robot,"doorbench:spatial_cable",name=cable.name,max_length=_f(cable.max_length),
+                native_support="false",note="URDF has no native routed cable or pulley-wrap limit; requires a cable constraint implementation.")
+            for point in cable.path:
+                ET.SubElement(ce,"doorbench:path_point",**point)
     return robot
 
 
