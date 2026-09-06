@@ -104,8 +104,10 @@ def caption_lines(spec: dict, meta: dict) -> List[str]:
     leaf, op, kin, hin = spec["leaf"], spec["operator"], spec["kinematics"], spec["hinge"]
     latch, lock, closer, opening = spec["latch"], spec["lock"], spec["closer"], spec["opening"]
     mb = spec.get("physics", {}).get("mass", {}) or {}
-    mass = mb.get("total_kg")            # the WHOLE door: every leaf plus its hardware
-    per_leaf = mb.get("per_leaf_kg")     # one of them
+    mass = mb.get("total_kg")            # the WHOLE door: every leaf's material plus its hardware
+    # ... spelled out on a multi-leaf door, so the caption can be checked against the area density
+    leaf_mat = (mb.get("leaf_slab_kg") or 0.0) + (mb.get("leaf_glass_kg") or 0.0)
+    door_hw = mb.get("hardware_kg")
 
     travel = kin.get("travel_m")
     max_deg = kin.get("max_open_deg")
@@ -135,7 +137,8 @@ def caption_lines(spec: dict, meta: dict) -> List[str]:
         + (f" x{n_leaf} leaves" if n_leaf and n_leaf != 1 else "")
         + f", {leaf.get('slab', '-')} / {leaf.get('panel_style', '-')}"
         + (f", {mass:.1f} kg total" if mass else "")
-        + (f" ({per_leaf:.1f} kg/leaf)" if per_leaf and n_leaf and n_leaf != 1 else "")
+        + (f" ({n_leaf} leaves x {leaf_mat:.1f} kg + {door_hw:.1f} kg hardware)"
+           if mass and leaf_mat and door_hw is not None and n_leaf and n_leaf != 1 else "")
         + f"   |  OPENING {opening['width']:.3f} x {opening['height']:.3f} m, wall {opening['wall_thickness']:.3f} m,"
         f" frame {opening.get('frame', {}).get('kind', '-')}",
         f"SEAL        {spec.get('seal', 'none')}   |  THRESHOLD {opening.get('threshold', 'none')}"

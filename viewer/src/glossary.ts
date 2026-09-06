@@ -9,14 +9,14 @@ export interface GlossaryEntry {
 
 export const GLOSSARY: Record<string, GlossaryEntry> = {
   // ---- Leaf
-  mass_total: { what: "Total mass of the moving leaf including its hardware (handles, locks, half the hinge mass).", unit: "kg", how: "slab mass + glass mass + hardware mass; the source of the area-density table is shown at the bottom of the panel." },
-  mass_slab: { what: "Mass of the door slab itself (core + faces, without glass and hardware).", unit: "kg", how: "area density of the construction (manufacturer door-weight tables, lb/ft² by core and thickness) × (W×H − glass area)." },
-  mass_glass: { what: "Mass of any glazing in the leaf.", unit: "kg", how: "glass density × glass thickness × lite area (0 for unglazed doors)." },
-  mass_hardware: { what: "Mass of the operator set, lock and the leaf's share of the hinges.", unit: "kg", how: "catalogue masses of the hardware items on this door." },
+  mass_total: { what: "Mass of the WHOLE door: every leaf it has, plus its hardware (handles, locks, latch, closer, half the hinge mass). A pair, a bypass set, a fold and a revolving rotor all repeat the leaf below.", unit: "kg", how: "leaf count × (slab + glass) + hardware; the per-leaf mass is shown in brackets on a multi-leaf door and the area-density source at the bottom of the panel." },
+  mass_slab: { what: "Mass of the door slabs themselves (core + faces, without glass and hardware), for every leaf.", unit: "kg", how: "leaf count × area density of the construction (manufacturer door-weight tables, lb/ft² by core and thickness) × (W×H − glass area)." },
+  mass_glass: { what: "Mass of any glazing, for every leaf.", unit: "kg", how: "leaf count × glass density × glass thickness × lite area (0 for unglazed doors)." },
+  mass_hardware: { what: "Mass of the operator set, lock, latch, door-mounted closer and the leaf-side hinge halves. Charged once: the hardware set is sampled once for the door, and the hinge count is already the door's.", unit: "kg", how: "catalogue masses of the hardware items on this door; frame-side parts (strike, keeper, mag-lock magnet) never move and are not counted." },
   size: { what: "Leaf width × height × thickness.", unit: "m", how: "sampled per family and context (standard leaf sizes); the opening is slightly larger to leave hinge and latch-edge clearance." },
   panel_style: { what: "Face design of the slab (flush, raised panels, glass lites, planks…).", how: "drives the procedural face geometry and, for glazed styles, the glass mass and breakage threshold." },
   finish: { what: "Surface finish and colour of the leaf.", how: "affects only rendering (material roughness / colour), not physics." },
-  inertia: { what: "Moment of inertia of the leaf about its hinge axis: how hard it is to accelerate the door in rotation.", unit: "kg·m²", how: "∫ r² dm of the slab, glass and hardware about the hinge line (≈ m·W²/3 for a uniform slab). Used with the torques below to predict opening times." },
+  inertia: { what: "Moment of inertia about the primary axis: how hard it is to accelerate what the robot actually turns — one leaf of a pair, but the whole rotor of a revolving door.", unit: "kg·m²", how: "∫ r² dm of the slab, glass and hardware about the axis (≈ m·W²/3 for a uniform slab). Used with the torques below to predict opening times." },
   condition: { what: "Wear state of the door (new, normal, worn, old/dry, rusty, swollen, sagging, damaged, well oiled).", how: "multiplies hinge friction and damping, adds lock backlash and stiction (e.g. a swollen door sticks in its frame)." },
   // ---- Hinge / motion
   hinge: { what: "Hinge or pivot type (butt, ball-bearing, rising butt, spring, strap, pivot, continuous…).", how: "sets the bearing friction coefficient, pin radius and load rating used for friction and tear-out." },
