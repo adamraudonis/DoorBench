@@ -10,6 +10,14 @@ from . import common as C
 
 def rebuild_elevator(model, spec, leaves):
     world=model.body('world_env')
+    # The installed hook/bar replaces the old abstract interlock weld. Leaving
+    # both in place pins the leaf even after actual cam release, and makes a
+    # removed-hook negative falsely appear secure.
+    leaf_names={leaf.name for leaf in leaves}
+    replaced={row['name'] for row in model.meta.get('breakable_welds',[])
+              if row.get('body') in leaf_names and row.get('lock_model')=='interlock'}
+    model.equalities=[eq for eq in model.equalities if eq.name not in replaced]
+    model.meta['breakable_welds']=[row for row in model.meta.get('breakable_welds',[]) if row['name'] not in replaced]
     W,H,t=(spec['leaf'][k] for k in ('width','height','thickness'))
     Ho=spec['opening']['height'];travel=spec['kinematics']['travel_m']
     wall=spec['opening']['wall_thickness']/2

@@ -137,6 +137,7 @@ class Attachment:
         self.static = self.c.static                     # per geom: its body is welded to the world
         self.rbound = self.c.rbound                     # planes already widened to 1e6
         self.half = self._local_half()
+        self._rigid_geoms = {}
         self.mj.mj_forward(m, self.d)
 
     # ---- distance helpers -------------------------------------------------------------------------------
@@ -258,6 +259,20 @@ class Attachment:
     def geoms_of(self, bid: int) -> List[int]:
         return [int(g) for g in np.flatnonzero(self.gbody == bid)]
 
+    def assembly_geoms(self, bid: int) -> List[int]:
+        """Own stock plus rigid descendants, excluding every moving joint.
+
+        Explicit material/BOM bodies do not sever a real hinge leaf, bearing
+        housing or wheel mount from the member to which it is bolted.
+        """
+        if bid not in self._rigid_geoms:
+            bodies={bid}
+            for child in range(bid + 1, self.m.nbody):
+                if int(self.m.body_parentid[child]) in bodies and not self.m.body_jntnum[child]:
+                    bodies.add(child)
+            self._rigid_geoms[bid]=[int(g) for g in np.flatnonzero(np.isin(self.gbody,list(bodies)))]
+        return self._rigid_geoms[bid]
+
     def _eq_body_partners(self) -> Dict[int, List[int]]:
         """body id -> bodies it is pinned to by an active connect / weld equality (both directions)."""
         m, mujoco = self.m, self.mj
@@ -276,19 +291,19 @@ class Attachment:
         static_ids = [int(g) for g in np.flatnonzero(self.static)]
         # nearest ancestor that actually has geometry
         p = int(m.body_parentid[bid])
-        while p > 0 and not self.geoms_of(p):
+        while p > 0 and not self.assembly_geoms(p):
             p = int(m.body_parentid[p])
         targets: List[int] = []
         what = []
         if p > 0:
-            targets += self.geoms_of(p)
+            targets += self.assembly_geoms(p)
             what.append(f"parent {self.bname[p]}")
         for q in partners.get(bid, []):
             if q == 0:
                 targets += static_ids
                 what.append("world (equality)")
             elif q != bid:
-                targets += self.geoms_of(q)
+                targets += self.assembly_geoms(q)
                 what.append(f"equality partner {self.bname[q]}")
         if p == 0:
             targets += static_ids
@@ -320,7 +335,7 @@ class Attachment:
         for bid in range(1, m.nbody):
             if int(m.body_weldid[bid]) == 0:
                 continue
-            ids = self.geoms_of(bid)
+            ids = self.assembly_geoms(bid)
             if len(ids) < 2:
                 continue
             groups = self._clusters(ids, TOL_INTRA)
@@ -334,7 +349,7 @@ class Attachment:
                 parent = int(m.body_parentid[bid])
                 while parent > 0 and not self.geoms_of(parent) and not m.body_jntnum[parent]:
                     parent = int(m.body_parentid[parent])
-                support = self.geoms_of(parent) if parent > 0 else []
+                support = [g for g in self.assembly_geoms(parent) if g not in ids] if parent > 0 else []
                 # Use actual surface distance here, not the legacy AABB
                 # intersection fallback: a bore's empty centre is not stock.
                 def seated(island):
@@ -383,7 +398,7 @@ class Attachment:
         for bid in range(1, m.nbody):
             if int(m.body_weldid[bid]) == 0:
                 continue
-            ids = self.geoms_of(bid)
+            ids = self.assembly_geoms(bid)
             if not ids:
                 continue
             targets, what = self.attachment_targets(bid, partners)
@@ -420,7 +435,7 @@ class Attachment:
         for bid in range(1, m.nbody):
             if int(m.body_weldid[bid]) == 0:
                 continue
-            gear = [g for g in self.geoms_of(bid) if self.c.sem.get(self.gname[g], "") == "track"]
+            gear = [g for g in self.assembly_geoms(bid) if self.c.sem.get(self.gname[g], "") == "track"]
             if not gear:
                 continue
             dist, _tol, i, j = self.attach_dist(gear, statics, guided=True)
@@ -450,7 +465,7 @@ class Attachment:
             bid = int(m.jnt_bodyid[j])
             if int(m.body_weldid[bid]) == 0:
                 continue
-            ids = self.geoms_of(bid)
+            ids = self.assembly_geoms(bid)
             if not ids:
                 continue
             targets, what = self.attachment_targets(bid, partners)

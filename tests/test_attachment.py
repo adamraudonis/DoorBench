@@ -387,3 +387,12 @@ def test_separate_mounts_need_actual_fixed_parent_stock(tmp_path,jointed,floatin
     <geom name="right" type="box" pos=".3 {y} 0" size=".02 .01 .02"/></body></body>''')
     findings=[];Attachment(d).check_intra_body(findings)
     assert bool(findings)==(jointed or floating)
+
+@pytest.mark.parametrize('jointed',[False,True])
+def test_attachment_uses_actual_rigid_mount_children(tmp_path,jointed):
+    joint='<joint name="mount_slide" type="slide" axis="0 0 1" range="0 .1"/>' if jointed else ''
+    d=_door(tmp_path,bodies=f'''<body name="leaf" pos="0 -.2 1"><joint name="leaf_hinge"/><geom name="stock" type="box" size=".4 .02 .4"/>
+    <body name="mount">{joint}<geom name="bracket" type="box" pos="0 .085 0" size=".02 .075 .02"/></body></body>''')
+    a=Attachment(d);findings=[];a.check_bodies(findings)
+    leaf_findings=[f for f in findings if f.get('body')=='leaf']
+    assert bool(leaf_findings)==jointed
