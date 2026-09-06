@@ -8,11 +8,12 @@ The four cases are integration examples, not a score on the 985-door benchmark. 
 
 Use Linux with an NVIDIA RTX-capable GPU. This integration targets **Isaac Sim 5.1.0, Isaac Lab v2.3.2, and Python 3.11**. Use the same versions when reproducing the demo; Isaac Lab’s current default branch may require a different simulator.
 
-On a fresh Ubuntu GPU machine:
+On a fresh Ubuntu GPU machine, pin the tested source snapshot:
 
 ```bash
 git clone https://github.com/adamraudonis/DoorBench.git
 cd DoorBench
+git checkout 85b4a81fe8f28d79ccaab34f730f3d4b1c763c9a
 bash scripts/pod_bootstrap.sh
 source isaaclab/cloud/env.sh
 ```
@@ -119,7 +120,7 @@ The Unitree adapter builds its original **47-value observation and 12-leg-joint 
 
 ## Scope before scaling up
 
-This demo uses `door_rl.usda`, the canonical seven-joint representation. It covers the four listed integration cases. It does not implement the full catalogue’s lock, credential, latch-coupling, damage, and mechanism callbacks, and should not be used to claim manipulation success across all doors. Use the task environment and validate the relevant mechanism in native PhysX before expanding your evaluation. The full mechanical exports and ongoing [construction review](review/mechanical-foundations/README.md) have separate validation requirements. Pet doors remain outside the robotics benchmark.
+This demo uses `door_rl.usda`, the canonical seven-joint representation. It covers the four listed integration cases. It does not implement the full catalogue’s lock, credential, latch-coupling, damage, and mechanism callbacks, and should not be used to claim manipulation success across all doors. Use the task environment and validate the relevant mechanism in native PhysX before expanding your evaluation. The full mechanical exports and ongoing [construction review](https://github.com/adamraudonis/DoorBench/blob/85b4a81fe8f28d79ccaab34f730f3d4b1c763c9a/docs/review/mechanical-foundations/README.md) have separate validation requirements. Pet doors remain outside the robotics benchmark.
 
 A locomotion checkpoint is useful for proving the policy-to-simulator connection and exposing transfer failures. It is not a human demonstration or a door-manipulation baseline.
 
@@ -136,7 +137,7 @@ Executed on **September 6, 2026**, on a RunPod **NVIDIA L40S**, driver **580.159
 | Saloon `db0123` | Contact opened one leaf; traversed upright | 10.348 s | 52.6° |
 | Latched `db0705` | Failed; robot fell against the closed door | 10.588 s | About 0.10° |
 
-[Machine-readable results and native receipts](review/isaac-g1/2026-09-06/results.json) include checkpoint, input, runner, robot USD layer, and trajectory hashes. All **162 generator source files** on the pod matched mechanical revision `2b61dee71d122819c950e7864c010fb3a6f8975e`; see the [source inventory](review/isaac-g1/2026-09-06/generator-source-hashes.json).
+[Machine-readable results and native receipts](review/isaac-g1/2026-09-06/results.json) include checkpoint, input, runner, robot USD layer, and trajectory hashes. The complete runnable source snapshot is [`85b4a81fe`](https://github.com/adamraudonis/DoorBench/commit/85b4a81fe8f28d79ccaab34f730f3d4b1c763c9a). All **162 generator source files** on the pod matched mechanical revision `2b61dee71d122819c950e7864c010fb3a6f8975e`; see the [source inventory](review/isaac-g1/2026-09-06/generator-source-hashes.json).
 
 The exact final suite command was:
 
