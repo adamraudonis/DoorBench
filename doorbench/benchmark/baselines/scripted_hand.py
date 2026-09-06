@@ -40,10 +40,10 @@ class ScriptedHandPolicy(Policy):
     control_dt = 0.004
 
     def control_period(self,env):
-        # The chain's force-feedback handoff is resolved at its native step.
-        # Holding this high-stiffness contact controller for8 steps changes
-        # its stability. The actual rate is saved in every episode result.
-        return float(env.m.opt.timestep) if env.meta.get('rollup_hoist') else self.control_dt
+        # Small contact mechanisms require the feedback cadence used by their
+        # native proofs. The actual interval is saved in every episode result.
+        native=any(env.meta.get(name)for name in('rollup_hoist','security_guards','paired_leaf_holds'))
+        return float(env.m.opt.timestep) if native else self.control_dt
 
     # ------------------------------------------------------------------ setup
     def reset(self, info: dict, env=None) -> None:
@@ -67,6 +67,10 @@ class ScriptedHandPolicy(Policy):
         kin = info["kinematics"].get("type", "hinge_vertical")
         self.kin = kin
         meta = info["meta"]
+        self.pair_control=None
+        if meta.get('paired_leaf_holds'):
+            from ..pair_control import PairControl
+            self.pair_control=PairControl(env,self.lim)
         self.rotary_locksets=meta.get('rotary_locksets',[])
         approach=1. if spec['robot'].get('approach_side')=='+y' else -1.
         self.rotary_free_egress=bool(self.rotary_locksets) and all(
@@ -88,6 +92,8 @@ class ScriptedHandPolicy(Policy):
         self.rollup = meta.get('rollup_curtain')
         self.lift = self.sectional or self.rollup
         self.hoist_rules = None
+        from ...hoist_speed_control import HoistSpeedState
+        self.hoist_speed_state=HoistSpeedState()
         self.hoist_keeper=None;self.hoist_transition=None;self.hoist_ready=False;self.hoist_held=False
         self.hoist_failed=None;self.hoist_positioned=False;self.hoist_departed=False
         if meta.get('rollup_hoist'):
@@ -126,6 +132,9 @@ class ScriptedHandPolicy(Policy):
         self.buttons = [l for l in locks if any(p in l for p in MOMENTARY)]
         self.locks = [l for l in locks if l not in self.keys and l not in self.buttons
                       and not self._already_released(l)]
+        if self.pair_control:
+            holds={r['joint']for r in meta['paired_leaf_holds']}
+            self.locks=[j for j in self.locks if j not in holds]
         if self.dutch and dutch_operation!='upper_only':
             # Leave a joined pair coupled. Withdrawing its bolt merely
             # because it is classified as a lock defeats its purpose.
@@ -322,6 +331,7 @@ class ScriptedHandPolicy(Policy):
         if self.rotary_locksets:
             from ..rotary_control import surface_action
             action=surface_action(self.env,self.rotary_locksets,action)
+        if self.pair_control:action=self.pair_control.apply(action,self,obs)
         return action
 
     def _act(self, obs: dict) -> dict:
@@ -680,6 +690,6 @@ class ScriptedHandPolicy(Policy):
         if not closing and height>=h.open_z-.025:
             self.hoist_transition=begin_keeper_transition(m,d,h,k,mode='engage')
             return self._hoist_action(obs,closing)
-        control=hoist_control(m,d,h,opening=not closing,elapsed_s=max(0.,obs['t']-self.lift_time))
+        control=hoist_control(m,d,h,opening=not closing,elapsed_s=max(0.,obs['t']-self.lift_time),control_state=self.hoist_speed_state)
         return {'site_forces':{control['site']:control['force_N'],**keeper_open_force(m,d,k)},
                 'contact_site':control['site'],'contact_joint':self.pj}

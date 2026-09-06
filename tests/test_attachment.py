@@ -289,7 +289,7 @@ def test_a_leaf_that_folds_back_to_the_wall_gets_a_wall_bumper(specs):
     """The stop's mount is decided by the leaf's own travel, not by the name in the spec: at 90 deg the leaf stands
     perpendicular to its wall and gets the floor riser (all 130 wall_bumper doors in the dataset), and a leaf that
     folds back against the wall gets the wall plate and tip."""
-    base = next(s for s in specs.values() if s["kinematics"].get("stop") == "wall_bumper")
+    base = next(s for s in specs.values() if s["kinematics"].get("stop") in ("wall_bumper", "floor_post"))
     floor_model = build_model(base)
     assert floor_model.meta["stops"][0]["mount"] == "floor"
     folded = {**base, "kinematics": {**base["kinematics"], "max_open_deg": 180}}   # flat against the wall
@@ -377,3 +377,13 @@ def test_dataset_running_gear_all_lands():
         if not res["ok"]:
             bad.append((did, res["by_rule"]))
     assert not bad, bad
+
+@pytest.mark.parametrize('jointed,floating',[(False,False),(False,True),(True,False)])
+def test_separate_mounts_need_actual_fixed_parent_stock(tmp_path,jointed,floating):
+    joint='<joint name="carriage_slide" type="slide" axis="0 0 1" range="0 .1"/>' if jointed else ''
+    y=.07 if floating else .03
+    d=_door(tmp_path,bodies=f'''<body name="leaf"><joint name="leaf_hinge"/><geom name="stock" type="box" size=".5 .02 1"/>
+    <body name="mounts">{joint}<geom name="left" type="box" pos="-.3 .03 0" size=".02 .01 .02"/>
+    <geom name="right" type="box" pos=".3 {y} 0" size=".02 .01 .02"/></body></body>''')
+    findings=[];Attachment(d).check_intra_body(findings)
+    assert bool(findings)==(jointed or floating)

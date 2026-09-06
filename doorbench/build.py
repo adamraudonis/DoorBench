@@ -317,7 +317,9 @@ def build_model(spec: dict, phys: dict | None = None) -> Model:
     else:
         raise ValueError(f"unknown family {fam}")
     from .geometry.common import brace_pending
-    brace_pending(model)          # parts placed before the member they are screwed to existed
+    brace_pending(model)          # Resolve mounts before preparing their final stock.
+    from .geometry.rotary_shafts import finish_rotary_shafts
+    finish_rotary_shafts(model,spec,phys)
     approach=spec.get('robot',{}).get('approach_side','-y')
     if approach not in ('-y','+y'):raise ValueError('Unsupported approach side')
     model.meta['approach_face']=1 if approach=='+y' else -1

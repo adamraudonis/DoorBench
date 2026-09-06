@@ -190,6 +190,13 @@ class Clearance:
             self.rotary_release=rotary_release_snapshot(mujoco.MjModel.from_xml_path(xml),self.meta)
             if not self.rotary_release['ok']:raise ValueError(f"Rotary catch native preparation failed: {self.rotary_release}")
         self.security_controlled=set();self.security_samples=[]
+        self.paired_samples=[]
+        if self.meta.get('paired_leaf_holds'):
+            from .paired_hold_qa import run_paired_hold_qa
+            proof=run_paired_hold_qa(mujoco.MjModel.from_xml_path(xml),self.meta)
+            if not proof['ok']:raise ValueError(f"Inactive bolt native prerequisite failed: {proof['failures']}")
+            self.paired_samples=proof['inspection_samples']
+            if not self.paired_samples:raise ValueError('Inactive bolt proof has no native inspection states')
         if self.meta.get('security_guards'):
             from .security_mechanics_qa import run_security_service_qa
             with open(os.path.join(door_dir,'spec.json')) as f:security_spec=json.load(f)
@@ -286,6 +293,15 @@ class Clearance:
     def resolve(self, q: np.ndarray, driven_joint: str | None = None) -> np.ndarray:
         """Apply joint-polynomial equalities and one-sided tendon couplings to make q consistent."""
         m, mujoco = self.m, self.mj
+        pair=self.meta.get('paired_leaf_holds',[])
+        if pair and driven_joint in {pair[0]['leaf_joint'],*(r['joint'] for r in pair)}:
+            # Geometric service fixture: the first leaf exposes the bolts.
+            # Native cycles independently prove release/retention; this pose
+            # is only used for the complete envelope and mounting sweeps.
+            q[m.jnt_qposadr[m.joint(pair[0]['primary_joint']).id]]=.8
+            if driven_joint==pair[0]['leaf_joint']:
+                for row in pair:
+                    q[m.jnt_qposadr[m.joint(row['joint']).id]]=row['nominal_joint_range_m'][1]
         if self.rotary_release is not None:
             for row in self.meta['rotary_locksets']:
                 if driven_joint==row['outside_joint']:
@@ -375,6 +391,17 @@ class Clearance:
         return self.resolve(q)
 
     def _operating_range(self,jname,lo,hi):
+        for row in self.meta.get('paired_leaf_holds',[]):
+            if jname==row['joint']:return tuple(row['nominal_joint_range_m'])
+        holder=self.meta.get('ship_holdback')
+        if holder:
+            if jname==holder['leaf_joint']:
+                if not hasattr(self,'_ship_holdback_open_stop'):
+                    from .geometry.ship_holdback import first_ship_holdback_stop_angle
+                    self._ship_holdback_open_stop=first_ship_holdback_stop_angle(self.m,self.meta)['angle_rad']
+                return 0.,self._ship_holdback_open_stop
+            if jname==holder['hook_joint']:
+                return tuple(holder['inspection_hook_range_rad'])
         for row in self.meta.get('rotary_locksets',[]):
             if jname==row['catch_joint']:return 0.,row['catch_stroke_m']
         if self.meta.get('vault_boltwork'):
@@ -528,6 +555,8 @@ class Clearance:
         record("rest", 0.0, self.resolve(base.copy()))
         for sample in self.security_samples:
             record('native_security:'+sample['phase'],sample['time_s'],np.asarray(sample['qpos']))
+        for sample in self.paired_samples:
+            record('native_inactive_bolts:'+sample['phase'],sample['time'],np.asarray(sample['qpos']))
         released = self.released_qpos()
         leaf_joints = [n for n, j in self.joints.items() if j.get("role") in LEAF_ROLES and n in self.jid and n not in self.material_flexures and n not in self.security_controlled]
         for jn in leaf_joints:
@@ -541,7 +570,7 @@ class Clearance:
                 qv = lo + (hi - lo) * k / steps if steps else lo   # n_steps=0: the closed pose only
                 q = released.copy()
                 q[m.jnt_qposadr[j]] = qv
-                record(f"open:{jn}", qv, self.resolve(q))
+                record(f"open:{jn}", qv, self.resolve(q,driven_joint=jn))
         pairs, fails = [], []
         for (gm, gs), (dist, config, qv) in best.items():
             need = self.required_gap(gm, gs)
@@ -582,6 +611,9 @@ class Clearance:
         for sample in self.security_samples:
             record('native_security:'+sample['phase'],'',sample['time_s'],
                    self.contacts(np.asarray(sample['qpos']),lambda a,b:self.tol_for(a,b)))
+        for sample in self.paired_samples:
+            record('native_inactive_bolts:'+sample['phase'],'',sample['time'],
+                   self.contacts(np.asarray(sample['qpos']),lambda a,b:self.tol_for(a,b)))
         if self.turnstile_preview:
             settled=self.turnstile_preview.default_qpos(base)
             if not settled['ok']:raise ValueError(f"Turnstile default electrical state does not settle: {settled['failures']}")
@@ -613,6 +645,10 @@ class Clearance:
                 continue
             latched_lo, latched_hi = lo, hi
             latched_lo,latched_hi=self._latched_range(jn,base,latched_lo,latched_hi)
+            if any(jn==row['leaf_joint'] for row in self.meta.get('paired_leaf_holds',[])):
+                # Engaged bolts physically prevent this sweep. Their loaded
+                # arrest was measured above; retain the authored closed check.
+                latched_lo=latched_hi=0.
             if jn == self.meta.get('primary_joint') and any(r.get('kind') == 'gravity_fork' for r in self.meta.get('gate_hardware', [])):
                 from .gate_hardware_qa import first_fork_contact_angle
                 if hi > .01:
@@ -630,7 +666,7 @@ class Clearance:
                 qv = lo + (hi - lo) * k / steps if steps else lo   # n_steps=0: the closed pose only
                 q = released.copy()
                 q[m.jnt_qposadr[j]] = qv
-                record(f"open:{jn}", jn, qv, self.contacts(self.resolve(q), lambda a, b: self.tol_for(a, b, ignore_blocking=self.locked_shut)))
+                record(f"open:{jn}", jn, qv, self.contacts(self.resolve(q,driven_joint=jn), lambda a, b: self.tol_for(a, b, ignore_blocking=self.locked_shut)))
                 q = base.copy()
                 q_latched = latched_lo + (latched_hi-latched_lo)*k/steps if steps else latched_lo
                 q[m.jnt_qposadr[j]] = q_latched

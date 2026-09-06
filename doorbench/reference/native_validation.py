@@ -9,11 +9,17 @@ from .record import NATIVE_SCHEMA, digest
 from ..benchmark_eligibility import is_benchmark_eligible
 
 
-def validate_native(root:Path,assets:Path):
+def validate_native(root:Path,assets:Path, *, door_ids=None):
     import mujoco
     index=json.loads((root/'index.json').read_text())
     manifest=json.loads((assets/'manifest.json').read_text())
     ids={d['id'] for d in manifest['doors'] if is_benchmark_eligible(d)}
+    eligible_ids=set(ids)
+    if door_ids is not None:
+        requested=list(door_ids)
+        assert requested and len(requested)==len(set(requested)), 'Validation subset must be nonempty and unique'
+        ids=set(requested)
+        assert ids <= eligible_ids, 'Validation subset contains unknown or excluded doors'
     rows=index['clips']
     assert index['schema']==NATIVE_SCHEMA
     assert len(rows)==len(ids) and {r['door_id'] for r in rows}==ids, 'Recording coverage does not match eligible manifest'
@@ -87,6 +93,8 @@ def validate_native(root:Path,assets:Path):
                         assert np.linalg.norm(torque)<=cap+1e-8
         reports.append({'door_id':door_id,'outcome':row['outcome'],'frames_checked':n,'source_and_numeric_checks':'pass'})
     return {'schema':'doorbench.native-motion-validation.v1','doors':len(rows),'index_sha256':digest(root/'index.json'),
+            'coverage':'complete_eligible_manifest' if ids==eligible_ids else 'explicit_subset',
+            'requested_door_ids':sorted(ids),'eligible_manifest_doors':len(eligible_ids),
             'outcomes':dict(Counter(r['outcome'] for r in rows)),
             'limitations':'Source and state correspondence only; does not certify contact dynamics, human feasibility or all mechanisms.',
             'checks':reports}

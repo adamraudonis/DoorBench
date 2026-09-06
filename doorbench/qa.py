@@ -45,15 +45,9 @@ Checks (all tiers where applicable):
   pair_swing  a double-egress pair swings one leaf each way and every other pair both leaves the same way,
               measured from where each leaf edge ends up (the two leaves are mirror images, so the hinge axis
               sign alone says nothing about which way a leaf actually goes)
-  task_achievable  every scenario in spec.json["benchmark"] is physically completable: the primary joint reaches
-              the scenario's pass threshold once the door's declared release path is taken, a leaf whose lock can
-              be released keeps its whole declared travel (a release cannot widen a static joint range), and a leaf
-              only the environment can release opens under the QA push once released (doorbench/task_qa.py)
-  urdf        URDF loads in MuJoCo (structure check)
-  usd         USD stage opens; joint & rigid-body counts match the IR
-Writes qa.json with pass/fail per check, metrics, and a signed_off flag.
+  task_declarations_consistent  validates scenario names, access declarations and coordinate bounds.
+                 This is not a task-completion proof. Native episodes are validated separately.
 """
-from __future__ import annotations
 
 import json
 import math
@@ -654,6 +648,9 @@ def operator_release_checks(m, d, phys: dict, pj: int, mass_kg: float | None = N
             door_open_q = closed + want
         f_cap = float(qa_push(m, d, pj, mass_kg, width_m)["push"])
     for name, rec in (phys.get("operator", {}).get("joints") or {}).items():
+        if rec.get('parameter_source')=='authored_physical_mechanism':
+            metrics[name]={'scope':'Authored coupled mechanism; return is measured in its dedicated force-driven component cycles, not by prescribing an independent joint pose.'}
+            continue
         kind = rec.get("return_kind")
         if kind not in ("spring", "gravity", "detent"):
             continue
@@ -919,6 +916,16 @@ def _run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict
         marine=run_marine_dog_qa(m,model_meta)
         checks['marine_dog_operation']=bool(marine['ok'])
         metrics['marine_dog_operation']=marine
+    if model_meta.get('ship_holdback'):
+        from .ship_holdback_qa import run_ship_holdback_qa
+        holder=run_ship_holdback_qa(m,model_meta)
+        checks['ship_holdback_operation']=bool(holder['ok'])
+        metrics['ship_holdback_operation']=holder
+    if model_meta.get('paired_leaf_holds'):
+        from .paired_hold_qa import run_paired_hold_qa
+        pair=run_paired_hold_qa(m,model_meta)
+        checks['inactive_leaf_hold_operation']=bool(pair['ok'])
+        metrics['inactive_leaf_hold_operation']=pair
     flexible_strip = bool(model_meta.get('strip_curtain'))
     if flexible_strip:
         from .strip_mechanics_qa import run_strip_mechanics_qa
@@ -1226,21 +1233,15 @@ def _run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict
         checks["pair_swing"] = bool(ps["ok"])
     if ps.get("checked") or ps.get("dy_leaf_a") is not None:
         metrics["pair_swing"] = ps
-    # ---- task_achievable: the benchmark task on this door can actually be performed (doorbench/task_qa.py).
-    #      Every other gate asks whether the door is built right; this one asks whether the task in
-    #      spec.json["benchmark"] is possible - the primary joint reaches each scenario's pass threshold once the
-    #      door's declared release path has been taken, a releasable leaf keeps its whole declared travel, and a
-    #      leaf only the environment can release actually opens under the QA push once it is released.
+    # Declaration consistency is separate from actual native task success.
     try:
-        from .task_qa import run_task_achievable
-        with open(os.path.join(door_dir, "model.json")) as f:
-            joint_roles = {b["joint"]["name"]: b["joint"].get("role") for b in json.load(f)["bodies"] if b.get("joint")}
-        ta = run_task_achievable(spec, door_dir, model_meta, m, mujoco.MjData(m), phys, joint_roles)
-        checks["task_achievable"] = bool(ta["ok"])
-        metrics["task_achievable"] = ta
+        from .task_qa import run_task_declarations
+        ta = run_task_declarations(spec, door_dir, model_meta, m)
+        checks["task_declarations_consistent"] = bool(ta["ok"])
+        metrics["task_declarations"] = ta
     except Exception as e:
-        checks["task_achievable"] = False
-        metrics["task_achievable_error"] = f"{type(e).__name__}: {e}"[:300]
+        checks["task_declarations_consistent"] = False
+        metrics["task_declarations_error"] = f"{type(e).__name__}: {e}"[:300]
     # ---- simple & minimal tiers settle
     for tier in ("simple", "minimal"):
         if tier in models:
@@ -1288,7 +1289,7 @@ def _run_qa(spec: dict, door_dir: str, model_meta: dict, files: dict, phys: dict
             checks["usd_rl_opens"] = False
             metrics["usd_rl_error"] = str(e)[:300]
     signed = all(v for k, v in checks.items())
-    return {"checks": checks, "metrics": metrics, "signed_off": bool(signed), "time_s": time.time() - t0, "mujoco_version": mujoco.__version__}
+    return {"checks": checks, "metrics": metrics, "signed_off": bool(signed), "evidence_scope": "automated_source_and_component_checks", "task_completion_verified": False, "time_s": time.time() - t0, "mujoco_version": mujoco.__version__}
 
 
 def render_thumbnails(path_xml: str, out_dir: str, cams=("robot_view", "iso", "detail_handle", "far_view"), size=(640, 480), open_fraction=0.0, primary_joint=None) -> list:

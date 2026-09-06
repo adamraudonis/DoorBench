@@ -101,3 +101,9 @@ authored-site forces or contact-gated generalized efforts and a synthetic base.
 It is not a human motion reference, a physically embodied hand, or a validated
 humanoid policy. Contact-dependent browser previews require recorded native
 states; independent joint sliders cannot prove that a real catch has released.
+
+### QA evidence in the master integration
+
+Generation QA now names its task check `task_declarations_consistent`. This read-only check catches contradictory scenario names, approach-side release declarations and coordinate bounds. It does not release constraints, prescribe all mechanisms to their upper joint limit, or label a feasible-looking pose as task completion. Articulated lift progress is measured in its declared track distance or bottom height rather than compared to a barrel angle. Native task completion remains separate, source-bound evidence. The old `run_task_achievable` function is retained only for archived synthetic regression fixtures.
+
+The attachment graph accepts separately mounted fixed-child components only when **each** disconnected island reaches actual parent stock within 2 mm, using surface distance rather than overlapping bounding boxes. Jointed carriages still need their own connected support. Synthetic missing-stock, floating-mount and jointed-carriage defects remain failures. The integrated pocket channel omits a redundant generic header brace that filled its trolley-stem slot; its own five roof mounts remain present.

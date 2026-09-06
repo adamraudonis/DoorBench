@@ -551,6 +551,10 @@ def build_sliding(spec, phys, model: Model):
                              axes=("y", "x"), pad=0.09)
     for g_ in [g for g in list(world.geoms) if any(fnmatch.fnmatch(g.name, pat) for pat in
                ("*_hook_keeper", "track_header", "*_slide_keeper", "*_bolt_keeper"))]:
+        if any(r.get('rail')==g_.name and r.get('header_mounts') for r in model.meta.get('sliding_track_supports',[])):
+            # The slotted channel already hangs from its roof spacers. A
+            # second bracket across the lower ledges blocks the trolley stems.
+            continue
         C.brace_to_structure(world, g_, 1.0 if g_.pos[1] > 0 else -1.0, hw_, name=f"{g_.name}_bracket",
                              semantic=g_.semantic, label="Standoff mounting bracket", tiers=FULL_SIMPLE, span=0.8,
                              axes=("y", "x"), reach=0.0)   # never downwards, and never sideways into the leaf's path

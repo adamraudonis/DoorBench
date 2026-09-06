@@ -1,43 +1,12 @@
-"""``task_achievable``: prove in MuJoCo that every benchmark task on a door can actually be performed.
+"""Benchmark declaration checks and an archived synthetic pose diagnostic.
 
-Why this gate exists
---------------------
-Every other QA gate asks whether the door is built right.  None of them asked whether the *task* printed
-in ``spec.json["benchmark"]`` is possible.  24 doors shipped with one that was not: a lock the environment
-(or the robot's own hardware) is meant to release had been modelled by clamping the primary joint's range
-to 2 mm, +-2.9 deg or 3 mm.  A joint range is a static property of MJCF / URDF / USD - nothing at run time
-can widen it - so those doors could not open after the release, "closed", "mid travel" and "fully open"
-were the same picture, and the only QA they had was ``hold`` / ``locked_holds``, which passed *because*
-the door could not move.
+Production QA calls ``run_task_declarations``. It checks source consistency
+without moving parts or releasing constraints. It cannot establish that a
+mechanism can be operated, that a passage is clear, or that a task succeeds.
+Those claims require separate source-bound native episodes.
 
-What it proves
---------------
-Two rules, both measured on the compiled model.
-
-**1. reach** - for every scenario whose success needs the door to move (everything except
-``locked_recognize``), the primary joint must be able to sit at the scenario's own pass threshold
-(``thresholds.clear_rad`` / ``clear_m`` - the opening the robot has to walk through) *after the declared
-release path has been taken*:
-
-  * every releasable holding constraint (``meta["breakable_welds"]`` with ``release`` != "none") is
-    deactivated - that is exactly what ``benchmark/env.py`` does on a badge / REX / interlock release, or
-    when the modelled part that withdraws the lock has been driven past its release fraction;
-  * every latch / lock / mechanism joint is put in its released position, as the clearance gate does;
-  * the primary joint is then placed at the threshold and the model is forwarded, and the pose must be
-    admissible: the joint's own range must contain it, no equality may still pin the leaf to the world,
-    and nothing may be driven into anything (the same 12 mm penetration bar the ``settle`` gate uses -
-    this is what catches a leaf whose travel takes it through its own jamb).
-
-**2. travel** - a leaf whose lock CAN be released must keep its whole declared travel in the model:
-the primary joint's post-release range has to cover ``kinematics.travel_m`` / ``max_open_deg`` /
-``ratchet_deg``.  A leaf nothing can release (a padlock with no key on this side) may be held by a
-clamped range - the door really is shut - but then rule 1 forbids it from carrying a task that moves.
-
-**3. force** (doors held by an environment-released lock only) - those doors get no ``actuate_opens`` or
-``free_opens`` evidence, because QA has nothing to actuate: their lock opens on a credential.  So for them
-the release is applied and the QA push is put on the primary joint for 6 s, and the joint has to pass the
-benchmark's own ``opened`` threshold (``thresholds.open_rad`` / ``open_m``).  That is the leg that would
-have failed loudly on all 24 doors before this change.
+``run_task_achievable`` is retained for old regression fixtures only. Its
+prescribed poses and artificial release states are not task-completion evidence.
 """
 from __future__ import annotations
 
@@ -47,7 +16,7 @@ import os
 
 # scenarios whose success criteria need the leaf to move; `locked_recognize` needs the opposite and is
 # covered by the `hold` / `locked_holds` gates instead.
-MOVING_SCENARIOS = ("open_and_traverse", "open_then_close", "close_only", "unlock_and_traverse",
+MOVING_SCENARIOS = ("open_only", "open_and_traverse", "open_then_close", "close_only", "unlock_and_traverse",
                     "hold_open_for_human", "wait_for_human", "knock_and_wait")
 ENV_RELEASE_LOCK_KINDS = ("mag_lock", "delayed_egress", "card_reader", "electric_strike", "interlock")
 MECH_ROLES = ("operator", "latch", "lock", "mechanism")
@@ -96,6 +65,9 @@ def lock_release_path(spec: dict, model_meta: dict) -> str:
         return "robot"
     if rel == {"none"}:
         return "none"
+    from .benchmark.scenarios import has_free_inside_trim
+    if has_free_inside_trim(spec, {"meta": model_meta}):
+        return "robot"
     from . import hardware as H
     lk = H.LOCKS[spec["lock"]["model"]]
     engaged = bool(spec["lock"].get("engaged")) and lk.kind not in ("none", "child_lock_cover", "jam_stuck")
@@ -181,8 +153,73 @@ def _scenarios(spec: dict, door_dir: str) -> list:
         return []
 
 
+def run_task_declarations(spec: dict, door_dir: str, model_meta: dict, m) -> dict:
+    """Read-only declaration consistency; never a physical completion proof."""
+    import mujoco
+    from .benchmark.scenarios import SCENARIO_TYPES
+    from .benchmark_eligibility import is_benchmark_eligible
+    out = {"ok": True, "scenarios": [], "failures": [],
+           "scope": "Source declarations and coordinate bounds only; no force, contact, passage or task-completion proof",
+           "mechanically_verified": False, "task_completion": "requires_source_bound_native_episode"}
+
+    def fail(rule, detail, **kw):
+        out["ok"] = False
+        out["failures"].append({"rule": rule, "detail": detail, **kw})
+
+    scenarios = _scenarios(spec, door_dir)
+    if scenarios and not is_benchmark_eligible(spec):
+        fail("eligibility", "Download-only collection declares benchmark scenarios")
+    release = lock_release_path(spec, model_meta)
+    out["release_path"] = release
+    pj = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, model_meta.get("primary_joint") or "")
+    unit = None
+    bound = None
+    # Lift progress is measured on a material site, not a barrel angle or a
+    # carriage coordinate. This checks its declared interval, not reachability.
+    if model_meta.get("sectional_track"):
+        p = model_meta["sectional_track"]["progress"]
+        bound = float(p["open_s_m"] - p["closed_s_m"]); unit = "m"
+        out["coordinate"] = "declared_track_progress"
+    elif model_meta.get("rollup_curtain"):
+        p = model_meta["rollup_curtain"]["progress"]
+        bound = float(p["open_z_m"] - p["closed_z_m"]); unit = "m"
+        out["coordinate"] = "declared_bottom_height"
+    elif pj >= 0:
+        kind = int(m.jnt_type[pj])
+        if kind in (int(mujoco.mjtJoint.mjJNT_SLIDE), int(mujoco.mjtJoint.mjJNT_HINGE)):
+            unit = "m" if kind == int(mujoco.mjtJoint.mjJNT_SLIDE) else "rad"
+            bound = max(abs(float(q)) for q in m.jnt_range[pj]) if m.jnt_limited[pj] else math.inf
+            out["coordinate"] = model_meta["primary_joint"]
+            want, declared_unit = declared_travel(spec, model_meta)
+            if release != "none" and declared_unit == unit and want > 0 and bound < TRAVEL_TOL * want:
+                fail("travel", "Releasable primary coordinate has less than the declared travel", bound=bound, declared=want, unit=unit)
+    out["coordinate_bound"] = bound if bound is not None and math.isfinite(bound) else None
+    out["coordinate_unit"] = unit
+    seen = set()
+    for scenario in scenarios:
+        name = scenario.get("name")
+        rec = {"name": name, "native_completion_verified": False}
+        out["scenarios"].append(rec)
+        if name not in SCENARIO_TYPES or name in seen:
+            fail("scenario", "Unknown or duplicate benchmark scenario", scenario=name)
+        seen.add(name)
+        if name in MOVING_SCENARIOS and release == "none":
+            fail("release", "Moving task has no declared approach-side release", scenario=name)
+        for key, value in (scenario.get("thresholds") or {}).items():
+            if value is None:
+                continue
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+                fail("threshold", "Threshold must be finite and nonnegative", scenario=name, threshold=key)
+                continue
+            if name in MOVING_SCENARIOS and unit and key in ("open_" + unit, "clear_" + unit) and bound is not None and value > bound + 1e-6:
+                fail("threshold_range", "Threshold exceeds its declared coordinate interval", scenario=name, threshold=key, value=value, bound=bound)
+        if bound is None:
+            rec["coordinate_check"] = "requires_aperture_geometry"
+    return out
+
+
 def run_task_achievable(spec: dict, door_dir: str, model_meta: dict, m, d, phys: dict, joints: dict) -> dict:
-    """``checks["task_achievable"]`` + its metrics.  `joints` is {joint name: IR role} from model.json."""
+    """Archived synthetic pose probe; do not use as proof of native task completion."""
     import mujoco
     out = {"ok": True, "scenarios": [], "failures": []}
     pj = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, model_meta.get("primary_joint") or "")

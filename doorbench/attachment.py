@@ -326,7 +326,22 @@ class Attachment:
             groups = self._clusters(ids, TOL_INTRA)
             if len(groups) < 2:
                 continue
-            main = groups[0]
+            # A fixed child may collect separately fastened bearing housings
+            # on the same solid parent. Each island must reach that actual
+            # stock. A shared body label alone is never an attachment, and a
+            # jointed carriage still needs its own continuous structure.
+            if not m.body_jntnum[bid]:
+                parent = int(m.body_parentid[bid])
+                while parent > 0 and not self.geoms_of(parent) and not m.body_jntnum[parent]:
+                    parent = int(m.body_parentid[parent])
+                support = self.geoms_of(parent) if parent > 0 else []
+                # Use actual surface distance here, not the legacy AABB
+                # intersection fallback: a bore's empty centre is not stock.
+                def seated(island):
+                    return any(self.mj.mj_geomDistance(m, self.d, i, j, SEARCH, None) <= TOL_INTRA
+                               for i in island for j in support)
+                if support and all(seated(island) for island in groups):
+                    continue
             for island in groups[1:]:
                 dist, i, j = self._min_dist(island, [g for g in ids if g not in island])
                 self._finding(out, "intra_body_split", "TOL_INTRA", TOL_INTRA, dist,
@@ -449,6 +464,8 @@ class Attachment:
                 lo, hi = -math.pi, math.pi
             else:
                 continue
+            jname = m.joint(j).name
+            lo, hi = self.c._operating_range(jname, lo, hi)
             if hi - lo < 1e-6:
                 continue
             worst = (-1.0, TOL_BODY, 0.0, -1, -1)
@@ -456,7 +473,7 @@ class Attachment:
                 qv = lo + (hi - lo) * k / n_steps
                 q = base.copy()
                 q[m.jnt_qposadr[j]] = qv
-                self.d.qpos[:] = self.c.resolve(q)
+                self.d.qpos[:] = self.c.resolve(q, driven_joint=jname)
                 self.mj.mj_forward(m, self.d)
                 dist, tol, ia, ja = self.attach_dist(ids, targets, guided=guided_)
                 if dist - tol > worst[0] - worst[1]:

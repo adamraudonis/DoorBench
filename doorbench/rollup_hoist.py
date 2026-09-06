@@ -88,7 +88,7 @@ def compile_hoist(model, meta):
         float(h['hand_force_limit_N']),roots,excluded)
 
 
-def hoist_control(model, data, rules, *, opening=True, elapsed_s=0.):
+def hoist_control(model, data, rules, *, opening=True, elapsed_s=0., control_state=None):
     """Return a world-Z force on the nearest actual material-link grip.
 
     Downward hand travel on opposite strands opens/closes the geared curtain.
@@ -114,10 +114,12 @@ def hoist_control(model, data, rules, *, opening=True, elapsed_s=0.):
     error=target-height if opening else height-target
     u=min(1.,float(elapsed_s));ramp=u**3*(10+u*(-15+6*u))
     desired=-min(.45,max(0.,error*3.))*ramp
-    force=float(np.clip(250.*(desired-speed),-rules.force_limit,rules.force_limit))
+    from .hoist_speed_control import speed_force
+    force,integral=speed_force(desired,speed,float(elapsed_s),rules.force_limit,opening,control_state)
     return {'site':rules.site_names[index],'site_id':site,'body_id':int(model.site_bodyid[site]),
         'force_N':[0.,0.,force],'material_link_index':index,'grip_speed_m_s':speed,
         'target_grip_speed_m_s':desired,'bottom_z_m':height,'target_bottom_z_m':target,
+        'integral_force_N':integral,'controller':'bounded_pi' if control_state is not None else 'legacy_proportional',
         'scope':'Abstract regrasp of actual material links; no embodied hand trajectory or joint drive'}
 
 
@@ -150,7 +152,7 @@ def prepare_hoist_open(model, meta, initial_qpos=None, *, time_limit_s=120.):
             if abs(float(np.linalg.norm(initial[start:start+4]))-1)>1e-6:raise ValueError('Initial free-root quaternion must be unit length')
     binary=np.zeros(mujoco.mj_sizeModel(model),dtype=np.uint8);mujoco.mj_saveModel(model,buffer=binary)
     model_hash=hashlib.sha256(binary).hexdigest()
-    opts={'algorithm_version':3,'hoist':meta['rollup_hoist'],'curtain':meta['rollup_curtain'],'time_limit_s':time_limit_s}
+    opts={'algorithm_version':4,'hoist':meta['rollup_hoist'],'curtain':meta['rollup_curtain'],'time_limit_s':time_limit_s}
     key=hashlib.sha256(model_hash.encode()+initial.tobytes()+json.dumps(opts,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     if key in _CACHE:
         _CACHE.move_to_end(key);result=copy.deepcopy(_CACHE[key]);result['cache_hit']=True;return result
@@ -159,7 +161,7 @@ def prepare_hoist_open(model, meta, initial_qpos=None, *, time_limit_s=120.):
         'scope':'Native material-link and positive-keeper force initialization with two seconds of hands-free retention; no security-lock release, source property changes, pose interpolation, robot support or equilibrium guarantee',
         'force_limit_N':rules.force_limit,'peak_force_N':0.,'max_penetration_m':0.,'max_loop_residual_m':0.,
         'max_gear_residual_rad':0.,'regrasps':0,'elapsed_native_s':0.,'trace':[],
-        'algorithm_version':3,'transitions':[],'hands_free_hold_s':0.,'peak_keeper_force_N':0.,
+        'algorithm_version':4,'transitions':[],'hands_free_hold_s':0.,'peak_keeper_force_N':0.,
         'hands_free_pin_load_peak_N':0.,'hands_free_pin_load_observed_s':0.,
         'hands_free_up_stop_load_peak_N':0.,'hands_free_up_stop_load_observed_s':0.,
         'native_warning_messages':[],'native_warning_events':[]}
@@ -211,6 +213,8 @@ def prepare_hoist_open(model, meta, initial_qpos=None, *, time_limit_s=120.):
         data=mujoco.MjData(model);data.qpos[:]=initial;mujoco.mj_forward(model,data)
         stable=0.;stalled=0.;next_sample=0.;previous=None;jac=np.zeros((3,model.nv))
         phase='release';phase_start=0.
+        from .hoist_speed_control import HoistSpeedState
+        control_state=HoistSpeedState()
         transition=begin_keeper_transition(model,data,rules,keeper,mode='release')
         for _ in range(math.ceil(time_limit_s/model.opt.timestep)):
             mujoco.mj_forward(model,data);t=float(data.time)
@@ -254,7 +258,7 @@ def prepare_hoist_open(model, meta, initial_qpos=None, *, time_limit_s=120.):
                             report.update(ok=True,reason='native_open_state_reached_hands_free_with_keeper_seated',
                                 qpos=data.qpos.tolist(),qvel=data.qvel.tolist());break
                 elif phase=='open':
-                    control=hoist_control(model,data,rules,opening=True,elapsed_s=t-phase_start)
+                    control=hoist_control(model,data,rules,opening=True,elapsed_s=t-phase_start,control_state=control_state)
                     site=control['site_id'];force=float(control['force_N'][2])
                     forces={control['site']:control['force_N'],**keeper_open_force(model,data,keeper)}
                     stalled=stalled+model.opt.timestep if rules.open_z-height>.1 and force<=-rules.force_limit*.995 and abs(speed)<.003 else 0.
