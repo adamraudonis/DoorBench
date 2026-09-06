@@ -815,13 +815,20 @@ def mujoco_filtered_pairs(model: Model, bodies, tier: str):
 def env_release_welds(model: Model, tier: str):
     """Active ``weld`` equalities (mag lock / delayed egress / electric bolt / interlock leaf -> world) with the
     holding force the environment breaks them at (``meta.breakable_welds``)."""
-    forces = {w["name"]: float(w.get("holding_force_N") or 0.0) for w in (model.meta.get("breakable_welds") or [])}
+    rec = {w["name"]: w for w in (model.meta.get("breakable_welds") or [])}
     out = []
     for q in model.equalities:
         if q.kind != "weld" or tier not in q.tiers:
             continue
+        w = rec.get(q.name, {})
+        # `release` tells the consumer who may clear physics:jointEnabled: "env" (access control / an interlock /
+        # a timer), "robot" (the modelled part named by release_joint, past release_fraction of its travel) or
+        # "none" (nothing in the model opens it).  Without it an Isaac harness cannot tell a maglock a badge opens
+        # from a garage lock the door's own T-handle withdraws.
         out.append({"name": q.name, "body": q.a, "other": q.b or "world", "label": q.label, "active": bool(q.active),
-                    "holding_force_N": forces.get(q.name, 0.0)})
+                    "holding_force_N": float(w.get("holding_force_N") or 0.0), "release": w.get("release", "env"),
+                    "release_joint": w.get("release_joint"), "release_fraction": w.get("release_fraction"),
+                    "lock_model": w.get("lock_model")})
     return out
 
 

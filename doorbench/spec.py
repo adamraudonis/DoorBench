@@ -175,6 +175,11 @@ def choose_lock_engagement(spec: dict, B: Balanced, rng: random.Random, p_engage
         rel = lk.inside_release in ("thumbturn", "button", "lever", "rex_button", "slide")
     if lk.kind in ("padlock", "jam_stuck", "interlock", "delayed_egress"):
         rel = lk.kind == "delayed_egress"
+    if lk.kind in ("keyed_cylinder", "slide_bolt") and spec["family"] in ("garage_sectional", "garage_tiltup", "rollup") and spec["operator"]["model"] != "pull_t_handle_garage":
+        # a garage / roll-up door's cylinder or slide lock lives IN the T-handle and is withdrawn by turning it.
+        # On a door with a lift handle, a pull ring or no handle at all there is nothing for a robot to turn, so the
+        # lock is not released from its side and the door's task is to recognise that, not to unlock it.
+        rel = False
     if lk.kind in ("chain", "swing_bar_guard"):
         # A door chain and a hotel swing bar are released by lifting the chain's ball out of its slotted track, or
         # the bar off its knob - hardware DoorBench draws but does not articulate.  The leaf's slack limit IS the
@@ -1318,7 +1323,11 @@ def gen_strip_curtain(i, ctx, B, rng):
     s["leaf"] = {"width": sw, "height": _round(Hh - 0.02), "thickness": st, "slab": "strip_curtain", "panel_style": "strips", "finish": finish_for("strip_curtain", "default", B, rng), "count": int(math.ceil(W / (sw * (1 - B.pick("sc:ov", {0.5: 2, 0.33: 1, 0.66: 1}))))), "glazing": None, "strip_width": sw, "overlap": 0.5}
     s["opening"] = {"width": _round(W + 0.02), "height": _round(Hh + 0.02), "wall_thickness": 0.2, "frame": {"kind": "strip_hanger_rail", "material": "stainless", "casing": False, "stop_depth": 0, "jamb_depth": 0.2}, "threshold": "none", "sidelite": False, "transom": False}
     s["hinge"] = hinge_block("piano", 1, "top", "both")
-    s["kinematics"] = {"type": "hinge_horizontal", "max_open_deg": 120, "stop": "none", "both_ways": True, "strips": True}
+    # 85 deg, not 120: a strip is hinged on its own top edge just under the head, so past 90 deg its far end rises
+    # ABOVE the opening and into the wall.  The model's strip hinges are built from this number, and the benchmark's
+    # pass threshold is read from it - a curtain declaring 120 deg while its joints stopped at 71.6 deg was asking
+    # for an opening its own strips could not make.
+    s["kinematics"] = {"type": "hinge_horizontal", "max_open_deg": 85, "stop": "none", "both_ways": True, "strips": True}
     s["operator"] = {"model": "none", "height": 1.0, "sides": "both"}
     s["latch"] = {"model": "none"}
     s["lock"] = {"model": "none"}

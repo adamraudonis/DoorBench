@@ -455,7 +455,9 @@ def build_sliding(spec, phys, model: Model):
         # fix the leaf, and keeps its 2 mm rattle.
         if engaged and lk.kind in ("electric_strike", "keyed_cylinder", "padlock", "slide_bolt", "interlock") and opm.kind not in ("slide_bolt_handle",) and (not release or lk.kind in ("interlock", "electric_strike")):
             if lk.kind in ("interlock", "electric_strike") or release:
-                hold_N = float(H.LATCHES["elevator_interlock"].holding_force if lk.kind == "interlock" else H.LATCHES["electric_bolt"].holding_force)
+                _lat = H.LATCHES["elevator_interlock" if lk.kind == "interlock" else "electric_bolt"]
+                # a mechanical bolt has no magnetic holding force: what it holds to is its shear yield
+                hold_N = float(_lat.holding_force or _lat.yield_force)
                 C.hold_leaf_locked(model, b, j, name=f"{name}_{lk.kind}_hold", holding_force_N=hold_N,
                                    label=f"{lk.name} (env releases on credential / call button)",
                                    release="env", lock_model=spec["lock"]["model"],
@@ -1022,12 +1024,13 @@ def build_vertical(spec, phys, model: Model):
             # is relative to qpos0, so an unlocked door must not start with the bars already retracted (it drove them
             # to 60 mm against a 30 mm limit and locked the handle against its own coupling)
             model.equalities.append(Equality("joint", f"lock_bar_{'r' if sgn > 0 else 'l'}_couple", bar.joint.name, hb.joint.name, (0, 0.03 / opm.travel, 0, 0, 0), tiers=FULL_SIMPLE, label="lock bar = T-handle * 0.03/travel"))
-    if spec["lock"].get("engaged") and spec["lock"]["model"] in ("garage_slide_lock", "padlock", "keyed_cylinder") and (not spec["lock"].get("robot_side_release") or spec["lock"]["model"] == "keyed_cylinder"):
+    if spec["lock"].get("engaged") and spec["lock"]["model"] in ("garage_slide_lock", "padlock", "keyed_cylinder"):
         model.meta["locked"] = True
         if spec["lock"].get("robot_side_release") and model.meta.get("operator_joint"):
-            # keyed T-handle: the lock bars ARE the lock and the handle withdraws them.  The leaf keeps its whole
-            # lift, and the bars hold it until the handle has been turned - a clamped joint made "open and traverse"
-            # and "close" impossible on a door whose own hardware releases it.
+            # T-handle: the lock bars ARE the lock and the handle withdraws them.  The leaf keeps its whole lift and
+            # the bars hold it until the handle has been turned - a clamped joint made "open and traverse" and
+            # "close" impossible on a door whose own hardware releases it, and an engaged `garage_slide_lock` on a
+            # T-handle door used to hold nothing at all (the bars are drawn without collision).
             C.hold_leaf_locked(model, lb, j, name="garage_lock_bars_hold", holding_force_N=6000.0,
                                label=f"{spec['lock']['model']}: lock bars engaged in the track slots",
                                release="robot", lock_model=spec["lock"]["model"],
@@ -1035,7 +1038,7 @@ def build_vertical(spec, phys, model: Model):
                                note="lock bars engaged: held until the T-handle withdraws them (full lift kept)")
         else:
             j.range = (0.0, 0.003)
-            j.notes = f"{spec['lock']['model']}: locked (no release on this side; T-handle lock bars engaged)"
+            j.notes = f"{spec['lock']['model']}: locked (nothing on this side withdraws the lock bars)"
     # counterbalance from the actual body mass (sections + hardware)
     mtot = float(phys["mass"]["total_kg"])     # the leaf mass is reconciled to the spec after building; size the spring from it
     if cb and mtot > 0:
@@ -1250,7 +1253,8 @@ def build_horizontal(spec, phys, model: Model):
             # into the hanger rail (1-2 mm interpenetration, kN of contact force)
             y = ((k % 2) - 0.5) * (t + 0.004) + ((k % 3) - 1) * (t + 0.002)
             s = Body(f"strip_{k}", None, (x, y, Ho - 0.006), QUAT_ID, None, [], [], ALL_TIERS if k % 2 == 0 else FULL_SIMPLE, "leaf", f"Strip {k + 1}")
-            s.joint = Joint(f"strip_{k}_hinge", "hinge", (1, 0, 0), (0, 0, 0), (-1.25, 1.25), damping=0.05, frictionloss=0.02, armature=1e-4, role="primary" if k == n // 2 else "secondary", label="Strip swings both ways")
+            s_lim = math.radians(min(88.0, float(kin.get("max_open_deg") or 85)))   # past 90 deg the strip's far end rises into the wall
+            s.joint = Joint(f"strip_{k}_hinge", "hinge", (1, 0, 0), (0, 0, 0), (-s_lim, s_lim), damping=0.05, frictionloss=0.02, armature=1e-4, role="primary" if k == n // 2 else "secondary", label="Strip swings both ways")
             s.geoms.append(C.box(f"strip_{k}_geom", (0, 0, -Hh / 2), (sw / 2, t / 2, Hh / 2), gm, 1250, True, True, ALL_TIERS if k % 2 == 0 else FULL_SIMPLE, "leaf", "PVC strip", friction=(0.6, 0.005, 0.0001)))
             # the hanger that actually holds the strip.  Without it every strip hung 6 mm under the rail with nothing
             # in between - a real strip curtain is bolted to a mounting bracket screwed to the rail.  It is hinge

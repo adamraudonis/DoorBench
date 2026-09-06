@@ -96,8 +96,11 @@ def test_inputs_panic_far_side_saloon_revolving_maglock_turnstile():
     assert rev["unlimited_joints"] == ["rotor_hinge"] and rev["schedule"]["mjcf"]["hold"] == "free_opens"
     mag = _inputs("db0026_swing_single")          # maglock engaged: MuJoCo weld, nothing in the USD
     assert mag["flags"]["env_release_only"] and mag["flags"]["has_weld"] and mag["schedule"]["usd_full"]["hold"] == "hold"
-    turn = _inputs("db0187_turnstile_fullheight")  # locked rotor: must hold within its locked play
-    assert turn["flags"]["locked_rotor"] and turn["schedule"]["mjcf"]["hold"] == "hold" and turn["thresholds"]["thr"] > 0.05
+    turn = _inputs("db0187_turnstile_fullheight")  # locked rotor: held by its solenoid, so it must hardly move at all
+    # the rotor keeps its whole 360 deg (a credential release cannot widen a joint range), so there is no "locked
+    # play" to allow any more: the constraint holds it inside the plain 2 deg hold threshold
+    assert turn["flags"]["locked_rotor"] and turn["schedule"]["mjcf"]["hold"] == "hold"
+    assert turn["unlimited_joints"] == ["rotor_hinge"] and turn["thresholds"]["thr"] == pytest.approx(math.radians(2.0))
 
 
 def test_inputs_hash_stable_and_forces_override():
