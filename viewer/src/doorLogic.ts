@@ -381,3 +381,13 @@ export function parsePoseQuery(query: string): [string, number][] {
   }
   return out;
 }
+
+/** Contact-dependent assemblies have no valid independent leaf slider. */
+export function requiresRecordedPhysics(model: ModelJ): boolean {
+  return ['sectional_track','rollup_curtain','strip_curtain','elevator_interlocks',
+    'security_guards','turnstile_locks','turnstile_drop_arm','marine_dog_mounts',
+    'multipoint_locks','gate_hardware','closer_track_holds','pocket_edge_pull',
+    'hatch_support','dutch_joining_bolt','paired_leaf_holds','vault_boltwork','rotary_locksets'].some(key => {
+      const value=model.meta?.[key];return Array.isArray(value)?value.length>0:!!value;
+    });
+}

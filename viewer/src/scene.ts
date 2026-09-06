@@ -1,3 +1,4 @@
+import { isMechanism } from "./mechanismInspection";
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import type { BodyJ, GeomJ, ModelJ } from "./types";
@@ -66,6 +67,7 @@ export interface BuiltScene {
   /** Re-solve every closed loop (connect equalities) for the current driver joints; no-op when nothing moved. */
   setRecordedJoints: (names: string[], values: number[]) => void;
   setDiagnostic: (enabled: boolean) => void;
+  setMechanismsOnly: (enabled: boolean) => void;
   solveLoops: () => { changed: boolean; results: LoopResult[] };
   loopResults: LoopResult[];
   loopWarnings: string[];
@@ -263,6 +265,11 @@ export async function buildScene(model: ModelJ, opts: { showCollision?: boolean;
   for (const h of joints.values()) applyJoint(h);
   solveLoops();
 
+  function setMechanismsOnly(enabled: boolean) {
+    root.traverse(o => {
+      if (o instanceof THREE.Mesh) o.visible = !enabled || isMechanism(o.userData.semantic);
+    });
+  }
   const diagnosticMaterials = new Map<string, THREE.Material>();
   function setDiagnostic(enabled: boolean) {
     root.traverse(o => {
@@ -290,7 +297,7 @@ export async function buildScene(model: ModelJ, opts: { showCollision?: boolean;
     root.updateMatrixWorld(true);
   }
   const out: BuiltScene = {
-    root, joints, bodies, bounds, setJoint, solveLoops, setDiagnostic, setRecordedJoints,
+    root, joints, bodies, bounds, setJoint, solveLoops, setDiagnostic, setMechanismsOnly, setRecordedJoints,
     get loopResults() { return built.loopResults!; },
     get loopWarnings() { return built.loopWarnings!; },
     dispose: () => { root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); } }); for (const m of matCache.values()) m.dispose(); for(const m of diagnosticMaterials.values()) m.dispose(); },

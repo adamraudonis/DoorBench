@@ -1,3 +1,4 @@
+import { deadboltControls, openingProcedure } from "./mechanismInspection";
 import { isPetDoor, isPetDoorId, referenceUnavailable } from "./collections";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
@@ -7,7 +8,7 @@ import { FAMILY_LABELS } from "./types";
 import { buildScene, type BuiltScene, type JointHandle } from "./scene";
 import { buildEvaluationOverlay, type EvalOverlay } from "./evaluation";
 import { GLOSSARY, REWARD_LABELS, type GlossaryEntry } from "./glossary";
-import { activeLeaf, easeFor, isLocked, isSwingPair, openClosePhases, operatorJoints, operatorReturnPhase, operatorsAreIndividual, parsePoseQuery, returnChip, returnLabel, sliderReaction, type Phase } from "./doorLogic";
+import { activeLeaf, easeFor, isLocked, isSwingPair, openClosePhases, operatorJoints, operatorReturnPhase, operatorsAreIndividual, parsePoseQuery, returnChip, returnLabel, requiresRecordedPhysics, sliderReaction, type Phase } from "./doorLogic";
 import { CodeLock, keypadOf, keypadRows, keypadStatus, type KeypadJ } from "./keypad";
 import { ASSETS } from "./App";
 import { BaselineBadges } from "./ResultBadges";
@@ -96,6 +97,8 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
   const [joints, setJoints] = useState<JointHandle[]>([]);
   const [, force] = useState(0);
   const [diagnostic, setDiagnostic] = useState(initialDiagnostic || new URLSearchParams(query).get("contrast") === "1");
+  const [mechanismsOnly, setMechanismsOnly] = useState(new URLSearchParams(query).get("mechanisms") === "1");
+  const mechanismsOnlyRef = useRef(mechanismsOnly); mechanismsOnlyRef.current = mechanismsOnly;
   const diagnosticRef = useRef(diagnostic); diagnosticRef.current = diagnostic;
   const [reference, setReference] = useState<ReferenceClip | null>(null);
   const [referenceError, setReferenceError] = useState<string | null>(null);
@@ -152,7 +155,9 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
     }).catch(e => { if (!abort.signal.aborted) setReferenceError(String(e.message || e)); });
     return () => abort.abort();
   }, [id, referenceBlocked]);
-  useEffect(() => { built.current?.setDiagnostic(diagnostic); }, [diagnostic, joints]);
+  useEffect(() => { built.current?.setMechanismsOnly(mechanismsOnly); }, [mechanismsOnly, joints]);
+
+  useEffect(() => { built.current?.setDiagnostic(diagnostic || mechanismsOnly); }, [diagnostic, mechanismsOnly, joints]);
   useEffect(() => {
     const t = three.current;
     if (!t || !reference) return;
@@ -236,6 +241,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
     // dev server only: lets scripts / the browser tooling aim the camera and read the built scene (screenshots, checks)
     if ((import.meta as any).env?.DEV) (window as any).__doorbench = { three: t, get built() { return built.current; }, refresh: () => force((x) => x + 1) };
     const loop = (now: number) => {
+      ground.visible = grid.visible = !mechanismsOnlyRef.current;
       t.anim = requestAnimationFrame(loop);
       const b = built.current;
       const q = queue.current;
@@ -293,7 +299,8 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
       builtModel.current = model;
       for (const [name, q] of keep) if (b.joints.get(name)?.loopSolved === false) b.setJoint(name, q);
       b.solveLoops();
-      b.setDiagnostic(diagnosticRef.current);
+      b.setDiagnostic(diagnosticRef.current || mechanismsOnlyRef.current);
+      b.setMechanismsOnly(mechanismsOnlyRef.current);
       t.scene.add(b.root);
       const c = b.bounds.getCenter(new THREE.Vector3());
       const size = b.bounds.getSize(new THREE.Vector3()).length() || 3;
@@ -406,6 +413,8 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
   // every operator the robot has to work: a watertight door has one lever per dog, a blast door one per lever bolt
   const opNames = model ? operatorJoints(model) : [];
   const opSet = new Set(opNames);
+  const lockControls = model ? deadboltControls(model) : [];
+  const procedure = model && spec ? openingProcedure(model, spec) : null;
   const individualOps = !!model && operatorsAreIndividual(model);
 
   const animate = (joint: string | undefined, to: number) => {
@@ -641,6 +650,11 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
             }}>{individualOps ? `Actuate all ${opNames.length} operators` : "Actuate operator"}</button>}
           <button onClick={() => { pauseReference(); const b = built.current; queue.current = []; if (b) { for (const h of b.joints.values()) b.setJoint(h.name, h.modeledAt); b.solveLoops(); } resetKeypad(); force((x) => x + 1); }}>Reset</button>
           <button className={diagnostic ? "active" : ""} aria-pressed={diagnostic} title="Brown door, gold mechanisms, neutral surroundings; glass remains transparent" onClick={() => setDiagnostic(v=>!v)}>Mechanism contrast</button>
+          {model && !requiresRecordedPhysics(model) && lockControls.map(control => <button key={control.joint} title="Separate lock control: the handle does not retract this deadbolt" onClick={() => {
+            const h = built.current?.joints.get(control.joint);
+            if (h?.range) animate(control.joint, h.q < (h.range[0] + h.range[1]) / 2 ? h.range[1] : h.range[0]);
+          }}>Turn deadbolt thumbturn{lockControls.length > 1 ? ` (${control.label})` : ""}</button>)}
+          <button className={mechanismsOnly ? "active" : ""} aria-pressed={mechanismsOnly} title="Hide leaves, glazing, frames, walls and floors; keep hardware and its motion" onClick={() => setMechanismsOnly(v => !v)}>Mechanisms only</button>
           <button onClick={() => setShowEnv((v) => !v)}>{showEnv ? "Hide" : "Show"} walls</button>
           <button onClick={() => setShowCol((v) => !v)}>{showCol ? "Hide" : "Show"} collision</button>
           {!supplementary && <button className={showEval ? "active" : ""} aria-pressed={showEval} disabled={!scenario} title={scenario ? "Draw the benchmark scenario: start zone, approach, handle targets, pass plane, goal, human path" : "no benchmark block in spec.json"} onClick={() => { const v = !showEval; setShowEval(v); if (v) setTimeout(frameEvaluation, 0); }}>{showEval ? "Hide" : "Show"} evaluation</button>}
@@ -687,6 +701,12 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
         {!model && <div className="loading" style={{ position: "absolute", top: 50 }}>Loading model…</div>}
       </div>
       <div className="side">
+        {procedure && <details className="opening-procedure" open data-review-shortcuts="off">
+          <summary><strong>How to open this door</strong> · {spec?.lock?.engaged ? "Starts locked" : "Starts unlocked"}</summary>
+          <ol>{procedure.steps.map((step, i) => <li key={i}>{step}</li>)}</ol>
+          <p className="reference-note">{procedure.note}</p>
+        </details>}
+
         <h2>{entry.use_case || entry.id}</h2>
         {supplementary && <div className="collection-notice"><strong>Supplementary pet-door asset</strong><p>Available for inspection and download. Excluded from robot and human benchmarks; no baseline evaluation or reference motion.</p><a href="#/pets">← Pet-door collection</a></div>}
         {!supplementary && referenceBlocked && <div className="collection-notice"><strong>Archived motion unavailable</strong>{referenceBlocked}</div>}
