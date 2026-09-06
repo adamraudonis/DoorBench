@@ -44,6 +44,17 @@ assets/
 (mass breakdown, hinge friction model, EN 1154 closer parameters, latch/lock parameters, compliance flags,
 damage thresholds).
 
+`physics.mass` names the level of every mass, because `spec.leaf` describes ONE leaf and a door has `leaf.count`
+of them: `per_leaf_kg` is one leaf and the hardware on it, `total_kg` is the whole door
+(`leaf_count × (slab + glazing) + hardware`, and what the model's moving bodies weigh), and
+`primary_assembly_kg` is what the primary joint carries — one leaf of a pair, the whole rotor of a revolving
+door, the whole stack of a fold — measured on the built model, with `primary_com_arm_m` the lever that subtree's
+weight works through.  `leaf_slab_kg` / `leaf_glass_kg` / `leaf_hardware_kg` are the one-leaf breakdown and
+`slab_kg` / `glass_kg` / `hardware_kg` the door's.  See [PHYSICS.md](PHYSICS.md#mass-and-inertia).
+
+Every geom in `model.json` carries `volume_m3` alongside its `density`, so a consumer can check a body's mass
+against the material it is drawn in (this is what the `leaf_mass_share` gate does).
+
 `spec.json → benchmark` holds the door's evaluation scenarios (start zone with a seeded `randomize` rule, approach
 point, handle targets = grip / push site names, pass plane, goal zone, optional simulated-human path, reward table,
 success criteria, time budget, expected transit time with its terms).  Schema and formulas: [BENCHMARK.md](BENCHMARK.md).
