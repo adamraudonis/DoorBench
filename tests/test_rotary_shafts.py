@@ -79,7 +79,9 @@ def test_rotated_brace_pieces_preserve_material_volume():
 
 def test_single_face_stubs_do_not_enter_independent_opposite_hardware(corpus):
     rows=[(door,ir,row) for door,(_,ir) in corpus.items() for row in ir.meta['rotary_shafts'] if len(row['faces'])==1]
-    assert len(rows)==29
+    # Master adds DB0425's independent keypad trim to the 29 earlier stubs.
+    assert len(rows)==30
+    assert any(door=='db0425_swing_single' for door,_,_ in rows)
     assert sum('allocation estimate' in a['allocation_scope'] for _,ir,_ in rows for a in ir.meta['rotary_shaft_accounting'])==10
     for door,ir,row in rows:
         body=ir.body(row['body']);shaft=next(g for g in body.geoms if g.name==row['shaft_geom'])

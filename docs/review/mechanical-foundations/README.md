@@ -21,6 +21,7 @@ defect counterexamples. Source and native-state hashes bind the evidence.
 - [Sliding and pocket mechanisms](sliding.md)
 - [Gate releases and supports](gates.md)
 - [Closer mounts, pinion springs and hydraulic valves](closers.md)
+- [Missing vertical-rod latch retention](vertical-rod-retention.md)
 - [Hatch stays and release pins](hatches.md)
 - [Flexible PVC sheets and clamps](strips.md)
 - [Freely rotating childproof knob covers](knob-covers.md)
@@ -132,11 +133,24 @@ All 88 native linkage and holdback regression tests pass on this source,
 including full-travel inspection, repeated service cycles and removed-part
 counterexamples. Runtime scripted holdback release remains separate open work.
 Hatch rings now have an actual cross-pin and bored cup-mounted bearing ears;
-the stay-release pin reaches its knob. All 47 hatch tests pass, including direct
+the stay-release pin reaches its knob. All 18 hatches also pass fresh whole-door
+QA. All 47 hatch tests pass, including direct
 surface-distance checks through ring travel and native hold/release tests.
 
-A fresh 1000-door QA batch is in progress. It has already found remaining sign
+A fresh 1000-door QA batch is in progress against a frozen source snapshot.
+The first process-pool attempt lost a native worker; the replacement runs each
+door in an isolated process and saves its receipt independently. It has already found remaining sign
 and pull mounts, lock-stock defects, paired closer-return failures and a roll-up
 inspection/clearance problem. These findings prevent a new blanket quality claim.
 Generated evidence stays under `out/integration`; regenerated assets are not
 committed. No appearance renders or deployment were performed in this checkpoint.
+
+The next integration checks found bottom inactive-leaf bolts entering unbored
+raised thresholds. Their socket entrance and bolt tips now follow the actual
+supporting threshold surface, with the same physical stroke and force limits;
+all 23 paired-leaf component/runtime regression tests pass across full, simple
+and minimal tiers. All 14 conventional-shaft tests also pass on the integrated
+source; the one-face inventory now includes master's independent DB0425 keypad
+trim (30 assemblies, previously 29). PUSH/PULL plates now seat on planar leaf or
+glass stock covering their entire footprint, instead of floating at the thicker
+frame plane. Unsupported footprints remain visible to attachment QA.

@@ -1997,6 +1997,24 @@ def add_closer(model: Model, world: Body, leaf_body: Body, spec: dict, phys: dic
 # ---------------------------------------------------------------------------
 # Extras / signage
 # ---------------------------------------------------------------------------
+def _label_mount_face(body, x, z, hx, hz, face, fallback):
+    """Seat an adhesive plate on real planar stock covering its full footprint.
+
+    A glazed frame's nominal leaf thickness describes its stiles, not the
+    central pane. Hardware and decoration cannot supply the mounting surface.
+    Unsupported or curved footprints retain the existing position for QA to
+    flag; an AABB intersection alone is not proof of a flat adhesive seat.
+    """
+    surfaces=[]
+    for geom in body.geoms:
+        if geom.semantic not in ('leaf','glass') or geom.type!='box':continue
+        if not np.allclose(quat_to_mat(geom.quat),np.eye(3),atol=1e-9):continue
+        px,py,pz=geom.pos;sx,sy,sz=geom.size
+        if abs(px-x)+hx<=sx+1e-9 and abs(pz-z)+hz<=sz+1e-9:
+            surfaces.append(face*py+sy)
+    return max(surfaces) if surfaces else fallback
+
+
 def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float, v: float, x0: float, z0: float, W: float, Hh: float, t: float, Wo: float, Ho: float):
     ex = set(spec.get("extras", []))
     if "kick_plate" in ex and not spec["leaf"].get("pet_flap"):
@@ -2102,8 +2120,10 @@ def add_extras(model: Model, world: Body, leaf_body: Body, spec: dict, u: float,
                            name="exit_sign_bracket", semantic="decor", label="EXIT sign back box", tiers=FULL_ONLY, span=0.35)
     if "push_pull_sign" in ex:
         sm = mat_from_material(model, "stainless", "mat_sign")
-        leaf_body.geoms.append(box("sign_push", (x0 + u * W / 2, -v * (t / 2 + 0.001), z0 + 1.35), (0.06, 0.001, 0.03), sm, 7900, False, True, FULL_ONLY, "decor", "PUSH sign"))
-        leaf_body.geoms.append(box("sign_pull", (x0 + u * W / 2, v * (t / 2 + 0.001), z0 + 1.35), (0.06, 0.001, 0.03), sm, 7900, False, True, FULL_ONLY, "decor", "PULL sign"))
+        for name,face,label in (("sign_push",-v,"PUSH sign"),("sign_pull",v,"PULL sign")):
+            surface=_label_mount_face(leaf_body,x0+u*W/2,z0+1.35,.06,.03,face,t/2)
+            leaf_body.geoms.append(box(name,(x0+u*W/2,face*(surface+.001),z0+1.35),
+                (.06,.001,.03),sm,7900,False,True,FULL_ONLY,"decor",label))
     if "warning_placard" in ex:
         pm = mat_rgba(model, "mat_placard", (0.95, 0.75, 0.05, 1), 0.5)
         leaf_body.geoms.append(box("warning_placard", (x0 + u * W / 2, -1.0 * (t / 2 + 0.001), z0 + Hh * 0.75), (0.11, 0.001, 0.08), pm, 1000, False, True, FULL_ONLY, "decor", "Warning placard"))

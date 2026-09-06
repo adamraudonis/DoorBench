@@ -94,10 +94,24 @@ def _material_cut(model,phys,leaf,before):
         'scope':'Exact removed routed stock. The source had no inactive-bolt allowance; new moving hardware adds its actual BOM.'})
 
 
+def _floor_receiver_surface(world,x,y,radius,maximum):
+    """Actual threshold/floor top supporting the complete receiver footprint."""
+    outer=radius+.00375;surfaces=[]
+    for g in world.geoms:
+        if g.type!='box' or g.semantic not in ('floor','frame','wall'):continue
+        if not np.allclose(quat_to_mat(g.quat),np.eye(3),atol=1e-9):continue
+        px,py,pz=g.pos;sx,sy,sz=g.size
+        if (abs(px-x)+outer<=sx+1e-9 and abs(py-y)+outer<=sy+1e-9
+                and pz+sz<=maximum+1e-9):surfaces.append(pz+sz)
+    if not surfaces:raise ValueError('Inactive bolt has no fixed floor/threshold substrate')
+    return max(surfaces)
+
+
 def _flush(model,world,leaf,primary,spec,material,x_edge,u,z_edge,plane,sign):
     """A recessed edge slide directly connected to a vertical bolt shaft."""
     name=leaf.name+('_flush_top' if sign>0 else '_flush_bottom')
     stroke=.035;radius=.006;x=x_edge-u*.019
+    if sign<0:plane=_floor_receiver_surface(world,leaf.pos[0]+x,0.,radius,z_edge)
     tip=plane+sign*.015;rod_end=tip-sign*.180;zmid=(tip+rod_end)/2
     # The 171 x25 x35 mm housing is recessed into the meeting stile. A small
     # enclosed shaft continuation takes up the retracted rod behind the face.
@@ -201,7 +215,8 @@ def _cane(model,world,leaf,primary,spec,material,x_edge,u,thickness):
     rod.joint=Joint(name+'_slide','slide',(0,0,1),range=(-.003,stroke+.003),damping=12.,frictionloss=5.,
         initial=0.,modeled_at=0.,role='lock',robot_interactive=face==approach,
         label='Inside cane bolt (lift clear of floor)',notes='Inside-face manual control; no exterior release')
-    tip=-.025;top=tip+.317
+    plane=_floor_receiver_surface(world,leaf.pos[0]+x,face*shaft_level,radius,.1)
+    tip=plane-.025;top=tip+.317
     rod.geoms.append(C.cyl(name+'_rod',(0,0,(tip+top)/2),radius,.317/2,material,(0,0,1),7900,True,True,ALL_TIERS,'lock','12.3 mm cane shaft entering floor socket'))
     rod.geoms.append(C.cyl(name+'_bent_grip',(-u*.03875,0,top),radius,.03875,material,(1,0,0),7900,True,True,ALL_TIERS,'operator','77.5 mm bent cane grip bonded to shaft'))
     stops=[]
@@ -212,7 +227,7 @@ def _cane(model,world,leaf,primary,spec,material,x_edge,u,thickness):
         stops.extend(guides)
     site=name+'_grip';rod.sites.append(Site(site,(-u*.055,face*radius,top),tuple(quat_z_to((0,face,0))),.005,'grip',ALL_TIERS))
     _backed(model,mount);_backed(model,rod)
-    keepers,_=_receiver(world,name+'_receiver',leaf.pos[0]+x,face*shaft_level,0.,-1,radius,material)
+    keepers,_=_receiver(world,name+'_receiver',leaf.pos[0]+x,face*shaft_level,plane,-1,radius,material)
     for g in guides+keepers:_pair(model,name+'_rod',g)
     return _record(model,rod,kind='cane_bolt',leaf=leaf,primary=primary,stroke=stroke,threshold=.040,
         rod=name+'_rod',site=site,grip=name+'_bent_grip',guides=guides,keepers=keepers,
