@@ -48,6 +48,7 @@ function Workspace({manifest}:{manifest:Manifest}) {
       <button onClick={()=>move(-1)} aria-label="Previous door">←</button><span>{index+1} / {doors.length} · {door.id}</span><button onClick={()=>move(1)} aria-label="Next door">→</button>
       <button className="primary" onClick={()=>{store(current.notes,true);move(1);}}>Good · next</button>
       <label>Comment<textarea aria-label="Door comment" placeholder="What needs fixing?" value={current.notes} onChange={e=>store(e.target.value)}/></label>
+      <a href={`#/door/${door.id}`} target="_blank" rel="noreferrer">Full inspector ↗</a>
       <small>{error?'Not saved':statusOf(current)==='accepted'?'Marked good · saved locally':'Saved in this browser'}</small>
     </div>
     {showSaved&&<section className="quick-review-saved"><h2>My feedback</h2><p>Local to this browser and site address. Download this list to send it back.</p><button onClick={()=>download('txt')}>Download links and comments</button> <button onClick={()=>download('json')}>Download JSON backup</button>

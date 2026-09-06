@@ -341,8 +341,7 @@ class _Writer:
         elif g.type == "mesh":
             mesh_path = os.path.join(self.hardware_dir, f"{g.mesh_name}.usdc")
             if g.mesh_name not in self.hw_written:
-                if not os.path.exists(mesh_path):
-                    _write_mesh_usd(g.mesh, mesh_path, g.mesh_name)
+                _ensure_mesh_usd(g.mesh, mesh_path, g.mesh_name)
                 self.hw_written[g.mesh_name] = True
             prim = UsdGeom.Xform.Define(self.stage, gp)
             _set_xform(UsdGeom, Gf, prim, pos, quat)
@@ -1750,6 +1749,21 @@ def write_usd_rl(model: Model, out_dir: str, hardware_dir: str, filename: str = 
     W.set_json(W.root.GetPrim(), "doorbench:env_release", env_release)
     W.set_json(W.root.GetPrim(), "doorbench:meta", {k: v for k, v in meta.items() if k not in ("notes",)})
     return W.save()
+
+
+def _ensure_mesh_usd(mesh, path, name):
+    """Repair partial cache files left behind by a failed mesh export."""
+    from pxr import Usd
+    valid = False
+    if os.path.exists(path):
+        try:
+            cached = Usd.Stage.Open(path)
+            valid = bool(cached and cached.GetPrimAtPath(f"/{_safe(name)}/mesh"))
+            del cached
+        except Exception:
+            valid = False
+    if not valid:
+        _write_mesh_usd(mesh, path, name)
 
 
 def _write_mesh_usd(mesh, path, name):

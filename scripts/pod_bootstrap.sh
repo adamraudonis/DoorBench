@@ -70,7 +70,7 @@ cd "$DB" && pip install -q -e . 2>&1 | tail -1
 if [ "$ISAACSIM_VERSION" = "5.1.0" ] && [ "$ISAACLAB_TAG" = "v2.3.2" ]; then
   uv pip install "filelock==3.13.1" "fsspec==2024.6.1" "markupsafe==2.1.3" \
     "networkx==3.3" "packaging==23.0" "sympy==1.13.3" "numpy==1.26.0" \
-    "typing-extensions==4.12.2" "psutil==5.9.8" "fastapi==0.121.0" "wheel==0.45.1" "ipython==8.37.0" || exit 1
+    "typing-extensions==4.12.2" "psutil==5.9.8" "fastapi==0.121.0" "wheel==0.45.1" "ipython==8.37.0" "onnx==1.21.0" || exit 1
   uv pip install "torchaudio==2.7.0" --index-url https://download.pytorch.org/whl/cu128 || exit 1
   python "$DB/scripts/isaaclab/check_g1_runtime.py" || exit 1
 fi

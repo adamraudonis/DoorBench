@@ -1,54 +1,16 @@
-# Human review workspace
+# Review doors
 
-Open **Review** in the viewer (`#/review`). The workspace keeps a queue for the complete loaded manifest, embeds the interactive door inspector, and records your judgement separately from automated QA.
+Open **[Review](https://adamraudonis.github.io/DoorBench/#/review)**. Each door’s saved reference starts playing automatically when its source checks pass. Missing or stale motion is identified rather than replayed against different geometry.
 
-For a local session, start the viewer from the repository root with `cd viewer` followed by `bun run dev`, then open the local address printed by Vite and choose Review. The viewer needs the generated dataset served at its configured `assets` path. See the project setup instructions if those files are absent.
+1. Watch the mechanism and orbit the model. Choose **Blender appearance** to inspect its saved render.
+2. Choose **Good · next**, or type a comment describing the problem.
+3. Press **Tab** for the next door or **Shift+Tab** for the previous one. These shortcuts also work from the comment field. The queue wraps through every door.
+4. Open **My feedback** to see your assessments, comments and links to the doors. **Download links and comments** produces a text file to send back; **Download JSON backup** preserves the structured records.
 
-## A quick review pass
+Comments save as you type. Good records acceptance and advances; it keeps your existing comment. Typing a substantive comment flags the door for follow-up. **Full inspector** opens the individual door separately with joint controls, mechanism visibility and the opening procedure.
 
-1. Select a door. Search matches its ID, family, use, hardware, tags and your notes. Family, status and issue-tag filters combine.
-2. Orbit the assembly from both sides. Inspect proportions, materials, repeated details, supports and hardware attachments. Use the appearance images where available; they are a visual supplement to the simulation geometry.
-3. Operate the door and each relevant mechanism through the full range. Examine intermediate positions, endpoints, latch/strike alignment, hinges, guides, tracks, closer arms, collisions and missing supports. Use the inspector's diagnostic visibility controls and simulation reference when available.
-4. Rate **Appearance**, **Physical construction** and **Mechanism** as Pass, Issue or Unsure. Leave Not rated for an aspect you have not examined. Add issue tags and a note identifying the part, pose, observed problem and expected behaviour.
-5. Choose **Accept & next** only after all three aspects meet your visual review standard. It records three Pass ratings and advances within the current queue. Existing flags, issue tags and Issue/Unsure ratings block quick acceptance until explicitly resolved. **Flag for follow-up** keeps the door open and focuses its notes.
+Saved feedback belongs to this browser, site address and dataset fingerprint. A different localhost port or the public site has a separate store. No feedback is uploaded automatically. Back up before clearing browser data or changing datasets. If localStorage fails, the screen reports the error and retains the current notes for download. Other tabs’ newer records are merged; avoid editing the same door simultaneously in two tabs.
 
-Use the **Unreviewed** filter to work through untouched doors, **In progress** to finish partial/unsure assessments, and **Flagged** to revisit defects. The current door stays open when an edit causes it to fall outside the filters; Previous/Next follows the remaining queue. The queue does not wrap at its ends. The full inspector link opens separately so the review workspace stays available.
+Existing `doorbench-human-review/1` records are preserved. Their three detailed ratings and issue tags remain in JSON backups even though the simplified screen shows only Good or Needs review. The fingerprint covers manifest metadata, not every model file; older acceptance is not certification of revised geometry. Visual review also does not certify force behavior or simulator parity.
 
-Keyboard shortcuts work when focus is outside interactive controls:
-
-| Key | Action |
-| --- | --- |
-| Right arrow, N or J | Next matching door |
-| Left arrow, P or K | Previous matching door |
-| A | Accept all three aspects and advance |
-| F | Flag and focus notes |
-
-Shortcuts pause inside text fields, selects, buttons, links, editable content and timeline sliders. Modified, repeated and composing keystrokes are ignored. **Undo last edit** restores the last changed assessment, including an accidental acceptance or clear operation.
-
-## What the counters mean
-
-- **Unreviewed:** no rating, substantive note, flag or issue tag.
-- **In progress:** a partial assessment, notes, or an Unsure rating, without a defect flag.
-- **Accepted:** all three human ratings Pass, with no manual flag or issue tag.
-- **Flagged:** a manual flag, issue tag, or Issue rating. This can still be partially assessed.
-- **Fully rated:** all three aspects have a nonempty rating, including Issue or Unsure. A manual flag alone does not count.
-
-The counters cover the loaded dataset, while the queue count reflects its filters. Automated QA, benchmark success and prior review reports do not prepopulate your human ratings. Visual acceptance does not establish contact/force behaviour, structural strength, complete mechanism realism or MuJoCo/PhysX parity. Reference playback only supplies evidence for its recorded sequence and simulator.
-
-## Saving, backup and import
-
-Edits and the selected door save automatically in this browser's localStorage. Storage is specific to the site address and browser profile: changing localhost port, switching to the hosted site, using another browser, or clearing browser data does not carry the notes across. Storage failures are shown in the workspace; the current tab retains its edits so **Export JSON** can back them up.
-
-Progress is scoped by a fingerprint of the loaded manifest, including its door metadata. Object-key order and generation timing are ignored. Changes to manifest contents get a separate review store. This is **not a checksum of model/mesh files**: geometry changed without changing the manifest cannot automatically invalidate an earlier assessment. Export and begin a separate review when the underlying models change independently.
-
-Export JSON regularly and before changing dataset or browser. The versioned `doorbench-human-review/1` document contains the dataset fingerprint, exact door ID list, export timestamp, and each stored assessment's ratings, manual flag, issue tags, notes and edit timestamp. Empty assessments retained after a clear operation carry a new timestamp so an older import does not resurrect them.
-
-**Import JSON** validates the entire document before offering a merge preview. It rejects incompatible schema/dataset, unknown or duplicate doors, invalid ratings/tags/types/timestamps and extra fields. Notes are limited to 10,000 characters per door and files to 64 MB. Import merges the newest timestamp per door; local records win ties and unrelated local doors remain intact. It does not combine individual fields inside a conflicting door assessment. Review the preview and choose Apply import or Cancel. Export a backup first if you need to retain both versions; import is not part of single-edit undo.
-
-Newer edits from another tab are merged when saving and when its storage event arrives. This is a local review tool, not a multiuser database; avoid simultaneous edits to the same door in multiple tabs. No review is uploaded, no dataset file is edited, and the workflow does not change automated QA results.
-
-If existing saved JSON is corrupt, it is left intact and never replaced by an empty document. New notes remain in the current tab when saving fails; export them before recovering the old storage manually.
-
-## Focused checks
-
-Run `bun test src/reviewState.test.ts` from `viewer` for dataset identity, rating/counter rules, combined filters, strict import validation, newest-record merge rules, persistence errors and keyboard focus safety. Run `bun run typecheck` and `bun run build` for integration checks.
+For local use, serve the dataset, `appearance/` and `reference-motions/` alongside the viewer, then run `bun run dev` in `viewer`. See [local catalogue setup](DATASET_RELEASE.md). Run `bun test src/reviewState.test.ts src/mechanismInspection.test.ts`, `bun run typecheck` and `bun run build` for focused checks.
