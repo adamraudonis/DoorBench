@@ -181,6 +181,33 @@ validator never applied, an angular-velocity cap read in the wrong unit, and fri
 the USD parser ignores. Underneath those five instrument errors sat perhaps forty real defects, which is what the
 exercise was for.
 
+**"Ensure nothing floats" was the biggest find of all (2026-09-05).** The owner's one-line complaint about a
+floating door stop turned out to describe a pervasive defect: an attachment gate (every body within 3 mm of what
+holds it, every static geom connected through static geoms to the floor, every body's geoms one cluster, all
+re-checked through the sweep) found **642 of 1000 doors** with at least one part bolted to nothing, 1681 findings
+in total. Nothing in the pipeline had ever asked "does this part touch anything?", because both clearance gates
+only fail parts that touch too much. The causes were mundane and systematic: hardware positioned off the wrong
+datum (closer shoes up to 133 mm in front of the frame), assemblies drawn as their visible pieces with the
+connecting piece missing (garage rollers with no stem, levers whose spindle stopped at the door face so each side
+was its own island, a chain modelled as six beads with 24 mm of air between them), and surface-mounted parts drawn
+where the door needs them with the bracket that carries them never modelled. All fixed; the gate is now part of
+sign-off.
+
+Three more of the owner's reports closed in the same pass. **Ship watertight doors** (db0168, "it only does 1 of 6
+hinges") were worse than reported: not only did five dogs never move, four of the six individually dogged doors
+swung 103-133 degrees with a dog still engaged, because a hinge-stile wedge only bit after 5 degrees of rotation
+and lost contact past 55. Dogs now engage a real slot, the handwheel doors drive every dog through a gearbox,
+torque tube and crank, and a gate proves each latch alone holds the leaf. **Handles** now come back: 61 operators
+classified into spring, gravity, detent or none, with return times of 0.2-0.5 s measured on 1043 release trials,
+and two gates covering both "it returns" and "it stays where you put it" for wheels and dog levers that must not
+spring back. **Keypad codes** are physical: buttons on sprung slide joints, a state machine with timeout and
+lockout, the outside trim declutched when locked, and a gate that proves the right code opens the door and a wrong
+one does not.
+
+The verifier that merged the four branches found seven more bugs created by the merges themselves, including a
+floor strike left hanging 13 mm above a saddle and a QA closing drive that slammed a 120-degree leaf hard enough
+to bounce it off its own latch.
+
 **Working with agents.** Seven parallel Fable agents in git worktrees is productive until the account's usage
 limit hits, which kills all of them at once and twice cost partial work. Rules that now hold: commit early and
 often on the agent branch; the main session owns `TASKS.md`, `README.md`, credentials and merges; agents write
