@@ -123,6 +123,22 @@ rising-hinge doors, `EXPORT_WELD` on 6, `RL_CANON` on 7, `VELOCITY_EXPLOSION` on
    install different closer damping, and sign-off has no mandatory-checklist rule, so a door passes with whichever
    checks happened to run. A required-checks manifest per family would close that.
 
+### Every unmerged branch, as of master `21b116e2b`
+
+```
+wf6-fix-overhead                  3 commits, 15 files   ACTIVE - merge this (see 3a)
+wf6-fix-declared                  3 commits, 17 files   ACTIVE - merge this (see 3a)
+worktree-agent-aee1f839bfa6c01d1  3 commits, 11 files   taxonomy hierarchy page (V6), never finished
+worktree-agent-a0650dd8b52f7f671  1 commit,  13 files   browser physics playground (V7), never finished
+worktree-agent-a919977c25b0ad6a2  2 commits, 14 files   superseded - closer draft
+worktree-agent-ab282d0acdf4fb6b2  4 commits, 13 files   superseded - attachment draft, redone properly later
+worktree-agent-a3c65620742f28a27  3 commits, 417 files  superseded - vision draft, redone properly later
+worktree-agent-a68f30762fa4dd816  1 commit,   9 files   superseded - operator/keypad draft, redone properly later
+```
+
+The four marked superseded were reimplemented from scratch later and merged; check before deleting, but expect
+nothing of value. The two `wf6-*` branches are finished work that only lacks verification.
+
 Four `worktree-agent-*` branches predate the current work and are **superseded** — their content was reimplemented
 properly later. Confirm before deleting: `a919977c25b0ad6a2` (closers), `ab282d0acdf4fb6b2` (attachment),
 `a3c65620742f28a27` (vision), `a68f30762fa4dd816` (operators/keypads).
