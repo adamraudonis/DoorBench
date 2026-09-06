@@ -4,6 +4,8 @@ This is a native PhysX rollout of Unitree’s unchanged locomotion checkpoint, w
 
 The G1 controls its legs and holds a fixed upper-body posture. It has no door perception, grasp planner or handle-turning controller. Manual doors move through physical contact; automatic sliders receive their own proximity-sensor and motor commands. The policy cannot write door joint state or directly command a door actuator.
 
+[Recorded results and per-door table](review/isaac-g1-catalogue/README.md) · [Native evidence, frozen inputs and video](https://github.com/adamraudonis/DoorBench/releases/tag/g1-isaac-2026-09-06)
+
 ## Task and accounting
 
 - Seed 0, at most 16 simulated seconds per case; physics and PD at 500 Hz, policy at 50 Hz.
@@ -38,14 +40,28 @@ For a new geometry revision, generate a new, separate fixture directory in a CPU
 python scripts/isaaclab/prepare_g1_catalogue.py --out out/g1-inputs
 ```
 
-For an exact reproduction, use the recorded run’s frozen `assets/` instead. Then run with a new output directory:
+For an exact reproduction, download the recorded frozen inputs and verify the release checksum before extracting:
+
+```bash
+mkdir -p downloads/g1
+(
+  cd downloads/g1
+  set -e
+  curl -fLO https://github.com/adamraudonis/DoorBench/releases/download/g1-isaac-2026-09-06/isaac-g1-frozen-inputs.tar.gz
+  curl -fLO https://github.com/adamraudonis/DoorBench/releases/download/g1-isaac-2026-09-06/SHA256SUMS
+  sha256sum --ignore-missing -c SHA256SUMS
+  tar -xzf isaac-g1-frozen-inputs.tar.gz
+)
+```
+
+Then run with a new output directory:
 
 ```bash
 python scripts/isaaclab/run_g1_catalogue.py \
-  --assets /absolute/path/to/assets \
+  --assets "$PWD/downloads/g1/assets" \
   --batch 32 --out out/g1-catalogue
 python scripts/isaaclab/summarize_g1_catalogue.py \
-  --assets /absolute/path/to/assets \
+  --assets "$PWD/downloads/g1/assets" \
   --results out/g1-catalogue --out out/g1-catalogue/traversal-audit.json
 ```
 
@@ -59,16 +75,20 @@ The hero view uses sixteen distinct successful vertical cases selected from the 
 
 The presentation changes lighting, the floor’s visual material and cell spacing. It retains the robot asset, door inputs, collision geometry, physical materials and policy. A runtime assertion verifies that the presentation material preserves the floor’s physics binding. The original and presentation runners have separate hashes. No human animation or door-joint playback substitutes for the native policy rollout.
 
-On the current source revision, adding `--hero` to `run_g1_catalogue.py` performs selection, records the grid, and audits the rerun separately in `hero/traversal-audit.json`. For manual camera work:
+The hero utilities were added after the frozen evaluation runner. After finishing the evaluation above, use `git checkout g1-isaac-2026-09-06` to access the published presentation and selection utilities, while keeping the downloaded inputs and previous evaluation output. On that source revision, adding `--hero` to `run_g1_catalogue.py` performs selection, records the grid, and audits the rerun separately in `hero/traversal-audit.json`. The published recording uses the explicit selection retained in the evidence archive's `hero/selection.json`:
 
 ```bash
-python scripts/isaaclab/select_g1_hero.py \
-  --audit out/g1-catalogue/traversal-audit.json \
-  --assets /absolute/path/to/assets --out out/hero-selection.json
-# Pass the sixteen IDs printed above to --batch-doors:
 python scripts/isaaclab/hero_g1.py --headless --device cuda:0 \
-  --assets /absolute/path/to/assets --out out/g1-hero \
-  --video --batch-doors <the sixteen selected IDs>
+  --assets "$PWD/downloads/g1/assets" --out out/g1-hero \
+  --video --batch-doors \
+  db0010_swing_double db0031_saloon db0098_gate_swing db0108_revolving \
+  db0130_automatic_sliding db0356_swing_double db0990_automatic_sliding db0332_baby_gate \
+  db0350_strip_curtain db0123_saloon db0127_swing_double db0203_automatic_sliding \
+  db0260_revolving db0279_swing_double db0301_gate_swing db0323_automatic_sliding
 ```
+
+For a different selection, `select_g1_hero.py --audit <audit.json> --assets <assets> --out <selection.json>` chooses candidates from audited successes. Audit the new simultaneous rerun independently before describing it as successful.
+
+GPU contact dynamics can vary between process/grid configurations even with the same seed; the pilot and presentation receipts document this variation. Source and seed pins identify the experiment, rather than promising bitwise-identical trajectories.
 
 The camera records 2560×1600 presentation video at 25 fps, plus several still frames. Keep the complete recording when choosing a README image, so a pleasing pose cannot conceal a failed attempt.

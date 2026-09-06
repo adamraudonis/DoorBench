@@ -2,7 +2,7 @@
 
 **1,000 articulated door models for robotics simulation.**
 
-[Browse the catalogue](https://adamraudonis.github.io/DoorBench/) · [Download the dataset](https://huggingface.co/datasets/adamraudonis/DoorBench) · [Release guide](docs/DATASET_RELEASE.md)
+[Browse](https://adamraudonis.github.io/DoorBench/) · [Review doors](https://adamraudonis.github.io/DoorBench/#/review) · [Download the dataset](https://huggingface.co/datasets/adamraudonis/DoorBench) · [Release guide](docs/DATASET_RELEASE.md)
 
 DoorBench combines 30 door families with operators, locks, closers and configurable materials. It includes detailed model specifications, simulation exports, benchmark scenarios, Blender appearances, and reference motion for studying door interactions.
 
@@ -17,14 +17,18 @@ The robotics collection contains **985 doors**. The **15 [pet doors](https://ada
 
 ## Isaac Sim · Unitree G1
 
-| Run (UTC) | Coverage | Success | Simulator errors |
-|---|---|---:|---:|
-| September 6, 2026, 16:27:46 | Four selected integration examples | 3 / 4 (75%) | 0 |
+[![Sixteen Unitree G1 robots traversing sixteen doors simultaneously in native Isaac Sim](docs/media/isaac-g1-4x4.gif)](https://github.com/adamraudonis/DoorBench/releases/download/g1-isaac-2026-09-06/isaac-g1-4x4.mp4)
 
-This is the unchanged Unitree locomotion checkpoint on an L40S in Isaac Sim 5.1.
-**The four-case result is not an all-door benchmark.** A catalogue-wide native
-run is in progress; its result and 4×4 Isaac recording will replace this status
-only after the evidence is collected. [Reproduce the tested demo](docs/ISAAC_G1_DEMO.md).
+Actual L40S recording on September 6, 2026: **16 / 16 selected demonstration cases crossed their openings**. These are selected successes, not a random sample or the catalogue score. [Full-resolution still](docs/media/isaac-g1-4x4.png) · [Recording and evaluation details](docs/ISAAC_G1_CATALOGUE.md).
+
+**Actual GPU run:** September 6, 2026, **20:17:17–22:37:41 UTC**, L40S, Isaac Sim 5.1.
+
+| Coverage | Attempted | Audited traversals | Native errors |
+|---|---:|---:|---:|
+| Complete non-pet collection | 985 / 985 | **44 / 985 (4.5%)** | 10 |
+| Upright doorway subset | 967 / 967 | **44 / 967 (4.6%)** | 10 |
+
+The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock manipulation. This closed-start diagnostic is separate from the core benchmark. All 18 horizontal hatches were attempted but are not upright doorway tasks; errors remain in the denominator. [Per-door results and limitations](docs/review/isaac-g1-catalogue/README.md) · [Reproduce the run](docs/ISAAC_G1_CATALOGUE.md) · [Test your policy](docs/ISAAC_G1_DEMO.md).
 
 ## Scripted baseline
 
