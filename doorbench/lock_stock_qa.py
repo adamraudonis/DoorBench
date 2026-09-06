@@ -27,6 +27,16 @@ def run_lock_stock_qa(model,metadata,*,tier='full',samples=17):
                 groups.append(('thumbturn',[model.geom(n).id for n in row['thumbturn_geoms']],
                                model.joint(row['thumbturn_joint']).id,float(row['thumbturn_clearance_m'])))
             for mount in row.get('operator_standoffs',[]):
+                # Prepared journals can live in their own exact-BOM rigid
+                # support body. Follow the explicit source binding rather
+                # than silently dropping them from a direct-leaf-only query.
+                for name in mount['spacer_geoms']:
+                    fixed=model.geom(name).id;ancestor=int(model.geom_bodyid[fixed])
+                    while ancestor!=leaf and ancestor:
+                        if model.body_jntnum[ancestor]:raise ValueError('Operator spacer is not fixed to its owning leaf')
+                        ancestor=int(model.body_parentid[ancestor])
+                    if ancestor!=leaf:raise ValueError('Operator spacer belongs to another leaf')
+                    if fixed not in parent:parent.append(fixed)
                 moving=[model.geom(n).id for n in mount['moving_geoms']+[mount['shaft_geom']]]
                 moving=[g for g in moving if model.geom_contype[g] or model.geom_conaffinity[g]]
                 groups.append(('operator_standoff',moving,model.joint(mount['joint']).id,.0005))

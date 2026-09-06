@@ -58,9 +58,28 @@ def _unit_leaf_mass(spec: dict) -> dict:
         slab_mass = profile["frame_kg"] + profile["gasket_kg"]
         glass_mass = profile["glass_kg"]
         ad = slab_mass / area
+    from .glazing import uses_ordinary_glazing, construction
+    glazing_profile = None
+    if uses_ordinary_glazing(leaf):
+        # The sectional builder leaves a real 6 mm articulation gap in each
+        # panel. Rising hinges trim the slab at its actual lifted envelope.
+        height=Hh-(.006 if fam=='garage_sectional' else 0.)
+        if fam in ('swing_single','swing_double','automatic_swing','pivot','cold_storage') and not spec['opening'].get('outdoor'):
+            opn=spec['opening'];zb=leaf.get('bottom_clearance',.012) or .012
+            if opn.get('ground_clearance'):zb=opn['ground_clearance']
+            if opn.get('threshold') in ('saddle','sill','sill_step'):
+                zb=max(zb,.045 if opn['threshold']=='sill_step' else .017)
+            else:zb=max(.005,min(zb,opn['height']-Hh-.004))
+            height=min(height,opn['height']-.004-zb)
+        if spec['hinge'].get('axis_tilt_deg') and fam in ('swing_single','swing_double','automatic_swing','pivot','cold_storage'):
+            height-=1.3*{'rising_butt':.008,'cam_lift':.012,'gravity_pivot':.010}.get(H.HINGES[spec['hinge']['model']].kind,0.)
+        glazing_profile=construction(leaf,W,height,spec=spec)
+        slab_mass,glass_mass=glazing_profile['slab_kg'],glazing_profile['glass_kg']
     # louvers: open area reduces mass (already in fill fraction for louver slab)
     hw = 0.0
     parts = {}
+    if glazing_profile:
+        parts['glazing_retainers']=glazing_profile['retainer_kg']
     op = H.OPERATORS[spec["operator"]["model"]]
     parts["operator"] = op.mass
     lk = H.LOCKS[spec["lock"]["model"]]
@@ -77,6 +96,8 @@ def _unit_leaf_mass(spec: dict) -> dict:
     formula = "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware"
     if leaf["slab"] in M.FRAMED_GLASS_SLABS:
         formula = "hollow frame-wall volumes*rho_frame + actual glass-ply volumes*rho_glass + edge gaskets + hardware"
+    elif glazing_profile:
+        formula = "retained stock volume*effective slab density + true pane volume*glass density + separate stop/tape BOM + hardware"
     elif fam == "turnstile_tripod":
         formula = "3*pi*(0.019^2-0.0175^2)*arm_length*7900 + 3 kg hub + shared hardware (three arms already included)"
     elif fam == "turnstile_fullheight":
@@ -112,6 +133,10 @@ def leaf_mass(spec: dict) -> dict:
         unit = _unit_leaf_mass(sub)
         units = panel.get("material_units",1)
         parts = {k:v*panel.get("hardware_fraction",1) for k,v in unit["hardware_parts"].items()}
+        if 'glazing_retainers' in parts:
+            # Retainers are material for this exact physical panel, not a
+            # shared operator allowance split between Dutch halves/sections.
+            parts['glazing_retainers']=unit['hardware_parts']['glazing_retainers']*units
         if "operator_fraction" in panel:
             parts["operator"] = unit["hardware_parts"]["operator"]*panel["operator_fraction"]
         replaced_operator = 0.
@@ -132,8 +157,15 @@ def leaf_mass(spec: dict) -> dict:
             parts["edge_pull_fitting"] = .20  # original 98 mm case/rocker, separate from face grip
         slab, glass = unit["slab_kg"]*units, unit["glass_kg"]*units
         if panel.get("cutout_area_m2"):
-            retained=max(0.,1-panel["cutout_area_m2"]/(panel["width"]*panel["height"]))
-            slab*=retained;glass*=retained
+            from .glazing import uses_ordinary_glazing
+            if uses_ordinary_glazing(sub['leaf']):
+                # The construction raises its glazing above the pet opening;
+                # remove actual solid rail stock, never a fraction of glass.
+                slab-=panel['cutout_area_m2']*M.SLABS[sub['leaf']['slab']].area_density(sub['leaf']['thickness'])
+                if slab<=0:raise ValueError('Pet preparation exceeds retained glazed-door stock')
+            else:
+                retained=max(0.,1-panel["cutout_area_m2"]/(panel["width"]*panel["height"]))
+                slab*=retained;glass*=retained
         hardware = sum(parts.values())
         rows.append({**panel,"slab_kg":slab,"glass_kg":glass,"hardware_kg":hardware,"hardware_parts":parts,"total_kg":slab+glass+hardware})
         if replaced_operator:

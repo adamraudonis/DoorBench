@@ -72,7 +72,7 @@ def run_ship_holdback_qa(model, meta):
     mujoco.mj_saveModel(model, buffer=binary)
     digest = hashlib.sha256(binary).hexdigest()
     key = hashlib.sha256(digest.encode() + json.dumps(
-        {'version': 4, 'holdback': hb, 'mounts': mounts, 'linkage': linkage}, sort_keys=True).encode()).hexdigest()
+        {'version': 6, 'holdback': hb, 'mounts': mounts, 'linkage': linkage}, sort_keys=True).encode()).hexdigest()
     if key in _CACHE:
         _CACHE.move_to_end(key)
         result = copy.deepcopy(_CACHE[key]); result['cache_hit'] = True
@@ -95,13 +95,13 @@ def run_ship_holdback_qa(model, meta):
                 total += max(0., float(force[0]))
         return total
 
-    def apply(joint, site, effort):
+    def apply(joint, site, effort, force_limit=120.):
         nonlocal peak
         tangent = np.cross(d.xaxis[joint], d.site_xpos[site] - d.xanchor[joint])
         radius = float(np.linalg.norm(tangent))
         if radius < .02:
             raise ValueError('Physical hand surface has insufficient turning radius')
-        force = tangent * np.clip(effort, -120 * radius, 120 * radius) / (radius * radius)
+        force = tangent * np.clip(effort, -force_limit * radius, force_limit * radius) / (radius * radius)
         peak = max(peak, float(np.linalg.norm(force)))
         forces[model.site(site).name] = force.tolist()
         mujoco.mj_applyFT(model, d, force, np.zeros(3), d.site_xpos[site],
@@ -201,7 +201,7 @@ def run_ship_holdback_qa(model, meta):
                     mujoco.mj_forward(model, d)
                     unloaded_s = unloaded_s + model.opt.timestep if contact_load((jaw, striker)) < 5 else 0.
                     if (release_start is None and d.time - start >= .3 and unloaded_s >= .1
-                            and d.qpos[la] >= held_leaf + .035):
+                            and d.qpos[la] >= held_leaf + .045):
                         release_start = float(d.time)
                     target = 0. if release_start is None else .85 * quintic(d.time - release_start)
                     # Take up the pocket clearance gradually before lifting
@@ -212,7 +212,10 @@ def run_ship_holdback_qa(model, meta):
                     def release():
                         leaf_hand(leaf_target)
                         if release_start is not None:
-                            apply(hook, hook_site, 4 * (target - d.qpos[ha]) - .2 * d.qvel[hv] + model.dof_frictionloss[hv])
+                            # A light latch input waits for real pocket
+                            # clearance instead of forcing the jaw past the
+                            # striker while the other hand unloads the leaf.
+                            apply(hook, hook_site, 4 * (target - d.qpos[ha]) - .2 * d.qvel[hv] + model.dof_frictionloss[hv], 25.)
                     tick(release)
                     hook_peak = max(hook_peak, float(np.linalg.norm(forces.get(hb['release_site'], (0., 0., 0.)))))
                     stop_load = sum(contact_load((striker, stop)) for stop in opening_stops)
@@ -232,7 +235,7 @@ def run_ship_holdback_qa(model, meta):
                     def close():
                         leaf_hand(target, True)
                         if d.qpos[la] > hb['nominal_capture_angle_rad'] - .25:
-                            apply(hook, hook_site, 4 * (.85 - d.qpos[ha]) - .2 * d.qvel[hv])
+                            apply(hook, hook_site, 4 * (.85 - d.qpos[ha]) - .2 * d.qvel[hv], 25.)
                     tick(close)
                 record.update(closed_rad=float(d.qpos[la]), returned_hook_rad=float(d.qpos[ha]))
                 cycles.append(record)
@@ -246,10 +249,11 @@ def run_ship_holdback_qa(model, meta):
     if gear > .001: failures.append('native_gear_residual_exceeds_0_001rad')
     if peak > 120 + 1e-9: failures.append('manual_force_limit_exceeded')
     if messages or any(w.number for w in d.warning): failures.append('native_solver_warning')
-    result = {'schema_version': 1, 'applicable': True, 'ok': not failures,
+    result = {'schema_version': 1, 'algorithm_version': 6, 'applicable': True, 'ok': not failures,
               'cache_hit': False, 'compiled_model_sha256': digest, 'cycles': cycles,
               'scope': 'Two native service cycles: actual-surface dog release and leaf/hook hand forces, hands-free arrest under an external 80 Nm closing test load, unloaded manual hook release, and full closing. No embodied task, strength, pressure or durability certification.',
               'max_penetration_m': depth, 'depth_event': depth_event, 'peak_hand_force_N': peak,
+              'input_force_limits_N': {'leaf_and_dog_hand': 120., 'holdback_hook': 25.},
               'max_loop_residual_m': loop, 'max_gear_residual_rad': gear,
               'elapsed_native_s': float(d.time), 'timestep_s': float(model.opt.timestep),
               'native_warning_messages': list(messages), 'warning_counters': [int(w.number) for w in d.warning],

@@ -179,7 +179,22 @@ def keeper_transition_action(model, data, hoist, keeper, state):
             target=s['initial_bottom_m']+.007*_smooth(now-s.get('load_start_s',s['start_time_s']))
         else:
             target=max(hoist.closed_z+.002,s['initial_bottom_m']-min(.02,max(0.,elapsed-1.)*.007))
-        chain_force=-float(np.clip(60.+3000.*(target-height)-400.*velocity,-hoist.force_limit,hoist.force_limit))
+        effort=60.+3000.*(target-height)-400.*velocity
+        if phase=='engage':
+            # A fixed 60 N load guess can exactly cancel the small seating
+            # descent on a well-counterbalanced curtain. Integrate measured
+            # height error so a roller gap can actually pass the waiting pin.
+            # Keep the same material-chain input and 120 N cap; do not move
+            # the pin or chain coordinates to manufacture alignment.
+            integral=float(s.get('engage_integral_force_N',0.))
+            delta=1500.*(target-height)*dt
+            raw=effort+integral
+            if abs(raw)<hoist.force_limit or raw*delta<0.:
+                integral=float(np.clip(integral+delta,-hoist.force_limit,hoist.force_limit))
+            s['engage_integral_force_N']=integral
+            s['engage_target_bottom_m']=target
+            effort+=integral
+        chain_force=-float(np.clip(effort,-hoist.force_limit,hoist.force_limit))
         if phase=='transfer':chain_force=s['transfer_force_N']*(1.-_smooth(phase_elapsed/.5))
         forces[action['site']]=[0.,0.,chain_force]
         if phase=='engage':

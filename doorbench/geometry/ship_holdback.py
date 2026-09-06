@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 import numpy as np
 import trimesh
-from ..ir import Body,Joint,Site,SpatialSpring,ALL_TIERS,QUAT_ID,mat_to_quat,quat_from_axis_angle,quat_to_mat,quat_z_to
+from ..ir import Body,Joint,Site,SpatialSpring,Geom,ALL_TIERS,QUAT_ID,mat_to_quat,quat_from_axis_angle,quat_to_mat,quat_z_to
 from . import common as C
 from .marine_dogs import bearing_y
 
@@ -97,13 +97,17 @@ def add_ship_holdback(model,spec):
         True,True,ALL_TIERS,'holdback','Axial retaining head'))
     _prism(hook,'ship_holdback_arm',[(.010,-.001),(.010,.013),(.087,.053),(.135,.065),(.139,.050),(.085,.034)],steel)
     _prism(hook,'ship_holdback_jaw',[(.106,.006),(.106,.034),(.139,.050)],steel)
-    hook.geoms.append(C.cyl('ship_holdback_release_handle',(.040,-.032,.027),.009,.029,steel,(0,1,0),7850,
+    # The welded grip is near the distal web, above the striker pocket. Its
+    # roughly 102 mm lever arm permits a 25 N light-hand input; a short 49 mm
+    # lever required uncomfortable transient effort on several variants.
+    handle_x,handle_z=.090,.047
+    hook.geoms.append(C.cyl('ship_holdback_release_handle',(handle_x,-.032,handle_z),.009,.029,steel,(0,1,0),7850,
         True,True,ALL_TIERS,'operator','Physical release handle clear of the capture pocket'))
     # The site is on the grip's lower cylindrical surface, with an outward
     # normal. An upward/inward finger force has a useful opening moment; the
     # former centreline point was inside the solid handle, not on a surface.
-    outward=np.array([.027,0.,-.040]);outward/=np.linalg.norm(outward)
-    grip=np.array([.040,-.045,.027])+.009*outward
+    outward=np.array([handle_z,0.,-handle_x]);outward/=np.linalg.norm(outward)
+    grip=np.array([handle_x,-.045,handle_z])+.009*outward
     hook.sites.extend([Site('ship_holdback_release_grip',tuple(grip),tuple(quat_z_to(outward)),role='grip'),
         Site('ship_holdback_spring_tip',(.035,.024,.015),role='mechanism')])
     hook.geoms.append(C.cyl('ship_holdback_spring_pin',(.035,.014,.015),.003,.014,steel,(0,1,0),7850,
@@ -113,8 +117,13 @@ def add_ship_holdback(model,spec):
         300.,.045,damping=.5,width=.002,label='Original extension spring returning the unloaded retaining hook'))
     striker=Body('ship_holdback_striker',leaf.name,semantic='holdback',label='Striker crossbar welded through two leaf mounting ears')
     bar_axis=rotation.T@lateral
-    striker.geoms.append(C.cyl('ship_holdback_striker_bar',tuple(local),.006,.045,steel,bar_axis,7850,
-        True,True,ALL_TIERS,'holdback','12 mm striker bar held between steel ears'))
+    # A rounded-end solid bar retains the 12 mm diameter and 90 mm total
+    # envelope. Its native capsule contact has one consistent normal at the
+    # bumper; a flat-ended cylinder produced opposed duplicate contact
+    # normals at a sub-micrometre near-touch in MuJoCo 3.12.0.
+    striker.geoms.append(Geom('ship_holdback_striker_bar', 'capsule', (.006,.039),
+        tuple(local), tuple(quat_z_to(bar_axis)), steel, density=7850,
+        tiers=ALL_TIERS, semantic='holdback', part_label='12 mm rounded-end striker bar held between steel ears'))
     for s in (-1,1):
         end=local+s*.039*bar_axis;foot=end.copy();foot[1]=side*(t/2+.004)
         delta=end-foot

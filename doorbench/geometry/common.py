@@ -482,7 +482,7 @@ def _slab_boxes(leaf_body, name_prefix, xc, y_center, zc, W, t, Hh, lm, collisio
 
 def add_leaf_geoms(model: Model, leaf_body: Body, spec: dict, leaf: dict, u: float, x0: float, z0: float, phys: dict, name_prefix="leaf", collision_tiers=ALL_TIERS, y_center=0.0, W=None, Hh=None, edge_pockets=None, v_edge=1.0, hole=None):
     """Leaf slab geometry in the leaf body frame.  Leaf spans x from x0 to x0+u*W, z from z0 to z0+H, centered at y_center.
-    Slab collision = one box (all tiers); panels/glazing/louvers are visual (+glass collision in full)."""
+    Ordinary glazing has real openings, panes and retaining sections in every tier."""
     W = W or leaf["width"]
     Hh = Hh or leaf["height"]
     t = leaf["thickness"]
@@ -528,8 +528,7 @@ def add_leaf_geoms(model: Model, leaf_body: Body, spec: dict, leaf: dict, u: flo
     is_frameless_glass = style == "glass_frameless" or slab.core_material in ("glass_clear", "mirror") and slab.monolithic
     is_mesh = style in ("mesh_panel", "pickets", "bar_grille", "ornamental_scroll", "grille_rollup", "strips")
     slab_fric = (face.friction_kinetic, 0.005, 0.0001)
-    # main slab: for glazed styles we still use one collision box for the slab (glass included) for performance,
-    # visuals get frame + glass panes.
+    # Solid/mesh stock paths below are separate from supported glazing.
     if is_mesh:
         # frame + infill: collision as a thin box (mesh treated as solid barrier), visual as bars/pickets
         gm = leaf_body.geoms
@@ -570,6 +569,7 @@ def add_leaf_geoms(model: Model, leaf_body: Body, spec: dict, leaf: dict, u: flo
         for zz, nm in (((z0 + 0.06, "bot"), (z0 + Hh - 0.06, "top")) if style == "glass_frameless" else ()):
             leaf_body.geoms.append(box(f"{name_prefix}_patch_{nm}", (x0 + u * 0.08, y_center, zz), (0.08, t / 2 + 0.008, 0.05), pm, 1.0, False, True, FULL_SIMPLE, "leaf", "Patch fitting"))
         return
+    glazing_width = W
     # latch-edge column with pockets (the leaf is a strike for another leaf's bolts)
     col_w = 0.0
     if edge_pockets:
@@ -583,22 +583,15 @@ def add_leaf_geoms(model: Model, leaf_body: Body, spec: dict, leaf: dict, u: flo
         xc = x0 + u * W / 2
     # Regular slab
     if glazing and glazing.get("panel_style") in ("glass_full", "glass_half", "glass_15_lite", "glass_10_lite", "glass_6_lite", "glass_9_lite", "glass_1_lite_top", "glass_oval", "glass_fan", "steel_half_glass", "glass_vision", "steel_vision", "porthole", "sectional_long_windows", "glass_sidelite_style"):
-        rects = glazing_layout(glazing["panel_style"], W, Hh)
-        gmat = mat_from_material(model, glazing["material"], "mat_glass")
-        gt = glazing.get("thickness", 0.006)
-        # slab as one collision box; visual: frame pieces around the glass are approximated by drawing the slab
-        # slightly thinner than glass so glass shows through? Simpler: draw slab box + glass panes protruding 0.5mm.
-        _slab_boxes(leaf_body, name_prefix, xc, y_center, zc, W, t, Hh, lm, collision_tiers, slab_fric, mass, hole)
-        for k, (rx, rz, rw, rh) in enumerate(rects):
-            if rw < 0.02 or rh < 0.02:
-                continue
-            cx = x0 + u * (rx + rw / 2)
-            cz = z0 + rz + rh / 2
-            if hole and _hits_hole(hole, cx, cz, rw / 2, rh / 2):
-                continue
-            leaf_body.geoms.append(box(f"{name_prefix}_glass_{k}", (cx, y_center, cz), (rw / 2, t / 2 + 0.0008, rh / 2), gmat, 1.0, False, True, ALL_TIERS, "glass", "Glazing"))
-            if glazing["panel_style"] in ("glass_15_lite", "glass_10_lite", "glass_6_lite", "glass_9_lite"):
-                pass
+        from .glazing import add_glazing
+        # Keep the full declared light layout when the last 60 mm is a
+        # separately prepared strike stile. Its solid stock is not duplicated.
+        for geom in leaf_body.geoms:
+            if geom.name.startswith(f'{name_prefix}_edge') and geom.density==1.0:
+                geom.density=slab.area_density(t)/t
+        add_glazing(model,leaf_body,leaf,spec=spec,width=glazing_width,height=Hh,stock_width=W,
+            x0=x0,z0=z0,u=u,y_center=y_center,prefix=name_prefix,material=lm,
+            tiers=collision_tiers,hole=hole)
         return
     # solid slab (+ raised panels, louvers)
     _slab_boxes(leaf_body, name_prefix, xc, y_center, zc, W, t, Hh, lm, collision_tiers, slab_fric, mass, hole)
