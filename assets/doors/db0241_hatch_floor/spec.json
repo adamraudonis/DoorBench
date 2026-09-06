@@ -94,22 +94,34 @@
  "task": "unlock_open_traverse",
  "physics": {
   "mass": {
-   "slab_kg": 25.92,
+   "leaf_count": 1,
+   "leaf_slab_kg": 25.92,
+   "leaf_glass_kg": 0.0,
+   "leaf_hardware_kg": 2.2,
+   "per_leaf_kg": 28.12,
    "slab_area_density_kg_m2": 24.0,
-   "glass_kg": 0.0,
-   "hardware_kg": 2.0,
    "hardware_parts": {
     "operator": 0.4,
     "lock": 0.2,
+    "latch": 0.2,
     "closer": 0.6,
     "hinges_half": 0.8
    },
-   "total_kg": 27.92,
-   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
-   "source": "Oak trapdoor"
+   "slab_kg": 25.92,
+   "glass_kg": 0.0,
+   "hardware_kg": 2.2,
+   "total_kg": 28.12,
+   "leaves_on_primary": 1.0,
+   "primary_assembly_kg": 28.12,
+   "formula": "per leaf: slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware;  door: leaf_count * (slab + glass) + the door's hardware set (charged once)",
+   "source": "Oak trapdoor",
+   "model_total_moving_kg": 28.12,
+   "leaf_hardware_rider_kg": 1.8479596493159764,
+   "primary_assembly_estimated_kg": 28.12,
+   "primary_com_arm_m": 0.4562640090776508
   },
   "hinge": {
-   "coulomb_torque_Nm": 0.512556722496,
+   "coulomb_torque_Nm": 0.5162283322559998,
    "bearing_mu": 0.12,
    "bearing_note": "Plain bearing butt hinge, lubricated",
    "pin_radius_m": 0.008,
@@ -136,7 +148,7 @@
    "formula": "lift assist: tau = -F*arm (negative = assists opening)",
    "source": "Gas spring 150-400 N"
   },
-  "inertia_about_hinge_kg_m2": 13.403982506666667,
+  "inertia_about_hinge_kg_m2": 13.499999573333332,
   "latch": {
    "model": "slide_bolt",
    "kind": "slide_bolt",
@@ -234,7 +246,7 @@
    "latch_shear_yield_N": 3000,
    "hinge_tearout_force_N": 5883.99,
    "slam_velocity_rad_s": 4.0,
-   "slam_impulse_Ns": 11.168000000000001,
+   "slam_impulse_Ns": 11.248000000000001,
    "frame_impact_force_N": 3000.0,
    "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
   },
@@ -266,8 +278,7 @@
   "suites": {
    "core": [
     "unlock_and_traverse",
-    "open_then_close",
-    "close_only"
+    "open_then_close"
    ],
    "human": []
   },
@@ -361,14 +372,14 @@
      "!damage"
     ],
     "time_budget_s": 35.0,
-    "expected_transit_s": 7.51,
+    "expected_transit_s": 7.52,
     "expected_transit_terms": {
      "approach_s": 2.11,
      "operate_s": 3.0,
-     "open_s": 1.54,
+     "open_s": 1.55,
      "pass_s": 0.86,
      "scenario_extra_s": 0.0,
-     "total_s": 7.51
+     "total_s": 7.52
     }
    },
    {
@@ -461,103 +472,14 @@
      "!slam"
     ],
     "time_budget_s": 40.0,
-    "expected_transit_s": 9.22,
+    "expected_transit_s": 9.23,
     "expected_transit_terms": {
      "approach_s": 2.11,
      "operate_s": 1.0,
-     "open_s": 1.54,
+     "open_s": 1.55,
      "pass_s": 0.86,
      "scenario_extra_s": 3.71,
-     "total_s": 9.22
-    }
-   },
-   {
-    "name": "close_only",
-    "suite": "core",
-    "requires_human": false,
-    "description": "The door starts open; close it (and latch it) without slamming.",
-    "initial_state": {
-     "door": "open",
-     "lock_engaged": true,
-     "latched": true
-    },
-    "start": {
-     "center": [
-      0.0,
-      -2.15,
-      0.0
-     ],
-     "radius": 0.3,
-     "yaw": 1.5708,
-     "yaw_range": [
-      1.2208,
-      1.9208
-     ],
-     "randomize": {
-      "position": "uniform_disc",
-      "radius": 0.3,
-      "yaw_jitter_rad": 0.35,
-      "seed_base": 35397,
-      "formula": "r = R*sqrt(u1), phi = 2*pi*u2, yaw = yaw0 + (2*u3 - 1)*yaw_jitter; u ~ U(0,1) from random.Random(seed_base + seed)"
-     }
-    },
-    "approach_point": [
-     0.0,
-     -1.5,
-     0.0
-    ],
-    "handle_targets": [
-     "grip_ring",
-     "hatch_bolt_grip"
-    ],
-    "pass_plane": {
-     "center": [
-      0.0,
-      0.0,
-      0.0
-     ],
-     "normal": [
-      0.0,
-      0.0,
-      1.0
-     ],
-     "width": 1.21,
-     "height": 0.91,
-     "traverse_direction": [
-      0.0,
-      0.0,
-      -1.0
-     ]
-    },
-    "goal": null,
-    "human": null,
-    "thresholds": {
-     "open_rad": 0.5235987755982988,
-     "open_m": null,
-     "clear_rad": 1.3089969389957472,
-     "clear_m": null
-    },
-    "rewards": {
-     "touch_handle": 1.0,
-     "closed": 5.0,
-     "damage": -10.0,
-     "slam": -2.0,
-     "time_penalty_per_s": -0.05
-    },
-    "success": [
-     "closed",
-     "!damage",
-     "!slam"
-    ],
-    "time_budget_s": 30.0,
-    "expected_transit_s": 6.32,
-    "expected_transit_terms": {
-     "approach_s": 2.11,
-     "operate_s": 0.5,
-     "open_s": 0.0,
-     "pass_s": 0.0,
-     "scenario_extra_s": 3.71,
-     "total_s": 6.32
+     "total_s": 9.23
     }
    }
   ],

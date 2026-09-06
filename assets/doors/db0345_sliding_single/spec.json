@@ -106,29 +106,41 @@
  "task": "unlock_open_traverse",
  "physics": {
   "mass": {
-   "slab_kg": 118.23192,
+   "leaf_count": 1,
+   "leaf_slab_kg": 118.23192,
+   "leaf_glass_kg": 94.859856,
+   "leaf_hardware_kg": 1.35,
+   "per_leaf_kg": 214.44177599999998,
    "slab_area_density_kg_m2": 112.5,
-   "glass_kg": 94.859856,
-   "hardware_kg": 1.2,
    "hardware_parts": {
     "operator": 0.9,
     "lock": 0.3,
+    "latch": 0.15,
     "hinges_half": 0.0,
     "threshold_saddle": 0.0
    },
-   "total_kg": 214.29177599999997,
-   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
-   "source": "Vinyl sliding patio panels \u2248 25-35 kg per 3ft panel"
+   "slab_kg": 118.23192,
+   "glass_kg": 94.859856,
+   "hardware_kg": 1.35,
+   "total_kg": 214.44177599999998,
+   "leaves_on_primary": 1.0,
+   "primary_assembly_kg": 214.44177599999998,
+   "formula": "per leaf: slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware;  door: leaf_count * (slab + glass) + the door's hardware set (charged once)",
+   "source": "Vinyl sliding patio panels \u2248 25-35 kg per 3ft panel",
+   "model_total_moving_kg": 214.44177599999998,
+   "leaf_hardware_rider_kg": 0.8472078102600676,
+   "primary_assembly_estimated_kg": 214.44177599999998,
+   "primary_com_arm_m": 0.0
   },
   "roller": {
-   "coulomb_force_N": 25.217813341324796,
+   "coulomb_force_N": 25.2354653113248,
    "mu_rolling": 0.012,
    "note": "Sealed ball-bearing nylon rollers on aluminum track (new)",
    "condition_multiplier": 1.0,
    "counterbalance_fraction": 0.0,
    "net_lift_force_N": null,
    "formula": "F = mu_roll * m * g * k_cond",
-   "viscous_damping_N_s_per_m": 12.7145888
+   "viscous_damping_N_s_per_m": 12.7220888
   },
   "closer": {
    "model": "none",
@@ -246,7 +258,7 @@
    "latch_shear_yield_N": 3000,
    "hinge_tearout_force_N": 20000.0,
    "slam_velocity_rad_s": 2.0,
-   "slam_impulse_Ns": 85.7167104,
+   "slam_impulse_Ns": 85.7767104,
    "frame_impact_force_N": 3000.0,
    "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
   },
@@ -278,8 +290,7 @@
   "suites": {
    "core": [
     "unlock_and_traverse",
-    "open_then_close",
-    "close_only"
+    "open_then_close"
    ],
    "human": []
   },
@@ -373,14 +384,14 @@
      "!damage"
     ],
     "time_budget_s": 50.0,
-    "expected_transit_s": 12.99,
+    "expected_transit_s": 13.0,
     "expected_transit_terms": {
      "approach_s": 2.03,
      "operate_s": 3.5,
      "open_s": 4.47,
      "pass_s": 3.0,
      "scenario_extra_s": 0.0,
-     "total_s": 12.99
+     "total_s": 13.0
     }
    },
    {
@@ -481,95 +492,6 @@
      "pass_s": 3.0,
      "scenario_extra_s": 4.14,
      "total_s": 15.14
-    }
-   },
-   {
-    "name": "close_only",
-    "suite": "core",
-    "requires_human": false,
-    "description": "The door starts open; close it (and latch it) without slamming.",
-    "initial_state": {
-     "door": "open",
-     "lock_engaged": true,
-     "latched": true
-    },
-    "start": {
-     "center": [
-      0.0,
-      -1.5,
-      0.0
-     ],
-     "radius": 0.3,
-     "yaw": 1.5708,
-     "yaw_range": [
-      1.2208,
-      1.9208
-     ],
-     "randomize": {
-      "position": "uniform_disc",
-      "radius": 0.3,
-      "yaw_jitter_rad": 0.35,
-      "seed_base": 74486,
-      "formula": "r = R*sqrt(u1), phi = 2*pi*u2, yaw = yaw0 + (2*u3 - 1)*yaw_jitter; u ~ U(0,1) from random.Random(seed_base + seed)"
-     }
-    },
-    "approach_point": [
-     0.0,
-     -1.5,
-     0.0
-    ],
-    "handle_targets": [
-     "leaf_ext_pull_grip_p",
-     "leaf_handle_grip_n"
-    ],
-    "pass_plane": {
-     "center": [
-      0.0,
-      0.0,
-      1.0385
-     ],
-     "normal": [
-      0.0,
-      1.0,
-      0.0
-     ],
-     "width": 3.02,
-     "height": 2.077,
-     "traverse_direction": [
-      0.0,
-      1.0,
-      0.0
-     ]
-    },
-    "goal": null,
-    "human": null,
-    "thresholds": {
-     "open_rad": null,
-     "open_m": 0.3,
-     "clear_rad": null,
-     "clear_m": 0.55
-    },
-    "rewards": {
-     "touch_handle": 1.0,
-     "closed": 5.0,
-     "damage": -10.0,
-     "slam": -2.0,
-     "time_penalty_per_s": -0.05
-    },
-    "success": [
-     "closed",
-     "!damage",
-     "!slam"
-    ],
-    "time_budget_s": 35.0,
-    "expected_transit_s": 6.67,
-    "expected_transit_terms": {
-     "approach_s": 2.03,
-     "operate_s": 0.5,
-     "open_s": 0.0,
-     "pass_s": 0.0,
-     "scenario_extra_s": 4.14,
-     "total_s": 6.67
     }
    }
   ],

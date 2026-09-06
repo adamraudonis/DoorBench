@@ -10,11 +10,14 @@
   "sliding_track_support": true,
   "linkage_feasibility": true,
   "mass": true,
+  "leaf_material_mass": true,
+  "leaf_mass_share": true,
   "settle": true,
   "operator_holds": true,
   "hold": true,
   "actuate_opens": true,
   "rod_points_hold": true,
+  "task_achievable": true,
   "settle_simple": true,
   "settle_minimal": true,
   "urdf_loads": true,
@@ -56,13 +59,27 @@
    "n_failures": 0,
    "failures": []
   },
-  "moving_mass_kg": 50.884660999999994,
+  "moving_mass_kg": 98.594322,
+  "door_mass_kg": 98.59432249599999,
+  "leaf_mass": {
+   "n_leaf_bodies": 2,
+   "leaf_count": 2,
+   "leaf_material_kg": 95.41932249599999,
+   "hardware_rider_kg": 2.289997636792311,
+   "hardware_modelled_kg": 0.885002363207689,
+   "expected_leaf_mass_kg": 97.7093201327923,
+   "model_leaf_mass_kg": 97.7093201327923,
+   "leaf_mass_ratio": 1.0,
+   "per_leaf_material_kg": 47.709661247999996,
+   "worst_share_deviation": 1.1102230246251565e-16,
+   "worst_share_body": "leaf_a"
+  },
   "initial_penetration_m": 0.0,
   "initial_penetration_pair": [
    null,
    null
   ],
-  "settle_drift": 3.2114825998579422e-40,
+  "settle_drift": 5.2353446741310065e-40,
   "warnings": [],
   "operator_release": {
    "leaf_a_handle_hinge": {
@@ -74,7 +91,7 @@
      "travel": 1.5708,
      "rest": 0.0,
      "tolerance": 0.07854,
-     "door_angle": -6.490783030691474e-23,
+     "door_angle": 3.9218749767343474e-23,
      "t_return_s": null,
      "residual": 1.41372,
      "bounces": 0,
@@ -85,20 +102,68 @@
    }
   },
   "qa_push": 61.335678,
-  "hold_displacement": 0.0014949897470609764,
-  "actuate_displacement": 1.496577483591626,
-  "operator_travel_reached": 1.5711036017281528,
+  "hold_displacement": 0.0014946130997415385,
+  "actuate_displacement": 1.3517512131851381,
+  "operator_travel_reached": 1.5711036017283144,
   "operator_joints": [
    "leaf_a_handle_hinge"
   ],
   "operator_coupling": "coupled",
   "rod_points": {
    "mechanism": "cremone",
-   "top_only_rad": 0.0023044937399102627,
-   "bottom_only_rad": 0.0014949897470422208,
+   "top_only_rad": 0.0023048661596966964,
+   "bottom_only_rad": 0.0014946130997415383,
    "joints": [
     "leaf_a_cremone_top_bolt_slide",
     "leaf_a_cremone_bottom_bolt_slide"
+   ]
+  },
+  "pair_swing": {
+   "ok": true,
+   "checked": false,
+   "dy_leaf_a": -0.8414,
+   "dy_leaf_b": -0.0008,
+   "double_egress": false,
+   "note": "one leaf is inactive (flush bolts): only an active pair has a swing direction to check"
+  },
+  "task_achievable": {
+   "ok": true,
+   "scenarios": [
+    {
+     "name": "open_and_traverse",
+     "target": 1.0472,
+     "unit": "rad",
+     "still_pinned": [],
+     "penetration_m": 0.0,
+     "penetration_pair": [
+      null,
+      null
+     ],
+     "ok": true
+    },
+    {
+     "name": "close_only",
+     "target": 1.0472,
+     "unit": "rad",
+     "still_pinned": [],
+     "penetration_m": 0.0,
+     "penetration_pair": [
+      null,
+      null
+     ],
+     "ok": true
+    }
+   ],
+   "failures": [],
+   "release_path": "robot",
+   "primary_joint": "leaf_a_hinge",
+   "primary_range": [
+    0.0,
+    1.658063
+   ],
+   "declared_travel": [
+    1.65806,
+    "rad"
    ]
   },
   "urdf_nbody": 6,
@@ -114,209 +179,6 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.37699079513549805,
- "mujoco_version": "3.12.0",
- "isaac_parity": {
-  "version": "1",
-  "date": "2026-09-05",
-  "commit": "f81c1c632",
-  "engines": {
-   "mujoco": {
-    "mujoco": "3.12.0"
-   },
-   "isaac_full": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   },
-   "isaac_rl": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   }
-  },
-  "ok": true,
-  "grade": "A",
-  "status": "compared",
-  "kinds": {
-   "full": {
-    "status": "compared",
-    "grade": "A",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "agree",
-     "operate_open": "agree",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [],
-    "details": [],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      3.2114825998579422e-40,
-      1.0788743162737369e-11,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      0.0014949897470609764,
-      0.001408780226483941,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      0.0014949897470609764,
-      0.001408780226483941,
-      true
-     ],
-     "hold.secondary_drift": [
-      0.0,
-      -5.636150603891691e-21,
-      true
-     ],
-     "operate_open.finite": [
-      true,
-      true,
-      true
-     ],
-     "operate_open.informational": [
-      false,
-      false,
-      true
-     ],
-     "operate_open.opened": [
-      1.496577483591626,
-      1.6580628156661987,
-      true
-     ],
-     "operate_open.operator_travel_reached": [
-      1.5711036017281528,
-      1.5708000659942627,
-      true
-     ],
-     "operate_open.q_primary_max": [
-      1.6580654349625816,
-      1.6580628156661987,
-      true
-     ],
-     "operate_open.t_open": [
-      1.5,
-      1.466667,
-      true
-     ],
-     "operate_open.t_open_bench": [
-      1.534,
-      1.533333,
-      true
-     ]
-    }
-   },
-   "rl": {
-    "status": "compared",
-    "grade": "A",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "na",
-     "operate_open": "agree",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [],
-    "details": [],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      3.2114825998579422e-40,
-      9.531064305845494e-12,
-      true
-     ],
-     "operate_open.finite": [
-      true,
-      true,
-      true
-     ],
-     "operate_open.informational": [
-      false,
-      false,
-      true
-     ],
-     "operate_open.opened": [
-      1.496577483591626,
-      0.9576749205589294,
-      true
-     ],
-     "operate_open.operator_travel_reached": [
-      1.5711036017281528,
-      1.5708001852035522,
-      true
-     ],
-     "operate_open.q_primary_max": [
-      1.6580654349625816,
-      1.6564700603485107,
-      true
-     ],
-     "operate_open.t_open": [
-      1.5,
-      1.5,
-      true
-     ],
-     "operate_open.t_open_bench": [
-      1.534,
-      1.533333,
-      true
-     ]
-    }
-   }
-  },
-  "classes": [],
-  "primary_class": "OK",
-  "likely_root_cause": "-"
- }
+ "time_s": 0.6294999122619629,
+ "mujoco_version": "3.12.0"
 }

@@ -21,6 +21,7 @@
     <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
     <material name="mat_frame" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
     <material name="mat_op_stainless" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <material name="mat_rotor_lock" rgba="0.22 0.17 0.13 1" specular="0.8" shininess="0.6" reflectance="0.4"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
   </asset>
   <worldbody>
@@ -52,8 +53,8 @@
     <site name="goal_point" pos="1.13 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <site name="door_plane_center" pos="0.365 0 1" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="rotor" pos="0 0 0">
-      <inertial pos="0 0 1.090578" mass="16.76585" quat="0.707107 0 0.707107 0" diaginertia="0.155745506 6.62906471 6.62906471"/>
-      <joint name="rotor_hinge" type="hinge" axis="0 0 1" limited="true" range="-0.05 0.05" damping="6" frictionloss="4.170993" armature="0.3"/>
+      <inertial pos="0 0 1.090578" mass="38.705783" quat="0.707107 0 0.707107 0" diaginertia="0.359555385 15.303914558 15.303914558"/>
+      <joint name="rotor_hinge" type="hinge" axis="0 0 1" limited="false" damping="6" frictionloss="4.396713" armature="0.3"/>
       <geom name="rotor_column" type="cylinder" size="0.06 1.085" pos="0 0 1.1" material="mat_op_stainless" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
       <geom name="wing_0_arm_0" type="capsule" size="0.019 0.325" pos="0.325 0 0.15" quat="0.707107 0 0.707107 0" material="mat_op_stainless" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
       <geom name="wing_0_arm_2" type="capsule" size="0.019 0.325" pos="0.325 0 0.664286" quat="0.707107 0 0.707107 0" material="mat_op_stainless" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
@@ -72,6 +73,9 @@
       <site name="wing_2_push" pos="-0.26 -0.450333 1" quat="1 0 0 0" size="0.015" rgba="0.2 0.9 0.2 0.5" group="4"/>
     </body>
   </worldbody>
+  <equality>
+    <weld name="rotor_solenoid_hold" body1="rotor" body2="world" active="true"/>
+  </equality>
   <sensor>
     <jointpos name="rotor_hinge_pos" joint="rotor_hinge"/>
     <jointvel name="rotor_hinge_vel" joint="rotor_hinge"/>

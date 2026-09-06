@@ -10,8 +10,11 @@
   "sliding_track_support": true,
   "linkage_feasibility": true,
   "mass": true,
+  "leaf_material_mass": true,
+  "leaf_mass_share": true,
   "settle": true,
   "hold": true,
+  "task_achievable": true,
   "settle_simple": true,
   "settle_minimal": true,
   "urdf_loads": true,
@@ -54,6 +57,20 @@
    "n_failures": 0
   },
   "moving_mass_kg": 61.810296,
+  "door_mass_kg": 61.81029627167999,
+  "leaf_mass": {
+   "n_leaf_bodies": 1,
+   "leaf_count": 1,
+   "leaf_material_kg": 54.38529627167999,
+   "hardware_rider_kg": 7.115944616746745,
+   "hardware_modelled_kg": 0.30905538325325504,
+   "expected_leaf_mass_kg": 61.501240888426736,
+   "model_leaf_mass_kg": 61.501240888426736,
+   "leaf_mass_ratio": 1.0,
+   "per_leaf_material_kg": 54.38529627167999,
+   "worst_share_deviation": 0.0,
+   "worst_share_body": null
+  },
   "initial_penetration_m": -0.007000000000000044,
   "initial_penetration_pair": [
    "leaf_staple_leg_n",
@@ -65,6 +82,21 @@
   "hold_displacement": 0.0022652317059501745,
   "operator_joints": [],
   "operator_coupling": "coupled",
+  "task_achievable": {
+   "ok": true,
+   "scenarios": [],
+   "failures": [],
+   "release_path": "none",
+   "primary_joint": "leaf_hinge",
+   "primary_range": [
+    0.0,
+    0.0015
+   ],
+   "declared_travel": [
+    1.65806,
+    "rad"
+   ]
+  },
   "urdf_nbody": 5,
   "usd_joints": 4,
   "usd_rl_joints": [
@@ -78,165 +110,6 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.24931883811950684,
- "mujoco_version": "3.12.0",
- "isaac_parity": {
-  "version": "1",
-  "date": "2026-09-05",
-  "commit": "f81c1c632",
-  "engines": {
-   "mujoco": {
-    "mujoco": "3.12.0"
-   },
-   "isaac_full": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   },
-   "isaac_rl": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   }
-  },
-  "ok": true,
-  "grade": "B",
-  "status": "compared",
-  "kinds": {
-   "full": {
-    "status": "compared",
-    "grade": "B",
-    "ok": true,
-    "phases": {
-     "settle": "quant",
-     "hold": "agree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [
-     "QUANT"
-    ],
-    "details": [
-     "settle: settle_drift_joint: mujoco -0.04607 vs physx -0.02413 (tol 0.02)"
-    ],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      0.0022633404031837654,
-      0.0015612286515533924,
-      true
-     ],
-     "settle.settle_drift_joint": [
-      -0.046065993900891986,
-      -0.024130210280418396,
-      false
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      0.002264817480570444,
-      0.0015640882775187492,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      0.002264817480570444,
-      0.0015640882775187492,
-      true
-     ]
-    }
-   },
-   "rl": {
-    "status": "compared",
-    "grade": "A",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "agree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [],
-    "details": [],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      0.0022633404031837654,
-      0.00505670765414834,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      0.002264817480570444,
-      0.005055038258433342,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      0.002264817480570444,
-      0.005055038258433342,
-      true
-     ]
-    }
-   }
-  },
-  "classes": [
-   "QUANT"
-  ],
-  "primary_class": "QUANT",
-  "likely_root_cause": "soft MuJoCo contacts / limits (solref 0.005) vs rigid PhysX limits, constraint-based vs effort-based Coulomb friction, implicitfast vs implicit drives at high damping; solver dt"
- }
+ "time_s": 0.4266188144683838,
+ "mujoco_version": "3.12.0"
 }

@@ -10,8 +10,11 @@
   "sliding_track_support": true,
   "linkage_feasibility": true,
   "mass": true,
+  "leaf_material_mass": true,
+  "leaf_mass_share": true,
   "settle": true,
   "hold": true,
+  "task_achievable": true,
   "settle_simple": true,
   "settle_minimal": true,
   "urdf_loads": true,
@@ -54,6 +57,20 @@
    "failures": []
   },
   "moving_mass_kg": 100.478242,
+  "door_mass_kg": 100.47824216800001,
+  "leaf_mass": {
+   "n_leaf_bodies": 1,
+   "leaf_count": 1,
+   "leaf_material_kg": 94.828242168,
+   "hardware_rider_kg": 5.65,
+   "hardware_modelled_kg": 0.0,
+   "expected_leaf_mass_kg": 100.47824216800001,
+   "model_leaf_mass_kg": 100.47824216800001,
+   "leaf_mass_ratio": 1.0,
+   "per_leaf_material_kg": 94.828242168,
+   "worst_share_deviation": 0.0,
+   "worst_share_body": null
+  },
   "initial_penetration_m": 0.0,
   "initial_penetration_pair": [
    null,
@@ -66,6 +83,43 @@
   "note": "lock released by environment logic (badge / REX / timer); actuation not tested by QA",
   "operator_joints": [],
   "operator_coupling": "coupled",
+  "task_achievable": {
+   "ok": true,
+   "scenarios": [
+    {
+     "name": "unlock_and_traverse",
+     "target": 1.0472,
+     "unit": "rad",
+     "still_pinned": [],
+     "penetration_m": 0.0,
+     "penetration_pair": [
+      null,
+      null
+     ],
+     "ok": true
+    }
+   ],
+   "failures": [],
+   "release_path": "env",
+   "primary_joint": "leaf_hinge",
+   "primary_range": [
+    0.0,
+    2.443461
+   ],
+   "declared_travel": [
+    2.44346,
+    "rad"
+   ],
+   "force_leg": {
+    "driven_by": "push",
+    "push": 320.37,
+    "moved": 0.52759,
+    "threshold": 0.5236,
+    "welds": [
+     "leaf_maglock"
+    ]
+   }
+  },
   "urdf_nbody": 2,
   "usd_joints": 1,
   "usd_rl_joints": [
@@ -79,164 +133,6 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.08399796485900879,
- "mujoco_version": "3.12.0",
- "isaac_parity": {
-  "version": "1",
-  "date": "2026-09-05",
-  "commit": "f81c1c632",
-  "engines": {
-   "mujoco": {
-    "mujoco": "3.12.0"
-   },
-   "isaac_full": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   },
-   "isaac_rl": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   }
-  },
-  "ok": false,
-  "grade": "C",
-  "status": "compared",
-  "kinds": {
-   "full": {
-    "status": "compared",
-    "grade": "C",
-    "ok": false,
-    "phases": {
-     "settle": "agree",
-     "hold": "disagree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [
-     "EXPORT_WELD"
-    ],
-    "details": [
-     "hold: mag_lock engaged: MuJoCo weld holds (4.645e-06), PhysX opened 2.443"
-    ],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      1.2525559959862867e-06,
-      6.403787722319976e-09,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      4.6446929068722035e-06,
-      2.4434611797332764,
-      false
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      4.6446929068722035e-06,
-      2.4434611797332764,
-      false
-     ]
-    }
-   },
-   "rl": {
-    "status": "compared",
-    "grade": "C",
-    "ok": false,
-    "phases": {
-     "settle": "agree",
-     "hold": "disagree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [
-     "EXPORT_WELD"
-    ],
-    "details": [
-     "hold: mag_lock engaged: MuJoCo weld holds (4.645e-06), PhysX opened 2.443"
-    ],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      1.2525559959862867e-06,
-      8.272563079003703e-09,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      4.6446929068722035e-06,
-      2.4434609413146973,
-      false
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      4.6446929068722035e-06,
-      2.4434609413146973,
-      false
-     ]
-    }
-   }
-  },
-  "classes": [
-   "EXPORT_WELD"
-  ],
-  "primary_class": "EXPORT_WELD",
-  "likely_root_cause": "H5 (FIXED in the export): weld-type lock equalities (mag_lock / delayed_egress / electric_bolt / interlock leaf -> world) used to be exported only as doorbench:couplings JSON. Both USD kinds now carry a breakable UsdPhysics.FixedJoint base -> leaf with physics:excludeFromArticulation, breakForce == breakTorque == holding_force_N and physics:jointEnabled (doorbench:env_release). A remaining occurrence means the joint is absent (stale assets) or PhysX did not parse the loop joint"
- }
+ "time_s": 0.12987017631530762,
+ "mujoco_version": "3.12.0"
 }

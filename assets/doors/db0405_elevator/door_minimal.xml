@@ -44,25 +44,27 @@
     <geom name="jamb_l" type="box" size="0.0225 0.125 1.08" pos="-0.6325 0 1.08" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="jamb_r" type="box" size="0.0225 0.125 1.08" pos="0.6325 0 1.08" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
     <geom name="jamb_head" type="box" size="0.655 0.125 0.0225" pos="0 0 2.1825" material="mat_frame" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="300"/>
-    <geom name="sill" type="box" size="0.71 0.06 0.01" pos="0 0 0.01" material="mat_sill" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
-    <geom name="car_floor" type="box" size="1.21 1.1 0.01" pos="0 1.2 -0.01" material="mat_sill" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
+    <geom name="sill" type="box" size="0.71 0.1285 0.01" pos="0 0.0685 0.01" material="mat_sill" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
+    <geom name="car_floor" type="box" size="1.32 1.1 0.01" pos="0 1.2 -0.01" material="mat_sill" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
     <site name="approach_point" pos="0 -1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <site name="goal_point" pos="0 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <site name="door_plane_center" pos="0 0 1.08" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
-    <body name="leaf_a" pos="-0.3 0 0">
-      <inertial pos="0 0 1.08" mass="18.708879" quat="-0.5 0.5 0.5 0.5" diaginertia="0.562669549 6.876916355 7.436779571"/>
-      <joint name="leaf_a_slide" type="slide" axis="-1 0 0" limited="true" range="0 0.002" damping="3.8711" frictionloss="7.339689" armature="0.5"/>
+    <body name="leaf_a" pos="-0.3 0.152 0">
+      <inertial pos="0 0 1.08" mass="38.019879" quat="-0.5 0.5 0.5 0.5" diaginertia="1.143447874 13.97515718 15.112902071"/>
+      <joint name="leaf_a_slide" type="slide" axis="-1 0 0" limited="true" range="0 0.59" damping="3.9311" frictionloss="7.575049" armature="0.5"/>
       <geom name="leaf_a_slab" type="box" size="0.3 0.015 1.05" pos="0 0 1.08" material="mat_leaf_a" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
       <site name="leaf_a_edge_mid" pos="0.3 0 1.08" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     </body>
-    <body name="leaf_b" pos="0.3 0 0">
-      <inertial pos="0 0 1.08" mass="18.708879" quat="-0.5 0.5 0.5 0.5" diaginertia="0.562669549 6.876916355 7.436779571"/>
-      <joint name="leaf_b_slide" type="slide" axis="1 0 0" limited="true" range="0 0.002" damping="3.8711" frictionloss="7.339689" armature="0.5"/>
+    <body name="leaf_b" pos="0.3 0.152 0">
+      <inertial pos="0 0 1.08" mass="38.019879" quat="-0.5 0.5 0.5 0.5" diaginertia="1.143447874 13.97515718 15.112902071"/>
+      <joint name="leaf_b_slide" type="slide" axis="1 0 0" limited="true" range="0 0.59" damping="3.9311" frictionloss="7.575049" armature="0.5"/>
       <geom name="leaf_b_slab" type="box" size="0.3 0.015 1.05" pos="0 0 1.08" material="mat_leaf_b" group="0" contype="1" conaffinity="1" friction="0.35 0.005 0.0001" density="1"/>
       <site name="leaf_b_edge_mid" pos="-0.3 0 1.08" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     </body>
   </worldbody>
   <equality>
+    <weld name="leaf_a_interlock_hold" body1="leaf_a" body2="world" active="true"/>
+    <weld name="leaf_b_interlock_hold" body1="leaf_b" body2="world" active="true"/>
     <joint name="center_couple" joint1="leaf_b_slide" joint2="leaf_a_slide" polycoef="0 1 0 0 0" active="true"/>
   </equality>
   <actuator>

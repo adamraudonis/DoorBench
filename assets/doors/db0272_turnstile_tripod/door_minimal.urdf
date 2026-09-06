@@ -119,15 +119,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rotor_hinge" type="revolute">
+  <joint name="rotor_hinge" type="continuous">
     <origin xyz="0.115 0 0.93" rpy="0 0 0"/>
     <parent link="world_env"/>
     <child link="rotor"/>
     <axis xyz="0 0.707107 0.707107"/>
-    <limit lower="-0.05" upper="0.05" effort="2000" velocity="10"/>
     <dynamics damping="2" friction="3.109518"/>
     <doorbench:ratchet one_way="true"/>
-    <doorbench:note text="locked until credential (env releases: set range None)"/>
+    <doorbench:note text="locked until a credential is presented: held by the rotor_solenoid_hold constraint, not by the joint range"/>
   </joint>
   <material name="mat_floor">
     <color rgba="0.35 0.42 0.25 1"/>
@@ -138,4 +137,5 @@
   <material name="mat_op_stainless">
     <color rgba="0.75 0.76 0.77 1"/>
   </material>
+  <doorbench:weld body1="rotor" body2="world" label="Turnstile solenoid lock (released on a valid credential)" active="true"/>
 </robot>

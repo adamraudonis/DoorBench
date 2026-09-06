@@ -7,11 +7,11 @@
 
 def Xform "db0896_turnstile_tripod"
 {
-    custom string doorbench:couplings = "[]"
+    custom string doorbench:couplings = '[{"type": "weld", "body1": "rotor", "body2": "world", "label": "Turnstile solenoid lock (released on a valid credential)", "active": true, "joint": "/db0896_turnstile_tripod/Articulation/Joints/rotor_solenoid_hold", "holding_force_N": 5340.0, "note": "breakable FixedJoint (excludeFromArticulation); the environment clears physics:jointEnabled on release"}]'
     custom string doorbench:door_id = "db0896_turnstile_tripod"
-    custom string doorbench:env_release = "[]"
+    custom string doorbench:env_release = '[{"name": "rotor_solenoid_hold", "body": "rotor", "other": "world", "label": "Turnstile solenoid lock (released on a valid credential)", "active": true, "holding_force_N": 5340.0, "release": "env", "release_joint": null, "release_fraction": null, "lock_model": "mag_lock", "joint": "/db0896_turnstile_tripod/Articulation/Joints/rotor_solenoid_hold", "joint_name": "rotor_solenoid_hold", "body_prim": "/db0896_turnstile_tripod/Articulation/rotor", "base_prim": "/db0896_turnstile_tripod/Articulation/base"}]'
     custom string doorbench:filtered_pairs = "[]"
-    custom string doorbench:meta = '{"door_id": "db0896_turnstile_tripod", "family": "turnstile_tripod", "task": "push_through", "wall_y": 0.0, "clearance_allow": [["hub_boss", "tripod_mesh", "rotor hub seats on the boss"]], "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 0.95, "ratchet_deg": 120, "one_way": true, "locked": true, "running_clearance_min": 0.01, "mass_reconciled_kg": 10.738226043740887, "scene_extent": 1.5, "cam_target_z": 0.525, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 0.95], "handle_cam_pos": [0.55, -1.1, 1.2999999999999998], "operator_joints": [], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"rotor_hinge": "/db0896_turnstile_tripod/Articulation/Joints/rotor_hinge"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0896_turnstile_tripod", "family": "turnstile_tripod", "task": "push_through", "wall_y": 0.0, "clearance_allow": [["hub_boss", "tripod_mesh", "rotor hub seats on the boss"]], "primary_joint": "rotor_hinge", "operator_joint": null, "handle_height": 0.95, "ratchet_deg": 120, "one_way": true, "locked": true, "running_clearance_min": 0.01, "breakable_welds": [{"name": "rotor_solenoid_hold", "body": "rotor", "joint": "rotor_hinge", "holding_force_N": 5340.0, "release": "env", "lock_model": "mag_lock", "holds_primary": true}], "mass_reconciled_kg": 10.738226043740887, "mass": {"leaf_material_kg": 5.038226043740886, "leaf_hardware_rider_kg": 5.7, "hardware_modelled_kg": 0.0, "leaf_bodies": 1, "total_moving_kg": 10.738226043740887}, "scene_extent": 1.5, "cam_target_z": 0.525, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 0.95], "handle_cam_pos": [0.55, -1.1, 1.2999999999999998], "operator_joints": [], "operator_coupling": "coupled", "primary_assembly_kg": 10.738226043740887, "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"rotor_hinge": "/db0896_turnstile_tripod/Articulation/Joints/rotor_hinge"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [{"name": "rotor_solenoid_hold", "body": "rotor", "other": "world", "label": "Turnstile solenoid lock (released on a valid credential)", "active": true, "holding_force_N": 5340.0, "release": "env", "release_joint": null, "release_fraction": null, "lock_model": "mag_lock", "joint": "/db0896_turnstile_tripod/Articulation/Joints/rotor_solenoid_hold", "joint_name": "rotor_solenoid_hold", "body_prim": "/db0896_turnstile_tripod/Articulation/rotor", "base_prim": "/db0896_turnstile_tripod/Articulation/base"}], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -331,8 +331,8 @@ def Xform "db0896_turnstile_tripod"
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Tripod rotor (ratchets 120 deg; one-way enforced by env)"
                 custom float doorbench:legacy_friction_coeff = 0.02935208
-                custom bool doorbench:limited = 1
-                custom string doorbench:notes = "locked until credential (env releases: set range None)"
+                custom bool doorbench:limited = 0
+                custom string doorbench:notes = "locked until a credential is presented: held by the rotor_solenoid_hold constraint, not by the joint range"
                 custom bool doorbench:ratchet_one_way = 1
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
@@ -354,14 +354,34 @@ def Xform "db0896_turnstile_tripod"
                 point3f physics:localPos1 = (0, 0, 0)
                 quatf physics:localRot0 = (0.70710677, 0, -0.5, 0.5)
                 quatf physics:localRot1 = (0.70710677, 0, -0.5, 0.5)
-                float physics:lowerLimit = -2.864789
-                float physics:upperLimit = 2.864789
+                float physics:lowerLimit = -720
+                float physics:upperLimit = 720
                 custom float physxJoint:armature = 0.05
                 custom float physxJoint:jointFriction = 0
                 custom float physxJointAxis:angular:armature = 0.05
                 custom float physxJointAxis:angular:dynamicFrictionEffort = 3.1095183
                 custom float physxJointAxis:angular:staticFrictionEffort = 3.1095183
                 custom float physxJointAxis:angular:viscousFrictionCoefficient = 0
+            }
+
+            def PhysicsFixedJoint "rotor_solenoid_hold"
+            {
+                custom float doorbench:holding_force_N = 5340
+                custom string doorbench:label = "Turnstile solenoid lock (released on a valid credential)"
+                custom string doorbench:role = "env_release"
+                custom string doorbench:weld_body = "rotor"
+                custom string doorbench:weld_name = "rotor_solenoid_hold"
+                rel physics:body0 = </db0896_turnstile_tripod/Articulation/base>
+                rel physics:body1 = </db0896_turnstile_tripod/Articulation/rotor>
+                float physics:breakForce = 5340
+                float physics:breakTorque = 5340
+                bool physics:collisionEnabled = 0
+                uniform bool physics:excludeFromArticulation = 1
+                bool physics:jointEnabled = 1
+                point3f physics:localPos0 = (0.115, 0, 0.93)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
             }
         }
 

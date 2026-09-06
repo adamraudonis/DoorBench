@@ -313,12 +313,19 @@
         <box size="0.1 0.03 0.1"/>
       </geometry>
     </collision>
+    <visual name="rotor_solenoid_housing_vis">
+      <origin xyz="0.057983 0.057983 2.16" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.022" length="0.084"/>
+      </geometry>
+      <material name="mat_rotor_lock"/>
+    </visual>
   </link>
   <link name="rotor">
     <inertial>
-      <origin xyz="0 0 1.093533" rpy="0 0 0"/>
-      <mass value="16.76585"/>
-      <inertia ixx="6.654800244" ixy="0" ixz="0" iyy="6.654800244" iyz="0" izz="0.337957425"/>
+      <origin xyz="0 0 1.102356" rpy="0 0 0"/>
+      <mass value="49.771633"/>
+      <inertia ixx="20.00988677" ixy="0" ixz="0" iyy="20.00988677" iyz="0" izz="0.997421949"/>
     </inertial>
     <visual name="rotor_column_vis">
       <origin xyz="0 0 1.1" rpy="0 0 0"/>
@@ -749,15 +756,95 @@
         <cylinder radius="0.019" length="0.65"/>
       </geometry>
     </collision>
+    <visual name="rotor_lock_dog_0_vis">
+      <origin xyz="0.082 0 2.08" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.032 0.04"/>
+      </geometry>
+      <material name="mat_rotor_lock"/>
+    </visual>
+    <collision name="rotor_lock_dog_0_col">
+      <origin xyz="0.082 0 2.08" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.05 0.032 0.04"/>
+      </geometry>
+    </collision>
+    <visual name="rotor_lock_dog_1_vis">
+      <origin xyz="0 0.082 2.08" rpy="0 0 1.570796"/>
+      <geometry>
+        <box size="0.05 0.032 0.04"/>
+      </geometry>
+      <material name="mat_rotor_lock"/>
+    </visual>
+    <collision name="rotor_lock_dog_1_col">
+      <origin xyz="0 0.082 2.08" rpy="0 0 1.570796"/>
+      <geometry>
+        <box size="0.05 0.032 0.04"/>
+      </geometry>
+    </collision>
+    <visual name="rotor_lock_dog_2_vis">
+      <origin xyz="-0.082 0 2.08" rpy="0 0 3.141593"/>
+      <geometry>
+        <box size="0.05 0.032 0.04"/>
+      </geometry>
+      <material name="mat_rotor_lock"/>
+    </visual>
+    <collision name="rotor_lock_dog_2_col">
+      <origin xyz="-0.082 0 2.08" rpy="0 0 3.141593"/>
+      <geometry>
+        <box size="0.05 0.032 0.04"/>
+      </geometry>
+    </collision>
+    <visual name="rotor_lock_dog_3_vis">
+      <origin xyz="0 -0.082 2.08" rpy="0 0 -1.570796"/>
+      <geometry>
+        <box size="0.05 0.032 0.04"/>
+      </geometry>
+      <material name="mat_rotor_lock"/>
+    </visual>
+    <collision name="rotor_lock_dog_3_col">
+      <origin xyz="0 -0.082 2.08" rpy="0 0 -1.570796"/>
+      <geometry>
+        <box size="0.05 0.032 0.04"/>
+      </geometry>
+    </collision>
   </link>
-  <joint name="rotor_hinge" type="revolute">
+  <link name="rotor_solenoid_plunger">
+    <inertial>
+      <origin xyz="0 0 2.11" rpy="0 0 0"/>
+      <mass value="0.191768"/>
+      <inertia ixx="0.000151161" ixy="0" ixz="0" iyy="0.000151161" iyz="0" izz="0.000007767"/>
+    </inertial>
+    <visual name="rotor_solenoid_plunger_geom_vis">
+      <origin xyz="0 0 2.11" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.009" length="0.096"/>
+      </geometry>
+      <material name="mat_rotor_lock"/>
+    </visual>
+    <collision name="rotor_solenoid_plunger_geom_col">
+      <origin xyz="0 0 2.11" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.009" length="0.096"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="rotor_hinge" type="continuous">
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <parent link="world_env"/>
     <child link="rotor"/>
     <axis xyz="0 0 1"/>
-    <limit lower="-0.05" upper="0.05" effort="2000" velocity="10"/>
-    <dynamics damping="6" friction="4.170993"/>
+    <dynamics damping="6" friction="4.509573"/>
     <doorbench:ratchet one_way="true"/>
+    <doorbench:note text="locked until a credential is presented: held by the rotor_solenoid_hold constraint, not by the joint range"/>
+  </joint>
+  <joint name="rotor_solenoid_plunger_slide" type="prismatic">
+    <origin xyz="0.057983 0.057983 0" rpy="0 0 0"/>
+    <parent link="world_env"/>
+    <child link="rotor_solenoid_plunger"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="0.04" effort="5000" velocity="10"/>
+    <dynamics damping="2" friction="1"/>
   </joint>
   <material name="mat_floor">
     <color rgba="0.35 0.42 0.25 1"/>
@@ -768,4 +855,8 @@
   <material name="mat_op_stainless">
     <color rgba="0.75 0.76 0.77 1"/>
   </material>
+  <material name="mat_rotor_lock">
+    <color rgba="0.22 0.17 0.13 1"/>
+  </material>
+  <doorbench:weld body1="rotor" body2="world" label="Turnstile solenoid lock (released on a valid credential)" active="true"/>
 </robot>

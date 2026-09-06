@@ -93,16 +93,16 @@
       </geometry>
     </collision>
     <visual name="sill_vis">
-      <origin xyz="0 0 0.01" rpy="0 0 0"/>
+      <origin xyz="0 0.0685 0.01" rpy="0 0 0"/>
       <geometry>
-        <box size="1.12 0.12 0.02"/>
+        <box size="1.12 0.257 0.02"/>
       </geometry>
       <material name="mat_sill"/>
     </visual>
     <collision name="sill_col">
-      <origin xyz="0 0 0.01" rpy="0 0 0"/>
+      <origin xyz="0 0.0685 0.01" rpy="0 0 0"/>
       <geometry>
-        <box size="1.12 0.12 0.02"/>
+        <box size="1.12 0.257 0.02"/>
       </geometry>
     </collision>
     <visual name="car_floor_vis">
@@ -122,8 +122,8 @@
   <link name="leaf_a">
     <inertial>
       <origin xyz="0 0 1.08" rpy="0 0 0"/>
-      <mass value="14.031129"/>
-      <inertia ixx="5.157492398" ixy="0" ixz="0" iyy="5.393215373" iyz="0" izz="0.237827644"/>
+      <mass value="28.664379"/>
+      <inertia ixx="10.536309267" ixy="0" ixz="0" iyy="11.017870841" iyz="0" izz="0.485861231"/>
     </inertial>
     <visual name="leaf_a_slab_vis">
       <origin xyz="0 0 1.08" rpy="0 0 0"/>
@@ -142,8 +142,8 @@
   <link name="leaf_b">
     <inertial>
       <origin xyz="0 0 1.08" rpy="0 0 0"/>
-      <mass value="14.031129"/>
-      <inertia ixx="5.157492398" ixy="0" ixz="0" iyy="5.393215373" iyz="0" izz="0.237827644"/>
+      <mass value="28.664379"/>
+      <inertia ixx="10.536309267" ixy="0" ixz="0" iyy="11.017870841" iyz="0" izz="0.485861231"/>
     </inertial>
     <visual name="leaf_b_slab_vis">
       <origin xyz="0 0 1.08" rpy="0 0 0"/>
@@ -160,22 +160,22 @@
     </collision>
   </link>
   <joint name="leaf_a_slide" type="prismatic">
-    <origin xyz="-0.225 0 0" rpy="0 0 0"/>
+    <origin xyz="-0.225 0.152 0" rpy="0 0 0"/>
     <parent link="world_env"/>
     <child link="leaf_a"/>
     <axis xyz="-1 0 0"/>
-    <limit lower="0" upper="0.002" effort="5000" velocity="10"/>
-    <dynamics damping="3.403325" friction="5"/>
-    <doorbench:note text="Elevator/airlock interlock (opens only when adjacent closed): leaf locked (env releases on credential / call button)"/>
+    <limit lower="0" upper="0.44" effort="5000" velocity="10"/>
+    <dynamics damping="3.463325" friction="5"/>
+    <doorbench:note text="Elevator/airlock interlock (opens only when adjacent closed): held by the interlock until the environment releases it (full travel kept)"/>
   </joint>
   <joint name="leaf_b_slide" type="prismatic">
-    <origin xyz="0.225 0 0" rpy="0 0 0"/>
+    <origin xyz="0.225 0.152 0" rpy="0 0 0"/>
     <parent link="world_env"/>
     <child link="leaf_b"/>
     <axis xyz="1 0 0"/>
-    <limit lower="0" upper="0.002" effort="5000" velocity="10"/>
-    <dynamics damping="3.403325" friction="5"/>
-    <doorbench:note text="Elevator/airlock interlock (opens only when adjacent closed): leaf locked (env releases on credential / call button)"/>
+    <limit lower="0" upper="0.44" effort="5000" velocity="10"/>
+    <dynamics damping="3.463325" friction="5"/>
+    <doorbench:note text="Elevator/airlock interlock (opens only when adjacent closed): held by the interlock until the environment releases it (full travel kept)"/>
     <mimic joint="leaf_a_slide" multiplier="1" offset="0"/>
   </joint>
   <material name="mat_floor">
@@ -196,4 +196,6 @@
   <material name="mat_wall">
     <color rgba="0.78 0.76 0.7 1"/>
   </material>
+  <doorbench:weld body1="leaf_a" body2="world" label="Elevator/airlock interlock (opens only when adjacent closed) (env releases on credential / call button)" active="true"/>
+  <doorbench:weld body1="leaf_b" body2="world" label="Elevator/airlock interlock (opens only when adjacent closed) (env releases on credential / call button)" active="true"/>
 </robot>

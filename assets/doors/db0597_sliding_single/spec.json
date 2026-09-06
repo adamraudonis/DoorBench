@@ -100,29 +100,41 @@
  "task": "unlock_open_traverse",
  "physics": {
   "mass": {
-   "slab_kg": 44.033946176,
+   "leaf_count": 1,
+   "leaf_slab_kg": 44.033946176,
+   "leaf_glass_kg": 0.0,
+   "leaf_hardware_kg": 1.18,
+   "per_leaf_kg": 45.213946176,
    "slab_area_density_kg_m2": 22.576,
-   "glass_kg": 0.0,
-   "hardware_kg": 0.68,
    "hardware_parts": {
     "operator": 0.5,
     "lock": 0.08,
+    "latch": 0.5,
     "hinges_half": 0.0,
     "warning_placard": 0.1
    },
-   "total_kg": 44.713946176,
-   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
-   "source": "Walk-in cooler doors \u2248 20-25 kg/m^2"
+   "slab_kg": 44.033946176,
+   "glass_kg": 0.0,
+   "hardware_kg": 1.18,
+   "total_kg": 45.213946176,
+   "leaves_on_primary": 1.0,
+   "primary_assembly_kg": 45.06357866074466,
+   "formula": "per leaf: slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware;  door: leaf_count * (slab + glass) + the door's hardware set (charged once)",
+   "source": "Walk-in cooler doors \u2248 20-25 kg/m^2",
+   "model_total_moving_kg": 45.213946176,
+   "leaf_hardware_rider_kg": 1.0296324847446598,
+   "primary_assembly_estimated_kg": 45.213946176,
+   "primary_com_arm_m": 0.0
   },
   "roller": {
-   "coulomb_force_N": 8.769880405337409,
+   "coulomb_force_N": 8.867946905337408,
    "mu_rolling": 0.02,
    "note": "Bottom-rolling heavy leaf on steel rail (cantilever gate)",
    "condition_multiplier": 1.0,
    "counterbalance_fraction": 0.0,
    "net_lift_force_N": null,
    "formula": "F = mu_roll * m * g * k_cond",
-   "viscous_damping_N_s_per_m": 4.235697308800001
+   "viscous_damping_N_s_per_m": 4.2606973088
   },
   "closer": {
    "model": "none",
@@ -203,7 +215,7 @@
    "latch_shear_yield_N": 6000,
    "hinge_tearout_force_N": 20000.0,
    "slam_velocity_rad_s": 2.0,
-   "slam_impulse_Ns": 17.885578470400002,
+   "slam_impulse_Ns": 18.0855784704,
    "frame_impact_force_N": 3000.0,
    "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
   },
@@ -235,8 +247,7 @@
   "suites": {
    "core": [
     "unlock_and_traverse",
-    "open_then_close",
-    "close_only"
+    "open_then_close"
    ],
    "human": []
   },
@@ -329,14 +340,14 @@
      "!damage"
     ],
     "time_budget_s": 40.0,
-    "expected_transit_s": 8.95,
+    "expected_transit_s": 8.96,
     "expected_transit_terms": {
      "approach_s": 1.62,
      "operate_s": 3.0,
-     "open_s": 1.33,
+     "open_s": 1.34,
      "pass_s": 3.0,
      "scenario_extra_s": 0.0,
-     "total_s": 8.95
+     "total_s": 8.96
     }
    },
    {
@@ -428,102 +439,14 @@
      "!slam"
     ],
     "time_budget_s": 45.0,
-    "expected_transit_s": 10.26,
+    "expected_transit_s": 10.27,
     "expected_transit_terms": {
      "approach_s": 1.62,
      "operate_s": 1.0,
-     "open_s": 1.33,
+     "open_s": 1.34,
      "pass_s": 3.0,
      "scenario_extra_s": 3.31,
-     "total_s": 10.26
-    }
-   },
-   {
-    "name": "close_only",
-    "suite": "core",
-    "requires_human": false,
-    "description": "The door starts open; close it (and latch it) without slamming.",
-    "initial_state": {
-     "door": "open",
-     "lock_engaged": true,
-     "latched": true
-    },
-    "start": {
-     "center": [
-      0.0,
-      -1.95,
-      0.0
-     ],
-     "radius": 0.3,
-     "yaw": 1.5708,
-     "yaw_range": [
-      1.2208,
-      1.9208
-     ],
-     "randomize": {
-      "position": "uniform_disc",
-      "radius": 0.3,
-      "yaw_jitter_rad": 0.35,
-      "seed_base": 90130,
-      "formula": "r = R*sqrt(u1), phi = 2*pi*u2, yaw = yaw0 + (2*u3 - 1)*yaw_jitter; u ~ U(0,1) from random.Random(seed_base + seed)"
-     }
-    },
-    "approach_point": [
-     0.0,
-     -1.5,
-     0.0
-    ],
-    "handle_targets": [
-     "leaf_pull_grip_n"
-    ],
-    "pass_plane": {
-     "center": [
-      0.0,
-      0.0,
-      1.077
-     ],
-     "normal": [
-      0.0,
-      1.0,
-      0.0
-     ],
-     "width": 0.934,
-     "height": 2.154,
-     "traverse_direction": [
-      0.0,
-      1.0,
-      0.0
-     ]
-    },
-    "goal": null,
-    "human": null,
-    "thresholds": {
-     "open_rad": null,
-     "open_m": 0.3,
-     "clear_rad": null,
-     "clear_m": 0.55
-    },
-    "rewards": {
-     "touch_handle": 1.0,
-     "closed": 5.0,
-     "damage": -10.0,
-     "slam": -2.0,
-     "time_penalty_per_s": -0.05
-    },
-    "success": [
-     "closed",
-     "!damage",
-     "!slam"
-    ],
-    "time_budget_s": 30.0,
-    "expected_transit_s": 5.43,
-    "expected_transit_terms": {
-     "approach_s": 1.62,
-     "operate_s": 0.5,
-     "open_s": 0.0,
-     "pass_s": 0.0,
-     "scenario_extra_s": 3.31,
-     "total_s": 5.43
+     "total_s": 10.27
     }
    }
   ],

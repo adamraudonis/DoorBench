@@ -10,9 +10,13 @@
   "sliding_track_support": true,
   "linkage_feasibility": true,
   "mass": true,
+  "leaf_material_mass": true,
+  "leaf_mass_share": true,
   "settle": true,
   "operator_returns": true,
   "hold": true,
+  "pair_swing": true,
+  "task_achievable": true,
   "settle_simple": true,
   "settle_minimal": true,
   "urdf_loads": true,
@@ -54,13 +58,27 @@
    "n_failures": 0,
    "failures": []
   },
-  "moving_mass_kg": 77.74336000000002,
+  "moving_mass_kg": 143.286722,
+  "door_mass_kg": 143.28672288,
+  "leaf_mass": {
+   "n_leaf_bodies": 2,
+   "leaf_count": 2,
+   "leaf_material_kg": 128.88672288,
+   "hardware_rider_kg": 5.721445027423053,
+   "hardware_modelled_kg": 8.678554972576947,
+   "expected_leaf_mass_kg": 134.60816790742305,
+   "model_leaf_mass_kg": 134.60816790742305,
+   "leaf_mass_ratio": 1.0,
+   "per_leaf_material_kg": 64.44336144,
+   "worst_share_deviation": 0.0,
+   "worst_share_body": null
+  },
   "initial_penetration_m": 0.0,
   "initial_penetration_pair": [
    null,
    null
   ],
-  "settle_drift": 5.077231823292205e-07,
+  "settle_drift": 3.080553946498087e-07,
   "warnings": [],
   "operator_release": {
    "leaf_a_exit_device_slide": {
@@ -68,21 +86,21 @@
     "operator_model": "panic_touchbar_mortise",
     "expected_return_time_s": 0.0995,
     "closed": {
-     "driven_to": 0.015098448287237835,
+     "driven_to": 0.015098162802542343,
      "travel": 0.016,
      "rest": 0.0,
      "tolerance": 0.0002,
-     "door_angle": -8.096703874520579e-07,
+     "door_angle": -4.2325652284314647e-07,
      "t_return_s": 0.07,
-     "residual": -7.026550040470245e-06,
+     "residual": -6.654966685397348e-06,
      "bounces": 1,
-     "rebound": 0.0003022070981595436,
-     "held_fraction": -0.00046538226358065754
+     "rebound": 0.00030286566793769054,
+     "held_fraction": -0.0004407798996760542
     },
     "closed_ok": true,
     "open": {
      "skipped": "the leaf does not open under a hand-sized effort (locked): latch-clear case not applicable",
-     "door_angle": -4.485651076601311e-06,
+     "door_angle": -2.343107946770624e-06,
      "door_target": 0.5235987755982988
     },
     "ok": true
@@ -92,31 +110,76 @@
     "operator_model": "panic_touchbar_mortise",
     "expected_return_time_s": 0.0995,
     "closed": {
-     "driven_to": 0.01509844914410972,
+     "driven_to": 0.015098162802559776,
      "travel": 0.016,
      "rest": 0.0,
      "tolerance": 0.0002,
-     "door_angle": -5.077365967091208e-07,
+     "door_angle": -3.162334230214453e-07,
      "t_return_s": 0.07,
-     "residual": -7.026313171390877e-06,
+     "residual": -6.654989280014305e-06,
      "bounces": 1,
-     "rebound": 0.00030220898447811485,
-     "held_fraction": -0.0004653665488638624
+     "rebound": 0.00030286566808374835,
+     "held_fraction": -0.00044078139618987307
     },
     "closed_ok": true,
     "open": {
      "skipped": "the leaf does not open under a hand-sized effort (locked): latch-clear case not applicable",
-     "door_angle": 2.0664836917205238e-06,
+     "door_angle": 1.0813832401563923e-06,
      "door_target": 0.5235987755982988
     },
     "ok": true
    }
   },
-  "qa_push": 183.397786334352,
-  "hold_displacement": 2.018972147269742e-06,
+  "qa_push": 183.406594334352,
+  "hold_displacement": 1.0365073973542866e-06,
   "note": "lock released by environment logic (badge / REX / timer); actuation not tested by QA",
   "operator_joints": [],
   "operator_coupling": "coupled",
+  "pair_swing": {
+   "ok": true,
+   "checked": true,
+   "dy_leaf_a": -0.9165,
+   "dy_leaf_b": -0.9165,
+   "double_egress": false
+  },
+  "task_achievable": {
+   "ok": true,
+   "scenarios": [
+    {
+     "name": "unlock_and_traverse",
+     "target": 1.0472,
+     "unit": "rad",
+     "still_pinned": [],
+     "penetration_m": 0.0,
+     "penetration_pair": [
+      null,
+      null
+     ],
+     "ok": true
+    }
+   ],
+   "failures": [],
+   "release_path": "env",
+   "primary_joint": "leaf_a_hinge",
+   "primary_range": [
+    0.0,
+    1.570796
+   ],
+   "declared_travel": [
+    1.5708,
+    "rad"
+   ],
+   "force_leg": {
+    "driven_by": "push",
+    "push": 183.41,
+    "moved": 0.52701,
+    "threshold": 0.5236,
+    "welds": [
+     "leaf_a_maglock",
+     "leaf_b_maglock"
+    ]
+   }
+  },
   "urdf_nbody": 7,
   "usd_joints": 6,
   "usd_rl_joints": [
@@ -130,164 +193,6 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.5037250518798828,
- "mujoco_version": "3.12.0",
- "isaac_parity": {
-  "version": "1",
-  "date": "2026-09-05",
-  "commit": "f81c1c632",
-  "engines": {
-   "mujoco": {
-    "mujoco": "3.12.0"
-   },
-   "isaac_full": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   },
-   "isaac_rl": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   }
-  },
-  "ok": true,
-  "grade": "A",
-  "status": "compared",
-  "kinds": {
-   "full": {
-    "status": "compared",
-    "grade": "A",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "agree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [],
-    "details": [],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      5.077231823292205e-07,
-      8.440885324034753e-09,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      2.018972147269742e-06,
-      0.0016814792761579156,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      2.018972147269742e-06,
-      0.0016814792761579156,
-      true
-     ],
-     "hold.secondary_drift": [
-      -5.077231823292875e-07,
-      -8.44127878707468e-09,
-      true
-     ]
-    }
-   },
-   "rl": {
-    "status": "compared",
-    "grade": "A",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "agree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [],
-    "details": [],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      5.077231823292205e-07,
-      9.945285484036503e-09,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      2.018972147269742e-06,
-      0.0016799797303974628,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      2.018972147269742e-06,
-      0.0016799797303974628,
-      true
-     ],
-     "hold.secondary_drift": [
-      -5.077231823292875e-07,
-      -9.866173655836974e-09,
-      true
-     ]
-    }
-   }
-  },
-  "classes": [],
-  "primary_class": "OK",
-  "likely_root_cause": "-"
- }
+ "time_s": 0.5761008262634277,
+ "mujoco_version": "3.12.0"
 }

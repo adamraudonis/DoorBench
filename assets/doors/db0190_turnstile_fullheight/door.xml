@@ -21,6 +21,7 @@
     <material name="mat_wall" rgba="0.78 0.76 0.7 1" specular="0.2" shininess="0.1" reflectance="0"/>
     <material name="mat_frame" rgba="0.45 0.48 0.52 1" specular="0.32" shininess="0.6" reflectance="0.08"/>
     <material name="mat_op_stainless" rgba="0.75 0.76 0.77 1" specular="0.8" shininess="0.65" reflectance="0.4"/>
+    <material name="mat_rotor_lock" rgba="0.22 0.17 0.13 1" specular="0.8" shininess="0.6" reflectance="0.4"/>
     <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.6 0.7 0.85" rgb2="0.9 0.92 0.95" width="256" height="256"/>
   </asset>
   <worldbody>
@@ -54,12 +55,13 @@
     <geom name="rotor_bearing_jaw_1" type="box" size="0.015 0.05 0.05" pos="-0.077 0 0.05" material="mat_op_stainless" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
     <geom name="rotor_bearing_jaw_2" type="box" size="0.05 0.015 0.05" pos="0 0.077 0.05" material="mat_op_stainless" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
     <geom name="rotor_bearing_jaw_3" type="box" size="0.05 0.015 0.05" pos="0 -0.077 0.05" material="mat_op_stainless" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
+    <geom name="rotor_solenoid_housing" type="cylinder" size="0.022 0.042" pos="0.041 0.071014 2.16" material="mat_rotor_lock" group="1" contype="0" conaffinity="0" density="7850"/>
     <site name="approach_point" pos="1.13 -1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <site name="goal_point" pos="1.13 1.5 0" quat="1 0 0 0" size="0.05" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <site name="door_plane_center" pos="0.365 0 1" quat="1 0 0 0" size="0.02" rgba="0.2 0.9 0.2 0.5" group="4"/>
     <body name="rotor" pos="0 0 0">
-      <inertial pos="0 0 1.094988" mass="16.76585" quat="-0.5 0.5 0.5 0.5" diaginertia="0.268725643 6.641279502 6.641279502"/>
-      <joint name="rotor_hinge" type="hinge" axis="0 0 1" limited="true" range="-0.05 0.05" damping="6" frictionloss="4.131533" armature="0.3"/>
+      <inertial pos="0 0 1.10183" mass="38.705783" quat="0.5 -0.5 -0.5 -0.5" diaginertia="0.617959827 15.485634658 15.485634658"/>
+      <joint name="rotor_hinge" type="hinge" axis="0 0 1" limited="false" damping="6" frictionloss="4.305164" armature="0.3"/>
       <geom name="rotor_column" type="cylinder" size="0.06 1.085" pos="0 0 1.1" material="mat_op_stainless" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
       <geom name="wing_0_arm_0" type="capsule" size="0.019 0.325" pos="0.325 0 0.15" quat="0.707107 0 0.707107 0" material="mat_op_stainless" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
       <geom name="wing_0_arm_1" type="capsule" size="0.019 0.325" pos="0.325 0 0.407143" quat="0.707107 0 0.707107 0" material="mat_op_stainless" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
@@ -85,13 +87,26 @@
       <geom name="wing_2_arm_5" type="capsule" size="0.019 0.325" pos="-0.1625 -0.281458 1.435714" quat="0.707107 0.612372 -0.353553 0" material="mat_op_stainless" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
       <geom name="wing_2_arm_6" type="capsule" size="0.019 0.325" pos="-0.1625 -0.281458 1.692857" quat="0.707107 0.612372 -0.353553 0" material="mat_op_stainless" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
       <geom name="wing_2_arm_7" type="capsule" size="0.019 0.325" pos="-0.1625 -0.281458 1.95" quat="0.707107 0.612372 -0.353553 0" material="mat_op_stainless" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7900"/>
+      <geom name="rotor_lock_dog_0" type="box" size="0.025 0.016 0.02" pos="0.082 0 2.08" material="mat_rotor_lock" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+      <geom name="rotor_lock_dog_1" type="box" size="0.025 0.016 0.02" pos="-0.041 0.071014 2.08" quat="0.5 0 0 0.866025" material="mat_rotor_lock" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+      <geom name="rotor_lock_dog_2" type="box" size="0.025 0.016 0.02" pos="-0.041 -0.071014 2.08" quat="0.5 0 0 -0.866025" material="mat_rotor_lock" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
       <site name="wing_0_push" pos="0.52 0 1" quat="1 0 0 0" size="0.015" rgba="0.2 0.9 0.2 0.5" group="4"/>
       <site name="wing_1_push" pos="-0.26 0.450333 1" quat="1 0 0 0" size="0.015" rgba="0.2 0.9 0.2 0.5" group="4"/>
       <site name="wing_2_push" pos="-0.26 -0.450333 1" quat="1 0 0 0" size="0.015" rgba="0.2 0.9 0.2 0.5" group="4"/>
     </body>
+    <body name="rotor_solenoid_plunger" pos="0.041 0.071014 0">
+      <inertial pos="0 0 2.11" mass="0.191768" quat="0.707107 0 0.707107 0" diaginertia="0.000007767 0.000151161 0.000151161"/>
+      <joint name="rotor_solenoid_plunger_slide" type="slide" axis="0 0 1" limited="true" range="0 0.04" damping="2" frictionloss="1" armature="0.1"/>
+      <geom name="rotor_solenoid_plunger_geom" type="cylinder" size="0.009 0.048" pos="0 0 2.11" material="mat_rotor_lock" group="0" contype="1" conaffinity="1" friction="0.6 0.005 0.0001" density="7850"/>
+    </body>
   </worldbody>
+  <equality>
+    <weld name="rotor_solenoid_hold" body1="rotor" body2="world" active="true"/>
+  </equality>
   <sensor>
     <jointpos name="rotor_hinge_pos" joint="rotor_hinge"/>
     <jointvel name="rotor_hinge_vel" joint="rotor_hinge"/>
+    <jointpos name="rotor_solenoid_plunger_slide_pos" joint="rotor_solenoid_plunger_slide"/>
+    <jointvel name="rotor_solenoid_plunger_slide_vel" joint="rotor_solenoid_plunger_slide"/>
   </sensor>
 </mujoco>

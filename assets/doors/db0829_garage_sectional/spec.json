@@ -89,7 +89,7 @@
  "lock": {
   "model": "keyed_cylinder",
   "engaged": true,
-  "robot_side_release": true
+  "robot_side_release": false
  },
  "closer": {
   "model": "none",
@@ -98,21 +98,32 @@
  },
  "seal": "door_sweep",
  "condition": "normal",
- "task": "unlock_open_traverse",
+ "task": "locked_recognize",
  "physics": {
   "mass": {
-   "slab_kg": 122.111264,
+   "leaf_count": 1,
+   "leaf_slab_kg": 122.111264,
+   "leaf_glass_kg": 4.392,
+   "leaf_hardware_kg": 0.08,
+   "per_leaf_kg": 126.583264,
    "slab_area_density_kg_m2": 13.31,
-   "glass_kg": 4.392,
-   "hardware_kg": 0.08,
    "hardware_parts": {
     "operator": 0.0,
     "lock": 0.08,
     "hinges_half": 0.0
    },
+   "slab_kg": 122.111264,
+   "glass_kg": 4.392,
+   "hardware_kg": 0.08,
    "total_kg": 126.583264,
-   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
-   "source": "Insulated 3-layer \u2248 12-14 kg/m^2"
+   "leaves_on_primary": 1.0,
+   "primary_assembly_kg": 126.583264,
+   "formula": "per leaf: slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware;  door: leaf_count * (slab + glass) + the door's hardware set (charged once)",
+   "source": "Insulated 3-layer \u2248 12-14 kg/m^2",
+   "model_total_moving_kg": 126.583264,
+   "leaf_hardware_rider_kg": 0.08,
+   "primary_assembly_estimated_kg": 126.583264,
+   "primary_com_arm_m": 0.0
   },
   "roller": {
    "coulomb_force_N": 80.688254783864,
@@ -185,7 +196,7 @@
    "model": "keyed_cylinder",
    "kind": "keyed_cylinder",
    "engaged": true,
-   "robot_side_release": true,
+   "robot_side_release": false,
    "outside_release": "key",
    "inside_release": "button",
    "handle_backlash_locked_rad": 0.060000000000000005,
@@ -225,7 +236,7 @@
    "height_m": 1.75,
    "speed_m_s": 1.1
   },
-  "primary_scenario": "unlock_and_traverse",
+  "primary_scenario": "locked_recognize",
   "benchmark_eligibility": {
    "eligible": true,
    "collection": "standard",
@@ -234,211 +245,18 @@
   },
   "suites": {
    "core": [
-    "unlock_and_traverse",
-    "open_then_close",
-    "close_only"
+    "locked_recognize"
    ],
    "human": []
   },
   "scenarios": [
    {
-    "name": "unlock_and_traverse",
+    "name": "locked_recognize",
     "suite": "core",
     "requires_human": false,
-    "description": "The door is locked but releasable from the robot's side (thumbturn, keypad code, slide bolt, badge, REX ...): release the lock, open and walk through.",
+    "description": "The door is locked with no release on the robot's side: probe, recognise the lock, declare it (env.declare_locked()) and stop without damage.",
     "initial_state": {
      "door": "closed",
-     "lock_engaged": true,
-     "latched": false
-    },
-    "start": {
-     "center": [
-      0.0,
-      -2.0,
-      0.0
-     ],
-     "radius": 0.3,
-     "yaw": 1.5708,
-     "yaw_range": [
-      1.2208,
-      1.9208
-     ],
-     "randomize": {
-      "position": "uniform_disc",
-      "radius": 0.3,
-      "yaw_jitter_rad": 0.35,
-      "seed_base": 93245,
-      "formula": "r = R*sqrt(u1), phi = 2*pi*u2, yaw = yaw0 + (2*u3 - 1)*yaw_jitter; u ~ U(0,1) from random.Random(seed_base + seed)"
-     }
-    },
-    "approach_point": [
-     0.0,
-     -2.0,
-     0.0
-    ],
-    "handle_targets": [],
-    "pass_plane": {
-     "center": [
-      0.0,
-      0.0,
-      1.025
-     ],
-     "normal": [
-      0.0,
-      1.0,
-      0.0
-     ],
-     "width": 4.93,
-     "height": 2.05,
-     "traverse_direction": [
-      0.0,
-      1.0,
-      0.0
-     ]
-    },
-    "goal": {
-     "center": [
-      0.0,
-      2.0,
-      0.0
-     ],
-     "radius": 0.5
-    },
-    "human": null,
-    "thresholds": {
-     "open_rad": null,
-     "open_m": 0.3,
-     "clear_rad": null,
-     "clear_m": 1.9
-    },
-    "rewards": {
-     "opened": 3.0,
-     "traversed": 10.0,
-     "damage": -10.0,
-     "slam": -2.0,
-     "time_penalty_per_s": -0.05,
-     "unlock": 3.0
-    },
-    "success": [
-     "unlock",
-     "opened",
-     "traversed",
-     "!damage"
-    ],
-    "time_budget_s": 55.0,
-    "expected_transit_s": 13.37,
-    "expected_transit_terms": {
-     "approach_s": 2.0,
-     "operate_s": 2.0,
-     "open_s": 5.65,
-     "pass_s": 3.71,
-     "scenario_extra_s": 0.0,
-     "total_s": 13.37
-    }
-   },
-   {
-    "name": "open_then_close",
-    "suite": "core",
-    "requires_human": false,
-    "description": "Open, walk through, then close the door behind you (latched if the door has a latch).",
-    "initial_state": {
-     "door": "closed",
-     "lock_engaged": true,
-     "latched": false
-    },
-    "start": {
-     "center": [
-      0.0,
-      -2.0,
-      0.0
-     ],
-     "radius": 0.3,
-     "yaw": 1.5708,
-     "yaw_range": [
-      1.2208,
-      1.9208
-     ],
-     "randomize": {
-      "position": "uniform_disc",
-      "radius": 0.3,
-      "yaw_jitter_rad": 0.35,
-      "seed_base": 93245,
-      "formula": "r = R*sqrt(u1), phi = 2*pi*u2, yaw = yaw0 + (2*u3 - 1)*yaw_jitter; u ~ U(0,1) from random.Random(seed_base + seed)"
-     }
-    },
-    "approach_point": [
-     0.0,
-     -2.0,
-     0.0
-    ],
-    "handle_targets": [],
-    "pass_plane": {
-     "center": [
-      0.0,
-      0.0,
-      1.025
-     ],
-     "normal": [
-      0.0,
-      1.0,
-      0.0
-     ],
-     "width": 4.93,
-     "height": 2.05,
-     "traverse_direction": [
-      0.0,
-      1.0,
-      0.0
-     ]
-    },
-    "goal": {
-     "center": [
-      0.0,
-      2.0,
-      0.0
-     ],
-     "radius": 0.5
-    },
-    "human": null,
-    "thresholds": {
-     "open_rad": null,
-     "open_m": 0.3,
-     "clear_rad": null,
-     "clear_m": 1.9
-    },
-    "rewards": {
-     "opened": 3.0,
-     "traversed": 10.0,
-     "damage": -10.0,
-     "slam": -2.0,
-     "time_penalty_per_s": -0.05,
-     "closed_behind": 3.0
-    },
-    "success": [
-     "opened",
-     "traversed",
-     "closed_behind",
-     "!damage",
-     "!slam"
-    ],
-    "time_budget_s": 75.0,
-    "expected_transit_s": 20.34,
-    "expected_transit_terms": {
-     "approach_s": 2.0,
-     "operate_s": 0.0,
-     "open_s": 5.65,
-     "pass_s": 3.71,
-     "scenario_extra_s": 8.97,
-     "total_s": 20.34
-    }
-   },
-   {
-    "name": "close_only",
-    "suite": "core",
-    "requires_human": false,
-    "description": "The door starts open; close it (and latch it) without slamming.",
-    "initial_state": {
-     "door": "open",
      "lock_engaged": true,
      "latched": false
     },
@@ -496,25 +314,25 @@
      "clear_m": 1.9
     },
     "rewards": {
-     "closed": 5.0,
+     "recognized_locked": 5.0,
      "damage": -10.0,
-     "slam": -2.0,
+     "hardware_misuse": -5.0,
      "time_penalty_per_s": -0.05
     },
     "success": [
-     "closed",
+     "!opened",
      "!damage",
-     "!slam"
+     "!hardware_misuse"
     ],
     "time_budget_s": 45.0,
-    "expected_transit_s": 11.47,
+    "expected_transit_s": 11.65,
     "expected_transit_terms": {
      "approach_s": 2.0,
-     "operate_s": 0.5,
-     "open_s": 0.0,
+     "operate_s": 0.0,
+     "open_s": 5.65,
      "pass_s": 0.0,
-     "scenario_extra_s": 8.97,
-     "total_s": 11.47
+     "scenario_extra_s": 4.0,
+     "total_s": 11.65
     }
    }
   ],

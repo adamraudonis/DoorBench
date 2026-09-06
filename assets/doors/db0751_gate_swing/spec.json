@@ -94,22 +94,34 @@
  "task": "open_only",
  "physics": {
   "mass": {
-   "slab_kg": 7.0875,
+   "leaf_count": 1,
+   "leaf_slab_kg": 7.0875,
+   "leaf_glass_kg": 0.0,
+   "leaf_hardware_kg": 1.85,
+   "per_leaf_kg": 8.9375,
    "slab_area_density_kg_m2": 8.75,
-   "glass_kg": 0.0,
-   "hardware_kg": 1.5,
    "hardware_parts": {
     "operator": 0.6,
     "lock": 0.0,
+    "latch": 0.35,
     "closer": 0.4,
     "hinges_half": 0.5
    },
-   "total_kg": 8.5875,
-   "formula": "slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware",
-   "source": "Knape & Vogt calculated door weight table (lb/ft^2 by core & species), absupply.net/pdf/KV_Door-Weight-Table.pdf"
+   "slab_kg": 7.0875,
+   "glass_kg": 0.0,
+   "hardware_kg": 1.85,
+   "total_kg": 8.9375,
+   "leaves_on_primary": 1.0,
+   "primary_assembly_kg": 8.9375,
+   "formula": "per leaf: slab_area_density(t) * (W*H - A_glass) + rho_glass * t_glass * A_glass + hardware;  door: leaf_count * (slab + glass) + the door's hardware set (charged once)",
+   "source": "Knape & Vogt calculated door weight table (lb/ft^2 by core & species), absupply.net/pdf/KV_Door-Weight-Table.pdf",
+   "model_total_moving_kg": 8.9375,
+   "leaf_hardware_rider_kg": 1.6578370077031548,
+   "primary_assembly_estimated_kg": 8.9375,
+   "primary_com_arm_m": 0.4032107147776563
   },
   "hinge": {
-   "coulomb_torque_Nm": 0.6568739336249999,
+   "coulomb_torque_Nm": 0.6836460881249999,
    "bearing_mu": 0.3,
    "bearing_note": "Strap hinge on pintle (gate)",
    "pin_radius_m": 0.006,
@@ -133,11 +145,11 @@
    "backcheck_angle_rad": null,
    "backcheck_damping": 0.0,
    "latch_boost": 1.0,
-   "closing_time_est_s": 0.8920000000000007,
+   "closing_time_est_s": 0.9080000000000007,
    "formula": "tau(theta) = tau0 + k*theta; tau0 = 1.15*EN1154 closing moment(size); tau90 = 0.85*EN1154 opening moment",
    "source": "EN 1154:1996 Table 1"
   },
-  "inertia_about_hinge_kg_m2": 2.3190722656250005,
+  "inertia_about_hinge_kg_m2": 2.413590494791667,
   "latch": {
    "model": "fork_gravity",
    "kind": "gravity_bar",
@@ -241,13 +253,13 @@
    "latch_shear_yield_N": 2000,
    "hinge_tearout_force_N": 1569.0639999999999,
    "slam_velocity_rad_s": 4.0,
-   "slam_impulse_Ns": 3.4350000000000005,
+   "slam_impulse_Ns": 3.575,
    "frame_impact_force_N": 3000.0,
    "notes": "Damage events are labelled when contact force / joint torque exceed these thresholds (see benchmark/labels.py)"
   },
   "compliance": {
-   "opening_force_start_N": 5.679114553201218,
-   "opening_force_90deg_N": 15.257140936096928,
+   "opening_force_start_N": 5.7117635221036585,
+   "opening_force_90deg_N": 15.289789904999369,
    "operator_force_N": 0.0,
    "ada_interior_5lbf_ok": null,
    "ibc_fire_exterior_ok": true,

@@ -7,11 +7,11 @@
 
 def Xform "db0607_elevator"
 {
-    custom string doorbench:couplings = "[]"
+    custom string doorbench:couplings = '[{"type": "weld", "body1": "leaf", "body2": "world", "label": "Elevator/airlock interlock (opens only when adjacent closed) (env releases on credential / call button)", "active": true, "joint": "/db0607_elevator/Articulation/Joints/leaf_interlock_hold", "holding_force_N": 20000.0, "note": "breakable FixedJoint (excludeFromArticulation); the environment clears physics:jointEnabled on release"}]'
     custom string doorbench:door_id = "db0607_elevator"
-    custom string doorbench:env_release = "[]"
+    custom string doorbench:env_release = '[{"name": "leaf_interlock_hold", "body": "leaf", "other": "world", "label": "Elevator/airlock interlock (opens only when adjacent closed) (env releases on credential / call button)", "active": true, "holding_force_N": 20000.0, "release": "env", "release_joint": null, "release_fraction": null, "lock_model": "interlock", "joint": "/db0607_elevator/Articulation/Joints/leaf_interlock_hold", "joint_name": "leaf_interlock_hold", "body_prim": "/db0607_elevator/Articulation/leaf", "base_prim": "/db0607_elevator/Articulation/base"}]'
     custom string doorbench:filtered_pairs = "[]"
-    custom string doorbench:meta = '{"door_id": "db0607_elevator", "family": "elevator", "task": "unlock_open_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "track_header", "nominal_range": [0.0, 1.06], "leaf_width_m": 1.07, "rollers": [], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "actuators": [{"name": "leaf_drive", "joint": "leaf_slide", "kind": "position", "kp": 400.0, "kv": 60.0, "forcerange": [-135, 135], "ctrlrange": [0.0, 1.06], "in_drive": true}], "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 76.26535884991765, "scene_extent": 2.3449999999999998, "cam_target_z": 1.23, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.48, -0.8, 1.28], "operator_joints": [], "operator_coupling": "coupled", "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0607_elevator/Articulation/Joints/leaf_slide", "call_button_slide": "/db0607_elevator/Articulation/Joints/call_button_slide"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {"leaf_slide": {"kp": 400.0, "kv": 60.0, "force_limit": 135.0, "ctrl": 0.0}}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
+    custom string doorbench:meta = '{"door_id": "db0607_elevator", "family": "elevator", "task": "unlock_open_traverse", "wall_y": 0.0, "sliding_track_supports": [{"joint": "leaf_slide", "body": "leaf", "rail": "track_header", "nominal_range": [0.0, 1.06], "leaf_width_m": 1.07, "rollers": ["leaf_carrier_wheel_0", "leaf_carrier_wheel_1"], "end_stops": [], "floor_guides_required": false, "floor_guides": []}], "breakable_welds": [{"name": "leaf_interlock_hold", "body": "leaf", "joint": "leaf_slide", "holding_force_N": 20000.0, "release": "env", "lock_model": "interlock", "holds_primary": true}], "actuators": [{"name": "leaf_drive", "joint": "leaf_slide", "kind": "position", "kp": 400.0, "kv": 60.0, "forcerange": [-135, 135], "ctrlrange": [0.0, 1.06], "in_drive": true}], "primary_joint": "leaf_slide", "secondary_joint": null, "handle_height": 1.0, "opens_toward": "left", "operator_joint": null, "mass_reconciled_kg": 77.46535884991765, "mass": {"leaf_material_kg": 76.2696, "leaf_hardware_rider_kg": 1.1957588499176537, "hardware_modelled_kg": 0.004241150082346221, "leaf_bodies": 1, "total_moving_kg": 77.4696}, "scene_extent": 2.3449999999999998, "cam_target_z": 1.23, "cam_target_x": 0.0, "handle_cam_x": 0.3, "handle_cam_target": [0.3, 0.0, 1.0], "handle_cam_pos": [0.48, -0.8, 1.28], "operator_joints": [], "operator_coupling": "coupled", "primary_assembly_kg": 77.46535884991765, "usd_layout": "v2: default prim = door root; Env (static) + Articulation (fixed base link `base`)", "joints": {"leaf_slide": "/db0607_elevator/Articulation/Joints/leaf_slide", "call_button_slide": "/db0607_elevator/Articulation/Joints/call_button_slide"}, "self_collisions": true, "filtered_pairs": [], "n_filtered_pairs": 0, "env_release": [{"name": "leaf_interlock_hold", "body": "leaf", "other": "world", "label": "Elevator/airlock interlock (opens only when adjacent closed) (env releases on credential / call button)", "active": true, "holding_force_N": 20000.0, "release": "env", "release_joint": null, "release_fraction": null, "lock_model": "interlock", "joint": "/db0607_elevator/Articulation/Joints/leaf_interlock_hold", "joint_name": "leaf_interlock_hold", "body_prim": "/db0607_elevator/Articulation/leaf", "base_prim": "/db0607_elevator/Articulation/base"}], "couplings_emulated": [], "couplings_servo": [], "coupling_reflected_armature": {}, "servo_in_drive": {"leaf_slide": {"kp": 400.0, "kv": 60.0, "force_limit": 135.0, "ctrl": 0.0}}, "rise_coupling": null, "max_angular_velocity_deg_s": 5729.5779513082325}'
 
     def Scope "Looks"
     {
@@ -374,7 +374,7 @@ def Xform "db0607_elevator"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (2.23, 0.05, 0.08)
-                double3 xformOp:translate = (-0.53, 0, 2.545)
+                double3 xformOp:translate = (-0.53, 0.15200000000000002, 2.545)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -413,8 +413,8 @@ def Xform "db0607_elevator"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.29, 0.12, 0.02)
-                double3 xformOp:translate = (0, 0, 0.01)
+                float3 xformOp:scale = (1.29, 0.257, 0.02)
+                double3 xformOp:translate = (0, 0.06850000000000002, 0.01)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -433,7 +433,7 @@ def Xform "db0607_elevator"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (2.29, 2.2, 0.02)
+                float3 xformOp:scale = (3.45, 2.2, 0.02)
                 double3 xformOp:translate = (0, 1.2, -0.01)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
@@ -454,7 +454,7 @@ def Xform "db0607_elevator"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.04, 2.2, 2.66)
-                double3 xformOp:translate = (-1.145, 1.2, 1.33)
+                double3 xformOp:translate = (-1.725, 1.2, 1.33)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -474,7 +474,7 @@ def Xform "db0607_elevator"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.04, 2.2, 2.66)
-                double3 xformOp:translate = (1.145, 1.2, 1.33)
+                double3 xformOp:translate = (1.725, 1.2, 1.33)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -493,7 +493,7 @@ def Xform "db0607_elevator"
                 custom float physxCollision:restOffset = 0
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (2.29, 0.04, 2.66)
+                float3 xformOp:scale = (3.45, 0.04, 2.66)
                 double3 xformOp:translate = (0, 2.3, 1.33)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
@@ -523,8 +523,8 @@ def Xform "db0607_elevator"
                 rel material:binding = </db0607_elevator/Looks/mat_hook>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (1.784, 0.076, 0.064)
-                double3 xformOp:translate = (-0.53, 0.06249999999999982, 2.545)
+                float3 xformOp:scale = (1.784, 0.003, 0.064)
+                double3 xformOp:translate = (-0.53, 0.126, 2.545)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -582,13 +582,13 @@ def Xform "db0607_elevator"
             )
             {
                 custom float doorbench:armature_si = 0.5
-                custom float doorbench:damping_si = 65.81348
-                custom float doorbench:friction_effort = 7.4794927
+                custom float doorbench:damping_si = 65.87348
+                custom float doorbench:friction_effort = 7.5971727
                 custom float doorbench:initial = 0
                 custom string doorbench:label = "Slide (0 = closed, + = open)"
-                custom float doorbench:legacy_friction_coeff = 0.009997141
+                custom float doorbench:legacy_friction_coeff = 0.009997132
                 custom bool doorbench:limited = 1
-                custom string doorbench:notes = "Elevator/airlock interlock (opens only when adjacent closed): leaf locked (env releases on credential / call button)"
+                custom string doorbench:notes = "Elevator/airlock interlock (opens only when adjacent closed): held by the interlock until the environment releases it (full travel kept)"
                 custom bool doorbench:robot_interactive = 1
                 custom string doorbench:role = "primary"
                 custom float doorbench:servo_ctrl = 0
@@ -601,7 +601,7 @@ def Xform "db0607_elevator"
                 custom float doorbench:stiffness_si = 400
                 custom float doorbench:target_si = 0
                 custom float doorbench:zero_offset = 0
-                float drive:linear:physics:damping = 65.81348
+                float drive:linear:physics:damping = 65.87348
                 float drive:linear:physics:maxForce = 135
                 float drive:linear:physics:stiffness = 400
                 float drive:linear:physics:targetPosition = 0
@@ -610,17 +610,17 @@ def Xform "db0607_elevator"
                 uniform token physics:axis = "X"
                 rel physics:body0 = </db0607_elevator/Articulation/base>
                 rel physics:body1 = </db0607_elevator/Articulation/leaf>
-                point3f physics:localPos0 = (0, 0, 0)
+                point3f physics:localPos0 = (0, 0.152, 0)
                 point3f physics:localPos1 = (0, 0, 0)
                 quatf physics:localRot0 = (0, 0, 0, 1)
                 quatf physics:localRot1 = (0, 0, 0, 1)
                 float physics:lowerLimit = 0
-                float physics:upperLimit = 0.002
+                float physics:upperLimit = 1.06
                 custom float physxJoint:armature = 0.5
                 custom float physxJoint:jointFriction = 0
                 custom float physxJointAxis:linear:armature = 0.5
-                custom float physxJointAxis:linear:dynamicFrictionEffort = 7.4794927
-                custom float physxJointAxis:linear:staticFrictionEffort = 7.4794927
+                custom float physxJointAxis:linear:dynamicFrictionEffort = 7.5971727
+                custom float physxJointAxis:linear:staticFrictionEffort = 7.5971727
                 custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
 
@@ -664,6 +664,26 @@ def Xform "db0607_elevator"
                 custom float physxJointAxis:linear:staticFrictionEffort = 0
                 custom float physxJointAxis:linear:viscousFrictionCoefficient = 0
             }
+
+            def PhysicsFixedJoint "leaf_interlock_hold"
+            {
+                custom float doorbench:holding_force_N = 20000
+                custom string doorbench:label = "Elevator/airlock interlock (opens only when adjacent closed) (env releases on credential / call button)"
+                custom string doorbench:role = "env_release"
+                custom string doorbench:weld_body = "leaf"
+                custom string doorbench:weld_name = "leaf_interlock_hold"
+                rel physics:body0 = </db0607_elevator/Articulation/base>
+                rel physics:body1 = </db0607_elevator/Articulation/leaf>
+                float physics:breakForce = 20000
+                float physics:breakTorque = 20000
+                bool physics:collisionEnabled = 0
+                uniform bool physics:excludeFromArticulation = 1
+                bool physics:jointEnabled = 1
+                point3f physics:localPos0 = (0, 0.152, 0)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+            }
         }
 
         def Xform "base" (
@@ -690,15 +710,15 @@ def Xform "db0607_elevator"
         {
             custom string doorbench:label = "Sliding leaf"
             custom string doorbench:semantic = "leaf"
-            point3f physics:centerOfMass = (-1.3647534e-19, 0, 1.2401394)
-            float3 physics:diagonalInertia = (7.332071, 37.212738, 44.533455)
-            float physics:mass = 76.26536
-            quatf physics:principalAxes = (-0.5, 0.5, 0.5, 0.5)
+            point3f physics:centerOfMass = (0, 0, 1.2447397)
+            float3 physics:diagonalInertia = (7.469051, 38.10601, 45.563564)
+            float physics:mass = 77.46536
+            quatf physics:principalAxes = (0.5, 0.5, 0.5, -0.5)
             custom float physxRigidBody:maxAngularVelocity = 5729.578
             custom float physxRigidBody:maxDepenetrationVelocity = 5
             custom float physxRigidBody:sleepThreshold = 0
             quatf xformOp:orient = (1, 0, 0, 0)
-            double3 xformOp:translate = (0, 0, 0)
+            double3 xformOp:translate = (0, 0.15200000000000002, 0)
             uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
             def Cube "leaf_slab" (
@@ -731,8 +751,8 @@ def Xform "db0607_elevator"
                 rel material:binding = </db0607_elevator/Looks/mat_roller>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.01, 0.086)
-                double3 xformOp:translate = (-0.41500000000000004, 0, 2.413)
+                float3 xformOp:scale = (0.04, 0.01, 0.131)
+                double3 xformOp:translate = (-0.41500000000000004, 0, 2.4354999999999998)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -748,7 +768,7 @@ def Xform "db0607_elevator"
                 rel material:binding = </db0607_elevator/Looks/mat_roller>
                 double radius = 0.014
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
-                double3 xformOp:translate = (-0.41500000000000004, 0, 2.446)
+                double3 xformOp:translate = (-0.41500000000000004, 0, 2.491)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 
@@ -762,8 +782,8 @@ def Xform "db0607_elevator"
                 rel material:binding = </db0607_elevator/Looks/mat_roller>
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.04, 0.01, 0.086)
-                double3 xformOp:translate = (0.41500000000000004, 0, 2.413)
+                float3 xformOp:scale = (0.04, 0.01, 0.131)
+                double3 xformOp:translate = (0.41500000000000004, 0, 2.4354999999999998)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -779,7 +799,7 @@ def Xform "db0607_elevator"
                 rel material:binding = </db0607_elevator/Looks/mat_roller>
                 double radius = 0.014
                 quatf xformOp:orient = (0.70710677, -0.70710677, 0, 0)
-                double3 xformOp:translate = (0.41500000000000004, 0, 2.446)
+                double3 xformOp:translate = (0.41500000000000004, 0, 2.491)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
             }
 

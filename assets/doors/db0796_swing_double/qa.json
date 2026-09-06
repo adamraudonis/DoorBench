@@ -10,10 +10,14 @@
   "sliding_track_support": true,
   "linkage_feasibility": true,
   "mass": true,
+  "leaf_material_mass": true,
+  "leaf_mass_share": true,
   "settle": true,
   "operator_returns": true,
   "hold": true,
   "rod_points_hold": true,
+  "pair_swing": true,
+  "task_achievable": true,
   "settle_simple": true,
   "settle_minimal": true,
   "urdf_loads": true,
@@ -55,13 +59,27 @@
    "n_failures": 0,
    "failures": []
   },
-  "moving_mass_kg": 59.430384000000004,
+  "moving_mass_kg": 108.28577,
+  "door_mass_kg": 108.28577183999998,
+  "leaf_mass": {
+   "n_leaf_bodies": 2,
+   "leaf_count": 2,
+   "leaf_material_kg": 93.31077183999999,
+   "hardware_rider_kg": 4.809934851359417,
+   "hardware_modelled_kg": 10.165065148640583,
+   "expected_leaf_mass_kg": 98.1207066913594,
+   "model_leaf_mass_kg": 98.12070669135942,
+   "leaf_mass_ratio": 1.0000000000000002,
+   "per_leaf_material_kg": 46.65538591999999,
+   "worst_share_deviation": 1.1102230246251565e-16,
+   "worst_share_body": "leaf_b"
+  },
   "initial_penetration_m": 0.0,
   "initial_penetration_pair": [
    null,
    null
   ],
-  "settle_drift": 5.173758760448288e-07,
+  "settle_drift": 4.163397691060131e-07,
   "warnings": [],
   "operator_release": {
    "leaf_a_exit_device_slide": {
@@ -69,21 +87,21 @@
     "operator_model": "panic_touchbar_svr",
     "expected_return_time_s": 0.1,
     "closed": {
-     "driven_to": 0.015117134329308841,
+     "driven_to": 0.015117126481495062,
      "travel": 0.016,
      "rest": 0.0,
      "tolerance": 0.0002,
-     "door_angle": -7.529304653182507e-07,
+     "door_angle": -4.7601273022602e-07,
      "t_return_s": 0.054,
-     "residual": -8.155811821002404e-06,
+     "residual": -7.635295700183412e-06,
      "bounces": 1,
-     "rebound": 0.0003011394295604958,
-     "held_fraction": -0.0005395077958122034
+     "rebound": 0.00029502882941834913,
+     "held_fraction": -0.00050507586276597
     },
     "closed_ok": true,
     "open": {
      "skipped": "the leaf does not open under a hand-sized effort (locked): latch-clear case not applicable",
-     "door_angle": -4.442166967789925e-06,
+     "door_angle": -2.040710847785151e-06,
      "door_target": 0.5235987755982988
     },
     "ok": true
@@ -93,28 +111,28 @@
     "operator_model": "panic_touchbar_svr",
     "expected_return_time_s": 0.1,
     "closed": {
-     "driven_to": 0.015111393260223198,
+     "driven_to": 0.015114932288018806,
      "travel": 0.016,
      "rest": 0.0,
      "tolerance": 0.0002,
-     "door_angle": -5.173825611191274e-07,
-     "t_return_s": 0.056,
-     "residual": -8.671840208085409e-06,
-     "bounces": 1,
-     "rebound": 0.0003164899281212836,
-     "held_fraction": -0.0005738610635534029
+     "door_angle": -4.189283869822766e-07,
+     "t_return_s": 0.068,
+     "residual": -7.69574332332907e-06,
+     "bounces": 0,
+     "rebound": 0.00018816161673004635,
+     "held_fraction": -0.0005091483823205265
     },
     "closed_ok": true,
     "open": {
      "skipped": "the leaf does not open under a hand-sized effort (locked): latch-clear case not applicable",
-     "door_angle": 2.159894618089569e-06,
+     "door_angle": 1.3563512290634303e-06,
      "door_target": 0.5235987755982988
     },
     "ok": true
    }
   },
-  "qa_push": 143.87061875048,
-  "hold_displacement": 2.2125482700831845e-06,
+  "qa_push": 179.774712405672,
+  "hold_displacement": 1.3114970294555404e-06,
   "note": "lock released by environment logic (badge / REX / timer); actuation not tested by QA",
   "operator_joints": [
    "leaf_a_exit_device_slide"
@@ -122,12 +140,56 @@
   "operator_coupling": "coupled",
   "rod_points": {
    "mechanism": "vertical_rods",
-   "top_only_rad": 2.179506886743229e-06,
-   "bottom_only_rad": 2.1441523618851702e-06,
+   "top_only_rad": 1.3240860024531993e-06,
+   "bottom_only_rad": 1.3234538132438553e-06,
    "joints": [
     "leaf_a_top_latch_slide",
     "leaf_a_bottom_latch_slide"
    ]
+  },
+  "pair_swing": {
+   "ok": true,
+   "checked": true,
+   "dy_leaf_a": 0.943,
+   "dy_leaf_b": 0.943,
+   "double_egress": false
+  },
+  "task_achievable": {
+   "ok": true,
+   "scenarios": [
+    {
+     "name": "unlock_and_traverse",
+     "target": 1.0472,
+     "unit": "rad",
+     "still_pinned": [],
+     "penetration_m": 0.0,
+     "penetration_pair": [
+      null,
+      null
+     ],
+     "ok": true
+    }
+   ],
+   "failures": [],
+   "release_path": "env",
+   "primary_joint": "leaf_a_hinge",
+   "primary_range": [
+    0.0,
+    1.570796
+   ],
+   "declared_travel": [
+    1.5708,
+    "rad"
+   ],
+   "force_leg": {
+    "driven_by": "push",
+    "push": 179.77,
+    "moved": 0.52548,
+    "threshold": 0.5236,
+    "welds": [
+     "leaf_a_maglock"
+    ]
+   }
   },
   "urdf_nbody": 9,
   "usd_joints": 8,
@@ -142,139 +204,6 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.5669608116149902,
- "mujoco_version": "3.12.0",
- "isaac_parity": {
-  "version": "1",
-  "date": "2026-09-05",
-  "commit": "f81c1c632",
-  "engines": {
-   "mujoco": {
-    "mujoco": "3.12.0"
-   },
-   "isaac_full": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   },
-   "isaac_rl": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   }
-  },
-  "ok": true,
-  "grade": "A",
-  "status": "compared",
-  "kinds": {
-   "full": {
-    "status": "compared",
-    "grade": "A",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "agree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [],
-    "details": [],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      5.173758760448288e-07,
-      7.679093805279535e-09,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      2.2125482700831845e-06,
-      0.0012185085797682405,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      2.2125482700831845e-06,
-      0.0012185085797682405,
-      true
-     ],
-     "hold.secondary_drift": [
-      -4.533107612079267e-06,
-      -7.662330325786115e-09,
-      true
-     ]
-    }
-   },
-   "rl": {
-    "status": "compared",
-    "grade": "A",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "na",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [],
-    "details": [],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      5.173758760448288e-07,
-      8.43203906697454e-09,
-      true
-     ]
-    }
-   }
-  },
-  "classes": [],
-  "primary_class": "OK",
-  "likely_root_cause": "-"
- }
+ "time_s": 0.8900609016418457,
+ "mujoco_version": "3.12.0"
 }

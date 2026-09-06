@@ -10,8 +10,11 @@
   "sliding_track_support": true,
   "linkage_feasibility": true,
   "mass": true,
+  "leaf_material_mass": true,
+  "leaf_mass_share": true,
   "settle": true,
   "hold": true,
+  "task_achievable": true,
   "settle_simple": true,
   "settle_minimal": true,
   "urdf_loads": true,
@@ -23,7 +26,7 @@
   "clearance_failures": [],
   "running_clearance_n_failures": 0,
   "running_clearance_failures": [],
-  "running_clearance_n_pairs": 5,
+  "running_clearance_n_pairs": 7,
   "attachment_n_findings": 0,
   "attachment_by_rule": {},
   "attachment_findings": [],
@@ -35,15 +38,12 @@
   "sliding_track_support": {
    "ok": true,
    "n_supports": 2,
-   "wheels_checked": 0,
+   "wheels_checked": 4,
    "guide_stations_checked": 0,
    "max_guide_gap_m": 0.0,
-   "rail_only_bodies": [
-    "leaf_a",
-    "leaf_b"
-   ],
+   "rail_only_bodies": [],
    "samples_per_joint": 25,
-   "max_contact_gap_m": 0.0,
+   "max_contact_gap_m": 4.440892098500626e-16,
    "max_leaf_overhang_m": 0.0,
    "n_failures": 0,
    "failures": []
@@ -56,7 +56,21 @@
    "n_failures": 0,
    "failures": []
   },
-  "moving_mass_kg": 37.421999,
+  "moving_mass_kg": 76.04399900000001,
+  "door_mass_kg": 76.044,
+  "leaf_mass": {
+   "n_leaf_bodies": 2,
+   "leaf_count": 2,
+   "leaf_material_kg": 74.844,
+   "hardware_rider_kg": 1.1957588499176537,
+   "hardware_modelled_kg": 0.004241150082346221,
+   "expected_leaf_mass_kg": 76.03975884991765,
+   "model_leaf_mass_kg": 76.03975884991765,
+   "leaf_mass_ratio": 1.0,
+   "per_leaf_material_kg": 37.422,
+   "worst_share_deviation": 0.0,
+   "worst_share_body": null
+  },
   "initial_penetration_m": 0.0,
   "initial_penetration_pair": [
    null,
@@ -65,10 +79,48 @@
   "settle_drift": 0.0,
   "warnings": [],
   "qa_push": 90.0,
-  "hold_displacement": 0.002005750407125934,
+  "hold_displacement": 1.3097070051382405e-06,
   "note": "lock released by environment logic (badge / REX / timer); actuation not tested by QA",
   "operator_joints": [],
   "operator_coupling": "coupled",
+  "task_achievable": {
+   "ok": true,
+   "scenarios": [
+    {
+     "name": "unlock_and_traverse",
+     "target": 0.55,
+     "unit": "m",
+     "still_pinned": [],
+     "penetration_m": 0.0,
+     "penetration_pair": [
+      null,
+      null
+     ],
+     "ok": true
+    }
+   ],
+   "failures": [],
+   "release_path": "env",
+   "primary_joint": "leaf_a_slide",
+   "primary_range": [
+    0.0,
+    0.59
+   ],
+   "declared_travel": [
+    0.59,
+    "m"
+   ],
+   "force_leg": {
+    "driven_by": "actuator",
+    "push": 90.0,
+    "moved": 0.29521,
+    "threshold": 0.295,
+    "welds": [
+     "leaf_a_interlock_hold",
+     "leaf_b_interlock_hold"
+    ]
+   }
+  },
   "urdf_nbody": 4,
   "usd_joints": 3,
   "usd_rl_joints": [
@@ -82,164 +134,6 @@
   ]
  },
  "signed_off": true,
- "time_s": 0.07261991500854492,
- "mujoco_version": "3.12.0",
- "isaac_parity": {
-  "version": "1",
-  "date": "2026-09-05",
-  "commit": "f81c1c632",
-  "engines": {
-   "mujoco": {
-    "mujoco": "3.12.0"
-   },
-   "isaac_full": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   },
-   "isaac_rl": {
-    "isaac_sim": "5.1.0.0",
-    "isaac_lab": "0.54.2",
-    "python": "3.11.15",
-    "platform": "Linux-6.8.0-71-generic-x86_64-with-glibc2.35",
-    "torch": "2.7.0+cu128",
-    "physx_dt": 0.008333333333333333,
-    "solver_iterations": [
-     16,
-     4
-    ]
-   }
-  },
-  "ok": true,
-  "grade": "A",
-  "status": "compared",
-  "kinds": {
-   "full": {
-    "status": "compared",
-    "grade": "A",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "agree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [],
-    "details": [],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      0.0,
-      0.0,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      0.002005750407125934,
-      0.0020000000949949026,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      0.002005750407125934,
-      0.0020000000949949026,
-      true
-     ],
-     "hold.secondary_drift": [
-      0.002002249677084475,
-      0.0,
-      true
-     ]
-    }
-   },
-   "rl": {
-    "status": "compared",
-    "grade": "A",
-    "ok": true,
-    "phases": {
-     "settle": "agree",
-     "hold": "agree",
-     "operate_open": "na",
-     "release": "na",
-     "relatch": "na",
-     "closer_return": "na",
-     "locked_holds": "na"
-    },
-    "classes": [],
-    "details": [],
-    "metrics": {
-     "settle.finite": [
-      true,
-      true,
-      true
-     ],
-     "settle.informational": [
-      false,
-      false,
-      true
-     ],
-     "settle.settle_drift": [
-      0.0,
-      7.470047584322617e-21,
-      true
-     ],
-     "hold.finite": [
-      true,
-      true,
-      true
-     ],
-     "hold.hold_displacement": [
-      0.002005750407125934,
-      0.0020000000949949026,
-      true
-     ],
-     "hold.informational": [
-      false,
-      false,
-      true
-     ],
-     "hold.q_at_1s": [
-      0.002005750407125934,
-      0.0020000000949949026,
-      true
-     ],
-     "hold.secondary_drift": [
-      0.002002249677084475,
-      0.0,
-      true
-     ]
-    }
-   }
-  },
-  "classes": [],
-  "primary_class": "OK",
-  "likely_root_cause": "-"
- }
+ "time_s": 0.13181471824645996,
+ "mujoco_version": "3.12.0"
 }

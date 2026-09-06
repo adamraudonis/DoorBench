@@ -239,8 +239,8 @@
   <link name="rotor">
     <inertial>
       <origin xyz="0 0 1.090578" rpy="0 0 0"/>
-      <mass value="16.76585"/>
-      <inertia ixx="6.62906471" ixy="0" ixz="0" iyy="6.62906471" iyz="0" izz="0.155745506"/>
+      <mass value="38.705783"/>
+      <inertia ixx="15.303914558" ixy="0" ixz="0" iyy="15.303914558" iyz="0" izz="0.359555385"/>
     </inertial>
     <visual name="rotor_column_vis">
       <origin xyz="0 0 1.1" rpy="0 0 0"/>
@@ -412,14 +412,14 @@
       </geometry>
     </collision>
   </link>
-  <joint name="rotor_hinge" type="revolute">
+  <joint name="rotor_hinge" type="continuous">
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <parent link="world_env"/>
     <child link="rotor"/>
     <axis xyz="0 0 1"/>
-    <limit lower="-0.05" upper="0.05" effort="2000" velocity="10"/>
-    <dynamics damping="6" friction="4.170993"/>
+    <dynamics damping="6" friction="4.396713"/>
     <doorbench:ratchet one_way="true"/>
+    <doorbench:note text="locked until a credential is presented: held by the rotor_solenoid_hold constraint, not by the joint range"/>
   </joint>
   <material name="mat_floor">
     <color rgba="0.35 0.42 0.25 1"/>
@@ -430,4 +430,5 @@
   <material name="mat_op_stainless">
     <color rgba="0.75 0.76 0.77 1"/>
   </material>
+  <doorbench:weld body1="rotor" body2="world" label="Turnstile solenoid lock (released on a valid credential)" active="true"/>
 </robot>
