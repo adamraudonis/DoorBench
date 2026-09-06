@@ -208,6 +208,30 @@ The verifier that merged the four branches found seven more bugs created by the 
 floor strike left hanging 13 mm above a saddle and a QA closing drive that slammed a 120-degree leaf hard enough
 to bounce it off its own latch.
 
+**The eye finds what the gates cannot (2026-09-05).** The owner asked for exactly this: "have a photo taken of
+each model and then have that image be sent to a common sense agent... As a human it is ultra obvious to see."
+Built as `scripts/vision_review.py`: each door is rendered as a twelve-panel sheet (closed / mid-travel / fully
+open, from three fixed cameras plus hardware and mechanism close-ups) captioned with what the spec SAYS is there,
+so completeness is judgeable and "the rail is long enough shut but not open" becomes a difference between two
+panels. 122 doors were reviewed. **97 of them carry a finding, and every one of those doors passes every
+deterministic gate.**
+
+What it found, each confirmed by a re-check over all 1000 doors before being believed: roll-up curtains rising as
+rigid slabs out of their guides and into the sky (15/15); a 2 to 2.5 m hole in the wall above every sectional
+garage door (18/18); an automatic-swing operator arm that is a leaf-mounted decoration connected to nothing (15);
+24 benchmark doors whose task requires movement on a joint whose entire range is 2 mm, because a releasable lock
+was modelled by clamping the joint; **219 multi-leaf doors 2-8x too light**, because a per-leaf mass was used as
+the whole-door mass and split across the leaves (a four-wing revolving door at 110 kg instead of 440); 156
+declared extras with no geometry; 129 doors declaring an operator on both faces and drawing it on one; 10 of 10
+double-egress pairs swinging the same way.
+
+Two lessons about the method itself. Half the first-pass findings were the *renderer*, not the doors: a reflective
+material mirroring the skybox, black doors at 4 % reflectance rendering as silhouettes, invisible clear glazing, a
+camera that fitted the bounding sphere so "close-ups" were not close, and a "fully open" pose that left a bypass
+closet shut. Each cost a full investigation. And the false positives are worth as much as the findings: a louver
+door whose 23 slats per panel simply vanish at 400 px, and the original complaint's own family, where every barn
+track now keeps at least 120 mm of rail beyond the outermost roller.
+
 **Working with agents.** Seven parallel Fable agents in git worktrees is productive until the account's usage
 limit hits, which kills all of them at once and twice cost partial work. Rules that now hold: commit early and
 often on the agent branch; the main session owns `TASKS.md`, `README.md`, credentials and merges; agents write
