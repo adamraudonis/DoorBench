@@ -46,6 +46,7 @@ def evaluate(job):
         - 30 * (1 - sides)
         - 10 * (not physics_ok)
     )
+    score += report.get("posture", {}).get("upright_reward", 0.0)
     # Small regularizer favors a minor correction to the anatomical preshape.
     score -= 0.02 * float(np.sum(np.square(residual)))
     return {

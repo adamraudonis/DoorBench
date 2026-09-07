@@ -244,3 +244,84 @@ def test_actual_abrupt_arm_reorientation_is_rejected():
     result = audit.result()
     assert not result["passed"]
     assert any("arm angular speed" in v for v in result["violations"])
+
+
+def test_previous_backward_lean_is_rejected_by_upright_reward():
+    """Regression for the user's observed backward-leaning hold pose."""
+    import json
+
+    from scripts.physical_human.posture import UprightAudit
+
+    fixture = json.loads(
+        (
+            Path(__file__).parent
+            / "fixtures/physical_human/rejected_backward_lean.json"
+        ).read_text()
+    )
+    model, _ = prototype.make_model()
+    data = prototype.initial(model)
+    assert fixture["joint_names"] == [model.joint(i).name for i in range(model.njnt)]
+    neutral = UprightAudit(model)
+    neutral.observe(data, "reach")
+    assert neutral.result()["passed"]
+    data.qpos[:] = fixture["qpos"]
+    mujoco.mj_forward(model, data)
+    rejected = UprightAudit(model)
+    rejected.observe(data, "hold open")
+    result = rejected.result()
+    assert not result["passed"]
+    assert result["max_backward_lean_deg"] > 9
+    assert result["upright_reward"] < neutral.result()["upright_reward"]
+
+
+def test_portal_slice_handles_native_numpy_geom_types_and_rotated_shapes():
+    from scripts.physical_human.traversal import portal_interval
+
+    model = mujoco.MjModel.from_xml_string("""<mujoco><worldbody>
+      <geom name="pad" type="ellipsoid" size=".01 .02 .003" pos=".4 0 1"/>
+      <geom name="limb" type="capsule" size=".03 .2" pos=".4 0 1" quat=".70710678 0 .70710678 0"/>
+    </worldbody></mujoco>""")
+    data = mujoco.MjData(model)
+    mujoco.mj_forward(model, data)
+    assert portal_interval(model, data, model.geom("pad").id) == pytest.approx(
+        (0.39, 0.41)
+    )
+    assert portal_interval(model, data, model.geom("limb").id) == pytest.approx(
+        (0.17, 0.63)
+    )
+    assert portal_interval(model, data, model.geom("pad").id, 0.021) is None
+
+
+def test_full_sequence_opens_releases_and_traverses_with_an_upright_free_body(tmp_path):
+    """A continuous native run, including negative controls for opening causality."""
+    pytest.importorskip("osqp")
+    normal = prototype.run(tmp_path / "normal", sequence=True)
+    assert normal["quality_passed"], normal["quality_checks"]
+    assert normal["traversal"]["checks"]["whole_body_through_portal"]
+    assert normal["traversal"]["unintended_environment_impulses_ns"] == {}
+    assert normal["traversal"]["walking_hand_impulse_ns"] == 0
+    assert normal["traversal"]["final_whole_body_clearance_beyond_frame_m"] > 0.2
+    assert normal["posture"]["max_backward_lean_deg"] < 5
+    assert normal["foot_welds"] == normal["hand_welds"] == normal["door_actuators"] == 0
+    assert normal["source_files_sha256"]
+    assert {
+        "open hand",
+        "withdraw hand",
+        "lower arm",
+        "walk through",
+        "settle beyond door",
+    } <= {row["phase"] for row in normal["rows"]}
+    no_touch = prototype.run(
+        tmp_path / "no-touch", sequence=True, duration=6.3, no_touch=True
+    )
+    blocked = prototype.run(
+        tmp_path / "blocked", sequence=True, duration=6.3, latch_blocked=True
+    )
+    assert no_touch["max_door_deg"] < 0.01
+    assert blocked["max_door_deg"] < 1
+    assert no_touch["hand_contact_impulse_ns"] == 0
+    assert (
+        no_touch["source_files_sha256"]
+        == blocked["source_files_sha256"]
+        == normal["source_files_sha256"]
+    )

@@ -97,10 +97,14 @@ $('chart').innerHTML = `<polyline points="${points}" fill="none" stroke="#b18a49
 $('withtouch').textContent = checks.baseline.max_door_deg.toFixed(1) + '° opened';
 $('withouttouch').textContent = checks['no-touch'].max_door_deg.toFixed(2) + '°';
 $('blocked').textContent = checks.blocked.max_door_deg.toFixed(2) + '°';
-let playing = true, clock = 0, speed = 1, view = 'thumb', last = performance.now(), manualOrbit = false;
+$('backward-lean').textContent = checks.baseline.posture.max_backward_lean_deg.toFixed(2) + '°';
+$('traversal-status').textContent = checks.baseline.traversal?.passed ? 'Passed' : 'Not recorded';
+let playing = true, clock = 0, speed = 1, view = 'scene', last = performance.now(), manualOrbit = false;
 const poses = new THREE.Vector3(), quat = new THREE.Quaternion(), poseB = new THREE.Vector3(), quatB = new THREE.Quaternion();
 const gripIndex = data.geoms.findIndex(g => g.name === 'lever_grip');
-const phaseOrder = ['settle', 'reach', 'place around lever', 'grasp', 'settle grip', 'press lever', 'pull', 'hold open'];
+const handIndex = data.geoms.findIndex(g => g.name === 'hand_l_thirdmc_bone0');
+const pelvisIndex = data.geoms.findIndex(g => g.name === 'actor_geom_pelvis');
+const phaseStep = {'settle': 1, 'reach': 1, 'place around lever': 1, 'grasp': 2, 'settle grip': 2, 'press lever': 3, 'pull': 4, 'hold open': 5, 'let lever return': 6, 'open hand': 6, 'withdraw hand': 6, 'lower arm': 6, 'walk through': 7, 'settle beyond door': 8};
 function doorVisibility() {
   meshes.forEach((mesh, i) => {
     if (data.geoms[i].name !== 'door_leaf') return;
@@ -119,7 +123,7 @@ function setView(value) {
   meshes.forEach((mesh, i) => {
     const g = data.geoms[i];
     const actor = /^actor_|^hand_/.test(g.body);
-    mesh.visible = (view === 'scene' || !actor || g.name.startsWith('hand_l_')) && (g.group !== 4 || $('envelopes').checked);
+    mesh.visible = (view === 'scene' || !actor || g.name.startsWith('hand_l_')) && (g.group !== 4 || $('envelopes').checked) && (!g.name.startsWith('wall_') || $('walls').checked);
   });
   orbit.maxPolarAngle = view === 'scene' ? Math.PI * .49 : Math.PI * .85;
   $('hint').textContent = view === 'scene' ? 'Drag to orbit · Scroll to zoom' : 'Actual hand bones · Drag to inspect · Scroll to zoom';
@@ -128,6 +132,8 @@ function setView(value) {
     camera.position.set(-2.55, -3.7, 2.20);
     orbit.target.set(.48, -.35, 1.05);
   }
+  $('xray').checked = view !== 'scene';
+  doorVisibility();
   update(Math.min(clock, end));
   orbit.update();
 }
@@ -158,21 +164,31 @@ function update(time) {
   for (const [id, key, unit] of [['angle', 'door_deg', '°'], ['lever', 'lever_deg', '°'], ['latch', 'latch_mm', 'mm'], ['force', 'touch_n', 'N']]) {
     $(id).innerHTML = `${Math.max(0, row[key]).toFixed(1)}<small>${unit}</small>`;
   }
+  $('torso-tilt').innerHTML = `${data.torso_tilt_deg[k].toFixed(1)}<small>°</small>`;
   const grasp = row.grasp;
   $('thumb-force').innerHTML = `${grasp.thumb_normal_force_n.toFixed(1)}<small>N</small>`;
   const working = ['press lever', 'pull', 'hold open'].includes(row.phase);
   const sidesCorrect = grasp.four_fingers_together && grasp.thumb_on_opposite_side && grasp.thumb_below_grip;
-  $('side-status').textContent = working ? (sidesCorrect ? 'Four fingers together · Thumb below and opposite' : 'CHECK GRASP PLACEMENT') : 'The open hand approaches before the fingers close';
-  $('opposition-status').textContent = working ? `${grasp.opposed_loaded_fingers} / 4 fingers opposed to a loaded thumb` : 'Preparing the grasp';
+  const walking = ['walk through', 'settle beyond door'].includes(row.phase);
+  const releasing = ['let lever return', 'open hand', 'withdraw hand', 'lower arm'].includes(row.phase);
+  $('side-status').textContent = working ? (sidesCorrect ? 'Four fingers together · Thumb below and opposite' : 'CHECK GRASP PLACEMENT') : walking ? 'Hand released · Native foot contacts support the body' : releasing ? 'Lever returns · Fingers open · Arm withdraws clear of the leaf' : 'The open hand approaches before the fingers close';
+  $('opposition-status').textContent = working ? `${grasp.opposed_loaded_fingers} / 4 fingers opposed to a loaded thumb` : walking ? 'Upright torso · Through the doorway' : releasing ? 'Releasing the grasp' : 'Preparing the grasp';
   $('phase').textContent = row.phase === 'settle' ? 'Ready' : row.phase;
-  $('step').textContent = String(Math.max(1, phaseOrder.indexOf(row.phase))).padStart(2, '0');
+  $('step').textContent = String(phaseStep[row.phase] || 1).padStart(2, '0');
   $('time').value = time / end * 1000;
   $('clock').textContent = `${time.toFixed(2)} / ${end.toFixed(2)} s`;
   const x = time / end * 280;
   $('cursor').setAttribute('x1', x); $('cursor').setAttribute('x2', x);
   document.querySelectorAll('.chapters button').forEach(button => button.classList.toggle('current', button.dataset.phase === row.phase));
+  if (view === 'scene' && !manualOrbit) {
+    const progress = THREE.MathUtils.smoothstep(meshes[pelvisIndex].position.y, -.55, .4);
+    const azimuth = THREE.MathUtils.degToRad(135 + 90 * progress);
+    orbit.target.set(.58, -.03, 1.0);
+    const distance = 3.8 * Math.max(1, 1.1 / camera.aspect);
+    camera.position.set(.58 - distance * Math.cos(azimuth), -.03 - distance * Math.sin(azimuth), 1.84);
+  }
   if (view !== 'scene' && !manualOrbit) {
-    const at = meshes[gripIndex].position.clone().add(new THREE.Vector3(0, 0, .015));
+    const at = time > 8.4 && handIndex >= 0 ? meshes[handIndex].position.clone() : meshes[gripIndex].position.clone().add(new THREE.Vector3(0, 0, .015));
     const door = THREE.MathUtils.lerp(row.door_deg, rows[k + 1].door_deg, u);
     const azimuth = THREE.MathUtils.degToRad((view === 'thumb' ? 140 : 310) - door);
     const elevation = THREE.MathUtils.degToRad(view === 'thumb' ? -12 : -18);
@@ -193,6 +209,7 @@ document.querySelectorAll('[data-view]').forEach(button => { button.onclick = ()
 document.querySelectorAll('[data-time]').forEach(button => { button.onclick = () => seek(+button.dataset.time); });
 $('envelopes').onchange = () => setView(view);
 $('xray').onchange = doorVisibility;
+$('walls').onchange = () => setView(view);
 orbit.addEventListener('start', () => { manualOrbit = true; });
 window.addEventListener('keydown', event => {
   if (event.code === 'Space' && !['INPUT', 'BUTTON', 'SELECT'].includes(document.activeElement.tagName)) { event.preventDefault(); $('play').click(); }
@@ -203,7 +220,7 @@ new ResizeObserver(() => {
   camera.updateProjectionMatrix();
 }).observe(viewport);
 doorVisibility();
-setView('thumb');
+setView('scene');
 function frame(now) {
   const dt = Math.max(0, Math.min(.05, (now - last) / 1000));
   last = now;

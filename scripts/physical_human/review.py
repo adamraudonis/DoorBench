@@ -31,7 +31,7 @@ def render_review(directory):
         "grasp closes": int(np.argmin(abs(trace["time"] - 2.1))),
         "lever press": int(np.argmin(abs(trace["time"] - 2.75))),
         "middle of pull": int(np.argmin(abs(trace["time"] - 4.3))),
-        "final hold": len(rows) - 1,
+        "final hold": work[-1],
         "minimum finger clearance": min(
             work, key=lambda i: rows[i]["grasp"]["minimum_finger_side_clearance_mm"]
         ),
@@ -46,6 +46,13 @@ def render_review(directory):
             work, key=lambda i: rows[i].get("arm_angular_speed_rad_s", 0)
         ),
     }
+    if report.get("traversal"):
+        for label, time in [
+            ("hand opens", 7.3),
+            ("hand withdraws", 8.3),
+            ("arm lowered", 10.4),
+        ]:
+            chosen[label] = int(np.argmin(abs(trace["time"] - time)))
     output = directory / "visual-review"
     output.mkdir(exist_ok=True)
     rgba = model.geom_rgba.copy()
@@ -73,12 +80,27 @@ def render_review(directory):
                     model.geom(g).name or ""
                 ).startswith("hand_l_"):
                     model.geom_rgba[g, 3] = 0
+                if (model.geom(g).name or "").startswith("wall_"):
+                    model.geom_rgba[g, 3] = 0
             model.geom_rgba[model.geom("door_leaf").id, 3] = 0.08
             camera.lookat[:] = data.geom_xpos[model.geom("lever_grip").id] + [
                 0,
                 0,
                 0.015,
             ]
+            camera.distance = 0.24
+            if row["t"] > 7.6:
+                hand_points = data.geom_xpos[
+                    [
+                        g
+                        for g in range(model.ngeom)
+                        if (model.geom(g).name or "").startswith("hand_l_")
+                    ]
+                ]
+                camera.lookat[:] = (
+                    hand_points.min(axis=0) + hand_points.max(axis=0)
+                ) / 2
+                camera.distance = 0.40
             for view, azimuth, elevation in [
                 ("thumb", 140, -12),
                 ("fingers", 310, -18),
