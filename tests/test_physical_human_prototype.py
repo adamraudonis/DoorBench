@@ -1,4 +1,4 @@
-"""Native causal checks for the one-door prototype; no render-based assertions."""
+"""Native mechanics and grasp checks; visual review remains a separate step."""
 
 import importlib.util
 from pathlib import Path
@@ -49,6 +49,7 @@ def test_native_opening_requires_contact_and_released_latch(tmp_path):
     assert normal["rows"][-1]["door_deg"] > 40
     assert normal["kinematics"]["passed"], normal["kinematics"]["violations"]
     assert normal["kinematics"]["samples"] > 6000
+    assert normal["grasp"]["passed"], normal["grasp"]["violations"]
     assert normal["peak_total_hand_contact_n"] < 160
     # Saved state and measurement timestamps must describe the same native pose.
     model = mujoco.MjModel.from_xml_path(str(tmp_path / "final/scene.xml"))
@@ -136,3 +137,110 @@ def test_kinematic_audit_rejects_unphysical_wrist_bend_and_digit_speed():
     assert not result["passed"]
     assert any("wrist bend" in v for v in result["violations"])
     assert any("angular speed" in v for v in result["violations"])
+
+
+def test_published_v2_thumb_above_handle_is_rejected():
+    """The actual shipped failure must fail even while anatomical limits pass."""
+    import json
+
+    from scripts.physical_human.grasp import GraspAudit
+    from scripts.physical_human.kinematics import KinematicAudit
+
+    snapshot = json.loads(
+        (
+            Path(__file__).parent / "fixtures/physical_human/rejected_v2_grasp.json"
+        ).read_text()
+    )
+    model, _ = prototype.make_model()
+    assert snapshot["joint_names"] == [model.joint(i).name for i in range(model.njnt)]
+    data = mujoco.MjData(model)
+    anatomy = KinematicAudit(model)
+    grasp = GraspAudit(model)
+    for frame in snapshot["frames"]:
+        data.qpos[:] = frame["qpos"]
+        data.qvel[:] = frame["qvel"]
+        data.ctrl[:] = frame["ctrl"]
+        mujoco.mj_forward(model, data)
+        anatomy.observe(data)
+        achieved = grasp.observe(data, "pull")
+        assert not achieved["opposed_grasp"]
+        assert not achieved["thumb_below_grip"]
+        assert achieved["thumb_normal_force_n"] == 0
+    assert anatomy.result()["passed"]
+    assert not grasp.result()["passed"]
+
+
+def test_grasp_needs_opposite_loaded_contacts_on_the_usable_grip():
+    from scripts.physical_human.grasp import digit_for_geom, opposed_contacts
+
+    contacts = [
+        ("thumb", [-0.05, -0.0732, -0.0096], 1.0),
+        ("index", [-0.06, -0.0588, 0.0096], 2.0),
+        ("middle", [-0.08, -0.0588, 0.0096], 1.0),
+    ]
+    degrees, fingers, force = opposed_contacts(contacts)
+    assert degrees == pytest.approx(180)
+    assert fingers == 2
+    assert force == 1
+    assert opposed_contacts([contacts[0], contacts[1], contacts[1]])[1] == 1
+    # Thumb above (same side), floating, or gripping the stem cannot qualify.
+    for bad in [
+        ("thumb", [-0.05, -0.066, 0.012], 1.0),
+        ("thumb", [-0.05, -0.066, -0.012], 0.0),
+        ("thumb", [0, -0.066, -0.012], 1.0),
+    ]:
+        assert opposed_contacts([bad, *contacts[1:]])[0] == 0
+    assert digit_for_geom("hand_l_firstmc_contact0") is None
+    assert digit_for_geom("hand_l_distal_thumb_contact0") == "thumb"
+
+
+def test_correct_thumb_does_not_hide_one_finger_crossing_the_handle():
+    import json
+
+    from scripts.physical_human.grasp import GraspAudit
+    from scripts.physical_human.kinematics import KinematicAudit
+
+    snapshot = json.loads(
+        (
+            Path(__file__).parent
+            / "fixtures/physical_human/rejected_middle_finger.json"
+        ).read_text()
+    )
+    model, _ = prototype.make_model()
+    data = mujoco.MjData(model)
+    frame = snapshot["frames"][0]
+    data.qpos[:] = frame["qpos"]
+    data.qvel[:] = frame["qvel"]
+    data.ctrl[:] = frame["ctrl"]
+    mujoco.mj_forward(model, data)
+    anatomy = KinematicAudit(model)
+    anatomy.observe(data)
+    achieved = GraspAudit(model).measure(data)
+    assert anatomy.result()["passed"]
+    assert achieved["thumb_below_grip"]
+    assert achieved["thumb_on_opposite_side"]
+    assert not achieved["finger_side_checks"]["middle"]
+    assert not achieved["four_fingers_together"]
+    assert not achieved["opposed_grasp"]
+
+
+def test_actual_abrupt_arm_reorientation_is_rejected():
+    import json
+
+    from scripts.physical_human.kinematics import KinematicAudit
+
+    frame = json.loads(
+        (
+            Path(__file__).parent / "fixtures/physical_human/rejected_arm_jump.json"
+        ).read_text()
+    )
+    model, _ = prototype.make_model()
+    data = mujoco.MjData(model)
+    data.qpos[:] = frame["qpos"]
+    data.qvel[:] = frame["qvel"]
+    mujoco.mj_forward(model, data)
+    audit = KinematicAudit(model)
+    audit.observe(data, "pull")
+    result = audit.result()
+    assert not result["passed"]
+    assert any("arm angular speed" in v for v in result["violations"])

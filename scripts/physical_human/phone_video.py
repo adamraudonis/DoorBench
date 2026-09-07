@@ -1,7 +1,8 @@
-"""Export a portrait MP4 from saved native states: real time, then half speed.
+"""Export enlarged hand views of the exact native rollout as a portrait MP4.
 
-No new simulation or trajectory editing. Requires MuJoCo, Pillow, imageio and
-imageio-ffmpeg. H.264/yuv420p and faststart support phone/browser playback.
+The first pass shows the thumb side at real time; the second shows the finger
+side at half speed. A body inset and an axial projection give spatial context.
+No new simulation or trajectory editing. H.264/yuv420p with faststart.
 """
 
 import argparse
@@ -25,6 +26,46 @@ def font(size):
     return ImageFont.load_default(size=size)
 
 
+def cross_section(canvas, model, data, row):
+    """Projection along the handle axis; true landmark positions, not a diagrammed pose."""
+    draw = ImageDraw.Draw(canvas)
+    draw.rectangle((600, 1080, 1080, 1520), fill="#1c3036")
+    draw.text((630, 1096), "ALONG THE HANDLE", font=font(21), fill="#c5d4cf")
+    draw.text((630, 1129), "Near side       Far side", font=font(19), fill="#95b2b2")
+    if row["phase"] in ("settle", "reach", "place around lever"):
+        draw.text((710, 1300), "Approaching", font=font(25), fill="#95b2b2")
+        return
+    rotation = data.xmat[model.body("lever").id].reshape(3, 3)
+    origin = data.xpos[model.body("lever").id]
+    points = np.array(
+        [data.site_xpos[model.site(f"hand_keypoint_l_{i:02}").id] for i in range(21)]
+    )
+    local = (points - origin) @ rotation
+    # Keep the complete five-digit projection inside the panel throughout the
+    # grasp. Skipping a whole chain when one MCP leaves the panel hid fingers.
+    scale = 2600
+    yz = (local[:, 1:] - [-0.066, 0]) * scale
+    xy = np.c_[840 + yz[:, 0], 1340 - yz[:, 1]]
+    draw.line((840, 1180, 840, 1500), fill="#3a5155", width=2)
+    radius = 0.012 * scale
+    draw.ellipse(
+        (840 - radius, 1340 - radius, 840 + radius, 1340 + radius),
+        fill="#c79742",
+        outline="#e9c675",
+        width=3,
+    )
+    for ids, color in [([2, 3, 4], "#4bd3e9")] + [
+        (list(range(5 + 4 * n, 9 + 4 * n)), "#ebe8d1") for n in range(4)
+    ]:
+        line = [tuple(p) for p in xy[ids]]
+        if not all(600 < p[0] < 1078 and 1160 < p[1] < 1518 for p in line):
+            raise ValueError("A hand chain leaves the diagnostic projection panel")
+        draw.line(line, fill=color, width=5)
+        for x, y in line:
+            draw.ellipse((x - 4, y - 4, x + 4, y + 4), fill=color)
+    draw.text((630, 1485), "Native skeleton projection", font=font(19), fill="#95b2b2")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path)
@@ -32,14 +73,21 @@ def main():
     args = parser.parse_args()
     source = args.directory
     report = json.loads((source / "report.json").read_text())
-    if (
-        hashlib.sha256((source / "scene.xml").read_bytes()).hexdigest()
-        != report["scene_sha256"]
-    ):
+    scene_hash = hashlib.sha256((source / "scene.xml").read_bytes()).hexdigest()
+    trajectory_hash = hashlib.sha256(
+        (source / "trajectory.npz").read_bytes()
+    ).hexdigest()
+    if scene_hash != report["scene_sha256"]:
         raise ValueError("Scene does not match the recorded run")
-    if report.get("schema", "").endswith(".v2") and not report.get("quality_passed"):
+    if trajectory_hash != report["trajectory_sha256"]:
+        raise ValueError("Trajectory does not match the recorded run")
+    if (
+        not report.get("quality_passed")
+        or not report.get("grasp", {}).get("passed")
+        or report["grasp"].get("minimum_loaded_fingers") != 4
+    ):
         raise ValueError(
-            "Refusing to label a failed run as an inspection demonstration"
+            "Refusing to present a run without passing four-finger/opposing-thumb checks"
         )
     trace = np.load(source / "trajectory.npz")
     model = mujoco.MjModel.from_xml_path(str(source / "scene.xml"))
@@ -54,17 +102,15 @@ def main():
     options = mujoco.MjvOption()
     options.sitegroup[:] = 0
     options.geomgroup[4] = 0
-    whole = mujoco.Renderer(model, height=480, width=720)
-    hand = mujoco.Renderer(model, height=400, width=720)
+    whole = mujoco.Renderer(model, height=440, width=600)
+    hand = mujoco.Renderer(model, height=900, width=1080)
     wide = mujoco.MjvCamera()
-    wide.lookat[:] = [0.55, -0.3, 1.05]
-    wide.distance = 3.15
-    wide.azimuth = 115
+    wide.lookat[:] = [0.52, -0.37, 1.02]
+    wide.distance = 3.2
+    wide.azimuth = 135
     wide.elevation = -12
     detail = mujoco.MjvCamera()
     detail.distance = 0.24
-    detail.azimuth = 105
-    detail.elevation = -38
     args.out.parent.mkdir(parents=True, exist_ok=True)
     writer = imageio.get_writer(
         args.out,
@@ -77,7 +123,10 @@ def main():
     )
     frames = 0
     try:
-        for speed in [1.0, 0.5]:
+        for speed, azimuth, elevation, label in [
+            (1.0, 140, -12, "THUMB SIDE"),
+            (0.5, 310, -18, "FOUR-FINGER SIDE"),
+        ]:
             duration = float(trace["time"][-1] - trace["time"][0])
             for frame in range(round(duration / speed * 25) + 1):
                 time = trace["time"][0] + frame / 25 * speed
@@ -87,97 +136,82 @@ def main():
                 row = report["rows"][k]
                 model.geom_rgba[:] = original_rgba
                 whole.update_scene(data, camera=wide, scene_option=options)
-                top = whole.render().copy()
+                body_image = whole.render().copy()
                 model.geom_rgba[hidden, 3] = 0
-                detail.lookat[:] = data.site_xpos[model.site("hand_keypoint_l_09").id]
-                detail.azimuth = (105 if speed == 1 else 225) - row["door_deg"]
-                detail.elevation = -38 if speed == 1 else -30
-                if speed == 0.5:
-                    model.geom_rgba[model.geom("door_leaf").id, 3] = 0.13
+                model.geom_rgba[model.geom("door_leaf").id, 3] = 0.08
+                detail.lookat[:] = data.geom_xpos[model.geom("lever_grip").id] + [
+                    0,
+                    0,
+                    0.015,
+                ]
+                detail.azimuth = azimuth - row["door_deg"]
+                detail.elevation = elevation
                 hand.update_scene(data, camera=detail, scene_option=options)
-                for contact in report["contacts"][k]:
-                    if hand.scene.ngeom >= hand.scene.maxgeom:
-                        break
-                    geom = hand.scene.geoms[hand.scene.ngeom]
-                    mujoco.mjv_initGeom(
-                        geom,
-                        mujoco.mjtGeom.mjGEOM_SPHERE,
-                        np.array([0.0035] * 3),
-                        np.array(contact[:3]),
-                        np.eye(3).ravel(),
-                        np.array([1.0, 0.65, 0.1, 1.0]),
-                    )
-                    hand.scene.ngeom += 1
-                lower = hand.render().copy()
-                canvas = Image.new("RGB", (720, 1280), "#142328")
-                canvas.paste(Image.fromarray(top), (0, 100))
-                canvas.paste(Image.fromarray(lower), (0, 630))
+                hand.scene.flags[mujoco.mjtRndFlag.mjRND_SHADOW] = 0
+                hand_image = hand.render().copy()
+                canvas = Image.new("RGB", (1080, 1920), "#142328")
+                canvas.paste(Image.fromarray(hand_image), (0, 112))
+                canvas.paste(Image.fromarray(body_image), (0, 1080))
+                cross_section(canvas, model, data, row)
                 draw = ImageDraw.Draw(canvas)
                 draw.text(
-                    (28, 19),
-                    "DoorBench / Anatomical hand",
-                    font=font(29),
+                    (36, 20),
+                    "DoorBench / Opposing grasp",
+                    font=font(39),
                     fill="#f0f0e6",
                 )
                 draw.text(
-                    (28, 59),
-                    f"{'REAL TIME' if speed == 1 else 'HALF SPEED'}  ·  {row['phase'].upper()}  ·  {row['t']:.2f} s",
-                    font=font(20),
+                    (36, 72),
+                    f"{label} · {'REAL TIME' if speed == 1 else 'HALF SPEED'} · {row['t']:.2f} s",
+                    font=font(25),
                     fill="#9fc5bf",
                 )
                 draw.text(
-                    (28, 591),
-                    "SKELETON / surface contact dots"
-                    if speed == 1
-                    else "THUMB VIEW / door ghosted for inspection",
-                    font=font(22),
-                    fill="#e6c68b",
+                    (36, 1030),
+                    "CYAN = THUMB     IVORY = FOUR FINGERS     GOLD = HANDLE",
+                    font=font(24),
+                    fill="#dce6da",
                 )
+                grasp = row["grasp"]
                 metrics = [
-                    ("DOOR", f"{max(0, row['door_deg']):.1f}°"),
-                    ("LATCH", f"{max(0, row['latch_mm']):.1f} mm"),
-                    ("HAND CONTACT", f"{row['touch_n']:.1f} N"),
+                    ("THUMB CONTACT", f"{grasp['thumb_normal_force_n']:.1f} N"),
+                    ("FINGERS OPPOSING", f"{grasp['opposed_loaded_fingers']} / 4"),
+                    ("DOOR OPENING", f"{max(0, row['door_deg']):.1f}°"),
                 ]
-                for j, (label, value) in enumerate(metrics):
-                    x = 28 + j * 236
-                    draw.text((x, 1056), label, font=font(16), fill="#9eb2ad")
-                    draw.text((x, 1084), value, font=font(33), fill="#f3ead9")
-                draw.line((28, 1140, 692, 1140), fill="#38504e", width=1)
-                angle_names = [
-                    "hand_l_cmc_abduction",
-                    "hand_l_mp_flexion",
-                    "hand_l_ip_flexion",
-                ]
-                angles = [
-                    np.rad2deg(data.qpos[model.joint(n).qposadr[0]])
-                    for n in angle_names
-                ]
+                for j, (name, value) in enumerate(metrics):
+                    x = 36 + j * 352
+                    draw.text((x, 1562), name, font=font(22), fill="#9eb2ad")
+                    draw.text(
+                        (x, 1598),
+                        value,
+                        font=font(48),
+                        fill="#4bd3e9" if j == 0 else "#f3ead9",
+                    )
+                draw.line((36, 1670, 1044, 1670), fill="#38504e", width=2)
                 draw.text(
-                    (28, 1156),
-                    f"Thumb: CMC {angles[0]:.1f}°  ·  MCP {angles[1]:.1f}°  ·  IP {angles[2]:.1f}°",
-                    font=font(21),
-                    fill="#e6c68b",
+                    (36, 1698), row["phase"].upper(), font=font(31), fill="#e6c68b"
                 )
-                draw.text(
-                    (28, 1190),
-                    "MyoHand geometry · 21 COCO-WholeBody landmarks per hand",
-                    font=font(18),
-                    fill="#c4d1c9",
+                working = row["phase"] in ("press lever", "pull", "hold open")
+                status = (
+                    "Four fingers together; thumb underneath on the opposite side"
+                    if working
+                    else "The open hand approaches before the fingers close"
                 )
+                draw.text((36, 1743), status, font=font(27), fill="#c4d1c9")
                 draw.text(
-                    (28, 1220),
-                    "Opening + hold. Release / traversal are not validated.",
-                    font=font(18),
+                    (36, 1810),
+                    "Recorded MuJoCo physics · No door motor or hand weld",
+                    font=font(25),
                     fill="#90a8a1",
                 )
                 draw.text(
-                    (28, 1249),
-                    "Recorded MuJoCo physics · No door motor or hand weld",
-                    font=font(18),
+                    (36, 1851),
+                    "Synthetic opening + hold reference · Not human motion capture",
+                    font=font(24),
                     fill="#90a8a1",
                 )
                 writer.append_data(np.asarray(canvas))
-                if frame == round(3.7 / speed * 25) and speed == 0.5:
+                if speed == 1 and frame == round(3.7 * 25):
                     canvas.save(args.out.with_suffix(".jpg"))
                 frames += 1
     finally:
@@ -190,12 +224,11 @@ def main():
         "fps": 25,
         "duration_s": frames / 25,
         "speeds": [1, 0.5],
-        "resolution": [720, 1280],
-        "scene_sha256": report["scene_sha256"],
-        "trajectory_sha256": hashlib.sha256(
-            (source / "trajectory.npz").read_bytes()
-        ).hexdigest(),
+        "resolution": [1080, 1920],
+        "scene_sha256": scene_hash,
+        "trajectory_sha256": trajectory_hash,
         "video_sha256": hashlib.sha256(args.out.read_bytes()).hexdigest(),
+        "grasp_acceptance": report["grasp"],
     }
     args.out.with_suffix(".json").write_text(json.dumps(receipt, indent=2))
     print(json.dumps(receipt))

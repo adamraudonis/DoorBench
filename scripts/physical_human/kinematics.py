@@ -4,6 +4,7 @@ The bounds are prototype acceptance criteria, not population-wide clinical
 limits. Joint ranges come from the scene; hand ranges retain MyoHand values.
 """
 
+import mujoco
 import numpy as np
 
 
@@ -43,8 +44,13 @@ class KinematicAudit:
         self.thumb_mcp_bend = np.zeros(2)
         self.thumb_ip_bend = np.zeros(2)
         self.frames = 0
+        self.arm_names = ["actor_shoulder_l", "actor_elbow_l", "actor_wrist_l"]
+        self.arm_bodies = [model.body(n).id for n in self.arm_names]
+        self.max_work_arm_angular_speed = np.zeros(3)
+        self.max_work_arm_linear_speed = np.zeros(3)
+        self.current_arm_angular_speed = 0.0
 
-    def observe(self, data):
+    def observe(self, data, phase=None):
         q = data.qpos[self.qids]
         self.minimum = np.minimum(self.minimum, q)
         self.maximum = np.maximum(self.maximum, q)
@@ -61,6 +67,26 @@ class KinematicAudit:
             self.thumb_ip_bend, angle(pts[:, 3] - pts[:, 2], pts[:, 4] - pts[:, 3])
         )
         self.frames += 1
+        self.current_arm_angular_speed = 0.0
+        if phase in ("press lever", "pull", "hold open"):
+            for i, body in enumerate(self.arm_bodies):
+                velocity = np.zeros(6)
+                mujoco.mj_objectVelocity(
+                    self.model, data, mujoco.mjtObj.mjOBJ_BODY, body, velocity, 0
+                )
+                angular, linear = (
+                    np.linalg.norm(velocity[:3]),
+                    np.linalg.norm(velocity[3:]),
+                )
+                self.max_work_arm_angular_speed[i] = max(
+                    self.max_work_arm_angular_speed[i], angular
+                )
+                self.max_work_arm_linear_speed[i] = max(
+                    self.max_work_arm_linear_speed[i], linear
+                )
+                self.current_arm_angular_speed = max(
+                    self.current_arm_angular_speed, angular
+                )
 
     def result(self):
         excess = np.maximum(
@@ -84,10 +110,22 @@ class KinematicAudit:
                 violations.append(f"{side} thumb IP bend exceeded 85 degrees")
         if np.max(self.speed[fingers]) > 15:
             violations.append("Digit angular speed exceeded 15 rad/s")
+        if np.max(self.max_work_arm_angular_speed) > 4:
+            violations.append(
+                "Working arm angular speed exceeded 4 rad/s; inspect for an IK branch jump"
+            )
+        if np.max(self.max_work_arm_linear_speed) > 1:
+            violations.append("Working arm linear speed exceeded 1 m/s")
         return {
             "passed": not violations,
             "violations": violations,
             "samples": self.frames,
+            "max_work_arm_angular_speed_rad_s": dict(
+                zip(self.arm_names, self.max_work_arm_angular_speed.tolist())
+            ),
+            "max_work_arm_linear_speed_m_s": dict(
+                zip(self.arm_names, self.max_work_arm_linear_speed.tolist())
+            ),
             "joint_limit_tolerance_deg": 0.5,
             "max_joint_limit_excess_deg": float(np.rad2deg(excess.max())),
             "max_digit_speed_rad_s": float(np.max(self.speed[fingers])),

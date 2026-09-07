@@ -1,88 +1,131 @@
-# Anatomical hand: one-door inspection prototype
+# One-door physical hand reference
 
-An articulated stick figure pre-shapes its hand, grasps the lever, unlatches a
-passive door, pulls it open and holds it. **This is opening and hold only.**
-Release, traversal and natural human motion remain unvalidated. Attempts at
-withdrawal still produced snagging and excessive forces; they are not included
-in the accepted demonstration.
+An articulated stick figure forms an open hand, places it around a lever,
+closes **four fingers on one side and the thumb underneath on the other**,
+presses the lever, pulls the passive door open and holds it.
 
-[Phone video](https://github.com/adamraudonis/DoorBench/releases/download/anatomical-hand-20260907/doorbench-anatomical-hand-phone.mp4)
-· [Local orbitable viewer](http://127.0.0.1:5184)
-· [Exact measurements and checks](review/physical-human/prototype-checks.json)
+**This is a synthetic opening-and-hold prototype.** The saved simulator states
+and contacts are reproducible evidence of this engineered motion. They are not
+captured human ground truth or a validated biomechanical model.
 
-## What changed
+[Watch the enlarged phone video](https://github.com/adamraudonis/DoorBench/releases/download/opposed-grasp-20260907/doorbench-opposed-grasp-phone.mp4)
+· [Local viewer](http://127.0.0.1:5184)
+· [Recorded checks](review/physical-human/prototype-checks.json)
+· [Visual review](review/physical-human/visual-review.json)
 
-The original two-link thumb and rectangular palm were inadequate. The hand now
-uses anatomical joint offsets, axes and limits from
-[MyoHand](https://github.com/MyoHub/myo_sim/blob/eb327acbae0fad12279495040607f5235d962328/myo_sim/models/arm/README_hand.md):
-five metacarpals, distinct finger proportions, a thumb metacarpal plus two
-phalanges, and two thumb CMC axes. There are **20 digit degrees of freedom per
-hand**, two wrist axes and separate forearm rotation. The three-axis twisting
-wrist was removed.
+| Thumb side — cyan thumb underneath | Finger side — four fingers together |
+|---|---|
+| ![Actual hand while pressing the lever](review/physical-human/thumb-side.png) | ![Actual hand holding the open door](review/physical-human/finger-side.png) |
 
-The **21 landmarks per hand** follow the
-[COCO-WholeBody layout used by Sapiens](https://github.com/facebookresearch/sapiens/blob/main/pose/configs/_base_/datasets/coco_wholebody.py).
-These are source-model joint centres and authored tip landmarks, not predictions
-from Sapiens or captured human motion. Bone rods show the kinematic skeleton,
-not anatomical bone surfaces. [Source, modifications and Apache-2.0 license](../scripts/physical_human/anatomy/README.md).
-
-Real lever-grip photographs were inspected for the diagonal approach, finger
-pre-shape and thumb placement. They are visual guides, not metric 3D ground
-truth; links are in the provenance document. The working hand approaches above
-the lever so the thumb base clears it. The standing opening angle is limited to
-keep the wrist in a more comfortable posture.
+These enlarged views show the actual native skeleton. The thicker contact
+envelopes are hidden to expose the joints; their surface contact remains active.
+The video includes real-time and half-speed passes, a whole-body inset, and an
+axial projection of all five digits.
 
 ## Recorded result
 
-Native MuJoCo **3.12.0**, CPU, **2026-09-07 01:36:38–01:36:44 UTC**.
+Native MuJoCo **3.12.0**, CPU, **September 7, 2026, 03:44:34–03:44:42 UTC**.
+All three cases use the same controller and rig revision.
 
-| Case | Maximum opening |
+| Case | Maximum door opening |
 |---|---:|
-| Physical hand | **43.41°** |
+| Physical hand | **43.72°** |
 | Hand contact disabled | **0.00°** |
-| Latch blocked | **0.36°** of strike clearance |
+| Latch mechanically blocked | **0.36°** of strike clearance |
 
-All nine opening/hold acceptance checks passed. Maximum foot drift was
-**0.23 mm**, hand/environment penetration **0.64 mm**, and skeleton self-contact
-penetration **0.14 mm**. No non-hand body contact moved the door. Peak summed
-hand contact was **91.5 N**; this is a simulator measurement, not a validated
-human force profile.
+| Grasp check at every 1 ms working step | Press | Pull | Hold |
+|---|---:|---:|---:|
+| All four fingers together; thumb below and opposite | **100%** | **100%** | **100%** |
+| All four loaded fingers opposed to a loaded thumb | **100%** | **99.88%** | **100%** |
 
-| Actual left-thumb angle | Observed range | Model limits |
-|---|---:|---:|
-| CMC flexion | −5.43 to −0.44° | −44.69 to +40.11° |
-| CMC abduction | −12.87 to +10.94° | −28.65 to +44.69° |
-| MCP flexion | −42.51 to −3.39° | −45.00 to +40.00° |
-| IP flexion | −21.57 to −2.45° | −75.00 to +25.00° |
+There are three isolated 1 ms pull steps without all four qualifying finger
+contacts. The thumb stays loaded throughout. Contact must act on the usable
+lever grip: a palm, thumb metacarpal, stem, or rose contact cannot qualify.
+Each finger must oppose a thumb contact by at least **120°** around the lever,
+with at least **0.05 N** of normal force.
 
-The audit checks **achieved poses at every 1 ms step**, not just controller
-commands. Maximum joint-limit excess across the actor was **0.00063°**, well
-below the **0.5° numerical tolerance**. Maximum geometric wrist bend was
-**41.13°**; the prototype rejection threshold is **55°**. These thresholds are
-engineering acceptance criteria, not population-wide medical limits.
+All **10 physics/grasp checks** and **nine regression tests** pass. Maximum
+hand/environment penetration is **0.465 mm**, skeleton self-penetration
+**0.054 mm**, foot drift **1.82 mm**, and summed hand contact **27.45 N**.
+No non-hand body force moves the door, and there are no simulator warnings.
+The contact sum includes friction components and is not net pull force.
 
-Tests also deliberately inject an overextended thumb, an excessive wrist bend
-and a fast digit rotation, and require rejection. A mirrored-pose test checks
-all 21 landmarks across several articulated poses; this catches incorrectly
-reflected hinge axes. The native causal tests require contact and an unblocked
-latch for opening. **Five tests pass.**
+The largest achieved wrist bend is **31.75°**. During pressing, pulling and
+holding, peak wrist angular speed is **1.89 rad/s**, and the largest measured
+arm-segment linear speed is **0.429 m/s**. The audit rejects joint-limit excess,
+excessive wrist/thumb bending, fast digit motion and abrupt arm motion.
+These thresholds are engineering checks, not population-wide anatomical or
+human-style certification. Full angle ranges and provenance hashes are in the
+[record](review/physical-human/prototype-checks.json).
 
-## Scope and physical model
+## What was missing, and how this version works
 
-- Custom 0.81 × 2.07 m, 19 kg lever door; not a catalogue-wide human baseline.
-- Floating pelvis and native floor contacts. No foot anchors, hand welds, door
-  actuator, mocap body, external root force or mechanism-pose writes.
-- Torque-limited servos and bounded arm IK follow authored targets. Finger
-  pre-shaping reduces the collision that occurred with a fully straight hand.
-- Original tissue envelopes contact the environment. Thinner bone capsules
-  enforce hand/hand and hand/body separation. Skin deformation, finger-to-finger
-  tissue pressure, muscles and calibrated inertias are not modeled.
-- 48 native touch sensors. UI force readings sum hand/door contact-pair magnitudes;
-  they are not resultant pull force. Raw touch sensors can count self-contact.
+**The earlier v2 recording is rejected.** Its door opened and its joint checks
+passed, but the thumb never contacted the lever. Those checks did not establish
+a valid grasp. The exact rejected state is now a regression fixture. Separate
+fixtures reject a crossed middle finger and an abrupt arm reorientation.
 
-An anatomical skeleton and passing checks do **not** establish human ground
-truth. Motion style, release, locomotion, robustness and biomechanical calibration
-still need validation before retargeting or benchmarking this as a human baseline.
+The replacement combines three parts:
+
+1. **A visually informed approach.** Full-screen inspection of
+   [Nazar Matveichev's door-opening footage](https://www.pexels.com/video/person-opening-and-closing-the-door-2108274/)
+   showed a preformed open hand, an opposing thumb beneath the lever, and a grip
+   retained through the press and pull. This guided the approach and inspection
+   criteria; no 3D motion or force was inferred from the video.
+2. **A contact-aware physical controller.** The wrist follows the *observed*
+   handle pose and floating body. Arm IK is regularized against its previous
+   solution, while bounded finger and arm motor torques load the passive handle.
+   Reference-velocity feedforward removes artificial braking from the servos.
+   A compliant 10 ms pad-contact response reduces contact chatter without hiding
+   penetration. Door and lever positions are never prescribed during the run.
+3. **Reward-based finger refinement.** A cross-entropy policy search evaluated
+   **64 complete native rollouts**, optimizing eight small finger MCP equilibrium
+   offsets. The reward favors all five opposing contacts throughout each working
+   phase and penalizes side violations and failed physics checks. The selected
+   offsets interpolate smoothly with observed door opening. This is bounded
+   sample-based policy optimization, not PPO or a learned full-body motion model.
+   [Policy](../scripts/physical_human/grip_policy.json) ·
+   [Search record](review/physical-human/grip-search.json).
+
+The policy was selected before the final arm-continuity and pad-compliance
+corrections. The final combined controller was then run and verified separately;
+its metrics are the table above, not the earlier search score.
+
+[WristMimic](https://wongyun-yu.github.io/wristmimic/) offers a relevant research
+direction: separate body/wrist guidance from learning the finger interaction.
+[ParaHome](https://jlogkim.github.io/parahome/) and
+[GRAB](https://github.com/otaheri/GRAB) illustrate the value of measured body,
+hand and object interaction data for a future human-motion reference. Their
+code, datasets and policies were **not** used in this demonstration.
+
+## Anatomy and scope
+
+- Custom **0.81 × 2.07 m, 19 kg** spring-latch lever door, separate from the
+  catalogue-wide baseline. Standing opening and hold only.
+- MyoHand-derived geometry, axes and limits: five metacarpals, distinct finger
+  proportions, two thumb-base axes, **20 digit DoF per hand**, two wrist axes
+  and separate forearm rotation.
+- **21 landmarks per hand** in the COCO-WholeBody order used by Sapiens. No
+  Sapiens inference or human motion capture.
+- Floating pelvis and floor contact; no foot anchors, hand weld, door actuator,
+  mocap body, external root force or mechanism-pose writes.
+- Approximate masses and bounded joint servos. Compliant collision envelopes
+  contact the environment; thin bone capsules enforce skeleton separation.
+  Skin deformation, pressure between adjacent fingers, muscles and calibrated
+  human inertias are not modeled.
+- 48 native touch sensors. Grasp acceptance uses qualifying native contact
+  pairs, rather than raw touch sensors that may include self-contact.
+
+The hand parameters come from
+[MyoHub/myo_sim](https://github.com/MyoHub/myo_sim) at
+`eb327acbae0fad12279495040607f5235d962328`.
+[Source, modifications and Apache-2.0 license](../scripts/physical_human/anatomy/README.md).
+
+The enlarged review covers approach, closure, press, pull, hold and automatically
+selected difficult frames. This establishes a much stronger grasp inspection
+than the rejected thumbnail review. Human naturalness remains a visual judgment;
+release, traversal, other doors, robustness to perturbations and retargeting
+are outside this recording's validation.
 
 ## Reproduce
 
@@ -94,10 +137,36 @@ python scripts/physical_human/prototype.py --out out/physical-human/blocked --la
 python -m pytest tests/test_physical_human_prototype.py -q
 ```
 
-No GPU is required. `--anchors` is a labeled debugging option, off in the
-accepted run. The blocked and no-contact runs are diagnostic negative controls.
+The checked-in finger policy is loaded automatically. No GPU is required.
+`--anchors` is an explicitly labeled debugging option and is off in this run.
+Loading the XML alone does not run the controller.
 
-Install the viewer dependencies, package and serve the evidence:
+To experiment with the contact reward on the current controller:
+
+```sh
+python scripts/physical_human/search_grip.py \
+  --out out/grip-search --seed 701 --generations 4 --population 16 --workers 4
+```
+
+This writes candidates and scores without replacing the checked-in policy.
+The current controller includes the later fixes, so a fresh search is a new
+experiment; replaying the saved policy reproduces the reported demonstration.
+
+Generate enlarged inspection images and the phone video:
+
+```sh
+python scripts/physical_human/review.py out/physical-human/normal
+python scripts/physical_human/phone_video.py out/physical-human/normal \
+  --out out/physical-human/doorbench-opposed-grasp-phone.mp4
+```
+
+Pillow, imageio and imageio-ffmpeg are required. The video exporter verifies the
+scene and trajectory hashes, refuses failed four-finger/opposing-thumb runs,
+and writes H.264/yuv420p with faststart, a poster and a SHA-256 receipt.
+The visual-review script also renders rejected experiments for diagnosis and
+never automatically approves appearance.
+
+Install viewer dependencies, package and serve the evidence:
 
 ```sh
 cd viewer
@@ -108,25 +177,13 @@ python scripts/physical_human/export.py out/physical-human/normal \
 python -m http.server 5184 --bind 127.0.0.1 --directory out/physical-human-demo
 ```
 
-The viewer offers bone-only and translucent-contact-envelope views, a ghosted
-door, actual thumb/wrist angle readings, surface contact dots, force by digit,
-orbit controls and slow motion. It replays native states; it does not simulate
-physics in the browser. Reset the scene to its `initial` keyframe and run the
-controller to reproduce the rollout; loading XML alone does not run it.
+The export requires matching successful causal checks. The viewer provides
+separate enlarged thumb/finger cameras, whole-body view, contact envelopes,
+contact points, actual angles, per-digit forces and slow motion. It interpolates
+saved native states and does not simulate physics in the browser.
 
 `trajectory.npz` contains 50 Hz timestamps, qpos, qvel, motor targets/forces,
 touch sensors and `hand_keypoints[frame, left/right, 21, world_XYZ_metres]`.
-The report includes full-rate extrema, joint-angle ranges, warnings, provenance
-and checks. Narrow 1 kHz force peaks can exceed the values in 50 Hz replay rows.
-
-Create the phone video (Pillow, imageio and imageio-ffmpeg required):
-
-```sh
-python scripts/physical_human/phone_video.py out/physical-human/normal \
-  --out out/physical-human/doorbench-anatomical-hand-phone.mp4
-```
-
-It shows the same six-second native recording at real time and half speed.
-The second pass ghosts the door and changes the camera to expose the thumb.
-It writes H.264/yuv420p with faststart, a JPEG poster and a SHA-256 receipt,
-and refuses v2 runs that fail the opening/hold acceptance checks.
+The audit runs at **1 kHz**; narrow force peaks or contact gaps may fall between
+50 Hz replay rows. The report includes full-rate extrema, phase contact coverage,
+source hashes and exact run times.
