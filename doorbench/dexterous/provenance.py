@@ -37,6 +37,7 @@ def capture(root,output,configuration,*,timing='before_training'):
     gpu=subprocess.run(['nvidia-smi','--query-gpu=name,driver_version,memory.total','--format=csv,noheader'],capture_output=True,text=True) if __import__('shutil').which('nvidia-smi') else None
     inputs={}
     for name in ('robot','door','upstream'):
+        if not configuration.get(name):continue
         p=Path(configuration[name])
         if name=='robot':inputs[name]={'sha256':sha256(p),'audit':json.loads(p.with_suffix('.audit.json').read_text())}
         elif name=='door':inputs[name]={f.name:sha256(f) for f in p.glob('*') if f.suffix in ('.xml','.json')}
@@ -46,6 +47,12 @@ def capture(root,output,configuration,*,timing='before_training'):
                 {name:sha256(p/'data/reach_two_hands'/name) for name in ('torch_model.pt','mean.npy','var.npy')}}
     if configuration.get('checkpoint'):
         inputs['resume_checkpoint']={'sha256':sha256(configuration['checkpoint'])}
+    for name in ('seed_pose','initial_seed','preload_json'):
+        if configuration.get(name):
+            source=Path(configuration[name]);destination=output/'inputs'/source.name
+            destination.parent.mkdir(exist_ok=True)
+            destination.write_bytes(source.read_bytes())
+            inputs[name]={'sha256':sha256(source),'bundled_path':str(destination.relative_to(output))}
     report={'schema_version':'doorbench.run-manifest.v1','captured_at_unix':time.time(),
             'capture_timing':timing,'source_commit':git('rev-parse','HEAD'),
             'source_hashes':hashes,'source_archive_sha256':sha256(output/'source.tar.gz'),

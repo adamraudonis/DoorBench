@@ -15,14 +15,22 @@ def main():
         p.add_argument('--'+name,required=True)
     p.add_argument('--seed',type=int,default=10000)
     p.add_argument('--distance',type=float,default=.25)
+    p.add_argument('--view',choices=('body','hand'),default='body')
     a=p.parse_args();out=Path(a.output);out.parent.mkdir(parents=True,exist_ok=True)
     env=ReachTeacherEnv(a.door,a.robot,a.upstream,distance=a.distance)
     env.reset(seed=a.seed);sim=env.sim
     trajectory=np.load(a.trajectory);poses=trajectory['qpos']
     if poses.shape[1]!=sim.m.nq:raise ValueError('Trajectory and model differ')
+    sim.d.qpos[:]=poses[0];mujoco.mj_forward(sim.m,sim.d)
     options=mujoco.MjvOption();options.sitegroup[:]=0
     camera=mujoco.MjvCamera();camera.distance=3.1;camera.azimuth=145;camera.elevation=-12
     camera.lookat[:]=sim.d.xpos[sim.pelvis]+[0,.3,-.1]
+    if a.view=='hand':
+        camera.lookat[:]=sim.d.geom_xpos[sim.m.geom('leaf_handle_lever_col_n').id]
+        camera.distance=.48;camera.azimuth=90;camera.elevation=-12
+        for geom in range(sim.m.ngeom):
+            if sim.m.geom(geom).name.startswith('leaf_handle'):
+                sim.m.geom_matid[geom]=-1;sim.m.geom_rgba[geom]=[.83,.52,.1,1.]
     try:
         with mujoco.Renderer(sim.m,height=720,width=960) as renderer:
             with imageio.get_writer(out,fps=25,codec='libx264',quality=8) as writer:

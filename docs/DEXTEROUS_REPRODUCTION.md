@@ -2,7 +2,7 @@
 
 This is the migration record for the simulated dexterous-humanoid project. The current executable training adapter is **native MuJoCo, H1 with two Shadow Hands, privileged body reaching**. It has not solved a door and it is not an Isaac Sim implementation. A different robot requires a new embodiment adapter and fresh validation; a checkpoint cannot simply be renamed or loaded into it.
 
-The project objective and acceptance protocol are in [the approved plan](DEXTEROUS_PLAN.md). Current results and limitations are in [the execution record](DEXTEROUS_HUMANOID.md).
+The project objective and acceptance protocol are in [the approved plan](DEXTEROUS_PLAN.md). Current results and limitations are in [the execution record](DEXTEROUS_HUMANOID.md) and [experiment ledger](DEXTEROUS_EXPERIMENTS.md).
 
 ## Reproduction contract
 
@@ -59,6 +59,29 @@ python scripts/dexterous/evaluate_reach.py --upstream out/dexterous/upstream/hum
 - Evaluation reports, per-trial states/controls, wide videos and hand close-ups. Checkpoint success requires runtime evidence, not a replay alone.
 
 For stronger reproducibility on the second cluster, retain its container digest, scheduler job specification, driver/CUDA versions, CPU allocation, GPU topology, storage paths and distributed-process layout. Do not archive credentials or process environments. Matching seeds does not guarantee bitwise identity across devices or physics engines; compare behavior and tolerance-based physical metrics.
+
+## Initialized tactile grasp experiment
+
+This is a separate skill, not a complete opening policy. The body is free in gravity, but its arm/body position-motor targets are held while the hand learns contact correction. The input pose starts at the handle. Its 438 actor inputs are 24 right-hand joint positions, 24 velocities, 128 three-axis taxels and six previous actions. Six residual actions adjust five thumb targets and a shared four-finger curl. Exact object state and privileged contact identities are used only by the reward/audit. This small action adapter must be replaced or expanded for general manipulation.
+
+Retain `inputs/pose.npz` and `inputs/best.json` from the training manifest bundle. These are optimized inputs, not files recreated by installing the repository. The selected seed was fitted with bounded IK and a collision penalty; the preload was selected by a short native-physics search. Re-running those optimizers may find a different candidate and constitutes a new experiment. The exact input hashes define a repeat of the original run.
+
+With those inputs mounted on the destination, run:
+
+```bash
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python scripts/dexterous/train_grasp.py --robot out/dexterous/robot/h1-shadow.xml --door out/dexterous/assets/doors/db0055_swing_single --seed-pose /mounted/run/inputs/pose.npz --preload-json /mounted/run/inputs/best.json --output out/dexterous/training/grasp-repeat --envs 6 --steps 200000 --device cpu
+python scripts/dexterous/evaluate_grasp.py --robot out/dexterous/robot/h1-shadow.xml --door out/dexterous/assets/doors/db0055_swing_single --seed-pose /mounted/run/inputs/pose.npz --preload-json /mounted/run/inputs/best.json --checkpoint out/dexterous/training/grasp-repeat/final.zip --output out/dexterous/evaluation/grasp-repeat --episodes 30 --seed 20000
+```
+
+Repeat evaluation without `--checkpoint` in a new output directory to compare against constant optimized motor preload on the same seeds. The gate is one continuous second of physically loaded opposition: four fingers on one side and thumb on the other, upright torso and sufficient pelvis height. Evaluation retains every trial, including failures. Small hand-initialization perturbations are development validation only; success here does not establish robust acquisition, lever release, opening or traversal. Check wide body views and hand close-ups as well as contact traces.
+
+The first fitting/search experiments predated automatic source capture. Their outcomes are historical diagnostics, not complete launch-time reproduction bundles. Training captures its actual input pose/preload and sources before starting.
+
+## Second-run handoff checklist
+
+Before launching a large Isaac Sim job, fill in a new experiment record with the destination robot asset revision and license, Isaac Sim/Isaac Lab and container versions, scheduler launch file, GPU/CPU allocation, sensor/action interface version, exact dataset manifest, and the upstream checkpoint or fresh-training decision. Preserve the previous experiment unchanged. Do not assume an H1/Shadow policy can control a different joint layout.
+
+Run the migration fixtures below on one environment, then a small batch, before scaling. Archive the fixture reports and an uncut single-door video with both wide and hand views. Profile the real sensor pipeline and training update together; select the batch by useful throughput with memory headroom rather than GPU count alone. Keep reset failures, numerical warnings and failed tasks in the report. Only then begin the full curriculum and frozen evaluation. None of these Isaac-specific gates has passed yet.
 
 ## Isaac Sim / massive-node migration gates
 

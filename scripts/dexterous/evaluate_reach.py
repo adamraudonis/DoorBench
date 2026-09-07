@@ -3,6 +3,9 @@
 import argparse
 import json
 import hashlib
+import platform
+import mujoco
+import torch
 import time
 from pathlib import Path
 import numpy as np
@@ -52,6 +55,9 @@ def main():
         report['robot_sha256']=hashlib.sha256(Path(a.robot).read_bytes()).hexdigest()
         report['distance_m']=a.distance
         report['evaluated_at_unix']=time.time()
+        report['evaluation_platform']=platform.platform()
+        report['mujoco_version']=mujoco.__version__;report['torch_version']=torch.__version__
+        report['evaluation_source_sha256']=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
         (out/'report.json').write_text(json.dumps(report,indent=2)+'\n')
     finally:env.close()
 

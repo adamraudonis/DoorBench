@@ -35,3 +35,15 @@ def test_source_and_input_hashes_without_environment_secrets(tmp_path,monkeypatc
     assert 'do-not-archive' not in (out/'manifest.json').read_text()
     with tarfile.open(out/'source.tar.gz') as archive:
         assert archive.getnames()==['doorbench/example.py']
+
+
+def test_grasp_inputs_are_copied_before_original_changes(tmp_path):
+    pose=tmp_path/'pose.npz';pose.write_bytes(b'fixed-pose')
+    preload=tmp_path/'best.json';preload.write_text('{"thumb_delta_and_curl_rad": [0,0,0,0,0,0]}')
+    out=tmp_path/'run'
+    report=capture(tmp_path,out,{'seed_pose':str(pose),'preload_json':str(preload)})
+    pose.write_bytes(b'later-pose')
+    bundled=out/report['inputs']['seed_pose']['bundled_path']
+    assert bundled.read_bytes()==b'fixed-pose'
+    assert sha256(bundled)==report['inputs']['seed_pose']['sha256']
+    assert 'upstream' not in report['inputs']

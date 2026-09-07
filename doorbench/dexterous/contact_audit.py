@@ -42,7 +42,7 @@ def lever_contacts(model,data,lever_geom,*,side='rh'):
     """Read solved contacts against precisely the named lever collision shape."""
     if side not in ('rh','lh'):raise ValueError('Unknown hand side')
     target=model.geom(lever_geom).id
-    if model.geom_type[target] not in (mujoco.mjtGeom.mjGEOM_CAPSULE,mujoco.mjtGeom.mjGEOM_CYLINDER):
+    if int(model.geom_type[target]) not in (int(mujoco.mjtGeom.mjGEOM_CAPSULE),int(mujoco.mjtGeom.mjGEOM_CYLINDER)):
         raise ValueError('Lever opposition audit requires a cylindrical collision shape')
     contacts=[]
     for i in range(data.ncon):

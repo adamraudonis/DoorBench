@@ -8,7 +8,7 @@ The H1/dual-Shadow robot compiles and attaches to a freshly generated `db0055_sw
 
 A borrowed two-hand reaching policy maintained balance in a short stationary/reaching probe, but crouched substantially and fell on a longer approach. Those are integration results and failures, not a door-opening score. The next step is adapting the body-reaching skill under the full articulation before proceeding to hand contact and the complete task.
 
-See [cluster reproduction and Isaac Sim migration](DEXTEROUS_REPRODUCTION.md) for portable configurations, artifact requirements, and backend limitations. The [approved full plan](DEXTEROUS_PLAN.md) remains the project scope.
+See [cluster reproduction and Isaac Sim migration](DEXTEROUS_REPRODUCTION.md) for portable configurations, artifact requirements, and backend limitations, and the [experiment ledger](DEXTEROUS_EXPERIMENTS.md) for measured results and failures. The [approved full plan](DEXTEROUS_PLAN.md) remains the project scope.
 
 ## Reproduce the model and native probe
 
