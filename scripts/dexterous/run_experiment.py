@@ -15,8 +15,12 @@ def command(config,root,output,overrides):
     for key in ('upstream','robot','door'):
         path=Path(config[key]);args+=['--'+key,str(path if path.is_absolute() else root/path)]
     values=dict(config['training']);values.update({k:v for k,v in overrides.items() if v is not None})
-    if set(values)-{'steps','envs','distance','device','seed','checkpoint','standing_weight'}:raise ValueError('Unknown training option')
-    for key,value in values.items():args+=['--'+key.replace('_','-'),str(value)]
+    if set(values)-{'steps','envs','distance','device','seed','checkpoint','standing_weight','continue_after_success'}:raise ValueError('Unknown training option')
+    for key,value in values.items():
+        if key=='continue_after_success':
+            if not isinstance(value,bool):raise ValueError('continue_after_success must be boolean')
+            if value:args+=['--continue-after-success']
+        else:args+=['--'+key.replace('_','-'),str(value)]
     return args
 
 

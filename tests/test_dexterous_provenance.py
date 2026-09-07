@@ -8,6 +8,8 @@ from doorbench.dexterous.provenance import capture,sha256
 ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('dex_launch',ROOT/'scripts/dexterous/run_experiment.py')
 launcher=importlib.util.module_from_spec(spec);spec.loader.exec_module(launcher)
+spec=importlib.util.spec_from_file_location('dex_verify',ROOT/'scripts/dexterous/verify_run.py')
+verifier=importlib.util.module_from_spec(spec);spec.loader.exec_module(verifier)
 
 
 def test_cluster_paths_overrides_and_unimplemented_backend_rejected(tmp_path):
@@ -47,3 +49,8 @@ def test_grasp_inputs_are_copied_before_original_changes(tmp_path):
     assert bundled.read_bytes()==b'fixed-pose'
     assert sha256(bundled)==report['inputs']['seed_pose']['sha256']
     assert 'upstream' not in report['inputs']
+    assert verifier.verify(out)['valid']
+    bundled.write_bytes(b'corrupt-transfer')
+    checked=verifier.verify(out)
+    assert not checked['valid']
+    assert 'Bundled input missing or changed: seed_pose' in checked['problems']

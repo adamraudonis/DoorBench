@@ -60,6 +60,8 @@ python scripts/dexterous/evaluate_reach.py --upstream out/dexterous/upstream/hum
 
 For stronger reproducibility on the second cluster, retain its container digest, scheduler job specification, driver/CUDA versions, CPU allocation, GPU topology, storage paths and distributed-process layout. Do not archive credentials or process environments. Matching seeds does not guarantee bitwise identity across devices or physics engines; compare behavior and tolerance-based physical metrics.
 
+After copying a run, execute `python scripts/dexterous/verify_run.py /mounted/run`. This checks archived source and bundled input checksums without extracting code. It does not verify external assets or demonstrate physics equivalence. Generated robot XML contains destination-specific mesh paths, so its byte hash may change after rebuilding; compare the upstream revision, asset contents and the model audit before attributing differences to training.
+
 ## Initialized tactile grasp experiment
 
 This is a separate skill, not a complete opening policy. The body is free in gravity, but its arm/body position-motor targets are held while the hand learns contact correction. The input pose starts at the handle. Its 438 actor inputs are 24 right-hand joint positions, 24 velocities, 128 three-axis taxels and six previous actions. Six residual actions adjust five thumb targets and a shared four-finger curl. Exact object state and privileged contact identities are used only by the reward/audit. This small action adapter must be replaced or expanded for general manipulation.

@@ -23,7 +23,7 @@ def main():
     if args.output.exists():
         raise SystemExit('Use a new evaluation directory')
     args.output.mkdir(parents=True)
-    capture(Path(__file__).resolve().parents[2], args.output, vars(args))
+    capture(Path(__file__).resolve().parents[2], args.output, vars(args), timing='before_evaluation')
     torch.set_num_threads(1)
     env = GraspSkillEnv(args.door, args.robot, args.seed_pose, args.preload_json)
     (args.output / 'interface.json').write_text(json.dumps(env.configuration_audit(), indent=2) + '\n')

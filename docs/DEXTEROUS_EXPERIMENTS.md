@@ -11,8 +11,11 @@ Same development seeds 10000–10029, 0.25 m target-offset curriculum, six-secon
 | Frozen upstream body skill | External pretrained checkpoint | 0/30 | 9/30 | [Trials](../results/dexterous/2026-09-07/upstream-body-reach.json) |
 | Reach 001, standing reward weight 1 | 430,000 | 0/30 | 9/30 | [Trials](../results/dexterous/2026-09-07/reach-001-body-reach.json) |
 | Reach 002, standing reward weight 4, intermediate | 820,000 cumulative | 1/30 | 12/30 | [Trials](../results/dexterous/2026-09-07/reach-002-intermediate.json) |
+| Reach 002, later checkpoint | 2,120,000 cumulative | 0/30 | 4/30 | [Trials](../results/dexterous/2026-09-07/reach-002-late.json) |
 
 Reach 001 stopped around 432,000 transitions because a fall exhausted the native constraint arena. Its last checkpoint is retained; it did not complete the 500,000-transition budget. Increasing solver memory is an infrastructure repair, not a change to collisions or success thresholds. Reach 002 resumes that checkpoint with 128 MiB arena memory per environment and a stronger standing reward. The intermediate result does not establish improvement in reliability.
+
+The later Reach 002 checkpoint reduced falls but still failed the upright-reaching gate. Final pelvis heights ranged from 0.713 to 0.794 m, with median 0.767 m. Inspection identified an incentive problem: successful episodes terminated while unsuccessful episodes could continue receiving positive dense reward. This is a plausible explanation for settling just below the 0.8 m threshold, not a proven causal result. The v3 configuration tests continued training episodes after reaching, with the original evaluation gate unchanged. A fall after reaching still fails the training episode. Historical v1/v2 configurations preserve their original termination behavior.
 
 A short throughput profile at unchanged physics settings measured approximately 251, 467 and 781 transitions/sec for 4, 8 and 16 environments respectively. [Raw profile](../results/dexterous/2026-09-07/native-profile.json). This profile includes native CPU physics and actor inference, excludes rendering/PPO updates, and establishes the best of those tested counts only. It is not an Isaac Sim or maximum-GPU-capacity measurement.
 
@@ -25,6 +28,15 @@ The current grasp spike is specific to the right Shadow Hand and `db0055_swing_s
 3. Execute the pose in native physics with a free body and bounded motor position commands. No runtime pose writes, welds or external supporting forces are used. Starting already near the handle is explicitly non-qualifying for the task.
 4. Initial constant targets load four fingers but lose thumb contact. Optimize thumb/finger preload using solved forces and opposing contact directions; retain failures and longer-horizon tests.
 
-The short optimized probe established all five loaded digits on opposing sides for most of its 0.4-second window. Extending one selected command to two seconds retained opposition for only 34 of 100 control frames. It is therefore **not yet a reliable grasp**, and the lever did not complete its release travel. Tactile correction, approach, full release, opening and traversal remain outstanding.
+The short optimized probe established all five loaded digits on opposing sides for most of its 0.4-second window. Extending one selected command to two seconds retained opposition for only 34 of 100 control frames. That constant command did not provide a reliable grasp, and the lever did not complete its release travel. This motivated the tactile-feedback experiment below. Approach, full release, opening and traversal remain outstanding.
+
+The subsequent tactile PPO experiment trained for 201,216 transitions on six local CPU environments. Development seeds 20000–20029 perturb the initialized hand joints by ±0.002 radians. Each trial requires one continuous second of loaded opposition within a three-second horizon, pelvis height above 0.8 m and torso tilt below 12 degrees.
+
+| Controller | Initialized grasp successes | Falls | Evidence |
+|---|---:|---:|---|
+| Constant optimized preload | 0/30 | 0/30 | [Trials](../results/dexterous/2026-09-07/grasp-constant.json) |
+| Tactile PPO, final checkpoint | 30/30 | 0/30 | [Trials](../results/dexterous/2026-09-07/grasp-001-final.json) |
+
+An intermediate checkpoint at 160,032 transitions also passed 30/30 under this narrow validation. Close-up native-state replays were inspected at the beginning, middle and end of a trial. These results establish a local contact-hold skill only: one robot, one door, a supplied near-handle pose, small perturbations, no approach or complete lever release. Longer holds, larger variations and integration with body movement remain unvalidated. The final policy uses hand proprioception and touch; it has not yet learned vision-based task execution.
 
 `scripts/dexterous/fit_grasp_seed.py`, `optimize_grasp_contact.py` and `probe_grasp_seed.py` save inputs and source manifests for subsequent experiments. Their output directories contain the exact initialized pose, preload, contact traces and native trajectories. Rendered close-ups are diagnostic views; the gold operator color changes visualization only.

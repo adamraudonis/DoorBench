@@ -16,13 +16,14 @@ from .reaching import ReachingController
 class ReachTeacherEnv(gym.Env):
     metadata = {"render_modes": []}
 
-    def __init__(self, door_dir, robot_xml, upstream, *, distance=.25, horizon=300, standing_weight=1.):
+    def __init__(self, door_dir, robot_xml, upstream, *, distance=.25, horizon=300, standing_weight=1., continue_after_success=False):
         robot_xml = Path(robot_xml)
         audit = json.loads(robot_xml.with_suffix('.audit.json').read_text())
         self.sim = DexterousDoorEnv(door_dir, robot_xml, audit)
         self.upstream = upstream
         self.distance, self.horizon = distance, horizon
         self.standing_weight=standing_weight
+        self.continue_after_success=continue_after_success
         self.action_space = spaces.Box(-1., 1., shape=(19,), dtype=np.float32)
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(61,), dtype=np.float32)
         self.controller = None
@@ -38,7 +39,7 @@ class ReachTeacherEnv(gym.Env):
                            self.np_random.uniform(-.08,.08), self.np_random.uniform(-.08,.2)])
         self.targets = self.initial_targets + self.controller.to_local.T @ offset
         self.controller.targets = self.targets.copy()
-        self.steps = 0; self.previous_action = np.zeros(19); self.success_steps = 0
+        self.steps = 0; self.previous_action = np.zeros(19); self.success_steps = 0; self.reached_success=False
         self.initial_root = self.sim.d.qpos[self.sim.root_qadr:self.sim.root_qadr+3].copy()
         return self.controller.observation().astype(np.float32), {}
 
@@ -62,11 +63,12 @@ class ReachTeacherEnv(gym.Env):
             reward -= 10.
         good = bool(max(errors) < .08 and tilt < np.deg2rad(12) and height > .8)
         self.success_steps = self.success_steps + 1 if good else 0
-        success = self.success_steps >= 25
+        self.reached_success = self.reached_success or self.success_steps >= 25
+        success = self.reached_success and not fallen
         self.previous_action = np.asarray(action).copy()
         info = {**diag, 'max_reach_error_m':float(max(errors)), 'is_success':success,
                 'fell':fallen, 'scope':'privileged body-reaching skill; no door-opening claim'}
-        return self.controller.observation().astype(np.float32), reward, fallen or success, self.steps >= self.horizon, info
+        return self.controller.observation().astype(np.float32), reward, fallen or (success and not self.continue_after_success), self.steps >= self.horizon, info
 
     def close(self):
         self.sim.close()
@@ -85,4 +87,5 @@ class ReachTeacherEnv(gym.Env):
             'control_ranges':m.actuator_ctrlrange[self.sim.actuators].tolist(),
             'force_ranges':m.actuator_forcerange[self.sim.actuators].tolist(),
             'tactile_values':len(self.sim.tactile_indices),'horizon_steps':self.horizon,
-            'target_distance_m':self.distance,'standing_reward_weight':self.standing_weight,'sensor_policy':False}
+            'target_distance_m':self.distance,'standing_reward_weight':self.standing_weight,
+            'continue_after_success':self.continue_after_success,'sensor_policy':False}

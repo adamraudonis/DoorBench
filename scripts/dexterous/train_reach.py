@@ -46,12 +46,13 @@ def main():
     p.add_argument('--output',type=Path,required=True);p.add_argument('--steps',type=int,default=500000)
     p.add_argument('--envs',type=int,default=8);p.add_argument('--distance',type=float,default=.25)
     p.add_argument('--standing-weight',type=float,default=1.)
+    p.add_argument('--continue-after-success',action='store_true',help='Keep earning dense reward to the horizon after reaching; removes early-success termination incentive')
     p.add_argument('--device',default='cuda');p.add_argument('--checkpoint');p.add_argument('--seed',type=int,default=17)
     a=p.parse_args();a.output.mkdir(parents=True,exist_ok=True);torch.set_num_threads(1)
     if (a.output/'manifest.json').exists() or (a.output/'config.json').exists():
         raise SystemExit('Use a new output directory for each run, including checkpoint resumes')
     capture(Path(__file__).resolve().parents[2],a.output,vars(a))
-    constructor=partial(ReachTeacherEnv,a.door,a.robot,a.upstream,distance=a.distance,standing_weight=a.standing_weight)
+    constructor=partial(ReachTeacherEnv,a.door,a.robot,a.upstream,distance=a.distance,standing_weight=a.standing_weight,continue_after_success=a.continue_after_success)
     env=SubprocVecEnv([constructor for _ in range(a.envs)],start_method='spawn') if a.envs>1 else DummyVecEnv([constructor])
     try:
         (a.output/'physics.json').write_text(json.dumps(env.env_method('configuration_audit',indices=0)[0],indent=2)+'\n')
