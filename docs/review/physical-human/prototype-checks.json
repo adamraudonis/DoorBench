@@ -1,8 +1,32 @@
 {
   "no-touch": {
-    "started_utc": "2026-09-07T03:44:34.717138+00:00",
-    "finished_utc": "2026-09-07T03:44:40.793122+00:00",
-    "source_sha256": "063c46785a1f1af4bd4f70042cf323960c5f69e9c7713f41a967d3204925f0d4",
+    "source_files_sha256": {
+      "scripts/physical_human/prototype.py": "74fb27914d0a86132629f94b298bf3d4ace6baca27081551564bea8002906b33",
+      "scripts/physical_human/grasp.py": "8b4d369fdbcb558a24ef0931fa5ca1a0570016bb7e6bf19ef16260020d625f61",
+      "scripts/physical_human/kinematics.py": "6cad4b30504bf201da9f0afdad457ca94a101f70c495f2cd73ae99a6491afb4e",
+      "scripts/physical_human/hand_anatomy.py": "4e0011917099f5f3d2783e28718dbf5e1448e03ef276156b0733220d49ac35d3",
+      "scripts/physical_human/posture.py": "ef43164bf9178a60cc279ceba2401fc89ec7a4ce4ec6dabf95c8f958aaa8aea4",
+      "scripts/physical_human/walking.py": "ba2dc806a49bfe7218471949e60537218e852a38707d55dcac1de54044c80760",
+      "scripts/physical_human/traversal.py": "29d765161397b40bd6855fae883dca8318432149fdf510f483884afd3a27c956",
+      "scripts/physical_human/release.py": "2e1fb03858b9438a29cdb44da102717c2fd92f34bcc3598a4542f50140f44df1",
+      "scripts/physical_human/grip_policy.json": "70c608bbc3ac56b80d21ea642f6fa6bb6321b82e4bbbc266ecd7c232de823ba8",
+      "scripts/physical_human/anatomy/myohand.json": "738316d9f32c0db7b3292dad83d32ab60ec2488cbb3199621674a97b1f83f21f",
+      "doorbench/reference/rig.py": "050f7891718459b0b187179bc2328574012a38a5ab7965b08ef2d3ee0fd44580",
+      "doorbench/reference/gait.py": "154f484bf0805df3322bc02de47c9ef4e13961894bd3153946a5967cad172a90"
+    },
+    "controller_parameters": {
+      "opening_angle_rad": 0.73,
+      "spine_initial_pitch_rad": -0.12,
+      "spine_follow_pitch_rad": 0.0,
+      "spine_follow_yaw_rad": 0.15,
+      "wrist_flexion_limit_rad": 0.6,
+      "wrist_deviation_limit_rad": 0.3
+    },
+    "requested_duration_s": 6.3,
+    "simulated_duration_s": 6.300000000000439,
+    "started_utc": "2026-09-07T06:55:23.717895+00:00",
+    "finished_utc": "2026-09-07T06:55:33.562573+00:00",
+    "source_sha256": "74fb27914d0a86132629f94b298bf3d4ace6baca27081551564bea8002906b33",
     "grasp_controller_sha256": "8b4d369fdbcb558a24ef0931fa5ca1a0570016bb7e6bf19ef16260020d625f61",
     "kinematic_audit_sha256": "6cad4b30504bf201da9f0afdad457ca94a101f70c495f2cd73ae99a6491afb4e",
     "grip_residual_rad": [
@@ -20,8 +44,8 @@
       ]
     ],
     "rig_sha256": "050f7891718459b0b187179bc2328574012a38a5ab7965b08ef2d3ee0fd44580",
-    "scene_sha256": "4f21151feb08ff521b2e9e6476ca74f964b684cb7c0e9a44d60df3b30d4317cf",
-    "trajectory_sha256": "b694fbec53be06970d0280baa8fb386cad46d8caaf2158186f73c33ce59de745",
+    "scene_sha256": "f48e88cbb3bb6c14a39f1028a8064066e6c15151af55089695fc49be75edb650",
+    "trajectory_sha256": "2185b9d12a61cb6d06bc56316fcf53e427b1e694bdcee8e804f3c59e636ac27b",
     "hand_source": {
       "url": "https://github.com/MyoHub/myo_sim",
       "commit": "eb327acbae0fad12279495040607f5235d962328",
@@ -30,10 +54,59 @@
       "kinematics_sha256": "738316d9f32c0db7b3292dad83d32ab60ec2488cbb3199621674a97b1f83f21f",
       "builder_sha256": "4e0011917099f5f3d2783e28718dbf5e1448e03ef276156b0733220d49ac35d3"
     },
+    "posture": {
+      "samples": 6300,
+      "max_torso_tilt_deg": 7.5829541433537395,
+      "max_backward_lean_deg": 0.0,
+      "rms_torso_tilt_deg": 7.130015485388911,
+      "mean_squared_tilt_rad2": 0.015485872574147968,
+      "mean_squared_backward_lean_rad2": 0.0,
+      "upright_reward": -0.3871468143536992,
+      "reward_formula": "-25 mean(torso tilt^2) - 50 mean(backward lean^2); radians",
+      "limits": {
+        "max_torso_tilt_deg": 8.0,
+        "max_backward_lean_deg": 5.0
+      },
+      "phases": {
+        "settle": {
+          "max_tilt_deg": 6.876432656478415,
+          "max_backward_lean_deg": 0.0
+        },
+        "reach": {
+          "max_tilt_deg": 7.54896425366684,
+          "max_backward_lean_deg": 0.0
+        },
+        "place around lever": {
+          "max_tilt_deg": 7.5829541433537395,
+          "max_backward_lean_deg": 0.0
+        },
+        "grasp": {
+          "max_tilt_deg": 7.344334817313572,
+          "max_backward_lean_deg": 0.0
+        },
+        "settle grip": {
+          "max_tilt_deg": 7.33551019118461,
+          "max_backward_lean_deg": 0.0
+        },
+        "press lever": {
+          "max_tilt_deg": 7.217478724003949,
+          "max_backward_lean_deg": 0.0
+        },
+        "pull": {
+          "max_tilt_deg": 7.240509556445281,
+          "max_backward_lean_deg": 0.0
+        },
+        "hold open": {
+          "max_tilt_deg": 7.167882129116469,
+          "max_backward_lean_deg": 0.0
+        }
+      },
+      "passed": true
+    },
     "kinematics": {
       "passed": true,
       "violations": [],
-      "samples": 6501,
+      "samples": 6301,
       "max_work_arm_angular_speed_rad_s": {
         "actor_shoulder_l": 0.28834364211446323,
         "actor_elbow_l": 0.3969011474797848,
@@ -386,7 +459,7 @@
           ],
           "observed": [
             0.9853898966101374,
-            7.877454922238173
+            7.873968652979727
           ],
           "max_speed_rad_s": 0.9384919823681984
         },
@@ -881,17 +954,17 @@
           "longest_missing_opposition_s": 2.4819999999998377
         },
         "hold open": {
-          "samples": 1092,
+          "samples": 892,
           "opposed_fraction": 0.0,
           "thumb_below_fraction": 1.0,
           "thumb_loaded_fraction": 0.0,
           "four_fingers_together_fraction": 0.0,
           "thumb_opposite_side_fraction": 1.0,
-          "longest_missing_opposition_s": 1.0919999999999905
+          "longest_missing_opposition_s": 0.8920000000000007
         }
       }
     },
-    "schema": "doorbench.physical-human-prototype.v3",
+    "schema": "doorbench.physical-human-prototype.v4",
     "simulator": "3.12.0",
     "timestep_s": 0.001,
     "foot_welds": 0,
@@ -900,7 +973,42 @@
     "no_touch": true,
     "door_actuators": 0,
     "hand_welds": 0,
-    "scope": "standing opening and hold; release and traversal not validated",
+    "sequence_config": {
+      "waypoints": [
+        [
+          1.02,
+          -0.85
+        ],
+        [
+          0.85,
+          -0.45
+        ],
+        [
+          0.585,
+          -0.235
+        ],
+        [
+          0.4,
+          0.4
+        ],
+        [
+          0.42,
+          0.85
+        ]
+      ],
+      "headings": [
+        -0.9,
+        -0.9,
+        -0.9,
+        -0.9,
+        0
+      ],
+      "step_duration": 0.45,
+      "torso_yaw": 0.0,
+      "walking_hand_curl": 0.5,
+      "walking_elbow": 0.2
+    },
+    "scope": "opening, release, and floating-base traversal of one passive door",
     "max_contact_penetration_m": 0,
     "peak_hand_contact_n": 0,
     "max_door_deg": 3.337420038428588e-08,
@@ -909,7 +1017,7 @@
     "nonhand_door_impulse_ns": 0,
     "peak_total_hand_contact_n": 0,
     "hand_contact_impulse_ns": 0.0,
-    "max_foot_drift_m": 0.0031781040388067817,
+    "max_foot_drift_m": 0.0030794488224645928,
     "min_floor_force_n": 0.0,
     "warnings": [
       0,
@@ -922,23 +1030,90 @@
     ],
     "peak_motor_torque_nm": 32.5479743126009,
     "quality_checks": {
+      "upright_torso": true,
       "anatomical_kinematics": true,
       "opposing_thumb_and_finger_contact": false,
       "opening_40_to_65_deg": false,
       "door_held_open": false,
       "no_nonhand_door_force": true,
-      "foot_drift_under_5_mm": true,
       "hand_penetration_under_2_mm": true,
       "skeleton_penetration_under_2_mm": true,
       "peak_hand_force_under_160_n": true,
-      "no_simulator_warnings": true
+      "no_simulator_warnings": true,
+      "whole_body_through_portal": false,
+      "settled_after_traversal": true,
+      "no_body_or_walking_hand_environment_contact": true,
+      "only_feet_touch_ground": true,
+      "planted_foot_slip_under_10_mm": true,
+      "walking_tilt_under_15_deg": true,
+      "continuous_release_and_walk_arm": true,
+      "all_walking_qps_solved": false
+    },
+    "traversal": {
+      "native_samples": 6300,
+      "walking_started": false,
+      "final_whole_body_clearance_beyond_frame_m": -1.0088865522433281,
+      "final_root_speed_m_s": 0.000835999895794143,
+      "portal_samples": 0,
+      "portal_violations": {},
+      "minimum_portal_plane_margin_m": null,
+      "max_planted_foot_slip_m": 7.498568020059251e-05,
+      "stance_samples": [
+        5644,
+        5643
+      ],
+      "nonfoot_ground_impulse_ns": 0.0,
+      "unintended_environment_impulses_ns": {},
+      "first_unintended_contact_times_s": {},
+      "walking_hand_impulse_ns": 0.0,
+      "last_hand_environment_contact_s": null,
+      "max_walking_root_tilt_deg": 0.0,
+      "max_active_arm_angular_speed_rad_s": 0.9186443081263611,
+      "max_active_arm_linear_speed_m_s": 0.16430127077911116,
+      "qp_failures": [],
+      "max_qp_primal_residual": null,
+      "checks": {
+        "whole_body_through_portal": false,
+        "settled_after_traversal": true,
+        "no_body_or_walking_hand_environment_contact": true,
+        "only_feet_touch_ground": true,
+        "planted_foot_slip_under_10_mm": true,
+        "walking_tilt_under_15_deg": true,
+        "continuous_release_and_walk_arm": true,
+        "all_walking_qps_solved": false
+      },
+      "passed": false
     },
     "quality_passed": false
   },
   "blocked": {
-    "started_utc": "2026-09-07T03:44:34.717129+00:00",
-    "finished_utc": "2026-09-07T03:44:41.146990+00:00",
-    "source_sha256": "063c46785a1f1af4bd4f70042cf323960c5f69e9c7713f41a967d3204925f0d4",
+    "source_files_sha256": {
+      "scripts/physical_human/prototype.py": "74fb27914d0a86132629f94b298bf3d4ace6baca27081551564bea8002906b33",
+      "scripts/physical_human/grasp.py": "8b4d369fdbcb558a24ef0931fa5ca1a0570016bb7e6bf19ef16260020d625f61",
+      "scripts/physical_human/kinematics.py": "6cad4b30504bf201da9f0afdad457ca94a101f70c495f2cd73ae99a6491afb4e",
+      "scripts/physical_human/hand_anatomy.py": "4e0011917099f5f3d2783e28718dbf5e1448e03ef276156b0733220d49ac35d3",
+      "scripts/physical_human/posture.py": "ef43164bf9178a60cc279ceba2401fc89ec7a4ce4ec6dabf95c8f958aaa8aea4",
+      "scripts/physical_human/walking.py": "ba2dc806a49bfe7218471949e60537218e852a38707d55dcac1de54044c80760",
+      "scripts/physical_human/traversal.py": "29d765161397b40bd6855fae883dca8318432149fdf510f483884afd3a27c956",
+      "scripts/physical_human/release.py": "2e1fb03858b9438a29cdb44da102717c2fd92f34bcc3598a4542f50140f44df1",
+      "scripts/physical_human/grip_policy.json": "70c608bbc3ac56b80d21ea642f6fa6bb6321b82e4bbbc266ecd7c232de823ba8",
+      "scripts/physical_human/anatomy/myohand.json": "738316d9f32c0db7b3292dad83d32ab60ec2488cbb3199621674a97b1f83f21f",
+      "doorbench/reference/rig.py": "050f7891718459b0b187179bc2328574012a38a5ab7965b08ef2d3ee0fd44580",
+      "doorbench/reference/gait.py": "154f484bf0805df3322bc02de47c9ef4e13961894bd3153946a5967cad172a90"
+    },
+    "controller_parameters": {
+      "opening_angle_rad": 0.73,
+      "spine_initial_pitch_rad": -0.12,
+      "spine_follow_pitch_rad": 0.0,
+      "spine_follow_yaw_rad": 0.15,
+      "wrist_flexion_limit_rad": 0.6,
+      "wrist_deviation_limit_rad": 0.3
+    },
+    "requested_duration_s": 6.3,
+    "simulated_duration_s": 6.300000000000439,
+    "started_utc": "2026-09-07T06:55:33.566282+00:00",
+    "finished_utc": "2026-09-07T06:55:43.977417+00:00",
+    "source_sha256": "74fb27914d0a86132629f94b298bf3d4ace6baca27081551564bea8002906b33",
     "grasp_controller_sha256": "8b4d369fdbcb558a24ef0931fa5ca1a0570016bb7e6bf19ef16260020d625f61",
     "kinematic_audit_sha256": "6cad4b30504bf201da9f0afdad457ca94a101f70c495f2cd73ae99a6491afb4e",
     "grip_residual_rad": [
@@ -956,8 +1131,8 @@
       ]
     ],
     "rig_sha256": "050f7891718459b0b187179bc2328574012a38a5ab7965b08ef2d3ee0fd44580",
-    "scene_sha256": "dfb1becfac94eea70e1c0d592cbe540b25afe844833ee93abad1708446b70aaa",
-    "trajectory_sha256": "35f873be9e4379cf94a6116d9a94f619acb281eac02c2c301872bae15236b11e",
+    "scene_sha256": "e7ee26c6b950bc766d5d506e492d890c0ed579a24782e9ccda76ac4ac386ce39",
+    "trajectory_sha256": "7fb0cf9c7087bcb0661b87c1f0233518b5634c039b5aa16e914e6155962693f9",
     "hand_source": {
       "url": "https://github.com/MyoHub/myo_sim",
       "commit": "eb327acbae0fad12279495040607f5235d962328",
@@ -966,29 +1141,78 @@
       "kinematics_sha256": "738316d9f32c0db7b3292dad83d32ab60ec2488cbb3199621674a97b1f83f21f",
       "builder_sha256": "4e0011917099f5f3d2783e28718dbf5e1448e03ef276156b0733220d49ac35d3"
     },
+    "posture": {
+      "samples": 6300,
+      "max_torso_tilt_deg": 7.585766281798689,
+      "max_backward_lean_deg": 0.0,
+      "rms_torso_tilt_deg": 6.730865159991346,
+      "mean_squared_tilt_rad2": 0.013800553846809529,
+      "mean_squared_backward_lean_rad2": 0.0,
+      "upright_reward": -0.3450138461702382,
+      "reward_formula": "-25 mean(torso tilt^2) - 50 mean(backward lean^2); radians",
+      "limits": {
+        "max_torso_tilt_deg": 8.0,
+        "max_backward_lean_deg": 5.0
+      },
+      "phases": {
+        "settle": {
+          "max_tilt_deg": 6.876432656478415,
+          "max_backward_lean_deg": 0.0
+        },
+        "reach": {
+          "max_tilt_deg": 7.554642060246628,
+          "max_backward_lean_deg": 0.0
+        },
+        "place around lever": {
+          "max_tilt_deg": 7.585766281798689,
+          "max_backward_lean_deg": 0.0
+        },
+        "grasp": {
+          "max_tilt_deg": 7.319988602872344,
+          "max_backward_lean_deg": 0.0
+        },
+        "settle grip": {
+          "max_tilt_deg": 7.306102757709989,
+          "max_backward_lean_deg": 0.0
+        },
+        "press lever": {
+          "max_tilt_deg": 7.285150920189389,
+          "max_backward_lean_deg": 0.0
+        },
+        "pull": {
+          "max_tilt_deg": 6.782257860941293,
+          "max_backward_lean_deg": 0.0
+        },
+        "hold open": {
+          "max_tilt_deg": 6.534199063938146,
+          "max_backward_lean_deg": 0.0
+        }
+      },
+      "passed": true
+    },
     "kinematics": {
       "passed": true,
       "violations": [],
-      "samples": 6501,
+      "samples": 6301,
       "max_work_arm_angular_speed_rad_s": {
-        "actor_shoulder_l": 0.3486382118752116,
-        "actor_elbow_l": 1.3058444288970972,
-        "actor_wrist_l": 1.3894364435592264
+        "actor_shoulder_l": 0.348636657549548,
+        "actor_elbow_l": 1.3058437098965794,
+        "actor_wrist_l": 1.389436177561395
       },
       "max_work_arm_linear_speed_m_s": {
-        "actor_shoulder_l": 0.061807783095519986,
-        "actor_elbow_l": 0.08550609612350574,
-        "actor_wrist_l": 0.09798496376696463
+        "actor_shoulder_l": 0.06180707952161647,
+        "actor_elbow_l": 0.08550585147772338,
+        "actor_wrist_l": 0.09798493456217071
       },
       "joint_limit_tolerance_deg": 0.5,
       "max_joint_limit_excess_deg": 0.013647318847953227,
       "max_digit_speed_rad_s": 5.3366611737956955,
       "max_wrist_bend_deg": {
-        "left": 32.140366779032156,
-        "right": 8.767320334739686
+        "left": 32.140332244228944,
+        "right": 8.767320413098872
       },
       "max_thumb_mcp_bend_deg": {
-        "left": 36.134130298706886,
+        "left": 36.12672617675961,
         "right": 5.3199324167149635
       },
       "max_thumb_ip_bend_deg": {
@@ -1003,7 +1227,7 @@
           ],
           "observed": [
             -7.031221318576008,
-            -6.255628504033483
+            -6.255677150386187
           ],
           "max_speed_rad_s": 0.0793626250363997
         },
@@ -1014,9 +1238,9 @@
           ],
           "observed": [
             -0.09973072756534056,
-            0.6041961191947104
+            0.6041953993492366
           ],
-          "max_speed_rad_s": 0.060575202520606296
+          "max_speed_rad_s": 0.06057514263425443
         },
         "actor_spine_yaw": {
           "limits": [
@@ -1025,7 +1249,7 @@
           ],
           "observed": [
             -0.043320483394037684,
-            0.3256443773868799
+            0.325644820799406
           ],
           "max_speed_rad_s": 0.0990409747777867
         },
@@ -1036,7 +1260,7 @@
           ],
           "observed": [
             -6.4247658210087855e-16,
-            48.70187969934605
+            48.70187970320479
           ],
           "max_speed_rad_s": 0.6455504551039245
         },
@@ -1046,7 +1270,7 @@
             28.64788975654116
           ],
           "observed": [
-            -11.486659186886715,
+            -11.486659781862924,
             0.005461853697815276
           ],
           "max_speed_rad_s": 0.4064814627486628
@@ -1123,7 +1347,7 @@
             44.99999063801583
           ],
           "observed": [
-            -22.539506043620435,
+            -22.539453915137127,
             0.01130443735657804
           ],
           "max_speed_rad_s": 1.6797845319956728
@@ -1134,7 +1358,7 @@
             40.10704565915762
           ],
           "observed": [
-            -34.36848217786599,
+            -34.350680554660414,
             -4.151187779721855
           ],
           "max_speed_rad_s": 1.815226196176553
@@ -1156,7 +1380,7 @@
             40.000017143027186
           ],
           "observed": [
-            -36.174888336829916,
+            -36.167299980739024,
             9.7279062942757
           ],
           "max_speed_rad_s": 3.050853533718483
@@ -1179,7 +1403,7 @@
           ],
           "observed": [
             1.0083423635875526,
-            65.55497916589778
+            65.55497916160054
           ],
           "max_speed_rad_s": 5.3366611737956955
         },
@@ -1189,7 +1413,7 @@
             14.99997778074544
           ],
           "observed": [
-            -2.617210562902854,
+            -2.6172106196111233,
             -0.2586123423368934
           ],
           "max_speed_rad_s": 0.6832297550224762
@@ -1223,7 +1447,7 @@
           ],
           "observed": [
             0.7011926464460861,
-            61.7930934624369
+            61.79309363993092
           ],
           "max_speed_rad_s": 5.174516046428419
         },
@@ -1233,7 +1457,7 @@
             14.99997778074544
           ],
           "observed": [
-            -4.661845768360376,
+            -4.661845906006433,
             5.593204233868879
           ],
           "max_speed_rad_s": 1.0415422886673817
@@ -1267,7 +1491,7 @@
           ],
           "observed": [
             0.8551052242175273,
-            48.93119756670199
+            48.93119777412361
           ],
           "max_speed_rad_s": 4.2383523496238205
         },
@@ -1289,7 +1513,7 @@
           ],
           "observed": [
             4.441252478774555,
-            37.40004014735017
+            37.396934839252594
           ],
           "max_speed_rad_s": 2.571165367674141
         },
@@ -1311,7 +1535,7 @@
           ],
           "observed": [
             0.7304190881974054,
-            21.8819359577315
+            21.88193603361665
           ],
           "max_speed_rad_s": 1.8319142016682217
         },
@@ -1322,7 +1546,7 @@
           ],
           "observed": [
             0.9853898966101374,
-            8.999103574566027
+            8.995391808570774
           ],
           "max_speed_rad_s": 0.5164961159920158
         },
@@ -1333,7 +1557,7 @@
           ],
           "observed": [
             6.074458955342768,
-            50.73876635958051
+            50.738766036238374
           ],
           "max_speed_rad_s": 2.745299736243636
         },
@@ -1344,7 +1568,7 @@
           ],
           "observed": [
             5.156185108876864,
-            42.98997566758827
+            42.98997569553452
           ],
           "max_speed_rad_s": 1.5730094411061002
         },
@@ -1388,7 +1612,7 @@
           ],
           "observed": [
             25.77471937443491,
-            25.792702107734662
+            25.792702245003536
           ],
           "max_speed_rad_s": 0.020832718013695392
         },
@@ -1410,7 +1634,7 @@
           ],
           "observed": [
             -0.009215106092126864,
-            0.008310674895433828
+            0.008310679610003572
           ],
           "max_speed_rad_s": 0.02121123637754038
         },
@@ -1420,7 +1644,7 @@
             44.99999063801583
           ],
           "observed": [
-            -0.00995426707632157,
+            -0.009954349695260828,
             0.007468249671105807
           ],
           "max_speed_rad_s": 0.012115244897484372
@@ -1652,7 +1876,7 @@
           ],
           "observed": [
             16.402363766905985,
-            16.856143337227042
+            16.85614214189649
           ],
           "max_speed_rad_s": 0.13008890897981934
         },
@@ -1662,10 +1886,10 @@
             37.24225668350351
           ],
           "observed": [
-            -0.08488533638572254,
+            -0.0848171998626415,
             0.030593278148381097
           ],
-          "max_speed_rad_s": 0.04634146065084053
+          "max_speed_rad_s": 0.046341340947246186
         },
         "actor_hip_l_yaw": {
           "limits": [
@@ -1673,7 +1897,7 @@
             45.836623610465864
           ],
           "observed": [
-            -0.0309007477042394,
+            -0.030900674730284086,
             0.03239540216825104
           ],
           "max_speed_rad_s": 0.01590935655280802
@@ -1684,7 +1908,7 @@
             0.0
           ],
           "observed": [
-            -33.54235786216709,
+            -33.54235730516756,
             -32.80472753381197
           ],
           "max_speed_rad_s": 0.25861115314065264
@@ -1707,7 +1931,7 @@
           ],
           "observed": [
             -0.03922448817113329,
-            0.0833203981536635
+            0.0830954509898725
           ],
           "max_speed_rad_s": 0.03135957572899781
         },
@@ -1728,10 +1952,10 @@
             37.24225668350351
           ],
           "observed": [
-            -0.09610634991701258,
+            -0.0961063539410045,
             0.016686688564738338
           ],
-          "max_speed_rad_s": 0.04669772555953537
+          "max_speed_rad_s": 0.04669762256751891
         },
         "actor_hip_r_yaw": {
           "limits": [
@@ -1739,7 +1963,7 @@
             45.836623610465864
           ],
           "observed": [
-            -0.0323417087327819,
+            -0.032341716174542366,
             0.031383045197130116
           ],
           "max_speed_rad_s": 0.016495429221706458
@@ -1750,7 +1974,7 @@
             0.0
           ],
           "observed": [
-            -33.61312233488629,
+            -33.61312103867451,
             -32.80472753381197
           ],
           "max_speed_rad_s": 0.2586111531406518
@@ -1773,7 +1997,7 @@
           ],
           "observed": [
             -0.030526664604229013,
-            0.09408029475558682
+            0.09392822814209632
           ],
           "max_speed_rad_s": 0.036332064622530316
         }
@@ -1810,7 +2034,7 @@
           "longest_missing_opposition_s": 0.0
         },
         "hold open": {
-          "samples": 1092,
+          "samples": 892,
           "opposed_fraction": 1.0,
           "thumb_below_fraction": 1.0,
           "thumb_loaded_fraction": 1.0,
@@ -1820,7 +2044,7 @@
         }
       }
     },
-    "schema": "doorbench.physical-human-prototype.v3",
+    "schema": "doorbench.physical-human-prototype.v4",
     "simulator": "3.12.0",
     "timestep_s": 0.001,
     "foot_welds": 0,
@@ -1829,16 +2053,51 @@
     "no_touch": false,
     "door_actuators": 0,
     "hand_welds": 0,
-    "scope": "standing opening and hold; release and traversal not validated",
-    "max_contact_penetration_m": 0.00042471746779430483,
-    "peak_hand_contact_n": 10.335832915708242,
-    "max_door_deg": 0.3552912723969369,
-    "min_pelvis_z": 0.9383119492301959,
+    "sequence_config": {
+      "waypoints": [
+        [
+          1.02,
+          -0.85
+        ],
+        [
+          0.85,
+          -0.45
+        ],
+        [
+          0.585,
+          -0.235
+        ],
+        [
+          0.4,
+          0.4
+        ],
+        [
+          0.42,
+          0.85
+        ]
+      ],
+      "headings": [
+        -0.9,
+        -0.9,
+        -0.9,
+        -0.9,
+        0
+      ],
+      "step_duration": 0.45,
+      "torso_yaw": 0.0,
+      "walking_hand_curl": 0.5,
+      "walking_elbow": 0.2
+    },
+    "scope": "opening, release, and floating-base traversal of one passive door",
+    "max_contact_penetration_m": 0.000424717461518051,
+    "peak_hand_contact_n": 10.335832708367999,
+    "max_door_deg": 0.35529108354122574,
+    "min_pelvis_z": 0.9383119524668886,
     "max_self_penetration_m": 5.3842885655411114e-05,
     "nonhand_door_impulse_ns": 0,
-    "peak_total_hand_contact_n": 32.790540427561005,
-    "hand_contact_impulse_ns": 131.4404732017963,
-    "max_foot_drift_m": 0.0013890769767014553,
+    "peak_total_hand_contact_n": 32.79053250938018,
+    "hand_contact_impulse_ns": 124.98398868606392,
+    "max_foot_drift_m": 0.0013890788121043423,
     "min_floor_force_n": 0.0,
     "warnings": [
       0,
@@ -1849,25 +2108,92 @@
       0,
       0
     ],
-    "peak_motor_torque_nm": 33.82705798968891,
+    "peak_motor_torque_nm": 33.826963929259364,
     "quality_checks": {
+      "upright_torso": true,
       "anatomical_kinematics": true,
       "opposing_thumb_and_finger_contact": true,
       "opening_40_to_65_deg": false,
       "door_held_open": false,
       "no_nonhand_door_force": true,
-      "foot_drift_under_5_mm": true,
       "hand_penetration_under_2_mm": true,
       "skeleton_penetration_under_2_mm": true,
       "peak_hand_force_under_160_n": true,
-      "no_simulator_warnings": true
+      "no_simulator_warnings": true,
+      "whole_body_through_portal": false,
+      "settled_after_traversal": true,
+      "no_body_or_walking_hand_environment_contact": true,
+      "only_feet_touch_ground": true,
+      "planted_foot_slip_under_10_mm": true,
+      "walking_tilt_under_15_deg": true,
+      "continuous_release_and_walk_arm": true,
+      "all_walking_qps_solved": false
+    },
+    "traversal": {
+      "native_samples": 6300,
+      "walking_started": false,
+      "final_whole_body_clearance_beyond_frame_m": -1.008129079025256,
+      "final_root_speed_m_s": 0.00035765898097070393,
+      "portal_samples": 0,
+      "portal_violations": {},
+      "minimum_portal_plane_margin_m": null,
+      "max_planted_foot_slip_m": 7.625763281109736e-05,
+      "stance_samples": [
+        5766,
+        5727
+      ],
+      "nonfoot_ground_impulse_ns": 0.0,
+      "unintended_environment_impulses_ns": {},
+      "first_unintended_contact_times_s": {},
+      "walking_hand_impulse_ns": 0.0,
+      "last_hand_environment_contact_s": 6.300000000000439,
+      "max_walking_root_tilt_deg": 0.0,
+      "max_active_arm_angular_speed_rad_s": 1.389436177561395,
+      "max_active_arm_linear_speed_m_s": 0.09798493456217071,
+      "qp_failures": [],
+      "max_qp_primal_residual": null,
+      "checks": {
+        "whole_body_through_portal": false,
+        "settled_after_traversal": true,
+        "no_body_or_walking_hand_environment_contact": true,
+        "only_feet_touch_ground": true,
+        "planted_foot_slip_under_10_mm": true,
+        "walking_tilt_under_15_deg": true,
+        "continuous_release_and_walk_arm": true,
+        "all_walking_qps_solved": false
+      },
+      "passed": false
     },
     "quality_passed": false
   },
   "baseline": {
-    "started_utc": "2026-09-07T03:44:34.717108+00:00",
-    "finished_utc": "2026-09-07T03:44:42.617065+00:00",
-    "source_sha256": "063c46785a1f1af4bd4f70042cf323960c5f69e9c7713f41a967d3204925f0d4",
+    "source_files_sha256": {
+      "scripts/physical_human/prototype.py": "74fb27914d0a86132629f94b298bf3d4ace6baca27081551564bea8002906b33",
+      "scripts/physical_human/grasp.py": "8b4d369fdbcb558a24ef0931fa5ca1a0570016bb7e6bf19ef16260020d625f61",
+      "scripts/physical_human/kinematics.py": "6cad4b30504bf201da9f0afdad457ca94a101f70c495f2cd73ae99a6491afb4e",
+      "scripts/physical_human/hand_anatomy.py": "4e0011917099f5f3d2783e28718dbf5e1448e03ef276156b0733220d49ac35d3",
+      "scripts/physical_human/posture.py": "ef43164bf9178a60cc279ceba2401fc89ec7a4ce4ec6dabf95c8f958aaa8aea4",
+      "scripts/physical_human/walking.py": "ba2dc806a49bfe7218471949e60537218e852a38707d55dcac1de54044c80760",
+      "scripts/physical_human/traversal.py": "29d765161397b40bd6855fae883dca8318432149fdf510f483884afd3a27c956",
+      "scripts/physical_human/release.py": "2e1fb03858b9438a29cdb44da102717c2fd92f34bcc3598a4542f50140f44df1",
+      "scripts/physical_human/grip_policy.json": "70c608bbc3ac56b80d21ea642f6fa6bb6321b82e4bbbc266ecd7c232de823ba8",
+      "scripts/physical_human/anatomy/myohand.json": "738316d9f32c0db7b3292dad83d32ab60ec2488cbb3199621674a97b1f83f21f",
+      "doorbench/reference/rig.py": "050f7891718459b0b187179bc2328574012a38a5ab7965b08ef2d3ee0fd44580",
+      "doorbench/reference/gait.py": "154f484bf0805df3322bc02de47c9ef4e13961894bd3153946a5967cad172a90"
+    },
+    "controller_parameters": {
+      "opening_angle_rad": 0.73,
+      "spine_initial_pitch_rad": -0.12,
+      "spine_follow_pitch_rad": 0.0,
+      "spine_follow_yaw_rad": 0.15,
+      "wrist_flexion_limit_rad": 0.6,
+      "wrist_deviation_limit_rad": 0.3
+    },
+    "requested_duration_s": null,
+    "simulated_duration_s": 28.580000000011946,
+    "started_utc": "2026-09-07T06:54:41.315711+00:00",
+    "finished_utc": "2026-09-07T06:55:23.702542+00:00",
+    "source_sha256": "74fb27914d0a86132629f94b298bf3d4ace6baca27081551564bea8002906b33",
     "grasp_controller_sha256": "8b4d369fdbcb558a24ef0931fa5ca1a0570016bb7e6bf19ef16260020d625f61",
     "kinematic_audit_sha256": "6cad4b30504bf201da9f0afdad457ca94a101f70c495f2cd73ae99a6491afb4e",
     "grip_residual_rad": [
@@ -1885,8 +2211,8 @@
       ]
     ],
     "rig_sha256": "050f7891718459b0b187179bc2328574012a38a5ab7965b08ef2d3ee0fd44580",
-    "scene_sha256": "9bf84bc460721a14971b86178ee9b60b1dbef3def4a24c5e462584bfbf964c5d",
-    "trajectory_sha256": "33d387ad32cff73911dea78fd443875aa7e38efa2606523cfe3e8aaf6f545d84",
+    "scene_sha256": "ceb3797c7535f08f2a195bcb02051fea3f02c5d2bef6c7f769737cf53439e257",
+    "trajectory_sha256": "5a6be280211441ae02a65b8ad24ee072dc7957938c69dd552b89b5b4793a759a",
     "hand_source": {
       "url": "https://github.com/MyoHub/myo_sim",
       "commit": "eb327acbae0fad12279495040607f5235d962328",
@@ -1895,34 +2221,107 @@
       "kinematics_sha256": "738316d9f32c0db7b3292dad83d32ab60ec2488cbb3199621674a97b1f83f21f",
       "builder_sha256": "4e0011917099f5f3d2783e28718dbf5e1448e03ef276156b0733220d49ac35d3"
     },
+    "posture": {
+      "samples": 28580,
+      "max_torso_tilt_deg": 7.587074086025539,
+      "max_backward_lean_deg": 1.0229814691705919,
+      "rms_torso_tilt_deg": 2.6893380183461084,
+      "mean_squared_tilt_rad2": 0.0022031573616567122,
+      "mean_squared_backward_lean_rad2": 2.7230248524355306e-05,
+      "upright_reward": -0.056440446467635574,
+      "reward_formula": "-25 mean(torso tilt^2) - 50 mean(backward lean^2); radians",
+      "limits": {
+        "max_torso_tilt_deg": 8.0,
+        "max_backward_lean_deg": 5.0
+      },
+      "phases": {
+        "settle": {
+          "max_tilt_deg": 6.876432656478415,
+          "max_backward_lean_deg": 0.0
+        },
+        "reach": {
+          "max_tilt_deg": 7.554617574228656,
+          "max_backward_lean_deg": 0.0
+        },
+        "place around lever": {
+          "max_tilt_deg": 7.587074086025539,
+          "max_backward_lean_deg": 0.0
+        },
+        "grasp": {
+          "max_tilt_deg": 7.320885168785345,
+          "max_backward_lean_deg": 0.0
+        },
+        "settle grip": {
+          "max_tilt_deg": 7.30876504472369,
+          "max_backward_lean_deg": 0.0
+        },
+        "press lever": {
+          "max_tilt_deg": 7.280630343678759,
+          "max_backward_lean_deg": 0.0
+        },
+        "pull": {
+          "max_tilt_deg": 6.883185667710535,
+          "max_backward_lean_deg": 1.0229814691705919
+        },
+        "hold open": {
+          "max_tilt_deg": 0.6870894535924899,
+          "max_backward_lean_deg": 0.665683188286624
+        },
+        "let lever return": {
+          "max_tilt_deg": 0.6173256886105203,
+          "max_backward_lean_deg": 0.6095951473516611
+        },
+        "open hand": {
+          "max_tilt_deg": 0.6716779748602936,
+          "max_backward_lean_deg": 0.6714714147824316
+        },
+        "withdraw hand": {
+          "max_tilt_deg": 0.7336996533136055,
+          "max_backward_lean_deg": 0.7316758441491565
+        },
+        "lower arm": {
+          "max_tilt_deg": 0.6133539631616268,
+          "max_backward_lean_deg": 0.6126582756241716
+        },
+        "walk through": {
+          "max_tilt_deg": 0.762621702530804,
+          "max_backward_lean_deg": 0.4957519859982139
+        },
+        "settle beyond door": {
+          "max_tilt_deg": 0.2346584891440105,
+          "max_backward_lean_deg": 0.0
+        }
+      },
+      "passed": true
+    },
     "kinematics": {
       "passed": true,
       "violations": [],
-      "samples": 6501,
+      "samples": 28581,
       "max_work_arm_angular_speed_rad_s": {
-        "actor_shoulder_l": 1.2609729193561994,
-        "actor_elbow_l": 1.7783214502995228,
-        "actor_wrist_l": 1.892465462771521
+        "actor_shoulder_l": 1.5180609591517908,
+        "actor_elbow_l": 1.7783211726832997,
+        "actor_wrist_l": 1.892465225461907
       },
       "max_work_arm_linear_speed_m_s": {
-        "actor_shoulder_l": 0.35709926682251314,
-        "actor_elbow_l": 0.4289760025336822,
-        "actor_wrist_l": 0.37556804111665537
+        "actor_shoulder_l": 0.313333320504823,
+        "actor_elbow_l": 0.43398823740707443,
+        "actor_wrist_l": 0.3710502047467219
       },
       "joint_limit_tolerance_deg": 0.5,
       "max_joint_limit_excess_deg": 0.013642775425399923,
       "max_digit_speed_rad_s": 5.336713914299615,
       "max_wrist_bend_deg": {
-        "left": 31.7481548192032,
-        "right": 8.77799828684231
+        "left": 36.111438535152686,
+        "right": 9.312095944823366
       },
       "max_thumb_mcp_bend_deg": {
-        "left": 35.9210862542615,
-        "right": 5.320009796586425
+        "left": 35.962874919477436,
+        "right": 18.59436546621641
       },
       "max_thumb_ip_bend_deg": {
-        "left": 27.888119163304975,
-        "right": 2.7612280826884406
+        "left": 27.89061922129279,
+        "right": 13.557234819391338
       },
       "joint_angles_deg": {
         "actor_spine_pitch": {
@@ -1932,9 +2331,9 @@
           ],
           "observed": [
             -7.031221318576008,
-            8.76960579160822
+            2.2474489077291513
           ],
-          "max_speed_rad_s": 0.4041388563178517
+          "max_speed_rad_s": 0.723609585697023
         },
         "actor_spine_roll": {
           "limits": [
@@ -1942,10 +2341,10 @@
             22.918311805232932
           ],
           "observed": [
-            -0.09973072756534056,
-            0.33259321118012297
+            -4.256176673744292,
+            5.676991448434213
           ],
-          "max_speed_rad_s": 0.05624466178811234
+          "max_speed_rad_s": 1.2205138143315637
         },
         "actor_spine_yaw": {
           "limits": [
@@ -1953,10 +2352,10 @@
             45.836623610465864
           ],
           "observed": [
-            -0.05605050763907997,
-            8.642329299061478
+            -3.5419856969520405,
+            8.671676721118185
           ],
-          "max_speed_rad_s": 0.21961914660962412
+          "max_speed_rad_s": 0.6963242179784076
         },
         "actor_neck_yaw": {
           "limits": [
@@ -1964,10 +2363,10 @@
             57.29577951308232
           ],
           "observed": [
-            -6.4247658210087855e-16,
-            48.709160657900185
+            -1.5473931012749802,
+            48.708128004017865
           ],
-          "max_speed_rad_s": 0.6455483113302791
+          "max_speed_rad_s": 2.335875011249627
         },
         "actor_neck_pitch": {
           "limits": [
@@ -1975,10 +2374,10 @@
             28.64788975654116
           ],
           "observed": [
-            -11.50433077203219,
-            0.005461853697815276
+            -11.48033689863356,
+            1.0696093676515144
           ],
-          "max_speed_rad_s": 0.4064615891586655
+          "max_speed_rad_s": 0.5539000352845916
         },
         "actor_shoulder_l_pitch": {
           "limits": [
@@ -1986,7 +2385,7 @@
             154.6986046853223
           ],
           "observed": [
-            -62.08330209945052,
+            -68.75847150889571,
             56.089896164341475
           ],
           "max_speed_rad_s": 2.408930801512082
@@ -1997,8 +2396,8 @@
             131.78029288008932
           ],
           "observed": [
-            -18.05531197934644,
-            9.239077994884694
+            -18.053810070592355,
+            19.10763679477895
           ],
           "max_speed_rad_s": 1.3238584311983461
         },
@@ -2008,7 +2407,7 @@
             91.67324722093173
           ],
           "observed": [
-            -0.00030837362125153315,
+            -0.6673316417197999,
             91.68688999635712
           ],
           "max_speed_rad_s": 4.081986186673898
@@ -2019,8 +2418,8 @@
             151.83381570966816
           ],
           "observed": [
-            25.779142407291328,
-            110.36616678341241
+            7.987990100226467,
+            140.07393289852152
           ],
           "max_speed_rad_s": 2.6453204255683658
         },
@@ -2030,8 +2429,8 @@
             160.42818263663048
           ],
           "observed": [
-            -54.33479606325943,
-            42.759074175877196
+            -54.33478870458923,
+            46.05277377711318
           ],
           "max_speed_rad_s": 2.5520156358471104
         },
@@ -2041,8 +2440,8 @@
             24.999982066502238
           ],
           "observed": [
-            -0.0019934882330235326,
-            17.66033461364092
+            -5.375747870604939,
+            17.73708377599231
           ],
           "max_speed_rad_s": 2.1857227998130804
         },
@@ -2052,8 +2451,8 @@
             44.99999063801583
           ],
           "observed": [
-            -22.227699841537742,
-            16.08057821456322
+            -24.526550168078227,
+            11.145543618811272
           ],
           "max_speed_rad_s": 1.8873660062056612
         },
@@ -2063,10 +2462,10 @@
             40.10704565915762
           ],
           "observed": [
-            -34.54978933679073,
+            -34.774841604316066,
             -4.151187779721855
           ],
-          "max_speed_rad_s": 1.815226196176553
+          "max_speed_rad_s": 3.696669336118147
         },
         "hand_l_cmc_abduction": {
           "limits": [
@@ -2077,7 +2476,7 @@
             1.9326403794496694,
             43.907856821178456
           ],
-          "max_speed_rad_s": 2.875566229750651
+          "max_speed_rad_s": 3.0853698210592415
         },
         "hand_l_mp_flexion": {
           "limits": [
@@ -2085,7 +2484,7 @@
             40.000017143027186
           ],
           "observed": [
-            -35.95654436811306,
+            -35.999372425713524,
             9.730131361531683
           ],
           "max_speed_rad_s": 3.050868765190702
@@ -2096,7 +2495,7 @@
             24.999982066502238
           ],
           "observed": [
-            -28.65809359401841,
+            -28.660604992501458,
             -3.4198088110356615
           ],
           "max_speed_rad_s": 1.7534174244439478
@@ -2108,7 +2507,7 @@
           ],
           "observed": [
             1.0031519782809675,
-            66.31574279192239
+            66.59558388071657
           ],
           "max_speed_rad_s": 5.336713914299615
         },
@@ -2118,10 +2517,10 @@
             14.99997778074544
           ],
           "observed": [
-            -2.607626438677165,
+            -2.6076267204623473,
             -0.2586123423368934
           ],
-          "max_speed_rad_s": 0.7154113109621345
+          "max_speed_rad_s": 3.872848457193985
         },
         "hand_l_pm2_flexion": {
           "limits": [
@@ -2130,7 +2529,7 @@
           ],
           "observed": [
             2.9461844312586387,
-            40.0105883493762
+            40.1827837155095
           ],
           "max_speed_rad_s": 2.564513443600703
         },
@@ -2141,7 +2540,7 @@
           ],
           "observed": [
             3.315743321878813,
-            37.24391135303663
+            37.314866654125595
           ],
           "max_speed_rad_s": 2.3586034754652108
         },
@@ -2152,7 +2551,7 @@
           ],
           "observed": [
             0.6950422373380346,
-            62.80659234511514
+            63.084510335655374
           ],
           "max_speed_rad_s": 5.174568769500212
         },
@@ -2162,10 +2561,10 @@
             14.99997778074544
           ],
           "observed": [
-            -4.650377988745097,
-            5.623946835006681
+            -4.650377850097454,
+            5.666926168711467
           ],
-          "max_speed_rad_s": 1.041583081220863
+          "max_speed_rad_s": 1.855413877960784
         },
         "hand_l_pm3_flexion": {
           "limits": [
@@ -2174,7 +2573,7 @@
           ],
           "observed": [
             3.0920724518264593,
-            32.072533745416315
+            34.727281063611464
           ],
           "max_speed_rad_s": 2.0014404892236417
         },
@@ -2195,8 +2594,8 @@
             90.00021045914971
           ],
           "observed": [
-            0.8551052242175273,
-            50.219859828696855
+            0.825872622488589,
+            50.71345996307923
           ],
           "max_speed_rad_s": 4.366248015379828
         },
@@ -2218,7 +2617,7 @@
           ],
           "observed": [
             4.441252478774555,
-            37.34009031376438
+            37.33991863074361
           ],
           "max_speed_rad_s": 2.6089658488346545
         },
@@ -2240,7 +2639,7 @@
           ],
           "observed": [
             0.7242727975720634,
-            23.376849776750166
+            23.468029959391774
           ],
           "max_speed_rad_s": 1.8318476884547248
         },
@@ -2250,10 +2649,10 @@
             14.99997778074544
           ],
           "observed": [
-            0.9853898966101374,
-            8.352946665050254
+            0.9514031290010267,
+            8.3706975239536
           ],
-          "max_speed_rad_s": 0.5172086745206146
+          "max_speed_rad_s": 1.4725622571202437
         },
         "hand_l_pm5_flexion": {
           "limits": [
@@ -2262,7 +2661,7 @@
           ],
           "observed": [
             6.074458955342768,
-            50.95400230876609
+            50.94711259611731
           ],
           "max_speed_rad_s": 2.7452911919508503
         },
@@ -2273,7 +2672,7 @@
           ],
           "observed": [
             5.156185108876864,
-            43.04462438204144
+            43.07308755175564
           ],
           "max_speed_rad_s": 1.5730072746711945
         },
@@ -2283,10 +2682,10 @@
             154.6986046853223
           ],
           "observed": [
-            -0.03889756351277054,
-            0.04053257822482843
+            -4.700436953415511,
+            1.6859416905407498
           ],
-          "max_speed_rad_s": 0.05084932327979628
+          "max_speed_rad_s": 1.016858535623969
         },
         "actor_shoulder_r_roll": {
           "limits": [
@@ -2294,10 +2693,10 @@
             131.78029288008932
           ],
           "observed": [
-            -5.740459665909299,
-            -5.709705652446394
+            -5.740562863146389,
+            0.8088610696049822
           ],
-          "max_speed_rad_s": 0.011570853729908282
+          "max_speed_rad_s": 0.3537767291496542
         },
         "actor_shoulder_r_yaw": {
           "limits": [
@@ -2305,10 +2704,10 @@
             91.67324722093173
           ],
           "observed": [
-            -0.00731972037484062,
-            0.013396224302351751
+            -0.8665405782645413,
+            0.4078315679667419
           ],
-          "max_speed_rad_s": 0.05193644885559902
+          "max_speed_rad_s": 0.15250597948791575
         },
         "actor_elbow_r": {
           "limits": [
@@ -2316,10 +2715,10 @@
             151.83381570966816
           ],
           "observed": [
-            25.765835004744687,
-            25.802106018608093
+            7.024181731065425,
+            25.79621229334423
           ],
-          "max_speed_rad_s": 0.020832718013695392
+          "max_speed_rad_s": 0.7514855303202594
         },
         "actor_pronation_r": {
           "limits": [
@@ -2327,10 +2726,10 @@
             160.42818263663048
           ],
           "observed": [
-            -0.0018162517351849666,
-            0.00413376284533897
+            -0.21970074994073413,
+            1.609335491677259
           ],
-          "max_speed_rad_s": 0.013477298730634506
+          "max_speed_rad_s": 0.1668399895211577
         },
         "actor_wrist_r_deviation": {
           "limits": [
@@ -2338,10 +2737,10 @@
             24.999982066502238
           ],
           "observed": [
-            -0.010036588297762522,
-            0.007332098926509817
+            -4.230999905397546,
+            0.1601477438844129
           ],
-          "max_speed_rad_s": 0.021846628280017086
+          "max_speed_rad_s": 0.7727166937676583
         },
         "actor_wrist_r_flexion": {
           "limits": [
@@ -2349,10 +2748,10 @@
             44.99999063801583
           ],
           "observed": [
-            -0.024075347243266564,
-            0.02101158143864407
+            -0.5362656180015518,
+            5.709168673919238
           ],
-          "max_speed_rad_s": 0.012530473101207602
+          "max_speed_rad_s": 1.0836469425364414
         },
         "hand_r_cmc_flexion": {
           "limits": [
@@ -2360,10 +2759,10 @@
             40.10704565915762
           ],
           "observed": [
-            -4.174390785479097,
-            -4.151187779721855
+            -19.32398866528437,
+            -4.125763807139167
           ],
-          "max_speed_rad_s": 0.03237538177519268
+          "max_speed_rad_s": 3.0026700706291423
         },
         "hand_r_cmc_abduction": {
           "limits": [
@@ -2371,10 +2770,10 @@
             44.69070802020421
           ],
           "observed": [
-            1.9277469995184,
-            1.945705972673372
+            1.8313670369174289,
+            9.75180720752743
           ],
-          "max_speed_rad_s": 0.033349568480711765
+          "max_speed_rad_s": 2.514380163485785
         },
         "hand_r_mp_flexion": {
           "limits": [
@@ -2382,10 +2781,10 @@
             40.000017143027186
           ],
           "observed": [
-            -4.358511032457609,
+            -18.190863738101008,
             -4.349322575588389
           ],
-          "max_speed_rad_s": 0.012217864846518892
+          "max_speed_rad_s": 0.8103659486959982
         },
         "hand_r_ip_flexion": {
           "limits": [
@@ -2393,10 +2792,10 @@
             24.999982066502238
           ],
           "observed": [
-            -3.421407023931772,
-            -3.4198088110356615
+            -14.263847325420787,
+            -3.4192985974428463
           ],
-          "max_speed_rad_s": 0.001837884877787715
+          "max_speed_rad_s": 0.3648269142955422
         },
         "hand_r_mcp2_flexion": {
           "limits": [
@@ -2404,10 +2803,10 @@
             90.00021045914971
           ],
           "observed": [
-            7.770376910658379,
-            7.800088001130464
+            7.6220353329711275,
+            32.73923117211839
           ],
-          "max_speed_rad_s": 0.02341425103925758
+          "max_speed_rad_s": 0.8354946625910195
         },
         "hand_r_mcp2_abduction": {
           "limits": [
@@ -2415,10 +2814,10 @@
             14.99997778074544
           ],
           "observed": [
-            -0.28035048779810856,
-            -0.2528889127664611
+            -1.9570621297336808,
+            -0.23511763911735997
           ],
-          "max_speed_rad_s": 0.03894406302516205
+          "max_speed_rad_s": 1.324213466465028
         },
         "hand_r_pm2_flexion": {
           "limits": [
@@ -2426,10 +2825,10 @@
             90.00021045914971
           ],
           "observed": [
-            2.943866272703667,
-            2.9527150399426634
+            2.897773762112378,
+            12.438885496962255
           ],
-          "max_speed_rad_s": 0.007096340387647306
+          "max_speed_rad_s": 0.31812931276723827
         },
         "hand_r_md2_flexion": {
           "limits": [
@@ -2437,10 +2836,10 @@
             90.00021045914971
           ],
           "observed": [
-            3.315340735452056,
-            3.3169461172754744
+            3.3074199213281177,
+            13.830412566286071
           ],
-          "max_speed_rad_s": 0.0018959667201715285
+          "max_speed_rad_s": 0.3534547671387209
         },
         "hand_r_mcp3_flexion": {
           "limits": [
@@ -2448,10 +2847,10 @@
             90.00021045914971
           ],
           "observed": [
-            7.305494572983248,
-            7.336695436555314
+            7.143337505782294,
+            30.82702155711174
           ],
-          "max_speed_rad_s": 0.021588387727193334
+          "max_speed_rad_s": 0.8713431140243145
         },
         "hand_r_mcp3_abduction": {
           "limits": [
@@ -2459,10 +2858,10 @@
             14.99997778074544
           ],
           "observed": [
-            -0.6381863867707349,
-            -0.6063420723287023
+            -2.742571468430755,
+            -0.5592344472521769
           ],
-          "max_speed_rad_s": 0.044673312427674854
+          "max_speed_rad_s": 1.209900055960724
         },
         "hand_r_pm3_flexion": {
           "limits": [
@@ -2470,10 +2869,10 @@
             90.00021045914971
           ],
           "observed": [
-            3.0892148301084053,
-            3.0996442984033905
+            3.033421039641063,
+            12.990547584227931
           ],
-          "max_speed_rad_s": 0.008825940332111922
+          "max_speed_rad_s": 0.33493582499263913
         },
         "hand_r_md3_flexion": {
           "limits": [
@@ -2481,10 +2880,10 @@
             90.00021045914971
           ],
           "observed": [
-            3.58630813371033,
-            3.588140105143292
+            3.577135308937224,
+            14.95891518983331
           ],
-          "max_speed_rad_s": 0.003811485426558604
+          "max_speed_rad_s": 0.38245858191451476
         },
         "hand_r_mcp4_flexion": {
           "limits": [
@@ -2492,10 +2891,10 @@
             90.00021045914971
           ],
           "observed": [
-            5.760180465346064,
-            5.78506500402004
+            5.627831868177987,
+            24.3182230974359
           ],
-          "max_speed_rad_s": 0.019287613982603386
+          "max_speed_rad_s": 0.6308607494232803
         },
         "hand_r_mcp4_abduction": {
           "limits": [
@@ -2503,10 +2902,10 @@
             14.99997778074544
           ],
           "observed": [
-            -0.3550237718099436,
-            -0.32537499671475684
+            -1.555753043406752,
+            -0.24866405709204542
           ],
-          "max_speed_rad_s": 0.044010525662268346
+          "max_speed_rad_s": 1.3023260568142605
         },
         "hand_r_pm4_flexion": {
           "limits": [
@@ -2514,10 +2913,10 @@
             90.00021045914971
           ],
           "observed": [
-            4.439044169854153,
-            4.447280334653875
+            4.394808372375434,
+            18.59226511481814
           ],
-          "max_speed_rad_s": 0.008492919589288097
+          "max_speed_rad_s": 0.4754598126547268
         },
         "hand_r_md4_flexion": {
           "limits": [
@@ -2525,10 +2924,10 @@
             90.00021045914971
           ],
           "observed": [
-            4.503320367293405,
-            4.505033362609939
+            4.495429265522996,
+            18.77824513104534
           ],
-          "max_speed_rad_s": 0.0036853078248254
+          "max_speed_rad_s": 0.4801928572970373
         },
         "hand_r_mcp5_flexion": {
           "limits": [
@@ -2536,10 +2935,10 @@
             90.00021045914971
           ],
           "observed": [
-            2.685898825760058,
-            2.705239480801889
+            2.5810911272969466,
+            11.44671274092124
           ],
-          "max_speed_rad_s": 0.017076027770436097
+          "max_speed_rad_s": 0.3902654034766485
         },
         "hand_r_mcp5_abduction": {
           "limits": [
@@ -2547,10 +2946,10 @@
             14.99997778074544
           ],
           "observed": [
-            0.9821474779456631,
-            1.0080313905969913
+            0.9771650841374431,
+            4.502014791354029
           ],
-          "max_speed_rad_s": 0.041915337367691916
+          "max_speed_rad_s": 1.2411900473000648
         },
         "hand_r_pm5_flexion": {
           "limits": [
@@ -2558,10 +2957,10 @@
             90.00021045914971
           ],
           "observed": [
-            6.072898590612663,
-            6.079108461849557
+            6.03959269865713,
+            25.381777809541042
           ],
-          "max_speed_rad_s": 0.0084332857143182
+          "max_speed_rad_s": 0.6491355153590438
         },
         "hand_r_md5_flexion": {
           "limits": [
@@ -2569,10 +2968,10 @@
             90.00021045914971
           ],
           "observed": [
-            5.1558796860032015,
-            5.157426039819176
+            5.148321532128362,
+            21.497855192344232
           ],
-          "max_speed_rad_s": 0.003278658864602638
+          "max_speed_rad_s": 0.5502828950108969
         },
         "actor_hip_l_pitch": {
           "limits": [
@@ -2580,10 +2979,10 @@
             103.13240312354819
           ],
           "observed": [
-            16.365270253960364,
-            16.85561407716386
+            9.339831060523904,
+            23.78111035857173
           ],
-          "max_speed_rad_s": 0.13008890897981934
+          "max_speed_rad_s": 1.7460982203021531
         },
         "actor_hip_l_roll": {
           "limits": [
@@ -2591,10 +2990,10 @@
             37.24225668350351
           ],
           "observed": [
-            -0.04417460732235263,
-            0.0305295585195455
+            -7.585168774110721,
+            10.757723123938556
           ],
-          "max_speed_rad_s": 0.044811639783630015
+          "max_speed_rad_s": 1.5250532732864848
         },
         "actor_hip_l_yaw": {
           "limits": [
@@ -2602,10 +3001,10 @@
             45.836623610465864
           ],
           "observed": [
-            -0.03536336946428861,
-            0.03239540216825104
+            -9.592127443019129,
+            3.638031887268319
           ],
-          "max_speed_rad_s": 0.018607655972982945
+          "max_speed_rad_s": 1.6733544819927537
         },
         "actor_knee_l": {
           "limits": [
@@ -2613,10 +3012,10 @@
             0.0
           ],
           "observed": [
-            -33.98156137094263,
-            -32.80472753381197
+            -51.48572934638981,
+            -27.064768238045954
           ],
-          "max_speed_rad_s": 0.25861115314065264
+          "max_speed_rad_s": 3.231830859176881
         },
         "actor_ankle_l_pitch": {
           "limits": [
@@ -2624,10 +3023,10 @@
             45.836623610465864
           ],
           "observed": [
-            15.965390318520582,
-            17.018109621898425
+            14.613011760361577,
+            24.922931113205625
           ],
-          "max_speed_rad_s": 0.21115753222260916
+          "max_speed_rad_s": 2.2529129138641344
         },
         "actor_ankle_l_roll": {
           "limits": [
@@ -2635,10 +3034,10 @@
             25.783100780887047
           ],
           "observed": [
-            -0.038901474755449056,
-            0.06454516958887986
+            -9.377223009052141,
+            9.694986616168109
           ],
-          "max_speed_rad_s": 0.03150605473576607
+          "max_speed_rad_s": 6.619152943988243
         },
         "actor_hip_r_pitch": {
           "limits": [
@@ -2646,10 +3045,10 @@
             103.13240312354819
           ],
           "observed": [
-            16.3041594671461,
-            16.847334243309554
+            10.556620662269188,
+            24.278416314439518
           ],
-          "max_speed_rad_s": 0.13008890897981817
+          "max_speed_rad_s": 1.625774074256353
         },
         "actor_hip_r_roll": {
           "limits": [
@@ -2657,10 +3056,10 @@
             37.24225668350351
           ],
           "observed": [
-            -0.06573159349839497,
-            0.016686688564738338
+            -7.581196162594402,
+            7.125954469945136
           ],
-          "max_speed_rad_s": 0.04389967275399263
+          "max_speed_rad_s": 1.3541375148265509
         },
         "actor_hip_r_yaw": {
           "limits": [
@@ -2668,10 +3067,10 @@
             45.836623610465864
           ],
           "observed": [
-            -0.03143613325529664,
-            0.031383045197130116
+            -9.417733963026032,
+            3.379840547178175
           ],
-          "max_speed_rad_s": 0.01915856412691681
+          "max_speed_rad_s": 0.9402019995681031
         },
         "actor_knee_r": {
           "limits": [
@@ -2679,10 +3078,10 @@
             0.0
           ],
           "observed": [
-            -34.018098364514515,
-            -32.80472753381197
+            -50.81307561046882,
+            -27.899378011807624
           ],
-          "max_speed_rad_s": 0.2586111531406518
+          "max_speed_rad_s": 3.3094583788053367
         },
         "actor_ankle_r_pitch": {
           "limits": [
@@ -2690,10 +3089,10 @@
             45.836623610465864
           ],
           "observed": [
-            16.06216476734195,
-            17.028512861907224
+            13.045969196213232,
+            24.426574710124427
           ],
-          "max_speed_rad_s": 0.21451358552461708
+          "max_speed_rad_s": 2.9278177127927014
         },
         "actor_ankle_r_roll": {
           "limits": [
@@ -2701,10 +3100,10 @@
             25.783100780887047
           ],
           "observed": [
-            -0.030547342837305647,
-            0.08106319808926167
+            -15.891427032673114,
+            13.032860955184141
           ],
-          "max_speed_rad_s": 0.0363355420558413
+          "max_speed_rad_s": 9.175562767116059
         }
       }
     },
@@ -2731,15 +3130,15 @@
         },
         "pull": {
           "samples": 2482,
-          "opposed_fraction": 0.9987912973408541,
+          "opposed_fraction": 1.0,
           "thumb_below_fraction": 1.0,
           "thumb_loaded_fraction": 1.0,
           "four_fingers_together_fraction": 1.0,
           "thumb_opposite_side_fraction": 1.0,
-          "longest_missing_opposition_s": 0.001
+          "longest_missing_opposition_s": 0.0
         },
         "hold open": {
-          "samples": 1092,
+          "samples": 892,
           "opposed_fraction": 1.0,
           "thumb_below_fraction": 1.0,
           "thumb_loaded_fraction": 1.0,
@@ -2749,7 +3148,7 @@
         }
       }
     },
-    "schema": "doorbench.physical-human-prototype.v3",
+    "schema": "doorbench.physical-human-prototype.v4",
     "simulator": "3.12.0",
     "timestep_s": 0.001,
     "foot_welds": 0,
@@ -2758,16 +3157,51 @@
     "no_touch": false,
     "door_actuators": 0,
     "hand_welds": 0,
-    "scope": "standing opening and hold; release and traversal not validated",
-    "max_contact_penetration_m": 0.00046528443313871917,
-    "peak_hand_contact_n": 9.688383302586043,
-    "max_door_deg": 43.72040334067176,
-    "min_pelvis_z": 0.9372472799784417,
-    "max_self_penetration_m": 5.3907909772136706e-05,
+    "sequence_config": {
+      "waypoints": [
+        [
+          1.02,
+          -0.85
+        ],
+        [
+          0.85,
+          -0.45
+        ],
+        [
+          0.585,
+          -0.235
+        ],
+        [
+          0.4,
+          0.4
+        ],
+        [
+          0.42,
+          0.85
+        ]
+      ],
+      "headings": [
+        -0.9,
+        -0.9,
+        -0.9,
+        -0.9,
+        0
+      ],
+      "step_duration": 0.45,
+      "torso_yaw": 0.0,
+      "walking_hand_curl": 0.5,
+      "walking_elbow": 0.2
+    },
+    "scope": "opening, release, and floating-base traversal of one passive door",
+    "max_contact_penetration_m": 0.0004719866926111531,
+    "peak_hand_contact_n": 11.300090530737961,
+    "max_door_deg": 45.06438112317051,
+    "min_pelvis_z": 0.937184094970799,
+    "max_self_penetration_m": 0.0003589795975872112,
     "nonhand_door_impulse_ns": 0,
-    "peak_total_hand_contact_n": 27.449838000532374,
-    "hand_contact_impulse_ns": 98.21901990876094,
-    "max_foot_drift_m": 0.0018154465205529604,
+    "peak_total_hand_contact_n": 27.405081861728707,
+    "hand_contact_impulse_ns": 109.3762467867738,
+    "max_foot_drift_m": 1.6979171911416509,
     "min_floor_force_n": 0.0,
     "warnings": [
       0,
@@ -2778,24 +3212,111 @@
       0,
       0
     ],
-    "peak_motor_torque_nm": 48.23538071452572,
+    "peak_motor_torque_nm": 113.85241062552052,
     "quality_checks": {
+      "upright_torso": true,
       "anatomical_kinematics": true,
       "opposing_thumb_and_finger_contact": true,
       "opening_40_to_65_deg": true,
       "door_held_open": true,
       "no_nonhand_door_force": true,
-      "foot_drift_under_5_mm": true,
       "hand_penetration_under_2_mm": true,
       "skeleton_penetration_under_2_mm": true,
       "peak_hand_force_under_160_n": true,
-      "no_simulator_warnings": true
+      "no_simulator_warnings": true,
+      "whole_body_through_portal": true,
+      "settled_after_traversal": true,
+      "no_body_or_walking_hand_environment_contact": true,
+      "only_feet_touch_ground": true,
+      "planted_foot_slip_under_10_mm": true,
+      "walking_tilt_under_15_deg": true,
+      "continuous_release_and_walk_arm": true,
+      "all_walking_qps_solved": true
+    },
+    "traversal": {
+      "native_samples": 28580,
+      "walking_started": true,
+      "final_whole_body_clearance_beyond_frame_m": 0.6829833796060056,
+      "final_root_speed_m_s": 0.0010539266696085329,
+      "portal_samples": 20430,
+      "portal_violations": {},
+      "minimum_portal_plane_margin_m": 0.06434835468380573,
+      "max_planted_foot_slip_m": 0.006951468226473609,
+      "stance_samples": [
+        21906,
+        22173
+      ],
+      "nonfoot_ground_impulse_ns": 0.0,
+      "unintended_environment_impulses_ns": {},
+      "first_unintended_contact_times_s": {},
+      "walking_hand_impulse_ns": 0.0,
+      "last_hand_environment_contact_s": 8.161000000000916,
+      "max_walking_root_tilt_deg": 5.5389941771086315,
+      "max_active_arm_angular_speed_rad_s": 3.3105353262683157,
+      "max_active_arm_linear_speed_m_s": 0.989142870035918,
+      "qp_failures": [],
+      "max_qp_primal_residual": 0.062109653737759285,
+      "checks": {
+        "whole_body_through_portal": true,
+        "settled_after_traversal": true,
+        "no_body_or_walking_hand_environment_contact": true,
+        "only_feet_touch_ground": true,
+        "planted_foot_slip_under_10_mm": true,
+        "walking_tilt_under_15_deg": true,
+        "continuous_release_and_walk_arm": true,
+        "all_walking_qps_solved": true
+      },
+      "passed": true,
+      "planned_duration_s": 16.58,
+      "foot_adjustment_columns": [
+        "0=footprint,1=swing",
+        "side:0=left,1=right",
+        "start_s",
+        "end_s",
+        "offset_x_m",
+        "offset_y_m",
+        "clearance_before_m",
+        "clearance_after_m"
+      ],
+      "foot_adjustments": [
+        [
+          0.0,
+          1.0,
+          7.0,
+          7.62,
+          0.009999999999999967,
+          0.02499999999999996,
+          -0.008119324674921154,
+          0.018005353064155568
+        ],
+        [
+          0.0,
+          1.0,
+          7.96,
+          8.72,
+          0.009999999999999967,
+          0.019999999999999962,
+          -0.0032976248969582094,
+          0.018772404641563684
+        ],
+        [
+          1.0,
+          1.0,
+          6.66,
+          7.0,
+          -2.7755575615628914e-17,
+          0.009999999999999967,
+          0.01556704412625014,
+          0.018005353064155568
+        ]
+      ],
+      "planned_min_foot_clearance_m": 0.018005353064155568
     },
     "quality_passed": true
   },
   "hashes": {
-    "scene.xml": "9bf84bc460721a14971b86178ee9b60b1dbef3def4a24c5e462584bfbf964c5d",
-    "trajectory.npz": "33d387ad32cff73911dea78fd443875aa7e38efa2606523cfe3e8aaf6f545d84",
-    "report.json": "7968f0a713b65026cbd14947ed3e46a7a8a9a40f042f19e57b55b6bac9dcf44d"
+    "scene.xml": "ceb3797c7535f08f2a195bcb02051fea3f02c5d2bef6c7f769737cf53439e257",
+    "trajectory.npz": "5a6be280211441ae02a65b8ad24ee072dc7957938c69dd552b89b5b4793a759a",
+    "report.json": "3ce0be89edd82d2fb61d646a2c95f6736b95739a9df78f4938de5e976c238537"
   }
 }

@@ -82,7 +82,7 @@ def handle_pose(theta, lever_angle, grip=1.0):
     return position, rotation
 
 
-def make_model(anchors=False, no_touch=False, latch_blocked=False):
+def make_model(anchors=False, no_touch=False, latch_blocked=False, walls=False):
     root = ET.Element("mujoco", model="DoorBench — one physical hand")
     sub(root, "compiler", angle="radian", autolimits="true")
     sub(
@@ -171,6 +171,16 @@ def make_model(anchors=False, no_touch=False, latch_blocked=False):
     box(world, "strike_near", [0.854, -0.034, 1.01], [0.04, 0.015, 0.03], gold)
     box(world, "strike_far", [0.854, 0.034, 1.01], [0.04, 0.015, 0.03], gold)
     box(world, "header", [0.415, 0, 2.13], [0.5, 0.075, 0.045], ".32 .38 .4 1")
+    if walls:
+        box(world, "wall_left", [-1.085, 0, 1.5], [1, 0.075, 1.5], ".23 .29 .31 1")
+        box(world, "wall_right", [1.894, 0, 1.5], [1, 0.075, 1.5], ".23 .29 .31 1")
+        box(
+            world,
+            "wall_above",
+            [0.405, 0, 2.60],
+            [0.409, 0.075, 0.515],
+            ".23 .29 .31 1",
+        )
     door = sub(world, "body", name="door", pos="0 -.028 0")
     sub(
         door,
@@ -464,6 +474,10 @@ def initial(m):
     return d
 
 
+WRIST_FLEX_LIMIT = 0.6
+WRIST_DEVIATION_LIMIT = 0.3
+
+
 def arm_ik(m, d, side, pos, rotation, iterations=15):
     names = (
         [f"actor_shoulder_{side}_{v}" for v in ["pitch", "roll", "yaw"]]
@@ -478,10 +492,10 @@ def arm_ik(m, d, side, pos, rotation, iterations=15):
     # Prefer an ordinary working wrist posture inside the anatomical limits.
     for i, name in enumerate(names):
         if name.endswith("_flexion"):
-            bounds[i, 0] = max(bounds[i, 0], -0.6)
-            bounds[i, 1] = min(bounds[i, 1], 0.6)
+            bounds[i, 0] = max(bounds[i, 0], -WRIST_FLEX_LIMIT)
+            bounds[i, 1] = min(bounds[i, 1], WRIST_FLEX_LIMIT)
         elif name.endswith("_deviation"):
-            bounds[i, 1] = min(bounds[i, 1], 0.3)
+            bounds[i, 1] = min(bounds[i, 1], WRIST_DEVIATION_LIMIT)
     start = np.clip(start, bounds[:, 0], bounds[:, 1])
 
     def residual(values):
@@ -510,14 +524,54 @@ def arm_ik(m, d, side, pos, rotation, iterations=15):
     return float(np.linalg.norm(error[:6]))
 
 
+FOLLOW_YAW = 0.15
+FOLLOW_PITCH = 0.0
+
+
 def run(
     out,
     no_touch=False,
-    duration=6.5,
+    duration=None,
     anchors=False,
     latch_blocked=False,
     grip_residual=None,
+    sequence=False,
+    sequence_config=None,
 ):
+    sequence_config = dict(sequence_config or {})
+    sequence_config.setdefault(
+        "waypoints",
+        [[1.02, -0.85], [0.85, -0.45], [0.585, -0.235], [0.40, 0.4], [0.42, 0.85]],
+    )
+    sequence_config.setdefault("headings", [-0.9, -0.9, -0.9, -0.9, 0])
+    sequence_config.setdefault("step_duration", 0.45)
+    sequence_config.setdefault("torso_yaw", 0.0)
+    sequence_config.setdefault("walking_hand_curl", 0.5)
+    sequence_config.setdefault("walking_elbow", 0.2)
+    if sequence and anchors:
+        raise ValueError("Traversal requires a free base and unanchored feet")
+    requested_duration = duration
+    if duration is None:
+        duration = 60.0 if sequence else 6.5
+    source_names = [
+        "scripts/physical_human/" + name
+        for name in [
+            "prototype.py",
+            "grasp.py",
+            "kinematics.py",
+            "hand_anatomy.py",
+            "posture.py",
+            "walking.py",
+            "traversal.py",
+            "release.py",
+            "grip_policy.json",
+            "anatomy/myohand.json",
+        ]
+    ] + ["doorbench/reference/rig.py", "doorbench/reference/gait.py"]
+    source_hashes = {
+        name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+        for name in source_names
+    }
     started = datetime.now(timezone.utc).isoformat()
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
@@ -530,7 +584,7 @@ def run(
         raise ValueError(
             "Grip residual must contain eight finite MCP offsets within ±0.12 rad"
         )
-    m, xml = make_model(anchors, no_touch, latch_blocked)
+    m, xml = make_model(anchors, no_touch, latch_blocked, walls=sequence)
     (out / "scene.xml").write_text(xml)
     d = initial(m)
     ik = initial(m)
@@ -553,6 +607,9 @@ def run(
         ctrl=s(d.qpos[qids] + d.qfrc_bias[vids] / m.actuator_gainprm[:, 0]),
     )
     (out / "scene.xml").write_text(ET.tostring(saved, encoding="unicode"))
+    from scripts.physical_human.posture import UprightAudit
+
+    upright_audit = UprightAudit(m)
     audit = KinematicAudit(m)
     audit.observe(d)
     grasp_audit = GraspAudit(m)
@@ -574,6 +631,20 @@ def run(
     arm_motors = np.array([m.actuator("motor_" + n).id for n in arm_names])
     reference_velocity = np.zeros(m.nu)
     arm_rest = d.qpos[arm_ids].copy()
+    arm_after_release = arm_rest.copy()
+    arm_after_release[0] = -0.8
+    arm_after_release[3] = 1.0
+    walking_arm_release = 0.0
+    walker = None
+    walking_plan = None
+    walking_start = 11.0
+    from scripts.physical_human.traversal import TraversalAudit
+
+    traversal_audit = TraversalAudit(m, walking_start) if sequence else None
+    release_path = None
+    release_plan_receipt = None
+    withdrawal_start = None
+    withdrawal_rotation = None
     approach = initial(m)
     approach.qpos[arm_ids] = [0.4, -0.2, 0, 1, 0, -0.1, -0.2]
     approach_error = arm_ik(
@@ -653,13 +724,99 @@ def run(
             grip = 1.0
             p, R = handle_pose(actual_door, actual_lever)
             lever_target, door_target = 0.50, -OPEN_ANGLE
+        # The extension reverses the grasp in free space before locomotion.
+        # All changes are motor targets; mechanism state remains native.
+        if sequence and clock >= 6.30:
+            if clock < 6.90:
+                phase = "let lever return"
+                grip = 1.0
+                lever_target = 0.50 * (1 - smooth((clock - 6.30) / 0.60))
+                door_target = -OPEN_ANGLE
+                p, R = handle_pose(actual_door, actual_lever)
+            elif clock < 7.60:
+                phase = "open hand"
+                grip = 1 - smooth((clock - 6.90) / 0.70)
+                p, R = handle_pose(actual_door, actual_lever, grip)
+                lever_target, door_target = None, None
+            elif clock < 8.40:
+                phase = "withdraw hand"
+                grip = 0.0
+                lever_target, door_target = None, None
+                if withdrawal_start is None:
+                    withdrawal_start, withdrawal_rotation = handle_pose(
+                        actual_door, actual_lever, 0
+                    )
+                R = withdrawal_rotation
+                p = withdrawal_start + smooth((clock - 7.60) / 0.80) * (
+                    np.array([0, 0, 0.12])
+                )
+            else:
+                phase = "lower arm"
+                grip = 0.0
+                preshape = 1 - smooth((clock - 10.40) / 0.50)
+                lever_target, door_target = None, None
+        if sequence and clock >= walking_start:
+            phase = (
+                "walk through"
+                if walker is None
+                or clock - walking_start < walking_plan["time"][-1] - 1
+                else "settle beyond door"
+            )
+            if walker is None:
+                from scripts.physical_human.walking import WholeBodyWalk, make_plan
+
+                walking_plan = make_plan(
+                    m,
+                    d,
+                    sequence_config["waypoints"],
+                    headings=sequence_config["headings"],
+                    step_duration=sequence_config["step_duration"],
+                )
+                posture = initial(m).qpos.copy()
+                posture[arm_ids] = arm_after_release
+                for n in [
+                    "actor_spine_pitch",
+                    "actor_spine_yaw",
+                    "actor_neck_yaw",
+                    "actor_neck_pitch",
+                    "actor_shoulder_r_roll",
+                ]:
+                    posture[m.joint(n).qposadr[0]] = 0
+                walker = WholeBodyWalk(m, d, walking_plan, posture)
+                print("Walking duration", walking_plan["time"][-1], flush=True)
+                np.savez_compressed(out / "walking-plan.npz", **walking_plan)
+            walking_arm_release = max(
+                walking_arm_release, float(smooth((d.qpos[3] - 0.77) / 0.16))
+            )
+            arm_walking_rest = arm_rest.copy()
+            arm_walking_rest[1] = 0
+            arm_walking_rest[3] = sequence_config["walking_elbow"]
+            walker.posture[m.joint("actor_elbow_r").qposadr[0]] = sequence_config[
+                "walking_elbow"
+            ]
+            walker.posture[m.joint("actor_spine_yaw").qposadr[0]] = (
+                sequence_config["torso_yaw"]
+                * walking_arm_release
+                * (1 - smooth((d.qpos[4] - 0.2) / 0.3))
+            )
+            walker.posture[arm_ids] = arm_after_release + walking_arm_release * (
+                arm_walking_rest - arm_after_release
+            )
+            if k % 5 == 0:
+                try:
+                    walk_motors, walk_torque = walker.solve(d, clock - walking_start)
+                except RuntimeError as exception:
+                    print(exception, flush=True)
+                    break
+            if k % 1000 == 0:
+                print("walk", clock, d.qpos[3:6], flush=True)
         if k % 5 == 0:
             previous_arm_target = desired[arm_ids].copy()
             body_follow = smooth(np.clip(-actual_door / OPEN_ANGLE, 0, 1))
             desired[m.joint("actor_spine_pitch").qposadr[0]] = (
-                SPINE_LEAN + (0.15 - SPINE_LEAN) * body_follow
+                SPINE_LEAN + (FOLLOW_PITCH - SPINE_LEAN) * body_follow
             )
-            desired[m.joint("actor_spine_yaw").qposadr[0]] = 0.15 * body_follow
+            desired[m.joint("actor_spine_yaw").qposadr[0]] = FOLLOW_YAW * body_follow
             # The pelvis is free: solve the arm from the achieved base/torso,
             # retaining separate posture targets for the legs and trunk.
             ik.qpos[:] = d.qpos
@@ -678,6 +835,28 @@ def run(
                 p = ik.site_xpos[m.site("palm_l").id].copy()
                 R = ik.site_xmat[m.site("palm_l").id].reshape(3, 3).copy()
                 err = 0.0
+            elif sequence and clock >= 8.40:
+                if release_path is None:
+                    from scripts.physical_human.release import plan_release
+
+                    release_path, release_plan_receipt = plan_release(
+                        m, d, arm_names, arm_after_release
+                    )
+                    (out / "release-plan.json").write_text(
+                        json.dumps(release_plan_receipt, indent=2)
+                    )
+                if clock < 9.40:
+                    ik.qpos[arm_ids] = mix(
+                        release_path[0], release_path[1], (clock - 8.40) / 1.00
+                    )
+                else:
+                    ik.qpos[arm_ids] = mix(
+                        release_path[1], release_path[2], (clock - 9.40) / 1.00
+                    )
+                mujoco.mj_forward(m, ik)
+                p = ik.site_xpos[m.site("palm_l").id].copy()
+                R = ik.site_xmat[m.site("palm_l").id].reshape(3, 3).copy()
+                err = 0.0
             else:
                 err = arm_ik(m, ik, "l", p, R, 8)
             desired[arm_ids] = ik.qpos[arm_ids]
@@ -685,7 +864,14 @@ def run(
                 qi = m.joint(name).qposadr[0]
                 desired[qi] = ik.qpos[qi]
             for side in ["l", "r"]:
-                pose = target_pose(side, 0.12)
+                curl = (
+                    0.12
+                    if walker is None
+                    else 0.12
+                    + (sequence_config["walking_hand_curl"] - 0.12)
+                    * smooth((clock - walking_start) / 1.0)
+                )
+                pose = target_pose(side, curl)
                 if side == "l":
                     working = grasp_pose(side, grip)
                     pose = {n: v + preshape * (working[n] - v) for n, v in pose.items()}
@@ -722,13 +908,27 @@ def run(
             )
             / m.actuator_gainprm[:, 0]
         )
+        if walker is not None:
+            d.ctrl[walk_motors] = (
+                d.qpos[qids[walk_motors]]
+                + (
+                    walk_torque
+                    - m.actuator_biasprm[walk_motors, 2] * d.qvel[vids[walk_motors]]
+                )
+                / m.actuator_gainprm[walk_motors, 0]
+            )
         mujoco.mj_step(m, d)
         # Refresh contacts, sensors and world poses at the recorded post-step state.
         mujoco.mj_forward(m, d)
         if abs(d.time - (k + 1) * m.opt.timestep) > 1e-7:
             raise RuntimeError("Simulator reset or clock mismatch")
+        upright_audit.observe(d, phase)
         audit.observe(d, phase)
         grasp_state = grasp_audit.observe(d, phase)
+        if traversal_audit is not None:
+            traversal_audit.observe(
+                d, phase, None if walker is None else walker.last_target
+            )
         touch = 0.0
         contacts = []
         ground_force = 0.0
@@ -788,6 +988,7 @@ def run(
                     ),
                     "latch_mm": float(d.qpos[m.joint("latch_slide").qposadr[0]] * 1000),
                     "touch_n": touch,
+                    "pelvis_xyz": d.xpos[m.body("actor_pelvis").id].tolist(),
                     "pelvis_z": float(d.xpos[m.body("actor_pelvis").id, 2]),
                     "ik_error": err if t > 0.65 else 0,
                     "ground_n": ground_force,
@@ -804,6 +1005,15 @@ def run(
             sensors.append(d.sensordata.copy())
             landmarks.append(d.site_xpos[audit.keypoints].copy())
             forces.append(contacts)
+        if (
+            requested_duration is None
+            and walker is not None
+            and d.time >= walking_start + walking_plan["time"][-1] + 1.0
+        ):
+            break
+        if walker is not None and d.qpos[5] < 0.65:
+            print("Rejected: loss of standing balance", flush=True)
+            break
         if not np.isfinite(d.qpos).all():
             raise RuntimeError("nonfinite state")
     np.savez_compressed(
@@ -816,7 +1026,25 @@ def run(
         hand_keypoints=np.array(landmarks),
         time=np.array([r["t"] for r in rows]),
     )
+    if any(
+        hashlib.sha256((ROOT / name).read_bytes()).hexdigest() != digest
+        for name, digest in source_hashes.items()
+    ):
+        raise RuntimeError(
+            "Controller source changed during the run; rerun before publishing"
+        )
     report = {
+        "source_files_sha256": source_hashes,
+        "controller_parameters": {
+            "opening_angle_rad": OPEN_ANGLE,
+            "spine_initial_pitch_rad": SPINE_LEAN,
+            "spine_follow_pitch_rad": FOLLOW_PITCH,
+            "spine_follow_yaw_rad": FOLLOW_YAW,
+            "wrist_flexion_limit_rad": WRIST_FLEX_LIMIT,
+            "wrist_deviation_limit_rad": WRIST_DEVIATION_LIMIT,
+        },
+        "requested_duration_s": requested_duration,
+        "simulated_duration_s": float(d.time),
         "started_utc": started,
         "finished_utc": datetime.now(timezone.utc).isoformat(),
         "source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
@@ -844,6 +1072,7 @@ def run(
                 (Path(__file__).parent / "hand_anatomy.py").read_bytes()
             ).hexdigest(),
         },
+        "posture": upright_audit.result(),
         "kinematics": audit.result(),
         "grasp": grasp_audit.result(),
         "schema": "doorbench.physical-human-prototype.v3",
@@ -855,7 +1084,10 @@ def run(
         "no_touch": no_touch,
         "door_actuators": 0,
         "hand_welds": 0,
-        "scope": "standing opening and hold; release and traversal not validated",
+        "sequence_config": sequence_config if sequence else None,
+        "scope": "experimental release extension"
+        if sequence
+        else "standing opening and hold; release and traversal not validated",
         "max_contact_penetration_m": maxpen,
         "peak_hand_contact_n": peakforce,
         "max_door_deg": max(r["door_deg"] for r in rows),
@@ -872,6 +1104,7 @@ def run(
         "contacts": forces,
     }
     report["quality_checks"] = {
+        "upright_torso": report["posture"]["passed"],
         "anatomical_kinematics": report["kinematics"]["passed"],
         "opposing_thumb_and_finger_contact": report["grasp"]["passed"],
         "opening_40_to_65_deg": 40 < report["max_door_deg"] < 65,
@@ -883,6 +1116,36 @@ def run(
         "peak_hand_force_under_160_n": peak_total < 160,
         "no_simulator_warnings": not any(report["warnings"]),
     }
+    if sequence:
+        report["traversal"] = traversal_audit.result(d, walker)
+        if walking_plan is not None:
+            report["traversal"]["planned_duration_s"] = float(walking_plan["time"][-1])
+            report["traversal"]["foot_adjustment_columns"] = [
+                "0=footprint,1=swing",
+                "side:0=left,1=right",
+                "start_s",
+                "end_s",
+                "offset_x_m",
+                "offset_y_m",
+                "clearance_before_m",
+                "clearance_after_m",
+            ]
+            report["traversal"]["foot_adjustments"] = walking_plan[
+                "foot_adjustments"
+            ].tolist()
+            report["traversal"]["planned_min_foot_clearance_m"] = walking_plan[
+                "planned_foot_clearance_after_m"
+            ]
+        report["quality_checks"].pop("foot_drift_under_5_mm")
+        held = [row for row in rows if row["phase"] == "hold open"]
+        report["quality_checks"]["door_held_open"] = (
+            bool(held) and min(row["door_deg"] for row in held) > 40
+        )
+        report["quality_checks"].update(report["traversal"]["checks"])
+        report["schema"] = "doorbench.physical-human-prototype.v4"
+        report["scope"] = (
+            "opening, release, and floating-base traversal of one passive door"
+        )
     report["quality_passed"] = all(report["quality_checks"].values())
     (out / "report.json").write_text(json.dumps(report))
     print(
@@ -903,6 +1166,11 @@ if __name__ == "__main__":
     p.add_argument("--anchors", action="store_true")
     p.add_argument("--no-touch", action="store_true")
     p.add_argument("--latch-blocked", action="store_true")
-    p.add_argument("--duration", type=float, default=6.5)
+    p.add_argument(
+        "--duration",
+        type=float,
+        help="Seconds; default is 6.5 for grasp or automatic completion for --sequence",
+    )
+    p.add_argument("--sequence", action="store_true")
     a = p.parse_args()
-    run(a.out, a.no_touch, a.duration, a.anchors, a.latch_blocked)
+    run(a.out, a.no_touch, a.duration, a.anchors, a.latch_blocked, sequence=a.sequence)

@@ -67,9 +67,14 @@ def main():
     ]
     angle_ids = [m.joint(n).qposadr[0] for n in angle_names]
     frames = []
+    torso_tilt_deg = []
+    chest_id = m.body("actor_chest").id
     for q in z["qpos"]:
         d.qpos[:] = q
         mujoco.mj_forward(m, d)
+        torso_tilt_deg.append(
+            round(float(np.rad2deg(np.arccos(np.clip(d.xmat[chest_id, 8], -1, 1)))), 3)
+        )
         frames.append(
             np.round(
                 np.c_[
@@ -85,6 +90,7 @@ def main():
                 "geoms": geoms,
                 "angle_names": angle_names,
                 "angles_deg": np.rad2deg(z["qpos"][:, angle_ids]).round(3).tolist(),
+                "torso_tilt_deg": torso_tilt_deg,
                 "frames": frames,
                 "time": z["time"].tolist(),
                 "report": report,
@@ -98,6 +104,9 @@ def main():
     shutil.copy(Path(__file__).parent / "anatomy/README.md", out / "hand-provenance.md")
     for n in ["scene.xml", "trajectory.npz", "report.json"]:
         shutil.copy(a.directory / n, out / n)
+    for n in ["walking-plan.npz", "release-plan.json"]:
+        if (a.directory / n).exists():
+            shutil.copy(a.directory / n, out / n)
     checks = {}
     for n in ["no-touch", "blocked"]:
         path = a.directory.parent / n / "report.json"
@@ -128,6 +137,9 @@ def main():
             or case.get("grip_residual_rad") != report.get("grip_residual_rad")
             or case["rig_sha256"] != report["rig_sha256"]
             or case.get("hand_source") != report.get("hand_source")
+            or case.get("source_files_sha256") != report.get("source_files_sha256")
+            or case.get("controller_parameters") != report.get("controller_parameters")
+            or case.get("sequence_config") != report.get("sequence_config")
         ):
             raise ValueError(
                 "Causal check comes from a different controller/rig revision"
