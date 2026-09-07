@@ -59,7 +59,7 @@ export function Families({ manifest, supplementaryCount = 0 }: { manifest: Manif
   }, [manifest]);
   const fams = manifest.families.filter((f) => byFam.has(f) && (group === "All families" || GROUPS[group].includes(f))).sort((a, b) => byFam.get(b)!.length - byFam.get(a)!.length);
   return <div className="page-shell families-page">
-    <PageIntro eyebrow="The mechanics of access" title="One collection. Many ways in." aside={<a href="#/" className="button">View all doors <Icon name="arrow" /></a>}><p>Explore {manifest.families.length} motion families, from everyday hinges and sliding tracks to marine hatches, folding partitions, and revolving entrances.</p></PageIntro>
+    <PageIntro aside={<a href="#/" className="button">View all doors <Icon name="arrow" /></a>}><p>Explore {manifest.families.length} motion families, from everyday hinges and sliding tracks to marine hatches, folding partitions, and revolving entrances.</p></PageIntro>
     <div className="family-navigation"><div className="category-tabs" aria-label="Motion categories">{["All families", ...Object.keys(GROUPS)].map((g) => <button key={g} aria-pressed={group === g} onClick={() => setGroup(g)}>{g}</button>)}</div><span>{fams.length} families</span></div>
     <div className="families">{fams.map((f) => {
       const ds = byFam.get(f)!;

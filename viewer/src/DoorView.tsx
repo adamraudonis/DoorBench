@@ -85,7 +85,7 @@ function ScenarioOptions({ scenarios }: { scenarios: ScenarioJ[] }) {
   );
 }
 
-export function DoorView({ manifest, id, query = "", embedded = false, initialDiagnostic = false }: { manifest: Manifest; id: string; query?: string; embedded?: boolean; initialDiagnostic?: boolean }) {
+export function DoorView({ manifest, id, query = "", embedded = false, showAppearance = true, onScreenshot, initialDiagnostic = false }: { manifest: Manifest; id: string; query?: string; embedded?: boolean; showAppearance?: boolean; onScreenshot?: (blob: Blob, filename: string) => Promise<void>; initialDiagnostic?: boolean }) {
   const entry = manifest.doors.find((d) => d.id === id);
   const supplementary = entry ? isPetDoor(entry) : isPetDoorId(id);
   const referenceBlocked = referenceUnavailable(entry);
@@ -197,6 +197,35 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
     if (hintTimer.current) window.clearTimeout(hintTimer.current);
     hintTimer.current = window.setTimeout(() => setHint(null), ms);
   };
+
+  function takeScreenshot() {
+    const t = three.current;
+    if (!t || !built.current) { toast("The 3D view is still loading."); return; }
+    const filename = `${id}-${new Date().toISOString().replace(/[:.]/g, "-")}.png`;
+    try {
+      // Render the current pose and camera before capturing, including active display overlays.
+      t.renderer.render(t.scene, t.camera);
+      t.renderer.domElement.toBlob(async blob => {
+        if (!blob) { toast("Could not capture the 3D view. Please try again."); return; }
+        if (onScreenshot) {
+          try { await onScreenshot(blob, filename); toast("Screenshot attached to this door’s feedback."); }
+          catch { toast("Screenshot could not be saved. Please try again."); }
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        toast("Screenshot downloaded.");
+      }, "image/png");
+    } catch {
+      toast("Could not capture the 3D view. Please try again.");
+    }
+  }
 
   // three.js setup
   useEffect(() => {
@@ -643,6 +672,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
       <div className="viewport">
         <div className="scene-mount" ref={mountRef} />
         <div className="hud">
+          <button onClick={takeScreenshot} disabled={!model} title={onScreenshot ? "Attach the current 3D view to this door’s feedback" : "Download the current 3D camera view as a PNG"}>Screenshot</button>
           {primaryH && model && !requiresRecordedPhysics(model) && <button className="primary" onClick={openClose} title={individualOps ? `Releases all ${opNames.length} latches one by one (the leaf is held while any one of them is engaged), moves the leaf, re-engages them` : "Kinematic mechanism preview: retracts each leaf's latch, moves the free leaves, and releases the operators. Secured leaves stay locked."}>{model && isSwingPair(model) ? "Open / close pair" : "Open / close door"}</button>}
           {opH && model && !requiresRecordedPhysics(model) && <button title={individualOps ? opNames.join(", ") : (model ? (returnLabel(model, operator) ?? undefined) : undefined)}
             onClick={() => {
@@ -691,7 +721,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
               <a href={`./reference-motions/trajectories/${id}.npz`} download>Native trajectory</a>
             </div>
           </> : <p>{referenceError || "Loading reference recording…"}</p>}
-          <p className="reference-note">{reference&&isNativeReference(reference)?'Orange points and arrows show contact locations and forces; blue arrows mark grasp torque axes. Joint efforts and motors also drive the mechanism. This is an idealized physics baseline: it does not validate human reach, grip or balance. Failed attempts are retained.':'Generalized forces move the door; this original figure has known contact and clearance errors.'} <a href={`#/motions?door=${encodeURIComponent(id)}`}>Motion Lab and validation details →</a></p>
+          {!embedded && <p className="reference-note">{reference&&isNativeReference(reference)?'Orange points and arrows show contact locations and forces; blue arrows mark grasp torque axes. Joint efforts and motors also drive the mechanism. This is an idealized physics baseline: it does not validate human reach, grip or balance. Failed attempts are retained.':'Generalized forces move the door; this original figure has known contact and clearance errors.'} <a href={`#/motions?door=${encodeURIComponent(id)}`}>Motion Lab and validation details →</a></p>}
         </div>)}
         {showEval && scenario?.human && (
           <div className="timeline">
@@ -716,7 +746,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, initialDi
         <h2>{entry.use_case || entry.id}</h2>
         {supplementary && <div className="collection-notice"><strong>Supplementary pet-door asset</strong><p>Available for inspection and download. Excluded from robot and human benchmarks; no baseline evaluation or reference motion.</p><a href="#/pets">← Pet-door collection</a></div>}
         {!supplementary && referenceBlocked && <div className="collection-notice"><strong>Archived motion unavailable</strong>{referenceBlocked}</div>}
-        <AppearancePanel id={id} />
+        {showAppearance && <AppearancePanel id={id} />}
         <div className="use">{entry.id} · <a href={supplementary ? "#/pets" : `#/?family=${entry.family}`}>{FAMILY_LABELS[entry.family] ?? entry.family}</a> · {entry.context}{!supplementary && <> · task: {nice(entry.task)} · difficulty {entry.difficulty}/5</>}</div>
         <div style={{ marginTop: 6 }} className="chips">
           {spec?.lock && <span className="chip" title="Initial native lock state; the presence of lock hardware does not mean it is engaged.">{spec.lock.engaged ? "Initially locked" : "Initially unlocked"}</span>}

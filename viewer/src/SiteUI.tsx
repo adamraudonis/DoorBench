@@ -20,10 +20,10 @@ export function Icon({ name = "arrow", size = 18 }: { name?: "arrow" | "external
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
-export function PageIntro({ eyebrow, title, children, aside }: { eyebrow: string; title: string; children: React.ReactNode; aside?: React.ReactNode }) {
-  return <header className="page-intro"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><div className="page-lead">{children}</div></div>{aside && <div className="intro-aside">{aside}</div>}</header>;
+export function PageIntro({ eyebrow, title, children, aside }: { eyebrow?: string; title?: string; children: React.ReactNode; aside?: React.ReactNode }) {
+  return <header className="page-intro"><div>{eyebrow && <p className="eyebrow">{eyebrow}</p>}{title && <h1>{title}</h1>}<div className="page-lead">{children}</div></div>{aside && <div className="intro-aside">{aside}</div>}</header>;
 }
 
 export function SiteFooter() {
-  return <footer className="site-footer"><a href="#/" className="footer-brand"><Icon name="door" />DoorBench</a><span>Open environments for robotics research.</span><div><a href="#/about">Documentation</a><a href={REPOSITORY} target="_blank" rel="noreferrer">GitHub <Icon name="external" size={13} /></a><a href="https://polyhaven.com/license" target="_blank" rel="noreferrer">Texture credits</a></div></footer>;
+  return <footer className="site-footer"><a href="#/" className="footer-brand"><Icon name="door" />DoorBench</a><span>Opening doors for robotics research</span><div><a href="#/about">Documentation</a><a href={REPOSITORY} target="_blank" rel="noreferrer">GitHub <Icon name="external" size={13} /></a><a href="https://polyhaven.com/license" target="_blank" rel="noreferrer">Texture credits</a></div></footer>;
 }

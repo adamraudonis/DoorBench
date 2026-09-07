@@ -40,7 +40,7 @@ export function App() {
     if (h.startsWith("/results")) return { page: "results" };
     if (h.startsWith("/motions")) return { page: "motions" };
     if (h.split("?")[0] === "/human-reference") return { page: "human-reference" };
-    if (h.startsWith("/review")) return { page: "review" };
+    if (import.meta.env.DEV && h.startsWith("/review")) return { page: "review" };
     return { page: "catalogue", query: h.includes("?") ? h.split("?")[1] : "" };
   }, [hash]);
   useEffect(() => {
@@ -52,9 +52,9 @@ export function App() {
     <div className="app">
       <a className="skip-link" href="#main-content" onClick={(e) => { e.preventDefault(); document.getElementById("main-content")?.focus(); }}>Skip to content</a>
       <header className="topbar">
-        <a className="brand" href="#/" aria-label="DoorBench home"><span className="brand-mark"><Icon name="door" size={24} /></span>DoorBench<span className="brand-tag">RESEARCH</span></a>
+        <a className="brand" href="#/" aria-label="DoorBench home"><span className="brand-mark"><Icon name="door" size={24} /></span>DoorBench</a>
         <nav aria-label="Main navigation">
-          {[["catalogue", "#/", "Catalogue"], ["families", "#/families", "Door types"], ["results", "#/results", "Results"], ["motions", "#/motions", "Motion Lab"], ["review", "#/review", "Review"], ["about", "#/about", "About"]].map(([page, href, label]) => <a key={page} href={href} className={route.page === page ? "active" : ""} aria-current={route.page === page ? "page" : undefined}>{label}</a>)}
+          {[["catalogue", "#/", "Catalogue"], ["families", "#/families", "Door types"], ["results", "#/results", "Results"], ["review", "#/review", "Review"], ["about", "#/about", "About"]].filter(([page]) => page !== "review" || import.meta.env.DEV).map(([page, href, label]) => <a key={page} href={href} className={route.page === page ? "active" : ""} aria-current={route.page === page ? "page" : undefined}>{label}</a>)}
         </nav>
         <div className="header-links"><a className="header-code" href={REPOSITORY} target="_blank" rel="noreferrer">GitHub <Icon name="external" size={13} /></a><a className="source-link" href={DATASET} target="_blank" rel="noreferrer">Get the dataset <Icon name="external" size={15} /></a></div>
       </header>
@@ -67,7 +67,7 @@ export function App() {
         {manifest && route.page === "door" && <DoorView manifest={manifest} id={route.id!} query={route.query ?? ""} />}
         {manifest && route.page === "about" && <About manifest={standard!} />}
         {manifest && route.page === "results" && <Results manifest={manifest} />}
-        {manifest && route.page === "review" && <Review manifest={manifest} />}
+        {import.meta.env.DEV && manifest && route.page === "review" && <Review manifest={manifest} />}
         {manifest && route.page === "motions" && <MotionLab manifest={manifest} />}
         {route.page === "human-reference" && <HumanReference />}
         {manifest && !["door", "review", "human-reference"].includes(route.page) && <SiteFooter />}
