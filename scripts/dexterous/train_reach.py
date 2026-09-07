@@ -33,7 +33,8 @@ class Progress(BaseCallback):
             tmp=self.out/'progress.tmp';tmp.write_text(json.dumps(row,indent=2));tmp.replace(self.out/'progress.json')
             if save_checkpoint:
                 self.last=self.num_timesteps
-                self.model.save(self.out/'latest')
+                self.model.save(self.out/'checkpoint-pending.zip')
+                (self.out/'checkpoint-pending.zip').replace(self.out/'latest.zip')
             with (self.out/'history.jsonl').open('a') as stream:
                 stream.write(json.dumps({k:v for k,v in row.items() if k!='recent_episodes'})+'\n')
             print(json.dumps({k:v for k,v in row.items() if k!='recent_episodes'}),flush=True)
@@ -47,7 +48,7 @@ def main():
     p.add_argument('--standing-weight',type=float,default=1.)
     p.add_argument('--device',default='cuda');p.add_argument('--checkpoint');p.add_argument('--seed',type=int,default=17)
     a=p.parse_args();a.output.mkdir(parents=True,exist_ok=True);torch.set_num_threads(1)
-    if (a.output/'manifest.json').exists():
+    if (a.output/'manifest.json').exists() or (a.output/'config.json').exists():
         raise SystemExit('Use a new output directory for each run, including checkpoint resumes')
     capture(Path(__file__).resolve().parents[2],a.output,vars(a))
     constructor=partial(ReachTeacherEnv,a.door,a.robot,a.upstream,distance=a.distance,standing_weight=a.standing_weight)

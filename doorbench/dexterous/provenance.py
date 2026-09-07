@@ -51,6 +51,10 @@ def capture(root,output,configuration,*,timing='before_training'):
             'source_hashes':hashes,'source_archive_sha256':sha256(output/'source.tar.gz'),
             'configuration':configuration,'inputs':inputs,'dependencies':deps,
             'python':platform.python_version(),'platform':platform.platform(), 'cpu_count':os.cpu_count(),
+            'working_directory':str(Path.cwd()),
+            'cpu_affinity':sorted(os.sched_getaffinity(0)) if hasattr(os,'sched_getaffinity') else None,
+            'runtime_settings':{key:os.environ.get(key) for key in
+                ('OMP_NUM_THREADS','OPENBLAS_NUM_THREADS','MUJOCO_GL','CUDA_VISIBLE_DEVICES')},
             'gpu':gpu.stdout.strip() if gpu and gpu.returncode==0 else None,
             'portable_backend_claim':False}
     (output/'manifest.json').write_text(json.dumps(report,indent=2,default=str)+'\n')
