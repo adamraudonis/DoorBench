@@ -78,3 +78,14 @@ The native regression tests require:
 The exact observed measurements and checks are downloadable in the local demo. No unsupported all-door reference claims are made. Before using this as human ground truth, the controller needs broader robustness tests, biomechanical validation, natural-motion review and a locomotion/traversal extension.
 
 Native contact and constraint semantics: [MuJoCo computation](https://mujoco.readthedocs.io/en/stable/computation/index.html) and [MJCF equality constraints](https://mujoco.readthedocs.io/en/stable/XMLreference.html#equality).
+
+## Phone inspection video
+
+A portrait H.264 MP4 shows the whole figure and isolated hand simultaneously, with door angle, latch travel and measured hand contact. It plays the saved motion at real time, then half speed (about 20 seconds total). It uses recorded states, not a new simulation.
+
+```sh
+python scripts/physical_human/phone_video.py out/physical-human/final \
+  --out out/physical-human/doorbench-human-phone.mp4
+```
+
+The script also writes a JPEG inspection frame and a JSON receipt with input/output hashes. [Download the phone video](https://github.com/adamraudonis/DoorBench/releases/download/physical-human-prototype-20260906/doorbench-human-phone.mp4).
