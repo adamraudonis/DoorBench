@@ -113,3 +113,20 @@ def test_remote_collector_quotes_path_and_keeps_credentials_server_side(monkeypa
     assert shlex.split(recorded["args"][-1]) == ["python3", "-", path, "--gpu"]
     assert "BatchMode=yes" in recorded["args"]
     assert "/private/key" not in recorded["kwargs"]["input"]
+
+
+def test_training_heartbeat_failure_and_completion(tmp_path):
+    (tmp_path/'config.json').write_text(json.dumps({'steps':500000}))
+    progress={'stage':'privileged body reach training','heartbeat_unix':time.time(),'timesteps':2048}
+    (tmp_path/'progress.json').write_text(json.dumps(progress))
+    d=module.collect(tmp_path)
+    assert d['training'] and d['status']=='running' and not d['complete']
+    assert 'audited_success' not in d
+    (tmp_path/'failed.json').write_text(json.dumps({'error':'test failure'}))
+    assert module.collect(tmp_path)['status']=='failed'
+    (tmp_path/'failed.json').unlink()
+    progress['heartbeat_unix']=0
+    (tmp_path/'progress.json').write_text(json.dumps(progress))
+    assert module.collect(tmp_path)['status']=='not reporting'
+    (tmp_path/'completed.json').write_text(json.dumps({'timesteps':500000}))
+    assert module.collect(tmp_path)['status']=='completed'

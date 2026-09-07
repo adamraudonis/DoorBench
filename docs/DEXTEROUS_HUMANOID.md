@@ -8,6 +8,8 @@ The H1/dual-Shadow robot compiles and attaches to a freshly generated `db0055_sw
 
 A borrowed two-hand reaching policy maintained balance in a short stationary/reaching probe, but crouched substantially and fell on a longer approach. Those are integration results and failures, not a door-opening score. The next step is adapting the body-reaching skill under the full articulation before proceeding to hand contact and the complete task.
 
+See [cluster reproduction and Isaac Sim migration](DEXTEROUS_REPRODUCTION.md) for portable configurations, artifact requirements, and backend limitations. The [approved full plan](DEXTEROUS_PLAN.md) remains the project scope.
+
 ## Reproduce the model and native probe
 
 Use a dedicated environment with MuJoCo 3.12.0, PyTorch, Pillow, and the DoorBench package. The optional PPO training stage uses stable-baselines3 2.7.0 and gymnasium 1.2.2. The upstream clone and generated assets go under ignored `out/`, never into source commits.
@@ -39,7 +41,7 @@ python scripts/dexterous/train_reach.py \
 
 ## Resource isolation
 
-`scripts/dexterous/pod.py` uses its own allocation journal, never the legacy shared pod record. Creation arms a detached local deadline guard tied to the exact allocation ID; it also refuses to overwrite an active allocation. Copy evidence/checkpoints before termination. The guard requires this host and its network connection to remain available; a remote backup guard should be added after SSH starts.
+`scripts/dexterous/pod.py` uses its own allocation journal, never the legacy shared pod record. Creation arms a detached local deadline guard tied to the exact allocation ID; it also refuses to overwrite an active allocation. Copy evidence/checkpoints before termination. The local guard requires this host and its network connection. The current allocation also has an independently running remote deadline guard. Keep its private configuration outside the repository and never include it in artifacts.
 
 `scripts/dexterous/bootstrap.sh` installs a lean native-MuJoCo/PyTorch training runtime. Isaac Lab porting and GPU physics are separate compatibility tasks, not implied by using a GPU for neural-network updates. Runtime dependencies are recorded after installation.
 

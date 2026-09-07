@@ -36,6 +36,8 @@ class DexterousDoorEnv:
         self.root_qadr = int(self.m.jnt_qposadr[self.root_joint])
         self.root_vadr = int(self.m.jnt_dofadr[self.root_joint])
         self.pelvis = self.m.body("robot/pelvis").id
+        self.tactile_sensor_ids = {i for i in range(self.m.nsensor)
+            if self.m.sensor(i).name.startswith("robot/") and self.m.sensor(i).name.endswith("_touch")}
         self.tactile_indices = np.concatenate([
             np.arange(self.m.sensor_adr[i], self.m.sensor_adr[i] + self.m.sensor_dim[i])
             for i in range(self.m.nsensor)
@@ -92,10 +94,20 @@ class DexterousDoorEnv:
             options.sitegroup[:] = 0
             for side in ("left", "right"):
                 self.renderer.update_scene(self.d, camera=f"robot/{side}_eye_camera", scene_option=options)
+                self.hide_sensor_overlays(self.renderer.scene)
                 obs[f"rgb_{side}"] = self.renderer.render().copy()
         if set(obs) - OBSERVATION_KEYS:
             raise AssertionError("Unexpected policy observation")
         return obs
+
+    def hide_sensor_overlays(self, scene):
+        # touch_grid adds debug boxes even when sites are hidden. Hide only its
+        # visual decorations; never modify sensor values or collision geometry.
+        for geom in scene.geoms[:scene.ngeom]:
+            if (geom.objtype == mujoco.mjtObj.mjOBJ_UNKNOWN and
+                    geom.category == mujoco.mjtCatBit.mjCAT_DECOR and
+                    geom.objid in self.tactile_sensor_ids):
+                geom.rgba[3] = 0.
 
     def step(self, action, *, images=True):
         control = self.denormalize(action)
@@ -107,10 +119,14 @@ class DexterousDoorEnv:
 
     def diagnostics(self):
         up = self.d.xmat[self.m.body("robot/torso_link").id].reshape(3, 3)[:, 2]
+        warnings=sum(int(self.d.warning[w].number) for w in (mujoco.mjtWarning.mjWARN_BADQPOS,
+            mujoco.mjtWarning.mjWARN_BADQVEL,mujoco.mjtWarning.mjWARN_BADQACC,mujoco.mjtWarning.mjWARN_BADCTRL))
         return {"sim_time_s": float(self.d.time), "door_q": float(self.plant._door_q()),
                 "root_height_m": float(self.d.qpos[self.root_qadr + 2]),
                 "torso_tilt_deg": float(np.rad2deg(np.arccos(np.clip(up[2], -1., 1.)))),
-                "contact_count": self.d.ncon, "finite": bool(np.all(np.isfinite(self.d.qpos))),
+                "contact_count": self.d.ncon, "finite": all(bool(np.all(np.isfinite(x))) for x in
+                    (self.d.qpos,self.d.qvel,self.d.ctrl,self.d.sensordata)),
+                "numerical_warnings":warnings,
                 "external_wrench_max": float(np.max(np.abs(self.d.xfrc_applied))),
                 "applied_generalized_force_max": float(np.max(np.abs(self.d.qfrc_applied)))}
 

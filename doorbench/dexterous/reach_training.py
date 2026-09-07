@@ -16,12 +16,13 @@ from .reaching import ReachingController
 class ReachTeacherEnv(gym.Env):
     metadata = {"render_modes": []}
 
-    def __init__(self, door_dir, robot_xml, upstream, *, distance=.25, horizon=300):
+    def __init__(self, door_dir, robot_xml, upstream, *, distance=.25, horizon=300, standing_weight=1.):
         robot_xml = Path(robot_xml)
         audit = json.loads(robot_xml.with_suffix('.audit.json').read_text())
         self.sim = DexterousDoorEnv(door_dir, robot_xml, audit)
         self.upstream = upstream
         self.distance, self.horizon = distance, horizon
+        self.standing_weight=standing_weight
         self.action_space = spaces.Box(-1., 1., shape=(19,), dtype=np.float32)
         self.observation_space = spaces.Box(-np.inf, np.inf, shape=(61,), dtype=np.float32)
         self.controller = None
@@ -55,8 +56,8 @@ class ReachTeacherEnv(gym.Env):
         upright = np.exp(-8*tilt**2)
         standing = np.exp(-20*(height-.95)**2)
         smoothness = np.mean((np.asarray(action)-self.previous_action)**2)
-        reward = float(2*reaching + upright + standing - .02*smoothness - .005*np.sum(root_vel**2))
-        fallen = height < .5 or tilt > .9 or not diag['finite']
+        reward = float(2*reaching + upright + self.standing_weight*standing - .02*smoothness - .005*np.sum(root_vel**2))
+        fallen = height < .5 or tilt > .9 or not diag['finite'] or diag['numerical_warnings']>0
         if fallen:
             reward -= 10.
         good = bool(max(errors) < .08 and tilt < np.deg2rad(12) and height > .8)
@@ -69,3 +70,18 @@ class ReachTeacherEnv(gym.Env):
 
     def close(self):
         self.sim.close()
+
+    def configuration_audit(self):
+        m=self.sim.m
+        return {'backend':'mujoco-native','robot_adapter':'h1-shadow-v1',
+            'timestep_s':float(m.opt.timestep),'frame_skip':self.sim.frame_skip,
+            'integrator':int(m.opt.integrator),'solver':int(m.opt.solver),'cone':int(m.opt.cone),
+            'iterations':int(m.opt.iterations),'tolerance':float(m.opt.tolerance),
+            'gravity':m.opt.gravity.tolist(),'joint_count':m.njnt,'actuator_count':m.nu,
+            'robot_actuators':[m.actuator(i).name for i in self.sim.actuators],
+            'learned_body_actuators':[m.actuator(i).name for i in self.sim.actuators
+                if not any(s in m.actuator(i).name for s in ('/lh_','/rh_','wrist'))],
+            'control_ranges':m.actuator_ctrlrange[self.sim.actuators].tolist(),
+            'force_ranges':m.actuator_forcerange[self.sim.actuators].tolist(),
+            'tactile_values':len(self.sim.tactile_indices),'horizon_steps':self.horizon,
+            'target_distance_m':self.distance,'standing_reward_weight':self.standing_weight,'sensor_policy':False}

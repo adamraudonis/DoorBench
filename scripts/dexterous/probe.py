@@ -48,6 +48,7 @@ def main():
                 camera.distance = 3.8; camera.azimuth = 145; camera.elevation = -15
                 options = mujoco.MjvOption(); options.sitegroup[:] = 0
                 renderer.update_scene(env.d, camera=camera, scene_option=options)
+                env.hide_sensor_overlays(renderer.scene)
                 Image.fromarray(renderer.render()).save(a.output / 'whole-body.png')
         report = {'stage':'integration/balance probe', 'door_opening_claim':False,
                   'seconds_requested':a.seconds, 'elapsed_wall_s':time.monotonic()-start,

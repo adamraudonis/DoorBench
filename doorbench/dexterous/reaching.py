@@ -53,6 +53,9 @@ class ReachingController:
         return (obs - self.mean) / np.sqrt(self.var + 1e-8)
 
     def action(self, targets=None):
+        return self.body_action(self.predict_body(targets))
+
+    def predict_body(self, targets=None):
         obs = self.observation(targets)
         x = torch.as_tensor(obs, dtype=torch.float32)
         with torch.no_grad():
@@ -60,7 +63,7 @@ class ReachingController:
                 x = torch.nn.functional.linear(x, self.weights[layer + ".weight"], self.weights[layer + ".bias"])
                 if layer != "dense3":
                     x = x.tanh()
-        return self.body_action(x.numpy())
+        return x.numpy()
 
     def body_action(self, body_action):
         env = self.env; m, d = env.m, env.d

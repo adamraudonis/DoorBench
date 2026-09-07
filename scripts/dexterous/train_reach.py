@@ -11,18 +11,22 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
 from doorbench.dexterous.reach_training import ReachTeacherEnv
+from doorbench.dexterous.provenance import capture
 
 class Progress(BaseCallback):
-    def __init__(self, out, every=10000):
+    def __init__(self, out, every=10000, initial_steps=0):
         super().__init__(); self.out=out;self.every=every;self.last=0;self.start=time.time()
         self.results=[];self.last_report=0
+        self.initial_steps=initial_steps;self.last=initial_steps
     def _on_step(self):
         for done,info in zip(self.locals['dones'],self.locals['infos']):
-            if done:self.results.append({k:info[k] for k in ('is_success','fell','max_reach_error_m','torso_tilt_deg')})
+            if done:self.results.append({'is_success':bool(info['is_success']), 'fell':bool(info['fell']),
+                'max_reach_error_m':float(info['max_reach_error_m']), 'torso_tilt_deg':float(info['torso_tilt_deg'])})
         save_checkpoint=self.num_timesteps-self.last >= self.every
         if save_checkpoint or time.time()-self.last_report >= 5:
             self.last_report=time.time()
-            row={'stage':'privileged body reach training','timesteps':self.num_timesteps,
+            row={'stage':'privileged body reach training','timesteps':self.num_timesteps-self.initial_steps,
+                 'checkpoint_timesteps':self.num_timesteps,
                  'wall_seconds':time.time()-self.start,'heartbeat_unix':time.time(),
                  'completed_episodes':len(self.results),'recent_episodes':self.results[-30:],
                  'door_opening_claim':False}
@@ -40,11 +44,16 @@ def main():
     p.add_argument('--upstream',required=True);p.add_argument('--robot',required=True);p.add_argument('--door',required=True)
     p.add_argument('--output',type=Path,required=True);p.add_argument('--steps',type=int,default=500000)
     p.add_argument('--envs',type=int,default=8);p.add_argument('--distance',type=float,default=.25)
+    p.add_argument('--standing-weight',type=float,default=1.)
     p.add_argument('--device',default='cuda');p.add_argument('--checkpoint');p.add_argument('--seed',type=int,default=17)
     a=p.parse_args();a.output.mkdir(parents=True,exist_ok=True);torch.set_num_threads(1)
-    constructor=partial(ReachTeacherEnv,a.door,a.robot,a.upstream,distance=a.distance)
+    if (a.output/'manifest.json').exists():
+        raise SystemExit('Use a new output directory for each run, including checkpoint resumes')
+    capture(Path(__file__).resolve().parents[2],a.output,vars(a))
+    constructor=partial(ReachTeacherEnv,a.door,a.robot,a.upstream,distance=a.distance,standing_weight=a.standing_weight)
     env=SubprocVecEnv([constructor for _ in range(a.envs)],start_method='spawn') if a.envs>1 else DummyVecEnv([constructor])
     try:
+        (a.output/'physics.json').write_text(json.dumps(env.env_method('configuration_audit',indices=0)[0],indent=2)+'\n')
         if a.checkpoint:
             model=PPO.load(a.checkpoint,env=env,device=a.device)
         else:
@@ -60,9 +69,14 @@ def main():
                                    (model.policy.action_net,'dense3')]:
                     layer.weight.copy_(weights[name+'.weight']);layer.bias.copy_(weights[name+'.bias'])
         (a.output/'config.json').write_text(json.dumps(vars(a),default=str,indent=2)+'\n')
-        model.learn(total_timesteps=a.steps,callback=Progress(a.output))
+        initial_steps=model.num_timesteps if a.checkpoint else 0
+        model.learn(total_timesteps=a.steps,callback=Progress(a.output,initial_steps=initial_steps),
+                    reset_num_timesteps=not bool(a.checkpoint))
         model.save(a.output/'final')
         (a.output/'completed.json').write_text(json.dumps({'completed_at_unix':time.time(),'timesteps':model.num_timesteps,'door_opening_claim':False})+'\n')
+    except Exception as exc:
+        (a.output/'failed.json').write_text(json.dumps({'failed_at_unix':time.time(), 'error':str(exc)})+'\n')
+        raise
     finally:
         env.close()
 

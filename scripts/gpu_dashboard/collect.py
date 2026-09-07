@@ -45,6 +45,7 @@ def collect(directory, telemetry=False):
         if progress.get('stage') == 'privileged body reach training':
             config = read(root / 'config.json', {})
             completed = read(root / 'completed.json', {})
+            failed = read(root / 'failed.json', {})
             heartbeat = progress.get('heartbeat_unix')
             gpu=[]
             if telemetry:
@@ -52,7 +53,7 @@ def collect(directory, telemetry=False):
                 if proc.returncode==0:
                     gpu=[dict(zip(('name','utilization','memory_used','memory_total'),[v.strip() for v in row])) for row in csv.reader(proc.stdout.splitlines())]
             return dict(training=True,complete=bool(completed),
-                status='completed' if completed else 'running' if heartbeat and time.time()-heartbeat<30 else 'not reporting',
+                status='failed' if failed else 'completed' if completed else 'running' if heartbeat and time.time()-heartbeat<30 else 'not reporting',
                 progress=progress,config=config,gpu=gpu,
                 log=tail(root/'run.log'),scope='H1/Shadow body reaching; no door-opening score',
                 source_updated=heartbeat,heartbeat=heartbeat)
