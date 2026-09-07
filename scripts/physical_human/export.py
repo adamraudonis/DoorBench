@@ -31,6 +31,20 @@ def main():
     d = mujoco.MjData(m)
     z = np.load(a.directory / "trajectory.npz")
     report = json.loads((a.directory / "report.json").read_text())
+    if (
+        not report.get("quality_passed")
+        or not report.get("grasp", {}).get("passed")
+        or report["grasp"].get("minimum_loaded_fingers") != 4
+    ):
+        raise ValueError(
+            "The demonstration requires passing four-finger/opposing-thumb checks"
+        )
+    for name, key in [
+        ("scene.xml", "scene_sha256"),
+        ("trajectory.npz", "trajectory_sha256"),
+    ]:
+        if hashlib.sha256((a.directory / name).read_bytes()).hexdigest() != report[key]:
+            raise ValueError(f"Recorded {name} hash does not match")
     geoms = []
     for i in range(m.ngeom):
         geoms.append(
@@ -87,15 +101,31 @@ def main():
     checks = {}
     for n in ["no-touch", "blocked"]:
         path = a.directory.parent / n / "report.json"
-        if path.exists():
-            checks[n] = {
-                k: v
-                for k, v in json.loads(path.read_text()).items()
-                if k not in ["rows", "contacts"]
-            }
+        if not path.exists():
+            raise ValueError(f"Missing native causal check: {n}")
+        checks[n] = {
+            k: v
+            for k, v in json.loads(path.read_text()).items()
+            if k not in ["rows", "contacts"]
+        }
+    if (
+        not checks["no-touch"].get("no_touch")
+        or checks["no-touch"]["max_door_deg"] > 0.01
+    ):
+        raise ValueError("Door moves without hand contact")
+    if (
+        not checks["blocked"].get("latch_blocked")
+        or checks["blocked"]["max_door_deg"] >= 1
+    ):
+        raise ValueError("Blocked latch does not prevent opening")
     for case in checks.values():
         if (
             case["source_sha256"] != report["source_sha256"]
+            or case.get("grasp_controller_sha256")
+            != report.get("grasp_controller_sha256")
+            or case.get("kinematic_audit_sha256")
+            != report.get("kinematic_audit_sha256")
+            or case.get("grip_residual_rad") != report.get("grip_residual_rad")
             or case["rig_sha256"] != report["rig_sha256"]
             or case.get("hand_source") != report.get("hand_source")
         ):

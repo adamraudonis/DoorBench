@@ -24,7 +24,14 @@ from scipy.spatial.transform import Rotation
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from doorbench.reference.rig import rig_xml
-from scripts.physical_human.hand_anatomy import ANATOMY, DATA, attach_hand, target_pose
+from scripts.physical_human.grasp import GraspAudit, GripSqueeze, HandleWrench
+from scripts.physical_human.hand_anatomy import (
+    ANATOMY,
+    DATA,
+    attach_hand,
+    grasp_pose,
+    target_pose,
+)
 from scripts.physical_human.kinematics import KinematicAudit
 
 
@@ -45,20 +52,32 @@ def mix(a, b, t):
     return np.asarray(a) + (np.asarray(b) - a) * smooth(t)
 
 
-STANCE = (0.9, -0.60, 0.94)
-GRASP_YAW = 0.8
-WRIST_OFFSET = np.array([0.0, -0.098, 0.045])
-OPEN_ANGLE = 0.70
+STANCE = (0.65, -0.75, 0.94)
+STANCE_YAW = -0.90
+SPINE_LEAN = -0.12
+GRASP_YAW = 0.1679555797472828
+GRASP_ROLL = 0.009492678528509005
+WRIST_OFFSET = np.array(
+    [0.0009553295806018681, -0.08837036781924941, 0.03143656245392419]
+)
+PREGRASP_HEIGHT = 0.04594658811305197
+OPEN_ANGLE = 0.73
 
 
-def handle_pose(theta, lever_angle):
+def handle_pose(theta, lever_angle, grip=1.0):
     door = Rotation.from_rotvec([0, 0, theta]).as_matrix()
     lever = Rotation.from_rotvec([0, -lever_angle, 0]).as_matrix()
-    hand = Rotation.from_rotvec([0, 0, GRASP_YAW]).as_matrix()
+    axial_roll = -0.25 * smooth(np.clip(-theta / OPEN_ANGLE, 0, 1))
+    hand = (
+        Rotation.from_rotvec([axial_roll, 0, 0]).as_matrix()
+        @ Rotation.from_euler("ZX", [GRASP_YAW, GRASP_ROLL]).as_matrix()
+    )
+    offset = WRIST_OFFSET.copy()
+    offset[2] = PREGRASP_HEIGHT + grip * (WRIST_OFFSET[2] - PREGRASP_HEIGHT)
     rotation = door @ lever @ hand
     position = np.array([0, -0.028, 0]) + door @ (
         np.array([0.745, -0.002, 1.01])
-        + lever @ (np.array([-0.078, -0.066, 0]) + hand @ WRIST_OFFSET)
+        + lever @ (np.array([-0.078, -0.066, 0]) + hand @ offset)
     )
     return position, rotation
 
@@ -239,7 +258,9 @@ def make_model(anchors=False, no_touch=False, latch_blocked=False):
         damping=".3",
     )
     box(bolt, "latch_bolt", [0.012, 0, 0], [0.02, 0.014, 0.012], gold, mass=".045")
-    actor = ET.fromstring(rig_xml(root_pos=STANCE, root_yaw=0.0)).find("worldbody")[0]
+    actor = ET.fromstring(rig_xml(root_pos=STANCE, root_yaw=STANCE_YAW)).find(
+        "worldbody"
+    )[0]
     world.append(actor)
     for geom in actor.iter("geom"):
         name = geom.get("name")
@@ -366,7 +387,7 @@ def make_model(anchors=False, no_touch=False, latch_blocked=False):
         lower = any(x in name for x in ["hip_", "knee_", "ankle_"])
         spine = "spine_" in name
         kp = (
-            1.5
+            4.0
             if finger
             else 35
             if wrist
@@ -377,7 +398,7 @@ def make_model(anchors=False, no_touch=False, latch_blocked=False):
             else 320
         )
         kd = (
-            0.025 if finger else 1.5 if wrist else 100 if lower else 45 if spine else 18
+            0.045 if finger else 1.5 if wrist else 100 if lower else 45 if spine else 18
         )
         sub(
             act,
@@ -387,7 +408,7 @@ def make_model(anchors=False, no_touch=False, latch_blocked=False):
             kp=kp,
             kv=kd,
             forcelimited="true",
-            forcerange="-.18 .18" if finger else "-8 8" if wrist else "-160 160",
+            forcerange="-.4 .4" if finger else "-8 8" if wrist else "-160 160",
         )
     sensor = sub(root, "sensor")
     for site in actor.iter("site"):
@@ -425,7 +446,8 @@ def joint_indices(m, names):
 def initial(m):
     d = mujoco.MjData(m)
     d.qpos[:] = m.qpos0
-    a = math.acos((0.94 - 0.06 - 0.055) / 0.86)
+    a = math.acos((STANCE[2] - 0.06 - 0.055) / 0.86)
+    d.qpos[m.joint("actor_spine_pitch").qposadr[0]] = SPINE_LEAN
     for side in ["l", "r"]:
         for name, v in [
             ("hip_" + side + "_pitch", a),
@@ -450,6 +472,7 @@ def arm_ik(m, d, side, pos, rotation, iterations=15):
     )
     q, _ = joint_indices(m, names)
     sid = m.site("palm_" + side).id
+    elbow = m.body("actor_elbow_" + side).id
     start = d.qpos[q].copy()
     bounds = np.array([m.joint(name).range for name in names])
     # Prefer an ordinary working wrist posture inside the anatomical limits.
@@ -468,7 +491,10 @@ def arm_ik(m, d, side, pos, rotation, iterations=15):
             rotation @ d.site_xmat[sid].reshape(3, 3).T
         ).as_rotvec()
         return np.r_[
-            pos - d.site_xpos[sid], error_rotation * 0.18, (values - start) * 0.0005
+            pos - d.site_xpos[sid],
+            error_rotation * 0.18,
+            (d.xpos[elbow, 2] - (pos[2] + 0.12)) * 0.015,
+            (values - start) * (0.03 if iterations <= 15 else 0.0005),
         ]
 
     solution = least_squares(
@@ -484,10 +510,26 @@ def arm_ik(m, d, side, pos, rotation, iterations=15):
     return float(np.linalg.norm(error[:6]))
 
 
-def run(out, no_touch=False, duration=6.0, anchors=False, latch_blocked=False):
+def run(
+    out,
+    no_touch=False,
+    duration=6.5,
+    anchors=False,
+    latch_blocked=False,
+    grip_residual=None,
+):
     started = datetime.now(timezone.utc).isoformat()
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
+    if grip_residual is None:
+        grip_residual = json.loads(
+            Path(__file__).with_name("grip_policy.json").read_text()
+        )["residual_rad"]
+    grip_residual = np.asarray(grip_residual, dtype=float).reshape(2, 4)
+    if not np.isfinite(grip_residual).all() or np.max(np.abs(grip_residual)) > 0.12:
+        raise ValueError(
+            "Grip residual must contain eight finite MCP offsets within ±0.12 rad"
+        )
     m, xml = make_model(anchors, no_touch, latch_blocked)
     (out / "scene.xml").write_text(xml)
     d = initial(m)
@@ -513,12 +555,35 @@ def run(out, no_touch=False, duration=6.0, anchors=False, latch_blocked=False):
     (out / "scene.xml").write_text(ET.tostring(saved, encoding="unicode"))
     audit = KinematicAudit(m)
     audit.observe(d)
+    grasp_audit = GraspAudit(m)
+    squeeze = GripSqueeze(m)
+    wrench = HandleWrench(m)
     landmarks = []
     desired = d.qpos.copy()
     # Left-hand rest and working frame. Lever is +X across palm width.
     wrist0 = d.site_xpos[m.site("palm_l").id].copy()
     R0 = d.site_xmat[m.site("palm_l").id].reshape(3, 3).copy()
-    ready, ready_rotation = handle_pose(0, 0)
+    ready, ready_rotation = handle_pose(0, 0, 0)
+    arm_names = [f"actor_shoulder_l_{v}" for v in ("pitch", "roll", "yaw")] + [
+        "actor_elbow_l",
+        "actor_pronation_l",
+        "actor_wrist_l_deviation",
+        "actor_wrist_l_flexion",
+    ]
+    arm_ids, _ = joint_indices(m, arm_names)
+    arm_motors = np.array([m.actuator("motor_" + n).id for n in arm_names])
+    reference_velocity = np.zeros(m.nu)
+    arm_rest = d.qpos[arm_ids].copy()
+    approach = initial(m)
+    approach.qpos[arm_ids] = [0.4, -0.2, 0, 1, 0, -0.1, -0.2]
+    approach_error = arm_ik(
+        m, approach, "l", ready + [0, -0.10, 0], ready_rotation, 150
+    )
+    if approach_error > 0.002:
+        raise RuntimeError(
+            f"Pregrasp arm pose is unreachable: {approach_error:.4f} m equivalent error"
+        )
+    arm_ready = approach.qpos[arm_ids].copy()
     rows = []
     poses = []
     velocities = []
@@ -542,71 +607,128 @@ def run(out, no_touch=False, duration=6.0, anchors=False, latch_blocked=False):
     for k in range(round(duration / m.opt.timestep)):
         clock = k * m.opt.timestep
         t = clock * 1.35
-        # A smooth, feedforward task-space proposal. Native mechanics determine
-        # achieved handle/door motion; no simulated mechanism state is assigned.
+        # Follow the observed mechanism, supplying task forces through motors.
+        # No simulated mechanism state is assigned.
+        actual_door = float(d.qpos[m.joint("door_hinge").qposadr[0]])
+        actual_lever = float(d.qpos[m.joint("lever_hinge").qposadr[0]])
+        lever_target, door_target, door_speed = None, None, 0.0
+        grip = 0.0
+        preshape = 1.0
         if t < 0.65:
             phase = "settle"
-            p = wrist0
-            R = R0
-            close = 0.12
-        elif t < 2.0:
+            p, R, preshape = wrist0, R0, 0.0
+        elif t < 1.65:
             phase = "reach"
-            u = smooth((t - 0.65) / 1.35)
-            p = (
-                wrist0 * (1 - u)
-                + ready * u
-                + np.array([0, 0, 0.13]) * math.sin(math.pi * u)
-            )
-            R = (
-                Rotation.from_rotvec(
-                    Rotation.from_matrix(ready_rotation @ R0.T).as_rotvec() * u
-                ).as_matrix()
-                @ R0
-            )
-            close = 0.12 + 0.28 * u
-        elif t < 2.65:
+            preshape = smooth(min((t - 0.65) / 0.65, 1))
+        elif t < 2.30:
+            phase = "place around lever"
+            p, R = handle_pose(actual_door, actual_lever, 0)
+            p += np.array([0, -0.10 * (1 - smooth((t - 1.65) / 0.65)), 0])
+        elif t < 3.0:
             phase = "grasp"
-            p = ready
-            R = ready_rotation
-            close = 0.4 + 0.6 * smooth((t - 2.0) / 0.65)
-        elif t < 3.35:
+            grip = smooth((t - 2.30) / 0.70)
+            p, R = handle_pose(actual_door, actual_lever, grip)
+        elif t < 3.25:
+            phase = "settle grip"
+            grip = 1.0
+            p, R = handle_pose(actual_door, actual_lever)
+        elif t < 3.95:
             phase = "press lever"
-            v = 0.50 * smooth((t - 2.65) / 0.7)
-            p, R = handle_pose(0, v)
-            close = 1
-        elif t < 6.7:
+            grip = 1.0
+            v = 0.50 * smooth((t - 3.25) / 0.7)
+            p, R = handle_pose(actual_door, actual_lever)
+            lever_target = v
+        elif t < 7.30:
             phase = "pull"
-            v = 0.50
-            theta = -OPEN_ANGLE * smooth((t - 3.35) / 3.35)
-            p, R = handle_pose(theta, v)
-            close = 1
+            grip = 1.0
+            theta = -OPEN_ANGLE * smooth((t - 3.95) / 3.35)
+            p, R = handle_pose(actual_door, actual_lever)
+            lever_target, door_target = 0.50, theta
+            progress = np.clip((t - 3.95) / 3.35, 0, 1)
+            door_speed = (
+                -OPEN_ANGLE * 30 * progress**2 * (1 - progress) ** 2 * 1.35 / 3.35
+            )
         else:
             phase = "hold open"
-            p, R = handle_pose(-OPEN_ANGLE, 0.50)
-            close = 1
+            grip = 1.0
+            p, R = handle_pose(actual_door, actual_lever)
+            lever_target, door_target = 0.50, -OPEN_ANGLE
         if k % 5 == 0:
-            ik.qpos[:] = desired
+            previous_arm_target = desired[arm_ids].copy()
+            body_follow = smooth(np.clip(-actual_door / OPEN_ANGLE, 0, 1))
+            desired[m.joint("actor_spine_pitch").qposadr[0]] = (
+                SPINE_LEAN + (0.15 - SPINE_LEAN) * body_follow
+            )
+            desired[m.joint("actor_spine_yaw").qposadr[0]] = 0.15 * body_follow
+            # The pelvis is free: solve the arm from the achieved base/torso,
+            # retaining separate posture targets for the legs and trunk.
+            ik.qpos[:] = d.qpos
+            ik.qpos[arm_ids] = desired[arm_ids]
             look = smooth((t - 0.65) / 1.35)
             ik.qpos[m.joint("actor_neck_yaw").qposadr[0]] = look * (
                 0.35 + 0.5 * smooth((t - 3.35) / 3.35)
             )
             ik.qpos[m.joint("actor_neck_pitch").qposadr[0]] = -0.20 * look
-            # Solve against the intended upright stance, independent of physics.
-            err = arm_ik(m, ik, "l", p, R, 8)
-            desired = ik.qpos.copy()
+            # Choose the elbow-down IK branch in free space. Interpolating the
+            # wrist rotation from a dangling hand selected an elbow-out branch.
+            if phase in ("settle", "reach"):
+                u = 0.0 if phase == "settle" else smooth((t - 0.65) / 1.0)
+                ik.qpos[arm_ids] = arm_rest + u * (arm_ready - arm_rest)
+                mujoco.mj_forward(m, ik)
+                p = ik.site_xpos[m.site("palm_l").id].copy()
+                R = ik.site_xmat[m.site("palm_l").id].reshape(3, 3).copy()
+                err = 0.0
+            else:
+                err = arm_ik(m, ik, "l", p, R, 8)
+            desired[arm_ids] = ik.qpos[arm_ids]
+            for name in ("actor_neck_yaw", "actor_neck_pitch"):
+                qi = m.joint(name).qposadr[0]
+                desired[qi] = ik.qpos[qi]
             for side in ["l", "r"]:
-                c = close if side == "l" else 0.12
-                pose = target_pose(side, c)
+                pose = target_pose(side, 0.12)
+                if side == "l":
+                    working = grasp_pose(side, grip)
+                    pose = {n: v + preshape * (working[n] - v) for n, v in pose.items()}
+                    residual = (
+                        grip_residual[0] * (1 - body_follow)
+                        + grip_residual[1] * body_follow
+                    )
+                    for finger, value in enumerate(residual, 2):
+                        pose[f"hand_l_mcp{finger}_flexion"] += grip * value
                 for name, value in pose.items():
                     desired[m.joint(name).qposadr[0]] = value
+            velocity = (desired[arm_ids] - previous_arm_target) / (5 * m.opt.timestep)
+            reference_velocity[arm_motors] = 0.5 * reference_velocity[
+                arm_motors
+            ] + 0.5 * np.clip(velocity, -4, 4)
         # Inverse-dynamics gravity terms apply to motor coordinates only.
-        d.ctrl[:] = desired[qids] + d.qfrc_bias[vids] / m.actuator_gainprm[:, 0]
+        task_torque = (
+            np.zeros(m.nu)
+            if lever_target is None
+            else wrench.torque(d, lever_target, door_target, door_speed)
+        )
+        # MuJoCo's position actuator damps absolute joint velocity. Supply the
+        # moving reference velocity so damping resists tracking error instead
+        # of acting as a large unintended brake on the passive door.
+        velocity_feedforward = -m.actuator_biasprm[:, 2] * reference_velocity
+        squeeze_torque = squeeze.torque(d)
+        d.ctrl[:] = (
+            desired[qids]
+            + (
+                d.qfrc_bias[vids]
+                + velocity_feedforward
+                + smooth((grip - 0.4) / 0.6) * squeeze_torque
+                + task_torque
+            )
+            / m.actuator_gainprm[:, 0]
+        )
         mujoco.mj_step(m, d)
         # Refresh contacts, sensors and world poses at the recorded post-step state.
         mujoco.mj_forward(m, d)
         if abs(d.time - (k + 1) * m.opt.timestep) > 1e-7:
             raise RuntimeError("Simulator reset or clock mismatch")
-        audit.observe(d)
+        audit.observe(d, phase)
+        grasp_state = grasp_audit.observe(d, phase)
         touch = 0.0
         contacts = []
         ground_force = 0.0
@@ -656,6 +778,8 @@ def run(out, no_touch=False, duration=6.0, anchors=False, latch_blocked=False):
                 {
                     "t": round(d.time, 4),
                     "phase": phase,
+                    "arm_angular_speed_rad_s": audit.current_arm_angular_speed,
+                    "grasp": grasp_state,
                     "door_deg": float(
                         -d.qpos[m.joint("door_hinge").qposadr[0]] * 180 / np.pi
                     ),
@@ -696,10 +820,20 @@ def run(out, no_touch=False, duration=6.0, anchors=False, latch_blocked=False):
         "started_utc": started,
         "finished_utc": datetime.now(timezone.utc).isoformat(),
         "source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "grasp_controller_sha256": hashlib.sha256(
+            (Path(__file__).parent / "grasp.py").read_bytes()
+        ).hexdigest(),
+        "kinematic_audit_sha256": hashlib.sha256(
+            (Path(__file__).parent / "kinematics.py").read_bytes()
+        ).hexdigest(),
+        "grip_residual_rad": grip_residual.tolist(),
         "rig_sha256": hashlib.sha256(
             (ROOT / "doorbench/reference/rig.py").read_bytes()
         ).hexdigest(),
         "scene_sha256": hashlib.sha256((out / "scene.xml").read_bytes()).hexdigest(),
+        "trajectory_sha256": hashlib.sha256(
+            (out / "trajectory.npz").read_bytes()
+        ).hexdigest(),
         "hand_source": {
             "url": ANATOMY["source"],
             "commit": ANATOMY["commit"],
@@ -711,7 +845,8 @@ def run(out, no_touch=False, duration=6.0, anchors=False, latch_blocked=False):
             ).hexdigest(),
         },
         "kinematics": audit.result(),
-        "schema": "doorbench.physical-human-prototype.v2",
+        "grasp": grasp_audit.result(),
+        "schema": "doorbench.physical-human-prototype.v3",
         "simulator": mujoco.__version__,
         "timestep_s": m.opt.timestep,
         "foot_welds": 2 if anchors else 0,
@@ -738,6 +873,7 @@ def run(out, no_touch=False, duration=6.0, anchors=False, latch_blocked=False):
     }
     report["quality_checks"] = {
         "anatomical_kinematics": report["kinematics"]["passed"],
+        "opposing_thumb_and_finger_contact": report["grasp"]["passed"],
         "opening_40_to_65_deg": 40 < report["max_door_deg"] < 65,
         "door_held_open": report["rows"][-1]["door_deg"] > 40,
         "no_nonhand_door_force": nonhand_impulse == 0,
@@ -767,6 +903,6 @@ if __name__ == "__main__":
     p.add_argument("--anchors", action="store_true")
     p.add_argument("--no-touch", action="store_true")
     p.add_argument("--latch-blocked", action="store_true")
-    p.add_argument("--duration", type=float, default=6.0)
+    p.add_argument("--duration", type=float, default=6.5)
     a = p.parse_args()
     run(a.out, a.no_touch, a.duration, a.anchors, a.latch_blocked)

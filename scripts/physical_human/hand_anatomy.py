@@ -16,11 +16,11 @@ DATA = Path(__file__).with_name("anatomy") / "myohand.json"
 ANATOMY = json.loads(DATA.read_text())
 DIGITS = ["thumb", "index", "middle", "ring", "little"]
 COLORS = [
-    [0.96, 0.56, 0.20, 1],
-    [0.78, 0.41, 0.70, 1],
-    [0.27, 0.65, 0.86, 1],
-    [0.78, 0.32, 0.33, 1],
-    [0.40, 0.70, 0.38, 1],
+    [0.12, 0.80, 0.92, 1],
+    [0.92, 0.91, 0.82, 1],
+    [0.92, 0.91, 0.82, 1],
+    [0.92, 0.91, 0.82, 1],
+    [0.92, 0.91, 0.82, 1],
 ]
 CHAINS = [
     ["firstmc_r", "proximal_thumb_r", "distal_thumb_r"],
@@ -119,6 +119,9 @@ def attach_hand(wrist, side, no_touch=False):
                 conaffinity="1" if not no_touch else "0",
                 mass=("0" if i else ".015") if digit is not None else ".035",
                 group="4",
+                priority="1",
+                solref=".010 1",
+                solimp=".90 .95 .001",
                 **attrs,
             )
             add(
@@ -222,21 +225,64 @@ def attach_hand(wrist, side, no_touch=False):
     }
 
 
+# Authored overhand lever grasp. Native collision envelopes, not rendered bone
+# rods, determine the required separation around the 24 mm diameter grip.
+LEVER_GRASP = {
+    "cmc_flexion": -0.6055724,
+    "cmc_abduction": 0.2817054,
+    "mp_flexion": -0.6332882,
+    "ip_flexion": -0.497506,
+    "mcp2_flexion": 1.132385,
+    "mcp2_abduction": -0.0385688,
+    "pm2_flexion": 0.4288332,
+    "md2_flexion": 0.4823154,
+    "mcp3_flexion": 1.064923,
+    "mcp3_abduction": -0.0904397,
+    "pm3_flexion": 0.450094,
+    "md3_flexion": 0.5217353,
+    "mcp4_flexion": 0.8397097,
+    "mcp4_abduction": -0.0496644,
+    "pm4_flexion": 0.6462594,
+    "md4_flexion": 0.6550941,
+    "mcp5_flexion": 0.3921547,
+    "mcp5_abduction": 0.1443957,
+    "pm5_flexion": 0.8837379,
+    "md5_flexion": 0.75,
+}
+
+
 def target_pose(side, close):
-    pose = {}
-    for digit in range(2, 6):
-        for key, v in [
-            ("mcp" + str(digit) + "_flexion", 0.85),
-            ("mcp" + str(digit) + "_abduction", 0),
-            ("pm" + str(digit) + "_flexion", 1.1),
-            ("md" + str(digit) + "_flexion", 0.75),
-        ]:
-            pose[joint_name(key, side)] = v * close
-    for n, v in [
-        ("cmc_flexion", -0.09762254),
-        ("cmc_abduction", -0.21790465),
-        ("mp_flexion", -0.4949852),
-        ("ip_flexion", -0.35630553),
-    ]:
-        pose[joint_name(n, side)] = v * close
-    return pose
+    return {
+        joint_name(name, side): value * close for name, value in LEVER_GRASP.items()
+    }
+
+
+PREGRASP = {
+    "cmc_flexion": -0.5403678,
+    "cmc_abduction": 0.7649984,
+    "mp_flexion": 0.1689725,
+    "ip_flexion": -0.5000769,
+    "mcp2_flexion": 0.0197571,
+    "mcp2_abduction": -0.0341836,
+    "pm2_flexion": 0.6978674,
+    "md2_flexion": 0.6499485,
+    "mcp3_flexion": 0.015,
+    "mcp3_abduction": 0.0942573,
+    "pm3_flexion": 0.5593461,
+    "md3_flexion": 0.9848486,
+    "mcp4_flexion": 0.0165593,
+    "mcp4_abduction": 0.0872705,
+    "pm4_flexion": 0.4281981,
+    "md4_flexion": 0.6907838,
+    "mcp5_flexion": 0.0155151,
+    "mcp5_abduction": 0.0971099,
+    "pm5_flexion": 0.1402493,
+    "md5_flexion": 0.3249749,
+}
+
+
+def grasp_pose(side, amount):
+    return {
+        joint_name(n, side): PREGRASP[n] + amount * (v - PREGRASP[n])
+        for n, v in LEVER_GRASP.items()
+    }

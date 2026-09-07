@@ -45,7 +45,7 @@ These historical September 4, 2026 results describe the earlier geometry revisio
 
 This is a research dataset with known construction and physics approximations. Automated QA is not physical or artistic certification. Read the [construction audit](docs/review/takeover/REVIEW.md) and [appearance review](docs/review/blender/REVIEW.md) before using it for training or evaluation.
 
-The [one-door anatomical hand prototype](docs/PHYSICAL_HUMAN_PROTOTYPE.md) demonstrates opening and holding with MyoHand-derived joints, native touch and kinematic checks. Release and human-motion quality remain unvalidated.
+The [one-door physical hand reference](docs/PHYSICAL_HUMAN_PROTOTYPE.md) opens a passive door **43.72°**, with all four fingers on one side and the thumb below on the other. A native 1 kHz audit measures **99.88% five-digit contact during pulling**. [Watch the enlarged hand video](https://github.com/adamraudonis/DoorBench/releases/download/opposed-grasp-20260907/doorbench-opposed-grasp-phone.mp4). This replaces the rejected v2 grasp; it is a synthetic opening-and-hold prototype, not captured human ground truth.
 
 The [human reference project](docs/HUMAN_REFERENCE.md) aims to create natural simulated human demonstrations before retargeting them to robots. The earlier [kinematic experiments](docs/PLANNED_REFERENCE_MOTIONS.md) do not meet the human-motion quality target and are not ground-truth human demonstrations.
 

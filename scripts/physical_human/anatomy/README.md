@@ -36,3 +36,11 @@ Photographic pose references personally inspected during this revision:
 and [a second close-up grip](https://www.tudogostoso.com.br/noticias/o-que-significa-quando-uma-pessoa-checa-varias-vezes-se-trancou-mesmo-a-porta-de-casa-ou-do-carro-segundo-um-psicologo-a15476.htm).
 These guide visual review only; photos are linked, not redistributed or used
 as metric 3D ground truth.
+
+For the v3 opposing grasp, the complete approach, press and pull were inspected
+in [Nazar Matveichev’s door-opening video](https://www.pexels.com/video/person-opening-and-closing-the-door-2108274/),
+including enlarged grip frames. This footage guided the open-hand approach and
+thumb/finger opposition; it was not used as captured 3D motion or redistributed.
+The pad envelopes now use a compliant numerical contact response (10 ms
+`solref` time constant); this is an engineered approximation, not calibrated
+human tissue.
