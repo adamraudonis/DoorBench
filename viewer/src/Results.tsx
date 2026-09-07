@@ -1,4 +1,5 @@
 import { isPetDoor, resultsRespectEligibility } from "./collections";
+import g1Diagnostic from "../../docs/review/isaac-g1-catalogue/summary.json";
 import React, { useMemo, useState } from "react";
 import { FAMILY_LABELS, type Manifest } from "./types";
 import { DOCS, Icon, PageIntro } from "./SiteUI";
@@ -58,11 +59,24 @@ export function Results({ manifest }: { manifest: Manifest }) {
   return (
     <div className="results page-shell">
       <PageIntro eyebrow="Evaluation / recorded baselines" title="Measure the whole interaction." aside={<a className="button" href={`${DOCS}/SUBMITTING.md`} target="_blank" rel="noreferrer">Submit a run <Icon name="external" size={15} /></a>}><p>Compare policies across mechanisms, scenarios, and physical variation. A solved door means every assigned scenario, on every evaluation seed.</p></PageIntro>
-      <aside className="historical-notice"><span className="notice-mark">i</span><div><strong>Historical results · earlier dataset revision</strong><p>These runs predate the current geometry repairs and Blender appearance update. Scores describe the original run commit, not the latest door assets. Each row links to its recorded metadata.</p></div></aside>
-      {rows.some(r => r.historical_subset?.applied) && <aside className="historical-notice"><span className="notice-mark">i</span><div><strong>Historical run · eligible-door subset</strong><p>Metrics were recomputed from original episodes after excluding standalone pet doors. This is not a new evaluation. Downloads retain the original run files; full-run wall time is unchanged.</p></div></aside>}
+      <section className="rsection diagnostic-results" aria-labelledby="g1-diagnostic-title">
+        <h2 id="g1-diagnostic-title">G1 in Isaac Sim <span className="sub">Catalogue diagnostic · {g1Diagnostic.completed_at_utc.slice(0, 10)}</span></h2>
+        <p>The walking-only Unitree G1 controller attempted every eligible door from a closed start. This run measures doorway crossings; the benchmark below also tests assigned opening, locking, closing and safety tasks.</p>
+        <div className="tablewrap"><table className="rtable">
+          <thead><tr><th>collection</th><th>attempted</th><th>verified doorway crossings</th><th>simulator errors</th></tr></thead>
+          <tbody>
+            <tr><td>All eligible doors</td><td>{g1Diagnostic.attempted} / {g1Diagnostic.eligible_collection}</td><td>{g1Diagnostic.successes} / {g1Diagnostic.eligible_collection} ({pct(g1Diagnostic.successes / g1Diagnostic.eligible_collection)})</td><td>{g1Diagnostic.errors}</td></tr>
+            <tr><td>Upright doorways</td><td>{g1Diagnostic.vertical_doors} / {g1Diagnostic.vertical_doors}</td><td>{g1Diagnostic.successes} / {g1Diagnostic.vertical_doors} ({pct(g1Diagnostic.successes / g1Diagnostic.vertical_doors)})</td><td>{g1Diagnostic.errors}</td></tr>
+          </tbody>
+        </table></div>
+        <p className="muted">One attempt per door, seed 0 · Isaac Sim {g1Diagnostic.engine.isaac_sim}. Errors remain in the denominator. The {g1Diagnostic.horizontal_hatches} horizontal hatches are outside the upright-doorway task. Crossings track the robot root, without certifying full-body clearance or safe contact forces.</p>
+        <p><a href={`${DOCS}/review/isaac-g1-catalogue/README.md`} target="_blank" rel="noreferrer">Per-door results and recorded evidence <Icon name="external" size={12} /></a> · <a href={`${DOCS}/ISAAC_G1_CATALOGUE.md`} target="_blank" rel="noreferrer">Reproduce this run</a></p>
+      </section>
+      <h2>MuJoCo benchmark runs</h2>
+      <p className="results-provenance">Scores describe each run’s recorded dataset revision and date, shown in the table below. They do not establish performance on later asset revisions.</p>
       {suiteTabs}
       <div className="result-summary">{rows.filter((r) => g(r).complete).map((r, i) => <button className={`result-stat ${r.file === current?.file ? "selected" : ""}`} key={r.file} onClick={() => setSel(r.file)}><span className="result-policy"><span className="rank">0{i + 1}</span>{r.policy.replace(/_/g, " ")}</span><strong>{g(r).doors_solved}<small> / {total}</small></strong><div className="summary-progress"><span style={{ width: `${total ? 100 * g(r).doors_solved / total : 0}%` }} /></div><span className="result-stat-footer">Doors solved <b>{pct(total ? g(r).doors_solved / total : 0)}</b></span></button>)}</div>
-      <details className="evaluation-method"><summary>How to read these results</summary><p>A door counts as solved when the policy succeeds on every scenario assigned to that door in the chosen suite, on every seed, without damage. Seed 0 uses nominal parameters; later seeds randomize friction, damping, closer stiffness, mass, and start pose. A row marked “subset” did not evaluate the complete suite.</p><p>Episode success measures individual scenario-and-seed trials. It can be higher than the fraction of fully solved doors. Core and human suites use different task sets and are not combined.</p></details>
+      <details className="evaluation-method"><summary>How to read these results</summary><p>A door counts as solved when the policy succeeds on every scenario assigned to that door in the chosen suite, on every seed, without damage. Seed 0 uses nominal parameters; later seeds randomize friction, damping, closer stiffness, mass, and start pose. A row marked “subset” did not evaluate the complete suite.</p><p>Episode success measures individual scenario-and-seed trials. It can be higher than the fraction of fully solved doors. Core and human suites use different task sets and are not combined.</p><p>A baseline is a reference controller for comparison: Scripted Hand uses predefined door-operation rules and exact simulator state; G1 Locomotion walks with its arms parked; Random applies random actions.</p>{rows.some(r => r.historical_subset?.applied) && <p>Historical subset rows exclude standalone pet-door episodes from the original recordings. Their metrics were recomputed, without rerunning the policy. Downloads retain the original run files and full-run wall time.</p>}</details>
 
       <div className="rsection">
         <h2>Recorded runs <span className="sub">{suite === "core" ? "core suite" : "human suite (advanced, opt-in)"}</span></h2>
