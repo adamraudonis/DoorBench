@@ -672,6 +672,7 @@ export function DoorView({ manifest, id, query = "", embedded = false, showAppea
       <div className="viewport">
         <div className="scene-mount" ref={mountRef} />
         <div className="hud">
+          {import.meta.env.DEV && !embedded && <button onClick={() => { window.location.hash = `/review?door=${encodeURIComponent(id)}`; }}>Open in Review</button>}
           <button onClick={takeScreenshot} disabled={!model} title={onScreenshot ? "Attach the current 3D view to this door’s feedback" : "Download the current 3D camera view as a PNG"}>Screenshot</button>
           {primaryH && model && !requiresRecordedPhysics(model) && <button className="primary" onClick={openClose} title={individualOps ? `Releases all ${opNames.length} latches one by one (the leaf is held while any one of them is engaged), moves the leaf, re-engages them` : "Kinematic mechanism preview: retracts each leaf's latch, moves the free leaves, and releases the operators. Secured leaves stay locked."}>{model && isSwingPair(model) ? "Open / close pair" : "Open / close door"}</button>}
           {opH && model && !requiresRecordedPhysics(model) && <button title={individualOps ? opNames.join(", ") : (model ? (returnLabel(model, operator) ?? undefined) : undefined)}
