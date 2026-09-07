@@ -28,13 +28,16 @@ def main():
     selected = [
         round(f * (len(clip["qpos"]) - 1)) for f in [0, 0.2, 0.36, 0.55, 0.75, 0.98]
     ]
+    options = mujoco.MjvOption()
+    options.sitegroup[:] = 0
+    options.geomgroup[4] = 0
     frames = []
     for k, q in enumerate(clip["qpos"]):
         if not a.video and k not in selected:
             continue
         d.qpos[:] = q
         mujoco.mj_forward(m, d)
-        r.update_scene(d, camera=cam)
+        r.update_scene(d, camera=cam, scene_option=options)
         im = r.render().copy()
         draw = ImageDraw.Draw(img := Image.fromarray(im))
         row = report["rows"][k]
