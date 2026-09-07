@@ -14,7 +14,7 @@ from .contact_audit import lever_contacts
 
 
 class GraspSkillEnv(gym.Env):
-    def __init__(self,door,robot,seed_pose,preload_json,horizon=150):
+    def __init__(self,door,robot,seed_pose,preload_json,horizon=150,initialization_noise=.002,required_hold_steps=50):
         robot=Path(robot);self.sim=DexterousDoorEnv(door,robot,json.loads(robot.with_suffix('.audit.json').read_text()))
         m=self.sim.m
         self.seed_pose=np.load(seed_pose)['qpos'];self.preload=np.array(json.loads(Path(preload_json).read_text())['thumb_delta_and_curl_rad'])
@@ -23,7 +23,12 @@ class GraspSkillEnv(gym.Env):
         self.curl=[local['robot/rh_A_'+finger+'J0'] for finger in ('FF','MF','RF','LF')]
         joints=[j for j in self.sim.joints if m.joint(j).name.startswith('robot/rh_')]
         self.qadr=m.jnt_qposadr[joints];self.vadr=m.jnt_dofadr[joints]
+        self.joint_ranges=m.jnt_range[joints].copy()
+        if not np.isfinite(initialization_noise) or initialization_noise<0:raise ValueError('Invalid initialization noise')
+        self.initialization_noise=initialization_noise
         self.taxels=np.concatenate([np.arange(m.sensor_adr[i],m.sensor_adr[i]+m.sensor_dim[i]) for i in sorted(self.sim.tactile_sensor_ids) if m.sensor(i).name.startswith('robot/rh_')])
+        if not 1<=required_hold_steps<=horizon:raise ValueError('Hold duration must fit the horizon')
+        self.required_hold_steps=required_hold_steps
         self.horizon=horizon;self.previous=np.zeros(6);self.steps=0;self.held=0
         self.action_space=spaces.Box(-1.,1.,(6,),np.float32)
         self.observation_space=spaces.Box(-np.inf,np.inf,(len(joints)*2+len(self.taxels)+6,),np.float32)
@@ -47,14 +52,15 @@ class GraspSkillEnv(gym.Env):
             'shared_curl_actuators':[m.actuator(self.sim.actuators[i]).name for i in self.curl],
             'residual_scale_rad':.2,'timestep_seconds':float(m.opt.timestep),
             'control_frequency_hz':50,'horizon_control_steps':self.horizon,
-            'success_contiguous_steps':50,'min_digit_force_N':.2,
+            'success_contiguous_steps':self.required_hold_steps,'min_digit_force_N':.2,
+            'initialization_noise_rad':self.initialization_noise,
             'scope':'Initialized contact hold only; no approach, opening or traversal'}
 
     def reset(self,*,seed=None,options=None):
         super().reset(seed=seed);s=self.sim;s.reset(images=False,randomize=False)
         s.d.qpos[:]=self.seed_pose;s.d.qvel[:]=0
         # Small hand initialization variation, never a runtime pose correction.
-        s.d.qpos[self.qadr]+=self.np_random.uniform(-.002,.002,len(self.qadr))
+        s.d.qpos[self.qadr]=np.clip(s.d.qpos[self.qadr]+self.np_random.uniform(-self.initialization_noise,self.initialization_noise,len(self.qadr)),self.joint_ranges[:,0],self.joint_ranges[:,1])
         mujoco.mj_forward(s.m,s.d)
         self.base=s.d.actuator_length[s.actuators].copy();self.previous=np.zeros(6);self.steps=0;self.held=0
         return self.observation(),{}
@@ -67,7 +73,7 @@ class GraspSkillEnv(gym.Env):
         diag=self.sim.diagnostics();forces=np.array(list(contact['digit_forces_N'].values()))
         fallen=diag['root_height_m']<.7 or diag['torso_tilt_deg']>35 or not diag['finite'] or diag['numerical_warnings']>0
         good=contact['opposed'] and diag['root_height_m']>.8 and diag['torso_tilt_deg']<12
-        self.held=self.held+1 if good else 0;success=self.held>=50
+        self.held=self.held+1 if good else 0;success=self.held>=self.required_hold_steps
         reward=float(np.minimum(forces,1).sum()+3*np.minimum(forces.min(),1)+5*bool(contact['opposed'])-.02*np.mean((action-self.previous)**2))
         if fallen:reward-=10
         self.previous=action.copy();self.steps+=1

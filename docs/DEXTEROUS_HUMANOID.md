@@ -6,7 +6,7 @@ Owner-approved objective, September 7, 2026: a full simulated humanoid with two 
 
 The H1/dual-Shadow robot compiles and attaches to a freshly generated `db0055_swing_single` lever door. The source model has 61 actuators (20 for each Shadow Hand), 69 articulated joints plus a free base, 53.239896 kg mass, and 448 three-axis tactile cells. Native state is separated from copied student observations. No door-opening policy has been achieved yet.
 
-A borrowed two-hand reaching policy maintained balance in a short stationary/reaching probe, but crouched substantially and fell on a longer approach. Those are integration results and failures, not a door-opening score. The next step is adapting the body-reaching skill under the full articulation before proceeding to hand contact and the complete task.
+A borrowed two-hand reaching policy crouched substantially and fell on larger reaches. Body adaptation remains below its upright-reaching gate; a corrected termination experiment is running. Separately, a tactile hand controller passed 30/30 narrow initialized-contact trials versus 0/30 for constant preload. It starts at the handle and does not yet approach, fully release the lever, open or traverse the door. See the ledger for exact checkpoints, conditions and failures.
 
 See [cluster reproduction and Isaac Sim migration](DEXTEROUS_REPRODUCTION.md) for portable configurations, artifact requirements, and backend limitations, and the [experiment ledger](DEXTEROUS_EXPERIMENTS.md) for measured results and failures. The [approved full plan](DEXTEROUS_PLAN.md) remains the project scope.
 
@@ -36,7 +36,8 @@ python scripts/dexterous/train_reach.py \
   --upstream out/dexterous/upstream/humanoid-bench \
   --robot out/dexterous/robot/h1-shadow.xml \
   --door out/dexterous/assets/doors/db0055_swing_single \
-  --output out/dexterous/training/reach-001 --envs 8 --steps 500000 --device cuda
+  --output out/dexterous/training/body-fresh --envs 8 --steps 500000 --device cuda \
+  --standing-weight 4 --continue-after-success
 ```
 
 ## Resource isolation

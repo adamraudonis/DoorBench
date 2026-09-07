@@ -12,6 +12,7 @@ Same development seeds 10000–10029, 0.25 m target-offset curriculum, six-secon
 | Reach 001, standing reward weight 1 | 430,000 | 0/30 | 9/30 | [Trials](../results/dexterous/2026-09-07/reach-001-body-reach.json) |
 | Reach 002, standing reward weight 4, intermediate | 820,000 cumulative | 1/30 | 12/30 | [Trials](../results/dexterous/2026-09-07/reach-002-intermediate.json) |
 | Reach 002, later checkpoint | 2,120,000 cumulative | 0/30 | 4/30 | [Trials](../results/dexterous/2026-09-07/reach-002-late.json) |
+| Reach 002, final checkpoint | 2,432,944 cumulative | 0/30 | 7/30 | [Trials](../results/dexterous/2026-09-07/reach-002-final.json) |
 
 Reach 001 stopped around 432,000 transitions because a fall exhausted the native constraint arena. Its last checkpoint is retained; it did not complete the 500,000-transition budget. Increasing solver memory is an infrastructure repair, not a change to collisions or success thresholds. Reach 002 resumes that checkpoint with 128 MiB arena memory per environment and a stronger standing reward. The intermediate result does not establish improvement in reliability.
 
@@ -37,6 +38,17 @@ The subsequent tactile PPO experiment trained for 201,216 transitions on six loc
 | Constant optimized preload | 0/30 | 0/30 | [Trials](../results/dexterous/2026-09-07/grasp-constant.json) |
 | Tactile PPO, final checkpoint | 30/30 | 0/30 | [Trials](../results/dexterous/2026-09-07/grasp-001-final.json) |
 
-An intermediate checkpoint at 160,032 transitions also passed 30/30 under this narrow validation. Close-up native-state replays were inspected at the beginning, middle and end of a trial. These results establish a local contact-hold skill only: one robot, one door, a supplied near-handle pose, small perturbations, no approach or complete lever release. Longer holds, larger variations and integration with body movement remain unvalidated. The final policy uses hand proprioception and touch; it has not yet learned vision-based task execution.
+An intermediate checkpoint at 160,032 transitions also passed 30/30 under this narrow validation. Close-up native-state replays were inspected at the beginning, middle and end of a trial, and a wide view of the final checkpoint was inspected. These results establish a local contact-hold skill only: one robot, one door, a supplied near-handle pose, small perturbations, no approach or complete lever release. Integration with approach and body movement remains unvalidated. The final policy uses hand proprioception and touch; it has not yet learned vision-based task execution.
+
+Additional initialization stress tests of the unchanged final checkpoint:
+
+| Uniform per-joint perturbation | Successes | Falls | Evidence |
+|---|---:|---:|---|
+| ±0.02 rad (about 1.15°) | 30/30 | 0/30 | [Trials](../results/dexterous/2026-09-07/grasp-001-noise-002.json) |
+| ±0.1 rad (about 5.73°) | 19/30 | 1/30 | [Trials](../results/dexterous/2026-09-07/grasp-001-noise-010.json) |
+
+These tests clip initialized joint positions to native joint limits. They are separate from the original ±0.002-radian validation, and do not change its result. The larger perturbation exposes limited acquisition tolerance and a body fall; the policy is not generally robust.
+
+A separate three-second continuous-hold test within a five-second horizon, at the original ±0.002-radian perturbation, passed 30/30 with no falls. [Trials](../results/dexterous/2026-09-07/grasp-001-hold-3s.json). Reproduce using `evaluate_grasp.py --hold-steps 150 --horizon 250` with the same checkpoint and input files. This longer initialized hold still does not establish opening or traversal.
 
 `scripts/dexterous/fit_grasp_seed.py`, `optimize_grasp_contact.py` and `probe_grasp_seed.py` save inputs and source manifests for subsequent experiments. Their output directories contain the exact initialized pose, preload, contact traces and native trajectories. Rendered close-ups are diagnostic views; the gold operator color changes visualization only.

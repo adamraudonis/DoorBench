@@ -19,13 +19,16 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--episodes', type=int, default=30)
     parser.add_argument('--seed', type=int, default=20000)
+    parser.add_argument('--initialization-noise', type=float, default=.002)
+    parser.add_argument('--hold-steps',type=int,default=50)
+    parser.add_argument('--horizon',type=int,default=150,help='Control steps at 50 Hz')
     args = parser.parse_args()
     if args.output.exists():
         raise SystemExit('Use a new evaluation directory')
     args.output.mkdir(parents=True)
     capture(Path(__file__).resolve().parents[2], args.output, vars(args), timing='before_evaluation')
     torch.set_num_threads(1)
-    env = GraspSkillEnv(args.door, args.robot, args.seed_pose, args.preload_json)
+    env = GraspSkillEnv(args.door, args.robot, args.seed_pose, args.preload_json,initialization_noise=args.initialization_noise,required_hold_steps=args.hold_steps,horizon=args.horizon)
     (args.output / 'interface.json').write_text(json.dumps(env.configuration_audit(), indent=2) + '\n')
     model = PPO.load(args.checkpoint, device='cpu') if args.checkpoint else None
     rows = []
@@ -57,7 +60,9 @@ def main():
                   'episodes': len(rows), 'successes': sum(r['success'] for r in rows),
                   'falls': sum(r['fell'] for r in rows), 'trials': rows,
                   'evaluated_at_unix': time.time(),
-                  'scope': 'One-second opposed contact from an initialized pose; no approach or opening'}
+                  'initialization_noise_rad':args.initialization_noise,
+                  'required_hold_steps':args.hold_steps,'horizon_steps':args.horizon,
+                  'scope': f'{args.hold_steps/50:g}-second opposed contact from an initialized pose; no approach or opening'}
         (args.output / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
     finally:
         env.close()

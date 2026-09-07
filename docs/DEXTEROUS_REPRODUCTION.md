@@ -1,6 +1,6 @@
 # Reproduce this experiment on another cluster
 
-This is the migration record for the simulated dexterous-humanoid project. The current executable training adapter is **native MuJoCo, H1 with two Shadow Hands, privileged body reaching**. It has not solved a door and it is not an Isaac Sim implementation. A different robot requires a new embodiment adapter and fresh validation; a checkpoint cannot simply be renamed or loaded into it.
+This is the migration record for the simulated dexterous-humanoid project. The executable experiments use **native MuJoCo, H1 with two Shadow Hands**, for privileged body reaching and initialized tactile grasping. They have not solved a door and are not Isaac Sim implementations. A different robot requires a new embodiment adapter and fresh validation; a checkpoint cannot simply be renamed or loaded into it.
 
 The project objective and acceptance protocol are in [the approved plan](DEXTEROUS_PLAN.md). Current results and limitations are in [the execution record](DEXTEROUS_HUMANOID.md) and [experiment ledger](DEXTEROUS_EXPERIMENTS.md).
 
@@ -31,7 +31,7 @@ python scripts/generate_dataset.py --out out/dexterous/assets --ids db0055_swing
 python -m pytest -q tests/test_dexterous_humanoid.py tests/test_dexterous_protocol.py tests/test_dexterous_contacts.py
 ```
 
-5. Inspect the portable configuration, then launch it. Configuration paths resolve against the repository; absolute paths can target cluster-mounted asset storage.
+5. Inspect the portable configuration, then launch it. Configuration paths resolve against the repository; absolute paths can target cluster-mounted asset storage. The commands below reproduce the historical v1 setup. For new body-training experiments add `"standing_weight": 4.0` and `"continue_after_success": true` to a copied configuration; v3 tests those settings while resuming v2. The ledger explains the early-success termination problem. Use the original captured configuration when reproducing a historical result.
 
 ```bash
 python scripts/dexterous/run_experiment.py --config configs/dexterous/h1-shadow-reach-v1.json --output out/dexterous/training/my-run --dry-run
@@ -59,6 +59,10 @@ python scripts/dexterous/evaluate_reach.py --upstream out/dexterous/upstream/hum
 - Evaluation reports, per-trial states/controls, wide videos and hand close-ups. Checkpoint success requires runtime evidence, not a replay alone.
 
 For stronger reproducibility on the second cluster, retain its container digest, scheduler job specification, driver/CUDA versions, CPU allocation, GPU topology, storage paths and distributed-process layout. Do not archive credentials or process environments. Matching seeds does not guarantee bitwise identity across devices or physics engines; compare behavior and tolerance-based physical metrics.
+
+The current allocation is one L40S, 16 vCPUs and 94 GB reported RAM, at $1.09/hour. Its requested image is `runpod/pytorch:1.2.0-rc.162-cu1281-torch271-ubuntu2204`; the training virtual environment subsequently installed different packages, so use each run's requirements rather than inferring PyTorch from that tag. `cluster.json` is a sanitized, explicitly late infrastructure capture. The API did not expose an immutable container digest; that remains a reproduction limitation for this first allocation and must be captured at provisioning on the second cluster.
+
+The first run's durable local artifact archive is `~/Desktop/Projects/DoorBench-runs/2026-09-07-dexterous/`, outside the temporary Git worktree. It contains checkpoints, source bundles, exact input poses/preloads, evaluation states, reports and relevant upstream licenses. These model/trajectory artifacts are not committed to Git and have not been published as a released policy. Copy this archive to the second cluster in addition to checking out the source branch.
 
 After copying a run, execute `python scripts/dexterous/verify_run.py /mounted/run`. This checks archived source and bundled input checksums without extracting code. It does not verify external assets or demonstrate physics equivalence. Generated robot XML contains destination-specific mesh paths, so its byte hash may change after rebuilding; compare the upstream revision, asset contents and the model audit before attributing differences to training.
 
