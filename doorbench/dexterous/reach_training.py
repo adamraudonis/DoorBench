@@ -75,6 +75,7 @@ class ReachTeacherEnv(gym.Env):
         m=self.sim.m
         return {'backend':'mujoco-native','robot_adapter':'h1-shadow-v1',
             'timestep_s':float(m.opt.timestep),'frame_skip':self.sim.frame_skip,
+            'arena_memory_bytes':int(m.narena),
             'integrator':int(m.opt.integrator),'solver':int(m.opt.solver),'cone':int(m.opt.cone),
             'iterations':int(m.opt.iterations),'tolerance':float(m.opt.tolerance),
             'gravity':m.opt.gravity.tolist(),'joint_count':m.njnt,'actuator_count':m.nu,

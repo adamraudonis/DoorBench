@@ -63,7 +63,7 @@ def load_manifest(assets_root: str) -> dict:
 
 
 class DoorEnv:
-    def __init__(self, door_dir: str, tier: str = "full", robot_xml: str | None = None, robot_body_prefix: str = "", robot_base_body: str | None = None, timestep: float | None = None, seed: int = 0):
+    def __init__(self, door_dir: str, tier: str = "full", robot_xml: str | None = None, robot_body_prefix: str = "", robot_base_body: str | None = None, timestep: float | None = None, seed: int = 0, arena_memory_bytes: int | None = None):
         self.door_dir = door_dir
         self.tier = tier
         with open(os.path.join(door_dir, "spec.json")) as f:
@@ -81,6 +81,9 @@ class DoorEnv:
         self.robot_prefix = robot_body_prefix or ("robot/" if robot_xml else "")
         self.robot_base = robot_base_body
         self.timestep = timestep
+        if arena_memory_bytes is not None and (not isinstance(arena_memory_bytes,int) or arena_memory_bytes <= 0):
+            raise ValueError('arena_memory_bytes must be a positive integer')
+        self.arena_memory_bytes = arena_memory_bytes
         self.rng = np.random.default_rng(seed)
         self.benchmark = self.spec.get("benchmark") or build_benchmark(self.spec, self.spec.get("physics", {}), self.model_json)
         self.scenario_names = [s["name"] for s in self.benchmark["scenarios"]]
@@ -109,6 +112,8 @@ class DoorEnv:
         """Compile the door (+ robot, + human capsule) from MjSpec."""
         mujoco = self.mj
         spec = mujoco.MjSpec.from_file(self.xml_path)
+        if self.arena_memory_bytes is not None:
+            spec.memory = self.arena_memory_bytes
         if self.robot_xml:
             robot = mujoco.MjSpec.from_file(self.robot_xml)
             spec.worldbody.add_site(name="robot_attach", pos=[0.0, -1.5, 0.0])

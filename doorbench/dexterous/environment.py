@@ -16,7 +16,7 @@ OBSERVATION_KEYS = frozenset({"joint_position", "joint_velocity", "gravity_body"
 class DexterousDoorEnv:
     def __init__(self, door_dir, robot_xml, audit, *, image_size=128, frame_skip=10):
         self.plant = DoorEnv(str(door_dir), robot_xml=str(robot_xml),
-                             robot_base_body="robot/pelvis")
+                             robot_base_body="robot/pelvis", arena_memory_bytes=128*1024*1024)
         self.m, self.d = self.plant.m, self.plant.d
         self.m.vis.global_.offwidth = max(960, image_size)
         self.m.vis.global_.offheight = max(720, image_size)

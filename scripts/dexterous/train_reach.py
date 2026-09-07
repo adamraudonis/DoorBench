@@ -76,9 +76,17 @@ def main():
         model.save(a.output/'final')
         (a.output/'completed.json').write_text(json.dumps({'completed_at_unix':time.time(),'timesteps':model.num_timesteps,'door_opening_claim':False})+'\n')
     except Exception as exc:
-        (a.output/'failed.json').write_text(json.dumps({'failed_at_unix':time.time(), 'error':str(exc)})+'\n')
+        (a.output/'failed.json').write_text(json.dumps({'failed_at_unix':time.time(), 'error':type(exc).__name__+': '+str(exc)})+'\n')
         raise
     finally:
-        env.close()
+        processes=getattr(env,'processes',[])
+        if processes and any(not process.is_alive() for process in processes):
+            # SB3's normal close can wait forever after a worker dies mid-rollout.
+            for process in processes:
+                if process.is_alive():process.terminate()
+            for process in processes:process.join(timeout=5)
+            for remote in env.remotes:remote.close()
+        else:
+            env.close()
 
 if __name__=='__main__':main()
