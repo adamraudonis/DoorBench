@@ -45,7 +45,7 @@ These historical September 4, 2026 results describe the earlier geometry revisio
 
 This is a research dataset with known construction and physics approximations. Automated QA is not physical or artistic certification. Read the [construction audit](docs/review/takeover/REVIEW.md) and [appearance review](docs/review/blender/REVIEW.md) before using it for training or evaluation.
 
-A [one-door physical human prototype](docs/PHYSICAL_HUMAN_PROTOTYPE.md) now demonstrates articulated fingers, native touch and contact-driven lever-door opening, with causal checks.
+The [one-door anatomical hand prototype](docs/PHYSICAL_HUMAN_PROTOTYPE.md) demonstrates opening and holding with MyoHand-derived joints, native touch and kinematic checks. Release and human-motion quality remain unvalidated.
 
 The [human reference project](docs/HUMAN_REFERENCE.md) aims to create natural simulated human demonstrations before retargeting them to robots. The earlier [kinematic experiments](docs/PLANNED_REFERENCE_MOTIONS.md) do not meet the human-motion quality target and are not ground-truth human demonstrations.
 

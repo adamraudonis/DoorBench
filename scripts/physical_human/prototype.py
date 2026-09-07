@@ -18,11 +18,14 @@ from pathlib import Path
 
 import mujoco
 import numpy as np
+from scipy.optimize import least_squares
 from scipy.spatial.transform import Rotation
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from doorbench.reference.rig import rig_xml
+from scripts.physical_human.hand_anatomy import ANATOMY, DATA, attach_hand, target_pose
+from scripts.physical_human.kinematics import KinematicAudit
 
 
 def s(v):
@@ -40,6 +43,24 @@ def smooth(t):
 
 def mix(a, b, t):
     return np.asarray(a) + (np.asarray(b) - a) * smooth(t)
+
+
+STANCE = (0.9, -0.60, 0.94)
+GRASP_YAW = 0.8
+WRIST_OFFSET = np.array([0.0, -0.098, 0.045])
+OPEN_ANGLE = 0.70
+
+
+def handle_pose(theta, lever_angle):
+    door = Rotation.from_rotvec([0, 0, theta]).as_matrix()
+    lever = Rotation.from_rotvec([0, -lever_angle, 0]).as_matrix()
+    hand = Rotation.from_rotvec([0, 0, GRASP_YAW]).as_matrix()
+    rotation = door @ lever @ hand
+    position = np.array([0, -0.028, 0]) + door @ (
+        np.array([0.745, -0.002, 1.01])
+        + lever @ (np.array([-0.078, -0.066, 0]) + hand @ WRIST_OFFSET)
+    )
+    return position, rotation
 
 
 def make_model(anchors=False, no_touch=False, latch_blocked=False):
@@ -90,7 +111,14 @@ def make_model(anchors=False, no_touch=False, latch_blocked=False):
         friction="1 .005 .0001",
         condim="4",
     )
-    sub(default, "joint", damping="1", armature=".005")
+    sub(
+        default,
+        "joint",
+        damping="1",
+        armature=".005",
+        solreflimit=".002 1",
+        solimplimit=".999 .9999 .0001",
+    )
     world = sub(root, "worldbody")
     sub(
         world,
@@ -211,17 +239,15 @@ def make_model(anchors=False, no_touch=False, latch_blocked=False):
         damping=".3",
     )
     box(bolt, "latch_bolt", [0.012, 0, 0], [0.02, 0.014, 0.012], gold, mass=".045")
-    actor = ET.fromstring(rig_xml(root_pos=(0.9, -0.60, 0.94), root_yaw=0.0)).find(
-        "worldbody"
-    )[0]
+    actor = ET.fromstring(rig_xml(root_pos=STANCE, root_yaw=0.0)).find("worldbody")[0]
     world.append(actor)
     for geom in actor.iter("geom"):
         name = geom.get("name")
         geom.set("rgba", ".24 .68 .74 1")
-        # Self-collision enabled; MuJoCo excludes only parent-child pairs.
-        # Actor/scene and finger/mechanism contacts remain fully native.
+        # Native body/body and body/bone collision. Tissue envelopes use a
+        # separate mask for contact with the environment.
         geom.set("contype", "2")
-        geom.set("conaffinity", "3")
+        geom.set("conaffinity", "11")
         if "torso" in name:
             geom.set("size", ".06")
         elif "pelvis" in name:
@@ -234,121 +260,34 @@ def make_model(anchors=False, no_touch=False, latch_blocked=False):
             geom.set("size", ".028")
         elif "forearm" in name:
             geom.set("size", ".025")
-    for body in actor.iter("body"):
+    for body in list(actor.iter("body")):
         if body.get("name", "").startswith("actor_wrist_"):
             side = body.get("name")[-1]
             body.set("quat", ".70710678 -.70710678 0 0")
+            wrist_inertia = body.find("inertial")
+            wrist_inertia.set("mass", ".03")
+            wrist_inertia.set("diaginertia", ".000008 .000008 .000008")
+            for j in list(body.findall("joint")):
+                body.remove(j)
+            # MyoHand wrist: deviation and flexion. Axial rotation belongs to
+            # the forearm, not to a third, twisting wrist joint.
+            for suffix, axis, limits in [
+                ("deviation", "0 0 -1" if side == "l" else "0 0 1", "-.174533 .436332"),
+                ("flexion", "-1 0 0", "-.785398 .785398"),
+            ]:
+                sub(
+                    body,
+                    "joint",
+                    name=f"actor_wrist_{side}_{suffix}",
+                    axis=axis,
+                    range=limits,
+                    damping=".25",
+                    solreflimit=".002 1",
+                    solimplimit=".999 .9999 .0001",
+                )
             for g in list(body.findall("geom")):
                 body.remove(g)
-            box(
-                body,
-                "hand_" + side + "_palm",
-                [0, 0.033, 0],
-                [0.037, 0.033, 0.011],
-                ".82 .88 .85 1",
-                mass=".20",
-                contype="2",
-                conaffinity="3" if not no_touch else "0",
-            )
-            for k, x in enumerate([-0.029, -0.010, 0.010, 0.029]):
-                b = body
-                for j, length in enumerate([0.035, 0.024, 0.019]):
-                    b = sub(
-                        b,
-                        "body",
-                        name=f"hand_{side}_finger{k}_{j}",
-                        pos=s(
-                            [x, 0.065, 0] if j == 0 else [0, [0.035, 0.024][j - 1], 0]
-                        ),
-                    )
-                    sub(
-                        b,
-                        "joint",
-                        name=f"finger_{side}_{k}_{j}",
-                        axis="-1 0 0",
-                        range="0 1.75",
-                        damping=".025",
-                        armature=".00002",
-                    )
-                    sub(
-                        b,
-                        "geom",
-                        name=f"hand_{side}_finger{k}_{j}",
-                        type="capsule",
-                        fromto=s([0, 0, 0, 0, length, 0]),
-                        size=".0075",
-                        rgba=".84 .90 .87 1",
-                        mass=".014",
-                        contype="2",
-                        conaffinity="3" if not no_touch else "0",
-                    )
-                    sub(
-                        b,
-                        "site",
-                        name=f"touch_{side}_{k}_{j}",
-                        type="capsule",
-                        fromto=s([0, 0, 0, 0, length, 0]),
-                        size=".0085",
-                        rgba="0 0 0 0",
-                    )
-            # Thumb opposable across the palm, with two flexion joints.
-            b = sub(
-                body,
-                "body",
-                name="hand_" + side + "_thumb",
-                pos=s([0.045 if side == "l" else -0.045, 0.045, -0.022]),
-                quat=s([0.92387953, 0, 0, 0.38268343 if side == "l" else -0.38268343]),
-            )
-            for j, length in enumerate([0.032, 0.026]):
-                if j:
-                    b = sub(b, "body", name=f"hand_{side}_thumb{j}", pos="0 .032 0")
-                sub(
-                    b,
-                    "joint",
-                    name=f"thumb_{side}_{j}",
-                    axis="-1 0 0",
-                    range="-.4 1.5",
-                    damping=".025",
-                    armature=".00002",
-                )
-                sub(
-                    b,
-                    "geom",
-                    name=f"hand_{side}_thumb{j}",
-                    type="capsule",
-                    fromto=s([0, 0, 0, 0, length, 0]),
-                    size=".009",
-                    rgba=".84 .90 .87 1",
-                    mass=".02",
-                    contype="2",
-                    conaffinity="3" if not no_touch else "0",
-                )
-                sub(
-                    b,
-                    "site",
-                    name=f"touch_{side}_thumb{j}",
-                    type="capsule",
-                    fromto=s([0, 0, 0, 0, length, 0]),
-                    size=".010",
-                    rgba="0 0 0 0",
-                )
-            sub(
-                body,
-                "site",
-                name="touch_" + side + "_palm",
-                type="box",
-                pos="0 .033 0",
-                size=".038 .034 .012",
-                rgba="0 0 0 0",
-            )
-            sub(
-                body,
-                "site",
-                name="palm_" + side,
-                pos="0 0 0",
-                size=".004",
-                rgba="0 0 0 0",
-            )
+            attach_hand(body, side, no_touch)
     for b in actor.iter("body"):
         n = b.get("name", "")
         if any(x in n for x in ["shoulder_", "elbow_", "hip_", "knee_", "ankle_"]):
@@ -422,11 +361,24 @@ def make_model(anchors=False, no_touch=False, latch_blocked=False):
     act = sub(root, "actuator")
     for j in actor.iter("joint"):
         name = j.get("name")
-        finger = name.startswith(("finger_", "thumb_"))
+        finger = name.startswith("hand_")
+        wrist = "actor_wrist_" in name
         lower = any(x in name for x in ["hip_", "knee_", "ankle_"])
         spine = "spine_" in name
-        kp = 1.5 if finger else 2400 if lower else 1000 if spine else 320
-        kd = 0.025 if finger else 100 if lower else 45 if spine else 18
+        kp = (
+            1.5
+            if finger
+            else 35
+            if wrist
+            else 2400
+            if lower
+            else 1000
+            if spine
+            else 320
+        )
+        kd = (
+            0.025 if finger else 1.5 if wrist else 100 if lower else 45 if spine else 18
+        )
         sub(
             act,
             "position",
@@ -435,7 +387,7 @@ def make_model(anchors=False, no_touch=False, latch_blocked=False):
             kp=kp,
             kv=kd,
             forcelimited="true",
-            forcerange="-.18 .18" if finger else "-160 160",
+            forcerange="-.18 .18" if finger else "-8 8" if wrist else "-160 160",
         )
     sensor = sub(root, "sensor")
     for site in actor.iter("site"):
@@ -483,6 +435,9 @@ def initial(m):
             ("shoulder_" + side + "_roll", 0.1 if side == "l" else -0.1),
         ]:
             d.qpos[m.joint("actor_" + name).qposadr[0]] = v
+    for side in ["l", "r"]:
+        for name, value in target_pose(side, 0.12).items():
+            d.qpos[m.joint(name).qposadr[0]] = value
     mujoco.mj_forward(m, d)
     return d
 
@@ -491,30 +446,45 @@ def arm_ik(m, d, side, pos, rotation, iterations=15):
     names = (
         [f"actor_shoulder_{side}_{v}" for v in ["pitch", "roll", "yaw"]]
         + [f"actor_elbow_{side}", f"actor_pronation_{side}"]
-        + [f"actor_wrist_{side}_{v}" for v in ["pitch", "roll", "yaw"]]
+        + [f"actor_wrist_{side}_{v}" for v in ["deviation", "flexion"]]
     )
-    q, v = joint_indices(m, names)
+    q, _ = joint_indices(m, names)
     sid = m.site("palm_" + side).id
-    jp = np.zeros((3, m.nv))
-    jr = jp.copy()
-    for _ in range(iterations):
+    start = d.qpos[q].copy()
+    bounds = np.array([m.joint(name).range for name in names])
+    # Prefer an ordinary working wrist posture inside the anatomical limits.
+    for i, name in enumerate(names):
+        if name.endswith("_flexion"):
+            bounds[i, 0] = max(bounds[i, 0], -0.6)
+            bounds[i, 1] = min(bounds[i, 1], 0.6)
+        elif name.endswith("_deviation"):
+            bounds[i, 1] = min(bounds[i, 1], 0.3)
+    start = np.clip(start, bounds[:, 0], bounds[:, 1])
+
+    def residual(values):
+        d.qpos[q] = values
         mujoco.mj_forward(m, d)
-        er = Rotation.from_matrix(
+        error_rotation = Rotation.from_matrix(
             rotation @ d.site_xmat[sid].reshape(3, 3).T
         ).as_rotvec()
-        e = np.r_[pos - d.site_xpos[sid], er * 0.18]
-        if np.linalg.norm(e) < 0.0002:
-            break
-        mujoco.mj_jacSite(m, d, jp, jr, sid)
-        J = np.r_[jp[:, v], jr[:, v] * 0.18]
-        delta = J.T @ np.linalg.solve(J @ J.T + np.eye(6) * 0.00008, e)
-        d.qpos[q] += np.clip(delta, -0.15, 0.15)
-        for name, qi in zip(names, q):
-            d.qpos[qi] = np.clip(d.qpos[qi], *m.joint(name).range)
-    return float(np.linalg.norm(e))
+        return np.r_[
+            pos - d.site_xpos[sid], error_rotation * 0.18, (values - start) * 0.0005
+        ]
+
+    solution = least_squares(
+        residual,
+        start,
+        bounds=(bounds[:, 0], bounds[:, 1]),
+        max_nfev=iterations,
+        ftol=1e-7,
+        xtol=1e-7,
+        gtol=1e-7,
+    )
+    error = residual(solution.x)
+    return float(np.linalg.norm(error[:6]))
 
 
-def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=False):
+def run(out, no_touch=False, duration=6.0, anchors=False, latch_blocked=False):
     started = datetime.now(timezone.utc).isoformat()
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
@@ -541,12 +511,14 @@ def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=Fa
         ctrl=s(d.qpos[qids] + d.qfrc_bias[vids] / m.actuator_gainprm[:, 0]),
     )
     (out / "scene.xml").write_text(ET.tostring(saved, encoding="unicode"))
+    audit = KinematicAudit(m)
+    audit.observe(d)
+    landmarks = []
     desired = d.qpos.copy()
     # Left-hand rest and working frame. Lever is +X across palm width.
     wrist0 = d.site_xpos[m.site("palm_l").id].copy()
     R0 = d.site_xmat[m.site("palm_l").id].reshape(3, 3).copy()
-    grip = np.array([0.667, -0.096, 1.01])
-    ready = grip + [0, -0.069, 0.031]
+    ready, ready_rotation = handle_pose(0, 0)
     rows = []
     poses = []
     velocities = []
@@ -565,6 +537,7 @@ def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=Fa
     max_foot_drift = 0.0
     min_floor_force = 1e9
     body_names = [m.body(i).name or "" for i in range(m.nbody)]
+    moving_door = {m.body(n).id for n in ["door", "lever", "bolt"]}
     phase = "settle"
     for k in range(round(duration / m.opt.timestep)):
         clock = k * m.opt.timestep
@@ -575,7 +548,7 @@ def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=Fa
             phase = "settle"
             p = wrist0
             R = R0
-            close = 0
+            close = 0.12
         elif t < 2.0:
             phase = "reach"
             u = smooth((t - 0.65) / 1.35)
@@ -584,52 +557,33 @@ def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=Fa
                 + ready * u
                 + np.array([0, 0, 0.13]) * math.sin(math.pi * u)
             )
-            R = Rotation.from_rotvec(
-                Rotation.from_matrix(R0).as_rotvec() * (1 - u)
-            ).as_matrix()
-            close = 0
+            R = (
+                Rotation.from_rotvec(
+                    Rotation.from_matrix(ready_rotation @ R0.T).as_rotvec() * u
+                ).as_matrix()
+                @ R0
+            )
+            close = 0.12 + 0.28 * u
         elif t < 2.65:
             phase = "grasp"
             p = ready
-            R = np.eye(3)
-            close = smooth((t - 2.0) / 0.65)
+            R = ready_rotation
+            close = 0.4 + 0.6 * smooth((t - 2.0) / 0.65)
         elif t < 3.35:
             phase = "press lever"
             v = 0.50 * smooth((t - 2.65) / 0.7)
-            R = Rotation.from_rotvec([0, -v, 0]).as_matrix()
-            p = np.array([0.745, -0.03, 1.01]) + R @ (
-                np.array([-0.078, -0.066, 0]) + [0, -0.069, 0.031]
-            )
+            p, R = handle_pose(0, v)
             close = 1
         elif t < 6.7:
             phase = "pull"
             v = 0.50
-            theta = -0.85 * smooth((t - 3.35) / 3.35)
-            D = Rotation.from_rotvec([0, 0, theta]).as_matrix()
-            L = Rotation.from_rotvec([0, -v, 0]).as_matrix()
-            R = D @ L
-            p = np.array([0, -0.028, 0]) + D @ (
-                np.array([0.745, -0.002, 1.01])
-                + L @ (np.array([-0.078, -0.066, 0]) + [0, -0.069, 0.031])
-            )
+            theta = -OPEN_ANGLE * smooth((t - 3.35) / 3.35)
+            p, R = handle_pose(theta, v)
             close = 1
         else:
-            phase = "release"
-            v = 0.50
-            theta = -0.85
-            D = Rotation.from_rotvec([0, 0, theta]).as_matrix()
-            L = Rotation.from_rotvec([0, -v, 0]).as_matrix()
-            R = D @ L
-            p = (
-                np.array([0, -0.028, 0])
-                + D
-                @ (
-                    np.array([0.745, -0.002, 1.01])
-                    + L @ (np.array([-0.078, -0.066, 0]) + [0, -0.069, 0.031])
-                )
-                + np.array([0.1, -0.1, 0.06]) * smooth((t - 7.1) / 1.4)
-            )
-            close = 1 - smooth((t - 6.7) / 0.55)
+            phase = "hold open"
+            p, R = handle_pose(-OPEN_ANGLE, 0.50)
+            close = 1
         if k % 5 == 0:
             ik.qpos[:] = desired
             look = smooth((t - 0.65) / 1.35)
@@ -641,14 +595,10 @@ def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=Fa
             err = arm_ik(m, ik, "l", p, R, 8)
             desired = ik.qpos.copy()
             for side in ["l", "r"]:
-                c = close if side == "l" else 0.18
-                for n in range(4):
-                    for j, angle in enumerate([0.75, 1.35, 1.1]):
-                        desired[m.joint(f"finger_{side}_{n}_{j}").qposadr[0]] = (
-                            c * angle
-                        )
-                for j, angle in enumerate([0.35, 0.55]):
-                    desired[m.joint(f"thumb_{side}_{j}").qposadr[0]] = c * angle
+                c = close if side == "l" else 0.12
+                pose = target_pose(side, c)
+                for name, value in pose.items():
+                    desired[m.joint(name).qposadr[0]] = value
         # Inverse-dynamics gravity terms apply to motor coordinates only.
         d.ctrl[:] = desired[qids] + d.qfrc_bias[vids] / m.actuator_gainprm[:, 0]
         mujoco.mj_step(m, d)
@@ -656,6 +606,7 @@ def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=Fa
         mujoco.mj_forward(m, d)
         if abs(d.time - (k + 1) * m.opt.timestep) > 1e-7:
             raise RuntimeError("Simulator reset or clock mismatch")
+        audit.observe(d)
         touch = 0.0
         contacts = []
         ground_force = 0.0
@@ -667,9 +618,10 @@ def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=Fa
             c = d.contact[ci]
             a = m.geom(c.geom1).name or ""
             b = m.geom(c.geom2).name or ""
-            if (a.startswith("hand_") and b.startswith(("lever", "latch", "door"))) or (
-                b.startswith("hand_") and a.startswith(("lever", "latch", "door"))
-            ):
+            is_moving_door = any(
+                m.geom_bodyid[g] in moving_door for g in [c.geom1, c.geom2]
+            )
+            if (a.startswith("hand_") or b.startswith("hand_")) and is_moving_door:
                 f = np.zeros(6)
                 mujoco.mj_contactForce(m, d, ci, f)
                 force = float(np.linalg.norm(f[:3]))
@@ -686,10 +638,7 @@ def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=Fa
             if (
                 any(is_actor)
                 and not (a.startswith("hand_") or b.startswith("hand_"))
-                and (
-                    a.startswith(("door_", "lever_", "latch_"))
-                    or b.startswith(("door_", "lever_", "latch_"))
-                )
+                and is_moving_door
             ):
                 f = np.zeros(6)
                 mujoco.mj_contactForce(m, d, ci, f)
@@ -729,6 +678,7 @@ def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=Fa
             controls.append(d.ctrl.copy())
             torques.append(d.actuator_force.copy())
             sensors.append(d.sensordata.copy())
+            landmarks.append(d.site_xpos[audit.keypoints].copy())
             forces.append(contacts)
         if not np.isfinite(d.qpos).all():
             raise RuntimeError("nonfinite state")
@@ -739,6 +689,7 @@ def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=Fa
         ctrl=np.array(controls),
         actuator_force=np.array(torques),
         touch_sensor=np.array(sensors),
+        hand_keypoints=np.array(landmarks),
         time=np.array([r["t"] for r in rows]),
     )
     report = {
@@ -749,7 +700,18 @@ def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=Fa
             (ROOT / "doorbench/reference/rig.py").read_bytes()
         ).hexdigest(),
         "scene_sha256": hashlib.sha256((out / "scene.xml").read_bytes()).hexdigest(),
-        "schema": "doorbench.physical-human-prototype.v1",
+        "hand_source": {
+            "url": ANATOMY["source"],
+            "commit": ANATOMY["commit"],
+            "landmark_format": "COCO-WholeBody hand order; left 91-111, right 112-132",
+            "keypoint_shape": "[frame, left/right, 21 landmarks, world XYZ metres]",
+            "kinematics_sha256": hashlib.sha256(DATA.read_bytes()).hexdigest(),
+            "builder_sha256": hashlib.sha256(
+                (Path(__file__).parent / "hand_anatomy.py").read_bytes()
+            ).hexdigest(),
+        },
+        "kinematics": audit.result(),
+        "schema": "doorbench.physical-human-prototype.v2",
         "simulator": mujoco.__version__,
         "timestep_s": m.opt.timestep,
         "foot_welds": 2 if anchors else 0,
@@ -758,6 +720,7 @@ def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=Fa
         "no_touch": no_touch,
         "door_actuators": 0,
         "hand_welds": 0,
+        "scope": "standing opening and hold; release and traversal not validated",
         "max_contact_penetration_m": maxpen,
         "peak_hand_contact_n": peakforce,
         "max_door_deg": max(r["door_deg"] for r in rows),
@@ -773,9 +736,27 @@ def run(out, no_touch=False, duration=6.6666667, anchors=False, latch_blocked=Fa
         "rows": rows,
         "contacts": forces,
     }
+    report["quality_checks"] = {
+        "anatomical_kinematics": report["kinematics"]["passed"],
+        "opening_40_to_65_deg": 40 < report["max_door_deg"] < 65,
+        "door_held_open": report["rows"][-1]["door_deg"] > 40,
+        "no_nonhand_door_force": nonhand_impulse == 0,
+        "foot_drift_under_5_mm": max_foot_drift < 0.005,
+        "hand_penetration_under_2_mm": maxpen < 0.002,
+        "skeleton_penetration_under_2_mm": maxselfpen < 0.002,
+        "peak_hand_force_under_160_n": peak_total < 160,
+        "no_simulator_warnings": not any(report["warnings"]),
+    }
+    report["quality_passed"] = all(report["quality_checks"].values())
     (out / "report.json").write_text(json.dumps(report))
     print(
-        json.dumps({k: v for k, v in report.items() if k not in ["rows", "contacts"]})
+        json.dumps(
+            {
+                k: v
+                for k, v in report.items()
+                if k not in ["rows", "contacts", "kinematics"]
+            }
+        )
     )
     return report
 
@@ -786,6 +767,6 @@ if __name__ == "__main__":
     p.add_argument("--anchors", action="store_true")
     p.add_argument("--no-touch", action="store_true")
     p.add_argument("--latch-blocked", action="store_true")
-    p.add_argument("--duration", type=float, default=6.6666667)
+    p.add_argument("--duration", type=float, default=6.0)
     a = p.parse_args()
     run(a.out, a.no_touch, a.duration, a.anchors, a.latch_blocked)

@@ -37,6 +37,10 @@ def main():
         != report["scene_sha256"]
     ):
         raise ValueError("Scene does not match the recorded run")
+    if report.get("schema", "").endswith(".v2") and not report.get("quality_passed"):
+        raise ValueError(
+            "Refusing to label a failed run as an inspection demonstration"
+        )
     trace = np.load(source / "trajectory.npz")
     model = mujoco.MjModel.from_xml_path(str(source / "scene.xml"))
     data = mujoco.MjData(model)
@@ -49,6 +53,7 @@ def main():
     ]
     options = mujoco.MjvOption()
     options.sitegroup[:] = 0
+    options.geomgroup[4] = 0
     whole = mujoco.Renderer(model, height=480, width=720)
     hand = mujoco.Renderer(model, height=400, width=720)
     wide = mujoco.MjvCamera()
@@ -57,9 +62,9 @@ def main():
     wide.azimuth = 115
     wide.elevation = -12
     detail = mujoco.MjvCamera()
-    detail.distance = 0.38
-    detail.azimuth = 65
-    detail.elevation = 12
+    detail.distance = 0.24
+    detail.azimuth = 105
+    detail.elevation = -38
     args.out.parent.mkdir(parents=True, exist_ok=True)
     writer = imageio.get_writer(
         args.out,
@@ -84,7 +89,11 @@ def main():
                 whole.update_scene(data, camera=wide, scene_option=options)
                 top = whole.render().copy()
                 model.geom_rgba[hidden, 3] = 0
-                detail.lookat[:] = data.geom_xpos[model.geom("lever_grip").id]
+                detail.lookat[:] = data.site_xpos[model.site("hand_keypoint_l_09").id]
+                detail.azimuth = (105 if speed == 1 else 225) - row["door_deg"]
+                detail.elevation = -38 if speed == 1 else -30
+                if speed == 0.5:
+                    model.geom_rgba[model.geom("door_leaf").id, 3] = 0.13
                 hand.update_scene(data, camera=detail, scene_option=options)
                 for contact in report["contacts"][k]:
                     if hand.scene.ngeom >= hand.scene.maxgeom:
@@ -106,7 +115,7 @@ def main():
                 draw = ImageDraw.Draw(canvas)
                 draw.text(
                     (28, 19),
-                    "DoorBench / Physical human",
+                    "DoorBench / Anatomical hand",
                     font=font(29),
                     fill="#f0f0e6",
                 )
@@ -118,7 +127,9 @@ def main():
                 )
                 draw.text(
                     (28, 591),
-                    "HAND CLOSE-UP  /  gold dots = contact",
+                    "SKELETON / surface contact dots"
+                    if speed == 1
+                    else "THUMB VIEW / door ghosted for inspection",
                     font=font(22),
                     fill="#e6c68b",
                 )
@@ -132,26 +143,41 @@ def main():
                     draw.text((x, 1056), label, font=font(16), fill="#9eb2ad")
                     draw.text((x, 1084), value, font=font(33), fill="#f3ead9")
                 draw.line((28, 1140, 692, 1140), fill="#38504e", width=1)
+                angle_names = [
+                    "hand_l_cmc_abduction",
+                    "hand_l_mp_flexion",
+                    "hand_l_ip_flexion",
+                ]
+                angles = [
+                    np.rad2deg(data.qpos[model.joint(n).qposadr[0]])
+                    for n in angle_names
+                ]
                 draw.text(
-                    (28, 1160),
-                    "Recorded MuJoCo physics · No door motor or hand weld",
-                    font=font(19),
+                    (28, 1156),
+                    f"Thumb: CMC {angles[0]:.1f}°  ·  MCP {angles[1]:.1f}°  ·  IP {angles[2]:.1f}°",
+                    font=font(21),
+                    fill="#e6c68b",
+                )
+                draw.text(
+                    (28, 1190),
+                    "MyoHand geometry · 21 COCO-WholeBody landmarks per hand",
+                    font=font(18),
                     fill="#c4d1c9",
                 )
                 draw.text(
-                    (28, 1194),
-                    "Standing opening prototype. Not validated human ground truth.",
+                    (28, 1220),
+                    "Opening + hold. Release / traversal are not validated.",
                     font=font(18),
                     fill="#90a8a1",
                 )
                 draw.text(
-                    (28, 1224),
-                    "Same native motion shown twice. No walking in this demo.",
+                    (28, 1249),
+                    "Recorded MuJoCo physics · No door motor or hand weld",
                     font=font(18),
                     fill="#90a8a1",
                 )
                 writer.append_data(np.asarray(canvas))
-                if frame == round(3.7 / speed * 25) and speed == 1:
+                if frame == round(3.7 / speed * 25) and speed == 0.5:
                     canvas.save(args.out.with_suffix(".jpg"))
                 frames += 1
     finally:

@@ -38,10 +38,20 @@ def main():
                 "name": m.geom(i).name or f"joint_{i}",
                 "body": m.body(m.geom_bodyid[i]).name,
                 "type": int(m.geom_type[i]),
+                "group": int(m.geom_group[i]),
                 "size": m.geom_size[i].tolist(),
                 "rgba": m.geom_rgba[i].tolist(),
             }
         )
+    angle_names = [
+        "hand_l_cmc_flexion",
+        "hand_l_cmc_abduction",
+        "hand_l_mp_flexion",
+        "hand_l_ip_flexion",
+        "actor_wrist_l_flexion",
+        "actor_wrist_l_deviation",
+    ]
+    angle_ids = [m.joint(n).qposadr[0] for n in angle_names]
     frames = []
     for q in z["qpos"]:
         d.qpos[:] = q
@@ -59,6 +69,8 @@ def main():
         json.dumps(
             {
                 "geoms": geoms,
+                "angle_names": angle_names,
+                "angles_deg": np.rad2deg(z["qpos"][:, angle_ids]).round(3).tolist(),
                 "frames": frames,
                 "time": z["time"].tolist(),
                 "report": report,
@@ -66,6 +78,10 @@ def main():
             separators=(",", ":"),
         )
     )
+    shutil.copy(
+        Path(__file__).parent / "anatomy/LICENSE-MyoSim.txt", out / "LICENSE-MyoSim.txt"
+    )
+    shutil.copy(Path(__file__).parent / "anatomy/README.md", out / "hand-provenance.md")
     for n in ["scene.xml", "trajectory.npz", "report.json"]:
         shutil.copy(a.directory / n, out / n)
     checks = {}
@@ -81,6 +97,7 @@ def main():
         if (
             case["source_sha256"] != report["source_sha256"]
             or case["rig_sha256"] != report["rig_sha256"]
+            or case.get("hand_source") != report.get("hand_source")
         ):
             raise ValueError(
                 "Causal check comes from a different controller/rig revision"
