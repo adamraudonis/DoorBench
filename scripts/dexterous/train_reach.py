@@ -15,18 +15,23 @@ from doorbench.dexterous.reach_training import ReachTeacherEnv
 class Progress(BaseCallback):
     def __init__(self, out, every=10000):
         super().__init__(); self.out=out;self.every=every;self.last=0;self.start=time.time()
-        self.results=[]
+        self.results=[];self.last_report=0
     def _on_step(self):
         for done,info in zip(self.locals['dones'],self.locals['infos']):
             if done:self.results.append({k:info[k] for k in ('is_success','fell','max_reach_error_m','torso_tilt_deg')})
-        if self.num_timesteps-self.last >= self.every:
-            self.last=self.num_timesteps
+        save_checkpoint=self.num_timesteps-self.last >= self.every
+        if save_checkpoint or time.time()-self.last_report >= 5:
+            self.last_report=time.time()
             row={'stage':'privileged body reach training','timesteps':self.num_timesteps,
                  'wall_seconds':time.time()-self.start,'heartbeat_unix':time.time(),
                  'completed_episodes':len(self.results),'recent_episodes':self.results[-30:],
                  'door_opening_claim':False}
             tmp=self.out/'progress.tmp';tmp.write_text(json.dumps(row,indent=2));tmp.replace(self.out/'progress.json')
-            self.model.save(self.out/'latest')
+            if save_checkpoint:
+                self.last=self.num_timesteps
+                self.model.save(self.out/'latest')
+            with (self.out/'history.jsonl').open('a') as stream:
+                stream.write(json.dumps({k:v for k,v in row.items() if k!='recent_episodes'})+'\n')
             print(json.dumps({k:v for k,v in row.items() if k!='recent_episodes'}),flush=True)
         return True
 
@@ -57,6 +62,7 @@ def main():
         (a.output/'config.json').write_text(json.dumps(vars(a),default=str,indent=2)+'\n')
         model.learn(total_timesteps=a.steps,callback=Progress(a.output))
         model.save(a.output/'final')
+        (a.output/'completed.json').write_text(json.dumps({'completed_at_unix':time.time(),'timesteps':model.num_timesteps,'door_opening_claim':False})+'\n')
     finally:
         env.close()
 

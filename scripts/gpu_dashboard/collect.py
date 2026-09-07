@@ -40,6 +40,22 @@ def collect(directory, telemetry=False):
     root = Path(directory)
     if not root.is_dir():
         raise FileNotFoundError("Results directory does not exist yet")
+    if (root / 'config.json').exists() and (root / 'progress.json').exists():
+        progress = read(root / 'progress.json', {})
+        if progress.get('stage') == 'privileged body reach training':
+            config = read(root / 'config.json', {})
+            completed = read(root / 'completed.json', {})
+            heartbeat = progress.get('heartbeat_unix')
+            gpu=[]
+            if telemetry:
+                proc=subprocess.run(['nvidia-smi','--query-gpu=name,utilization.gpu,memory.used,memory.total','--format=csv,noheader,nounits'],capture_output=True,text=True,timeout=5)
+                if proc.returncode==0:
+                    gpu=[dict(zip(('name','utilization','memory_used','memory_total'),[v.strip() for v in row])) for row in csv.reader(proc.stdout.splitlines())]
+            return dict(training=True,complete=bool(completed),
+                status='completed' if completed else 'running' if heartbeat and time.time()-heartbeat<30 else 'not reporting',
+                progress=progress,config=config,gpu=gpu,
+                log=tail(root/'run.log'),scope='H1/Shadow body reaching; no door-opening score',
+                source_updated=heartbeat,heartbeat=heartbeat)
     raw = (
         (root / "results.json").read_bytes()
         if (root / "results.json").exists()

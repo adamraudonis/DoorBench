@@ -8,8 +8,9 @@ source /workspace/dex-venv/bin/activate
 python -m pip install 'mujoco==3.12.0' 'stable-baselines3==2.7.0' 'gymnasium==1.2.2' pillow scipy pytest imageio imageio-ffmpeg
 if [ ! -d /workspace/DoorBenchDex/.git ]; then
   git clone --depth 1 --filter=blob:none --sparse --branch codex/dexterous-humanoid https://github.com/adamraudonis/DoorBench.git /workspace/DoorBenchDex
-  git -C /workspace/DoorBenchDex sparse-checkout set doorbench scripts tests docs
 fi
+git -C /workspace/DoorBenchDex sparse-checkout init --cone
+git -C /workspace/DoorBenchDex sparse-checkout set doorbench scripts tests docs
 cd /workspace/DoorBenchDex
 python -m pip install -e .
 export PYTHONPATH=/workspace/DoorBenchDex
