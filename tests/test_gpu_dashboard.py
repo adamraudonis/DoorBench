@@ -130,3 +130,8 @@ def test_training_heartbeat_failure_and_completion(tmp_path):
     assert module.collect(tmp_path)['status']=='not reporting'
     (tmp_path/'completed.json').write_text(json.dumps({'timesteps':500000}))
     assert module.collect(tmp_path)['status']=='completed'
+    assert module.collect(tmp_path)['progress']['timesteps']==500000
+    progress['checkpoint_timesteps']=progress['timesteps']+430000
+    (tmp_path/'progress.json').write_text(json.dumps(progress))
+    (tmp_path/'completed.json').write_text(json.dumps({'timesteps':930000}))
+    assert module.collect(tmp_path)['progress']['timesteps']==500000

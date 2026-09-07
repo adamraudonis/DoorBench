@@ -46,6 +46,10 @@ def collect(directory, telemetry=False):
             config = read(root / 'config.json', {})
             completed = read(root / 'completed.json', {})
             failed = read(root / 'failed.json', {})
+            if completed.get('timesteps') is not None:
+                initial=progress.get('checkpoint_timesteps',progress.get('timesteps',0))-progress.get('timesteps',0)
+                progress['timesteps']=completed['timesteps']-initial
+                progress['checkpoint_timesteps']=completed['timesteps']
             grasp = progress['stage']=='initialized tactile grasp training'
             heartbeat = progress.get('heartbeat_unix')
             gpu=[]
