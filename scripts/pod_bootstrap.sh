@@ -65,7 +65,13 @@ echo "== [5/6] DoorBench"
 if [ ! -d "$DB" ]; then git clone -q "$DOORBENCH_REPO" "$DB"; fi
 cd "$DB" && pip install -q -e . 2>&1 | tail -1
 [ -d "$DB/isaaclab" ] && pip install -q -e "$DB/isaaclab" 2>&1 | tail -1 || true
-[ -f "$DB/assets/manifest.json" ] || python scripts/generate_dataset.py --out assets --workers 8 --no-thumbs 2>&1 | tail -1
+if [ ! -f "$DB/assets/manifest.json" ]; then
+  if [ -n "${DOORBENCH_GENERATE_IDS:-}" ]; then
+    python scripts/generate_dataset.py --out assets --ids "$DOORBENCH_GENERATE_IDS" --workers 1 --no-thumbs || exit 1
+  else
+    python scripts/generate_dataset.py --out assets --workers 8 --no-thumbs 2>&1 | tail -1
+  fi
+fi
 # Isaac Lab's torch upgrade can replace Isaac Sim's pinned utility dependencies.
 # Restore the shared 5.1 / 2.3.2 contract after all editable packages are installed.
 if [ "$ISAACSIM_VERSION" = "5.1.0" ] && [ "$ISAACLAB_TAG" = "v2.3.2" ]; then
