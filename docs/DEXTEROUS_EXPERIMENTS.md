@@ -13,10 +13,13 @@ Same development seeds 10000–10029, 0.25 m target-offset curriculum, six-secon
 | Reach 002, standing reward weight 4, intermediate | 820,000 cumulative | 1/30 | 12/30 | [Trials](../results/dexterous/2026-09-07/reach-002-intermediate.json) |
 | Reach 002, later checkpoint | 2,120,000 cumulative | 0/30 | 4/30 | [Trials](../results/dexterous/2026-09-07/reach-002-late.json) |
 | Reach 002, final checkpoint | 2,432,944 cumulative | 0/30 | 7/30 | [Trials](../results/dexterous/2026-09-07/reach-002-final.json) |
+| Reach 003, continue after training success | 2,936,752 cumulative | 1/30 | 2/30 | [Trials](../results/dexterous/2026-09-07/reach-003-final.json) |
 
 Reach 001 stopped around 432,000 transitions because a fall exhausted the native constraint arena. Its last checkpoint is retained; it did not complete the 500,000-transition budget. Increasing solver memory is an infrastructure repair, not a change to collisions or success thresholds. Reach 002 resumes that checkpoint with 128 MiB arena memory per environment and a stronger standing reward. The intermediate result does not establish improvement in reliability.
 
 The later Reach 002 checkpoint reduced falls but still failed the upright-reaching gate. Final pelvis heights ranged from 0.713 to 0.794 m, with median 0.767 m. Inspection identified an incentive problem: successful episodes terminated while unsuccessful episodes could continue receiving positive dense reward. This is a plausible explanation for settling just below the 0.8 m threshold, not a proven causal result. The v3 configuration tests continued training episodes after reaching, with the original evaluation gate unchanged. A fall after reaching still fails the training episode. Historical v1/v2 configurations preserve their original termination behavior.
+
+Reach 003 completed 503,808 additional transitions. Its final median pelvis height was 0.777 m and it passed only 1/30 trials, with two falls. The termination correction alone has not solved body control, and these small development samples do not establish a reliable improvement. Further posture/target curriculum work is required before connecting this body skill to approach and traversal. All three GPU-run checkpoints and logs are archived; the owned pod was terminated and its absence confirmed after copying them.
 
 A short throughput profile at unchanged physics settings measured approximately 251, 467 and 781 transitions/sec for 4, 8 and 16 environments respectively. [Raw profile](../results/dexterous/2026-09-07/native-profile.json). This profile includes native CPU physics and actor inference, excludes rendering/PPO updates, and establishes the best of those tested counts only. It is not an Isaac Sim or maximum-GPU-capacity measurement.
 
