@@ -48,3 +48,40 @@ inner hierarchy screen is also required because the default-preserving weight
 hook changes the source hash. Use a fresh output directory and retain every
 failed gate. This profile is an instance-specific scripted motor component,
 not a learned vision policy or a completed door-opening system.
+
+## First physical comparison: repair isolated, task still failed
+
+`out/continuous/sensor-smooth-contact-001` ran from the same contact-free reset
+without later pose writes. Source395573aca, first19s qpos/qvel/forces/clocks/goals
+bitwise identical. The original static/grasp admission was retained.
+
+The same index loss occurred in the actual25.076–25.078s interval. With fresh
+zero-touch feedback, pressure mode was retained and the press clock froze.
+Index contact returned in the next physical interval25.078–25.080s, unlike the
+original hierarchy's permanent retraction. Recorded mode replay matches every
+numeric tactile projection/weight exactly, with no integration or progression
+during zero touch. The largest pressure-weighted virtual-force step is0.020N;
+the largest added virtual-work bias step is0.001450Nm. These do not bound the
+complete motor command including ordinary velocity feedback.
+
+The distinct whole-thumb defect remained. It exceeded40mrad tracking before
+the first index loss and eventually reached150.539mrad maximum motor error.
+At27.204s the first invalid loaded thumb patch had0.992525mm axial clearance,
+below the unchanged1mm gate. The thumb then unloaded. After250ms without fresh
+thumb load, the controller terminated at27.504s/13,752 physical steps. The run
+is **failed18/28**, reaching only0.459409rad lever rotation and6.64108mm latch
+retraction. The incomplete final-second quiet/foot checks also remain false;
+their prescribed35–36s window was never reached.
+
+Original caps, joint/loopback bounds, unintended-contact checks, balance and
+warning checks pass over the recorded prefix. Independent raw classification
+and qualified-pad loads match exactly. Every recorded projected bias reconstructs
+within3.1e−15Nm; every finger motor command within the original adapter tolerance.
+The contact auditor correctly rejects the physical task and incomplete manifest.
+The new mode/algebra audit's pass is not a task pass.
+
+Evidence includes `comparison.json`, `independent-contact-audit.json`,
+`force-mapping-audit.json`, `regulation-decomposition.json`, and
+`mode-execution-audit.json`. The personally inspected final hand close-up is
+`touch-operation-hand-az150-0002.png`; it shows the thumb displaced toward the
+lever end. No successful-contact claim comes from that image.

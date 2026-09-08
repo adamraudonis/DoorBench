@@ -65,6 +65,10 @@ def main():
         no_nonfinger_bias=max_nonfinger==0.,first19s_no_force_bias=bool(prefix_zero),virtual_force_bound=bool(np.max(abs(states))<=2.+1e-12),
         internal_force_slew_bound=internal_step<=.004+1e-12,zero_force_without_local_contact=bool(np.all(applied[weights==0.] == 0.)),
         calculator_never_stepped=calc.d.time==0.)
+    if (a.trial/'contact-mode-protocol.json').exists():
+        # Retained mode deliberately outlives fresh zero touch briefly. Its
+        # algebraic weight must not be mislabeled as physical contact evidence.
+        checks['zero_force_when_pressure_mode_zero']=checks.pop('zero_force_without_local_contact')
     if hierarchy:checks.update(hierarchical_bias_reconstructed=max_hierarchy<1e-12,tangential_motor_posture_preserved=max_tangent<1e-12)
     report=dict(hierarchical_profile=hierarchy,maximum_hierarchical_bias_error_Nm=max_hierarchy,maximum_tangential_projection_error_Nm=max_tangent,initial_position_effort_equivalent_N=None if initial_normal is None else initial_normal.tolist(),scope=__doc__+'; this verifies controller algebra, not physical task success',passed=all(checks.values()),checks=checks,
         decisions=len(infos),maximum_bias_reconstruction_error_Nm=max_map,maximum_projection_orthogonality_error_Nm=max_orthogonal,
