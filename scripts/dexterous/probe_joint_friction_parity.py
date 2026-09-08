@@ -47,7 +47,7 @@ def native():
     return np.asarray(rows), dict(mujoco=mujoco.__version__, fixtures=metadata)
 
 
-def isaac():
+def isaac(output):
     from isaacsim import SimulationApp
     app = SimulationApp({'headless': True})
     try:
@@ -116,20 +116,17 @@ def isaac():
                 robot.update(DT)
                 rows[i].append([(step+1)*DT, float(robot.data.joint_pos[0, 0]),
                                 float(robot.data.joint_vel[0, 0]), *commands[i]])
-        return np.asarray(rows), dict(backend_friction_properties=readback,
-                                     device='cuda:0', solver='TGS 32/8')
+        # Kit fast shutdown can terminate the process inside app.close().
+        # Export the completed measurements before entering that shutdown.
+        return save(np.asarray(rows), dict(backend_friction_properties=readback,
+                    device='cuda:0', solver='TGS 32/8'), output, 'isaac')
     finally:
         app.close()
 
 
-def main():
+def save(rows, metadata, output, backend):
     import numpy as np
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--backend', choices=['native', 'isaac'], required=True)
-    p.add_argument('--output', type=Path, required=True)
-    a = p.parse_args(); a.output.mkdir(parents=True, exist_ok=False)
-    rows, metadata = native() if a.backend == 'native' else isaac()
-    np.savez_compressed(a.output/'trace.npz', rows=rows)
+    np.savez_compressed(output/'trace.npz', rows=rows)
     metrics = {}
     for i, (name, _, _) in enumerate(CASES):
         metrics[name] = dict(final_angle_rad=float(rows[i, -1, 1]),
@@ -141,14 +138,23 @@ def main():
         backend_static_resists_small_load=abs(metrics['static_under']['driven_displacement_rad']) < .002,
         backend_viscous_units=abs(metrics['static_over']['late_driven_velocity_rad_s']-.2) < .01,
         backend_coast_stops=metrics['static_over']['late_coast_peak_velocity_rad_s'] < .001)
-    report = dict(scope=__doc__, backend=a.backend, checks=checks, passed=all(checks.values()),
+    report = dict(scope=__doc__, backend=backend, checks=checks, passed=all(checks.values()),
         physics_dt_s=DT, steps_per_fixture=STEPS, original_link_effective_inertia=INERTIA,
         excitation='Each case receives 0.005 or 0.02 Nm for 0.5 s, then zero for 0.5 s.',
         reset_angle_rad=.4, runtime_state_writes=0, metadata=metadata, metrics=metrics,
         columns=['t', 'q', 'v', 'external_excitation_Nm', 'explicit_passive_Nm'],
         script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest())
-    (a.output/'report.json').write_text(json.dumps(report, indent=2)+'\n')
-    print(json.dumps(report, indent=2))
+    (output/'report.json').write_text(json.dumps(report, indent=2)+'\n')
+    print(json.dumps(report, indent=2), flush=True)
+    return report
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--backend', choices=['native', 'isaac'], required=True)
+    p.add_argument('--output', type=Path, required=True)
+    a = p.parse_args(); a.output.mkdir(parents=True, exist_ok=False)
+    report = save(*native(), a.output, 'native') if a.backend == 'native' else isaac(a.output)
     if not report['passed']: raise SystemExit(1)
 
 
