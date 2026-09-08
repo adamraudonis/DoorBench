@@ -6,7 +6,7 @@ still under qualification. Two-second physics smokes completed on both the
 original hand and the corrected versioned hand. The v2 smoke verifies all eight
 passive constraints in the live solver. Both runs correctly fail the full
 approach/quiet-stop criteria because of their short duration. One full frozen-protocol Isaac approach has completed and failed stopping;
-the corrected controller is under test.
+the corrected controller now stops quietly but still fails the position gate.
 
 This uses the official **H1** actor, the full free-base H1/dual-Shadow robot, and
 the complete Door55 scene. The waypoint controller reads privileged world pose
@@ -156,5 +156,22 @@ passed [9/9 native v2 starts](../results/dexterous/2026-09-08/h1-door55-approach
 worst final XY 20.612 mm and heading 0.708°. Two focused tests verify that the
 estimator removes periodic sway, preserves net linear travel, handles uneven
 sampling, and does not alias reused simulator state buffers. Its first live
-Isaac retry is pending. The matrix runner accepts `--stop-on-failure` so a
+Isaac retry completed but did not satisfy the position gate. The matrix runner accepts `--stop-on-failure` so a
 systematic failure can stop further spending while retaining the complete case.
+
+
+The [full cycle-averaged Isaac retry](../results/dexterous/2026-09-08/isaac-door-approach-v2-cycle-failure.json)
+passed every physical, heading and quiet-stop check. Final-second speed was
+0.00598 m/s, excursion 3.85 mm and minimum per-foot support 187 N. Its final position
+error was 38.88 mm, so the 30 mm requirement still failed. Four physical brake
+attempts occurred; there were no runtime root/foot pose writes. The remaining
+starts were paused to prioritize the separate live acquisition test.
+
+A bounded [native stance-refinement attempt](../results/dexterous/2026-09-08/h1-door55-precision-stance-failure.json)
+physically walked, stopped, then used the landed-foot inverse-dynamics
+controller to adjust the pelvis without another gait cycle. It reached 26.32 mm
+and stable support, with only 0.185 mm measured foot displacement. It nevertheless
+failed qualification because 13 QP solves failed. The fallback held the last
+motor command; those numerical failures are retained, not waived. The optional
+`--precision-stance` path remains development code with a strict zero-failure
+gate and must not be advertised as a qualified controller.

@@ -18,6 +18,7 @@ def main():
             command+=['--output',str(trial),'--seed',str(seed)]
             values={'seconds':config['seconds'],'joint-noise':config['joint_noise_rad'],'gain':config['gain'],'brake-prediction':config['brake_prediction_s'],'brake-radius':config['brake_radius_m'],'max-speed':config['max_forward_speed_m_s'],'brake-velocity-window':config.get('brake_velocity_window_s',0.),'distance':case['distance_m'],'lateral':case['lateral_m'],'yaw-offset':case['yaw_offset_rad']}
             for name,value in values.items():command+=['--'+name,str(value)]
+            if config.get('precision_stance'):command+=['--precision-stance']
             process=subprocess.run(command,capture_output=True,text=True,timeout=180);(args.output/f'{trial.name}.process.log').write_text(process.stdout+process.stderr)
             if (trial/'report.json').exists():
                 report=json.loads((trial/'report.json').read_text());report.pop('arguments');row={'trial':trial.name,'seed':seed,'case':case,'exit_code':process.returncode,**report}

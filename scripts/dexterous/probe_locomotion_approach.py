@@ -12,7 +12,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('robot','door','reference','checkpoint','output'):p.add_argument('--'+name,type=Path,required=True)
     for name,default in [('distance',.7),('lateral',0.),('yaw-offset',0.),('joint-noise',0.),('seconds',25.),('gain',4.),('brake-prediction',.4),('brake-radius',.05),('max-speed',.3),('brake-velocity-window',0.)]:p.add_argument('--'+name,type=float,default=default)
-    p.add_argument('--seed',type=int,default=0);args=p.parse_args()
+    p.add_argument('--precision-stance',action='store_true');p.add_argument('--seed',type=int,default=0);args=p.parse_args()
     if args.output.exists():raise SystemExit('Use a fresh output directory')
     if not np.isfinite([args.distance,args.lateral,args.yaw_offset,args.joint_noise,args.seconds,args.gain,args.brake_prediction,args.brake_radius,args.max_speed]).all() or args.distance<.5 or args.seconds<=1 or args.joint_noise<0:raise SystemExit('Invalid finite separated-start configuration')
     capture(Path(__file__).resolve().parents[2],args.output,{k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()},timing='before_native_door_waypoint_approach')
@@ -38,12 +38,26 @@ def main():
     def emit(value):
         line=json.dumps(value);print(line,flush=True)
         with (args.output/'run.log').open('a') as out:out.write(line+'\n')
+    stance=None;stance_command=None;stance_started=None;stance_start_xy=None;stance_start_feet=None;stance_failures=0;stance_max_foot_displacement=0.;loads=np.zeros(2)
     for step in range(round(args.seconds/m.opt.timestep)):
         R=d.xmat[sim.pelvis].reshape(3,3);yaw=float(np.arctan2(R[1,0],R[0,0]))
-        if step%10==0:
+        if step%10==0 and stance is None:
             command,amplitude,stage=teacher.step(d.qpos[q:q+2],yaw,d.qvel[v:v+2],d.time)
             target=policy.step(d.qpos[a.qadr],d.qvel[a.vadr],d.qvel[v+3:v+6],R.T@[0.,0.,-1.],command,d.time,phase_amplitude=amplitude)
         d.ctrl[:]=fixed;d.ctrl[a.actuators]=a.command(d,target)
+        if args.precision_stance and stance is None and teacher.stop_time is not None and d.time-teacher.stop_time>=3. and np.linalg.norm(d.qvel[v:v+2])<.02 and min(loads)>30:
+            from doorbench.dexterous.locomotion_manipulation import LandedFootStanceController
+            stance=LandedFootStanceController(sim);stance_started=float(d.time);stance_start_xy=stance.target_root[:2].copy();stance_start_feet=d.xpos[sim.feet].copy()
+        if stance is not None:
+            stage='motor stance refinement';command=np.zeros(3);amplitude=0.
+            blend=np.clip((d.time-stance_started)/3.,0.,1.);blend=blend**3*(10+blend*(-15+6*blend))
+            stance.target_root[:2]=stance_start_xy+blend*(goal-stance_start_xy)
+            if step%10==0:
+                proposed,status=stance.command()
+                if proposed is None:stance_failures+=1
+                else:stance_command=proposed
+            if stance_command is not None:d.ctrl[stance.act]=np.clip(stance_command,m.actuator_ctrlrange[stance.act,0],m.actuator_ctrlrange[stance.act,1])
+            stance_max_foot_displacement=max(stance_max_foot_displacement,float(np.linalg.norm(d.xpos[sim.feet]-stance_start_feet,axis=1).max()))
         worst['robot_external_force']=max(worst['robot_external_force'],float(abs(d.xfrc_applied[list(robot_bodies)]).max()),float(abs(d.qfrc_applied[robot_v]).max()))
         sim.plant.step()
         worst['robot_external_force']=max(worst['robot_external_force'],float(abs(sim.plant.last_applied_qfrc[robot_v]).max()))
@@ -78,8 +92,8 @@ def main():
         if not finite or tilt>35 or d.qpos[q+2]<.55:break
     tail=[r for r in rows if r['time_s']>args.seconds-1];warnings=sum(int(d.warning[w].number) for w in (mujoco.mjtWarning.mjWARN_BADQPOS,mujoco.mjtWarning.mjWARN_BADQVEL,mujoco.mjtWarning.mjWARN_BADQACC,mujoco.mjtWarning.mjWARN_BADCTRL))
     tail_speed=max([np.linalg.norm(r['velocity'][:2]) for r in tail],default=np.inf);tail_excursion=max([np.linalg.norm(np.array(r['root'][:2])-tail[0]['root'][:2]) for r in tail],default=np.inf);tail_load=min([min(r['foot_loads_N']) for r in tail],default=0.)
-    checks={'full_duration':rows[-1]['time_s']>=args.seconds-.025,'separated_start':np.linalg.norm(start[:2]-goal)>=.5-1e-9,'upright':worst['tilt_deg']<12 and min_height>.7,'motor_limits':worst['motor_excess_Nm']<1e-5,'joint_limits':worst['joint_violation_rad']<.02,'passive_tendon_limits':worst['passive_tendon_violation_rad']<.02,'no_nonfoot_ground_collision':worst['nonfoot_ground_penetration_m']<.003,'no_self_collision':worst['self_penetration_m']<.003,'no_scene_contact':contact_steps==0,'no_robot_external_force':worst['robot_external_force']==0,'no_door_command':worst['door_motor_command']==0,'plant_unchanged':all(np.array_equal(value,getattr(m,name)) for name,value in originals.items()),'finite':finite and warnings==0,'position_accuracy':bool(tail and max(r['position_error_m'] for r in tail)<.03),'heading_accuracy':bool(tail and max(r['heading_error_deg'] for r in tail)<2.),'quiet_stop':bool(tail_speed<.02 and tail_excursion<.01 and tail_load>30)}
-    report={'scope':__doc__,'limited_robot_tendons':[m.tendon(t).name for t,_ in passive_tendons],'passed':bool(all(checks.values())),'checks':{k:bool(v) for k,v in checks.items()},'worst':worst,'goal_xy':goal.tolist(),'goal_yaw_rad':yaw_goal,'start_root':start.tolist(),'last':rows[-1],'final_second_max_speed_m_s':float(tail_speed),'final_second_excursion_m':float(tail_excursion),'final_second_min_foot_load_N':float(tail_load),'scene_contact_steps':contact_steps,'scene_contact_pairs':sorted(collision_pairs),'stop_attempts':teacher.stops,'final_aim_offset_m':teacher.aim_offset.tolist(),'runtime_root_pose_writes':0,'safety_audit_period_s':float(m.opt.timestep),'trace_period_s':.02,'wall_seconds':time.time()-began,'arguments':{k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()}}
+    checks={'precision_handoff':not args.precision_stance or stance is not None,'stance_solver':stance_failures==0,'full_duration':rows[-1]['time_s']>=args.seconds-.025,'separated_start':np.linalg.norm(start[:2]-goal)>=.5-1e-9,'upright':worst['tilt_deg']<12 and min_height>.7,'motor_limits':worst['motor_excess_Nm']<1e-5,'joint_limits':worst['joint_violation_rad']<.02,'passive_tendon_limits':worst['passive_tendon_violation_rad']<.02,'no_nonfoot_ground_collision':worst['nonfoot_ground_penetration_m']<.003,'no_self_collision':worst['self_penetration_m']<.003,'no_scene_contact':contact_steps==0,'no_robot_external_force':worst['robot_external_force']==0,'no_door_command':worst['door_motor_command']==0,'plant_unchanged':all(np.array_equal(value,getattr(m,name)) for name,value in originals.items()),'finite':finite and warnings==0,'position_accuracy':bool(tail and max(r['position_error_m'] for r in tail)<.03),'heading_accuracy':bool(tail and max(r['heading_error_deg'] for r in tail)<2.),'quiet_stop':bool(tail_speed<.02 and tail_excursion<.01 and tail_load>30)}
+    report={'scope':__doc__,'precision_stance_started_s':stance_started,'precision_stance_failures':stance_failures,'precision_max_foot_displacement_m':stance_max_foot_displacement,'limited_robot_tendons':[m.tendon(t).name for t,_ in passive_tendons],'passed':bool(all(checks.values())),'checks':{k:bool(v) for k,v in checks.items()},'worst':worst,'goal_xy':goal.tolist(),'goal_yaw_rad':yaw_goal,'start_root':start.tolist(),'last':rows[-1],'final_second_max_speed_m_s':float(tail_speed),'final_second_excursion_m':float(tail_excursion),'final_second_min_foot_load_N':float(tail_load),'scene_contact_steps':contact_steps,'scene_contact_pairs':sorted(collision_pairs),'stop_attempts':teacher.stops,'final_aim_offset_m':teacher.aim_offset.tolist(),'runtime_root_pose_writes':0,'safety_audit_period_s':float(m.opt.timestep),'trace_period_s':.02,'wall_seconds':time.time()-began,'arguments':{k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()}}
     (args.output/'report.json').write_text(json.dumps(report,indent=2)+'\n');(args.output/'trace.json').write_text(json.dumps(rows)+'\n');np.savez_compressed(args.output/'trajectory.npz',qpos=poses,qvel=vel,ctrl=ctrl);emit(report);sim.close()
     raise SystemExit(0 if report['passed'] else 1)
 if __name__=='__main__':main()
