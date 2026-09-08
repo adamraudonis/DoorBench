@@ -100,11 +100,16 @@ def main():
     p.add_argument('--palm-protocol',type=Path,help='Opt-in opposing-touch and own-robot-FK palm coordination')
     p.add_argument('--palm-screen',type=Path,help='Matching detached quarter-millimeter palm geometry receipt')
     p.add_argument('--digit-force-protocol',type=Path,help='Opt-in local pad-Jacobian force correction over the index profile')
+    p.add_argument('--hierarchical-force-protocol',type=Path,help='Opt-in normal-effort/posture hierarchy over the digit-force profile')
+    p.add_argument('--hierarchical-force-screen',type=Path,help='Matching frozen recorded-pose effort algebra screen')
     a=p.parse_args()
     if not 0<a.seconds<=40 or not np.isfinite([a.seconds,a.initial_velocity]).all() or abs(a.initial_velocity)>.1:p.error('Bounded finite protocol required')
     if a.output.exists():p.error('Fresh evidence directory required')
     if (a.index_protocol is None)!=(a.index_screen is None) or (a.index_protocol and not a.impedance_protocol):p.error('Index profile requires matched screen and declared impedance profile')
     if (a.palm_protocol is None)!=(a.palm_screen is None) or (a.palm_protocol and not a.index_protocol):p.error('Palm profile requires matched screen and declared index profile')
+    if (a.hierarchical_force_protocol is None)!=(a.hierarchical_force_screen is None):p.error('Hierarchical profile requires its matching effort screen')
+    if a.digit_force_protocol and a.seconds!=36.:p.error('Frozen digit-force comparisons require36seconds')
+    if a.hierarchical_force_protocol and not a.digit_force_protocol:p.error('Hierarchical profile requires the frozen digit-force inner loop')
     if a.digit_force_protocol and (not a.index_protocol or a.palm_protocol):p.error('Digit force comparison requires index profile and excludes the separate palm-shift experiment')
     a.output.mkdir(parents=True)
     robot=Path(a.robot);door=a.door if a.door.is_dir() else a.door.parent
@@ -149,7 +154,14 @@ def main():
         touch=SensorPalmTouchController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile,palm_profile)
     if a.digit_force_protocol:
         from doorbench.dexterous.sensor_digit_force_control import SensorDigitForceController
-        touch=SensorDigitForceController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile,json.loads(a.digit_force_protocol.read_text()))
+        if a.hierarchical_force_protocol:
+            from doorbench.dexterous.sensor_hierarchical_digit_force import SensorHierarchicalDigitForceController
+            hierarchy=json.loads(a.hierarchical_force_protocol.read_text());hierarchy_screen=json.loads(a.hierarchical_force_screen.read_text())
+            hierarchy_source=Path(inspect.getfile(SensorHierarchicalDigitForceController))
+            if (hierarchy_screen.get('passed') is not True or hierarchy_screen.get('protocol')!=hierarchy or hierarchy_screen.get('controller_sha256')!=sha(hierarchy_source) or hierarchy_screen.get('robot_xml_sha256')!=sha(robot) or hierarchy_screen.get('motor_contract_sha256')!=sha(a.motors) or hierarchy_screen.get('input_sha256',{}).get('index-screen.json')!=sha(a.index_screen) or hierarchy_screen.get('input_sha256',{}).get('preload-screen.json')!=sha(a.preload_screen)):raise ValueError('Matching frozen hierarchical source/protocol effort screen required')
+            touch=SensorHierarchicalDigitForceController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile,json.loads(a.digit_force_protocol.read_text()),hierarchy)
+        else:
+            touch=SensorDigitForceController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile,json.loads(a.digit_force_protocol.read_text()))
     builder=ActorObservationBuilder(joint_count=69,action_count=61,tactile_dimension=layout['tactile_dimension'])
     provenance=dict(scope=__doc__,controller_input='Numeric sensor.v2 packet+clock for balance, plus separately declared coordinated torso/right-arm/right-hand joint goals',
         calibration=dict(desired_joint_angles=desired,derived_local_root_height_m=float(controller.calibration_root[2]),initial_orientation='upright, arbitrary yaw zero'),
@@ -190,6 +202,12 @@ def main():
     if a.digit_force_protocol:
         shutil.copy2(a.digit_force_protocol,a.output/'digit-force-protocol.json')
         provenance['digit_force_protocol_sha256']=sha(a.digit_force_protocol)
+        write(a.output/'provenance.json',provenance)
+    if a.hierarchical_force_protocol:
+        shutil.copy2(a.hierarchical_force_protocol,a.output/'hierarchical-force-protocol.json')
+        provenance['hierarchical_force_protocol_sha256']=sha(a.hierarchical_force_protocol)
+        shutil.copy2(a.hierarchical_force_screen,a.output/'hierarchical-force-screen.json')
+        provenance['hierarchical_force_screen_sha256']=sha(a.hierarchical_force_screen)
         write(a.output/'provenance.json',provenance)
     audit=json.loads(robot.with_suffix('.audit.json').read_text())
     sim=DexterousDoorEnv(door,robot,audit,frame_skip=1);sim.reset(images=False,randomize=False)

@@ -43,7 +43,7 @@ def reduce(run):
         gain=info['effective_finger_position_gain_multiplier']
         position=gain*(m.actuator_gainprm[:,0]*target+m.actuator_biasprm[:,1]*length)
         velocity=(m.actuator_biasprm[:,2]-.05)*speed+.05*vtarget
-        constant=m.actuator_biasprm[:,0].copy();bias=np.array(info.get('requested_additional_motor_bias_Nm',np.zeros(61)))
+        constant=m.actuator_biasprm[:,0].copy();bias=np.array(info.get('additional_bias_after_projection_Nm',info.get('requested_additional_motor_bias_Nm',np.zeros(61))))
         gravity=np.zeros(61)
         for aid in motor:
             if m.actuator_trntype[aid]==mujoco.mjtTrn.mjTRN_JOINT:gravity[aid]=d.qfrc_bias[m.jnt_dofadr[m.actuator_trnid[aid,0]]]
