@@ -17,6 +17,15 @@ from doorbench.dexterous.grasp_verification import native_grasp_sample, audited_
 from doorbench.dexterous.hand_surface_audit import native_hand_surface_loads
 from doorbench.dexterous.provenance import capture
 
+transition_spec = importlib.util.spec_from_file_location('doorbench.dexterous.native_transition_audit', Path(__file__).resolve().parents[2]/'doorbench/dexterous/native_transition_audit.py')
+transition_module = importlib.util.module_from_spec(transition_spec)
+sys.modules[transition_spec.name] = transition_module
+transition_spec.loader.exec_module(transition_module)
+NativeTransitionRecorder=transition_module.NativeTransitionRecorder
+archive_spec=importlib.util.spec_from_file_location('doorbench.dexterous.native_transition_archive',Path(__file__).resolve().parents[2]/'doorbench/dexterous/native_transition_archive.py')
+archive_module=importlib.util.module_from_spec(archive_spec);sys.modules[archive_spec.name]=archive_module;archive_spec.loader.exec_module(archive_module)
+NativeTransitionArchive=archive_module.NativeTransitionArchive
+
 left_spec = importlib.util.spec_from_file_location('doorbench.dexterous.bimanual_transfer', Path(__file__).resolve().parents[2]/'doorbench/dexterous/bimanual_transfer.py')
 left_module = importlib.util.module_from_spec(left_spec)
 sys.modules[left_spec.name] = left_module
@@ -62,6 +71,8 @@ def main():
         shutil.copy2(source,a.output/name)
     shutil.copy2(Path(panel_spec.origin),a.output/'panel-continuation-source.py')
     shutil.copy2(Path(left_spec.origin),a.output/'bimanual-transfer-source.py')
+    shutil.copy2(Path(transition_spec.origin),a.output/'native-transition-audit-source.py')
+    shutil.copy2(Path(archive_spec.origin),a.output/'native-transition-archive-source.py')
     sim = DexterousDoorEnv(a.door,a.robot,json.loads(a.robot.with_suffix('.audit.json').read_text()))
     m,d=sim.m,sim.d;sim.reset(randomize=False,images=False)
     hj=m.joint('leaf_handle_hinge').id;lj=m.joint('leaf_hinge').id;bj=m.joint('leaf_latch_bolt_slide').id
@@ -77,33 +88,28 @@ def main():
     geoms=[g for g in range(m.ngeom) if m.geom_contype[g] and m.body(m.geom_bodyid[g]).name.startswith('robot/rh_')]
     lever=m.geom('leaf_handle_lever_col_n').id
     physics=[native_grasp_sample(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')]
+    recorder=NativeTransitionRecorder(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')
+    raw_stream=NativeTransitionArchive(a.output/'raw-transitions')
+    completed=False
     states={key:[] for key in ('qpos','qvel','ctrl')};traces=[]
     try:
         for step in range(round(a.seconds/m.opt.timestep)):
             previous=physics[-1]
-            loads={name:np.zeros(3) for name in hand_names.values()}
-            for index,c in enumerate(d.contact[:d.ncon]):
-                wrench=np.zeros(6);mujoco.mj_contactForce(m,d,index,wrench);force=c.frame.reshape(3,3).T@wrench[:3]
-                for sign,geom in zip((-1,1),c.geom):
-                    body=int(m.geom_bodyid[geom])
-                    if body in hand_names:loads[hand_names[body]]+=sign*force
+            loads=recorder.hand_forces
             rotation=d.xmat[sim.pelvis].reshape(3,3)
             root=np.r_[d.qpos[sim.root_qadr:sim.root_qadr+7],d.qvel[sim.root_vadr:sim.root_vadr+3],rotation@d.qvel[sim.root_vadr+3:sim.root_vadr+6]]
             angles=dict(operator=float(d.qpos[m.jnt_qposadr[hj]]),leaf=float(d.qpos[m.jnt_qposadr[lj]]),latch=float(d.qpos[m.jnt_qposadr[bj]]))
-            surface=native_hand_surface_loads(m,d)
+            surface=recorder.left_surface
             gap=min(float(mujoco.mj_geomDistance(m,d,g,lever,1.,None)) for g in geoms)
             evidence=dict(grasp_qualified=previous['pad_grasp']['valid_pad_grasp'],physics_qualified=physical_sample_passed(previous),right_pad_patches_valid=all(c['pad_qualified'] for c in previous['pad_grasp']['contacts']),hand_contact_count=previous['hand_contact_count'],left_panel_load_N=surface['total_normal_load_N'],left_palm_load_N=surface['palm_normal_load_N'],right_lever_clearance_m=gap)
             palm=m.site('robot/rh_palm_touch').id;palm_quat=np.empty(4);mujoco.mju_mat2Quat(palm_quat,d.site_xmat[palm])
-            force,info=opening.force(float(d.time),root,dict(zip(teacher.names,d.qpos[qa])),dict(zip(teacher.names,d.qvel[va])),np.r_[d.xpos[hb],d.xquat[hb]],np.r_[d.xpos[leaf],d.xquat[leaf]],angles,loads,evidence=evidence,right_palm_pose=np.r_[d.site_xpos[palm],palm_quat],pose_time_s=float(d.time))
+            force,info=opening.force(float(d.time),root,dict(zip(teacher.names,d.qpos[qa])),dict(zip(teacher.names,d.qvel[va])),np.r_[d.xpos[hb],d.xquat[hb]],np.r_[d.xpos[leaf],d.xquat[leaf]],angles,loads,evidence=evidence,right_palm_pose=np.r_[d.site_xpos[palm],palm_quat],pose_time_s=float(d.time),contact_interval_s=(recorder.contact_time_s,recorder.contact_interval_end_s))
             d.ctrl[aids]=force
-            pre_step_wrench=float(np.max(np.abs(d.xfrc_applied)))
+            recorder.before_step()
             sim.plant.step()
-            # Refresh the active plant's derived poses/contacts at integrated q.
-            # This advances no time and writes no qpos, qvel or external force.
-            mujoco.mj_forward(m,d)
-            row=native_grasp_sample(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge',pre_step_external_wrench_max=pre_step_wrench)
-            row['measurement_pose_time_s']=float(d.time);row['joint_state_time_s']=float(d.time)
-            row.update(bolt_slide_m=float(d.qpos[m.jnt_qposadr[bj]]),left_surface_audit=native_hand_surface_loads(m,d),teacher=info)
+            row,raw=recorder.after_step()
+            raw_stream.write(raw)
+            row.update(bolt_slide_m=float(d.qpos[m.jnt_qposadr[bj]]),teacher=info)
             physics.append(row)
             if step%10==0:
                 trace=dict(**sim.diagnostics(),teacher=info);traces.append(trace)
@@ -115,9 +121,13 @@ def main():
         report=audit_grasp_steps(physics,physics_dt=m.opt.timestep,expected_duration=end)
         report['checks'].pop('sustained_pad_grasp')
         report['checks'].update(acquisition_precedes_operation=opening.operation_started is not None,operator_driven_to_release=max(r['handle_angle_rad'] for r in physics)>=.8 and max(r.get('bolt_slide_m',0) for r in physics)>=.011,left_contact_reached=opening.left.started is not None and opening.left.progress>=.999,sustained_left_panel_load=bool(tail) and all(r.get('left_surface_audit',{}).get('total_normal_load_N',0)>=2. for r in tail),usable_aperture_under_palm_load=physics[-1]['door_q']>=a.target_aperture and physics[-1]['left_surface_audit']['palm_normal_load_N']>=2.,no_invalid_right_pad_patch=all(all(c['pad_qualified'] for c in r['pad_grasp']['contacts']) for r in physics),sustained_left_palm_load=bool(tail) and all(r.get('left_surface_audit',{}).get('palm_normal_load_N',0)>=2. for r in tail),qualified_grasp_before_intentional_release=opening.release.started is not None,right_release_completed=opening.release.info.get('release_fraction',0)>=.999 and min(float(mujoco.mj_geomDistance(m,d,g,lever,1.,None)) for g in geoms)>=.02)
-        report.update(passed=all(report['checks'].values()),handoffs=opening.handoffs,declared_target_aperture_rad=a.target_aperture,final_leaf_rad=physics[-1]['door_q'],final_palm_load_N=physics[-1]['left_surface_audit']['palm_normal_load_N'],runtime_pose_writes=0,native_mirror_steps=0,scope='Uninterrupted native force-only FullOpeningTeacher with coherent post-step forward measurements; no walking/traversal/Isaac/actor claim',measurement_refresh='mj_forward after each completed physical step; no integrated-state write',pose_joint_clock_aligned=True)
+        report['checks']['actual_transition_geometry_matches_pre_state']=all(r.get('pre_integration_body_poses_match',True) for r in physics)
+        report['checks']['pre_integration_state_limits']=all(r['pre_integration_state']['max_joint_limit_violation_rad']<=.02 and r['pre_integration_state']['max_shadow_loopback_violation_rad']<=.02 and r['pre_integration_state']['root_height_m']>.7 and r['pre_integration_state']['torso_tilt_deg']<12 and r['pre_integration_state']['finite'] for r in physics[1:])
+        report.update(passed=all(report['checks'].values()),handoffs=opening.handoffs,declared_target_aperture_rad=a.target_aperture,final_leaf_rad=physics[-1]['door_q'],final_palm_load_N=physics[-1]['left_surface_audit']['palm_normal_load_N'],runtime_pose_writes=0,native_mirror_steps=0,scope='Uninterrupted native force-only FullOpeningTeacher with actual transition contacts and independently checked endpoint state; no walking/traversal/Isaac/actor claim',measurement_refresh='mj_kinematics only after archived actual mj_step solution',pose_joint_clock_aligned=True,contact_force_source='actual_mj_step_dynamics',final_contact_interval_s=[physics[-1]['contact_interval_start_s'],physics[-1]['contact_interval_end_s']])
         (a.output/'report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report),flush=True)
+        completed=True
     finally:
+        raw_stream.close(complete=completed)
         (a.output/'trace.json').write_text(json.dumps(traces)+'\n')
         with gzip.open(a.output/'physics-steps.json.gz','wt') as stream:json.dump(physics,stream)
         np.savez_compressed(a.output/'trajectory.npz',**states,terminal_qpos=d.qpos.copy(),terminal_qvel=d.qvel.copy(),terminal_ctrl=d.ctrl.copy(),terminal_time_s=float(d.time))

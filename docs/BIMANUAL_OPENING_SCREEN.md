@@ -426,6 +426,7 @@ forces, info = teacher.force(
     dict(operator=handle_angle, leaf=leaf_angle, latch=latch_displacement),
     hand_forces_world, evidence=measured_evidence,
     right_palm_pose=measured_right_palm_xyz_wxyz, pose_time_s=t,
+    contact_interval_s=(max(0., t - physics_dt), t),
 )
 ```
 
@@ -437,7 +438,10 @@ The exact evidence dictionary is `grasp_qualified`, `physics_qualified`,
 actual booleans; loads are measured newtons and clearance is the actual signed
 minimum across every right-hand collider. These are privileged teacher inputs.
 
-The consumer supplies one coherent sample per physics tick. Repeated timestamps,
+The consumer supplies current poses/joints and explicitly dated forces from the
+last completed physics interval. See [native timing](NATIVE_TRANSITION_AUDIT.md)
+for the actual-transition recorder; an extra `mj_forward` force solution cannot
+substitute for the preceding physical interval. Repeated timestamps,
 stale poses, opaque objects and unexpected evidence fields reject. Missing
 samples cancel the sustained-contact window. A sample count cannot replace the
 required half-second interval. `info` timestamps the current mechanism/evidence
@@ -473,3 +477,13 @@ full-opening reproduction, and do not change any door state, joint limit or
 motor cap. The CLI equivalents are `--open-on-latch-clear` and
 `--operator-compliance-gain .5`. Porting these options into the full-opening
 controller does not establish an Isaac full-opening pass.
+
+
+The latest development continuation replaces the left arm servo's normal
+acceleration component using its actual analytic mass matrix and Jacobian, then
+commands a bounded 0–12 N equivalent normal effort through the original motors.
+Tangential/rotational tracking and all original caps remain active. A 20 ms load
+filter is controller-only; gates use every raw physical load sample. Its flat
+palm target includes actual collision-mesh support-plane compensation and a
+30 mrad extra wrist margin. This is an unqualified controller revision until a
+complete actual-transition run passes; it must not inherit legacy trial scores.

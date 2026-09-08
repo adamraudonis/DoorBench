@@ -19,7 +19,8 @@ from scipy.spatial.transform import Rotation
 class CoordinatedPanelPush:
 
     def __init__(self, left, *, target_palm_load=3.0, maximum_normal_offset=.012,
-                 left_cup_seconds=2.0, flatten_palm=False, track_target_velocity=False):
+                 left_cup_seconds=2.0, flatten_palm=False, track_target_velocity=False,
+                 hybrid_normal=False):
         if not np.isfinite(target_palm_load) or not 2.0 < target_palm_load <= 10.0:
             raise ValueError('Expected a finite palm-load target above the 2 N qualification floor')
         self.target_palm_load = float(target_palm_load)
@@ -29,6 +30,7 @@ class CoordinatedPanelPush:
         self.left_cup_seconds = float(left_cup_seconds)
         self.flatten_palm = bool(flatten_palm)
         self.track_target_velocity = bool(track_target_velocity)
+        self.hybrid_normal = bool(hybrid_normal)
         self.left = left
         self.teacher = left.teacher
         self.started = None
@@ -48,6 +50,9 @@ class CoordinatedPanelPush:
         self.local_position = R.T @ (l.d.site_xpos[l.palm] - leaf_pose[:3])
         self.initial_angle = float(angle)
         self.local_rotation = R.T @ l.d.site_xmat[l.palm].reshape(3, 3)
+        self.measured_leaf_time=float(t)
+        self.measured_leaf_position=np.asarray(leaf_pose[:3]).copy()
+        self.measured_leaf_rotation=R.copy()
         self.flatten_rotation = np.zeros(3)
         if self.flatten_palm:
             # Shadow's volar palm faces -site-Z. Rotate its actual surface
@@ -118,6 +123,22 @@ class CoordinatedPanelPush:
         teacher = self.teacher
         m, d = (l.m, l.d)
         l._read(root, joints)
+        if self.hybrid_normal:
+            current_R=Rotation.from_quat([*leaf_pose[4:7],leaf_pose[3]]).as_matrix()
+            elapsed=t-self.measured_leaf_time
+            velocity=np.zeros(3)
+            if elapsed>0:
+                omega=Rotation.from_matrix(current_R@self.measured_leaf_rotation.T).as_rotvec()/elapsed
+                velocity=(np.asarray(leaf_pose[:3])-self.measured_leaf_position)/elapsed+np.cross(omega,d.site_xpos[l.palm]-leaf_pose[:3])
+            l.surface_velocity_world=velocity
+            l.measured_palm_load=float(palm_load)
+            previous_load=getattr(l,'filtered_palm_load',float(palm_load))
+            l.filtered_palm_load=previous_load+(0. if elapsed<=0 else elapsed/(.02+elapsed))*(palm_load-previous_load)
+            l.normal=current_R[:,1]
+            l.hybrid_normal_target=self.target_palm_load
+            self.measured_leaf_time=float(t)
+            self.measured_leaf_position=np.asarray(leaf_pose[:3]).copy()
+            self.measured_leaf_rotation=current_R.copy()
         if right_clear and (not self.clear):
             self.clear = True
             for name in self.right_names:

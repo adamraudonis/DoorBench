@@ -67,6 +67,29 @@ def load_screen_targets(report_path, robot, door, *, runtime_screen=None):
     finally:sim.close()
 
 
+def replace_normal_acceleration(servo, arm_mass, normal_jacobian, normal_force, *, gravity=0.):
+    """Replace normal servo acceleration with a motor-generated contact force.
+
+    The remaining servo torque produces zero normal acceleration under the
+    supplied arm inertia. This is an analytic torque projection, not a plant
+    force or a change to its mass, constraints or motor limits.
+    """
+    servo=np.asarray(servo,float);normal_jacobian=np.asarray(normal_jacobian,float)
+    arm_mass=np.asarray(arm_mass,float)
+    if servo.ndim!=1 or normal_jacobian.shape!=servo.shape or arm_mass.shape!=(len(servo),len(servo)):
+        raise ValueError('Incompatible arm torque, inertia and Jacobian shapes')
+    if not np.isfinite(np.r_[servo,normal_jacobian,arm_mass.ravel(),normal_force]).all() or normal_force<0:
+        raise ValueError('Expected finite analytic force-control inputs')
+    if not np.allclose(arm_mass,arm_mass.T,atol=1e-10,rtol=1e-10):
+        raise ValueError('Arm inertia must be symmetric')
+    try:np.linalg.cholesky(arm_mass)
+    except np.linalg.LinAlgError as exc:raise ValueError('Arm inertia must be positive definite') from exc
+    inverse_normal=np.linalg.solve(arm_mass,normal_jacobian)
+    norm=float(normal_jacobian@inverse_normal)
+    if norm<1e-8:raise ValueError('Left normal-force direction is singular')
+    return gravity+servo-normal_jacobian*float(inverse_normal@servo)/norm+normal_jacobian*normal_force
+
+
 class LeftPalmContact:
     def __init__(self, teacher, motors, targets, *, reach_seconds=5., contact_force=8., fixed_waist=False, track_fixed_pads=False):
         self.teacher=teacher;self.m=teacher.m;self.d=mujoco.MjData(self.m)
@@ -183,6 +206,16 @@ class LeftPalmContact:
         mujoco.mj_jacSite(m,d,self.jp,self.jr,self.palm)
         push=self.contact_force*np.clip((self.progress-.94)/.06,0.,1.)
         left_force+=self.jp[:,self.va].T@(self.normal*push)
+        if hasattr(self,'hybrid_normal_target'):
+            normal_jacobian=self.normal@self.jp[:,self.va]
+            mass=np.zeros((m.nv,m.nv));mujoco.mj_fullM(m,d,mass)
+            arm_mass=mass[np.ix_(self.va,self.va)]
+            gravity=d.qfrc_bias[self.va]
+            servo=left_force-gravity
+            velocity_error=float(self.normal@(self.surface_velocity_world-self.jp@d.qvel))
+            requested=float(np.clip(self.hybrid_normal_target+.3*(self.hybrid_normal_target-self.filtered_palm_load)+50.*velocity_error,0.,12.))
+            left_force=replace_normal_acceleration(servo,arm_mass,normal_jacobian,requested,gravity=gravity)
+            self.info.update(requested_normal_force_N=requested,normal_velocity_error_m_s=velocity_error,filtered_palm_load_N=self.filtered_palm_load)
         result=forces.copy();result[self.act]=np.clip(left_force,teacher.caps[self.act,0],teacher.caps[self.act,1])
         if self.fixed_waist or not self.track_fixed_pads:return result
         hr=Rotation.from_quat([*self.handle_pose[4:7],self.handle_pose[3]]).as_matrix()

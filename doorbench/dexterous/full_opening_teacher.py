@@ -89,7 +89,8 @@ class FullOpeningTeacher:
         self.release = AxialRightRelease(self.acquisition, Path(release_screen))
         self.push = CoordinatedPanelPush(self.left, target_palm_load=5.0,
                                         maximum_normal_offset=.025,left_cup_seconds=.25,
-                                        flatten_palm=True,track_target_velocity=True)
+                                        flatten_palm=True,track_target_velocity=False,
+                                        hybrid_normal=True)
         self.min_acquisition_seconds = float(min_acquisition_seconds)
         self.min_left_seconds = float(min_left_seconds)
         self.min_release_seconds = float(min_release_seconds)
@@ -186,7 +187,8 @@ class FullOpeningTeacher:
                                    actual_bolt_m=angles['latch'])
 
     def force(self, t, root, joints, velocities, handle_pose, leaf_pose, angles,
-              hand_forces, *, evidence, right_palm_pose, pose_time_s):
+              hand_forces, *, evidence, right_palm_pose, pose_time_s,
+              contact_interval_s=None):
         """Return (61 original capped forces, info), consuming actual state once.
 
         root13 is xyz+wxyz+world linear/angular velocity; body poses are xyz+wxyz.
@@ -207,6 +209,9 @@ class FullOpeningTeacher:
         _pose(right_palm_pose)
         if not np.isfinite(pose_time_s) or abs(pose_time_s-t)>1e-7:
             raise ValueError('Measured body/palm poses and joint state must share the current step time')
+        interval=np.asarray(contact_interval_s,float)
+        if interval.shape!=(2,) or not np.isfinite(interval).all() or abs(interval[1]-t)>1e-7 or abs(interval[0]-max(0.,t-self.physics_dt))>1e-7:
+            raise ValueError('Actual force observations must identify the last completed physics interval')
         self._record_evidence(float(t), angles, evidence)
         teacher, left = self.acquisition, self.left
         left._read(root, joints)
@@ -274,5 +279,6 @@ class FullOpeningTeacher:
                          'handoffs':self.handoffs.copy(), 'aperture_crossing':self.crossing,
                          'native_mirror_steps':0, 'privileged_teacher':True, 'pose_time_s':float(pose_time_s),
                          'measured_evidence':dict(evidence),'evidence_time_s':float(t),
+                         'contact_interval_s':interval.tolist(),
                          'left_control_measurement_time_s':self.push.last_update if self.push.started is not None else left.last_update}
         return force.copy(), self.info.copy()

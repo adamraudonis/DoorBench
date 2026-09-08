@@ -124,3 +124,11 @@ def test_compensation_is_bounded_and_freezes_on_actual_latch_release():
         obj._operation_targets(float(t),pose,pose,dict(operator=0.,leaf=.08,latch=.012))
         assert obj.operator_compliance==frozen
     assert obj.operation_info['goal_handle_rad']==pytest.approx(.87)
+
+
+@pytest.mark.parametrize('interval',[None,[.996,1.],[.998,.998],[1.,1.],[float('nan'),1.]])
+def test_contact_forces_must_identify_the_completed_physics_interval(interval):
+    obj=clock_only();pose=[0,0,0,1,0,0,0]
+    with pytest.raises(ValueError,match='completed physics interval'):
+        obj.force(1.,None,{}, {},pose,pose,dict(operator=0.,leaf=0.,latch=0.),{},
+            evidence=evidence(),right_palm_pose=pose,pose_time_s=1.,contact_interval_s=interval)
