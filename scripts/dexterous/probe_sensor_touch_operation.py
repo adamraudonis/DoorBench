@@ -97,10 +97,13 @@ def main():
     p.add_argument('--impedance-protocol',type=Path,help='Opt-in separately frozen post-acquisition stiffness comparison')
     p.add_argument('--index-protocol',type=Path,help='Opt-in index-only local-touch proximal coordination')
     p.add_argument('--index-screen',type=Path,help='Matching detached index coordination geometry receipt')
+    p.add_argument('--palm-protocol',type=Path,help='Opt-in opposing-touch and own-robot-FK palm coordination')
+    p.add_argument('--palm-screen',type=Path,help='Matching detached quarter-millimeter palm geometry receipt')
     a=p.parse_args()
     if not 0<a.seconds<=40 or not np.isfinite([a.seconds,a.initial_velocity]).all() or abs(a.initial_velocity)>.1:p.error('Bounded finite protocol required')
     if a.output.exists():p.error('Fresh evidence directory required')
     if (a.index_protocol is None)!=(a.index_screen is None) or (a.index_protocol and not a.impedance_protocol):p.error('Index profile requires matched screen and declared impedance profile')
+    if (a.palm_protocol is None)!=(a.palm_screen is None) or (a.palm_protocol and not a.index_protocol):p.error('Palm profile requires matched screen and declared index profile')
     a.output.mkdir(parents=True)
     robot=Path(a.robot);door=a.door if a.door.is_dir() else a.door.parent
     ref=json.loads(a.reference.read_text());motors=json.loads(a.motors.read_text());layout=export_layout(robot)
@@ -133,6 +136,15 @@ def main():
             or index_screen['robot_xml_sha256']!=sha(robot) or index_screen['door_xml_sha256']!=sha(door/'door.xml')):
             raise ValueError('Index coordination requires the matching passed full-route geometry screen')
         touch=SensorIndexTouchController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile)
+    if a.palm_protocol:
+        from doorbench.dexterous.sensor_palm_touch_control import SensorPalmTouchController
+        palm_profile=json.loads(a.palm_protocol.read_text());palm_screen=json.loads(a.palm_screen.read_text())
+        if (palm_screen['passed'] is not True or palm_screen['schema']!='doorbench.offline-palm-translation.v1'
+            or palm_screen['maximum_palm_translation_m']!=palm_profile['maximum_translation_m']
+            or palm_screen['press_plan_sha256']!=sha(a.press_plan) or palm_screen['index_screen_sha256']!=sha(a.index_screen)
+            or palm_screen['robot_xml_sha256']!=sha(robot) or palm_screen['door_xml_sha256']!=sha(door/'door.xml')):
+            raise ValueError('Palm coordination requires a matching passed whole-route geometry screen')
+        touch=SensorPalmTouchController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile,palm_profile)
     builder=ActorObservationBuilder(joint_count=69,action_count=61,tactile_dimension=layout['tactile_dimension'])
     provenance=dict(scope=__doc__,controller_input='Numeric sensor.v2 packet+clock for balance, plus separately declared coordinated torso/right-arm/right-hand joint goals',
         calibration=dict(desired_joint_angles=desired,derived_local_root_height_m=float(controller.calibration_root[2]),initial_orientation='upright, arbitrary yaw zero'),
@@ -164,6 +176,10 @@ def main():
         write(a.output/'provenance.json',provenance)
     if a.index_protocol:
         for name,path in [('index-protocol.json',a.index_protocol),('index-screen.json',a.index_screen)]:
+            shutil.copy2(path,a.output/name);provenance[name.removesuffix('.json')+'_sha256']=sha(path)
+        write(a.output/'provenance.json',provenance)
+    if a.palm_protocol:
+        for name,path in [('palm-protocol.json',a.palm_protocol),('palm-screen.json',a.palm_screen)]:
             shutil.copy2(path,a.output/name);provenance[name.removesuffix('.json')+'_sha256']=sha(path)
         write(a.output/'provenance.json',provenance)
     audit=json.loads(robot.with_suffix('.audit.json').read_text())
