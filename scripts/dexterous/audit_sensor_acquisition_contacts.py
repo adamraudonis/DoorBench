@@ -16,6 +16,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 import mujoco
 import numpy as np
 from doorbench.dexterous.environment import DexterousDoorEnv
+from doorbench.dexterous.native_transition_archive import NativeTransitionArchive
 from doorbench.dexterous.grasp_verification import pad_opposition, shadow_surface_qualified
 
 
@@ -54,11 +55,18 @@ def audit(trial):
     m=sim.m;lever=m.geom('leaf_handle_lever_col_n').id
     n=valid_count=current=best=0;force_error=0.;mismatches=[];bad_patches=0;first_touch=first_valid=None;bestend=None
     min_final={k:float('inf') for k in ('ff','mf','rf','lf','th')};final_valid=True;final_count=0
+    raw_name='actual-transitions/manifest.json' if (trial/'actual-transitions/manifest.json').exists() else 'actual-transitions.jsonl.gz'
+    def actual_rows():
+        if raw_name.endswith('manifest.json'):
+            yield from NativeTransitionArchive.read(trial/'actual-transitions',allow_incomplete=True)
+        else:
+            with gzip.open(trial/raw_name,'rt') as stream:
+                for text in stream:yield json.loads(text)
     try:
-        with gzip.open(trial/'physics.jsonl.gz','rt') as f,gzip.open(trial/'actual-transitions.jsonl.gz','rt') as g:
-            for line,rawline in itertools.zip_longest(f,g):
+        with gzip.open(trial/'physics.jsonl.gz','rt') as f:
+            for line,rawline in itertools.zip_longest(f,actual_rows()):
                 if line is None or rawline is None:raise ValueError('Endpoint and actual-interval arrays have different lengths')
-                row=json.loads(line);raw=json.loads(rawline)
+                row=json.loads(line);raw=rawline
                 t=n*.002;end=t+.002
                 for value,wanted in ((raw['interval_start_s'],t),(raw['geometry_time_s'],t),(raw['interval_end_s'],end),
                                      (row['contact_geometry_time_s'],t),(row['measurement_pose_time_s'],end)):
@@ -87,7 +95,7 @@ def audit(trial):
         first_qualified_interval_start_s=first_valid,strongest_qualified_hold_s=best*.002,strongest_hold_end_s=bestend,
         final_half_second_minimum_pad_force_N={k:v if np.isfinite(v) else None for k,v in min_final.items()},final_window_intervals=final_count,
         scope='Independent actual-interval contact/frame reduction; no controller input, physics step or contact-force recomputation',
-        input_sha256={name:sha(trial/name) for name in ('provenance.json','report.json','physics.jsonl.gz','actual-transitions.jsonl.gz')},
+        input_sha256={name:sha(trial/name) for name in ('provenance.json','report.json','physics.jsonl.gz',raw_name)},
         auditor_source_sha256=sha(__file__))
 
 
