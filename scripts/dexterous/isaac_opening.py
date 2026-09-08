@@ -765,7 +765,7 @@ def main():
             (out/'operation-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             (out/'report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             print('OPERATION_RESULT '+json.dumps({k:v for k,v in operation_report.items() if k!='final_pad_grasp'}),flush=True)
-    if sensor_recorder:sensor_recorder.finish()
+    if sensor_recorder:sensor_recorder.finish(complete=len(sensor_recorder.times)==round(a.seconds/dt) and not (out/'early-stop.json').exists())
     if writer:writer.close()
     if hand_writer:hand_writer.close()
     print('PHYSX_RUN_COMPLETE',flush=True)
