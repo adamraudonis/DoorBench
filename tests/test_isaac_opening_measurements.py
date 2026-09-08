@@ -67,7 +67,8 @@ def calculator(tmp_path):
        <geom size=".01"/></body></body></worldbody></mujoco>''')
     robot.write_text('''<mujoco><worldbody><body name="pelvis"><freejoint name="free_base"/>
       <geom size=".1"/><body name="rh_palm" pos=".2 0 .5">
-      <joint name="wrist"/><geom name="palm" type="box" size=".03 .02 .05"/>
+      <joint name="wrist"/><geom name="palm" type="box" size=".03 .02 .05" contype="0" conaffinity="1"/>
+      <geom name="visual" type="box" size=".01 .01 .01" contype="0" conaffinity="0"/>
       <site name="rh_palm_touch" pos="0 0 .05"/>
       </body></body></worldbody></mujoco>''')
     return OpeningGeometryMeasurements(door, robot, ['wrist'])
@@ -94,6 +95,7 @@ def test_geometry_does_not_step_and_uses_actual_site_body_pose(calculator):
     assert result['right_lever_clearance_m'] > .02
     np.testing.assert_allclose(result['right_palm_pose'][:3], [.2, -1.5, 1.55])
     assert result['maximum_pose_position_error_m'] < 1e-10
+    assert [c.m.geom(g).name for g in c.geoms]==['robot/palm']
 
 
 def test_geometry_rejects_stale_or_inconsistent_measurements(calculator):

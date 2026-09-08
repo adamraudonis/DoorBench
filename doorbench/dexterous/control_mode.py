@@ -7,7 +7,7 @@ def validate_sensor_actor_mode(options):
     if not getattr(options,'sensor_layout',None):
         raise ValueError('Sensor policy requires the actual sensor calibration')
     forbidden={'native_robot':None,'acquisition':False,'operate_after_acquisition':False,
-        'full_sequence_reset':None,'panel_push':False,'mechanism_test':False,
+        'full_sequence_reset':None,'full_opening':False,'left_palm_targets':None,'right_release_screen':None,'bimanual_runtime_screen':None,'panel_push':False,'mechanism_test':False,
         'upright_gain':0.,'grip_force':0.,'finger_curl':0.,'torso_damping':0.,
         'stance_qp':False,'press_feedforward':False,'grip_reset_targets':False,
         'arm_impedance':1.,'grip_impedance':1.,'grip_rotation_fraction':1.,

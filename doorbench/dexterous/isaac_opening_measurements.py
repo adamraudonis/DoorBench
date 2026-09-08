@@ -116,12 +116,16 @@ class OpeningGeometryMeasurements:
         self.door_qa = {role: m.jnt_qposadr[m.joint(name).id] for role, name in
                         [('operator', 'leaf_handle_hinge'), ('leaf', 'leaf_hinge'),
                          ('latch', 'leaf_latch_bolt_slide')]}
-        self.geoms = [g for g in range(m.ngeom) if m.geom_contype[g] and
-                      m.body(m.geom_bodyid[g]).name.startswith('robot/rh_')]
+        self.lever = m.geom('leaf_handle_lever_col_n').id
+        # Receiving-only colliders participate in physical collisions too.
+        # A geometry-distance query itself does not enforce these pair masks.
+        self.geoms = [g for g in range(m.ngeom) if (m.geom_contype[g] or m.geom_conaffinity[g])
+                      and m.body(m.geom_bodyid[g]).name.startswith('robot/rh_')
+                      and ((m.geom_contype[g] & m.geom_conaffinity[self.lever])
+                           or (m.geom_contype[self.lever] & m.geom_conaffinity[g]))]
         if not self.geoms:
             raise ValueError('No authored right-hand collision shapes')
         self.bodies = sorted(set(int(m.geom_bodyid[g]) for g in self.geoms))
-        self.lever = m.geom('leaf_handle_lever_col_n').id
         self.site = m.site('robot/rh_palm_touch').id
         self.site_body = int(m.site_bodyid[self.site])
         self.sources = {str(p): hashlib.sha256(p.read_bytes()).hexdigest()
