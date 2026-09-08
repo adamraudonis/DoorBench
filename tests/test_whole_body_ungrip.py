@@ -78,3 +78,15 @@ def test_attained_resting_goal_does_not_follow_an_uncontrolled_leaf_drift():
     c.update(11.)
     np.testing.assert_array_equal(c.teacher.positions[-1],c.ungrip_positions[2])
     assert c.info['goal_frame']=='attained-resting-world'
+
+
+def test_declared_endpoint_cannot_weaken_margin_or_accept_nonfinite_evidence():
+    from doorbench.dexterous.whole_body_ungrip import validate_endpoint_clearance
+    good=dict(required_clearance_m=.04,minimum_all_rh_environment_clearance_m=.044,
+              passed=True,hand_shapes=308,environment_shapes=64)
+    validate_endpoint_clearance(good)
+    for change in ({'minimum_all_rh_environment_clearance_m':.039},
+                   {'required_clearance_m':.02},{'passed':False},
+                   {'minimum_all_rh_environment_clearance_m':float('nan')},
+                   {'hand_shapes':0}):
+        with pytest.raises(ValueError):validate_endpoint_clearance({**good,**change})

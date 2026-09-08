@@ -22,6 +22,17 @@ def smooth_fraction(value):
     return u ** 3 * (10. + u * (-15. + 6. * u))
 
 
+def validate_endpoint_clearance(receipt):
+    """Validate the new declared40mm geometric endpoint without changing live gates."""
+    if receipt is None:
+        return  # Legacy development comparisons retain their original contract.
+    values=np.array([receipt['required_clearance_m'],receipt['minimum_all_rh_environment_clearance_m']],float)
+    if (not np.isfinite(values).all() or values[0]!=.04 or values[1]<.04
+            or receipt.get('passed') is not True
+            or receipt['hand_shapes']<=0 or receipt['environment_shapes']<=0):
+        raise ValueError('Require the declared40mm clearance of every RH collision shape')
+
+
 class WholeBodyMeasuredUngrip(WholeBodyLeverReturn):
     def __init__(self, teacher, path, whole_body_path, ungrip_path, *, goal_frame="attained-resting-world"):
         super().__init__(teacher, path, whole_body_path)
@@ -30,6 +41,7 @@ class WholeBodyMeasuredUngrip(WholeBodyLeverReturn):
         self.goal_frame = goal_frame
         self.ungrip_plan = json.loads(Path(ungrip_path).read_text())
         plan = self.ungrip_plan
+        validate_endpoint_clearance(plan.get('endpoint_clearance'))
         if plan.get('schema') != 'doorbench.whole-body-ungrip-plan.v1':
             raise ValueError('Require the declared whole-body ungrip path')
         audit = plan['interpolation_audit']

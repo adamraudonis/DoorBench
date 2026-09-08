@@ -34,13 +34,22 @@ for t in np.unique(np.r_[np.linspace(0,ts[-1],2001),ts]):
  for k,v in vals.items():maxvals[k]=max(maxvals[k],v)
  if cols or invalid or ep>.0001 or er>.001 or lp>.0001 or lr>.001 or fp>.0001 or fr>.001 or violation>.02 or tilt>12 or loop>.02:bad.append(dict(time_s=float(t),forbidden_collisions=cols,invalid_patches=invalid,**vals))
  samples.append(dict(time_s=float(t),**vals))
-result=dict(schema='doorbench.regrasp-interpolation-screen.v1',source_sha256=hashlib.file_digest(source.open('rb'),'sha256').hexdigest(),scope='Unstepped geometry only; static penetration patch diagnostic at50um is not the actual loaded-patch gate',passed=not bad,samples=len(samples),maxima=maxvals,failures=bad)
+endpoint=None
+if report.get('configuration',{}).get('withdrawal_profile','').startswith('clearance-lift-'):
+ d.qpos[:]=qs[-1];mujoco.mj_kinematics(m,d)
+ hand_geoms=[g for g in range(m.ngeom) if m.geom_contype[g] and m.body(m.geom_bodyid[g]).name.startswith('robot/rh_')]
+ environment_geoms=[g for g in range(m.ngeom) if m.geom_contype[g] and not m.body(m.geom_bodyid[g]).name.startswith('robot/')]
+ pairs=[(float(mujoco.mj_geomDistance(m,d,g,h,.5,None)),m.geom(g).name,m.geom(h).name) for g in hand_geoms for h in environment_geoms]
+ distance,hand_name,scene_name=min(pairs)
+ endpoint=dict(required_clearance_m=.04,minimum_all_rh_environment_clearance_m=distance,closest_hand_geom=hand_name,closest_environment_geom=scene_name,hand_shapes=len(hand_geoms),environment_shapes=len(environment_geoms),passed=distance>=.04)
+ if not endpoint['passed']:bad.append(dict(endpoint_clearance=endpoint))
+result=dict(schema='doorbench.regrasp-interpolation-screen.v1',source_sha256=hashlib.file_digest(source.open('rb'),'sha256').hexdigest(),scope='Unstepped geometry only; static penetration patch diagnostic at50um is not the actual loaded-patch gate',passed=not bad,samples=len(samples),maxima=maxvals,failures=bad,endpoint_clearance=endpoint)
 (source.parent/'interpolation-audit.json').write_text(json.dumps(result,indent=2));print(json.dumps({k:v for k,v in result.items() if k!='failures'},indent=2));print('first failures',bad[:3]);
 if not bad:
  names=list(rows[0]['joints']);fingers=list(rows[0]['finger_joints']);
  for row in planrows:
   q=np.array(row.pop('qpos'));row['root']=q[rq:rq+7].tolist();row['joints']={n:float(q[m.jnt_qposadr[m.joint('robot/'+n).id]]) for n in names};row['finger_joints']={n:float(q[m.jnt_qposadr[m.joint('robot/'+n).id]]) for n in fingers};row['palm_position_handle']=(hr.T@(np.array(row.pop('palm_position'))-hp)).tolist();row['palm_rotation_handle']=(hr.T@np.array(row.pop('palm_rotation'))).tolist()
  source_report=json.load(open(run/'report.json'));delay=report['initial_time_s']-(source_report['opening_clock_offset_s']+source_report['handoffs']['right_release'])
- plan=dict(start_after_release_s=delay,schema='doorbench.whole-body-ungrip-plan.v1',scope='Actual-state-specific unstepped candidate; not physical qualification',initial_episode_time_s=report['initial_time_s'],source_trajectory_sha256=report['source_trajectory_sha256'],initial_root=actual[rq:rq+7].tolist(),initial_joints={n:float(actual[m.jnt_qposadr[m.joint('robot/'+n).id]]) for n in names+fingers},initial_operator_rad=float(actual[m.jnt_qposadr[m.joint('leaf_handle_hinge').id]]),initial_leaf_rad=float(actual[m.jnt_qposadr[m.joint('leaf_hinge').id]]),body_names=names,finger_names=fingers,rows=planrows,interpolation_audit=result)
+ plan=dict(start_after_release_s=delay,schema='doorbench.whole-body-ungrip-plan.v1',scope='Actual-state-specific unstepped candidate; not physical qualification',initial_episode_time_s=report['initial_time_s'],source_trajectory_sha256=report['source_trajectory_sha256'],initial_root=actual[rq:rq+7].tolist(),initial_joints={n:float(actual[m.jnt_qposadr[m.joint('robot/'+n).id]]) for n in names+fingers},initial_operator_rad=float(actual[m.jnt_qposadr[m.joint('leaf_handle_hinge').id]]),initial_leaf_rad=float(actual[m.jnt_qposadr[m.joint('leaf_hinge').id]]),body_names=names,finger_names=fingers,rows=planrows,interpolation_audit=result,endpoint_clearance=endpoint)
  (source.parent/'target-plan.json').write_text(json.dumps(plan,indent=2))
 s.close()

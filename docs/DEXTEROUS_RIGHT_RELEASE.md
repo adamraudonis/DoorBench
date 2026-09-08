@@ -255,3 +255,53 @@ route waits until 71.584 s to finish. A new shorter route must be densely screen
 and end with the fingers open and all right-hand collision shapes at least 40 mm
 from scene geometry before a fresh physical test. This does not reclassify 003.
 [Comparison and archive receipt](../results/dexterous/2026-09-08/left-palm-orientation-development.json)
+
+## Short withdrawal and panel-force diagnosis remain separate failures
+
+The next declared geometry ends at 69.8 s, with the fingers fully open and a
+40 mm minimum clearance requirement across **all** right-hand collision shapes
+and scene colliders. The `clearance-lift-v4` screen follows the measured source,
+adds an early 2 mm lift, then finishes with 6 mm away from the strike, 16 mm back
+and 40 mm up. Dense FK gives 44.00 mm minimum clearance; the actual attained
+endpoint gives 49.55 mm and remains balanced. `ready_for_panel` stays false until
+the entire route finishes, and actual 20 mm release evidence remains required.
+These distances are geometric release checks, not an anatomical qualification.
+
+Physical trial 004 still fails: **nine middle-finger wrong-pad contacts** occur
+at 68.576–68.590 s. Their small forces do not waive the unchanged 0.5 volar-normal
+criterion. All earlier failures and the separate cumulative anatomy gate remain.
+The first 134 raw chunks, through 67 s, exactly match trial 003.
+
+The later plain-v1 panel continuation fails for a different reason. The actual
+500 Hz archive contains a **137.35 N palm pulse at 70.658 s**, which the 50 Hz
+summary missed. Total kinetic energy grows from about 0.2 J at 70.1 s to 15.5 J
+by 70.9 s; left-arm motors perform +9.60 J net work during 70.8–70.9 s. The cup
+motor uses only roughly 0.004–0.08 Nm of its original 1 Nm cap while contact
+torque reaches −0.8 Nm during this growth. In this shorter trial its minimum
+angle is −10.36 mrad, within the frozen 20 mrad tolerance. The largest late
+violation is instead **right hip yaw, 39.27 mrad at 71.33 s**, after balance loss.
+In the earlier long trial 003, the 59.79 mrad violation was **left LFJ5**, not the
+main arm; its wrist excursion was only 8.54 mrad.
+
+`audit_panel_energy.py` uses archived actual `mj_step` forces and pre-state
+Jacobians. It never solves replacement contact forces. Motor transmission and
+body-frame reconstruction agree exactly with the archive. Signed work uses
+force × pre-state velocity × 2 ms; it is a diagnostic quadrature, not a complete
+energy-conservation test. The implementation follows MuJoCo's documented
+[contact-frame wrench API](https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html#mj-contactforce)
+and [actuator transmission](https://mujoco.readthedocs.io/en/stable/computation/index.html#transmission).
+
+The existing `hybrid-surface-v2` profile already removes opposing normal servo
+acceleration, uses the actual palm support point, blends control over one second,
+doubles damping, and strengthens cup feedback within its original 1 Nm cap.
+The next panel comparison should use that explicitly declared profile after
+the release error is corrected. The attained body target may still need a new
+panel workspace plan; the evidence does not prove hybrid control will pass.
+
+```sh
+python scripts/dexterous/audit_panel_energy.py \
+  --run /path/to/walked-whole-body-ungrip-004 \
+  --output out/panel-energy-audit
+```
+
+[Frozen failed report, interval mechanics and verified archive](../results/dexterous/2026-09-08/short-release-panel-development.json)
