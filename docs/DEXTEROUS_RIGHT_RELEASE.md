@@ -58,7 +58,36 @@ OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python scripts/dexterous/probe_walking_
 # --retain-grip-until-clear
 ```
 
-The next hypothesis is a **controlled return of the lever to rest while the
-opposed grasp and left support are retained**, followed by an actual-state
-withdrawal plan. It must qualify the return and moving-finger geometry first;
-these rejected axial routes cannot be reused as evidence for it.
+## Controlled return was rejected by the measured workspace
+
+An explicit `ControlledLeverReturn` development component preserves the actual
+opposed grip and moves the operator target smoothly to rest over four seconds,
+using the measured operator/leaf joint geometry. The left palm retains the
+attained aperture. Reproduce it with `--release-mode controlled-return` in the
+same isolated wrapper; the original release remains unchanged.
+
+The 60 s continuous trial again reproduces the baseline raw prefix through
+53.500 s. It maintains 0.08566 rad aperture and 3.727 N final left-palm support;
+all original mechanical gates pass. However, the lever stalls at 0.2174 rad,
+right-palm tracking error grows to 27.83 mm, and 2,106 intervals have invalid
+middle-link contact patches. This is **not a qualified controlled return**.
+
+Unstepped inverse-kinematics screens use the exact archived pre-release state
+and original joint limits. With a frozen waist, the resting-lever target has
+14.64 mm position and 4.16° rotation error and reaches the right elbow and wrist
+limits. Allowing the waist and both arms reduces error to 0.43 mm / 1.64°, but
+right wrist limits still bind. Allowing the left palm to rotate in its contact
+plane or lowering its target does not remove that right-hand restriction.
+These are geometric diagnostics, not physical trials. More grip force will not
+resolve the required wrist pose.
+
+The first attempt ended before release because the disk filled; its incomplete
+prefix is retained. The recorder now compares compressed chunks in memory
+before writing, so an equal walking prefix needs only its verified hardlink.
+The successful recording and the interrupted attempt are archived separately
+from the earlier release failures. [Trial, workspace and archive receipt](../results/dexterous/2026-09-08/controlled-lever-return-development.json)
+
+The next bounded hypothesis is to open the fingers while withdrawing the palm
+along a screened curve that respects the returning lever. The earlier measured
+release came from an **unpressed canonical grasp**; its timing and 160 mm retreat
+are proposals, not evidence that the actual walked, pressed grasp can release.

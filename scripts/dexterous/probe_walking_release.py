@@ -9,6 +9,7 @@ after verification to avoid storing another large copy of the walking prefix.
 import argparse
 import hashlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -35,7 +36,10 @@ def main():
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--seconds", type=float, default=66.)
     p.add_argument("--retain-grip-until-clear", action="store_true")
+    p.add_argument("--release-mode", choices=("pressed-frame", "controlled-return"), default="pressed-frame")
     a = p.parse_args()
+    if a.release_mode == 'controlled-return' and a.retain_grip_until_clear:
+        raise ValueError('Controlled return already retains grip; do not combine release options')
     source = a.source_run.resolve()
     output = a.output.resolve()
     stage = output.with_name(output.name + "-source")
@@ -63,6 +67,9 @@ def main():
     own = Path(__file__).resolve().parents[2]
     shutil.copy2(own / "doorbench/dexterous/right_hand_release.py",
                  stage / "doorbench/dexterous/right_hand_release.py")
+    if a.release_mode == "controlled-return":
+        shutil.copy2(own / "doorbench/dexterous/right_release_return.py",
+                     stage / "doorbench/dexterous/right_release_return.py")
     driver = stage / "scripts/dexterous/frozen_walking_opening_driver.py"
     shutil.copy2(source / "diagnostic-source.py", driver)
     shutil.copy2(Path(__file__), stage / "scripts/dexterous/probe_walking_release.py")
@@ -71,7 +78,11 @@ def main():
     # The baseline constructor is untouched; this isolated experiment replaces
     # only its release class and supplies the explicitly measured leaf channel.
     import doorbench.dexterous.right_hand_release as releases
+    if a.release_mode == "controlled-return":
+        from doorbench.dexterous.right_release_return import ControlledLeverReturn
     def selected_release(teacher, path):
+        if a.release_mode == "controlled-return":
+            return ControlledLeverReturn(teacher, path)
         return releases.PressedLeafFrameRightRelease(teacher, path,
             retain_grip_until_clear=a.retain_grip_until_clear)
     releases.AxialRightRelease = selected_release
@@ -80,7 +91,10 @@ def main():
 
     def measured_force(self, t, root, joints, velocities, handle_pose, leaf_pose,
                        angles, hand_forces, **kwargs):
-        self.release.observe_leaf(t, leaf_pose)
+        if a.release_mode == "controlled-return":
+            self.release.observe_operation(t, handle_pose, leaf_pose, angles, self.geometry)
+        else:
+            self.release.observe_leaf(t, leaf_pose)
         return original_force(self, t, root, joints, velocities, handle_pose,
                               leaf_pose, angles, hand_forces, **kwargs)
 
@@ -99,24 +113,39 @@ def main():
 
     class VerifiedPrefixArchive(base_archive):
         def flush(self):
-            before = len(self.chunks)
-            super().flush()
-            if len(self.chunks) == before:
+            if not self.rows:
                 return
-            chunk = self.chunks[-1]
-            previous = old_chunks.get(chunk["file"])
-            if previous and chunk["sha256"] == previous["sha256"]:
+            # Compare compressed bytes in memory first. An identical walking
+            # prefix needs no temporary duplicate file, even during a disk
+            # pressure event. New physical evidence is still written atomically.
+            import numpy as np
+            stream = io.BytesIO()
+            np.savez_compressed(stream, **runner.archive_module.packed(self.rows))
+            content = stream.getvalue()
+            name = f'transitions-{len(self.chunks):05d}.npz'
+            chunk = dict(file=name, rows=len(self.rows), bytes=len(content),
+                         sha256=hashlib.sha256(content).hexdigest(),
+                         interval_start_s=self.rows[0]['interval_start_s'],
+                         interval_end_s=self.rows[-1]['interval_end_s'])
+            previous = old_chunks.get(name)
+            target = self.path / name
+            if previous and chunk['sha256'] == previous['sha256']:
                 old = old_raw / previous["file"]
                 if digest(old) != previous["sha256"]:
                     raise ValueError("Original prefix chunk changed")
-                target = self.path / chunk["file"]
-                target.unlink()
                 os.link(old, target)
                 reuse["verified_linked_chunks"] += 1
                 reuse["verified_linked_bytes"] += chunk["bytes"]
                 reuse["matched_prefix_until_s"] = chunk["interval_end_s"]
             elif chunk["interval_end_s"] < release_at - 1e-8:
                 raise ValueError("Physical baseline prefix differs before the release intervention")
+            else:
+                temporary = self.path / (name + '.pending')
+                temporary.write_bytes(content)
+                temporary.replace(target)
+            self.chunks.append(chunk)
+            self.rows = []
+            self._manifest(False)
             (output / "prefix-reuse.json").write_text(json.dumps(reuse, indent=2) + "\n")
 
     runner.NativeTransitionArchive = VerifiedPrefixArchive
@@ -145,8 +174,9 @@ def main():
             baseline_run=str(source), baseline_source_sha256=baseline["source_archive_sha256"],
             baseline_driver_sha256=digest(source / "diagnostic-source.py"),
             release_module_sha256=digest(stage / "doorbench/dexterous/right_hand_release.py"),
-            intervention="PressedLeafFrameRightRelease with current same-clock measured leaf",
+            intervention=("ControlledLeverReturn with actual joint geometry and measured operation" if a.release_mode == "controlled-return" else "PressedLeafFrameRightRelease with current same-clock measured leaf"),
             retain_grip_until_clear=a.retain_grip_until_clear,
+            release_mode=a.release_mode,
             default_release_unchanged=True, gates_unchanged=True,
             no_runtime_pose_reset=True, no_helper_forces=True,
             scope="Development continuous native single-release comparison; no actor or Isaac claim")
