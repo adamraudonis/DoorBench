@@ -98,3 +98,20 @@ report. Native model SHA-256:
 `3148cbbefa04e65ae813080275008619a3d4ef94f1ca0887c8f51e79630c3c21`.
 Generated weights and assets are not committed. **Robot episodes: 0; task success:
 unmeasured.**
+
+
+## Live Isaac execution
+
+The simulator runner accepts `--sensor-policy-checkpoint actor.pt --sensor-layout actual-layout.json --reset-from-acquisition-path --sensor-objective partial-opening` with the same actual `--robot-usd`, `--door-usd`, `--motors`, frozen reset `--reference`, and fresh `--output` used by the teacher trial. Do not pass `--native-robot`, `--acquisition`, or any teacher/extra feedback option: the runner rejects their combination with actor mode before creating the plant. At reset the recurrent state is cleared; the initial empty sensor packet is marked invalid. Subsequent calls receive only the latest causal numeric robot sensor packet and local time. The renderer follows fixed robot camera mounts. Separate diagnostic cameras do not enter the actor packet.
+
+The actor's 61 force outputs pass through the same original transmission and passive joint damping/friction model as the teacher. Every 2 ms the independent evaluator checks actual motor delivery, joints, coupled tendons, contacts and balance. `actor-report.json` reports the declared acquisition or partial-opening curriculum objective. Neither is a traversal result. A failed run retains its evidence and cannot fall back to the teacher. Unexpected runtime errors preserve the executed physics/sensor prefix. The simulator adapter has been implemented and its mode/packet boundaries unit tested; a trained closed-loop robot trial remains to be run.
+
+
+The live runner also requires `--reset-from-acquisition-path` and a bound
+`--sensor-reset-preflight` receipt. [Build that receipt on CPU](SENSOR_RESET_PREFLIGHT.md)
+using the actual reference, motor contract, native models and USD inputs before
+launching the actor. Only the resulting validated reset numbers enter reset;
+no native physics model is instantiated by the actor execution path. The first
+all-invalid sensor packet and its actual bounded force action are saved in
+`sensors/actor-initial-decision.npz` before stepping. Periodic sensor checkpoints
+are explicitly incomplete; final sensor reports hash both numeric archives.

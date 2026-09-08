@@ -140,6 +140,9 @@ class FullSequenceTeacher:
         controller = self.body.controller
         force = body_force.copy()
         info = dict(phase=controller.stage)
+        readiness=dict(minimum_foot_load_N=float(min(foot_loads)),root_speed_m_s=float(np.linalg.norm(root[7:10])),
+            height_error_m=float(abs(root[2]-self.reference['initial_root'][2])),hand_contact_count=int(hand_contact_count),
+            stance_age_s=None if controller.stance_started is None else float(t-controller.stance_started))
         if self.prep is None and self.blocked_reason is None and controller.stage=='low stance hold':
             ready = (t-controller.stance_started>=5. and min(foot_loads)>30 and
                      abs(root[2]-self.reference['initial_root'][2])<.01 and
@@ -185,5 +188,6 @@ class FullSequenceTeacher:
         self.info = {**info,'body_stance_solver':body_info['stance_solver'],
             'body_stance_solver_failures':body_info['stance_solver_failures'],
             'native_mirror_steps':0,'blocked_reason':self.blocked_reason,
-            'prep_started_s':self.prep_started,'acquisition_started_s':self.acquisition_started}
+            'prep_started_s':self.prep_started,'acquisition_started_s':self.acquisition_started,
+            'readiness':readiness,'quiet_since_s':self.quiet_since}
         return force,self.info.copy()
