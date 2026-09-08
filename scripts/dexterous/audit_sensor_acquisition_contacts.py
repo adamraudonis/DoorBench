@@ -53,7 +53,7 @@ def audit(trial):
     sim=DexterousDoorEnv(door,robot,json.loads(robot.with_suffix('.audit.json').read_text()),frame_skip=1)
     m=sim.m;lever=m.geom('leaf_handle_lever_col_n').id
     n=valid_count=current=best=0;force_error=0.;mismatches=[];bad_patches=0;first_touch=first_valid=None;bestend=None
-    min_final={k:float('inf') for k in ('ff','mf','rf','lf','th')};final_valid=True
+    min_final={k:float('inf') for k in ('ff','mf','rf','lf','th')};final_valid=True;final_count=0
     try:
         with gzip.open(trial/'physics.jsonl.gz','rt') as f,gzip.open(trial/'actual-transitions.jsonl.gz','rt') as g:
             for line,rawline in itertools.zip_longest(f,g):
@@ -75,17 +75,17 @@ def audit(trial):
                     if current>best:best=current;bestend=end
                 else:current=0
                 if t>=report['requested_duration_s']-.502-1e-9:
-                    final_valid=final_valid and result['valid_pad_grasp']
+                    final_count+=1;final_valid=final_valid and result['valid_pad_grasp']
                     for k in min_final:min_final[k]=min(min_final[k],result['qualified_pad_forces_N'][k])
                 n+=1
     finally:sim.close()
     checks=dict(physical_report_passed=report['passed'],complete_actual_interval_record=n==round(report['requested_duration_s']/.002),
         exact_classification=not mismatches,matching_qualified_pad_loads=force_error<1e-8,
-        all_loaded_patches_original_distal=bad_patches==0,final_original_opposed_window=final_valid and best*.002>=.5)
+        all_loaded_patches_original_distal=bad_patches==0,final_original_opposed_window=final_count>=251 and final_valid and best*.002>=.5)
     return dict(passed=all(checks.values()),checks=checks,interval_count=n,maximum_qualified_pad_force_difference_N=force_error,
         classification_mismatch_steps=mismatches,invalid_loaded_patches=bad_patches,first_positive_pad_contact_s=first_touch,
         first_qualified_interval_start_s=first_valid,strongest_qualified_hold_s=best*.002,strongest_hold_end_s=bestend,
-        final_half_second_minimum_pad_force_N=min_final,
+        final_half_second_minimum_pad_force_N={k:v if np.isfinite(v) else None for k,v in min_final.items()},final_window_intervals=final_count,
         scope='Independent actual-interval contact/frame reduction; no controller input, physics step or contact-force recomputation',
         input_sha256={name:sha(trial/name) for name in ('provenance.json','report.json','physics.jsonl.gz','actual-transitions.jsonl.gz')},
         auditor_source_sha256=sha(__file__))
