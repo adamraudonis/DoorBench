@@ -199,3 +199,27 @@ velocity, floor-only loads, hand contacts and preceding controller diagnostics.
 `balance-contacts.jsonl.gz` retains the occupied raw contact slots separately.
 The scoped result is `balance-report.json`; its acquisition diagnostic remains
 incomplete. RGB is recorded for inspection and is unused by this controller.
+
+## Actual Isaac execution — September 8, 2026
+
+The first actual run started at **17:19:15 UTC** on the guarded L40S and
+completed all 2,500 physics steps. Its [scoped report](../results/dexterous/2026-09-08/sensor-balance-isaac-001.json)
+passes all 12 balance checks and all 14 original mechanical checks. Peak torso
+tilt was **0.3566 degrees**, and pelvis height stayed at **0.87077–0.87220 m**.
+There were no hand contacts, failed stance solves, runtime pose writes or door
+commands. The five-second stationary result is separate from learned acquisition.
+
+The frozen source is `f7c07f111`; the robot, reset, sensor calibration, motor
+contract and original physical settings match the preceding failed learned
+actor trial. The source archive and 81 output files are hash-verified off-pod
+under `DoorBench-runs/2026-09-08-shadow-loopback/sensor-balance-isaac-001`.
+The same directory contains both videos, robot-camera samples, every sensor
+packet, submitted motor command, actual root state and raw contact interval.
+The wide view was personally inspected: the robot remains upright with its
+right hand above and clear of the lever. The tight handle camera misses that
+raised hand, so it is insufficient by itself for checking the posture.
+
+Root also [independently reproduced native005](../results/dexterous/2026-09-08/sensor-balance-native-root-001.json):
+all 2,500 states, velocities, motor commands and sensor packets match exactly.
+Neither reproduction nor stationary Isaac balance establishes reaching,
+manipulation, locomotion, robustness or a learned vision policy.

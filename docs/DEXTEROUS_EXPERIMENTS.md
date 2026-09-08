@@ -204,3 +204,20 @@ Training010 holds weights fixed through complete source histories and only then 
 Actual [actor006](../results/dexterous/2026-09-08/sensor-actor-acquisition-v2-006.json) failed at 0.702 seconds:14/17 checks passed, with upright posture, duration and sustained grasp failing. No loaded handle contact occurred. Maximum submitted motor-command error was 3.815e-6 Nm. All 65 output files and 309 source files are independently hash-verified off-pod. The model's initial torque error is much smaller than earlier candidates, but its feedback trajectory still diverges; neither its offline fit nor its longer duration than 005 is a stability qualification. Six sensor actors have now failed, and their outcomes remain in the development ledger.
 
 [Sensor-only stationary balance](SENSOR_BALANCE.md), final-source native005 and006: both 5-second, 2,500-step trials pass 19/19 checks. Nominal peak tilt is 0.3114 degrees; a separate 0.05 m/s reset-velocity trial also passes. The controller receives only calibrated joint encoders, local IMU, foot tactile readings and previous command, with a fixed joint-only desired posture. Root/support coordinates are estimated in an arbitrary local frame; actual simulator state remains evaluator-only. RGB is unused. These component passes do not establish reaching, door opening, Isaac behavior or a learned policy.
+
+### Sensor-only balance reaches Isaac — September 8, 17:26 UTC
+
+[Isaac balance001](../results/dexterous/2026-09-08/sensor-balance-isaac-001.json)
+passes 12/12 stationary checks and 14/14 original physical checks over exactly
+5 seconds. Maximum tilt is 0.3566 degrees; no hand contact or stance-QP failure
+occurs. This is analytical balance with encoders, IMU and tactile input, not a
+learned policy or door interaction. Source `f7c07f111`, calibration, reset and
+all 81 outputs/509 frozen source files are hash-verified off-pod. Independent
+raw-contact and exact-packet replay audits are in progress. Root inspected the
+actual wide view and handle close-up; the latter misses the raised hand.
+
+The [independent native reproduction](../results/dexterous/2026-09-08/sensor-balance-native-root-001.json)
+passes 19/19 checks with every state, motor command and sensor packet exactly
+matching the earlier nominal native005. Modest arm movement has a separate
+native component result; its actual Isaac test is next. Full opening, safe
+release and uninterrupted traversal remain unresolved.
