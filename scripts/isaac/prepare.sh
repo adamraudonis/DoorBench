@@ -30,6 +30,16 @@ else
 fi
 AP="$W/asset-venv/bin/python"
 IP="$W/venv/bin/python"
+# A new source checkout also needs an activation file when runtime installation
+# is reused. Explicit PYTHONPATH prevents another checkout's editable install
+# from silently selecting a different DoorBench implementation.
+mkdir -p "$DB/isaaclab/cloud"
+{
+  printf 'source %q\n' "$W/venv/bin/activate"
+  printf 'export ISAACLAB_DIR=%q DOORBENCH_DIR=%q DOORBENCH_ASSETS=%q PYTHONPATH=%q\n' "$W/IsaacLab" "$DB" "$DB/assets" "$DB"
+  echo 'export OMNI_KIT_ACCEPT_EULA=YES ACCEPT_EULA=Y PRIVACY_CONSENT=Y TERM=xterm-256color'
+} > "$DB/isaaclab/cloud/env.sh"
+export PYTHONPATH="$DB${PYTHONPATH:+:$PYTHONPATH}"
 phase '== [2/5] Generate and validate the development door'
 if ! "$AP" scripts/isaac/check_assets.py assets --ids "$DOORBENCH_GENERATE_IDS"; then
   "$AP" scripts/generate_dataset.py --out assets --ids "$DOORBENCH_GENERATE_IDS" --workers 1 --no-thumbs
