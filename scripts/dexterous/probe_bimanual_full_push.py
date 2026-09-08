@@ -126,6 +126,8 @@ def main():
     (args.output/'source-override.json').write_text(json.dumps(dict(entry_point='diagnostic-source.py',
         sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),controller_root=str(controller_root),scope=__doc__),indent=2)+'\n')
     shutil.copy2(args.reference, args.output/'reference.json')
+    for source,name in ((args.robot,'robot-input.xml'),(args.robot.with_suffix('.audit.json'),'robot-input.audit.json'),(args.motors,'motors-input.json'),(args.door/'door.xml','door-input.xml')):
+        shutil.copy2(source,args.output/name)
     sim = DexterousDoorEnv(args.door, args.robot, json.loads(args.robot.with_suffix('.audit.json').read_text()))
     m, d = sim.m, sim.d
     teacher = AcquisitionTeacher(args.robot, motors, ref)
