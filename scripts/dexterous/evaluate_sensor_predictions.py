@@ -16,6 +16,7 @@ import torch
 
 from doorbench.dexterous.sensor_actor import ActorDimensions, SensorActor
 from doorbench.dexterous.sensor_demonstrations import SensorDemonstration
+from doorbench.dexterous.correction_demonstrations import CorrectionDemonstration
 from doorbench.dexterous.motor_contract_identity import SENSOR_ACTOR_CHECKPOINT_SCHEMA
 
 
@@ -25,7 +26,9 @@ def digest(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--episode", type=Path, required=True)
+    dataset = parser.add_mutually_exclusive_group(required=True)
+    dataset.add_argument("--episode", type=Path)
+    dataset.add_argument('--correction-dataset',type=Path)
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--qualification",choices=['operation-report.json','acquisition-report.json'],default='operation-report.json')
     parser.add_argument("--legacy-teacher-receipt",type=Path)
@@ -37,7 +40,9 @@ def main():
     if min(args.chunk_length, args.threads) <= 0:
         parser.error("Use positive chunk and thread counts")
     torch.set_num_threads(args.threads)
-    episode = SensorDemonstration(args.episode,qualification=args.qualification,legacy_teacher_receipt=args.legacy_teacher_receipt,reset_observation_run=args.reset_observation_run)
+    if args.correction_dataset and (args.legacy_teacher_receipt or args.reset_observation_run):
+        parser.error('Correction observations already contain their actual reset and use a separate admission contract')
+    episode = CorrectionDemonstration(args.correction_dataset) if args.correction_dataset else SensorDemonstration(args.episode,qualification=args.qualification,legacy_teacher_receipt=args.legacy_teacher_receipt,reset_observation_run=args.reset_observation_run)
     payload = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
     if (payload.get("schema") != SENSOR_ACTOR_CHECKPOINT_SCHEMA or
             payload.get('motor_contract_sha256') != episode.motor_contract_sha256 or
@@ -71,17 +76,17 @@ def main():
     identity = episode.metadata["files"]["actor-sensors.npz"]
     training = {e["files"]["actor-sensors.npz"] for e in payload.get("training_episodes", [])}
     validation = {e["files"]["actor-sensors.npz"] for e in payload.get("validation_episodes", [])}
-    report = dict(scope=__doc__, closed_loop_evaluated=False, task_success_rate=None,
+    report = dict(scope=('Prediction on actual recorded student sensors with counterfactual teacher labels; no corrective physical trajectory was executed' if args.correction_dataset else __doc__), closed_loop_evaluated=False, task_success_rate=None,
         episode=episode.metadata, split="training_episode" if identity in training else "separate_validation_episode" if identity in validation else "unseen_episode",
         examples=len(episode), hidden_state="Reset once; recurrent state carried through every recorded sensor sample",
         prediction_mse_normalized_force=scores,
         learned_to_persistence_mse_ratio={group: scores["learned"][group]/max(scores["persistence"][group], 1e-30) for group in groups},
         elapsed_s=time.monotonic()-started, device="cpu", threads=args.threads,
         checkpoint_sha256=digest(args.checkpoint),
-        qualification_file_sha256={name:digest(args.episode/name) for name in (
-            args.qualification, "mechanical-audit.json", "passive-tendon-audit.json", "motor-contract.json")},
+        qualification_file_sha256=({'correction-report.json':digest(args.correction_dataset/'report.json')} if args.correction_dataset else {name:digest(args.episode/name) for name in (
+            args.qualification, "mechanical-audit.json", "passive-tendon-audit.json", "motor-contract.json")}),
         limitations=["A single training episode cannot establish generalization.",
-            "Teacher-forced previous actions are not the student's own command history.",
+            "Recorded previous actions are replayed; newly predicted commands do not feed back into the measurements.",
             "No physical state was advanced and no opening attempt was made by the student."])
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2)+"\n")

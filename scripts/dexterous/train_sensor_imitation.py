@@ -17,12 +17,14 @@ import torch
 from doorbench.dexterous.provenance import capture
 from doorbench.dexterous.sensor_actor import SensorActor
 from doorbench.dexterous.sensor_demonstrations import SensorDemonstration
+from doorbench.dexterous.correction_demonstrations import CorrectionDemonstration
 from doorbench.dexterous.motor_contract_identity import SENSOR_ACTOR_CHECKPOINT_SCHEMA
 
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--episode',type=Path,action='append',required=True)
+    parser.add_argument('--correction-dataset',type=Path,action='append',default=[],help='Separate audited counterfactual teacher labels on real student sensor observations')
     parser.add_argument('--validation-episode',type=Path,action='append',default=[])
     parser.add_argument('--qualification',choices=['operation-report.json','acquisition-report.json'],default='operation-report.json')
     parser.add_argument('--output',type=Path,required=True)
@@ -47,6 +49,7 @@ def main():
     if args.legacy_teacher_receipt and (len(args.episode)!=1 or args.validation_episode):
         parser.error('The legacy acquisition receipt supports one explicit training episode and no validation episodes')
     episodes=[SensorDemonstration(p,qualification=args.qualification,legacy_teacher_receipt=args.legacy_teacher_receipt,reset_observation_run=args.reset_observation_run) for p in args.episode]
+    episodes += [CorrectionDemonstration(p) for p in args.correction_dataset]
     validation=[SensorDemonstration(p,qualification=args.qualification) for p in args.validation_episode]
     first=episodes[0];dimensions=first.dimensions
     identity=lambda e:e.metadata['files']['actor-sensors.npz']
@@ -105,6 +108,8 @@ def main():
         iterations=args.iterations,parameters=sum(p.numel() for p in model.parameters()),history=history,
         recurrent_training='Truncated windows with sensor-only burn-in; optional explicitly weighted true-start windows have zero hidden state and no masked prefix',
         episode_start_probability=args.episode_start_probability,
+        dataset_sampling='Uniform per dataset; qualified teacher episodes and counterfactual correction prefixes remain separately identified',
+        training_datasets=[e.metadata for e in episodes],
         observations='Stereo RGB, local tactile bins, encoders, IMU, previous action, sensor age/validity; no absolute clock or task state')
     (args.output/'report.json').write_text(json.dumps(result,indent=2)+'\n')
 
