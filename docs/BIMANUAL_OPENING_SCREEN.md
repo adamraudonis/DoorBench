@@ -958,3 +958,40 @@ Both physical runs, their frozen source, independent audits and six collision
 close-ups are preserved in `native-waist-feedback-clean-release-development-001`:
 1,250 files, every byte verified before and after the canonical move, manifest
 SHA256 `b5831bc43fdb83a340c4bf3542a04689c51b43998cbcf78310068510e83c00cd`.
+
+The first zero-radial-slide candidate from the clean release is retained as
+`recontact-panel-screen-001`. Its coarse 1.2 rad workspace is feasible, but its
+dense audit fails: holding the cleared RH joint posture lets the waist carry
+the hand within 27.08 mm of the strike, below the unchanged 40 mm clearance;
+there are also spline/rate violations. Blending flattening only with leaf
+progress would not resolve the initial contact gap if the door stopped, so
+this candidate is neither an admitted controller nor a physical trial.
+
+`TimedPalmRecontact` instead consumes a separate six-second path that flattens
+the palm and closes the measured 4.5 mm gap while the screened leaf remains
+entirely stationary. Its time phase has no opening-angle lead. Current measured
+leaf pose reprojects the analytic palm goal, so a moving leaf does not leave
+the contact target behind in world space. The same original waist/arm motor
+adapter, target-rate bounds, 3.5 N feedforward and bounded 4 N tactile normal
+feedback remain. Readiness requires the completed time path and at least
+0.5 seconds of actual palm load at or above 2 N; it requests a fresh plan from
+that attained state rather than claiming the predicted endpoint occurred.
+
+Timed screen001 again fails only RH clearance when the cleared right arm rides
+the waist. Screen002 keeps the attained RH palm position as a planning target,
+allowing its orientation and joints to adapt. Its independent 2,001-sample
+screen passes all original geometry and rate limits: every RH/scene pair stays
+at least 40 mm clear, maximum root shift 3.49 mm, root rotation 39.42 mrad,
+torso tilt 2.68 degrees, and COM XY movement 0.043 mm. Conservative target
+bounds are 0.180 rad/s and 2.04 rad/s², root speed 2.64 mm/s and rotation speed
+0.029 rad/s. These are unstepped targets; actual moving-leaf tracking, contacts
+and original motor limits still require a fresh physical trial. The earlier
+failed screens and reports remain unchanged.
+
+The new standalone screen/audit scripts leave the historical panel solvers
+unchanged while their portable extraction proceeds. A 55-test focused check
+includes stationary-leaf time progression, actual leaf-frame reprojection,
+forbidden angular-progress substitution, original force delivery and target
+contracts. The probe's explicit `--screened-palm-recontact` option uses the new
+plan schema and requires all three actual-base, waist and tactile options with
+zero opening lead. It remains an experimental privileged teacher component.

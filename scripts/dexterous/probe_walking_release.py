@@ -62,7 +62,12 @@ def main():
     p.add_argument("--screened-panel-actual-base-correction",action="store_true")
     p.add_argument("--screened-panel-normal-admittance",action="store_true")
     p.add_argument("--screened-panel-include-waist",action="store_true")
+    p.add_argument("--screened-palm-recontact",action="store_true")
     a = p.parse_args()
+    if a.screened_palm_recontact and not (a.whole_body_panel_plan and a.screened_panel_actual_base_correction
+            and a.screened_panel_normal_admittance and a.screened_panel_include_waist and a.screened_panel_lead_rad==0
+            and a.screened_panel_lead_start_rad is None):
+        raise ValueError("Timed palm recontact requires its explicit actual-base/tactile/waist profile and zero opening lead")
     if a.screened_panel_include_waist and not a.screened_panel_actual_base_correction:
         raise ValueError("Waist correction requires the actual-base correction")
     if a.screened_panel_normal_admittance and not a.screened_panel_actual_base_correction:
@@ -124,6 +129,8 @@ def main():
         for module in ('screened_panel_path.py','screened_panel_teacher.py','actual_base_palm.py','palm_normal_admittance.py','panel_torso_target.py'):
             shutil.copy2(own/'doorbench/dexterous'/module,stage/'doorbench/dexterous'/module)
         shutil.copy2(a.whole_body_panel_plan,stage/'whole-body-panel-plan.json')
+        if a.screened_palm_recontact:
+            shutil.copy2(own/'doorbench/dexterous/palm_recontact_teacher.py',stage/'doorbench/dexterous/palm_recontact_teacher.py')
         if a.screened_panel_lead_audit:shutil.copy2(a.screened_panel_lead_audit,stage/'panel-lead-audit.json')
     if a.hybrid_include_waist or a.record_panel_targets:
         shutil.copy2(own/'doorbench/dexterous/panel_chain_projection.py',stage/'doorbench/dexterous/panel_chain_projection.py')
@@ -192,6 +199,9 @@ def main():
     import doorbench.dexterous.full_opening_teacher as full
     if a.whole_body_panel_plan:
         from doorbench.dexterous.screened_panel_teacher import ScreenedWholeBodyPanel
+        if a.screened_palm_recontact:
+            from doorbench.dexterous.palm_recontact_teacher import TimedPalmRecontact
+            ScreenedWholeBodyPanel=TimedPalmRecontact
         full.CoordinatedPanelPush=lambda left,**options:ScreenedWholeBodyPanel(left,stage/'whole-body-panel-plan.json',normal_feedforward_N=a.screened_panel_feedforward_n,actual_base_correction=a.screened_panel_actual_base_correction,palm_normal_admittance=a.screened_panel_normal_admittance,correction_include_waist=a.screened_panel_include_waist,tracking_lead_rad=a.screened_panel_lead_rad,lead_start_angle=a.screened_panel_lead_start_rad,lead_ramp_rad=a.screened_panel_lead_ramp_rad,lead_receipt=stage/'panel-lead-audit.json' if a.screened_panel_lead_audit else None,**options)
     original_force = full.FullOpeningTeacher.force
     panel_trace=None
@@ -385,6 +395,7 @@ def main():
             screened_panel_actual_base_correction=a.screened_panel_actual_base_correction,
             screened_panel_normal_admittance=a.screened_panel_normal_admittance,
             screened_panel_include_waist=a.screened_panel_include_waist,
+            screened_palm_recontact=a.screened_palm_recontact,
             screened_panel_lead_audit_sha256=digest(stage/"panel-lead-audit.json") if a.screened_panel_lead_audit else None,
             screened_panel_lead_start_rad=a.screened_panel_lead_start_rad,screened_panel_lead_ramp_rad=a.screened_panel_lead_ramp_rad,
             record_panel_targets=a.record_panel_targets or a.hybrid_include_waist,
