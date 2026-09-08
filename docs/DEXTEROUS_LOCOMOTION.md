@@ -1,6 +1,6 @@
 # H1 walking development
 
-The official **H1**, not G1, actor from Unitree RL Gym moves DoorBench's unchanged full H1/dual-Shadow robot under native motor forces. Forward walking and a phase-adapted stop/restart are working in CPU MuJoCo development trials. **The strict seeded stop protocol passes 30/40, with all ten held-raised-arm starts failing; precise approach, manipulation-stance transitions, doorway clearance and Isaac validation remain open.** This does not complete the [full-sequence plan](DEXTEROUS_NEXT_STEPS.md).
+The official **H1**, not G1, actor from Unitree RL Gym moves DoorBench's unchanged full H1/dual-Shadow robot under native motor forces. Forward walking and a phase-adapted stop/restart are working in CPU MuJoCo development trials. **The strict seeded stop protocol passes 30/40, with all ten held-raised-arm starts failing; precise door approach and doorway clearance remain open. A [continuous lowered-stance primitive](DEXTEROUS_LOCOMOTION_TRANSITION.md) now has separate native development evidence; Isaac results are reported by the integration work package.** This does not complete the [full-sequence plan](DEXTEROUS_NEXT_STEPS.md).
 
 ## Measured evidence
 
@@ -91,6 +91,6 @@ The actor itself is proprioceptive: it sees neither world position nor linear ve
 
 ## Immediate continuation
 
-1. Connect the physically stopped walk to a lowered manipulation stance and back to walking, with natural arm retraction where declared. Preserve the ten raised-arm failures and the long-hold fall.
-2. Run the bounded forward and stop tests on the prepared Isaac plant with original force caps and correct 20 ms/2 ms clocks.
+1. Integrate the [continuous lowered-stance primitive](DEXTEROUS_LOCOMOTION_TRANSITION.md) with the real handle controller, including natural arm retraction where declared. Preserve the ten raised-arm failures and the long-hold fall.
+2. Preserve original force caps and correct 20 ms/2 ms clocks in Isaac; validate any additional stance/reaching handoffs there separately.
 3. Integrate the grasp/release controller, add actual whole-body clearance checks and score a continuous approach/open/traverse sequence.
