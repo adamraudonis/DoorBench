@@ -141,6 +141,8 @@ p.add_argument('--sensor-balance-robot',help='Static robot-only XML calibration 
 p.add_argument('--sensor-arm-schedule',help='Opt-in frozen six-second scripted arm schedule over sensor-only balance; not a learned door policy')
 p.add_argument('--sensor-reach-protocol',help='Frozen eleven-second contact-free coordinated reach protocol over sensor-only balance')
 p.add_argument('--sensor-reach-route',help='Joint-only route bound to the reach protocol; no world or door state')
+p.add_argument('--sensor-acquisition-protocol',help='Frozen nineteen-second sensor-feedback scripted grasp protocol; not opening or a learned policy')
+p.add_argument('--sensor-acquisition-route',help='Joint-only full acquisition route bound to its separate protocol')
 p.add_argument('--sensor-objective',choices=['acquisition','partial-opening'],default='partial-opening',help='Declared curriculum qualification; neither establishes traversal')
 p.add_argument('--sensor-reset-preflight',help='Required frozen native reset receipt for a sensor-only actor')
 p.add_argument('--reset-from-acquisition-path',action='store_true',help='Use the frozen contact-free first configuration at reset only')
@@ -217,7 +219,8 @@ if a.whole_body_ungrip_path and not a.whole_body_return_path:
     p.error('Whole-body ungrip requires its screened whole-body return path')
 try:validate_sensor_balance_protocol(a)
 except ValueError as error:p.error(str(error))
-balance_scope=('Sensor-only analytical balance with scripted torso, arm and finger joint goals; contact-free reach only; RGB unused; no learned policy, acquisition or door task claim'
+balance_scope=('Sensor-only analytical balance with scripted torso, arm and finger joint goals; acquisition only; RGB unused; no learned policy, opening or traversal claim'
+               if a.sensor_acquisition_protocol else 'Sensor-only analytical balance with scripted torso, arm and finger joint goals; contact-free reach only; RGB unused; no learned policy, acquisition or door task claim'
                if a.sensor_reach_protocol else 'Sensor-only analytical balance with scripted arm/wrist joint goals; RGB unused; no learned policy, acquisition or door task claim'
                if a.sensor_arm_schedule else 'Sensor-only analytical stationary balance; RGB unused; no learned policy, acquisition or door task claim')
 try:validate_traversal_mode(a)
@@ -555,7 +558,11 @@ def main():
             sensor_layout=sensor_recorder.layout,physics_dt_s=dt,device=a.device)
         sensor_actor.reset_episode()
     elif a.sensor_balance_calibration:
-        if a.sensor_reach_protocol:
+        if a.sensor_acquisition_protocol:
+            from doorbench.dexterous.sensor_acquisition_runtime import SensorAcquisitionBalanceRuntime
+            sensor_actor=SensorAcquisitionBalanceRuntime(a.sensor_balance_robot,motors,sensor_recorder.layout,
+                a.sensor_balance_calibration,a.sensor_acquisition_protocol,a.sensor_acquisition_route)
+        elif a.sensor_reach_protocol:
             from doorbench.dexterous.sensor_reach_runtime import SensorReachBalanceRuntime
             sensor_actor=SensorReachBalanceRuntime(a.sensor_balance_robot,motors,sensor_recorder.layout,
                 a.sensor_balance_calibration,a.sensor_reach_protocol,a.sensor_reach_route)
@@ -630,6 +637,14 @@ def main():
                 (out/'balance-reach-route.json').write_bytes(Path(a.sensor_reach_route).read_bytes())
                 sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
                     ('sensor_reach_runtime.py','sensor_reach_evaluation.py','sensor_reach_balance.py','reach_balance_schedule.py')]
+            if a.sensor_acquisition_protocol:
+                inputs += [Path(a.sensor_acquisition_protocol),Path(a.sensor_acquisition_route)]
+                (out/'balance-acquisition-protocol.json').write_bytes(Path(a.sensor_acquisition_protocol).read_bytes())
+                (out/'balance-acquisition-route.json').write_bytes(Path(a.sensor_acquisition_route).read_bytes())
+                sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
+                    ('sensor_acquisition_runtime.py','sensor_acquisition_evaluation.py','sensor_acquisition_evidence.py',
+                     'sensor_acquisition_schedule.py','sensor_reach_runtime.py','sensor_reach_evaluation.py',
+                     'sensor_reach_balance.py','reach_balance_schedule.py','isaac_acquisition_contacts.py')]
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
             ('sensor_actor.py','sensor_policy_controller.py','control_mode.py','isaac_pad_audit.py','isaac_tendons.py','grasp_verification.py','motor_contract_identity.py','sensor_reset_preflight.py','teacher_query_recording.py')]
     if a.sensor_layout:
@@ -696,10 +711,26 @@ def main():
     foot_loads=np.zeros(2);right_hand_contact_count=0;right_hand_buffered_contact_count=0
     sequence_steps=[];full_opening_steps=[];full_aperture_crossed=False;max_motor_delivery_error=0.
     balance_steps=[];balance_contact_stream=None;balance_arm_initial=None;balance_reach_initial=None
-    if a.sensor_reach_protocol:
+    if a.sensor_reach_protocol or a.sensor_acquisition_protocol:
         balance_reach_initial=dict(root13_actororigin=robot.data.root_link_state_w[0].cpu().tolist(),
             joint_position={name:float(robot.data.joint_pos[0,i].item()) for i,name in enumerate(rnames)})
-        (out/'balance-reach-reset.json').write_text(json.dumps(balance_reach_initial,indent=2)+'\n')
+        if a.sensor_acquisition_protocol:
+            from doorbench.dexterous.isaac_acquisition_contacts import acquisition_hand_contact_counts
+            initial_buffers=[v.cpu().numpy().copy() for v in audit_contacts.get_contact_data(dt)]
+            af0,ap0,an0,ad0,ac0,ast0=initial_buffers
+            from doorbench.dexterous.isaac_post_opening_measurements import continuation_contact_summary
+            continuation_contact_summary(audit_paths,audit_filters,af0,an0,ad0,ac0,ast0,capacity=16384,physics_qualified=True)
+            initial_patches=[]
+            for i in range(len(audit_paths)):
+                for j in range(ac0.shape[1]):
+                    for k in range(int(ast0[i,j]),int(ast0[i,j]+ac0[i,j])):
+                        initial_patches.append(dict(sensor=i,filter=j,slot=k,position=ap0[k].tolist(),normal=an0[k].tolist(),
+                            force_N=float(af0[k,0]),distance_m=float(ad0[k,0])))
+            balance_reach_initial.update(acquisition_hand_contact_counts(audit_paths,audit_filters,initial_patches),
+                initial_door_position={name:float(door.data.joint_pos[0,dnames.index(name)].item())
+                    for name in ('leaf_hinge','leaf_handle_hinge')},initial_contact_patches=initial_patches,
+                contact_note='Reset-time contact buffers; bound static reset screening remains separately required')
+        (out/('balance-acquisition-reset.json' if a.sensor_acquisition_protocol else 'balance-reach-reset.json')).write_text(json.dumps(balance_reach_initial,indent=2)+'\n')
     if a.sensor_arm_schedule:
         balance_arm_initial={name:float(robot.data.joint_pos[0,rnames.index(name)].item())
             for name in sensor_actor.goal_names}
@@ -982,7 +1013,7 @@ def main():
                 forces=sensor_actor.force(packet,now_s=step*dt)
                 if step==0:sensor_recorder.record_initial_decision(packet,forces)
                 teacher_info=dict(phase='sensor_policy',runtime_inputs='numeric robot sensor packet and local acquisition clock',teacher_fallback=False) if not a.sensor_balance_calibration else dict(
-                    **sensor_actor.last_info,phase='sensor_reach_balance' if a.sensor_reach_protocol else 'sensor_arm_balance' if a.sensor_arm_schedule else 'sensor_balance',teacher_fallback=False)
+                    **sensor_actor.last_info,phase='sensor_acquisition_balance' if a.sensor_acquisition_protocol else 'sensor_reach_balance' if a.sensor_reach_protocol else 'sensor_arm_balance' if a.sensor_arm_schedule else 'sensor_balance',teacher_fallback=False)
             torque=matrix.T@forces-damp*vel-friction*np.tanh(vel/.001)
             robot.set_joint_effort_target(torch.tensor(torque[None],device=a.device,dtype=torch.float32))
             door.set_joint_position_target(target);door.set_joint_velocity_target(torch.zeros_like(target))
@@ -1091,9 +1122,11 @@ def main():
                         if a.sensor_arm_schedule:
                             balance_steps[-1]['actual_arm_joint_position']={name:float(robot.data.joint_pos[0,rnames.index(name)].item())
                                 for name in sensor_actor.goal_names}
-                        if a.sensor_reach_protocol:
+                        if a.sensor_reach_protocol or a.sensor_acquisition_protocol:
                             balance_steps[-1]['actual_joint_position']={name:float(robot.data.joint_pos[0,i].item())
                                 for i,name in enumerate(rnames)}
+                        if a.sensor_acquisition_protocol:
+                            balance_steps[-1].update(acquisition_hand_contact_counts(audit_paths,audit_filters,occupied))
             if sequence:
                 if step%250==0:
                     debug_contacts=[]
@@ -1124,7 +1157,11 @@ def main():
                     acquisition_states['actual_joint_effort'].append(delivered.copy())
                 pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
                 rotation=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
-                pad_steps.append(pad_evaluator.read(physics_dt=dt,time_s=(step+1)*dt,center=pose[:3]+rotation@grip_center,axis=rotation@grip_axis,half_length=grip_half,radius=grip_radius))
+                actual_pad=pad_evaluator.read(physics_dt=dt,time_s=(step+1)*dt,center=pose[:3]+rotation@grip_center,axis=rotation@grip_axis,
+                    half_length=grip_half,radius=grip_radius,include_evidence=bool(a.sensor_acquisition_protocol))
+                if a.sensor_acquisition_protocol:
+                    balance_steps[-1]['pad_evidence']=actual_pad.pop('raw_evidence')
+                pad_steps.append(actual_pad)
                 if step%500==0:
                     (out/'latest-pad-audit.json').write_text(json.dumps(pad_steps[-1],indent=2)+'\n')
             if full_opening:
@@ -1309,7 +1346,17 @@ def main():
             print('ACTOR_RESULT '+json.dumps({k:v for k,v in actor_report.items() if k!='final_pad_grasp'}),flush=True)
         if a.sensor_balance_calibration:
             balance_checks={k:v for k,v in checks.items() if k!='sustained_pad_grasp'}
-            if a.sensor_reach_protocol:
+            if a.sensor_acquisition_protocol:
+                from doorbench.dexterous.sensor_acquisition_evaluation import evaluate_sensor_acquisition_balance
+                balance_report=evaluate_sensor_acquisition_balance(balance_steps,balance_checks,
+                    robot_xml=a.sensor_balance_robot,motors=motors,
+                    initial_root13_actororigin=balance_reach_initial['root13_actororigin'],
+                    initial_joint_position=balance_reach_initial['joint_position'],
+                    initial_hand_contact_count=balance_reach_initial['hand_contact_count'],
+                    initial_door_position=balance_reach_initial['initial_door_position'],
+                    calibration=a.sensor_balance_calibration,protocol=a.sensor_acquisition_protocol,
+                    joint_route=a.sensor_acquisition_route,physics_dt_s=dt,expected_duration_s=a.seconds)
+            elif a.sensor_reach_protocol:
                 from doorbench.dexterous.sensor_reach_evaluation import evaluate_sensor_reach_balance
                 balance_report=evaluate_sensor_reach_balance(balance_steps,balance_checks,
                     robot_xml=a.sensor_balance_robot,motors=motors,
@@ -1329,7 +1376,7 @@ def main():
                     physics_dt_s=dt,expected_duration_s=a.seconds)
             balance_report.update(calibration_sha256=hashlib.sha256(Path(a.sensor_balance_calibration).read_bytes()).hexdigest(),
                 runtime_robot_pose_writes=0,direct_door_commands=False,teacher_fallback=False,
-                runtime_controller_inputs='Encoders, local IMU, foot tactile and previous command; fixed robot/posture calibration; RGB captured but unused'+('; separate frozen joint-only torso, arm and finger route' if a.sensor_reach_protocol else '; separate frozen scripted arm/wrist joint schedule' if a.sensor_arm_schedule else ''),
+                runtime_controller_inputs='Encoders, local IMU, foot tactile and previous command; fixed robot/posture calibration; RGB captured but unused'+('; separate frozen joint-only torso, arm and finger route' if a.sensor_reach_protocol or a.sensor_acquisition_protocol else '; separate frozen scripted arm/wrist joint schedule' if a.sensor_arm_schedule else ''),
                 force_readback='Submitted backend actuation input, not an independent joint torque sensor')
             for name in ('balance-report.json','report.json'):
                 (out/name).write_text(json.dumps(balance_report,indent=2)+'\n')

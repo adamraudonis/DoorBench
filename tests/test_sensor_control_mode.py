@@ -48,7 +48,8 @@ def test_sensor_balance_uses_the_same_no_teacher_boundary():
 
 @pytest.mark.parametrize('extra,duration',[
     ({},5.),({'sensor_arm_schedule':'arms.json'},6.),
-    ({'sensor_reach_protocol':'reach.json','sensor_reach_route':'joints.json'},11.)])
+    ({'sensor_reach_protocol':'reach.json','sensor_reach_route':'joints.json'},11.),
+    ({'sensor_acquisition_protocol':'acquisition.json','sensor_acquisition_route':'joints.json'},19.)])
 def test_balance_protocols_preserve_their_individual_scope_and_duration(extra,duration):
     options=SimpleNamespace(sensor_balance_calibration='calibration.json',sensor_balance_robot='robot.xml',
         seconds=duration,**extra)
@@ -64,5 +65,17 @@ def test_balance_protocols_preserve_their_individual_scope_and_duration(extra,du
 def test_reach_cannot_mix_in_a_different_experiment_or_omit_bound_inputs(changes):
     values=dict(sensor_balance_calibration='calibration.json',sensor_balance_robot='robot.xml',seconds=11.,
         sensor_reach_protocol='reach.json',sensor_reach_route='joints.json')
+    values.update(changes)
+    with pytest.raises(ValueError):validate_sensor_balance_protocol(SimpleNamespace(**values))
+
+
+@pytest.mark.parametrize('changes',[
+    {'sensor_acquisition_route':None},{'sensor_acquisition_protocol':None},
+    {'sensor_arm_schedule':'arms.json'},{'sensor_policy_checkpoint':'actor.pt'},
+    {'sensor_reach_protocol':'reach.json','sensor_reach_route':'joints.json'},
+    {'sensor_balance_calibration':None},{'sensor_balance_robot':None}])
+def test_acquisition_remains_separate_from_no_contact_reach(changes):
+    values=dict(sensor_balance_calibration='calibration.json',sensor_balance_robot='robot.xml',seconds=19.,
+        sensor_acquisition_protocol='acquisition.json',sensor_acquisition_route='joints.json')
     values.update(changes)
     with pytest.raises(ValueError):validate_sensor_balance_protocol(SimpleNamespace(**values))
