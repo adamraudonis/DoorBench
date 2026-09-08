@@ -17,6 +17,12 @@ def main():
     sim=make_plant(args.robot);m,d=sim.m,sim.d
     if poses.shape[1]!=m.nq:raise ValueError('Robot and recorded state dimensions differ')
     m.vis.global_.offwidth=1280;m.vis.global_.offheight=720
+    m.vis.headlight.ambient[:]=[.45,.45,.45];m.vis.headlight.diffuse[:]=[.8,.8,.8]
+    # Diagnostic surface colors affect only this replay renderer.
+    for g in range(m.ngeom):
+        if m.geom_bodyid[g]:
+            name=m.body(m.geom_bodyid[g]).name;m.geom_matid[g]=-1
+            m.geom_rgba[g]=[.85,.62,.24,1.] if name.startswith(('lh_','rh_')) else [.60,.68,.76,1.]
     camera=mujoco.MjvCamera();camera.lookat[:]=[float(np.median(poses[:,0])),float(np.median(poses[:,1])),.9]
     camera.distance=max(4.,float(np.ptp(poses[:,0]))+3.);camera.azimuth=-110;camera.elevation=-15
     options=mujoco.MjvOption();options.sitegroup[:]=0

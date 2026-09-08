@@ -53,7 +53,7 @@ alone does not establish a sensor-only door controller.
         self.previous_action[:]=0.;self.last_observation=None
 
     def step(self, joint_position, joint_velocity, angular_velocity, gravity_body,
-             command, elapsed_seconds):
+             command, elapsed_seconds, *, phase_amplitude=1.):
         import torch
         q=finite_vector(joint_position,10,'joint_position')
         dq=finite_vector(joint_velocity,10,'joint_velocity')
@@ -64,9 +64,11 @@ alone does not establish a sensor-only door controller.
             raise ValueError('elapsed_seconds must be finite and nonnegative')
         if not .9<=np.linalg.norm(gravity)<=1.1:
             raise ValueError('gravity_body must be a normalized projected direction')
+        if not np.isfinite(phase_amplitude) or not 0.<=phase_amplitude<=1.:
+            raise ValueError('phase_amplitude must lie in [0, 1]')
         phase=elapsed_seconds%.8/.8
         obs=np.r_[gyro*.25,gravity,velocity*[2.,2.,.25],q-DEFAULT_ANGLES,dq*.05,
-                  self.previous_action,np.sin(2*np.pi*phase),np.cos(2*np.pi*phase)].astype(np.float32)
+                  self.previous_action,phase_amplitude*np.sin(2*np.pi*phase),phase_amplitude*np.cos(2*np.pi*phase)].astype(np.float32)
         with torch.inference_mode():
             action=self.policy(torch.from_numpy(obs).unsqueeze(0)).numpy().reshape(-1)
         action=finite_vector(action,10,'policy output')

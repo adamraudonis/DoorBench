@@ -64,6 +64,7 @@ def main():
     p.add_argument('--mode',choices=('forward','walk-stop','turn-stop','restart','stand'),default='walk-stop');p.add_argument('--seconds',type=float,default=14.)
     p.add_argument('--speed',type=float,default=.4);p.add_argument('--seed',type=int,default=0);p.add_argument('--joint-noise',type=float,default=0.)
     p.add_argument('--initial-pose',choices=('standing','nominal','opening'),default='standing');p.add_argument('--reference',type=Path)
+    p.add_argument('--phase-stop',action='store_true',help='Experimental fade of gait-phase observation after zero command')
     p.add_argument('--settle-stance',action='store_true',help='Privileged contact-gated handoff to stationary motor stance after a stop command')
     args=p.parse_args()
     if args.output.exists():raise SystemExit('Use a fresh output directory')
@@ -97,7 +98,8 @@ def main():
                     emit({'transition':'walking to stationary motor stance','time_s':d.time,'foot_loads_N':loads.tolist()})
             # Own-state observation contract. Body angular velocity and projected
             # gravity are IMU-equivalent quantities; no root position is passed.
-            target=policy.step(d.qpos[a.qadr],d.qvel[a.vadr],d.qvel[3:6],d.body('pelvis').xmat.reshape(3,3).T@[0.,0.,-1.],command,d.time)
+            phase_amplitude=max(0.,1.-(d.time-zero_since)) if args.phase_stop and ever_moved and zero_since is not None else 1.
+            target=policy.step(d.qpos[a.qadr],d.qvel[a.vadr],d.qvel[3:6],d.body('pelvis').xmat.reshape(3,3).T@[0.,0.,-1.],command,d.time,phase_amplitude=phase_amplitude)
         d.ctrl[:]=fixed;d.ctrl[a.actuators]=a.command(d,target)
         if stance is not None:
             if step%5==0:stance_command,stance_status=stance.command()
@@ -116,7 +118,7 @@ def main():
                         wrench=np.zeros(6);mujoco.mj_contactForce(m,d,i,wrench);loads[sim.feet.index(other)]+=wrench[0]
                     else:badcontact=max(badcontact,-float(contact.dist))
                 else:selfpenetration=max(selfpenetration,-float(contact.dist))
-            row=dict(time_s=float(d.time),root=d.qpos[:3].tolist(),velocity=d.qvel[:3].tolist(),tilt_deg=float(np.rad2deg(np.arccos(np.clip(up[2],-1,1)))),foot_positions=d.xpos[sim.feet].tolist(),foot_loads_N=loads.tolist(),command=command.tolist(),controller='stationary stance' if stance is not None else 'H1 walking policy',stance_status=stance_status,joint_violation_rad=float(max(0,violation.max())),ground_collision_m=badcontact,self_penetration_m=selfpenetration,finite=bool(np.isfinite(d.qpos).all() and np.isfinite(d.qvel).all()),motor_force_Nm=d.actuator_force.tolist())
+            row=dict(time_s=float(d.time),root=d.qpos[:3].tolist(),velocity=d.qvel[:3].tolist(),tilt_deg=float(np.rad2deg(np.arccos(np.clip(up[2],-1,1)))),foot_positions=d.xpos[sim.feet].tolist(),foot_loads_N=loads.tolist(),command=command.tolist(),phase_amplitude=phase_amplitude,controller='stationary stance' if stance is not None else 'H1 walking policy',stance_status=stance_status,joint_violation_rad=float(max(0,violation.max())),ground_collision_m=badcontact,self_penetration_m=selfpenetration,finite=bool(np.isfinite(d.qpos).all() and np.isfinite(d.qvel).all()),motor_force_Nm=d.actuator_force.tolist())
             rows.append(row);poses.append(d.qpos.copy());vel.append(d.qvel.copy());controls.append(d.ctrl.copy())
             (args.output/'latest.json').write_text(json.dumps(row)+'\n')
             if step%500==0:emit({k:row[k] for k in ('time_s','root','tilt_deg','foot_loads_N','command')})
