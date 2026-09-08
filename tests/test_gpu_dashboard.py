@@ -151,3 +151,24 @@ def test_pipeline_failure_overrides_stale_completion(tmp_path):
     (tmp_path/'run.log').write_text('ISAAC_ENVIRONMENT_READY\nREADINESS_FAILED exit=1\n')
     d=module.collect(tmp_path)
     assert d['status']=='failed' and not d['complete']
+
+
+def test_pipeline_final_report_survives_missing_log_and_stale_status(tmp_path):
+    (tmp_path/'pipeline.json').write_text(json.dumps(dict(
+        status='running', report_file='report.json')))
+    (tmp_path/'report.json').write_text(json.dumps(dict(
+        passed=False, checks={'upright': False}, scope='Actual failed actor')))
+    d=module.collect(tmp_path)
+    assert d['status']=='failed' and d['result']['checks']=={'upright': False}
+    (tmp_path/'report.json').write_text(json.dumps(dict(
+        passed=True, checks={'upright': True})))
+    assert module.collect(tmp_path)['status']=='completed'
+    (tmp_path/'report.json').write_text(json.dumps(dict(
+        passed=True, checks={'upright': False})))
+    assert module.collect(tmp_path)['status']=='failed'
+
+
+def test_pipeline_status_without_report_does_not_claim_success(tmp_path):
+    (tmp_path/'pipeline.json').write_text(json.dumps(dict(
+        status='passed', report_file='../report.json')))
+    assert module.collect(tmp_path)['status']=='stopped'

@@ -55,6 +55,20 @@ def collect(directory, telemetry=False):
             pass
         complete = bool(config.get('completion_marker')) and any(config['completion_marker'] in line for line in lines)
         failed=config.get('result_passed') is False or any('READINESS_FAILED' in line or 'PREPARATION_FAILED:' in line for line in lines)
+        # Explicit final reports survive log rotation and remote teardown. A
+        # stage label or an optimistic config status is never result evidence.
+        result = None
+        report_file = config.get('report_file')
+        if isinstance(report_file, str) and Path(report_file).name == report_file:
+            report = read(root / report_file, {})
+            if isinstance(report, dict) and type(report.get('passed')) is bool:
+                checks = report.get('checks', {})
+                if not isinstance(checks, dict):
+                    checks = {'valid_report_checks': False}
+                result = dict(passed=report['passed'], checks=checks,
+                              scope=report.get('scope'), report_file=report_file)
+                failed = failed or not report['passed'] or any(v is not True for v in checks.values())
+                complete = report['passed'] and bool(checks) and not failed
         if failed:complete=False
         gpu = []
         if telemetry:
@@ -65,6 +79,7 @@ def collect(directory, telemetry=False):
             status='failed' if failed else 'completed' if complete else 'running' if running else 'stopped',
             stage=next((line for line in reversed(lines) if line.startswith('== [')),config.get('stage')),
             heartbeat=time.time(), gpu=gpu, log=lines,
+            result=result,
             log_updated=(root/'run.log').stat().st_mtime if (root/'run.log').exists() else None)
     if (root / 'config.json').exists() and (root / 'progress.json').exists():
         progress = read(root / 'progress.json', {})
