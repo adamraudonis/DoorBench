@@ -50,3 +50,21 @@ def test_interval_does_not_depend_on_future_frames():
     r0=Rotation.from_rotvec([.3,.2,-.1]).as_matrix();r1=r0@Rotation.from_rotvec([.0001,.0002,0]).as_matrix()
     np.testing.assert_allclose(interval_local_gyro(r0,r1,.002),[.05,.1,0],atol=1e-13)
     with pytest.raises(ValueError):interval_local_gyro(r0,r1*2,.002)
+
+
+def test_evaluator_evidence_is_separate_copied_and_has_reset_and_endpoint_epochs():
+    v=View();g=make(v);g.reset_episode();v.set_rotation(Rotation.from_rotvec([.0002,0,0]).as_matrix());g.observe(now_s=.002)
+    e=g.evidence();np.testing.assert_array_equal(e['time_s'],[0.,.002]);np.testing.assert_array_equal(e['body_quaternion_xyzw_world'][0],[0.,0.,0.,1.])
+    np.testing.assert_array_equal(e['body_quaternion_xyzw_world'][1],v.pose[0,3:])
+    e['time_s'][:]=-1;e['body_quaternion_xyzw_world'][:]=100;v.pose[:]=100
+    np.testing.assert_array_equal(g.evidence()['time_s'],[0.,.002]);assert np.max(abs(g.evidence()['body_quaternion_xyzw_world']))<=1.
+    with pytest.raises(ValueError):g.observe(now_s=.006)
+    assert len(g.evidence()['time_s'])==2 and g.receipt()['samples']==1
+    v.pose[:]=[1.,2.,3.,0.,0.,0.,1.];g.reset_episode();assert g.evidence()['time_s'].tolist()==[0.]
+
+@pytest.mark.parametrize('clock',[False,True,np.array([0.]),'0',float('nan'),complex(0)])
+def test_rejects_boolean_nonscalar_or_nonreal_clocks(clock):
+    g=make(View())
+    with pytest.raises(ValueError):g.reset_episode(now_s=clock)
+    g.reset_episode()
+    with pytest.raises(ValueError):g.observe(now_s=clock)

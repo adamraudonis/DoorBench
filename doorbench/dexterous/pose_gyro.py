@@ -6,11 +6,17 @@ executes, including numerical position corrections. It is an ideal interval
 sensor, not a claim that backend momentum velocity or accelerometer is repaired.
 """
 from __future__ import annotations
+import numbers
 import numpy as np
 from scipy.spatial.transform import Rotation
 
 PROFILE='pose-delta-angle-v1'
 DEFAULT_PROFILE='backend-angular-velocity-v1'
+
+def _clock(value):
+    if isinstance(value,(bool,np.bool_)) or not isinstance(value,numbers.Real) or not np.isfinite(value):
+        raise ValueError('Finite real scalar gyro clock required')
+    return float(value)
 
 
 def interval_local_gyro(previous,current,dt):
@@ -47,6 +53,7 @@ class OwnImuPoseGyroscope:
         if q.shape!=(4,) or not np.isfinite(q).all() or abs(np.linalg.norm(q)-1)>1e-7:raise ValueError('Calibrated IMU mounting quaternion required')
         self.mount=Rotation.from_quat(q[[1,2,3,0]]).as_matrix()
         self.failed_reason=None;self.previous=None;self.previous_time=None;self.samples=0;self.maximum_delta_angle_rad=0.
+        self._evidence_time=[];self._evidence_body_quaternion=[]
         self._validate_binding()
 
     def _validate_binding(self):
@@ -63,29 +70,41 @@ class OwnImuPoseGyroscope:
         if pose.shape!=(1,7) or not np.isfinite(pose).all():raise ValueError('One finite own-body transform required')
         q=pose[0,3:]
         if abs(np.linalg.norm(q)-1)>1e-5:raise ValueError('Backend body quaternion is not unit length')
-        return Rotation.from_quat(q).as_matrix()@self.mount
+        return Rotation.from_quat(q).as_matrix()@self.mount,q.copy()
 
     def reset_episode(self,*,now_s=0.):
         self.failed_reason=None;self.previous=None;self.previous_time=None;self.samples=0;self.maximum_delta_angle_rad=0.
+        self._evidence_time=[];self._evidence_body_quaternion=[]
         try:
-            if not np.isfinite(now_s) or float(now_s)!=0.:raise ValueError('Producer reset must coincide with episode t0')
-            self.previous=self._read_rotation();self.previous_time=0.
+            if _clock(now_s)!=0.:raise ValueError('Producer reset must coincide with episode t0')
+            self.previous,q=self._read_rotation();self.previous_time=0.
+            self._evidence_time.append(0.);self._evidence_body_quaternion.append(q.copy())
         except Exception as exc:
             self.failed_reason=type(exc).__name__+': '+str(exc);raise
 
     def observe(self,*,now_s):
         if self.failed_reason is not None:raise RuntimeError('Rejected gyro producer requires episode reset: '+self.failed_reason)
         try:
-            now=float(now_s)
+            now=_clock(now_s)
             if self.previous is None or not np.isfinite(now) or abs(now-self.previous_time-self.dt)>1e-8:
                 raise ValueError('Gyro requires reset then consecutive completed 2ms intervals')
-            current=self._read_rotation();rate=interval_local_gyro(self.previous,current,self.dt)
+            current,q=self._read_rotation();rate=interval_local_gyro(self.previous,current,self.dt)
             delta=float(np.linalg.norm(rate)*self.dt)
             self.previous=current.copy();self.previous_time=now;self.samples+=1
             self.maximum_delta_angle_rad=max(self.maximum_delta_angle_rad,delta)
+            self._evidence_time.append(now);self._evidence_body_quaternion.append(q.copy())
             return rate.astype(np.float32)
         except Exception as exc:
             self.failed_reason=type(exc).__name__+': '+str(exc);raise
+
+    def evidence(self):
+        """Detached producer/evaluator records, never actor packet or receipt.
+
+        Row0 is the reset read; later rows are the exact raw body quaternions
+        used for accepted interval samples. Every returned array is a copy.
+        """
+        return {'time_s':np.array(self._evidence_time,dtype=np.float64,copy=True),
+            'body_quaternion_xyzw_world':np.array(self._evidence_body_quaternion,dtype=np.float64,copy=True).reshape(-1,4)}
 
     def receipt(self):
         return dict(schema='doorbench.imu-gyro-producer.v1',profile=PROFILE,
