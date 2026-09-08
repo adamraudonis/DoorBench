@@ -50,6 +50,7 @@ def main():
     p.add_argument("--handoff-posture-targets", action="store_true")
     p.add_argument("--hybrid-include-waist", action="store_true")
     p.add_argument("--record-panel-targets", action="store_true")
+    p.add_argument("--whole-body-panel-plan",type=Path)
     a = p.parse_args()
     if (a.release_mode in ('whole-body-return', 'whole-body-ungrip')) != (a.whole_body_path is not None):
         raise ValueError('Whole-body return requires the exact screened path')
@@ -57,6 +58,8 @@ def main():
         raise ValueError('Whole-body ungrip requires its screened actual-state path')
     if a.handoff_posture_targets and a.release_mode != 'whole-body-ungrip':
         raise ValueError('Posture handoff requires the measured whole-body ungrip helper')
+    if a.whole_body_panel_plan and (a.hybrid_include_waist or a.record_panel_targets):
+        raise ValueError('New screened panel has its own declared position-force profile/telemetry')
     if a.hybrid_include_waist and a.panel_profile!='hybrid-surface-v2':
         raise ValueError('Waist projection requires the explicit hybrid profile')
     if a.release_mode == 'controlled-return' and a.retain_grip_until_clear:
@@ -86,6 +89,10 @@ def main():
                            ("native-transition-archive-source.py", "native_transition_archive.py")):
         shutil.copy2(source / stored, stage / "doorbench/dexterous" / module)
     own = Path(__file__).resolve().parents[2]
+    if a.whole_body_panel_plan:
+        for module in ('screened_panel_path.py','screened_panel_teacher.py'):
+            shutil.copy2(own/'doorbench/dexterous'/module,stage/'doorbench/dexterous'/module)
+        shutil.copy2(a.whole_body_panel_plan,stage/'whole-body-panel-plan.json')
     if a.hybrid_include_waist or a.record_panel_targets:
         shutil.copy2(own/'doorbench/dexterous/panel_chain_projection.py',stage/'doorbench/dexterous/panel_chain_projection.py')
     shutil.copy2(own / "doorbench/dexterous/right_hand_release.py",
@@ -151,6 +158,9 @@ def main():
             retain_grip_until_clear=a.retain_grip_until_clear)
     releases.AxialRightRelease = selected_release
     import doorbench.dexterous.full_opening_teacher as full
+    if a.whole_body_panel_plan:
+        from doorbench.dexterous.screened_panel_teacher import ScreenedWholeBodyPanel
+        full.CoordinatedPanelPush=lambda left,**options:ScreenedWholeBodyPanel(left,stage/'whole-body-panel-plan.json',**options)
     original_force = full.FullOpeningTeacher.force
     panel_trace=None
 
@@ -199,7 +209,10 @@ def main():
         original_walking_force=WalkingOpeningTeacher.force
         def moving_stance_force(self,t,*args,**kwargs):
             release=self.opening.release
-            if release.started is not None:
+            if a.whole_body_panel_plan and self.opening.push.started is not None:
+                self.opening.push.advance(t-self.acquisition_started,args[6]['leaf'])
+                apply_stance_goal(self.body.controller,self.opening.push.body_goal(t-self.acquisition_started))
+            elif release.started is not None:
                 goal=release.body_goal(t-self.acquisition_started)
                 apply_stance_goal(self.body.controller,goal)
             result=original_walking_force(self,t,*args,**kwargs)
@@ -298,6 +311,8 @@ def main():
             hold_full_left_orientation=a.hold_full_left_orientation,
             handoff_posture_targets=a.handoff_posture_targets,
             hybrid_include_waist=a.hybrid_include_waist,
+            whole_body_panel_plan_sha256=digest(stage/'whole-body-panel-plan.json') if a.whole_body_panel_plan else None,
+            whole_body_panel_profile='screened-position-v1' if a.whole_body_panel_plan else None,
             record_panel_targets=a.record_panel_targets or a.hybrid_include_waist,
             panel_profile=config.get('panel_profile'),
             panel_profile_changed_from_baseline=config.get('panel_profile')!=baseline['configuration'].get('panel_profile'),

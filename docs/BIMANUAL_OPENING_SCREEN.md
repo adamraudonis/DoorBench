@@ -513,3 +513,52 @@ Finer 1/0.5 ms integration preserves the integrated load and aperture. The
 [contact investigation and proposed support protocol](DEXTEROUS_PALM_SUPPORT_PROTOCOL.md)
 records the evidence and validation needed before any new acceptance profile.
 Actual008 remains failed under its frozen 20/22 score.
+
+### Attained-state panel workspace and bounded target path (development)
+
+The frozen seven-joint and eight-joint force-projection comparisons both failed.
+Their actual consumed targets demanded shoulder speeds up to24rad/s. A fresh
+whole-body geometric route therefore replaces the old15cm downward palm motion.
+The new route starts from native005's exact attained state at69.804s, holds the
+cleared right hand and both attained foot frames, keeps left-palm height, and
+moves its contact point4cm toward the hinge as the leaf opens to1.2rad.
+
+`scripts/dexterous/screen_whole_body_panel.py` owns an unstepped model. The
+101-node screen permits at most30mm per root translation coordinate and0.03rad
+per rotation-vector coordinate. These are planning bounds, not a demonstrated
+physical capability. The source's9.65microradian right-elbow solver excursion
+is admitted only at the exact initial state; the screen then regains its original
+joint margin. It never changes the plant's joint limits. Screen004's first
+cubic interpolant overshot a wrist limit by72microradians and remains a failed
+geometric candidate. Screen005 confines the temporary initial admission to
+joints that actually need it and passes the independent dense screen.
+
+`audit_whole_body_panel_screen.py` checks2,001 interpolated states against the
+original collision geometry and compares all308 RH shapes with all64 scene
+shapes (conservative enclosing-sphere pruning, followed by exact shape distance).
+Screen005's maximum palm/foot errors are4.57/4.43micrometres; all RH shapes
+remain at least40mm clear. Torso tilt stays below2.64degrees, root translation
+below23.2mm, root rotation below0.0422rad, and COMxy displacement below5.47mm.
+A20s quintic/C2 interpolation has maximum joint speed0.08895rad/s and
+acceleration0.3145rad/s². This is **geometry and target-rate evidence only**.
+The source has zero measured palm load and0.1453rad/s leaf velocity at this
+instant, and the three previous wrong-pad contacts remain disqualifying.
+
+The optional `screened_panel_teacher.py` candidate uses the existing original
+motors and landed-foot stance controller. It admits only the exact screened
+root, all69 joint positions, and aperture; it accepts no active plant handle.
+A measured-aperture reference phase retains the actual initial leaf velocity,
+limits reference speed to0.149rad/s and acceleration to0.08rad/s², and brakes
+before its endpoint. The geometric path then supplies both body and arm targets
+at the same current physics clock. An independent phase-envelope calculation
+bounds joint speed/acceleration at0.1563rad/s and1.817rad/s², root speed at
+16.82mm/s and root rotation-vector speed at0.02356rad/s.
+
+The declared experimental force profile is `screened-position-v1`: existing
+left-arm position control, doubled damping and original cup-joint feedback,
+with the original3.5N Jacobian feedforward; no hybrid normal projection, no
+new actuators, and no changes to caps. The existing cup angle is retained so
+that the controller does not silently alter the screened collision geometry.
+This remains physically unqualified until a new actual-force archive completes.
+The optional probe argument is `--whole-body-panel-plan PATH`; historical
+controller defaults and every actual anatomy/mechanics gate remain unchanged.
