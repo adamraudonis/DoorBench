@@ -36,8 +36,10 @@ Interpreter paths retain their virtual-environment symlinks.
    bound to this host's exact native and USD assets.
 
 Every phase must pass before `isaac-launch.json` and `isaac-command.txt` exist.
-Each CPU phase has a fifteen-minute wall cap. `progress.json` reports the current
-phase; a zero process exit with a failed or incomplete qualification still stops
+Each CPU phase has a fifteen-minute wall cap. `progress.json` and the readable
+phase log report current work; Run Center can read this output directory directly.
+The final `preparation-report.json` appears only on completion or failure.
+A zero process exit with a failed or incomplete qualification still stops
 preparation. The emitted launch command revalidates source, assets, generated
 inputs and qualification receipts immediately before launching Isaac:
 
@@ -92,6 +94,14 @@ They hashed 731 robot asset references, 18 native door asset references and the
 USD dependency closure without starting any physics/GPU process or creating a
 preparation output directory. Fourteen tests cover failure retention, short
 evidence, generated-input edits, launch-time validation and referenced USD assets.
-The complete new `--check-only` orchestration has not yet been executed on that
-host; the individual native probes/evaluators/replays have their earlier
-independent qualification. See [the smoke receipt](evidence/sensor-demo-preparation-smoke.json).
+The complete `--check-only` command subsequently passed on the actual ready host
+from a clean checkout of `e45bb673a`, with all five phases complete. Native grasp
+passes 25/25 checks over 9,500 steps; independent evaluation passes 23/23. All
+9,500 sensor decisions replay within 9.21e-10 Nm, and the relocated native/USD
+reset preflight passes. All 508 preparation files were verified off-pod. Earlier
+setup failures remain recorded. [Executed preparation evidence](evidence/sensor-demo-preparation-executed-003.json).
+
+The exact emitted command started an actual Isaac test on September 8, 2026 at
+20:59:07 UTC. Preparation success does not establish that test's grasp result.
+The earlier [corrected-friction Isaac grasp failed](SENSOR_ACQUISITION_DRY_ISAAC_001.md).
+The earlier [dry-run receipt](evidence/sensor-demo-preparation-smoke.json) remains unchanged.

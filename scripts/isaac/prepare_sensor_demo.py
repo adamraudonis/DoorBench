@@ -180,6 +180,12 @@ def execute(plan):
     progress=dict(schema='doorbench.sensor-demo-preparation-progress.v1',passed=False,completed_phases=[],
                   current_phase='freeze_inputs',isaac_launched=False)
     write_json(output/'plan.json',plan);write_json(output/'progress.json',progress)
+    write_json(output/'pipeline.json',dict(stage='Prepare portable sensor demo',
+        engine='MuJoCo CPU qualification',report_file='preparation-report.json',scope=plan['scope']))
+    (output/'run.pid').write_text(str(os.getpid()))
+    def status(message):
+        print(message,flush=True)
+        with (output/'run.log').open('a') as log:log.write(message+'\n')
     try:
         verify_inputs(plan)
         for src in plan['source_files']:
@@ -193,9 +199,10 @@ def execute(plan):
             posture_or_gain_changed=False,historical_qualification_reused=False))
         generated={str(p):file_sha256(p) for p in (calibration,output/'calibration-binding.json')}
         env=dict(os.environ,PYTHONPATH=str(root),OMP_NUM_THREADS='1',OPENBLAS_NUM_THREADS='1',CUDA_VISIBLE_DEVICES='')
-        for phase in plan['phases']:
+        for index,phase in enumerate(plan['phases'],1):
             verify_inputs(plan);verify_generated(generated)
             progress['current_phase']=phase['name'];write_json(output/'progress.json',progress)
+            status(f"== [{index}/{len(plan['phases'])}] {phase['name'].replace('_',' ')}")
             with (output/(phase['name']+'.log')).open('x') as log:
                 subprocess.run(phase['argv'],cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT,check=True,timeout=900)
             verify_inputs(plan);verify_generated(generated)
@@ -217,9 +224,16 @@ def execute(plan):
                '--verify-launch',str(output/'isaac-launch.json')]
         (output/'isaac-command.txt').write_text(shlex.join(guard)+' && '+shlex.join(launch['isaac_argv'])+'\n')
         progress.update(passed=True,current_phase='prepared_native_only');write_json(output/'progress.json',progress)
+        write_json(output/'preparation-report.json',dict(passed=True,
+            checks={phase['name']:True for phase in plan['phases']},scope=plan['scope'],isaac_launched=False))
+        status('Native preparation complete; Isaac command is ready for a separate run.')
         return launch
     except BaseException as exc:
         progress.update(error=type(exc).__name__+': '+str(exc));write_json(output/'progress.json',progress)
+        write_json(output/'preparation-report.json',dict(passed=False,
+            checks={phase['name']:phase['name'] in progress['completed_phases'] for phase in plan['phases']},
+            scope=plan['scope'],error=progress['error'],isaac_launched=False))
+        status('PREPARATION_FAILED: '+progress['current_phase']+'; '+progress['error'])
         raise
 
 
@@ -237,8 +251,12 @@ def main():
     ready=Path(os.environ.get('DOORBENCH_READY_DIR',ready_directory(ROOT,'shadow-loopback-v2')))
     plan=build_plan(a.receipt or ready/'ready.json',a.output,task=a.task,passive_profile=a.joint_passive_profile,
                     native_python=a.native_python,isaac_python=a.isaac_python)
-    if a.check_only:plan=execute(plan)
-    print(json.dumps(plan,indent=2,allow_nan=False))
+    if a.check_only:
+        plan=execute(plan)
+        print(json.dumps(dict(native_preparation_passed=True,isaac_launched=False,
+            output=plan['output'],launch_command=str(Path(plan['output'])/'isaac-command.txt'),
+            qualification_manifest=str(Path(plan['output'])/'isaac-launch.json')),indent=2))
+    else:print(json.dumps(plan,indent=2,allow_nan=False))
 
 
 if __name__=='__main__':main()
