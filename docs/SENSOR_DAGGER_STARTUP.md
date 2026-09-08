@@ -408,3 +408,16 @@ All sensor states remain recorded and cannot react to these predicted forces.
 This is **offline autoregressive input rollout**, not a simulator rollout,
 an executed recovery or a task success. Any fitting improvement still needs
 the same independent runtime checks and fresh physical evaluation.
+
+Sampler007 completed 5000 GPU steps in 416.29 seconds. Its
+[independent receipt](evidence/sensor-imitation-acquisition-007.json) retains
+all ten checkpoints; none passes all six fitting comparisons. Actual saved
+supervision counts exactly reproduce the predeclared seed audit, including
+coverage of the formerly missing early interval. The final correction errors
+improve, while nominal MSE 0.0008622 and startup errors 1.0137/4.8855 Nm still
+miss their thresholds. Fixing label coverage alone was insufficient.
+
+The separate [autoregressive008 preflight](evidence/sensor-training-autoregressive-008-preflight.json)
+records 84 passing focused tests, an independently reviewed input/gradient
+contract, and a three-step CPU smoke with four passing runtime loading checks.
+It remains a prepared training experiment, with no physical success claim.

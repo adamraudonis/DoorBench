@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+pytest.importorskip('torch')
 
 from doorbench.dexterous.sensor_training_bundle import SCHEMA, bundled_path, digest, verify_bundle
 
