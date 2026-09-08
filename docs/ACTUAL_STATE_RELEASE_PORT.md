@@ -49,3 +49,22 @@ This is an explicit remaining work package, not a claim that the native paths
 already work in Isaac or with another robot. Live PhysX release and full
 opening/traversal must be reported separately from native evidence. Current
 experiments and frozen failures are in [the opening evidence log](BIMANUAL_OPENING_SCREEN.md).
+
+## First planner extraction
+
+`whole_body_return_planner.iter_whole_body_return` now accepts only a static
+model and copied numeric attained-state evidence. It allocates private data and
+uses kinematics/collision queries; no active plant, controller or physics step
+enters the solver. The original 41-node solve, 20 mm root bounds, joint margins,
+foot objectives and every returned numerical field reproduce the legacy solver
+exactly at the recorded 53.504 s native state.
+[Executed comparison](evidence/whole-body-return-extraction-001.json).
+
+The default observation contract requires same-epoch handle, palm, foot and
+torso body poses and checks them against FK. Historical native archives contain
+only contact-body poses; the retained CLI explicitly declares that narrower
+coverage and checks every pose it actually has. It does not invent missing
+observations or qualify a destination-engine mapping. A future Isaac adapter
+must bind its actual complete observations and independently validate imported
+geometry. No runtime return/ungrip admission guard was changed. Resting-state
+withdrawal, released-state panel replanning and live composition remain open.
