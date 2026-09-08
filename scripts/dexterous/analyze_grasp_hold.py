@@ -38,16 +38,26 @@ def main():
     report=json.loads((run/'operation-report.json').read_text())
     with gzip.open(run/'acquisition-pad-steps.json.gz','rt') as f:rows=json.load(f)
     start=report['operation_reference']['operation_start_s'];end=report['duration_s']
-    result=dict(scope='Recorded selected-profile diagnostic; original failed task is unchanged',
+    active=summarize([r for r in rows if r['sim_time_s']>=start])
+    legacy='operation_invalid_grasp_samples' not in report
+    counter_checks=dict(invalid_patch_count=report['operation_invalid_pad_patch_samples']==active['invalid_patch_samples'])
+    if legacy:
+        counter_checks['legacy_aggregate_count']=report['operation_digit_unload_samples']==active['failed_grasp_samples']
+    else:
+        counter_checks.update(aggregate_count=report['operation_invalid_grasp_samples']==active['failed_grasp_samples'],
+            low_load_count=report['operation_digit_unload_samples']==active['low_load_samples'],
+            opposition_count=report['operation_opposition_failure_samples']==active['opposed_geometry_failure_with_all_digits_loaded'])
+    result=dict(scope='Recorded selected-profile diagnostic; original task qualification is unchanged',
         run=str(run),task_passed=report['passed'],grasp_profile=report.get('grasp_profile','distal-pad-v1'),
         original_report_sha256=hashlib.sha256((run/'operation-report.json').read_bytes()).hexdigest(),
         original_pad_steps_sha256=hashlib.sha256((run/'acquisition-pad-steps.json.gz').read_bytes()).hexdigest(),
-        legacy_counter_note='operation_digit_unload_samples counts every failed valid_pad_grasp, including opposition failures with all five digits loaded.',
-        operation=summarize([r for r in rows if r['sim_time_s']>=start]),
+        counter_semantics='Legacy operation_digit_unload_samples counts all failed grasp scores.' if legacy else report['diagnostic_counter_note'],
+        counter_checks=counter_checks,counters_consistent=all(counter_checks.values()),
+        operation=active,
         final_half_second=summarize([r for r in rows if r['sim_time_s']>=end-.5-1e-8]),
         representative_rows=[min(rows,key=lambda r:abs(r['sim_time_s']-t)) for t in (18.8,20.104,21.5,21.702,21.704,22.)])
     args.out.parent.mkdir(parents=True,exist_ok=True);args.out.write_text(json.dumps(result,indent=2)+'\n')
-    print(json.dumps({k:result[k] for k in ('task_passed','grasp_profile','legacy_counter_note')}))
+    print(json.dumps({k:result[k] for k in ('task_passed','grasp_profile','counter_semantics','counters_consistent')}))
 
 
 if __name__=='__main__':main()
