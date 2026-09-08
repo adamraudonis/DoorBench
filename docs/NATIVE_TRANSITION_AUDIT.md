@@ -37,3 +37,5 @@ archive.close(complete=True)  # only after the full trial finishes
 for transition in NativeTransitionArchive.read("out/run/raw-transitions"):
     pass  # independent evaluator
 ```
+
+The first complete corrected full-opening trial, `full-opening-teacher-actual-004`, reached 1.200060 rad in 37.334 s but **failed**: 11 left LFJ5 lower-stop samples peaked at 33.217 mrad, and 78/251 palm samples in the final half-second fell below 2 N (final load 0 N). All actual contact-epoch checks, original motor caps, passive loopbacks, right-hand anatomy, no-assistance and scene-penetration gates passed. Its raw transition archive is complete and lossless. The receipt remains in `results/dexterous/2026-09-08/full-opening-teacher-development.json`; this is useful diagnostic progress, not a qualified reference.
