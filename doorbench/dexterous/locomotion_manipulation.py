@@ -86,8 +86,10 @@ class LandedFootStanceController(StanceController):
         A=sparse.csc_matrix(np.vstack([eq,limits]));lower=np.r_[rhs,lo];upper=np.r_[rhs,hi]
         modern=int(osqp.__version__.split('.')[0])>=1
         settings={'polishing' if modern else 'polish':False}
+        settings.update(getattr(s,'stance_solver_settings',{}))
+        maximum_iterations=settings.pop('max_iter',16000)
         solver=osqp.OSQP();solver.setup(P=sparse.csc_matrix(H),q=linear,A=A,l=lower,u=upper,
-             verbose=False,eps_abs=1e-4,eps_rel=1e-4,max_iter=16000,**settings)
+             verbose=False,eps_abs=1e-4,eps_rel=1e-4,max_iter=maximum_iterations,**settings)
         if self.last is not None:solver.warm_start(x=self.last)
         result=solver.solve(raise_error=False) if modern else solver.solve()
         if result.info.status_val not in (1,2):return None,result.info.status
