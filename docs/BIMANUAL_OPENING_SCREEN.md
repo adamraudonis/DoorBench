@@ -651,3 +651,15 @@ the complete dense collision, joint, body and derivative audit passes.
 Flat-palm002 and its actual contact close-ups, torque audit, and screens006–009
 are preserved in `native-flat-palm-development-001`: 644 files, manifest SHA256
 `c94d1068b510cc872242df3aab721ab77dad5ba4c55ff42520fdd3397394a5ca`.
+
+Retained-radius screens013–015 passed their geometry checks but failed the
+unchanged global target-rate envelope. Screen016 uses a smaller 10 mm increase
+in contact radius (30 mm inward slide rather than 40 mm) and passes all 2,001
+samples. Its exact worst-case envelope is 0.16472 rad/s joint speed,
+2.61619 rad/s² joint acceleration, 18.402 mm/s root translation and
+0.01736 rad/s root rotation-vector speed. The declared physical comparison
+`walked-whole-body-panel-003` uses this admitted route with the original
+3.5 N feedforward and every original cap and gate. It makes no correction to
+the inherited right-hand withdrawal and cannot erase its three wrong-pad
+contacts. No outcome is claimed before the actual-force trial and independent
+archive audit complete.
