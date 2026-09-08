@@ -456,11 +456,13 @@ def main():
     force_ranges=np.array([m['force_range'] for m in motors['actuators']])
     damp=np.array([motors['passive'][n]['damping'] for n in rnames])
     friction=np.array([motors['passive'][n]['friction'] for n in rnames])
-    from doorbench.dexterous.isaac_joint_passive import passive_profile,configure_backend
+    from doorbench.dexterous.isaac_joint_passive import passive_profile,configure_backend,PassivePropertyInvariant
     passive_declaration=passive_profile(motors,rnames,a.joint_passive_profile)
+    passive_guard=None
     if a.joint_passive_profile=='backend-dry-v2':
         passive_receipt=configure_backend(robot.root_physx_view,passive_declaration)
         damp=passive_declaration['explicit_damping'];friction=passive_declaration['explicit_friction']
+        passive_guard=PassivePropertyInvariant(passive_declaration,physics_dt_s=dt)
     else:
         passive_receipt=dict(profile=a.joint_passive_profile,scope='Historical explicit damping and tanh(v/.001) friction; retained for replay')
     (out/'joint-passive-profile.json').write_text(json.dumps(passive_receipt,indent=2)+'\n')
@@ -593,7 +595,7 @@ def main():
         simulator_effort_limits=robot.root_physx_view.get_dof_max_forces()[0].cpu().tolist(),
         runtime_pose_writes=0,direct_door_commands=bool(a.mechanism_test),contact_material_audit=contact_material_audit,
         scope='Uninterrupted approach, opening, release and traversal; privileged live PhysX development' if continuous else 'Continuous approach through bimanual loaded aperture; privileged live PhysX; no traversal' if full_opening and sequence else 'Contact-free acquisition through bimanual loaded aperture; privileged live PhysX; no approach/traversal' if full_opening else balance_scope if a.sensor_balance_calibration else 'Sensor-only recurrent force actor; declared curriculum objective; no teacher or traversal claim' if sensor_actor else 'Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
-    sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py')]
+    sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py','isaac_joint_passive.py')]
     if a.panel_push:sources.append(Path(__file__).with_name('panel_push_teacher.py'))
     if a.acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('acquisition_teacher.py','isaac_tendons.py','grasp_verification.py','isaac_pad_audit.py')]
     if a.operate_after_acquisition:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/operation_teacher.py')
@@ -679,6 +681,9 @@ def main():
         invariant_getters={'mass':robot.root_physx_view.get_masses,'limits':robot.root_physx_view.get_dof_limits,
             'effort_caps':robot.root_physx_view.get_dof_max_forces,'materials':robot.root_physx_view.get_material_properties,
             'contact_offsets':robot.root_physx_view.get_contact_offsets,'rest_offsets':robot.root_physx_view.get_rest_offsets}
+        if passive_guard:
+            invariant_getters.update(joint_friction=robot.root_physx_view.get_dof_friction_properties,
+                                    joint_armature=robot.root_physx_view.get_dof_armatures)
         invariants={n:f().cpu().numpy().copy() for n,f in invariant_getters.items()}
         if motors.get('passive_tendons'):
             invariant_getters.update({name:getattr(robot.root_physx_view,name) for name in tendon_audit['backend_readback']})
@@ -1033,6 +1038,11 @@ def main():
                 door.set_joint_effort_target(effort)
             robot.write_data_to_sim();door.write_data_to_sim()
             contacts.clear();sim.step(render=False)
+            if passive_guard:
+                try:passive_guard.check(robot.root_physx_view,time_s=(step+1)*dt)
+                except ValueError:
+                    (out/'joint-passive-invariants.json').write_text(json.dumps(passive_guard.receipt(),indent=2)+'\n')
+                    raise
             if (camera or sensor_recorder) and step%20==0:
                 review_camera=hand_camera if hand_camera else camera if a.view=='hand' else None
                 if review_camera:
@@ -1252,6 +1262,8 @@ def main():
                 (out/'early-stop.json').write_text(json.dumps(dict(reason='Robot fell',time_s=(step+1)*dt))+'\n')
                 break
     except BaseException as run_error:
+        if passive_guard:
+            (out/'joint-passive-invariants.json').write_text(json.dumps(passive_guard.receipt(),indent=2)+'\n')
         save_attained_left_plan()
         if balance_contact_stream:
             balance_contact_stream.close()
@@ -1502,6 +1514,8 @@ def main():
             for name in ('traversal-report.json','report.json'):
                 (out/name).write_text(json.dumps(traversal_report,indent=2)+'\n')
             print('TRAVERSAL_RESULT '+json.dumps({k:v for k,v in traversal_report.items() if k!='final_traversal_measurement'}),flush=True)
+    if passive_guard:
+        (out/'joint-passive-invariants.json').write_text(json.dumps(passive_guard.receipt(),indent=2)+'\n')
     completed_recording=(len(acquisition_states['time_s'])==round(a.seconds/dt) or
         bool(continuous.done if continuous else full_opening and full_aperture_crossed)) and not (out/'early-stop.json').exists()
     if sensor_recorder:sensor_recorder.finish(complete=completed_recording and len(sensor_recorder.times)==len(acquisition_states['time_s']))
