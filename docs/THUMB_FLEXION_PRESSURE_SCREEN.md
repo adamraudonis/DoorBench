@@ -57,3 +57,41 @@ python scripts/dexterous/screen_thumb_flexion_pressure.py \
 The receipt binds the original robot/door XML, actual trajectory, controller log,
 mapper and screen source. It records per-geometry failures and the unstepped
 calculator clocks. The original robot and failed hierarchy result stay intact.
+
+## Separately frozen physical candidate
+
+`SensorThumbFlexionForceController` layers the restricted map over the tested
+smooth contact-mode repair. Its explicit
+[pressure profile](../configs/dexterous/sensor-thumb-flexion-pressure-v1.json)
+and [mode profile](../configs/dexterous/sensor-contact-mode-thumb-flexion-v1.json)
+declare THJ1/THJ2 allocation. The original whole-thumb mode is rejected by this
+controller, and the original whole-thumb controller rejects the new mode scope.
+
+The handover begins at19s through the existing two-second quintic force ramp.
+It does not snap any opposition target to a new angle. THJ3/4/5 keep their
+original goals, feedback and motor caps throughout. Local force targets, PI
+bounds, closing offsets, loss recovery and all physical scoring remain unchanged.
+The first19s has no additional force term.
+
+The fresh force screen admits an initial thumb normal-equivalent posture effort
+of0.516292N within the unchanged0–2N transfer range. This scalar is an effort
+coordinate, not measured pressure. The recorded-pose force screen passes6/6;
+the separate geometry receipt admits only the162 candidates at the attained19s
+grasp. Its full later-pose envelope remains rejected29/648. Neither receipt
+qualifies a new loaded trajectory.
+
+The probe requires both profiles, their source-bound force screen and the
+initial-grasp geometry screen. The latter additionally binds the reference,
+calibration, schedule, motor contract and same actual source trajectory. Run
+with the prior force/hierarchy flags plus:
+
+```sh
+--contact-mode-protocol configs/dexterous/sensor-contact-mode-thumb-flexion-v1.json \
+--contact-mode-screen out/continuous/sensor-thumb-flexion-plan-001/force-screen.json \
+--thumb-flexion-protocol configs/dexterous/sensor-thumb-flexion-pressure-v1.json \
+--thumb-flexion-screen out/continuous/sensor-thumb-flexion-plan-001/screen-003.json
+```
+
+Thirty-one focused tests verify scope admission, direct original virtual work,
+preserved opposition effort, legacy defaults, original capped command ownership
+and sensor chronology. Physical results must be reported separately.

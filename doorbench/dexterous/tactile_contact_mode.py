@@ -18,11 +18,16 @@ MODE_PROTOCOL={
     'base_profile':'doorbench.sensor-hierarchical-digit-force.v1','duration_s':36.,
 }
 
+THUMB_MODE_PROTOCOL=dict(MODE_PROTOCOL,
+    schema='doorbench.sensor-contact-mode-thumb-flexion.v1',
+    thumb_projection='THJ1/THJ2 pressure; THJ3/THJ4/THJ5 original posture')
+
 
 def validate_mode_protocol(protocol):
     if type(protocol) is not dict or set(protocol)!=set(MODE_PROTOCOL):
         raise ValueError('Exact declared contact-mode profile required')
-    for key,wanted in MODE_PROTOCOL.items():
+    expected=THUMB_MODE_PROTOCOL if protocol.get('schema')==THUMB_MODE_PROTOCOL['schema'] else MODE_PROTOCOL
+    for key,wanted in expected.items():
         value=protocol[key]
         if type(wanted) is float:
             if type(value) not in (int,float) or not np.isfinite(value) or value!=wanted:

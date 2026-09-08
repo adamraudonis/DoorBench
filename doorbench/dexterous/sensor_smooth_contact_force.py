@@ -11,8 +11,11 @@ from .tactile_contact_mode import TactileContactMode,validate_mode_protocol
 
 
 class SensorSmoothContactForceController(SensorHierarchicalDigitForceController):
+    thumb_flexion_allocation=False
     def __init__(self,*args,contact_mode_protocol,**kwargs):
         self.contact_mode_protocol=validate_mode_protocol(contact_mode_protocol)
+        if ('thumb-flexion' in self.contact_mode_protocol['schema'])!=self.thumb_flexion_allocation:
+            raise ValueError('Contact-mode declared thumb scope differs from the controller allocation')
         self.contact_mode=TactileContactMode(contact_mode_protocol)
         super().__init__(*args,**kwargs)
 

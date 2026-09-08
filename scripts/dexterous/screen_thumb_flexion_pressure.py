@@ -71,14 +71,19 @@ def main():
                     grid.append(dict(time_s=t,opposition=style,th2_offset_rad=float(th2),th1_offset_rad=float(th1),
                         passed=not failures,failures=sorted(set(failures)),thumb_distal_lever_overlap_count=thumb_count,
                         maximum_hand_penetration_m=maxpen))
+    handoff=json.loads((a.trial/'acquisition-handoff-audit.json').read_text())
     result=dict(scope=__doc__,axis_audit=axis,mapping=mapping,grid_samples=len(grid),grid_passed=sum(r['passed'] for r in grid),
+        initial19s_grasp_envelope_passed=all(r['passed'] for r in grid if r['time_s']==19.),
+        source_initial19s_acquisition_physically_qualified=handoff.get('passed') is True,
         whole_envelope_passed=all(r['passed'] for r in grid),grid=grid,
         declared_scope='THJ1/THJ2 pressure only; THJ3/4/5 keep original posture controller; other digits unchanged',
         geometry_interpretation='Overlap is static only and does not establish load, continued opposed grasp or passage',
         calculators_never_stepped=full.d.time==0 and small.d.time==0 and d.time==0,
+        initial_reference_sha256=prov['reference_sha256'],initial_calibration_sha256=prov['calibration_sha256'],
+        motor_contract_sha256=prov['motor_contract_sha256'],initial_schedule_sha256=prov['arm_schedule_sha256'],
         robot_xml_sha256=sha(robot),door_xml_sha256=sha(door/'door.xml'),source_sha256=sha(__file__),
         mapper_sha256=sha(Path(__file__).resolve().parents[2]/'doorbench/dexterous/robot_thumb_flexion_force.py'),
-        inputs_sha256={n:sha(a.trial/n) for n in ['provenance.json','trajectory.npz','controller.jsonl.gz']})
+        inputs_sha256={n:sha(a.trial/n) for n in ['provenance.json','trajectory.npz','controller.jsonl.gz','acquisition-handoff-audit.json']})
     a.output.parent.mkdir(parents=True,exist_ok=True);a.output.write_text(json.dumps(result,indent=2)+'\n');sim.close()
     print(json.dumps({k:v for k,v in result.items() if k not in ('grid','axis_audit','mapping')},indent=2))
 

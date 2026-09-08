@@ -27,6 +27,11 @@ def main():
     if len(infos)!=len(physics) or len(infos)!=len(encoders):raise ValueError('Unmatched decision/evidence count')
     m=mujoco.MjModel.from_xml_path(str(robot));names=[m.joint(i).name for i in range(1,m.njnt)];actions=[m.actuator(i).name for i in range(m.nu)]
     M=scalar_transmission_matrix(m,np.arange(m.nu),np.arange(1,m.njnt));calc=RobotDigitForce(m,names,actions,M)
+    if (a.trial/'thumb-flexion-protocol.json').exists():
+        from doorbench.dexterous.robot_thumb_flexion_force import RobotThumbFlexionForce
+        from doorbench.dexterous.sensor_thumb_flexion_force import validate_thumb_protocol
+        validate_thumb_protocol(json.loads((a.trial/'thumb-flexion-protocol.json').read_text()))
+        calc=RobotThumbFlexionForce(m,names,actions,M)
     rows_finger=np.concatenate([g[1] for g in calc.groups.values()]);other=np.setdiff1d(np.arange(61),rows_finger)
     hierarchy=(a.trial/'hierarchical-force-protocol.json').exists()
     initial_normal=None;max_hierarchy=max_tangent=0.
