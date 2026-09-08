@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 import pytest
-from doorbench.dexterous.control_mode import validate_sensor_actor_mode
+from doorbench.dexterous.control_mode import validate_sensor_actor_mode,validate_sensor_balance_protocol
 
 
 def test_sensor_actor_accepts_only_sensor_control_with_static_reset_and_audit_settings():
@@ -44,3 +44,25 @@ def test_sensor_balance_uses_the_same_no_teacher_boundary():
     validate_sensor_actor_mode(options)
     options.native_robot='teacher.xml'
     with pytest.raises(ValueError,match='native_robot'):validate_sensor_actor_mode(options)
+
+
+@pytest.mark.parametrize('extra,duration',[
+    ({},5.),({'sensor_arm_schedule':'arms.json'},6.),
+    ({'sensor_reach_protocol':'reach.json','sensor_reach_route':'joints.json'},11.)])
+def test_balance_protocols_preserve_their_individual_scope_and_duration(extra,duration):
+    options=SimpleNamespace(sensor_balance_calibration='calibration.json',sensor_balance_robot='robot.xml',
+        seconds=duration,**extra)
+    validate_sensor_balance_protocol(options)
+    options.seconds=duration+.002
+    with pytest.raises(ValueError,match='frozen protocol'):validate_sensor_balance_protocol(options)
+
+
+@pytest.mark.parametrize('changes',[
+    {'sensor_reach_route':None},{'sensor_reach_protocol':None},
+    {'sensor_arm_schedule':'arms.json'},{'sensor_policy_checkpoint':'actor.pt'},
+    {'sensor_balance_calibration':None},{'sensor_balance_robot':None}])
+def test_reach_cannot_mix_in_a_different_experiment_or_omit_bound_inputs(changes):
+    values=dict(sensor_balance_calibration='calibration.json',sensor_balance_robot='robot.xml',seconds=11.,
+        sensor_reach_protocol='reach.json',sensor_reach_route='joints.json')
+    values.update(changes)
+    with pytest.raises(ValueError):validate_sensor_balance_protocol(SimpleNamespace(**values))

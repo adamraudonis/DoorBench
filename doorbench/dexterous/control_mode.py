@@ -1,6 +1,27 @@
 """Fail closed when a sensor actor is combined with an oracle controller."""
 
 
+def validate_sensor_balance_protocol(options):
+    """Keep separately qualified balance experiments and their durations distinct."""
+    calibration=getattr(options,'sensor_balance_calibration',None)
+    robot=getattr(options,'sensor_balance_robot',None)
+    arms=getattr(options,'sensor_arm_schedule',None)
+    reach=getattr(options,'sensor_reach_protocol',None)
+    route=getattr(options,'sensor_reach_route',None)
+    if bool(calibration)!=bool(robot):
+        raise ValueError('Sensor balance requires both frozen calibration and robot-only XML')
+    if bool(reach)!=bool(route):
+        raise ValueError('Coordinated reach requires both its frozen protocol and joint-only route')
+    if arms and not calibration:
+        raise ValueError('Scripted arm balance requires the frozen sensor balance calibration')
+    if reach and (not calibration or arms):
+        raise ValueError('Coordinated reach requires sensor balance and a separate experiment from the scripted-arm protocol')
+    if calibration:
+        duration=11. if reach else 6. if arms else 5.
+        if getattr(options,'sensor_policy_checkpoint',None) or getattr(options,'seconds',None)!=duration:
+            raise ValueError('Sensor balance requires its separate frozen protocol: 5s stationary, 6s scripted arms or 11s contact-free reach')
+
+
 def validate_sensor_actor_mode(options):
     if not (getattr(options,'sensor_policy_checkpoint',None) or getattr(options,'sensor_balance_calibration',None)):
         return
