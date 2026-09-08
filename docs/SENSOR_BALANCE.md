@@ -134,3 +134,24 @@ below 0.0000357 m/s; minimum actual per-foot floor normal load was 252.16 N.
 An independent evaluator-only comparison found at most .00210° discrepancy
 between the sensor-derived attitude and the withheld true root attitude.
 These findings do not establish a working sensor-only door-opening policy.
+
+## Inspect and independently replay the evidence
+
+```bash
+python scripts/dexterous/audit_sensor_balance_estimate.py \
+  --trial /path/to/balance-005 --output /fresh/path/estimate-audit.json
+python scripts/dexterous/render_sensor_balance.py --trial /path/to/balance-005
+```
+
+The audit replays all 2,500 decisions using only the frozen packets and clock.
+Trial005 reproduced motor forces and estimated state exactly (maximum numerical
+difference zero), with calculator time still zero. The true root is separately
+used only to measure estimator error: maximum orientation error .002095° and
+position error 1.736 mm; final errors .000325° and .259 mm. The initial vertical
+offset follows the soft ground contact versus calibrated sole-plane height.
+The replay checks exact controller-source identity and records all input hashes.
+
+The video renders recorded native states; it does not resimulate or qualify
+contact forces. Beginning/middle/end images were personally inspected: torso
+upright, both feet on the floor, and both hands away from contact. No rendering
+or annotation enters the controller sensor packet.
