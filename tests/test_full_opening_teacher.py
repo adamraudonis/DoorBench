@@ -21,6 +21,35 @@ def clock_only():
     return obj
 
 
+def test_multistage_release_finishes_route_before_clearance_can_freeze_it():
+    obj=clock_only(); reads=[]
+    obj.left=SimpleNamespace(_read=lambda root,joints:reads.append((root,joints)))
+    obj.release=SimpleNamespace(started=2.,frozen=None,ready_for_panel=False)
+    obj.handoffs={};pose=[.1,.2,.3,1.,0,0,0]
+    assert not obj._freeze_release_if_ready(10.,None,{},pose,dict(right_lever_clearance_m=.1))
+    assert obj.release.frozen is None and not reads and not obj.handoffs
+    obj.release.ready_for_panel=True
+    assert obj._freeze_release_if_ready(10.002,None,{},pose,dict(right_lever_clearance_m=.0199))
+    assert obj.release.frozen is None
+    assert obj._freeze_release_if_ready(10.004,None,{},pose,dict(right_lever_clearance_m=.02))
+    np.testing.assert_array_equal(obj.release.frozen[0],pose[:3])
+    assert obj.handoffs['right_clearance']==10.004 and len(reads)==1
+    obj.release.ready_for_panel=False
+    with pytest.raises(ValueError,match='revoke'):
+        obj._freeze_release_if_ready(10.006,None,{},pose,dict(right_lever_clearance_m=.1))
+
+
+def test_legacy_release_readiness_and_explicit_boolean_contract():
+    obj=clock_only();obj.left=SimpleNamespace(_read=lambda *_:None);obj.handoffs={}
+    obj.release=SimpleNamespace(started=0.,frozen=None)
+    pose=[0,0,0,1.,0,0,0]
+    assert obj._freeze_release_if_ready(1.,None,{},pose,dict(right_lever_clearance_m=.03))
+    assert obj.release.frozen is None
+    obj.release.ready_for_panel='yes'
+    with pytest.raises(ValueError,match='explicit boolean'):
+        obj._freeze_release_if_ready(1.002,None,{},pose,dict(right_lever_clearance_m=.03))
+
+
 def evidence(**changes):
     return dict(grasp_qualified=True,physics_qualified=True,right_pad_patches_valid=True,
                 hand_contact_count=0,left_panel_load_N=3.,left_palm_load_N=2.5,

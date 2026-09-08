@@ -162,6 +162,23 @@ class FullOpeningTeacher:
             return False
         return all(predicate(row) for row in self.history)
 
+    def _freeze_release_if_ready(self, t, root, joints, right_palm_pose, evidence):
+        # Older release helpers have no multi-stage completion contract. New
+        # helpers must finish their screened route before a clearance-triggered
+        # hold can interrupt it, or before the loaded panel controller starts.
+        ready = getattr(self.release, 'ready_for_panel', True)
+        if not isinstance(ready, (bool, np.bool_)):
+            raise ValueError('Release readiness must be an explicit boolean')
+        if self.release.frozen is not None and not ready:
+            raise ValueError('A captured release cannot revoke panel readiness')
+        if (self.release.started is not None and ready and self.release.frozen is None
+                and t-self.release.started > 1. and evidence['right_lever_clearance_m'] >= .02):
+            self.left._read(root, joints)
+            position, rotation = _pose(right_palm_pose)
+            self.release.frozen = (position.copy(), rotation.copy())
+            self.handoffs['right_clearance'] = float(t)
+        return bool(ready)
+
     def _begin_operation(self, t, handle_pose, angles, right_palm_pose):
         hp, hr = _pose(handle_pose)
         pp,pr = _pose(right_palm_pose)
@@ -258,13 +275,9 @@ class FullOpeningTeacher:
                 self.handoffs['right_release'] = float(t)
         if self.release.started is not None:
             self.release.handle_pose = np.asarray(handle_pose).copy()
-            if self.release.frozen is None and t-self.release.started > 1. and evidence['right_lever_clearance_m'] >= .02:
-                left._read(root, joints)
-                position,rotation = _pose(right_palm_pose)
-                self.release.frozen = (position.copy(),rotation.copy())
-                self.handoffs['right_clearance'] = float(t)
+        release_ready = self._freeze_release_if_ready(t, root, joints, right_palm_pose, evidence)
         self.release.update(float(t))
-        if self.release.frozen is not None:
+        if self.release.frozen is not None and release_ready:
             if self.push.started is None:
                 self.push.begin(float(t), root, joints, leaf_pose, angles['leaf'])
                 left.damping_scale=1.0 if self.panel_profile=="plain-v1" else 2.0
