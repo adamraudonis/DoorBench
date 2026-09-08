@@ -106,6 +106,8 @@ def main():
     p.add_argument('--contact-mode-screen',type=Path,help='Matching frozen contact-mode command algebra screen')
     p.add_argument('--thumb-flexion-protocol',type=Path,help='Separately declared THJ1/THJ2-only pressure starting at19s')
     p.add_argument('--thumb-flexion-screen',type=Path,help='Matching initial19s attained-grasp geometry screen')
+    p.add_argument('--thumb-coordination-protocol',type=Path,help='Opt-in frozen23s thumb-only posture coordination')
+    p.add_argument('--thumb-coordination-screen',type=Path,help='Matching source/continuity/rate receipt')
     a=p.parse_args()
     if not 0<a.seconds<=40 or not np.isfinite([a.seconds,a.initial_velocity]).all() or abs(a.initial_velocity)>.1:p.error('Bounded finite protocol required')
     if a.output.exists():p.error('Fresh evidence directory required')
@@ -116,6 +118,7 @@ def main():
     if a.hierarchical_force_protocol and not a.digit_force_protocol:p.error('Hierarchical profile requires the frozen digit-force inner loop')
     if (a.contact_mode_protocol is None)!=(a.contact_mode_screen is None) or (a.contact_mode_protocol and not a.hierarchical_force_protocol):p.error('Contact-mode profile requires hierarchy and matching algebra screen')
     if (a.thumb_flexion_protocol is None)!=(a.thumb_flexion_screen is None) or (a.thumb_flexion_protocol and not a.contact_mode_protocol):p.error('Thumb allocation requires explicit contact mode and attained initial envelope')
+    if (a.thumb_coordination_protocol is None)!=(a.thumb_coordination_screen is None) or (a.thumb_coordination_protocol and not a.thumb_flexion_protocol):p.error('Thumb coordination requires explicit flexion pressure and matching rate screen')
     if a.digit_force_protocol and (not a.index_protocol or a.palm_protocol):p.error('Digit force comparison requires index profile and excludes the separate palm-shift experiment')
     a.output.mkdir(parents=True)
     robot=Path(a.robot);door=a.door if a.door.is_dir() else a.door.parent
@@ -189,6 +192,16 @@ def main():
                         raise ValueError('Matched admitted thumb initial-grasp envelope and force profile required; later rejected envelope is not admitted')
                     touch=SensorThumbFlexionForceController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile,
                         json.loads(a.digit_force_protocol.read_text()),hierarchy,contact_mode_protocol=mode_profile,thumb_flexion_protocol=thumb_profile)
+                    if a.thumb_coordination_protocol:
+                        from doorbench.dexterous.scripted_thumb_coordination import SensorScriptedThumbCoordinationController,validate_coordination_protocol
+                        coordination=validate_coordination_protocol(json.loads(a.thumb_coordination_protocol.read_text()));coordination_screen=json.loads(a.thumb_coordination_screen.read_text())
+                        if (coordination_screen.get('passed') is not True or coordination_screen.get('profile')!=coordination or
+                            coordination_screen.get('profile_sha256')!=sha(a.thumb_coordination_protocol) or coordination.get('robot_xml_sha256')!=sha(robot) or
+                            coordination_screen.get('controller_source_sha256')!=sha(inspect.getfile(SensorScriptedThumbCoordinationController))):
+                            raise ValueError('Source-bound scripted thumb continuity/rate screen required')
+                        touch=SensorScriptedThumbCoordinationController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile,
+                            json.loads(a.digit_force_protocol.read_text()),hierarchy,contact_mode_protocol=mode_profile,thumb_flexion_protocol=thumb_profile,
+                            coordination_protocol=coordination)
                 else:
                     touch=SensorSmoothContactForceController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile,
                         json.loads(a.digit_force_protocol.read_text()),hierarchy,contact_mode_protocol=mode_profile)
@@ -225,6 +238,10 @@ def main():
         write(a.output/'provenance.json',provenance)
     if a.thumb_flexion_protocol:
         for name,path in [('thumb-flexion-protocol.json',a.thumb_flexion_protocol),('thumb-flexion-screen.json',a.thumb_flexion_screen)]:
+            shutil.copy2(path,a.output/name);provenance[name.removesuffix('.json')+'_sha256']=sha(path)
+        write(a.output/'provenance.json',provenance)
+    if a.thumb_coordination_protocol:
+        for name,path in [('thumb-coordination-protocol.json',a.thumb_coordination_protocol),('thumb-coordination-screen.json',a.thumb_coordination_screen)]:
             shutil.copy2(path,a.output/name);provenance[name.removesuffix('.json')+'_sha256']=sha(path)
         write(a.output/'provenance.json',provenance)
     if a.impedance_protocol:
