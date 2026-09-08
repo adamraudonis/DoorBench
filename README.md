@@ -15,7 +15,7 @@ The robotics collection contains **985 doors**. The **15 [pet doors](https://ada
 
 ![One barn door rendered with three material and room combinations](docs/review/blender/looks.jpg)
 
-## Isaac Sim · Unitree G1
+## Isaac Sim
 
 **Start Isaac easily:** double-click [Start Isaac Sim.command](Start%20Isaac%20Sim.command), or run `python3 scripts/isaac/launch.py`. It opens a live Run Center and checks the GPU environment before marking it ready. [Setup and cluster instructions](docs/ISAAC_ONE_CLICK.md).
 
@@ -31,6 +31,14 @@ Actual L40S recording on September 6, 2026: **16 / 16 selected demonstration cas
 | Upright doorway subset | 967 / 967 | **44 / 967 (4.6%)** | 10 |
 
 The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock manipulation. This closed-start diagnostic is separate from the core benchmark. All 18 horizontal hatches were attempted but are not upright doorway tasks; errors remain in the denominator. [Per-door results and limitations](docs/review/isaac-g1-catalogue/README.md) · [Reproduce the run](docs/ISAAC_G1_CATALOGUE.md) · [Test your policy](docs/ISAAC_G1_DEMO.md).
+
+**Dexterous handle demo — September 8, 2026 (L40S):** H1 with Shadow Hands turns the lever, releases the latch and opens one door in live CUDA PhysX.
+
+| Scope | Audited repetitions | Final opening |
+|---|---:|---:|
+| One initialized door, privileged motor controller | 4 / 4 | 60.3–95.0° |
+
+This starts at the handle and uses exact simulator state; it is not a vision/tactile-only policy or a catalogue score. [Wide video](https://github.com/adamraudonis/DoorBench/releases/download/isaac-h1-handle-20260908/isaac-h1-handle-wide.mp4) · [Hand close-up](https://github.com/adamraudonis/DoorBench/releases/download/isaac-h1-handle-20260908/isaac-h1-handle-closeup.mp4) · [Run it yourself, timestamps and checks](docs/ISAAC_HANDLE_DEMO.md).
 
 ## Scripted baseline
 

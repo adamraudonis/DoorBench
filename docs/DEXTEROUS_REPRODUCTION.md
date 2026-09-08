@@ -91,7 +91,7 @@ Run the migration fixtures below on one environment, then a small batch, before 
 
 ## Isaac Sim / massive-node migration gates
 
-The following are pending implementation, not completed support:
+Repeat these gates for each destination robot and cluster. The current H1/Shadow preparation and initialized opening fixtures are described below; sensor-policy parity, approach, traversal and scaling remain outstanding:
 
 1. **Freeze the destination robot.** Record all joint ranges, actuator effort/speed limits, coupling, collision exclusions, body mass/inertia, hand pad geometry and sensor placement. Identify wrist/palm frames explicitly; upstream H1 `left_hand`/`right_hand` sites are forearm sites, not palm centers.
 2. **Port one complete plant.** Import the robot and one lever door, preserving contact geometry, tendons/coupling, passive return, latch behavior and units. DoorBench Python callbacks and MuJoCo plugins do not execute automatically in PhysX. Verify forces, release travel, articulation axes and collision response before adding RL.
@@ -121,10 +121,14 @@ The importer-compatible MJCF is a generated copy. Explicit joint axes/types are 
 
 Always step physics with `sim.step(render=False)` and call `sim.render()` separately at camera cadence. In this runtime, passing `render=True` to the combined step advances toward the rendering timestep; calling it every twentieth 2 ms motor update therefore inserted extra physics steps. Early videos from opening attempts 006–008 are **invalid controller evaluations** and do not establish a robot opening result. Every later run checks the simulator clock against the commanded step count.
 
-Hand contact audits use PhysX's rigid-contact tensor view on the actual imported rigid-body paths, filtered to the lever body. The event-report callback did not yield usable contacts in these runs. The tensor measurements are force audits, not yet an equivalent finite taxel observation pipeline for the learned tactile actor.
+Hand contact audits use PhysX's rigid-contact tensor view on the actual imported rigid-body paths, filtered separately to the lever body and door panel. The event-report callback did not yield usable contacts in these runs. The tensor measurements are force audits, not yet an equivalent finite taxel observation pipeline for the learned tactile actor.
 
 The MJCF importer also omitted robot friction materials. Preparation now exports an explicit native contact contract and binds it through instanced collision meshes. The current H1/Shadow asset has uniform sliding friction 1.0 and three-dimensional contacts. Both PhysX friction coefficients are set to 1.0 with maximum combination, matching the native equal-priority mixing rule; the live adapter reads coefficients back from the solver and refuses silent defaults. The adapter rejects heterogeneous materials, nonzero priorities or torsional contact dimensions until an appropriate mapping is supplied. See [MuJoCo contact mixing](https://mujoco.readthedocs.io/en/stable/modeling.html#contact-parameters) and [NVIDIA material binding and combination](https://docs.omniverse.nvidia.com/kit/docs/omni_physics/latest/dev_guide/rigid_bodies_articulations/rigid_bodies.html#configure-rigid-body-s-material-properties).
 
 Reset fitting must check **all** robot joints, not just the arm being optimized. Early workspace candidates 009/021/022 exceeded an ankle stop and are rejected. The geometric screen also checks unused limbs at every planned waypoint; a waist-assisted candidate initially put the idle left hand through the door. An input that passes this screen still needs live contact, motor, stability and close-up review.
 
-The readiness receipt and source manifest are retained under `out/isaac-launch/readiness-004/`; the exact remote paths are recorded in its `connection.json`. The launcher's source bundle excludes generated assets and checkpoints. Copy the receipt, source archive, input files, traces and videos into durable run storage before the owned allocation's deadline.
+The latest desktop readiness receipt (2026-09-08 04:14:26 UTC) and source manifest are retained under `out/isaac-launch/desktop-release-008/`; the exact remote paths are recorded in its `connection.json`. The launcher's source bundle excludes generated assets and checkpoints. Copy the receipt, source archive, input files, traces and videos into durable run storage before the owned allocation's deadline.
+
+Imported mesh instances also require explicit collision-offset handling: ordinary USD prim traversal skipped their shapes. The live adapter sets 1 mm contact offsets and zero rest offsets on every robot shape through the PhysX tensor API, then reads them back. The previous automatically computed margins ranged from approximately 0.08 to 1.8 mm. These are solver settings, not changes to the physical mesh surface.
+
+The ready checkout now includes a [one-command initialized opening demonstration](ISAAC_HANDLE_DEMO.md), including its exact numerical pose and workspace. Unlike the earlier tactile PPO training probe, this motor-teacher demo does not require copying an unpublished checkpoint or seed bundle.
