@@ -45,6 +45,7 @@ def main():
     p.add_argument("--ungrip-path", type=Path)
     p.add_argument("--ungrip-goal-frame", choices=("attained-resting-world", "measured-handle"), default="attained-resting-world")
     p.add_argument("--verified-prefix-run", type=Path)
+    p.add_argument("--require-identical-prefix-until-s",type=float)
     p.add_argument("--hold-full-left-orientation", action="store_true")
     p.add_argument("--panel-profile", choices=("plain-v1", "hybrid-surface-v2"),
                    help="Explicit existing profile comparison; omitted inherits frozen baseline")
@@ -89,6 +90,8 @@ def main():
         raise ValueError('Waist projection requires the explicit hybrid profile')
     if a.release_mode == 'controlled-return' and a.retain_grip_until_clear:
         raise ValueError('Controlled return already retains grip; do not combine release options')
+    if a.require_identical_prefix_until_s is not None and (not math.isfinite(a.require_identical_prefix_until_s) or a.require_identical_prefix_until_s<0 or not a.verified_prefix_run):
+        raise ValueError("Require a finite nonnegative prefix horizon and explicit complete source run")
     source = a.source_run.resolve()
     output = a.output.resolve()
     stage = output.with_name(output.name + "-source")
@@ -276,6 +279,8 @@ def main():
     prior = json.loads((old_raw / "manifest.json").read_text())
     if not prior["complete"]:
         raise ValueError("A complete baseline contact archive is required")
+    if a.require_identical_prefix_until_s is not None and a.require_identical_prefix_until_s>prior["chunks"][-1]["interval_end_s"]+1e-8:
+        raise ValueError("Required prefix exceeds the complete original dynamics")
     old_chunks = {row["file"]: row for row in prior["chunks"]}
     baseline_report = json.loads((source / "report.json").read_text())
     release_at = baseline_report["opening_clock_offset_s"] + baseline_report["handoffs"]["right_release"]
@@ -284,7 +289,8 @@ def main():
             raise ValueError('Alternate prefix is reserved for the exact return continuation')
         release_at = json.loads(a.ungrip_path.read_text())['initial_episode_time_s']
     reuse = {"verified_linked_chunks": 0, "verified_linked_bytes": 0,
-             "baseline_release_time_s": release_at, "matched_prefix_until_s": 0.}
+             "baseline_release_time_s": release_at, "matched_prefix_until_s": 0.,
+             "required_identical_prefix_until_s":a.require_identical_prefix_until_s}
 
     class VerifiedPrefixArchive(base_archive):
         def flush(self):
@@ -312,7 +318,8 @@ def main():
                 reuse["verified_linked_chunks"] += 1
                 reuse["verified_linked_bytes"] += chunk["bytes"]
                 reuse["matched_prefix_until_s"] = chunk["interval_end_s"]
-            elif chunk["interval_end_s"] < release_at - 1e-8:
+            elif (chunk["interval_end_s"] < release_at - 1e-8
+                    or (a.require_identical_prefix_until_s is not None and chunk["interval_end_s"]<=a.require_identical_prefix_until_s+1e-8)):
                 raise ValueError("Physical baseline prefix differs before the release intervention")
             else:
                 temporary = self.path / (name + '.pending')
@@ -371,6 +378,7 @@ def main():
             panel_profile_changed_from_baseline=config.get('panel_profile')!=baseline['configuration'].get('panel_profile'),
             ungrip_goal_frame=a.ungrip_goal_frame if a.release_mode=="whole-body-ungrip" else None,
             prefix_source=str(prefix_source),
+            required_identical_prefix_until_s=a.require_identical_prefix_until_s,
             ungrip_path_sha256=digest(stage/'ungrip-path.json') if a.release_mode=='whole-body-ungrip' else None,
             whole_body_path_sha256=digest(stage/'whole-body-path.json') if a.release_mode in ('whole-body-return','whole-body-ungrip') else None,
             default_release_unchanged=True, gates_unchanged=True,

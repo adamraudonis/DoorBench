@@ -157,3 +157,8 @@ class ScreenedWholeBodyPanel:
             if self.loaded_since is None:self.loaded_since=float(t)
         else:self.loaded_since=None
         self.left.info=dict(phase='screened_whole_body_panel',left_progress=1.,left_tracking_error_m=position_error,left_rotation_error_rad=float(np.linalg.norm(Rotation.from_matrix(d.site_xmat[self.left.palm].reshape(3,3)@self.left.d.site_xmat[self.left.palm].reshape(3,3).T).as_rotvec())),left_panel_load_N=float(palm_load),left_offset_m=0.,left_ik_residual=position_error*100.,left_loaded_duration_s=0. if self.loaded_since is None else t-self.loaded_since,right_release_clear=True,reference_aperture_rad=self.latest['aperture'],measured_aperture_rad=float(angle),target_maximum_joint_speed_rad_s=float(max(abs(self.latest['velocity'][6:]))),target_maximum_joint_acceleration_rad_s2=float(max(abs(self.latest['acceleration'][6:]))),target_root_speed_m_s=float(np.linalg.norm(self.latest['velocity'][:3])),target_root_rotvec_speed_rad_s=float(np.linalg.norm(self.latest['velocity'][3:6])),target_time_s=float(t),normal_feedforward_N=self.normal_feedforward_N,tracking_lead_rad=self.phase.lead_at(angle),profile='screened-position-v1; original doubled damping and cup feedback retained; no hybrid normal projection')
+
+        if 'actual_base_correction' in self.latest:
+            self.left.info['actual_base_correction']=dict(self.latest['actual_base_correction'])
+        if 'normal_admittance' in self.latest:
+            self.left.info['normal_admittance']=dict(self.latest['normal_admittance'])

@@ -46,6 +46,19 @@ def validate_panel_reference_row(row, previous=None):
             if np.max(abs(change-.5*dt*(velocity+previous_velocity)))>1e-12:
                 raise ValueError('Consumed LH targets differ from bounded target integration')
             if acceleration>3.+1e-8:raise ValueError('Consumed LH target exceeds original acceleration bound')
+    normal=row.get('normal_admittance')
+    if normal is not None:
+        if not np.isfinite(list(normal.values())).all():raise ValueError('Nonfinite palm-normal evidence')
+        if abs(normal['time_s']-row['local_time_s'])>1e-9:raise ValueError('Palm-normal target and pose clocks differ')
+        if (not 0.-1e-12<=normal['normal_offset_m']<=.002+1e-12
+                or abs(normal['normal_offset_velocity_m_s'])>.00025+1e-12
+                or abs(normal['normal_offset_acceleration_m_s2'])>.0005+1e-12):
+            raise ValueError('Normal target exceeds its frozen geometry/rate envelope')
+        if previous is not None and previous.get('normal_admittance') is not None:
+            prior=previous['normal_admittance'];dt=row['episode_time_s']-previous['episode_time_s']
+            change=normal['normal_offset_m']-prior['normal_offset_m']
+            expected=.5*dt*(normal['normal_offset_velocity_m_s']+prior['normal_offset_velocity_m_s'])
+            if abs(change-expected)>1e-12:raise ValueError('Normal target differs from bounded integration')
     return speed,acceleration
 
 

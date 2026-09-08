@@ -849,3 +849,31 @@ a regression test prevents substituting the corrected command. Neither earlier
 screen is used to admit the new controller. The corrected screen checks the
 maximum reachable normal-offset trajectory under continuous zero load; fresh
 physical evidence is still required to qualify support or opening.
+
+Panel007 completes95s with27/29 checks, restoring both sustained palm/load
+gates while preserving all mechanical checks. Aperture and the original RH
+withdrawal errors remain failures. Final leaf0.531467rad, palm3.660285N;
+normal hinge moment+0.476064Nm and tangential−0.018471Nm give+0.457593Nm,
+slightly below the unchanged0.457638Nm frictionloss limit. The exact archived
+motor reconstruction error is2.8e−17. Opposing equivalent position effort is
+−0.993855N, reduced from−3.40454N by measured-load feedback, with the same
++3.5N feedforward. At95s the integral is still advancing: offset1.89287mm,
+speed0.0240mm/s, filtered palm3.65963N, below its4N target and2mm bound.
+The LH wrist-yaw and WRJ1 targets reach their original guarded lower limits;
+this workspace limitation remains explicit and is not relaxed.
+
+The unchanged profile will be observed for130s in panel008. Its first95s must
+match007's archived physical transitions byte for byte; the longer duration
+cannot erase007's failure or waive any aperture, anatomy, support or mechanical
+gate. If the existing2mm envelope stalls, more pressure is not justified;
+the next investigation is an actual-base waist/arm workspace plan. Minor
+nonboolean/nonnegative input and exact500Hz clock hardening plus added live
+telemetry do not alter valid controller arithmetic; prefix verification checks
+that claim physically.
+
+Panel007 and all independent evidence are preserved in
+`native-palm-admittance-development-001`:633 files, manifest SHA256
+`4f1a25f996897423f9ca3c5f3b1fa87c49489ee84deb7bbae1656a8562745fc8`.
+The admittance replay screens001/002 retain their invalid-method labels;
+corrected003 passes12,598 target steps and2,521 actual-base collision checks,
+with0.087709rad maximum correction from the original planned joint targets.

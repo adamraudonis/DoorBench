@@ -20,13 +20,14 @@ class PalmNormalAdmittance:
         self.time=None;self.offset=0.;self.velocity=0.;self.filtered_load=None
 
     def update(self,time_s,palm_load_N):
-        if not np.isfinite([time_s,palm_load_N]).all() or palm_load_N<0:
+        if (not all(np.isscalar(value) and not isinstance(value,(bool,np.bool_)) for value in (time_s,palm_load_N))
+                or not np.isfinite([time_s,palm_load_N]).all() or time_s<0 or palm_load_N<0):
             raise ValueError('Require finite nonnegative measured palm load')
         if self.time is None:
             self.time=float(time_s);self.filtered_load=float(palm_load_N)
             return self.offset,self.info(0.)
         dt=float(time_s-self.time)
-        if dt<0 or dt>.00200001:raise ValueError('Require consecutive2ms tactile updates')
+        if dt<0 or (dt>0 and abs(dt-.002)>1e-9):raise ValueError('Require consecutive2ms tactile updates')
         acceleration=0.
         if dt:
             self.filtered_load+=(1-np.exp(-dt/self.filter_time_constant_s))*(palm_load_N-self.filtered_load)

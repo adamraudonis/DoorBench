@@ -34,3 +34,12 @@ def test_actual_command_path_must_match_its_rate_claim():
     assert speed==.006 and acceleration==3.
     item['left_arm_targets'][0]+=.0001
     with pytest.raises(ValueError):module.validate_panel_reference_row(item,previous)
+
+
+def test_normal_admittance_report_cannot_claim_a_bounded_teleported_offset():
+    previous=row();previous['normal_admittance']=dict(time_s=0.,normal_offset_m=0.,normal_offset_velocity_m_s=0.,normal_offset_acceleration_m_s2=0.)
+    item=copy.deepcopy(previous);item['episode_time_s']=item['local_time_s']=.002
+    item['normal_admittance'].update(time_s=.002,normal_offset_m=.0001)
+    with pytest.raises(ValueError):module.validate_panel_reference_row(item,previous)
+    item['normal_admittance']['normal_offset_m']=0.
+    module.validate_panel_reference_row(item,previous)

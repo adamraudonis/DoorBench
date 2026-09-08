@@ -31,3 +31,15 @@ def test_measured_load_not_commanded_force_drives_slow_target():
 def test_invalid_tactile_packet_is_rejected(time,load):
     controller=PalmNormalAdmittance();controller.update(0.,4.)
     with pytest.raises(ValueError):controller.update(time,load)
+
+
+@pytest.mark.parametrize('time,load',[(-1.,4.),(True,4.),(0.,False)])
+def test_invalid_first_packet_does_not_initialize_controller(time,load):
+    controller=PalmNormalAdmittance()
+    with pytest.raises(ValueError):controller.update(time,load)
+    assert controller.time is None
+
+
+def test_partial_positive_interval_is_not_a500hz_observation():
+    controller=PalmNormalAdmittance();controller.update(0.,4.)
+    with pytest.raises(ValueError):controller.update(.001,3.)
