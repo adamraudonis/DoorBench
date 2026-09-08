@@ -94,6 +94,7 @@ def main():
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--seconds', type=float, default=34.)
     parser.add_argument('--plan',type=Path,required=True)
+    parser.add_argument('--runtime-screen',type=Path)
     parser.add_argument('--press-seconds', type=float, default=5.)
     args = parser.parse_args()
     if not np.isfinite([args.seconds,args.press_seconds]).all() or min(args.seconds,args.press_seconds) <= 0:
@@ -127,7 +128,7 @@ def main():
     m.actuator_ctrlrange[aids] = teacher.caps
     d.ctrl[aids] = 0.
     operation = OperationGoals(teacher, m, d, press_seconds=args.press_seconds)
-    left = LeftPalmContact(teacher,motors,load_screen_targets(args.plan,args.robot,args.door),fixed_waist=json.loads(args.plan.read_text()).get('fixed_waist',False))
+    left = LeftPalmContact(teacher,motors,load_screen_targets(args.plan,args.robot,args.door,runtime_screen=args.runtime_screen),fixed_waist=json.loads(args.plan.read_text()).get('fixed_waist',False))
     leaf_body=m.body('leaf').id
     shutil.copy2(inspect.getfile(LeftPalmContact),args.output/'bimanual-transfer-source.py')
     shutil.copy2(args.plan,args.output/'static-plan.json')

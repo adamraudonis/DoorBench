@@ -263,3 +263,39 @@ v2 assets and MuJoCo 3.12 compiled to Mac identity `18191db3…` and Linux
 identity rejection remains enabled. A path-independent source-design identity
 and runtime-specific geometry rescreen are being added separately; changing a
 hash without those checks is not a valid port.
+
+## Destination-runtime contact rescreen
+
+The Linux MuJoCo 3.12 rescreen passed on the owned node. All 1,700 recorded poses
+from contact006 were recompiled and checked against the actual destination
+robot and Door55 geometry: maximum joint violation 10.13 mrad, loopback
+violation 0.644 mrad, and nonfoot penetration 0.410 mm. No simulation steps were
+executed. This is 50 Hz sampled geometry compatibility, with no interpolation
+or destination dynamics claim. The complete source-design receipt matches
+across OS while the distinct compiled identities remain recorded.
+
+`load_screen_targets(..., runtime_screen=receipt_path)` now accepts a different
+compiled runtime only if its authored source design matches and a passed
+rescreen binds the exact target-config bytes, original measured trajectory,
+source compiled identity, destination compiled identity, MuJoCo version and
+door XML. Linux testing confirmed rejection without the receipt and acceptance
+with the exact receipt. Eleven tests reject changed inputs and incomplete or
+failed evidence; the original six target-loader tests also pass.
+
+Reproduce on a prepared destination, with the original archived contact006
+trajectory and expected source-design JSON available:
+
+```bash
+python scripts/dexterous/rescreen_bimanual_contact.py \
+  --robot "$ROBOT_XML" --door "$DOOR_DIRECTORY" \
+  --trajectory "$CONTACT_006_TRAJECTORY" \
+  --target-config configs/dexterous/bimanual-left-contact-v2.json \
+  --expected-design "$EXPECTED_SOURCE_DESIGN_JSON" \
+  --output out/contact-runtime-rescreen.json
+```
+
+The expected source-design JSON is also embedded as `source_design_identity`
+in the frozen target configuration. The measured trajectory hash is pinned
+there too. A new robot, changed mechanics or different door cannot reuse this
+receipt. After static compatibility, run the uninterrupted physical contact
+primitive on the destination engine; that remains a separate gate.

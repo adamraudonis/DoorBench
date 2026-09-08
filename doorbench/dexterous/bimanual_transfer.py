@@ -17,12 +17,24 @@ from scipy.spatial.transform import Rotation
 from doorbench.dexterous.environment import DexterousDoorEnv
 
 
-def load_screen_targets(report_path, robot, door):
+def load_screen_targets(report_path, robot, door, *, runtime_screen=None):
     report=json.loads(Path(report_path).read_text())
     if not report.get('passed'):raise ValueError('Use a passed sampled bimanual screen')
     if 'compiled_robot_identity' in report:
-        from doorbench.dexterous.robot_identity import verify_robot_identity
-        verify_robot_identity(robot,report['compiled_robot_identity'])
+        from doorbench.dexterous.robot_identity import verify_robot_identity,robot_file_identity
+        try:
+            verify_robot_identity(robot,report['compiled_robot_identity'])
+        except ValueError:
+            if runtime_screen is None or 'source_design_identity' not in report:raise
+            from doorbench.dexterous.robot_design_identity import verify_robot_design_identity
+            from doorbench.dexterous.bimanual_runtime import validate_runtime_rescreen
+            design=verify_robot_design_identity(robot,report['source_design_identity'])
+            actual=robot_file_identity(robot);door_path=Path(door)
+            if door_path.is_dir():door_path=door_path/'door.xml'
+            validate_runtime_rescreen(runtime_screen,config=report,
+                config_sha256=hashlib.sha256(Path(report_path).read_bytes()).hexdigest(),
+                compiled_identity=actual,design_identity=design,
+                door_xml_sha256=hashlib.sha256(door_path.read_bytes()).hexdigest())
     elif report.get('robot_sha256')!=hashlib.sha256(Path(robot).read_bytes()).hexdigest():
         raise ValueError('Static route belongs to a different robot model')
     if report.get('schema')=='doorbench.left-palm-targets.v1':
