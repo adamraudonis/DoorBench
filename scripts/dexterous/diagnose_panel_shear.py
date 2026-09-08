@@ -28,6 +28,16 @@ def main():
  for name,value in zip(names,row['left_arm_targets']):data.qpos[m.jnt_qposadr[m.joint('robot/'+name).id]]=value
  mujoco.mj_kinematics(m,data);arm_target=data.site_xpos[palm].copy()
  result=dict(scope='Unstepped FK of archived same-time targets and actual state; no forces inferred from target errors.',episode_time_s=time,maximum_actual_body_frame_error=error,actual_leaf_rad=row['actual_aperture_rad'],reference_leaf_rad=row['reference_aperture_rad'],actual_palm_leaf_m=(lr.T@(actual_p-lp)).tolist(),planned_palm_leaf_m=(lr.T@(target-lp)).tolist(),whole_body_target_error_leaf_m=(lr.T@(target-actual_p)).tolist(),seven_arm_target_error_with_actual_base_leaf_m=(lr.T@(arm_target-actual_p)).tolist(),planned_palm_derivative_leaf_m_per_reference_rad=(lr.T@derivative).tolist(),source_chunk_sha256=chunk['sha256'])
+ if row.get('corrected_chain_targets') is not None:
+  chain_names=row['corrected_chain_joint_names'];chain=np.asarray(row['corrected_chain_targets'],float)
+  if chain_names not in (names,['torso']+names) or chain.shape!=(len(chain_names),) or not np.isfinite(chain).all():raise ValueError('Require the explicit finite corrected chain')
+  data.qpos[:]=actual
+  for name,value in zip(chain_names,chain):data.qpos[m.jnt_qposadr[m.joint('robot/'+name).id]]=value
+  mujoco.mj_kinematics(m,data)
+  result['corrected_chain_joint_names']=chain_names
+  result['full_corrected_chain_target_error_with_actual_base_leaf_m']=(lr.T@(data.site_xpos[palm]-actual_p)).tolist()
+  offset=0. if row.get('normal_admittance') is None else row['normal_admittance']['normal_offset_m']
+  result['commanded_goal_with_normal_offset_error_leaf_m']=(lr.T@(target+lr[:,1]*offset-actual_p)).tolist()
  a.output.mkdir(parents=True,exist_ok=False);(a.output/'report.json').write_text(json.dumps(result,indent=2)+'\n');(a.output/'diagnostic-source.py').write_bytes(Path(__file__).read_bytes());sim.close();print(json.dumps(result,indent=2))
 
 

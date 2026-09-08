@@ -916,3 +916,45 @@ and62 focused tests pass before the fresh physical trial.
 Panel008 and both waist screens are preserved in
 `native-palm-feedback-horizon-development-001`:695 files, manifest SHA256
 `ca8b02986069e4dd0207d81e0acd652cabccd436d56ce04710cff9c3250ba8c3`.
+
+Panel009 completes 130 seconds with 27/29 checks. Adding the original waist
+motor resolves the commanded palm workspace: final target FK error is 2.6 nm
+and 33 nrad, with 12.9 mrad joint margin. The actual palm still stops at
+0.535300 rad aperture and 3.890201 N load. The independent 65,000-transition
+audit verifies original caps, exact state continuity and matching body frames;
+the entire eight-joint command integration and delivered torso force agree
+exactly with the actual plant archive. The old three RH patch contacts and
+insufficient aperture remain failures. The first 139 chunks through 69.5 s
+match the earlier physical prefix byte for byte.
+
+The measured final hinge moments are +0.509176 Nm from normal pressure and
+−0.051544 Nm from surface shear, net +0.457632 Nm. The original hinge friction
+limit is 0.457638 Nm. FK of the actual eight-joint command confirms that the
+goal remains 0.793 mm inward along the panel and 0.304 mm into its normal;
+there is no remaining planned-base substitution error. The prescribed radial
+slide is now a concrete candidate for the opposing shear, rather than further
+evidence for increasing blind pressure. The correction's FK residual remains
+a command trajectory measurement; measured palm tracking is separately logged.
+
+The independent `walked-whole-body-lift10-001` trial executes the screened
+10 mm RH lift through 69.806 s. It retains an identical complete physical prefix
+through 67 s and has zero loaded invalid RH pad patches across 34,903 actual
+transitions. All original mechanics, stance, motor and anatomy checks pass;
+the final support and full aperture checks fail. This is a clean RH withdrawal
+component, not a successful supported transfer or opening.
+
+Actual collision close-ups and `audit_release_palm_support.py` distinguish
+the support failure from numerical chatter. In the last 2.804 s, the old 6 mm
+route has 15.958 Ns of palm impulse and ends with a 202 ms interval below 2 N,
+reaching a 2.47 mm palm gap. The new 10 mm route has 14.919 Ns and a 334 ms
+final interval below 2 N, reaching a 4.43 mm gap. At 69.5 s its palm is tilted
+23.54 degrees from the panel; the little-finger middle alone carries 0.856 N.
+The controller follows measured leaf pose, so this is not a frozen world
+target. A fresh continuation needs to restore palm contact explicitly before
+claiming sustained support; preserving this initial gap while flattening is
+insufficient. These failed reports remain unchanged.
+
+Both physical runs, their frozen source, independent audits and six collision
+close-ups are preserved in `native-waist-feedback-clean-release-development-001`:
+1,250 files, every byte verified before and after the canonical move, manifest
+SHA256 `b5831bc43fdb83a340c4bf3542a04689c51b43998cbcf78310068510e83c00cd`.
