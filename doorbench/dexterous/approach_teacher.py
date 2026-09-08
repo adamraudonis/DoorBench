@@ -54,19 +54,28 @@ class ApproachBodyTeacher:
         self.d.qvel[:3]=root[7:10];self.d.qvel[3:6]=rotation.T@root[10:13];self.d.qvel[self.va]=dq
         mujoco.mj_forward(self.m,self.d)
 
-    def force(self,t,root,joints,velocities,foot_loads):
+    def force(self,t,root,joints,velocities,foot_loads,hand_forces=None):
         """Return 61 original capped forces; root angular velocity is world-frame.
 
         Invoke exactly once per active 2ms physics step. Foot loads are measured
         world-up support forces [left,right], not fabricated support constraints.
-        Approach must have zero nonfoot scene contact; this teacher does not
-        model a loaded hand. Switch to the acquisition teacher for interaction.
+        Optional measured hand/body forces inform the analytic stance at body
+        origins, without applied live forces. Contact moments remain an explicit
+        approximation to validate in the full interaction rollout.
         """
         if self.last_t is not None and not np.isclose(t-self.last_t,.002,rtol=0,atol=1e-7):
             raise ValueError('Body teacher requires an uninterrupted 2 ms clock')
         loads=np.asarray(foot_loads,float)
         if loads.shape!=(2,) or not np.isfinite(loads).all():raise ValueError('Two finite measured foot loads required')
         self._state(t,root,joints,velocities)
+        external=self.controller.sim.external_generalized_force;external[:]=0.
+        if hand_forces:
+            jp=np.zeros((3,self.m.nv));jr=jp.copy()
+            for name,value in hand_forces.items():
+                load=np.asarray(value,float)
+                if load.shape!=(3,) or not np.isfinite(load).all():raise ValueError('Finite measured world hand force required')
+                body=self.m.body(name.rsplit('/',1)[-1]).id
+                mujoco.mj_jacBody(self.m,self.d,jp,jr,body);external+=jp.T@load
         controls=self.controller.command(loads)[self.act]
         length=self.matrix@self.d.qpos[self.qa];speed=self.matrix@self.d.qvel[self.va]
         force=np.clip(self.kp*controls+self.bias[:,0]+self.bias[:,1]*length+self.bias[:,2]*speed,self.caps[:,0],self.caps[:,1])
