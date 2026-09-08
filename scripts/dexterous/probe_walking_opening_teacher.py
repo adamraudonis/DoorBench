@@ -60,6 +60,7 @@ def main():
     p.add_argument('--target-aperture', type=float, default=1.2)
     p.add_argument('--open-on-latch-clear',action='store_true')
     p.add_argument('--operator-compliance-gain',type=float,default=0.)
+    p.add_argument('--follow-leaf-during-transfer',action='store_true')
     p.add_argument('--panel-profile',choices=('plain-v1','hybrid-surface-v2'),default='hybrid-surface-v2')
     p.add_argument('--palm-load-target',type=float)
     a = p.parse_args()
@@ -87,7 +88,7 @@ def main():
         dict(operator_origin=m.jnt_pos[hj],operator_axis=m.jnt_axis[hj],leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),
         door_xml=a.door,left_targets=a.plan,release_screen=a.release_path,runtime_screen=a.runtime_screen,
         opening_options=dict(target_aperture=a.target_aperture,open_on_latch_clear=a.open_on_latch_clear,
-            operator_compliance_gain=a.operator_compliance_gain,panel_profile=a.panel_profile,palm_load_target=a.palm_load_target))
+            operator_compliance_gain=a.operator_compliance_gain,follow_leaf_during_transfer=a.follow_leaf_during_transfer,panel_profile=a.panel_profile,palm_load_target=a.palm_load_target))
     opening=sequence.opening
     teacher=opening.acquisition
     d.qpos[sim.root_qadr:sim.root_qadr+7]=reset['initial_root']

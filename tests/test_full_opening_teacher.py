@@ -89,6 +89,7 @@ def operation_only(*, early=False,gain=0.):
     obj.initial_handle=0.;obj.operation_started=0.;obj.operation_last_time=0.
     obj.press_seconds=5.;obj.opening_seconds=3.;obj.open_started=None
     obj.open_on_latch_clear=early;obj.operator_compliance_gain=gain
+    obj.follow_leaf_during_transfer=False;obj.left=SimpleNamespace(started=None)
     obj.operator_compliance_limit=.15;obj.operator_compliance=0.
     obj.freeze_compliance_on_release=True
     obj.geometry=dict(operator_origin=np.zeros(3),operator_axis=np.array([1.,0.,0.]),
@@ -124,6 +125,18 @@ def test_compensation_is_bounded_and_freezes_on_actual_latch_release():
         obj._operation_targets(float(t),pose,pose,dict(operator=0.,leaf=.08,latch=.012))
         assert obj.operator_compliance==frozen
     assert obj.operation_info['goal_handle_rad']==pytest.approx(.87)
+
+
+def test_transfer_follows_measured_leaf_only_after_left_approach_begins():
+    obj=operation_only(early=True);obj.follow_leaf_during_transfer=True
+    pose=[0,0,0,1,0,0,0]
+    angles=dict(operator=.87,leaf=.12,latch=.012)
+    obj._operation_targets(10.,pose,pose,angles)
+    assert obj.operation_info['goal_leaf_rad']==0.
+    obj.left.started=10.
+    obj._operation_targets(10.002,pose,pose,angles)
+    assert obj.operation_info['goal_leaf_rad']==.12
+    assert obj.operation_info['goal_handle_rad']==.87
 
 
 @pytest.mark.parametrize('interval',[None,[.996,1.],[.998,.998],[1.,1.],[float('nan'),1.]])

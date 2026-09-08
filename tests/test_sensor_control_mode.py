@@ -13,6 +13,7 @@ def test_sensor_actor_accepts_only_sensor_control_with_static_reset_and_audit_se
     ('native_robot','oracle.xml'),('acquisition',True),('operate_after_acquisition',True),
     ('full_sequence_reset','teacher-reset.json'),('panel_push',True),('mechanism_test',True),
     ('full_opening',True),('left_palm_targets','oracle.json'),('right_release_screen','oracle.json'),
+    ('follow_leaf_during_transfer',True),('panel_profile','plain-v1'),('palm_load_target',8.),
     ('bimanual_runtime_screen','oracle.json'),
     ('upright_gain',.1),('grip_force',1.),('finger_curl',.1),('torso_damping',.1),
     ('stance_qp',True),('press_feedforward',True),('grip_reset_targets',True),

@@ -49,6 +49,7 @@ class FullOpeningTeacher:
                  min_release_seconds=30., press_seconds=5., opening_seconds=3.,
                  qualification_seconds=.5, physics_dt=.002, target_aperture=1.2,
                  open_on_latch_clear=False, operator_compliance_gain=0.,
+                 follow_leaf_during_transfer=False,
                  operator_compliance_limit=.15, freeze_compliance_on_release=True,
                  panel_profile="hybrid-surface-v2", palm_load_target=None):
         if panel_profile not in ("plain-v1","hybrid-surface-v2"):
@@ -66,6 +67,9 @@ class FullOpeningTeacher:
         if not np.isfinite([operator_compliance_gain,operator_compliance_limit]).all() or min(operator_compliance_gain,operator_compliance_limit)<0:
             raise ValueError('Invalid bounded operator compliance settings')
         self.open_on_latch_clear=open_on_latch_clear
+        if type(follow_leaf_during_transfer) is not bool:
+            raise ValueError('Explicit measured-leaf transfer policy required')
+        self.follow_leaf_during_transfer=follow_leaf_during_transfer
         self.operator_compliance_gain=operator_compliance_gain
         self.operator_compliance_limit=operator_compliance_limit
         self.freeze_compliance_on_release=freeze_compliance_on_release
@@ -175,6 +179,11 @@ class FullOpeningTeacher:
             self.initial_leaf_goal = self.operation_info.get('goal_leaf_rad', 0.)
             self.handoffs['latch_released'] = float(t)
         goal_l = 0. if self.open_started is None else self.initial_leaf_goal+(.08-self.initial_leaf_goal)*_smooth((t-self.open_started)/self.opening_seconds)
+        if self.follow_leaf_during_transfer and self.left.started is not None:
+            # The left hand now supplies the panel load. The right hand retains
+            # its lever-relative grip and follows the measured moving panel,
+            # rather than resisting the other hand at the earlier 0.08 rad goal.
+            goal_l=angles['leaf']
         hp, hr = _pose(handle_pose)
         lp, lr = _pose(leaf_pose)
         ha = hp+hr@self.geometry['operator_origin']

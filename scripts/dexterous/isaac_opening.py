@@ -47,6 +47,9 @@ p.add_argument('--left-palm-targets',help='Source-bound screened left-palm works
 p.add_argument('--right-release-screen',help='Frozen axial right-hand release path')
 p.add_argument('--bimanual-runtime-screen',help='Source/design-bound runtime geometry re-screen for another platform')
 p.add_argument('--target-aperture',type=float,default=1.2,help='Declared full-opening aperture in radians')
+p.add_argument('--follow-leaf-during-transfer',action='store_true',help='Let the right grip follow actual panel motion during left-hand support; full-opening development only')
+p.add_argument('--panel-profile',choices=('plain-v1','hybrid-surface-v2'),help='Explicit development panel controller; original physical limits remain unchanged')
+p.add_argument('--palm-load-target',type=float,help='Explicit development palm-pressure target in N; requires full opening')
 p.add_argument('--grip-rotation-fraction',type=float,default=1.,help='Fraction of operator rotation tracked by palm orientation; physical contacts remain unconstrained')
 p.add_argument('--arm-impedance',type=float,default=1.,help='Software arm position-gain multiplier at the 500 Hz motor loop; native force caps remain unchanged')
 p.add_argument('--grip-impedance',type=float,default=1.,help='Finger position-gain multiplier; native force caps remain unchanged')
@@ -85,6 +88,10 @@ if a.full_opening and (not a.operate_after_acquisition or not all((a.native_door
 if not math.isfinite(a.target_aperture) or a.target_aperture<=0:p.error('Aperture must be finite and positive')
 if a.full_opening and any(v is not None for v in (a.acquisition_index_finger_force,a.acquisition_middle_finger_force)):
     p.error('Full opening uses its explicitly frozen default acquisition forces')
+if (a.follow_leaf_during_transfer or a.panel_profile is not None or a.palm_load_target is not None) and not a.full_opening:
+    p.error('Panel controller options require --full-opening')
+if a.palm_load_target is not None and (not math.isfinite(a.palm_load_target) or not 2<a.palm_load_target<=10):
+    p.error('Palm target must be finite, above 2 N and at most 10 N')
 if a.record or a.sensor_layout:a.enable_cameras=True
 launcher=AppLauncher(a);app=launcher.app
 import numpy as np
@@ -342,7 +349,8 @@ def main():
                     door_xml=a.native_door,left_targets=a.left_palm_targets,
                     release_screen=a.right_release_screen,runtime_screen=a.bimanual_runtime_screen,
                     open_on_latch_clear=a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,
-                    target_aperture=a.target_aperture)
+                    target_aperture=a.target_aperture,follow_leaf_during_transfer=a.follow_leaf_during_transfer,
+                    panel_profile=a.panel_profile or 'hybrid-surface-v2',palm_load_target=a.palm_load_target)
                 teacher=full_opening.acquisition;operation=None
                 opening_geometry=OpeningGeometryMeasurements(a.native_door,a.native_robot,rnames)
             (out/'operation-protocol.json').write_text(json.dumps(dict(
@@ -364,6 +372,8 @@ def main():
                     scope='Initialized contact-free acquisition through bimanual loaded aperture; no approach/traversal',
                     original_caps_and_physics=True,open_on_latch_clear=a.open_on_latch_clear,
                     operator_compliance_gain=a.operator_compliance_gain,
+                    follow_leaf_during_transfer=a.follow_leaf_during_transfer,
+                    panel_profile=full_opening.panel_profile,palm_load_target=full_opening.push.target_palm_load,
                     geometry_source_hashes=opening_geometry.sources),indent=2)+'\n')
     elif a.native_robot:
         from physx_teacher import HandleTeacher
