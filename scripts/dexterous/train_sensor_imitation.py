@@ -26,6 +26,7 @@ def main():
     parser.add_argument('--validation-episode',type=Path,action='append',default=[])
     parser.add_argument('--qualification',choices=['operation-report.json','acquisition-report.json'],default='operation-report.json')
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--legacy-teacher-receipt',type=Path,help='Explicit audited acquisition-only compatibility; one training episode')
     parser.add_argument('--device',default='cpu')
     parser.add_argument('--iterations',type=int,default=1000)
     parser.add_argument('--sequence-length',type=int,default=32)
@@ -37,7 +38,9 @@ def main():
     if min(args.iterations,args.sequence_length,args.batch_size)<=0 or args.burn_in<0 or not np.isfinite(args.learning_rate) or args.learning_rate<=0:
         parser.error('Use finite positive training settings and nonnegative burn-in')
     if args.output.exists():raise FileExistsError('Use a new training output directory')
-    episodes=[SensorDemonstration(p,qualification=args.qualification) for p in args.episode]
+    if args.legacy_teacher_receipt and (len(args.episode)!=1 or args.validation_episode):
+        parser.error('The legacy acquisition receipt supports one explicit training episode and no validation episodes')
+    episodes=[SensorDemonstration(p,qualification=args.qualification,legacy_teacher_receipt=args.legacy_teacher_receipt) for p in args.episode]
     validation=[SensorDemonstration(p,qualification=args.qualification) for p in args.validation_episode]
     first=episodes[0];dimensions=first.dimensions
     identity=lambda e:e.metadata['files']['actor-sensors.npz']

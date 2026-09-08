@@ -16,7 +16,7 @@ from .motor_contract_identity import motor_contract_fingerprint
 
 
 class SensorDemonstration:
-    def __init__(self,run,*,qualification='operation-report.json'):
+    def __init__(self,run,*,qualification='operation-report.json',legacy_teacher_receipt=None):
         self.path=Path(run)
         if qualification not in ('operation-report.json','acquisition-report.json'):
             raise ValueError('Select a declared robot-task qualification report')
@@ -35,7 +35,11 @@ class SensorDemonstration:
                         hashlib.sha256((self.path/'sensors'/name).read_bytes()).hexdigest()!=declared[name]
                         for name in expected)):
                 raise ValueError('Sensor capture numeric file hashes are missing or inconsistent')
-        if (sensor_report.get('control_source')!='privileged_teacher' or
+        legacy=None
+        if legacy_teacher_receipt is not None:
+            from .legacy_teacher_provenance import validate_legacy_teacher_receipt
+            legacy=validate_legacy_teacher_receipt(self.path,legacy_teacher_receipt,qualification=qualification)
+        if ((sensor_report.get('control_source')!='privileged_teacher' and legacy is None) or
                 report.get('control_source','privileged_teacher')!='privileged_teacher' or
                 report.get('closed_loop_evaluated') is True):
             raise ValueError('Teacher imitation requires an explicitly privileged_teacher capture, not a sensor_actor rollout')
@@ -74,6 +78,12 @@ class SensorDemonstration:
             raise ValueError('RGB capture clock is invalid')
         if any(value.shape!=(len(frames),128,128,3) for key,value in self.rgb.items() if key!='time_s'):
             raise ValueError('RGB records disagree with the frozen camera resolution')
+        if legacy is not None:
+            count=legacy['sensor_samples']
+            if count>len(self.times) or abs(self.times[count-1]-legacy['sample_end_time_s'])>1e-9:
+                raise ValueError('Legacy acquisition boundary differs from the loaded sensor clock')
+            self.times=self.times[:count]
+            self.numeric={key:value[:count] for key,value in self.numeric.items()}
         self.metadata=dict(source=str(self.path.resolve()),qualification=qualification,
             control_source='privileged_teacher',
             grasp_profile=report.get('grasp_profile',report.get('final_pad_grasp',{}).get('grasp_profile','distal-pad-v1')),
@@ -84,6 +94,10 @@ class SensorDemonstration:
             qualification_files={name:hashlib.sha256((self.path/name).read_bytes()).hexdigest() for name in
                 (qualification,'mechanical-audit.json','passive-tendon-audit.json','motor-contract.json','sensors/report.json')},
             limitation='Teacher imitation data; no student rollout or generalization result')
+        if legacy is not None:
+            self.metadata['legacy_teacher_receipt_sha256']=hashlib.sha256(Path(legacy_teacher_receipt).read_bytes()).hexdigest()
+            self.metadata['admitted_sample_end_time_s']=legacy['sample_end_time_s']
+            self.metadata['source_scope']=legacy['scope']
 
     def __len__(self):
         return len(self.times)-1

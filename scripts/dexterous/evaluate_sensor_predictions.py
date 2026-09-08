@@ -27,6 +27,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--episode", type=Path, required=True)
     parser.add_argument("--checkpoint", type=Path, required=True)
+    parser.add_argument("--qualification",choices=['operation-report.json','acquisition-report.json'],default='operation-report.json')
+    parser.add_argument("--legacy-teacher-receipt",type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--chunk-length", type=int, default=64)
     parser.add_argument("--threads", type=int, default=1)
@@ -34,7 +36,7 @@ def main():
     if min(args.chunk_length, args.threads) <= 0:
         parser.error("Use positive chunk and thread counts")
     torch.set_num_threads(args.threads)
-    episode = SensorDemonstration(args.episode)
+    episode = SensorDemonstration(args.episode,qualification=args.qualification,legacy_teacher_receipt=args.legacy_teacher_receipt)
     payload = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
     if (payload.get("schema") != SENSOR_ACTOR_CHECKPOINT_SCHEMA or
             payload.get('motor_contract_sha256') != episode.motor_contract_sha256 or
@@ -76,7 +78,7 @@ def main():
         elapsed_s=time.monotonic()-started, device="cpu", threads=args.threads,
         checkpoint_sha256=digest(args.checkpoint),
         qualification_file_sha256={name:digest(args.episode/name) for name in (
-            "operation-report.json", "mechanical-audit.json", "passive-tendon-audit.json", "motor-contract.json")},
+            args.qualification, "mechanical-audit.json", "passive-tendon-audit.json", "motor-contract.json")},
         limitations=["A single training episode cannot establish generalization.",
             "Teacher-forced previous actions are not the student's own command history.",
             "No physical state was advanced and no opening attempt was made by the student."])

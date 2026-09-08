@@ -133,3 +133,18 @@ def test_incomplete_or_mismatched_sensor_capture_rejected(tmp_path,defect):
     (sensor/'report.json').write_text(json.dumps(report))
     with pytest.raises(ValueError,match='completed|hashes'):
         SensorDemonstration(tmp_path)
+
+
+def test_explicit_legacy_prefix_cannot_include_operation_action_labels(tmp_path,monkeypatch):
+    archive(tmp_path)
+    (tmp_path/'acquisition-report.json').write_text((tmp_path/'operation-report.json').read_text())
+    (tmp_path/'sensors/report.json').write_text('{}')
+    receipt=tmp_path/'separate-receipt.json';receipt.write_text('{}')
+    from doorbench.dexterous import legacy_teacher_provenance
+    monkeypatch.setattr(legacy_teacher_provenance,'validate_legacy_teacher_receipt',
+        lambda run,receipt,qualification:dict(sensor_samples=3,sample_end_time_s=.006,scope='fixture acquisition prefix'))
+    data=SensorDemonstration(tmp_path,qualification='acquisition-report.json',legacy_teacher_receipt=receipt)
+    assert len(data)==2 and data.times[-1]==.006
+    _,labels=data.sequence(0,2)
+    np.testing.assert_allclose(labels[:,0],[.1,.2])
+    with pytest.raises(ValueError,match='episode'):data.sequence(0,3)
