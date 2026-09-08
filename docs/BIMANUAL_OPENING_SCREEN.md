@@ -1,8 +1,11 @@
 # Bimanual contact-transfer development
 
-The latest candidate passes **11 sampled FK/static planning gates**, including
-right-hand release. It is not an executed teacher or a successful door-opening
-reference. The earlier failed candidate is retained below.
+The continuous native teacher now passes **20 physical gates** from a contact-free
+deep-stance start through loaded **1.201 rad** opening. The extracted controller
+repeated the result with identical states and controls. Walking into that start,
+traversal and Isaac opening remain separate, unqualified steps. Earlier static
+candidates and physical failures are retained below; the current result and API
+are in the final section.
 
 ## Measured-release candidate: screen-014
 
@@ -299,3 +302,91 @@ in the frozen target configuration. The measured trajectory hash is pinned
 there too. A new robot, changed mechanics or different door cannot reuse this
 receipt. After static compatibility, run the uninterrupted physical contact
 primitive on the destination engine; that remains a separate gate.
+
+## Qualified native loaded aperture: full-push005 and portable repeat
+
+The complete native episode now starts with a closed leaf, resting lever,
+contact-free hands and the qualified deep stance. Without further pose resets,
+it acquires the lever, depresses it, opens the leaf about 0.08 rad, places the
+left hand on the panel, slides the unloaded right grip off the lever, and turns
+the waist while pushing with the left palm. The episode ends at the **first
+crossing of a declared 1.2 rad aperture**, with all prior physical samples
+included. It does not continue past that threshold to select a convenient
+later result. This primitive does not hold the door indefinitely at 1.2 rad.
+
+Both prototype005 and the extracted-module repeat pass **20/20** gates. They
+produce bitwise-identical recorded qpos, qvel and motor commands; every 2 ms
+physical/contact measurement also matches. The repeat includes a newly
+explicit `grasp_profile=distal-pad-v1` metadata label with unchanged strict
+contact tests. The full record contains 18,369 samples over 36.736 seconds.
+
+| Measurement | Result |
+| --- | ---: |
+| Final actual leaf aperture | 1.200999 rad |
+| Actual final palm load | 3.373 N |
+| Minimum palm load in final 0.5 s | 2.027 N |
+| Leaf angle across that loaded interval | 0.9525 → 1.2010 rad |
+| Maximum torso tilt | 1.861° |
+| Maximum joint soft-limit violation | 11.353 mrad |
+| Maximum unilateral loopback violation | 1.903 mrad |
+| Maximum nonfoot penetration | 0.453 mm |
+| Invalid right-hand pad patches | 0 |
+| Runtime robot pose writes / helper forces | 0 / 0 |
+
+The successful change allows the released right arm to reorient while the
+waist turns. A clearance term keeps its colliders away from the lever, and its
+wrist targets retain extra distance from the joint stops. Freezing that arm's
+joint posture caused recontacts and wrist overshoot; freezing its full world
+pose consumed the workspace needed by the pushing left arm. Both failures are
+preserved. The left hand retains its full panel-relative orientation while its
+contact location moves from roughly 1.0 m high / 0.22 m from the hinge toward
+0.85 m / 0.18 m. Bounded load feedback maintains palm pressure using only the
+original robot motors.
+
+Personally inspected close views show the acquired four-finger grip and the
+open left palm against the panel at the final aperture; body views show the
+upright torso and deep starting stance. These views and the full source, state,
+500 Hz audits and failed alternatives are in the byte-verified archives listed
+in [`native-loaded-bimanual-opening-v2.json`](../results/dexterous/2026-09-08/native-loaded-bimanual-opening-v2.json).
+No generated images or model assets are committed.
+
+### Measured-state integration
+
+`LeftPalmContact` remains active alongside the acquisition/operation teacher.
+After its actual load and the retained right grasp qualify, instantiate
+`AxialRightRelease(teacher, axial_screen_path)` and call `begin(...)`, as above.
+Each physics tick supplies the actual current handle pose to `release`, updates
+its targets, calls the base teacher's bounded `force(...)`, and applies the
+left-arm motor override. Determine clearance from **all actual right-hand
+collision shapes**, not a fingertip centroid or the commanded pose.
+
+Once all right-hand shapes clear the lever by 20 mm, freeze the release's
+measured world-palm goal and start:
+
+```python
+push = CoordinatedPanelPush(left)
+push.begin(t, root13, named_joints, leaf_pose7, actual_leaf_angle)
+# Every tick, before base teacher.force(...) and left.apply_forces(...):
+push.update(t, root13, named_joints, leaf_pose7,
+            actual_palm_normal_load_N, actual_leaf_angle, right_clear=True)
+```
+
+`CoordinatedPanelPush` lives in `doorbench.dexterous.panel_continuation`. The
+13-vector is measured world position, wxyz quaternion, world linear velocity,
+and world angular velocity; the leaf pose is xyz+wxyz. It operates on the
+teacher's analytic model only, solving at 100 Hz while original motor commands
+and physical audits run at 500 Hz. Robot state, exact door frames, contact
+identity and geometry clearance are **privileged teacher/evaluator data**.
+They must not enter actor observations or sensor-only runtime routing.
+
+`scripts/dexterous/probe_bimanual_full_push.py` reproduces the complete native
+qualification and captures the actual controller tree and local module
+sources. Its `--target-aperture` defaults to 1.2. It preserves the original
+joint, loopback, force, upright and collision bounds. The measured-source
+archive contains all required reference and import contracts.
+
+The validated start is the original deep stance, not the different root/yaw
+attained by the separate walking approach. That attained state needs a fresh
+workspace and physical check. Isaac transfer, left release, rising, walking
+through the aperture, robustness across starts and sensor-only imitation remain
+unqualified. Do not score any of those from this result.
