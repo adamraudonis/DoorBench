@@ -1,0 +1,222 @@
+{
+  "scope": "Protocol010 frozen input bundle and actual CPU full-source update, runtime and interruption preflight. No physical robot trial.",
+  "source_commit": "813873b10",
+  "captured_at_utc": "2026-09-08T16:06:06.294672+00:00",
+  "bundle_path": "/Users/adamraudonis/Desktop/Projects/DoorBench-runs/2026-09-08-shadow-loopback/doorbench-sensor-training-010-ready.tar.gz",
+  "bundle_sha256": "05c75e0246168a07b6f9b45e6be59eb149fdb6a8392c8e2bc20e5a99539655e3",
+  "bundle_bytes": 64694395,
+  "preflight_directory": "/Users/adamraudonis/Desktop/Projects/DoorBench-runs/2026-09-08-shadow-loopback/sensor-training-continuous-010-preflight",
+  "focused_tests_passed": 91,
+  "source_files_verified_against_final_bundle": 294,
+  "initial_checkpoint": {
+    "sha256": "4830fc3bbf548eac0541e6e97ae20b1ea661c311ee6bab39fdf9b2873ec123a6",
+    "source_optimizer_step": 4500,
+    "optimizer_state": "Fresh AdamW; prior optimizer is not imported",
+    "selection": "009 checkpoint with most passing frozen readiness gates;4/6 is still a failed checkpoint",
+    "path": "initial/actor.pt"
+  },
+  "optimizer_class": "AdamW",
+  "optimizer_initialization": "fresh",
+  "optimizer_defaults": {
+    "lr": 0.0001,
+    "betas": [
+      0.9,
+      0.999
+    ],
+    "eps": 1e-08,
+    "weight_decay": 0.01,
+    "amsgrad": false,
+    "maximize": false,
+    "foreach": null,
+    "capturable": false,
+    "differentiable": false,
+    "fused": null,
+    "decoupled_weight_decay": true
+  },
+  "parameters": 557949,
+  "smoke_optimizer_steps": 1,
+  "smoke_full_update_duration_s": 55.72258654201869,
+  "smoke_full_evaluation_duration_s": 35.83617233403493,
+  "smoke_total_elapsed_s": 91.58623441704549,
+  "smoke_first_loss": {
+    "iteration": 1,
+    "requested_iterations": 1,
+    "elapsed_s": 55.723939417046495,
+    "update_duration_s": 55.72258654201869,
+    "training_normalized_force_mse": 0.00037405004193402647,
+    "training_recorded_history_mse": 0.000380535006868854,
+    "training_actor_history_mse": 0.000367565076501819,
+    "preclip_gradient_norm": 0.024109719321131706,
+    "source_passes": [
+      {
+        "source": 0,
+        "examples": 6457,
+        "cold_prefix_examples": 32,
+        "mixed_loss": 0.0003902593051918757,
+        "recorded_loss": 0.0003960763454529115,
+        "actor_loss": 0.0003844422629413202
+      },
+      {
+        "source": 1,
+        "examples": 157,
+        "cold_prefix_examples": 32,
+        "mixed_loss": 0.0003823806382570183,
+        "recorded_loss": 0.00040674514639249537,
+        "actor_loss": 0.0003580161301215412
+      },
+      {
+        "source": 2,
+        "examples": 151,
+        "cold_prefix_examples": 32,
+        "mixed_loss": 0.00039257517710211687,
+        "recorded_loss": 0.0003865562939608935,
+        "actor_loss": 0.0003985940529673826
+      },
+      {
+        "source": 3,
+        "examples": 206,
+        "cold_prefix_examples": 32,
+        "mixed_loss": 0.000330985047185095,
+        "recorded_loss": 0.0003327622416691156,
+        "actor_loss": 0.00032920785997703206
+      }
+    ],
+    "parameters_updated": true
+  },
+  "smoke_final_fitting_checks": {
+    "nominal": false,
+    "actor002": true,
+    "actor003": true,
+    "actor004": true,
+    "body_force_rmse_Nm_first100ms": false,
+    "body_force_rmse_Nm_first500ms": false
+  },
+  "runtime_checks": {
+    "scope": "Actual trained checkpoint loaded by runtime actor; recorded physical observations and actor-owned command history. No simulator was stepped.",
+    "closed_loop_evaluated": false,
+    "task_success_rate": null,
+    "teacher_fallback": false,
+    "checks": {
+      "finite_consecutive_inferences": true,
+      "original_caps": true,
+      "explicit_reset_reproduces_first_action": true,
+      "changed_valid_motor_caps_rejected": true
+    },
+    "passed": true,
+    "checkpoint_sha256": "588926e604394abe7446d53ed65fd06484aa05aaf7fe80a14b8f62bbda48a1aa",
+    "motor_contract_sha256": "6d120ad5be10e1f22a5aa7625b2101ce9fb9aadb90c7fddc8c710678f6ccd8ef",
+    "robot_xml_sha256": "3148cbbefa04e65ae813080275008619a3d4ef94f1ca0887c8f51e79630c3c21",
+    "consecutive_inferences": 64,
+    "physics_dt_s": 0.002,
+    "maximum_absolute_motor_command": 53.95911633968353,
+    "limitation": "Inference integration check only; recorded sensor states do not respond to this actor's forces."
+  },
+  "interruption_check": {
+    "scope": "Integrated deadline control interrupted an actual partial source pass.",
+    "checks": {
+      "partial_source_executed": true,
+      "optimizer_updates_zero": true,
+      "all_weights_bit_identical_to_initial": true,
+      "optimizer_state_empty": true,
+      "supervision_counts_zero": true
+    },
+    "report": {
+      "attempted_update": 1,
+      "logical_samples": 32,
+      "completed_sources": [],
+      "gradients_discarded": true,
+      "parameters_updated": false
+    },
+    "elapsed_s": 0.3257307080202736
+  },
+  "original_six_readiness_limits_unchanged": true,
+  "launch": {
+    "schema": "doorbench.sensor-training-launch.v1",
+    "argv": [
+      "python",
+      "source/scripts/dexterous/train_sensor_continuous.py",
+      "--dataset-manifest",
+      "dataset-manifest.json",
+      "--output",
+      "run",
+      "--iterations",
+      "64",
+      "--chunk-length",
+      "32",
+      "--cold-prefix-length",
+      "32",
+      "--cold-weight",
+      "0.5",
+      "--learning-rate",
+      "0.0001",
+      "--seed",
+      "0",
+      "--device",
+      "cuda",
+      "--checkpoint-every",
+      "8",
+      "--evaluate-every",
+      "8",
+      "--max-wall-seconds",
+      "2700"
+    ],
+    "working_directory": "Extracted bundle root",
+    "environment": {
+      "PYTHONPATH": "source",
+      "OMP_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1"
+    },
+    "dataset_manifest_sha256": "6c71ccdca2cbe93cce03b9277f3e7486f1d84387b63ed18180237c8ad294e7bb",
+    "source_and_data_files": 398,
+    "loaded_examples": [
+      6457,
+      157,
+      151,
+      206
+    ],
+    "frozen005_data_identity_verified": true,
+    "python_dependencies": [
+      "numpy",
+      "torch",
+      "scipy"
+    ],
+    "device_requirement": "Existing CUDA-enabled PyTorch; record actual versions. No Isaac simulator process or native assets needed.",
+    "no_gpu_provisioning": true,
+    "maximum_wall_seconds": 2700,
+    "result_scope": "Prediction fitting only; no actor rollout, teacher fallback, physical state writes or successful task claim."
+  },
+  "files_sha256": {
+    "experiment.json": "5522da1305870d4eee2c64430ac9471896da36b67b6c091ce6f6ad93f1daaf98",
+    "smoke-manifest.json": "bf111a24cada06f67c4f87b9203f59321605de84b12127c85469ed83444eb265",
+    "launch.json": "7eb32bb5057c5ead79ccbc19d7dffb3def021883d7fc98975be615a9e012d5f2",
+    "dataset-manifest.json": "6c71ccdca2cbe93cce03b9277f3e7486f1d84387b63ed18180237c8ad294e7bb",
+    "full-update/coverage-step-000001.json": "6cfc822787d35737745e8cea6adb7b148424dcb4e2c33b01e00bb32c4cbd79d4",
+    "full-update/fit-step-000001.json": "ebb261e9b285fe4b4e81224d73a434351b05495e2e5ad5374134dd648d1c1eb5",
+    "full-update/report.json": "889baafabcdd146aea9bf7e717c6453463218ebbe8b9b9bfce7a5dd2d716f6e7",
+    "full-update/requirements.txt": "f2bdc9efcd96e00ff1a0102ee2e03e937a7fced8195f2b50fd55523aef05af85",
+    "full-update/actor-step-000001.pt": "b1d565fee21166df1096385d8a423dd4ab28af0a9136fa51233c7e37369c0adc",
+    "full-update/actor.pt": "588926e604394abe7446d53ed65fd06484aa05aaf7fe80a14b8f62bbda48a1aa",
+    "full-update/runtime-check.json": "af11bce993e15ef864af077b17495045e9ddab2469fe0d2479f714768ce94895",
+    "full-update/source.tar.gz": "cd2bda00fda3cc2ca316a11fb5bb2db57a8b99d27ef9a9b667e9659952972cfd",
+    "full-update/manifest.json": "038fad5af8ca6e70629b1a678fc3b63998d590d0514718ea3e19105be93c2dfc",
+    "full-update/latest-fit.json": "ebb261e9b285fe4b4e81224d73a434351b05495e2e5ad5374134dd648d1c1eb5",
+    "full-update/progress.json": "e18b3ae9a18065850ec1d5a35926c4adf5e5b6e50f024ca70ebc7881e112ea3b",
+    "full-update/training-state.pt": "cc836df46c26affa2df29033f3499e7c5f60f8d2ccd9ce18e45f9995198418a5",
+    "interrupted/interruption-check.json": "fb71493769c43da7f2b4afa4499f5077d4f5115da29ffa2bfdd5036731793e8a",
+    "interrupted/interrupted-accumulation.json": "686ba20f29d8bf3a6d355c1b44e0b52f5697f17ee1fd960ee8a2a9c98bfb559e",
+    "interrupted/report.json": "db3d8949ae37d5cc9d2a2363b0bc359415e6d337b2e4fc29feaf92564b995723",
+    "interrupted/requirements.txt": "f2bdc9efcd96e00ff1a0102ee2e03e937a7fced8195f2b50fd55523aef05af85",
+    "interrupted/coverage-step-000000.json": "369e3c2b0802fcbacf6766911d7392e13a9f7539e38cd0462ae67f057d08e6f9",
+    "interrupted/actor.pt": "9e5e5b503678bc3ff1d3ec42338c799fa4019c52730679654ad1dfdb250fa775",
+    "interrupted/source.tar.gz": "e1e748f3fa840746cbc141aced0ec4848964f37015d7a0d3059717b79b6f1a1f",
+    "interrupted/actor-step-000000.pt": "080baea5b83bac5464a4305026a39d8bb5ed6753e572efdfbde1a97027bf8044",
+    "interrupted/manifest.json": "4a7decd77f15b91130db481e4dbe6e09ce5d7d4531c08224ddd4d32df8855baa",
+    "interrupted/training-state.pt": "4c9af34877734067e730e78311e147e480c441e17f910d0177f0090db3f4a052"
+  },
+  "limitations": [
+    "Single-update implementation smoke, not convergence or physical stability.",
+    "GPU time has not been measured for this protocol; the first real update is the actual performance estimate.",
+    "Every admitted source is the same frozen005 evidence.",
+    "Prediction-only labels and sensor-only actor boundary remain unchanged."
+  ]
+}
