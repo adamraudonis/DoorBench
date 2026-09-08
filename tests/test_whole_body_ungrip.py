@@ -7,6 +7,7 @@ from doorbench.dexterous.whole_body_ungrip import WholeBodyMeasuredUngrip, inter
 
 def fixture():
     c=WholeBodyMeasuredUngrip.__new__(WholeBodyMeasuredUngrip)
+    c.handoff_posture_targets=False
     c.observed_time=6.;c.started=0.;c.ungrip_started=6.;c.command_bridge_seconds=.5;c.ungrip_delay=6.
     c.ungrip_times=np.array([0.,.5,4.5,11.08]);c.ungrip_body_names=['torso']
     c.ungrip_roots=np.tile([0,0,.9,1,0,0,0.],(4,1));c.ungrip_roots[-1,1]=-.045
@@ -90,3 +91,34 @@ def test_declared_endpoint_cannot_weaken_margin_or_accept_nonfinite_evidence():
                    {'minimum_all_rh_environment_clearance_m':float('nan')},
                    {'hand_shapes':0}):
         with pytest.raises(ValueError):validate_endpoint_clearance({**good,**change})
+
+
+def test_cleared_release_preserves_panel_posture_between_slower_ik_updates():
+    c=fixture();c.handoff_posture_targets=True
+    c.update(17.582)
+    assert c.ready_for_panel is True
+    c.frozen=(c.teacher.positions[-1].copy(),c.teacher.rotations[-1].copy())
+    # Panel IK updates at 100 Hz; release is still called at 500 Hz.
+    for block in range(3):
+        desired=np.array([-.3-.1*block,.12+.01*block])
+        c.teacher.path[-1]=desired
+        for tick in range(5):
+            c.update(17.584+.01*block+.002*tick)
+            np.testing.assert_array_equal(c.teacher.path[-1],desired)
+            assert c.info['posture_target_owner']=='panel'
+    np.testing.assert_array_equal(c.teacher.positions[-1],c.frozen[0])
+
+
+def test_posture_handoff_does_not_start_before_cleared_complete_route():
+    c=fixture();c.handoff_posture_targets=True
+    c.teacher.path[-1]=[999,999];c.update(12.)
+    assert np.max(c.teacher.path[-1])<1
+    c.frozen=(np.zeros(3),np.eye(3))
+    with pytest.raises(ValueError,match='complete cleared release'):c.update(12.002)
+
+
+def test_legacy_posture_overwrite_remains_reproducible_only_without_opt_in():
+    c=fixture();c.update(17.582)
+    c.frozen=(c.teacher.positions[-1].copy(),c.teacher.rotations[-1].copy())
+    c.teacher.path[-1]=[-.8,.12];c.update(17.584)
+    np.testing.assert_array_equal(c.teacher.path[-1],[.2,0.])

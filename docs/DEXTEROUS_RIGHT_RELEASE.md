@@ -313,3 +313,20 @@ same dense anatomy/collision/foot/endpoint screen before execution. The replay
 probe also accepts `--panel-profile hybrid-surface-v2`, which selects the existing
 frozen controller implementation and records the change from baseline. Omission
 preserves the baseline profile. These are experiment controls, not claimed fixes.
+
+The fresh 6 mm trial 005 removes the nine MF contacts but retains three LF/FF
+wrong-pad contacts across two intervals, so the withdrawal is still rejected.
+Its hybrid panel attempt also fails. Source review identified a separate target
+ownership bug: the finished ungrip helper rewrites torso and RH-finger targets
+at 500 Hz, while panel IK supplies its new targets at 100 Hz. The archived torso
+force exhibits the corresponding 10 ms spikes and later reaches its original
+200 Nm cap. Merely choosing hybrid contact control cannot correct this conflict.
+
+`handoff_posture_targets=True` (probe `--handoff-posture-targets`) now relinquishes
+those posture targets after the complete route has actually been frozen by the
+clearance gate. The release still preserves its cleared palm target and maintains
+zero grip preload; panel IK owns subsequent waist/cup targets. A regression runs
+interleaved 500/100 Hz updates and verifies the target persists between panel
+updates. Omission retains the failed historical behavior for reproduction.
+This source correction requires a new physical comparison and does not promote
+trial 005 or change any original motor, joint, anatomy, or contact gate.

@@ -47,11 +47,14 @@ def main():
     p.add_argument("--hold-full-left-orientation", action="store_true")
     p.add_argument("--panel-profile", choices=("plain-v1", "hybrid-surface-v2"),
                    help="Explicit existing profile comparison; omitted inherits frozen baseline")
+    p.add_argument("--handoff-posture-targets", action="store_true")
     a = p.parse_args()
     if (a.release_mode in ('whole-body-return', 'whole-body-ungrip')) != (a.whole_body_path is not None):
         raise ValueError('Whole-body return requires the exact screened path')
     if (a.release_mode == 'whole-body-ungrip') != (a.ungrip_path is not None):
         raise ValueError('Whole-body ungrip requires its screened actual-state path')
+    if a.handoff_posture_targets and a.release_mode != 'whole-body-ungrip':
+        raise ValueError('Posture handoff requires the measured whole-body ungrip helper')
     if a.release_mode == 'controlled-return' and a.retain_grip_until_clear:
         raise ValueError('Controlled return already retains grip; do not combine release options')
     source = a.source_run.resolve()
@@ -133,7 +136,7 @@ def main():
         from doorbench.dexterous.whole_body_ungrip import WholeBodyMeasuredUngrip
     def selected_release(teacher, path):
         if a.release_mode == 'whole-body-ungrip':
-            return WholeBodyMeasuredUngrip(teacher,path,stage/'whole-body-path.json',stage/'ungrip-path.json',goal_frame=a.ungrip_goal_frame)
+            return WholeBodyMeasuredUngrip(teacher,path,stage/'whole-body-path.json',stage/'ungrip-path.json',goal_frame=a.ungrip_goal_frame,handoff_posture_targets=a.handoff_posture_targets)
         if a.release_mode in ('whole-body-return', 'whole-body-ungrip'):
             return WholeBodyLeverReturn(teacher,path,stage/'whole-body-path.json')
         if a.release_mode in ("controlled-return", "whole-body-return", "whole-body-ungrip"):
@@ -255,6 +258,7 @@ def main():
             retain_grip_until_clear=a.retain_grip_until_clear,
             release_mode=a.release_mode,
             hold_full_left_orientation=a.hold_full_left_orientation,
+            handoff_posture_targets=a.handoff_posture_targets,
             panel_profile=config.get('panel_profile'),
             panel_profile_changed_from_baseline=config.get('panel_profile')!=baseline['configuration'].get('panel_profile'),
             ungrip_goal_frame=a.ungrip_goal_frame if a.release_mode=="whole-body-ungrip" else None,

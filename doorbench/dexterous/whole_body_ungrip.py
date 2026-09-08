@@ -34,8 +34,11 @@ def validate_endpoint_clearance(receipt):
 
 
 class WholeBodyMeasuredUngrip(WholeBodyLeverReturn):
-    def __init__(self, teacher, path, whole_body_path, ungrip_path, *, goal_frame="attained-resting-world"):
+    def __init__(self, teacher, path, whole_body_path, ungrip_path, *, goal_frame="attained-resting-world", handoff_posture_targets=False):
         super().__init__(teacher, path, whole_body_path)
+        if type(handoff_posture_targets) is not bool:
+            raise ValueError('Require an explicit posture ownership option')
+        self.handoff_posture_targets = handoff_posture_targets
         if goal_frame not in ("attained-resting-world", "measured-handle"):
             raise ValueError("Unknown ungrip goal frame")
         self.goal_frame = goal_frame
@@ -168,8 +171,12 @@ class WholeBodyMeasuredUngrip(WholeBodyLeverReturn):
             self.teacher.rotations[-1] = rotation
         else:
             self.teacher.positions[-1], self.teacher.rotations[-1] = self.frozen
-        self.teacher.path[-1,self.ungrip_finger_indices] = fingers
-        self.teacher.path[-1,self.torso_index] = target['joints']['torso']
+        posture_owned_by_panel = self.handoff_posture_targets and self.frozen is not None
+        if posture_owned_by_panel and not self.ready_for_panel:
+            raise ValueError('Posture handoff requires the complete cleared release')
+        if not posture_owned_by_panel:
+            self.teacher.path[-1,self.ungrip_finger_indices] = fingers
+            self.teacher.path[-1,self.torso_index] = target['joints']['torso']
         release_elapsed = max(0., target['route_time_s']-self.release_path_start)
         scale = float(np.clip(1-release_elapsed/.4, 0., 1.))
         self.teacher.digit_forces = {n:v*scale for n,v in self.digit_forces.items()}
@@ -180,5 +187,6 @@ class WholeBodyMeasuredUngrip(WholeBodyLeverReturn):
             ready_for_panel=self.ready_for_panel, grip_preload_scale=scale, goal_frame=self.goal_frame,
             actual_operator_rad=angles['operator'], actual_leaf_rad=angles['leaf'],
             target_pelvis_position_m=target['position'].tolist(),
-            target_torso_rad=target['joints']['torso'],
+            target_torso_rad=float(self.teacher.path[-1,self.torso_index]),
+            posture_target_owner='panel' if posture_owned_by_panel else 'release',
             controller_status='development_actual_state_specific_unqualified')
