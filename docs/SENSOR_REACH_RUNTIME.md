@@ -27,7 +27,7 @@ Coupled finger J1/J2 tracking is measured in its actuated sum coordinate. The pa
 
 The adapter replayed every packet of the qualified `sensor-reach-balance-006` capture without stepping a plant: all 5,500 commands match to 6.09e-10 Nm. Independent actual-state qualification passed 20/20 grouped checks and retained the source's 23/23 checks. Maximum motor-coordinate error was 0.0171654 rad, nominal individual-joint error 0.0688235 rad, and palm endpoint error 0.00330169 m. The larger nominal finger error is a passive split, not an independently controllable motor error.
 
-Reproduce the two checks with `check_sensor_reach_runtime.py` and `evaluate_native_sensor_reach.py`; each accepts `--run`, `--robot`, `--calibration`, `--protocol`, `--joint-route` and an unused `--output` path. They refuse to overwrite evidence. The committed compact receipt binds all original inputs and recorded arrays. These native results do not establish Isaac success; a fresh actual Isaac run must pass the same evaluator.
+Reproduce the two checks with `check_sensor_reach_runtime.py` and `evaluate_native_sensor_reach.py`; each accepts `--run`, `--robot`, `--calibration`, `--protocol`, `--joint-route` and a fresh `--output` path. They refuse to overwrite evidence. The committed compact receipt binds all original inputs and recorded arrays. These native results do not establish Isaac success; a fresh actual Isaac run must pass the same evaluator.
 
 The 84 focused tests cover this adapter and the unchanged five-second stationary and six-second arm protocols. Reach tests include strict input projection/hash binding, previous-action ownership, missing/shifted evidence, actual movement, root/FK endpoint error, contact/support and illegal coupled-finger geometry.
 
@@ -65,3 +65,11 @@ command, and `balance-reach-reset.json` contains evaluator-only actual reset
 state. Runtime receives only the byte-bound joint-only route, static robot
 calibration, sensor packets and clock. The reference used for reset and offline
 screening is not passed to the runtime controller.
+
+### Independent actual-run audit
+
+Independent reconstruction of all 5,500 raw contact intervals exactly reproduces both floor loads and hand contact counts. All 662 archived run/source files match their remote hashes; static route, calibration and reset bindings match. The source receipt records the two external USD input hashes separately rather than claiming those USD files were independently reread from this archive.
+
+The FF paired split differs by 0.438030 rad from the nominal path.
+
+One source-auditor receipt initially failed because it incorrectly paired backend joint ordering with actor sensor ordering. The original receipt is retained. The corrected audit checks the preserved backend order and every named reset angle against the frozen float32 calibration; it passes without changing run data. The [independent receipts](evidence/sensor-reach-balance-isaac-001.json) also avoid claiming a strict full Isaac command replay; native packet replay and physical Isaac qualification are distinct results.
