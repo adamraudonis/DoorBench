@@ -1,6 +1,6 @@
 # Finite vision/tactile interface for the Isaac student
 
-**Status, September 8, 2026:** implemented sensor emulation and an actor packet boundary; 19 CPU tests pass, including real MuJoCo contact/plugin parity and USD collider discovery. Exporting the current H1/dual-Shadow model yields 53 tactile mounts, 448 three-axis taxels (1,344 scalar channels), 69 joint sensors and 61 actions. **No live PhysX sensor parity, sensor-only Isaac policy, or performance result is claimed.** This work implements part of stage 3 of [the execution plan](DEXTEROUS_NEXT_STEPS.md), independently of the privileged opening teacher.
+**Status, September 8, 2026:** implemented sensor emulation and an actor packet boundary; 19 CPU tests pass, including real MuJoCo contact/plugin parity and USD collider discovery. Exporting the current H1/dual-Shadow model yields 53 tactile mounts, 448 three-axis taxels (1,344 scalar channels), 69 joint sensors and 61 actions. **The standalone live PhysX fixture subsequently passed 10/10 checks at 2026-09-08 07:43:28 UTC. No sensor-only Isaac policy or H1 sensor-parity result is claimed.** This work implements part of stage 3 of [the execution plan](DEXTEROUS_NEXT_STEPS.md), independently of the privileged opening teacher.
 
 ## Actor contract
 
@@ -77,3 +77,10 @@ python scripts/dexterous/isaac_sensor_smoke.py \
 ```
 
 The fixture contains two free pads: one settles on static ground, the other on a dynamic block. It checks local support-force signs/magnitudes, friction opposing an imposed initial sliding velocity, stationary/free-fall IMU, finite arrays, camera delivery timestamps and the exact physics clock. It retains traces, RGB arrays/images, source hashes, progress and a pass/fail report. The two image channels intentionally duplicate one fixture camera and are not a robot policy configuration. The fixture does not establish H1 camera placement, complete-body touch, self-contact, cross-engine dynamics or task success. Use a new output directory for every attempt, including failures.
+
+
+### Live fixture evidence
+
+The [first fixture report](../results/dexterous/2026-09-08/isaac-sensor-fixture.json) passed all ten checks on CUDA with Isaac Sim 5.1.0.0 and PyTorch 2.7.0+cu128. Static and dynamic support measured 9.8103 N and 9.8142 N for the 1 kg pads; sliding local shear reached -5.9157 N. Stationary IMU specific force was approximately 9.8103 m/s², free-fall readings passed the declared tolerance, camera acquisition age was 20–58 ms with delay enabled, and the physics clock error was 9.50e-8 s. Static ground and all dynamic counterpart paths resolved.
+
+The uncut numeric trace, RGB arrays/frames, logs, source files and package record are archived outside Git at `~/Desktop/Projects/DoorBench-runs/2026-09-08-isaac-sensors/fixture-001/` and its parent directory. The RGB image was visually inspected; both free pads and their support are visible. This is a two-pad fixture, not a humanoid task result.
