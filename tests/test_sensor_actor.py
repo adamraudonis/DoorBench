@@ -113,3 +113,23 @@ def test_sensor_actor_rollouts_cannot_be_called_teacher_demonstrations(tmp_path,
     for qualification in ['operation-report.json','acquisition-report.json']:
         with pytest.raises(ValueError,match='privileged_teacher'):
             SensorDemonstration(tmp_path,qualification=qualification)
+
+
+@pytest.mark.parametrize('defect',['incomplete','changed_numeric','changed_rgb','missing_hash','bad_hash_type'])
+def test_incomplete_or_mismatched_sensor_capture_rejected(tmp_path,defect):
+    import hashlib
+    sensor=archive(tmp_path)
+    report=dict(control_source='privileged_teacher',capture_complete=True,
+        numeric_file_sha256={name:hashlib.sha256((sensor/name).read_bytes()).hexdigest()
+            for name in ('actor-sensors.npz','actor-rgb.npz')})
+    (sensor/'report.json').write_text(json.dumps(report))
+    assert len(SensorDemonstration(tmp_path))==3
+    if defect=='incomplete':report['capture_complete']=False
+    elif defect.startswith('changed_'):
+        name='actor-sensors.npz' if defect=='changed_numeric' else 'actor-rgb.npz'
+        (sensor/name).write_bytes((sensor/name).read_bytes()+b'changed after capture')
+    elif defect=='missing_hash':del report['numeric_file_sha256']['actor-rgb.npz']
+    else:report['numeric_file_sha256']=[]
+    (sensor/'report.json').write_text(json.dumps(report))
+    with pytest.raises(ValueError,match='completed|hashes'):
+        SensorDemonstration(tmp_path)

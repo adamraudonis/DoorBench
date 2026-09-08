@@ -25,6 +25,16 @@ class SensorDemonstration:
         if report.get('passed') is not True or mechanics.get('passed') is not True or report.get('runtime_robot_pose_writes')!=0 or report.get('direct_door_commands') is not False:
             raise ValueError('Imitation archive is not qualified for the declared physical task')
         sensor_report=json.loads((self.path/'sensors/report.json').read_text())
+        if sensor_report.get('capture_complete') is False:
+            raise ValueError('Teacher demonstration requires a completed sensor capture')
+        if 'numeric_file_sha256' in sensor_report:
+            declared=sensor_report['numeric_file_sha256']
+            expected={'actor-sensors.npz','actor-rgb.npz'}
+            if (not isinstance(declared,dict) or set(declared)!=expected or
+                    any(not isinstance(declared[name],str) or
+                        hashlib.sha256((self.path/'sensors'/name).read_bytes()).hexdigest()!=declared[name]
+                        for name in expected)):
+                raise ValueError('Sensor capture numeric file hashes are missing or inconsistent')
         if (sensor_report.get('control_source')!='privileged_teacher' or
                 report.get('control_source','privileged_teacher')!='privileged_teacher' or
                 report.get('closed_loop_evaluated') is True):
