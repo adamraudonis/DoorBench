@@ -34,6 +34,9 @@ def audit(path, robot_xml):
     path = Path(path)
     config = read(path / "configuration.json")
     result = read(path / "operation-report.json")
+    profile = result.get('grasp_profile',result.get('final_pad_grasp',{}).get('grasp_profile','distal-pad-v1'))
+    if profile not in ('distal-pad-v1','volar-phalange-v1'):
+        raise ValueError('Unknown declared grasp profile')
     layout = read(path / "sensors/layout.json")
     motors = read(path / "motor-contract.json")
     trace = read(path / "trace.json")
@@ -117,14 +120,22 @@ def audit(path, robot_xml):
     checks["complete_2ms_pad_clock_including_reset"] = np.array_equal(
         np.asarray([r["sim_time_s"] for r in pads]), np.arange(len(times)+1)*dt)
     local_mismatches = 0
+    profiles_match = True
     for row in pads:
+        profiles_match = profiles_match and row.get('grasp_profile','distal-pad-v1') == profile
         for c in row["contacts"]:
             p = c["body_position_m"]; n = c["hand_outward_normal_body"]
-            qualified = (c["body"].endswith("distal") and p[1] < -.001 and
-                .002 <= p[2] <= .040 and -n[1] > .5 and c["on_lever_cylindrical_side"] and
+            name=c['body'].rsplit('/',1)[-1]
+            segment=name[5:]
+            extents={'distal':.040}
+            if profile=='volar-phalange-v1' and c['digit']!='th':
+                extents.update(proximal=.045,middle=.025)
+            qualified = (segment in extents and p[1] < -.001 and
+                .002 <= p[2] <= extents[segment] and -n[1] > .5 and c["on_lever_cylindrical_side"] and
                 c["inward_radial_normal_alignment"] > .8)
             local_mismatches += bool(qualified) != c["pad_qualified"]
     checks["recorded_local_pad_formula_consistent"] = local_mismatches == 0
+    checks['one_declared_grasp_profile']=profiles_match and config['args'].get('grasp_profile','distal-pad-v1') == profile
     start = result["operation_reference"]["operation_start_s"]
     active = [r for r in pads if r["sim_time_s"] >= start]
     bad = [r for r in active if any(not c["pad_qualified"] and c["normal_force_N"] > 1e-6 for c in r["contacts"])]
@@ -155,7 +166,7 @@ def audit(path, robot_xml):
     important_files = ["operation-report.json", "acquisition-physics.npz", "acquisition-pad-steps.json.gz",
         "sensors/actor-sensors.npz", "sensors/actor-rgb.npz", "sensors/layout.json", "motor-contract.json",
         "provenance.json", "launch-source/manifest.json", "launch-source/source.tar.gz"]
-    return dict(run=path.name, archive=str(path), run_started_utc=run_time,
+    return dict(run=path.name, archive=str(path), run_started_utc=run_time, grasp_profile=profile,
         scope="Independent archive consistency audit; privileged teacher, no sensor-only policy or full traversal claim",
         archive_checks={k: bool(v) for k, v in checks.items()}, archive_consistent=all(checks.values()),
         task_passed=result["passed"], failed_task_gates=[k for k, v in result["checks"].items() if not v],
@@ -171,7 +182,7 @@ def audit(path, robot_xml):
         tactile_active_mounts=tactile, rgb=derivatives,
         provenance=dict(prelaunch_source_members=len(hashes), run_local_source_copies=len(source_matches),
             pad_audit_sha256=hashes.get("doorbench/dexterous/isaac_pad_audit.py"),
-            runner_local_pad_source_omitted=True, complete_prelaunch_package_included=True),
+            runner_local_pad_source_omitted=not (path/'source-isaac_pad_audit.py').exists(), complete_prelaunch_package_included=True),
         limitations=["Derived pad geometry is cross-checked; raw synchronized contact/body transforms were not separately archived.",
             "Joint/motor/timing checks use every 2 ms row; command-versus-sent joint torque is available only at 50 Hz.",
             "Foot tactile channels saturate at the declared 100 N per-channel sensor limit.",
