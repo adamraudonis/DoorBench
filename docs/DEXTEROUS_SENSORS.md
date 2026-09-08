@@ -64,3 +64,16 @@ Before labeling any rollout sensor-only, retain the following checks on the pinn
 - Run one environment, then a small batch with separate environment ownership. Profile physics, copies, taxel construction and camera delivery separately before replacing the NumPy path or scaling.
 
 CPU passing tests establish numerical/API-boundary behavior, not live Isaac coverage, the physical equivalence of contact solvers, correct cameras, or task success. Record those remaining gates in the run manifest and publish failures alongside passes.
+
+## Standalone live smoke command
+
+On the prepared GPU environment, run this before attaching the adapter to H1:
+
+```bash
+source isaaclab/cloud/env.sh
+python scripts/dexterous/isaac_sensor_smoke.py \
+  --headless --enable_cameras --device cuda:0 \
+  --output out/sensor-smoke/fixture-001
+```
+
+The fixture contains two free pads: one settles on static ground, the other on a dynamic block. It checks local support-force signs/magnitudes, friction opposing an imposed initial sliding velocity, stationary/free-fall IMU, finite arrays, camera delivery timestamps and the exact physics clock. It retains traces, RGB arrays/images, source hashes, progress and a pass/fail report. The two image channels intentionally duplicate one fixture camera and are not a robot policy configuration. The fixture does not establish H1 camera placement, complete-body touch, self-contact, cross-engine dynamics or task success. Use a new output directory for every attempt, including failures.
