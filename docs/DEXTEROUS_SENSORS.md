@@ -90,3 +90,12 @@ The uncut numeric trace, RGB arrays/frames, logs, source files and package recor
 The native layout export now includes the two fixed eye-camera calibrations and the IMU site. Pass `--sensor-layout /path/to/h1-shadow-sensors.json` to the existing `scripts/dexterous/isaac_opening.py` command. This creates all tactile mounts, a local IMU and independent 128×128 eye cameras; captures actor arrays and image timestamps under `sensors/`; and disables the diagnostic gold material override for these policy pixels. The previous-action field records bounded motor force normalized by each native motor force range. All teacher computations and motor limits remain as before.
 
 This is instrumentation beside a privileged teacher, not a sensor-only controller. It needs an actual H1 run, the existing independent opening audit, camera close-up inspection and a source check before being accepted. The serialized sensor packet contains no task geometry, while the independent teacher/evaluator trace intentionally still does. Keep these archives separate during training.
+
+The ready-environment wrapper now exposes the same capture with one flag:
+
+```bash
+source isaaclab/cloud/env.sh
+python scripts/isaac/run_handle_demo.py --sensors
+```
+
+It exports the native layout, runs the initialized teacher, and executes both the existing opening audit and the independent sensor-archive audit. This command still does not train or evaluate a sensor-only controller.

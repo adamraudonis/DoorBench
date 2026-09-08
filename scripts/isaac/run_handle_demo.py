@@ -15,6 +15,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--view',choices=['wide','hand'],default='wide')
     parser.add_argument('--output',type=Path)
+    parser.add_argument('--sensors',action='store_true',help='Also capture finite tactile, proprioception and native eye-camera streams')
     args=parser.parse_args()
     ready=ROOT/'out/isaac-ready'
     receipt=json.loads((ready/'ready.json').read_text())
@@ -34,15 +35,24 @@ def main():
     subprocess.run([str(asset_python),'scripts/dexterous/audit_isaac_reference.py',
         '--robot',str(ready/'h1-shadow.xml'),'--door',str(ROOT/'assets/doors/db0055_swing_single'),
         '--reference',str(reference),'--output',str(output.with_suffix('.reset-audit.json'))],cwd=ROOT,env=env,check=True)
+    sensor_args=[]
+    if args.sensors:
+        sensor_layout=output.with_suffix('.sensor-layout.json')
+        subprocess.run([str(asset_python),'scripts/dexterous/export_sensor_layout.py',
+            '--robot',str(ready/'h1-shadow.xml'),'--output',str(sensor_layout)],cwd=ROOT,env=env,check=True)
+        sensor_args=['--sensor-layout',str(sensor_layout)]
     subprocess.run([sys.executable,'scripts/dexterous/isaac_opening.py',
         '--robot-usd',str(robot_usd),'--door-usd',str(ROOT/'assets/doors/db0055_swing_single/door.usda'),
         '--motors',str(ready/'h1-import.motors.json'),'--reference',str(reference),
         '--output',str(output),'--seconds','10','--record','--view',args.view,
         '--native-robot',str(ready/'h1-shadow.xml'),'--arm-impedance','10','--grip-reset-targets',
         '--grip-force','6','--torso-damping','20','--stance-qp','--press-feedforward',
-        '--enable_cameras','--headless','--device','cuda:0'],cwd=ROOT,env=env,check=True)
+        '--enable_cameras','--headless','--device','cuda:0',*sensor_args],cwd=ROOT,env=env,check=True)
     subprocess.run([str(asset_python),'scripts/dexterous/audit_isaac_opening.py','--trial',str(output),
         '--motors',str(ready/'h1-import.motors.json')],cwd=ROOT,env=env,check=True)
+    if args.sensors:
+        subprocess.run([str(asset_python),'scripts/dexterous/audit_sensor_recording.py',
+            '--sensors',str(output/'sensors')],cwd=ROOT,env=env,check=True)
     print(f'Opening evidence: {output}\nVideo: {output / "live-isaac.mp4"}')
 
 
