@@ -308,3 +308,17 @@ shows optimizer progress; `latest-fit.json` shows all six comparison checks;
 `fit-step-*.json` and `actor-step-*.pt` preserve the complete checkpoint series.
 If the wall limit interrupts the requested optimization count, the report
 explicitly marks `completed: false` and retains the last measured checkpoint.
+
+The [portable preflight receipt](evidence/sensor-training-convergence-006-preflight.json)
+records the final 62.6-MB package hash, independent relocated loading,
+70 focused passing tests, and a one-step CPU run whose loss exactly matches
+model005's first step. Periodic evaluation reproduces model005's prior scores
+and startup errors. Its evaluation leaves weights, training mode and Torch RNG
+unchanged. A 1e-6 relative comparison margin prevents summation roundoff from
+counting as an improvement.
+
+Cold-start inputs are identical across all four sources. The correction
+targets agree with one another and differ from the nominal target by at most
+0.0546 Nm, far below model005's multi-Nm initial error. This small mismatch
+does not explain the observed failure by itself; all original labels remain
+unchanged for the longer-fit experiment.
