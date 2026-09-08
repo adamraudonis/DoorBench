@@ -120,3 +120,26 @@ Local evidence is under `/tmp/doorbench-shadow-loopback/` and its durable copy
 
 The compact machine-readable summary is
 [shadow-loopback-native-2026-09-08.json](evidence/shadow-loopback-native-2026-09-08.json).
+
+## Live Isaac unilateral behavior fixture
+
+`scripts/dexterous/prepare_isaac_import.py` exports the eight passive tendon
+contracts and native XML hash. `isaac_tendons.py` authors connected PhysX fixed
+tendons with zero free spring/damping and an explicit numerical limit stiffness
+of 10,000. Unknown passive tendons are rejected rather than silently removed.
+The opening, walking and full-scene approach adapters restore these constraints
+before the robot articulation starts. Motor sum transmissions remain unchanged.
+
+On September 8, the live `isaac_loopback_fixture.py` comparison passed all seven
+checks: inactive trajectories matched exactly, the restrained chain's maximum
+J1−J2 was 0.0143 mrad versus 412.15 mrad without the tendon, and runtime readbacks
+confirmed zero free spring/damping. This fixture uses four synthetic two-link
+mechanisms, a 0.001 Nm excitation and 0.25 s duration. It checks sign, units,
+slack and coupled response. It **does not match the native stress fixture's
+inertias, armature, forcing or duration**, and establishes no compliance parity.
+
+An earlier 1 s / 0.05 Nm run failed its final-position comparison after the
+unrestrained control struck its joint stops. Its report is retained unchanged;
+the shorter weaker comparison avoids that confound. Both fixture reports and
+the first failed v2 acquisition are in
+[the integration record](../results/dexterous/2026-09-08/shadow-v2-integration.json).

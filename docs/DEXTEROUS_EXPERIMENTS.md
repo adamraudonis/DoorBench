@@ -93,3 +93,34 @@ An independent audit verified the native tendon mapping, demonstrated that the c
 The [H1 locomotion report](DEXTEROUS_LOCOMOTION.md) records three successful forward plane trials on the unchanged full robot, including a start from the deep opening posture. An independent integration-worktree repetition reproduced 4.022 m travel and 1.991 degrees peak tilt. The original zero-command stop fails, so forward walking is not a complete approach or settle skill.
 
 The owned L40S passed a fresh complete environment readiness check at **2026-09-08 07:32:25 UTC**. A separate [live finite-sensor fixture](../results/dexterous/2026-09-08/isaac-sensor-fixture.json) passed all ten force, shear, taxel, IMU, RGB timing and physics-clock checks at **07:43:28 UTC**. The fixture uses simple pads; actual H1-mounted capture and student-policy execution require their own evidence. The allocation has both local and remote teardown guards. No complete traversal or sensor-only success is claimed.
+
+
+## Corrected Shadow mechanics, September 8, 2026
+
+The [v2 hand model](SHADOW_LOOPBACK_MECHANICS.md) adds the documented passive
+J1 <= J2 limit while preserving the original mass, geometry and motor strength.
+The v1 grasp/opening mechanical qualification is withdrawn; its recordings and
+previous failed searches remain reproducible. The stricter verifier checks all
+five volar pads and all eight joint-pair differences at every 2 ms step.
+
+| Corrected-model component | Measured outcome | Scope |
+|---|---|---|
+| Native actual Door55 approach | 9/9 varied starts; worst loopback violation 0.306 mrad | Approach only |
+| Native initialized grasp hold | Six seconds; all physical/pad checks pass | Initialized, privileged hold |
+| Live PhysX unilateral fixture | 7/7 checks; 0.0143 mrad peak difference | Synthetic joint fixture; not native compliance parity |
+| Native acquisition v2-001 | Failed; only little finger loads, individual stop violation 27.4 mrad | Failed complete acquisition attempt |
+| Native release v2-001 | 13/13 release checks; 44.74 mm final clearance | Initialized physical release, not acquisition |
+
+The release is executed by `probe_acquisition.py --mode initialized-release
+--landed-stance`, then converted to a candidate using `reverse_native_release.py`.
+The source audit records actual t=0 and every subsequent physics step. Its generic
+acquisition report intentionally fails the contact-free-start and final-grasp
+checks; `release-audit.json` defines the separate release result. The reversed
+candidate preserves measured root/operator frames as reference targets and never
+writes the moving robot pose. Physical reversal remains a separate trial.
+
+All details and retained initial PhysX fixture failure are in the
+[integration record](../results/dexterous/2026-09-08/shadow-v2-integration.json).
+The earlier v1 bounded searches each completed 192 rollouts with zero qualifying
+grasps; [their records](../results/dexterous/2026-09-08/grasp-search-v1.json) are
+historical diagnostics and are not being reused as mechanically valid targets.

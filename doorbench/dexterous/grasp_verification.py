@@ -146,6 +146,7 @@ def native_grasp_sample(sim,lever_geom,*,handle_joint,side='rh',pre_step_externa
             names=[f'robot/{side_name}_{digit}J{i}' for i in (1,2)]
             ids=[mujoco.mj_name2id(m,mujoco.mjtObj.mjOBJ_JOINT,name) for name in names]
             if min(ids)>=0:loopback_differences[f'{side_name}_{digit}']=float(d.qpos[m.jnt_qposadr[ids[0]]]-d.qpos[m.jnt_qposadr[ids[1]]])
+    if len(loopback_differences)!=8:raise ValueError('Shadow grasp audit requires all eight documented loopback pairs')
     return dict(**diagnostics,max_shadow_loopback_violation_rad=max([0.,*loopback_differences.values()]),shadow_loopback_differences_rad=loopback_differences,max_joint_limit_violation_rad=joint_violation,
         max_nonfoot_penetration_m=penetration,native_motor_limits=force_ok,
         hand_contact_count=hand_contacts,
@@ -173,7 +174,7 @@ or a claim that these tolerances suffice for hardware.
         raise ValueError('Invalid duration or physics timestep')
     fields=('sim_time_s','door_q','handle_angle_rad','root_height_m','torso_tilt_deg',
         'max_joint_limit_violation_rad','max_nonfoot_penetration_m','external_wrench_max',
-        'applied_generalized_force_max','hand_contact_count')
+        'applied_generalized_force_max','hand_contact_count','max_shadow_loopback_violation_rad')
     if not rows:return dict(passed=False,checks=dict(complete_evidence=False),reason='empty physics record')
     try:
         values=np.asarray([[r[k] for k in fields] for r in rows],dtype=float)

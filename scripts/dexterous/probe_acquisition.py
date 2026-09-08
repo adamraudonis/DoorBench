@@ -28,6 +28,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('robot', 'door', 'reference', 'output'):
         p.add_argument('--'+name, type=Path, required=True)
+    p.add_argument('--mode', choices=('acquisition','initialized-release'), default='acquisition')
+    p.add_argument('--landed-stance', action='store_true')
     p.add_argument('--reach-seconds', type=float, default=4.)
     p.add_argument('--hold-seconds', type=float, default=2.)
     p.add_argument('--grip-force', type=float, default=0.)
@@ -64,6 +66,10 @@ def main():
     root_path=np.asarray(ref['acquisition'].get('recorded_root_path',[ref['initial_root']]*len(path)))
     if root_path.shape!=(len(path),7) or not np.isfinite(root_path).all():raise ValueError('Invalid reference FK root path')
     recorded_path='recorded_root_path' in ref['acquisition']
+    release_mode=args.mode=='initialized-release'
+    if release_mode:
+        if recorded_path:raise ValueError('Initialized release expects a geometric candidate, not a reversed physical recording')
+        path=path[::-1].copy();root_path=root_path[::-1].copy()
     operator_positions=np.asarray(ref['acquisition'].get('recorded_lever_position_m',[]))
     operator_rotations=np.asarray(ref['acquisition'].get('recorded_lever_rotation',[]))
     if args.follow_operator:
@@ -75,7 +81,8 @@ def main():
     capture(Path(__file__).resolve().parents[2], args.output,
             {k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()}, timing='before_native_acquisition')
     (args.output/'reference.json').write_bytes(args.reference.read_bytes())
-    pipeline=dict(stage='Native open-hand acquisition development trial',scope=__doc__,completion_marker='ACQUISITION_TRIAL_FINISHED',started_at_unix=time.time())
+    run_scope='Initialized motor-driven release only; not acquisition, opening, traversal or sensor-only control' if release_mode else __doc__
+    pipeline=dict(stage=args.mode+' native development trial',scope=run_scope,completion_marker='ACQUISITION_TRIAL_FINISHED',started_at_unix=time.time())
     (args.output/'pipeline.json').write_text(json.dumps(pipeline)+'\n')
     (args.output/'run.pid').write_text(str(os.getpid()))
     def emit(value):
@@ -104,7 +111,10 @@ def main():
         if ref['acquisition'].get('recorded_motor_force_names')!=[m.actuator(aid).name.removeprefix('robot/') for aid in sim.actuators]:raise ValueError('Recorded motor-force ordering mismatch')
         if args.grip_force:p.error('Recorded force feedforward and nearest-point preload are separate experiments')
     joint_index = {j:i for i,j in enumerate(ids)}
-    stance = StanceController(sim)
+    if args.landed_stance:
+        from doorbench.dexterous.locomotion_manipulation import LandedFootStanceController
+        stance=LandedFootStanceController(sim)
+    else:stance = StanceController(sim)
     kp = m.actuator_gainprm[sim.actuators,0].copy()
     native_bias=m.actuator_biasprm[sim.actuators,:3].copy()
     native_force_limits=m.actuator_forcerange[sim.actuators].copy()
@@ -255,7 +265,8 @@ def main():
                 pad_targets={digit:pad_paths[i][digit]*(1-f)+pad_paths[i+1][digit]*f for digit in args.track_pads}
                 generalized,pad_errors=pad_tracker.generalized_force(d,pad_targets)
                 command[finger_motors]+=(finger_inverse@generalized[m.jnt_dofadr[ids]])/kp[finger_motors]
-            if args.grip_force and u>args.grip_start:
+            preload_scale=float(np.clip((1.3-d.time)/.3,0.,1.)) if release_mode else float(u>args.grip_start)
+            if args.grip_force and preload_scale:
                 generalized = np.zeros(m.nv)
                 for digit,geoms in digit_geoms.items():
                     nearest = None
@@ -270,7 +281,7 @@ def main():
                         continue
                     inward=vector/length*(1 if distance>=0 else -1)
                     mujoco.mj_jac(m,d,jp,jr,pair[:3],int(m.geom_bodyid[g]))
-                    generalized += jp.T@inward*args.grip_force*(1. if digit=='th' else args.finger_grip_scale)
+                    generalized += jp.T@inward*args.grip_force*preload_scale*(1. if digit=='th' else args.finger_grip_scale)
                 command[finger_motors] += (finger_inverse@generalized[m.jnt_dofadr[ids]])/kp[finger_motors]
                 if args.grip_reaction:command[arm_motors]+=(arm_inverse@generalized[m.jnt_dofadr[ids]])/kp[arm_motors]
             if args.recorded_finger_forces:
@@ -321,8 +332,20 @@ def main():
             reaches_grasp=bool(tail and max(r['palm_error_m'] for r in tail)<.02),
             holds_opposed_contacts=bool(tail and all(r['contacts']['opposed'] for r in tail)))
         strict_audit=audit_grasp_steps(physics_steps,physics_dt=m.opt.timestep,expected_duration=horizon)
+        if release_mode:
+            # The acquisition audit stays explicitly failed for an initialized
+            # release. A separate contract checks its actual diagnostic scope.
+            physical_keys=('complete_physics_step_evidence','closed_leaf_start','resting_operator_start','finite','upright','physical_joint_limits','nonfoot_penetration','native_motor_limits','no_external_assistance','documented_loopback_limits')
+            release_checks={key:strict_audit['checks'].get(key,False) for key in physical_keys}
+            initial_hold=[r for r in physics_steps if .4<=r['sim_time_s']<=.9]
+            hand_geoms=[g for g in range(m.ngeom) if m.geom_contype[g] and m.body(m.geom_bodyid[g]).name.startswith('robot/rh_')]
+            final_gap=min(float(mujoco.mj_geomDistance(m,d,g,lever,1.,None)) for g in hand_geoms)
+            release_checks.update(initial_loaded_pad_grasp=bool(initial_hold and all(r['pad_grasp']['valid_pad_grasp'] for r in initial_hold)),
+                ends_contact_free=bool(final_gap>=.02 and all(r['hand_contact_count']==0 for r in physics_steps if r['sim_time_s']>=horizon-.5)),path_completed=checks['path_completed'])
+            release_audit=dict(scope=run_scope,passed=all(release_checks.values()),checks=release_checks,final_hand_gap_m=final_gap)
+            (args.output/'release-audit.json').write_text(json.dumps(release_audit,indent=2)+'\n')
         checks.update({'strict_'+key:value for key,value in strict_audit['checks'].items()})
-        report = dict(scope=__doc__, passed=all(checks.values()),checks=checks, initial=initial,strict_grasp_audit=strict_audit,
+        report = dict(scope=run_scope, passed=all(checks.values()),checks=checks, initial=initial,strict_grasp_audit=strict_audit,
             max_torso_tilt_deg=max(r['torso_tilt_deg'] for r in rows),
             final_palm_error_m=rows[-1]['palm_error_m'], final_contacts=rows[-1]['contacts'],
             runtime_robot_pose_writes=0, direct_door_commands=False, explicit_motor_mode=args.explicit_motors, trials=1)
@@ -333,12 +356,13 @@ def main():
         (args.output/'report.json').write_text(json.dumps(report,indent=2)+'\n')
         emit({k:v for k,v in report.items() if k not in ('initial','final_contacts')})
         emit({k:v for k,v in report['final_contacts'].items() if k!='contacts'})
-        pipeline.update(result_passed=report['passed'],stage='Acquisition checks passed' if report['passed'] else 'Acquisition failed; inspect report and trace')
+        effective_passed=release_audit['passed'] if release_mode else report['passed']
+        pipeline.update(result_passed=effective_passed,stage=args.mode+(' checks passed' if effective_passed else ' failed; inspect report and trace'))
         (args.output/'pipeline.json').write_text(json.dumps(pipeline)+'\n')
         emit('ACQUISITION_TRIAL_FINISHED')
     finally:
         sim.close()
-    raise SystemExit(0 if report['passed'] else 1)
+    raise SystemExit(0 if effective_passed else 1)
 
 
 if __name__=='__main__':
