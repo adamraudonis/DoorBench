@@ -15,8 +15,7 @@ import re
 import numpy as np
 
 from .motor_contract_identity import motor_contract_fingerprint
-from .sensor_actor import ActorDimensions
-from .sensor_contract import validate_actor_packet
+from .sensor_contract import ActorDimensions, validate_actor_packet
 
 CALIBRATION_SCHEMA = 'doorbench.sensor-balance-calibration.v1'
 BALANCE_PROTOCOL = 'doorbench.sensor-stationary-balance-5s.v1'

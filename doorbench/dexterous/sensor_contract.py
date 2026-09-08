@@ -18,6 +18,30 @@ SENSOR_KEYS = ("joint_position", "joint_velocity", "imu_gyro", "imu_acceleromete
 ACTOR_KEYS = frozenset((*SENSOR_KEYS, "previous_action", "sensor_time_s", "sensor_valid"))
 
 
+@dataclass(frozen=True)
+class ActorDimensions:
+    joints: int = 69
+    actions: int = 61
+    tactile: int = 1344
+    image_size: int = 128
+    hidden: int = 192
+
+    def __post_init__(self):
+        if any(type(v) is not int or v<=0 for v in vars(self).values()):
+            raise ValueError('Actor dimensions must be positive integers')
+
+    @property
+    def shapes(self):
+        return dict(joint_position=(self.joints,),joint_velocity=(self.joints,),
+                    imu_gyro=(3,),imu_accelerometer=(3,),tactile=(self.tactile,),
+                    rgb_left=(self.image_size,self.image_size,3),
+                    rgb_right=(self.image_size,self.image_size,3))
+
+    @property
+    def proprio_dimension(self):
+        return 2*self.joints+6+self.actions+2*len(SENSOR_KEYS)
+
+
 def finite_array(value, shape=None, *, dtype=np.float64):
     array = np.array(value, dtype=dtype, copy=True)
     if (shape is not None and array.shape != shape) or not np.isfinite(array).all():

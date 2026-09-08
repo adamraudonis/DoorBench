@@ -4,37 +4,12 @@ The model receives no task geometry, object identity, phase or absolute episode
 clock. Acquisition times become relative sensor ages. Training this architecture
 does not establish closed-loop success; that requires independent plant trials.
 """
-from dataclasses import dataclass
-
 import numpy as np
 import torch
 from torch import nn
 
-from .sensor_contract import SENSOR_KEYS, validate_actor_packet
+from .sensor_contract import SENSOR_KEYS, validate_actor_packet, ActorDimensions
 
-
-@dataclass(frozen=True)
-class ActorDimensions:
-    joints: int = 69
-    actions: int = 61
-    tactile: int = 1344
-    image_size: int = 128
-    hidden: int = 192
-
-    def __post_init__(self):
-        if any(type(v) is not int or v<=0 for v in vars(self).values()):
-            raise ValueError('Actor dimensions must be positive integers')
-
-    @property
-    def shapes(self):
-        return dict(joint_position=(self.joints,),joint_velocity=(self.joints,),
-                    imu_gyro=(3,),imu_accelerometer=(3,),tactile=(self.tactile,),
-                    rgb_left=(self.image_size,self.image_size,3),
-                    rgb_right=(self.image_size,self.image_size,3))
-
-    @property
-    def proprio_dimension(self):
-        return 2*self.joints+6+self.actions+2*len(SENSOR_KEYS)
 
 
 def prepare_actor_packet(packet, now_s, dimensions):
