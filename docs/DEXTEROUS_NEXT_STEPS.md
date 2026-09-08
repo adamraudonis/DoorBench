@@ -33,3 +33,4 @@ Each implementation milestone must update the [execution ledger](DEXTEROUS_EXPER
 ## Work log
 
 - September 8, 2026 UTC: plan recorded before execution. First engineering task is moving from the verified near-handle pose to contact-free reaching and acquisition, without changing the known-good opening baseline. Full-sequence evaluation and the sensor audit follow. No new full-sequence or sensor-only result exists yet.
+- September 8, 2026 UTC: [acquisition development started](DEXTEROUS_ACQUISITION.md). One geometric approach passed 1,001 sampled configurations; seven native physical development attempts failed acquisition. The current explicit motor adapter reaches within 8.83 mm while upright, but thumb/index contact and a little-finger joint-limit violation remain unresolved. Reports, source snapshots and close-up previews are retained. No GPU was allocated and no new benchmark success is claimed.

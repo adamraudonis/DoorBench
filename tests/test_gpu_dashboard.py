@@ -12,6 +12,15 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 
+def test_finished_experiment_with_failed_checks_is_not_success(tmp_path):
+    (tmp_path / 'pipeline.json').write_text(json.dumps(dict(
+        completion_marker='TRIAL_FINISHED', result_passed=False)))
+    (tmp_path / 'run.log').write_text('TRIAL_FINISHED\n')
+    result = module.collect(tmp_path)
+    assert result['status'] == 'failed'
+    assert result['complete'] is False
+
+
 def ledger(tmp_path, complete=True):
     data = {
         "started_at_utc": "2026-09-06T20:00:00+00:00",

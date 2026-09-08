@@ -54,7 +54,7 @@ def collect(directory, telemetry=False):
         except (OSError, ValueError):
             pass
         complete = bool(config.get('completion_marker')) and any(config['completion_marker'] in line for line in lines)
-        failed=any('READINESS_FAILED' in line or 'PREPARATION_FAILED:' in line for line in lines)
+        failed=config.get('result_passed') is False or any('READINESS_FAILED' in line or 'PREPARATION_FAILED:' in line for line in lines)
         if failed:complete=False
         gpu = []
         if telemetry:
