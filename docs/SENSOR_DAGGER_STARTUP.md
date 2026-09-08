@@ -174,3 +174,23 @@ python scripts/dexterous/query_acquisition_teacher.py \
   --solver-max-iterations 100000 --solver-rho .001 \
   --output "$NUMERICAL_RETRY"
 ```
+
+The penalty/iteration retry admits 151 contiguous candidate labels through
+0.300 s. A more controlled follow-up changes **only** the iteration budget to
+100,000 and achieves the same admission: the formerly inaccurate 40-ms solve
+finishes at 5,200 iterations, with primal/dual residuals 7.70×10⁻⁵/9.98×10⁻⁶.
+This iterations-only result is the selected candidate for possible future
+training. All later states remain excluded once actual tilt exceeds 12 degrees
+at 0.302 s. No new training is implied by this label admission.
+
+A default-settings replay reproduces all 261 original force vectors and label
+validity bits **exactly**, including the rejected 40-ms query. The selected
+candidate differs from the original forces by at most 0.958 Nm over the first
+151 labels. The [numerical receipt](evidence/sensor-actor003-query-numerics.json)
+retains every trial, setting, hash and residual. The 1e-4 absolute and relative
+stopping tolerances are unchanged; raw residuals can exceed 1e-4 under the
+relative rule. A solver status is still not a physical recovery qualification.
+
+The selected query command uses `--solver-max-iterations 100000` and omits
+`--solver-rho`. Its canonical directory is
+`teacher-corrections-actor003-004-iterations-only`.
