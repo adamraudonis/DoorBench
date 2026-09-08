@@ -1,6 +1,6 @@
 # H1 walking development
 
-The official **H1**, not G1, actor from Unitree RL Gym moves DoorBench's unchanged full H1/dual-Shadow robot under native motor forces. Forward walking and a phase-adapted stop/restart are working in CPU MuJoCo development trials. **The strict seeded stop protocol passes 30/40, with all ten held-raised-arm starts failing; precise door approach and doorway clearance remain open. A [continuous lowered-stance primitive](DEXTEROUS_LOCOMOTION_TRANSITION.md) now has separate native development evidence; Isaac results are reported by the integration work package.** This does not complete the [full-sequence plan](DEXTEROUS_NEXT_STEPS.md).
+The official **H1**, not G1, actor from Unitree RL Gym moves DoorBench's unchanged full H1/dual-Shadow robot under native motor forces. Forward walking and a phase-adapted stop/restart are working in CPU MuJoCo development trials. **The strict seeded stop protocol passes 30/40, with all ten held-raised-arm starts failing; a [physical Door55 waypoint approach](DEXTEROUS_DOOR_APPROACH.md) has separate 9/9 native evidence, while doorway clearance remains open. A [continuous lowered-stance primitive](DEXTEROUS_LOCOMOTION_TRANSITION.md) now has separate native development evidence; Isaac results are reported by the integration work package.** This does not complete the [full-sequence plan](DEXTEROUS_NEXT_STEPS.md).
 
 ## Measured evidence
 
