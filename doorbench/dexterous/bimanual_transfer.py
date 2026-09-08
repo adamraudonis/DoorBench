@@ -177,7 +177,7 @@ class LeftPalmContact:
         if forces.shape!=(len(teacher.act),) or not np.isfinite(forces).all():raise ValueError('Expected finite native motor forces')
         q=np.array([joints[n] for n in self.names[1:]]);v=np.array([velocities[n] for n in self.names[1:]])
         kp=teacher.kp[self.act];bias=teacher.bias[self.act]
-        damping=np.array([.8 if 'WRJ' in n else 10. for n in self.names[1:]])
+        damping=np.array([.8 if 'WRJ' in n else 10. for n in self.names[1:]])*getattr(self,'damping_scale',1.0)
         left_force=kp*self.target+bias[:,0]+bias[:,1]*q+bias[:,2]*v+kp*9*(self.target-q)-damping*v+d.qfrc_bias[self.va]
         mujoco.mj_jacSite(m,d,self.jp,self.jr,self.palm)
         push=self.contact_force*np.clip((self.progress-.94)/.06,0.,1.)

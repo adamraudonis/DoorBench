@@ -154,5 +154,10 @@
     "traversal": false,
     "isaac_opening_verified": false
   },
-  "reproduction_input_scope": "Post-run reproduction bundle; robot and door bytes checked against pre-run manifest. Motor receipt captured after run and bound to the same source robot."
+  "reproduction_input_scope": "Post-run reproduction bundle; robot and door bytes checked against pre-run manifest. Motor receipt captured after run and bound to the same source robot.",
+  "measurement_timing_audit": {
+    "status": "earlier native force-evaluation pose timing; coherent wrapper trial now separate",
+    "limitation": "Immediate post-mj_step derived body/contact geometry corresponds to the force-evaluation state before final integration, while qpos has advanced. Earlier control/state traces and loaded opening remain actual; per-row pose/joint simultaneity was not established.",
+    "new_contract": "FullOpeningTeacher requires measured right-palm/body poses timestamped at current joint state. The fresh native probe refreshes active-plant forward measurements after each completed step."
+  }
 }

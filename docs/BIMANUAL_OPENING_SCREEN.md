@@ -7,6 +7,11 @@ traversal and Isaac opening remain separate, unqualified steps. Earlier static
 candidates and physical failures are retained below; the current result and API
 are in the final section.
 
+A later timing audit found that the earlier native driver combined derived
+force-evaluation body poses with just-integrated joint positions. Its actual
+opening/control evidence is preserved, but synchronized ground-truth claims
+require the separate coherent-measurement FullOpeningTeacher trial below.
+
 ## Measured-release candidate: screen-014
 
 The fix reuses the actual 0.9–7.5 s motion from the separately qualified native
@@ -303,7 +308,16 @@ there too. A new robot, changed mechanics or different door cannot reuse this
 receipt. After static compatibility, run the uninterrupted physical contact
 primitive on the destination engine; that remains a separate gate.
 
-## Qualified native loaded aperture: full-push005 and portable repeat
+## Earlier loaded-aperture result: full-push005 and portable repeat
+
+The original runs below mixed just-integrated joint coordinates with cached
+body poses and contacts. Their reported gates and actual trajectory are retained,
+but they do **not** establish a synchronized sensor/controller qualification.
+The unified teacher therefore receives explicit current measured palm poses,
+and its new native driver refreshes derived measurements after every step.
+MuJoCo documents that `mj_step` updates the state last, leaving derived quantities
+from the preceding dynamics calculation; `mj_forward` refreshes those quantities
+without integrating time. See the [official simulation pipeline](https://github.com/google-deepmind/mujoco/blob/main/doc/computation/index.rst#simulation-pipeline).
 
 The complete native episode now starts with a closed leaf, resting lever,
 contact-free hands and the qualified deep stance. Without further pose resets,
@@ -390,3 +404,60 @@ attained by the separate walking approach. That attained state needs a fresh
 workspace and physical check. Isaac transfer, left release, rising, walking
 through the aperture, robustness across starts and sensor-only imitation remain
 unqualified. Do not score any of those from this result.
+
+## Unified measured-state teacher: development qualification
+
+`doorbench.dexterous.full_opening_teacher.FullOpeningTeacher` now owns the
+continuous acquisition, lever operation, qualified partial opening, left contact,
+axial right release and coordinated panel continuation. It accepts numeric
+measurements and returns exactly 61 forces clipped to the original motor caps.
+Its owned model is an unstepped calculator. No active simulator is accepted.
+
+```python
+teacher = FullOpeningTeacher(
+    robot_xml, motors, reference, joint_geometry,
+    door_xml=door_directory, left_targets=left_target_config,
+    release_screen=axial_release_config,
+    runtime_screen=destination_geometry_receipt,  # when required
+    target_aperture=1.2,
+)
+forces, info = teacher.force(
+    t, root13, named_joints, named_velocities, handle_pose7, leaf_pose7,
+    dict(operator=handle_angle, leaf=leaf_angle, latch=latch_displacement),
+    hand_forces_world, evidence=measured_evidence,
+    right_palm_pose=measured_right_palm_xyz_wxyz, pose_time_s=t,
+)
+```
+
+`joint_geometry` contains the compiled local `operator_origin`, `operator_axis`,
+`leaf_origin`, and `leaf_axis`. `root13` and body poses use the conventions above.
+The exact evidence dictionary is `grasp_qualified`, `physics_qualified`,
+`right_pad_patches_valid`, `hand_contact_count`, `left_panel_load_N`,
+`left_palm_load_N`, and `right_lever_clearance_m`. The first three values are
+actual booleans; loads are measured newtons and clearance is the actual signed
+minimum across every right-hand collider. These are privileged teacher inputs.
+
+The consumer supplies one coherent sample per physics tick. Repeated timestamps,
+stale poses, opaque objects and unexpected evidence fields reject. Missing
+samples cancel the sustained-contact window. A sample count cannot replace the
+required half-second interval. `info` timestamps the current mechanism/evidence
+measurements and separately identifies the left controller's last 100 Hz update.
+The following force acts on the subsequent physics interval; it must not be
+reported as though its input measurements were taken after that interval.
+
+Native reproduction uses `scripts/dexterous/probe_full_opening_teacher.py` with
+the same `--robot`, `--door`, `--reference`, `--motors`, `--plan`,
+`--release-path`, optional `--runtime-screen`, and a fresh `--output`. It records
+every 2 ms contact/physics sample, 50 Hz states, exact inputs and local sources.
+`--target-aperture` is independent of the controller's gains; 1.5 rad or another
+target requires a new physical run and must not inherit the 1.2 rad result.
+
+The synchronized controller is still under qualification. Coherent001 reached
+1.20114 rad but violated the left LFJ5 joint bound and lost continuous palm load.
+Coherent002 corrected the joint bound but lost final contact and acquired an
+invalid right-hand patch during axial withdrawal. Coherent003 retained correct
+right anatomy and finished with 6.97 N palm load, but failed joint and continuous
+load gates. The original 20 gates remain unchanged. Exact failures and sources
+are preserved in the byte-verified archives referenced by
+[`full-opening-teacher-development.json`](../results/dexterous/2026-09-08/full-opening-teacher-development.json).
+Do not score a completed opening from these development runs.

@@ -18,7 +18,15 @@ from scipy.spatial.transform import Rotation
 
 class CoordinatedPanelPush:
 
-    def __init__(self, left):
+    def __init__(self, left, *, target_palm_load=3.0, maximum_normal_offset=.012,
+                 left_cup_seconds=2.0):
+        if not np.isfinite(target_palm_load) or not 2.0 < target_palm_load <= 10.0:
+            raise ValueError('Expected a finite palm-load target above the 2 N qualification floor')
+        self.target_palm_load = float(target_palm_load)
+        if not np.isfinite([maximum_normal_offset,left_cup_seconds]).all() or not 0 < maximum_normal_offset <= .05 or left_cup_seconds <= 0:
+            raise ValueError('Invalid bounded panel controller settings')
+        self.maximum_normal_offset = float(maximum_normal_offset)
+        self.left_cup_seconds = float(left_cup_seconds)
         self.left = left
         self.teacher = left.teacher
         self.started = None
@@ -108,7 +116,7 @@ class CoordinatedPanelPush:
         local = self.local_position.copy()
         local[0] -= 0.04 * blend
         local[2] -= 0.15 * blend
-        self.offset = float(np.clip(self.offset + dt * 0.016 * np.clip((3.0 - palm_load) / 4.0, -1.0, 1.0), -0.015, 0.012))
+        self.offset = float(np.clip(self.offset + dt * 0.016 * np.clip((self.target_palm_load - palm_load) / 4.0, -1.0, 1.0), -0.015, self.maximum_normal_offset))
         goal = leaf_pose[:3] + R @ local + normal * self.offset
         rotation = R @ self.local_rotation
         right_goal = self.right_hold_position
@@ -117,7 +125,9 @@ class CoordinatedPanelPush:
         fu = float(np.clip((t - self.started) / 2.0, 0.0, 1.0))
         fb = fu ** 3 * (10 + fu * (-15 + 6 * fu))
         for name, value in self.finger_initial.items():
-            teacher.path[-1, teacher.names.index(name)] = value + fb * (0.12 - value)
+            cu = float(np.clip((t-self.started)/self.left_cup_seconds,0.,1.)) if name == 'lh_LFJ5' else fu
+            cb = cu**3*(10+cu*(-15+6*cu))
+            teacher.path[-1, teacher.names.index(name)] = value + cb * (0.12 - value)
 
         def fun(q):
             d.qpos[self.qa] = q
