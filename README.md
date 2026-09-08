@@ -38,7 +38,7 @@ The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock
 |---|---:|---:|
 | One initialized door, privileged motor controller | 4 / 4 | 60.3–95.0° |
 
-This starts at the handle and uses exact simulator state; it is not a vision/tactile-only policy or a catalogue score. [Wide video](https://github.com/adamraudonis/DoorBench/releases/download/isaac-h1-handle-20260908/isaac-h1-handle-wide.mp4) · [Hand close-up](https://github.com/adamraudonis/DoorBench/releases/download/isaac-h1-handle-20260908/isaac-h1-handle-closeup.mp4) · [Run it yourself, timestamps and checks](docs/ISAAC_HANDLE_DEMO.md).
+A later sensor-enabled repeat on September 8 at **08:25 UTC failed**, stopping at **25.7°**. The teacher releases before a usable opening and depends on subsequent door motion; that weakness is being corrected. These initialized demonstrations use exact simulator state. Approach, grasp, opening and traversal have not yet passed as one continuous task. [Current execution plan and progress](docs/DEXTEROUS_NEXT_STEPS.md). [Wide video](https://github.com/adamraudonis/DoorBench/releases/download/isaac-h1-handle-20260908/isaac-h1-handle-wide.mp4) · [Hand close-up](https://github.com/adamraudonis/DoorBench/releases/download/isaac-h1-handle-20260908/isaac-h1-handle-closeup.mp4) · [Run it yourself, timestamps and checks](docs/ISAAC_HANDLE_DEMO.md).
 
 ## Scripted baseline
 

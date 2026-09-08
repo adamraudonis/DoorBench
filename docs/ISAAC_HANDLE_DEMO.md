@@ -8,6 +8,8 @@ This development demo uses a free-base H1 with Shadow Hands in **Isaac Sim 5.1 /
 
 The wide and close-up videos are separate live repetitions, not synchronized views of one trajectory.
 
+**Repeatability issue found September 8, 08:25 UTC:** a subsequent sensor-enabled run failed the unchanged final-opening gate, ending at 25.7°. The teacher starts releasing at about 0.257 rad and withdrawing near 0.49 rad, before the required 0.7 rad opening. The historical successful runs relied on later door motion. A maintained-contact panel-push continuation is under development; it is not yet a verified replacement. [Retained failed run](../results/dexterous/2026-09-08/isaac-h1-manipulation-camera-capture.json).
+
 ## Run it
 
 First launch the [ready Isaac environment](ISAAC_ONE_CLICK.md). On that node, from the checkout recorded in `connection.json`:
