@@ -47,3 +47,25 @@ def test_exception_prefix_cannot_become_a_qualified_report(tmp_path,monkeypatch)
     m.main();r=json.loads(output.read_text())
     assert not r['verification_passed'] and not r['actual_balance_trial_passed']
     assert r['errors']==['No completed supported balance qualification report']
+
+
+def test_reach_archive_dispatches_exact_reset_and_joint_only_inputs(tmp_path,monkeypatch):
+    from doorbench.dexterous import sensor_reach_evaluation
+    run=tmp_path/'reach';run.mkdir();(run/'sensors').mkdir();output=tmp_path/'audit.json';robot=tmp_path/'robot.xml';robot.write_text('bound elsewhere by evaluator')
+    with gzip.open(run/'balance-steps.json.gz','wt') as f:json.dump([],f)
+    with gzip.open(run/'balance-contacts.jsonl.gz','wt') as f:f.write('')
+    layout,_=fixture();(run/'balance-contact-layout.json').write_text(json.dumps(layout))
+    (run/'balance-report.json').write_text(json.dumps(dict(schema='doorbench.sensor-scripted-reach-11s.v1',passed=False,checks={'complete':False},original_physics_checks={'finite':True})))
+    reset=dict(root13_actororigin=[0]*13,joint_position={'named':1})
+    (run/'balance-reach-reset.json').write_text(json.dumps(reset))
+    for name in ('sensor-balance-calibration.json','configuration.json','provenance.json','motor-contract.json','sensors/layout.json','balance-reach-protocol.json','balance-reach-route.json'):
+        (run/name).write_text('{}')
+    calls=[]
+    def evaluate(rows,physical,**kw):calls.append((rows,physical,kw));return dict(passed=False,checks={'complete':False})
+    monkeypatch.setattr(sensor_reach_evaluation,'evaluate_sensor_reach_balance',evaluate)
+    monkeypatch.setattr('sys.argv',['audit','--run',str(run),'--output',str(output),'--robot',str(robot)])
+    m.main();receipt=json.loads(output.read_text());assert receipt['verification_passed'] and not receipt['actual_balance_trial_passed']
+    assert calls[0][2]['initial_root13_actororigin']==reset['root13_actororigin']
+    assert calls[0][2]['initial_joint_position']==reset['joint_position']
+    assert calls[0][2]['protocol']==run/'balance-reach-protocol.json' and calls[0][2]['joint_route']==run/'balance-reach-route.json'
+    assert 'actual_stationary_trial_passed' not in receipt

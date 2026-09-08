@@ -1,4 +1,4 @@
-"""Independently verify a completed or failed Isaac stationary-balance archive.
+"""Independently verify a completed or failed Isaac stationary, arm or contact-free reach archive.
 
 Recomputes every step's floor support and hand contact count from archived raw
 normal-contact slots. No inference, physics step, source mutation or GPU action.
@@ -33,7 +33,7 @@ def recompute_contacts(layout,row):
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--run',type=Path,required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--run',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--robot',type=Path,help='Robot-only XML required for independent reach FK');a=p.parse_args()
     if a.output.exists():raise FileExistsError('Keep prior independent audits')
     run=a.run
     with gzip.open(run/'balance-steps.json.gz','rt') as f:steps=json.load(f)
@@ -58,6 +58,15 @@ def main():
             names+=['balance-arm-reset.json','balance-arm-schedule.json']
             scored=evaluate_sensor_arm_balance(steps,declared.get('original_physics_checks'),
                 initial_arm_joint_position=json.loads((run/'balance-arm-reset.json').read_text()),schedule=run/'balance-arm-schedule.json')
+        elif declared.get('schema')=='doorbench.sensor-scripted-reach-11s.v1':
+            from doorbench.dexterous.sensor_reach_evaluation import evaluate_sensor_reach_balance
+            if a.robot is None:raise ValueError('Reach audit requires the original robot-only XML for FK')
+            names+=['balance-reach-reset.json','balance-reach-protocol.json','balance-reach-route.json']
+            reset=json.loads((run/'balance-reach-reset.json').read_text())
+            scored=evaluate_sensor_reach_balance(steps,declared.get('original_physics_checks'),
+                robot_xml=a.robot,motors=json.loads((run/'motor-contract.json').read_text()),
+                initial_root13_actororigin=reset['root13_actororigin'],initial_joint_position=reset['joint_position'],
+                calibration=run/'sensor-balance-calibration.json',protocol=run/'balance-reach-protocol.json',joint_route=run/'balance-reach-route.json')
         else:
             # An exception-prefix report has no completed qualification schema.
             # Preserve that failure instead of crashing or inventing a pass.
