@@ -94,6 +94,7 @@ def main():
     p.add_argument('--seconds',type=float,default=36.)
     p.add_argument('--gravity-correction',type=float,default=.2)
     p.add_argument('--initial-velocity',type=float,default=0.,help='Declared reset-only lateral velocity perturbation')
+    p.add_argument('--impedance-protocol',type=Path,help='Opt-in separately frozen post-acquisition stiffness comparison')
     a=p.parse_args()
     if not 0<a.seconds<=40 or not np.isfinite([a.seconds,a.initial_velocity]).all() or abs(a.initial_velocity)>.1:p.error('Bounded finite protocol required')
     if a.output.exists():p.error('Fresh evidence directory required')
@@ -117,6 +118,9 @@ def main():
     preload_screen=json.loads(a.preload_screen.read_text())
     if not preload_screen['passed'] or preload_screen['press_plan_sha256']!=sha(a.press_plan) or preload_screen['source_trajectory_sha256']!=plan['source_trajectory_sha256']:raise ValueError('Bounded preload must have a matching offline screen')
     touch=SensorDistalTouchController(arm,route,layout)
+    if a.impedance_protocol:
+        from doorbench.dexterous.sensor_distal_touch_impedance import SensorDistalTouchImpedanceController
+        touch=SensorDistalTouchImpedanceController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors)
     builder=ActorObservationBuilder(joint_count=69,action_count=61,tactile_dimension=layout['tactile_dimension'])
     provenance=dict(scope=__doc__,controller_input='Numeric sensor.v2 packet+clock for balance, plus separately declared coordinated torso/right-arm/right-hand joint goals',
         calibration=dict(desired_joint_angles=desired,derived_local_root_height_m=float(controller.calibration_root[2]),initial_orientation='upright, arbitrary yaw zero'),
@@ -142,6 +146,10 @@ def main():
         target=a.output/'frozen-source'/src;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(root/src,target);provenance['sources'][src]=sha(target)
     for name,path in [('preload-screen.json',a.preload_screen),('press-plan.json',a.press_plan),('reference.json',a.reference),('motors.json',a.motors),('calibration.json',a.calibration),('schedule.json',a.schedule)]:shutil.copy2(path,a.output/name)
     write(a.output/'sensor-layout.json',layout);write(a.output/'provenance.json',provenance)
+    if a.impedance_protocol:
+        shutil.copy2(a.impedance_protocol,a.output/'impedance-protocol.json')
+        provenance['impedance_protocol_sha256']=sha(a.impedance_protocol)
+        write(a.output/'provenance.json',provenance)
     audit=json.loads(robot.with_suffix('.audit.json').read_text())
     sim=DexterousDoorEnv(door,robot,audit,frame_skip=1);sim.reset(images=False,randomize=False)
     m,d=sim.m,sim.d;names=controller.names
