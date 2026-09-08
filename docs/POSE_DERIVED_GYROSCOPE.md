@@ -43,7 +43,8 @@ producer = OwnImuPoseGyroscope(
     imu_quaternion_wxyz_body=layout["imu"]["quaternion_wxyz_body"],
     physics_dt_s=0.002,
 )
-producer.reset_episode(now_s=0.0)  # producer-only baseline after physical reset
+physics_view.update_articulations_kinematic()  # refresh reset-derived link poses; no integration
+producer.reset_episode(now_s=0.0)  # producer-only baseline after synchronization
 # After each completed physical step:
 local_rate = producer.observe(now_s=step_end_s)  # float32[3]
 ```
@@ -65,6 +66,23 @@ controller's existing first-valid-sample skip; changing its initialization is a
 separate experiment.
 
 ## Detached recorded-state results
+
+The first live comparison exposed a reset propagation defect: immediately after
+writing articulation joint coordinates, the rigid-body tensor view still held
+its earlier link orientation. Its first interval therefore included a spurious
+0.7613 rad rotation. The unchanged estimator skips the first valid gyro sample,
+but that does not qualify the sensor. The complete trial is retained and its
+reset inconsistency is scored separately.
+
+The recorder now calls `SimulationView.update_articulations_kinematic()` once,
+after physical reset writes and before capturing its baseline. NVIDIA's
+[tensor API](https://docs.omniverse.nvidia.com/kit/docs/omni_physics/107.0/extensions/runtime/source/omni.physics.tensors/docs/api/python.html)
+requires this synchronization before reading GPU articulation link transforms
+after setting joint coordinates. The installed107.3.26 API and Isaac Lab's
+`SimulationContext.forward()` use that same operation. It refreshes derived
+kinematics without requesting a physics integration step. A separate actual GPU
+fixture and fresh complete trial must verify the correction; unit tests alone
+do not qualify reset behavior. Historical recordings remain unchanged.
 
 The Isaac recorder exposes this experiment through
 `--sensor-gyro-profile pose-delta-angle-v1` alongside the existing sensor-layout

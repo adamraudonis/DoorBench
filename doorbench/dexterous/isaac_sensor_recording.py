@@ -48,6 +48,20 @@ def bind_gyro_profile(layout, profile):
     return result
 
 
+def synchronize_and_reset_pose_gyro(physics_view,producer):
+    """Refresh derived GPU link poses after reset writes, without a physics step.
+
+    PhysX107.3 requires this after set_dof_positions before reading link poses.
+    Otherwise the first apparent interval can include stale pre-reset geometry.
+    This setup operation never changes the requested root/joint coordinates.
+    """
+    physics_view.update_articulations_kinematic()
+    producer.reset_episode(now_s=0.)
+    return dict(api='SimulationView.update_articulations_kinematic',
+        phase='after physical reset state writes, before first recorded interval',
+        integration_steps_requested=0,root_or_joint_state_writes_requested=0)
+
+
 class IsaacSensorRecorder:
     def __init__(self, stage, layout_path, output, *, robot_root='/World/H1', control_source='privileged_teacher', gyro_profile=DEFAULT_GYRO_PROFILE):
         from pxr import Usd, UsdPhysics
@@ -61,6 +75,7 @@ class IsaacSensorRecorder:
         self.layout = bind_gyro_profile(json.loads(layout_bytes),gyro_profile)
         self.gyro_profile=gyro_profile
         self.pose_gyro=None
+        self.gyro_reset_synchronization=None
         self.robot_root=robot_root
         self.input_layout_sha256=hashlib.sha256(layout_bytes).hexdigest()
         by_name = {}
@@ -124,7 +139,7 @@ class IsaacSensorRecorder:
                 expected_body_path=self.imu_body_path,robot_body_paths=self.robot_body_paths,
                 robot_root_path=self.robot_root,
                 imu_quaternion_wxyz_body=self.layout['imu']['quaternion_wxyz_body'])
-            self.pose_gyro.reset_episode(now_s=0.)
+            self.gyro_reset_synchronization=synchronize_and_reset_pose_gyro(physics_view,self.pose_gyro)
         self._write_gyro_receipt()
 
     def _write_gyro_receipt(self):
@@ -134,6 +149,7 @@ class IsaacSensorRecorder:
             actor_fields=['imu_gyro'],actor_receives_orientation=False,
             accelerometer='Unchanged Isaac Lab backend velocity-derived specific force')
         if self.pose_gyro is not None:
+            receipt['reset_synchronization']=getattr(self,'gyro_reset_synchronization',None)
             path=self.output/'gyro-producer-evidence.npz'
             _atomic_npz(path,**self.pose_gyro.evidence())
             receipt['evaluator_evidence_sha256']=hashlib.sha256(path.read_bytes()).hexdigest()

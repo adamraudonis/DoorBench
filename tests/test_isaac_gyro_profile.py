@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
-from doorbench.dexterous.isaac_sensor_recording import IsaacSensorRecorder, bind_gyro_profile
+from doorbench.dexterous.isaac_sensor_recording import IsaacSensorRecorder, bind_gyro_profile, synchronize_and_reset_pose_gyro
 from doorbench.dexterous.isaac_sensors import enqueue_robot_sensors
 from doorbench.dexterous.pose_gyro import OwnImuPoseGyroscope, DEFAULT_PROFILE, PROFILE
 from doorbench.dexterous.sensor_contract import ActorObservationBuilder, SENSOR_KEYS
@@ -108,3 +108,32 @@ def test_first_step_failure_preserves_producer_evidence_without_fabricating_pack
     assert report['samples']==0 and report['gyro_producer']['failed_reason']
     with np.load(tmp_path/'gyro-producer-evidence.npz',allow_pickle=False) as evidence:
         np.testing.assert_array_equal(evidence['time_s'],[0])
+
+
+def test_reset_sync_precedes_pose_baseline_without_step_or_state_writer():
+    class View:
+        prim_paths=['/World/H1/torso']
+        pose=np.array([[0.,0.,0.,0.,0.,0.,1.]])
+        def get_transforms(self):return self.pose
+    view=View();events=[]
+    class Physics:
+        def update_articulations_kinematic(self):
+            events.append('sync-derived-transforms')
+            view.pose[0,3:]=Rotation.from_rotvec([0,0,.76]).as_quat()
+        def __getattr__(self,name):raise AssertionError('Unexpected physics operation: '+name)
+    producer=OwnImuPoseGyroscope(view,expected_body_path='/World/H1/torso',
+        robot_body_paths=View.prim_paths,imu_quaternion_wxyz_body=[1,0,0,0])
+    receipt=synchronize_and_reset_pose_gyro(Physics(),producer)
+    assert events==['sync-derived-transforms'] and receipt['integration_steps_requested']==0
+    view.pose[0,3:]=Rotation.from_rotvec([0,0,.7602]).as_quat()
+    np.testing.assert_allclose(producer.observe(now_s=.002),[0,0,.1],atol=1e-8)
+    assert producer.receipt()['maximum_delta_angle_rad']<.001
+
+
+def test_failed_reset_sync_does_not_establish_a_false_baseline():
+    class Physics:
+        def update_articulations_kinematic(self):raise RuntimeError('Backend unavailable')
+    class Producer:
+        def reset_episode(self,**kwargs):raise AssertionError('Stale baseline must not be captured')
+    with pytest.raises(RuntimeError,match='Backend unavailable'):
+        synchronize_and_reset_pose_gyro(Physics(),Producer())
