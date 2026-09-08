@@ -36,7 +36,7 @@ def main():
         sampled_progress=ticks,tilt_bound_first_crossings_s=crossings,
         actor_files_sha256={name:hashlib.sha256((args.actor/name).read_bytes()).hexdigest() for name in files},
         limitations=['Same-time teacher force comparisons after the first tick are not corrective labels for the divergent actor state.',
-            'An all-invalid first observation and masked early GRU training are demonstrated gaps; fixing them does not prove robust feedback control.'])
+            'The all-invalid first observation is retained; whether it was supervised depends on this checkpoint training provenance.'])
     args.output.parent.mkdir(parents=True,exist_ok=True);args.output.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(dict(reset_match=report['exact_reset_root_match'] and report['exact_reset_joint_match'],crossings=crossings,first_errors=report['initial_largest_force_errors'][:2])))
 

@@ -107,3 +107,52 @@ Do not add failed-state labels, alter gates or change the motor interface.
 Preserve model003 regardless of the result. Evaluate both the correction prefix
 and the original teacher trajectory with the same scripts, including cold-start
 commands and runtime integration. This protocol update precedes the longer run.
+
+## Longer fit and actual model003 failure
+
+The unchanged longer fit completed at 1,000 steps in 336.06 CPU seconds,
+starting **2026-09-08 13:21:10 UTC**. Its offline results are:
+
+| Model | Correction-prefix MSE | Nominal-prefix MSE | Nominal first-100-ms body RMSE |
+|---|---:|---:|---:|
+| 002: cold-start BC | 0.044499 | 0.000234584 | 1.269 Nm |
+| 003: 200-step correction fit | 0.005537 | 0.001859410 | 4.263 Nm |
+| 004: 1,000-step correction fit | 0.000781 | 0.000355112 | 0.971 Nm |
+
+The MSEs use normalized forces. The last column uses actor-owned command
+history on recorded nominal sensor states. Nominal first-500-ms RMSE for
+model004 is 2.127 Nm, still worse than model002's 1.605 Nm; its nominal-prefix
+MSE remains 10.59 times command persistence. Model004's reset left/right knee
+forces are −51.04/−52.32 Nm versus teacher −51.42/−53.53 Nm. The four runtime
+integration checks pass, with the original mechanics and observation contract.
+The [model004 receipt](evidence/sensor-imitation-acquisition-004.json) retains all
+results and checkpoint SHA
+`afce5233becb9eb32fedfe79a5619c0efe1f55979b9dbe6353549057e09a9508`.
+
+In a separate actual Isaac trial, **model003 failed at 0.522 s** with no hand
+contact. At 100 ms its root angular velocity about world X was −0.509 rad/s,
+versus model002's +0.226 rad/s: the correction fit drove an opposite drift.
+Its initial left-hip-yaw force was −9.903 Nm versus teacher +0.046 Nm. Original
+joint, tendon, collision, force-cap and delivered-torque checks still passed.
+This is a learned-feedback failure, not physical task success hidden by a
+score. The [failure receipt](evidence/sensor-actor-initial-failure-003.json)
+preserves the original report and its hashes.
+
+The continuous expert query on model003's 261 visited states found 146
+individually eligible labels, but only a 20-label contiguous valid prefix:
+the QP returned `solved inaccurate` at 40 ms, while tilt was still 0.077 degrees.
+The stricter numerical admission criterion remains unchanged. This short
+prefix and all later query evidence are retained; they were not used in
+model004, whose source data was already frozen.
+
+An independent frame audit reconstructs the torso-mounted gyro from the real
+model002 query states using analytic FK/Jacobians. Across the 156 valid
+post-reset samples, it agrees with actual actor IMU to maximum
+1.13×10⁻⁶ rad/s and RMSE 2.48×10⁻⁷ rad/s. The exact model, source and frame
+hashes accompany the receipt. This confirms sensor-frame consistency, not
+closed-loop controllability. Reproduce it with:
+
+```sh
+python scripts/dexterous/audit_correction_imu.py \
+  --corrections "$CORRECTIONS" --robot "$ROBOT" --output "$IMU_AUDIT"
+```
