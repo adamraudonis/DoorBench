@@ -17,6 +17,38 @@ import mujoco
 import numpy as np
 
 
+
+def validate_panel_reference_row(row, previous=None):
+    """Reject corrupt target evidence and check the actually consumed LH path."""
+    sizes={'previous_contact_interval_s':2,'body_coordinates':6,'planned_coordinates':31,
+           'planned_velocity':31,'planned_acceleration':31,'latched_motor_targets':61,
+           'left_arm_targets':7,'left_arm_target_velocity':7}
+    for key,size in sizes.items():
+        value=np.asarray(row[key],float)
+        if value.shape!=(size,) or not np.isfinite(value).all():
+            raise ValueError('Require complete finite panel target evidence: '+key)
+    scalars=['episode_time_s','local_time_s','opening_clock_offset_s','pose_time_s',
+             'reference_aperture_rad','actual_aperture_rad','normal_feedforward_N','tracking_lead_rad']
+    if not np.isfinite([row[k] for k in scalars]).all():
+        raise ValueError('Require finite target clocks and commands')
+    velocity=np.asarray(row['left_arm_target_velocity']);speed=float(max(abs(velocity)));acceleration=0.
+    if speed>1.2+1e-9:raise ValueError('Actual consumed LH target exceeds original speed bound')
+    correction=row.get('actual_base_correction')
+    if correction is not None:
+        if not np.isfinite(list(correction.values())).all():raise ValueError('Nonfinite correction evidence')
+        if abs(correction['time_s']-row['local_time_s'])>1e-9:raise ValueError('Correction and target clocks differ')
+        if previous is not None:
+            dt=row['episode_time_s']-previous['episode_time_s']
+            if not abs(dt-.002)<1e-9:raise ValueError('Missing corrected target interval')
+            previous_velocity=np.asarray(previous['left_arm_target_velocity'])
+            acceleration=float(max(abs((velocity-previous_velocity)/dt)))
+            change=np.asarray(row['left_arm_targets'])-np.asarray(previous['left_arm_targets'])
+            if np.max(abs(change-.5*dt*(velocity+previous_velocity)))>1e-12:
+                raise ValueError('Consumed LH targets differ from bounded target integration')
+            if acceleration>3.+1e-8:raise ValueError('Consumed LH target exceeds original acceleration bound')
+    return speed,acceleration
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run',type=Path,required=True)
@@ -50,13 +82,14 @@ def main():
             body=model.body_parentid[body]
         return False
     members={b for b in range(model.nbody) if belongs_to_leaf(b)}
-    index=0;values=[];max_frame_error=0.;max_phase_error=0.;max_force_excess=0.
+    index=0;values=[];max_frame_error=0.;max_phase_error=0.;max_force_excess=0.;previous_row=None
     for raw in NativeTransitionArchive.read(run/'raw-transitions'):
         time=float(raw['interval_start_s'])
         if time<times[0]-1e-9:continue
         if index>=len(phase) or abs(time-times[index])>1e-9:
             raise ValueError('Actual intervals and panel targets do not align')
         row=phase[index];index+=1
+        consumed_speed,consumed_acceleration=validate_panel_reference_row(row,previous_row);previous_row=row
         if abs(row['pose_time_s']-time)>1e-9 or not np.allclose(row['previous_contact_interval_s'],[time-.002,time],rtol=0,atol=1e-9):
             raise ValueError('Current pose and preceding force clocks were mixed')
         data.qpos[:]=raw['qpos_before'];mujoco.mj_kinematics(model,data)
@@ -89,13 +122,14 @@ def main():
                        row['tracking_lead_rad'],row['reference_aperture_rad']-float(data.qpos[qa]),
                        normal_moment,tangential_moment,couple_moment,normal_moment+tangential_moment+couple_moment,
                        -float(model.dof_damping[va])*leaf_speed,palm_load,finger_load,
-                       joint_speed,joint_acceleration,root_speed,root_rotation_speed])
+                       joint_speed,joint_acceleration,root_speed,root_rotation_speed,consumed_speed,consumed_acceleration])
     if index!=len(phase):raise ValueError('The panel target trace extends beyond the actual dynamics')
     columns=['episode_time_s','reference_leaf_rad','actual_leaf_rad','actual_leaf_velocity_rad_s',
              'desired_lead_rad','actual_reference_lead_rad','normal_contact_moment_Nm','tangential_contact_moment_Nm',
              'contact_couple_moment_Nm','total_contact_moment_Nm','original_viscous_hinge_moment_Nm',
              'actual_palm_normal_load_N','actual_other_lh_normal_load_N','target_joint_speed_rad_s',
-             'target_joint_acceleration_rad_s2','target_root_speed_m_s','target_root_rotvec_speed_rad_s']
+             'target_joint_acceleration_rad_s2','target_root_speed_m_s','target_root_rotvec_speed_rad_s',
+             'consumed_lh_target_speed_rad_s','consumed_lh_target_acceleration_rad_s2']
     array=np.array(values)
     args.output.mkdir(parents=True,exist_ok=False)
     np.savez_compressed(args.output/'phase-moment.npz',values=array)
