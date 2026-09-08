@@ -358,3 +358,25 @@ python scripts/dexterous/audit_sensor_training_coverage.py \
   --dataset-manifest "$FROZEN006/dataset-manifest.json" \
   --output "$COVERAGE_AUDIT"
 ```
+
+The [sampler007 preflight](evidence/sensor-training-sampler-007-preflight.json)
+retains a three-step CPU smoke that exercises differing real-history lengths,
+supervises previously unreachable labels, and passes the four runtime loading
+checks. Its original frozen bundle is separate from006.
+
+Frozen006 completed **5000 CUDA steps in444.61 seconds** on the owned L40S.
+None of its ten checkpoints passed all six predeclared fitting criteria, so
+it was not admitted to another physical trial. Its
+[complete convergence receipt](evidence/sensor-imitation-acquisition-006.json)
+preserves every checkpoint and score,287 source hashes and28 verified remote
+output files. The final checkpoint improves all three correction fits and
+first100-ms startup error, but nominal MSE0.0005391 remains above0.0003551 and
+actor-history first500-ms error6.6779Nm remains above2.1267Nm.
+
+An independent CPU check of those final weights distinguishes the remaining
+history issue. On the same nominal recorded sensor states, first500-ms error
+is1.7682Nm with recorded teacher previous commands and6.6779Nm with the actor's
+own previous commands. This is measurable offline autoregressive drift, not
+a new physical failure or a successful policy. It motivates a separately
+declared command-history training experiment if the sampler-only correction
+does not satisfy the fitting checks.
