@@ -96,7 +96,7 @@ class ReadinessCollisionScreen:
 class FullSequenceTeacher:
     """One force-only interface; measured hand loads inform the landed-foot QP."""
     def __init__(self,robot_xml,motors,reference,preparation,reset,checkpoint,joint_geometry,
-                 *,door_xml,prepare_seconds=8.,operation_options=None):
+                 *,door_xml,prepare_seconds=8.,operation_options=None,acquisition_options=None):
         if not np.isfinite(prepare_seconds) or prepare_seconds<=0:
             raise ValueError('Preparation duration must be finite and positive')
         self.robot_xml = Path(robot_xml)
@@ -106,7 +106,7 @@ class FullSequenceTeacher:
         self.prepare_seconds = float(prepare_seconds)
         self.body = ApproachBodyTeacher(robot_xml,motors,reset,checkpoint,
             height=reference['initial_root'][2],handoff_delay=3.,yaw_weight=2.)
-        self.acquisition = AcquisitionTeacher(robot_xml,motors,reference)
+        self.acquisition = AcquisitionTeacher(robot_xml,motors,reference,**(acquisition_options or {}))
         self.operation = DoorOperationTeacher(self.acquisition,joint_geometry,**(operation_options or {}))
         self.screen = ReadinessCollisionScreen(door_xml,robot_xml)
         self.names = self.acquisition.names

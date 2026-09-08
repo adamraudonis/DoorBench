@@ -11,7 +11,8 @@ def validate_sensor_actor_mode(options):
         'upright_gain':0.,'grip_force':0.,'finger_curl':0.,'torso_damping':0.,
         'stance_qp':False,'press_feedforward':False,'grip_reset_targets':False,
         'arm_impedance':1.,'grip_impedance':1.,'grip_rotation_fraction':1.,
-        'operator_compliance_gain':0.,'acquisition_middle_finger_force':None,'time_scale':1.}
+        'operator_compliance_gain':0.,'acquisition_middle_finger_force':None,
+        'acquisition_index_finger_force':None,'time_scale':1.}
     enabled=[name for name,default in forbidden.items() if getattr(options,name,default)!=default]
     if enabled:
         raise ValueError('Sensor-only execution cannot enable teacher/extra feedback controls: '+', '.join(enabled))

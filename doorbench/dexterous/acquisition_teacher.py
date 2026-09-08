@@ -20,7 +20,8 @@ from .stance import StanceController
 class AcquisitionTeacher:
     def __init__(self, robot_xml, motors, reference, *, reach_seconds=6.6,
                  grip_force=6., finger_grip_scale=1/3, grip_start=.995,
-                 palm_integral=1., torso_impedance=10., middle_finger_force=None):
+                 palm_integral=1., torso_impedance=10., middle_finger_force=None,
+                 index_finger_force=None):
         if motors.get('source_xml_sha256')!=hashlib.sha256(Path(robot_xml).read_bytes()).hexdigest():
             raise ValueError('Acquisition model does not match imported motor contract')
         if motors.get('hand_mechanics_profile')!='shadow-loopback-v2':
@@ -29,6 +30,7 @@ class AcquisitionTeacher:
         if not np.isfinite(values).all() or reach_seconds<=0 or min(values[1:])<0 or grip_start>1:
             raise ValueError('Invalid acquisition controller configuration')
         if middle_finger_force is not None and (not np.isfinite(middle_finger_force) or middle_finger_force<0):raise ValueError('Invalid middle-finger pressure')
+        if index_finger_force is not None and (not np.isfinite(index_finger_force) or index_finger_force<0):raise ValueError('Invalid index-finger pressure')
         spec=mujoco.MjSpec.from_file(str(robot_xml))
         spec.worldbody.add_body(name='analytic_lever').add_geom(name='analytic_lever_capsule',
             type=mujoco.mjtGeom.mjGEOM_CAPSULE,size=[.007,.053,0],
@@ -70,6 +72,7 @@ class AcquisitionTeacher:
         self.grip_start=grip_start;self.integral_gain=palm_integral
         self.digit_forces={digit:grip_force*(1. if digit=='th' else finger_grip_scale) for digit in self.digit_geoms}
         if middle_finger_force is not None:self.digit_forces['mf']=middle_finger_force
+        if index_finger_force is not None:self.digit_forces['ff']=index_finger_force
         self.position_integral=np.zeros(3);self.rotation_integral=np.zeros(3)
         self.progress=0.;self.tracking_error=0.;self.last_update=None;self.stance=None
         self.target=self.matrix@self.path[0];self.last_force=np.zeros(len(self.act));self.stance_targets=None

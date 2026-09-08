@@ -28,6 +28,7 @@ p.add_argument('--upright-gain',type=float,default=0.,help='Post-opening IMU ank
 p.add_argument('--native-robot',help='Enable closed-loop kinematic teacher using this native robot XML for FK only')
 p.add_argument('--acquisition',action='store_true',help='Execute the shared contact-free acquisition teacher from reference.path_qpos; privileged development only')
 p.add_argument('--acquisition-middle-finger-force',type=float,help='Explicit acquisition middle-finger preload in N; original motor caps unchanged')
+p.add_argument('--acquisition-index-finger-force',type=float,help='Explicit acquisition index-finger preload in N; original motor caps unchanged')
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
 p.add_argument('--operator-compliance-gain',type=float,default=0.,help='Bounded palm-reference integral compensation for actual operator-angle error; motor and mechanism limits unchanged')
@@ -72,6 +73,8 @@ if a.full_sequence_reset and (not a.operate_after_acquisition or not all((a.prep
     p.error('Full sequence requires acquisition, operation, preparation, locomotion checkpoint and native door geometry')
 if a.full_sequence_reset and a.acquisition_middle_finger_force is not None:
     p.error('Full sequence currently uses the frozen original five-digit preload')
+if a.acquisition_index_finger_force is not None and (not a.acquisition or not math.isfinite(a.acquisition_index_finger_force) or a.acquisition_index_finger_force<0):
+    p.error('Index-finger preload requires acquisition and a finite nonnegative value')
 if a.record or a.sensor_layout:a.enable_cameras=True
 launcher=AppLauncher(a);app=launcher.app
 import numpy as np
@@ -300,7 +303,7 @@ def main():
     teacher=None;teacher_info={};teacher_control=None;sequence=None;operation=None;sensor_actor=None
     if a.acquisition:
         from doorbench.dexterous.acquisition_teacher import AcquisitionTeacher
-        teacher=AcquisitionTeacher(a.native_robot,motors,ref,middle_finger_force=a.acquisition_middle_finger_force)
+        teacher=AcquisitionTeacher(a.native_robot,motors,ref,middle_finger_force=a.acquisition_middle_finger_force,index_finger_force=a.acquisition_index_finger_force)
         operation=None
         if a.operate_after_acquisition:
             from doorbench.dexterous.operation_teacher import DoorOperationTeacher
@@ -319,7 +322,8 @@ def main():
                     json.loads(Path(a.preparation_reference).read_text()),sequence_reset,a.locomotion_checkpoint,
                     joint_geometry,door_xml=a.native_door,operation_options=dict(
                         wait_for_press_completion=not a.open_on_latch_clear,
-                        operator_compliance_gain=a.operator_compliance_gain))
+                        operator_compliance_gain=a.operator_compliance_gain),
+                    acquisition_options=dict(index_finger_force=a.acquisition_index_finger_force))
                 teacher=sequence.acquisition;operation=sequence.operation
             (out/'operation-protocol.json').write_text(json.dumps(dict(
                 joint_geometry={k:v.tolist() for k,v in joint_geometry.items()},
