@@ -85,7 +85,7 @@ class NativeTransitionArchive:
             if hashlib.file_digest(file.open('rb'),'sha256').hexdigest()!=chunk['sha256']:
                 raise ValueError('Transition archive hash mismatch')
             with np.load(file,allow_pickle=False) as arrays:
-                rows=list(unpacked(arrays))
+                rows=list(unpacked({key:arrays[key] for key in arrays.files}))
             if len(rows)!=chunk['rows']:raise ValueError('Transition archive row count mismatch')
             count+=len(rows);yield from rows
         if count!=manifest['rows']:raise ValueError('Transition manifest count mismatch')
