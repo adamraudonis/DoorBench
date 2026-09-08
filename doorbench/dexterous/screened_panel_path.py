@@ -67,15 +67,28 @@ class MeasuredAperturePhase:
     commands a door joint and cannot guarantee that contact tracks its target.
     """
     def __init__(self, initial_angle, final_angle, initial_velocity,
-                 maximum_speed=.149, maximum_acceleration=.08):
+                 maximum_speed=.149, maximum_acceleration=.08, tracking_lead=.005,
+                 lead_start_angle=None, lead_ramp_rad=.1):
         if (not np.isfinite([initial_angle,final_angle,initial_velocity,
-                             maximum_speed,maximum_acceleration]).all()
+                             maximum_speed,maximum_acceleration,tracking_lead]).all()
+                or not 0 <= tracking_lead <= .02
                 or final_angle <= initial_angle or maximum_speed <= 0
                 or maximum_acceleration <= 0 or not 0 <= initial_velocity <= maximum_speed):
             raise ValueError('Require bounded actual starting aperture velocity')
+        if lead_start_angle is not None and (not np.isfinite([lead_start_angle,lead_ramp_rad]).all() or lead_start_angle<initial_angle or not .05<=lead_ramp_rad<=.5 or tracking_lead<.005):
+            raise ValueError('Require a bounded later lead ramp that retains the original initial5mrad')
         self.angle=float(initial_angle);self.final=float(final_angle)
         self.velocity=float(initial_velocity);self.speed=float(maximum_speed)
+        self.tracking_lead=float(tracking_lead)
+        self.lead_start_angle=None if lead_start_angle is None else float(lead_start_angle)
+        self.lead_ramp_rad=float(lead_ramp_rad)
         self.acceleration=float(maximum_acceleration);self.time=None;self.last_acceleration=0.
+
+    def lead_at(self, measured_angle):
+        if not np.isfinite(measured_angle):raise ValueError('Require a finite measured aperture')
+        if self.lead_start_angle is None:return self.tracking_lead
+        u=float(np.clip((measured_angle-self.lead_start_angle)/self.lead_ramp_rad,0.,1.))
+        return .005+(self.tracking_lead-.005)*u**3*(10.+u*(-15.+6.*u))
 
     def update(self, time_s, measured_angle):
         if not np.isfinite([time_s,measured_angle]).all():
@@ -88,7 +101,7 @@ class MeasuredAperturePhase:
             raise ValueError('Require consecutive physical intervals <=2ms')
         if dt == 0:return self.angle,self.velocity,self.last_acceleration
         remaining=max(0.,self.final-self.angle)
-        desired=float(np.clip(4.*(measured_angle+.005-self.angle),0.,self.speed))
+        desired=float(np.clip(4.*(measured_angle+self.lead_at(measured_angle)-self.angle),0.,self.speed))
         # Require remaining distance after this trapezoidal integration to
         # contain the complete next-state constant-acceleration stop.
         adt=self.acceleration*dt

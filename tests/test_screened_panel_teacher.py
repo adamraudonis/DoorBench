@@ -51,3 +51,15 @@ def test_declared_feedforward_is_installed_on_actual_arm_force_adapter_at_handof
     panel.begin(1.,root,joints,None,.28)
     assert panel.left.contact_force==4.
     np.testing.assert_array_equal(panel.teacher.path[-1],[.2,.1])
+
+
+def test_increased_lead_requires_the_matching_shifted_geometry_evidence():
+    from doorbench.dexterous.screened_panel_teacher import validate_tracking_lead_receipt
+    plan={'screen_receipt':{'screen_sha256':'exact-original-path'}}
+    receipt=dict(passed=True,samples=2001,screen_sha256='exact-original-path',actual_leaf_lag_rad=.01,lag_start_angle_rad=.4)
+    validate_tracking_lead_receipt(plan,receipt,.01,.4)
+    for changes in ({'passed':False},{'samples':2000},{'screen_sha256':'other-path'},
+                    {'actual_leaf_lag_rad':.009},{'actual_leaf_lag_rad':np.nan},{'lag_start_angle_rad':.41}):
+        with pytest.raises(ValueError):validate_tracking_lead_receipt(plan,dict(receipt,**changes),.01,.4)
+    with pytest.raises(ValueError):validate_tracking_lead_receipt(plan,receipt,.01,None)
+    with pytest.raises(ValueError):validate_tracking_lead_receipt(plan,None,.01,.4)

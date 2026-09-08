@@ -689,3 +689,51 @@ force and hinge moment still require measurement; the configured 4 N value is
 not a measured contact load. The default remains 3.5 N. All anatomy, support,
 clearance, balance, derivative and collision gates remain unchanged, including
 the cumulative inherited right-hand failure.
+
+Panel004 completed 95 s with 27/29 checks, including every mechanics and
+sustained-palm check. It stopped at 0.543530 rad with 3.809937 N actual palm
+load; the same three RH errors remain. Independent reconstruction again
+verified all 47,500 transitions with zero cap excess and zero frame error.
+The extra 0.5 N feedforward did not produce an equivalent contact-force gain.
+It increased normal hinge moment slightly, but increased opposing tangential
+friction more, lowering the net opening moment. No further pressure increment
+is justified by this comparison.
+
+| Trial | Normal moment (Nm) | Tangential moment (Nm) | Net moment (Nm) | Final aperture (rad) |
+|---|---:|---:|---:|---:|
+| Flat palm002, 3.5 N command | 0.474277 | -0.026928 | 0.447349 | 0.542711 |
+| Radius003, same command | 0.498577 | -0.041234 | 0.457343 | 0.549978 |
+| Flat palm004, 4 N command | 0.478917 | -0.054156 | 0.424761 | 0.543530 |
+
+The moments are measured from the final actual 2 ms transition. The original
+hinge frictionloss limit is 0.457638 Nm. The004 decomposition explicitly records
+the contact couple separately (zero hinge-axis contribution here) and records
+the force in leaf-local coordinates. Command values are never reported as
+measured contact forces. Evidence is immutable in
+`native-panel-force-margin-development-001`: 648 files, manifest SHA256
+`1b0bb5478c8d30480f2315e206e3b8fc490f5ab3e31d86a0924d6054882e3604`.
+
+The next declared comparison, panel005, retains the original flat-palm002 path
+and 3.5 N feedforward. It retains the original 5 mrad target lead until the
+measured leaf reaches 0.4 rad, then smoothly increases it to10 mrad over
+0.4–0.5 rad with a quintic ramp. The original0.149 rad/s and0.08 rad/s² phase
+limits, and all joint/body rate limits, remain unchanged. This is a reference
+continuation experiment, not a force guarantee.
+
+The constant10mrad shifted-geometry screen001 was rejected because the initial
+tilted little-finger target penetrates the leaf by3.19mm, above the unchanged
+3mm bound. Screen002 conservatively checks5mrad lag before reference0.4rad and
+10mrad thereafter; all2,001 geometry/rate samples pass. Screen003 also passes
+at the intermediate7.5mrad lag. The first pose remains exactly the attained
+state in every screen. These are static lag screens; the physical lag is
+measured separately and is not assumed equal to the desired lead. An increased
+lead now requires a passed audit of the same exact source path, with coverage
+starting no later than the runtime ramp. The probe records both phase and
+latched motor targets every2ms, with explicit current-pose and preceding-force
+interval timestamps, for alignment with the independent actual-wrench archive.
+
+The contact close-up tool now accepts `--hand rh`. Twelve personally inspected
+views confirm that the inherited three bad patches are distal tip-edge grazes
+on LF and FF during withdrawal, rather than a thumb-opposition defect. The
+rendered points and recovered body-local normals exactly match the independent
+actual-contact audit. No anatomy criterion was changed.

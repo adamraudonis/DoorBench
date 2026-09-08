@@ -70,3 +70,36 @@ def test_exact_cubic_derivative_envelope_bounds_all_dense_evaluations():
     assert np.all(abs(second)<=bounds['second']+1e-10)
     assert max(np.linalg.norm(first[:,:3],axis=1))<=bounds['root_translation_first_norm']+1e-10
     assert max(np.linalg.norm(first[:,3:6],axis=1))<=bounds['root_rotvec_first_norm']+1e-10
+
+
+def test_declared_tracking_lead_changes_static_goal_without_changing_rate_bounds():
+    from doorbench.dexterous.screened_panel_path import MeasuredAperturePhase
+    for lead in (.005,.01):
+        phase=MeasuredAperturePhase(.3,1.2,0.,tracking_lead=lead)
+        previous=.3
+        for time in np.arange(0,4,.002):
+            angle,speed,acceleration=phase.update(float(time),.3)
+            assert angle>=previous
+            assert 0<=speed<=.149
+            assert abs(acceleration)<=.0800000001
+            previous=angle
+        assert abs(angle-(.3+lead))<2e-8
+
+
+@pytest.mark.parametrize('lead',[-.001,.020001,np.nan,np.inf])
+def test_nonfinite_or_excessive_tracking_lead_rejected(lead):
+    from doorbench.dexterous.screened_panel_path import MeasuredAperturePhase
+    with pytest.raises(ValueError):MeasuredAperturePhase(.3,1.2,0.,tracking_lead=lead)
+
+
+def test_later_lead_ramp_preserves_early_contact_geometry_and_smooth_endpoints():
+    from doorbench.dexterous.screened_panel_path import MeasuredAperturePhase
+    phase=MeasuredAperturePhase(.28,1.2,.145,tracking_lead=.01,lead_start_angle=.4,lead_ramp_rad=.1)
+    assert phase.lead_at(.3)==.005
+    assert phase.lead_at(.4)==.005
+    assert np.isclose(phase.lead_at(.45),.0075)
+    assert phase.lead_at(.6)==.01
+    for endpoint in (.4,.5):
+        h=1e-5
+        slope=(phase.lead_at(endpoint+h)-phase.lead_at(endpoint-h))/(2*h)
+        assert abs(slope)<1e-8

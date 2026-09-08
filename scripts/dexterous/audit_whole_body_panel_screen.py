@@ -21,8 +21,11 @@ def main():
     parser.add_argument('--screen',type=Path,required=True)
     parser.add_argument('--duration-s',type=float,default=20.)
     parser.add_argument('--samples',type=int,default=2001)
+    parser.add_argument('--actual-leaf-lag-rad',type=float,default=0.,help='Conservative static door lag relative to the unchanged planned pose; initial state remains exact')
+    parser.add_argument('--lag-start-angle-rad',type=float,help='Conservative envelope: retain5mrad below this reference angle, allow full declared lag above it')
     parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args()
+    if not 0<=args.actual_leaf_lag_rad<=.02:raise ValueError('Require declared static leaf lag in [0,.02] rad')
     if args.samples<2001:raise ValueError('Require >=2001 dense samples')
     report=json.loads(args.screen.read_text())
     run=Path(report['configuration']['source_run']).resolve()
@@ -79,14 +82,21 @@ def main():
         sample=path.sample(float(t));x=sample['position'];d.qpos[:]=initial
         d.qpos[rq:rq+3]=initial[rq:rq+3]+x[:3]
         quat=(Rotation.from_rotvec(x[3:6])*r0).as_quat();d.qpos[rq+3:rq+7]=np.r_[quat[3],quat[:3]]
-        d.qpos[qa]=x[6:];d.qpos[leafq]=angles[0]+sample['progress']*(angles[-1]-angles[0])
+        d.qpos[qa]=x[6:];reference_angle=angles[0]+sample['progress']*(angles[-1]-angles[0])
+        lag=args.actual_leaf_lag_rad
+        if args.lag_start_angle_rad is not None and reference_angle<args.lag_start_angle_rad:lag=min(.005,lag)
+        if index==0:lag=0.
+        d.qpos[leafq]=reference_angle-lag
         mujoco.mj_kinematics(m,d);mujoco.mj_comPos(m,d);mujoco.mj_collision(m,d)
         leafr=d.xmat[leafbody].reshape(3,3);leafp=d.xpos[leafbody]
-        u=np.clip((d.qpos[leafq]-angles[0])/.35,0,1);blend=u**3*(10+u*(-15+6*u))
+        if lag:
+            leafj=m.joint('leaf_hinge').id;rotation=Rotation.from_rotvec(d.xaxis[leafj]*lag).as_matrix();anchor=d.xanchor[leafj]
+            leafp=anchor+rotation@(leafp-anchor);leafr=rotation@leafr
+        u=np.clip((reference_angle-angles[0])/.35,0,1);blend=u**3*(10+u*(-15+6*u))
         local=lhp.copy();local[0]+=report['configuration'].get('radius_shift_m',-.04)*blend;local[2]-=report['configuration']['height_drop_m']*blend
         localr=lhr
         if palm_vertices is not None:
-            fu=float(np.clip((d.qpos[leafq]-angles[0])/report['configuration'].get('flatten_over_rad',.2),0,1));fb=fu**3*(10+fu*(-15+6*fu))
+            fu=float(np.clip((reference_angle-angles[0])/report['configuration'].get('flatten_over_rad',.2),0,1));fb=fu**3*(10+fu*(-15+6*fu))
             local,localr,_=flatten_palm_goal(local,lhr,palm_vertices,fb)
         targetp=leafp+leafr@local;targetr=leafr@localr
         rotation_error=lambda target,actual:float(np.linalg.norm(Rotation.from_matrix(target@actual.T).as_rotvec()))
@@ -118,7 +128,7 @@ def main():
     args.output.mkdir(parents=True,exist_ok=False)
     (args.output/'audit-source.py').write_bytes(Path(__file__).read_bytes())
     (args.output/'screened-panel-path-source.py').write_bytes((Path(__file__).resolve().parents[2]/'doorbench/dexterous/screened_panel_path.py').read_bytes())
-    receipt=dict(schema='doorbench.whole-body-panel-screen.v1',passed=not failures,scope='Unstepped geometry and target-rate qualification only. No loaded support, force tracking, release, or opening success claim.',screen_sha256=hashlib.file_digest(args.screen.open('rb'),'sha256').hexdigest(),source_chunk_sha256=report['source_chunk_sha256'],source_time_s=report['source_time_s'],reference_phase_envelope=envelope,duration_s=args.duration_s,samples=args.samples,exact_initial_state=True,optimizer_initial_coordinate_adjustment_removed=optimizer_initial_change,limits=limits,maxima=maxima,minimum_all_rh_scene_clearance_capped_m=minimum_clearance,hand_shapes=len(hand),scene_shapes=len(scene),exact_distance_pairs=exact_pairs,failures=failures)
+    receipt=dict(schema='doorbench.whole-body-panel-screen.v1',passed=not failures,scope='Unstepped geometry and target-rate qualification only. No loaded support, force tracking, release, or opening success claim.',screen_sha256=hashlib.file_digest(args.screen.open('rb'),'sha256').hexdigest(),source_chunk_sha256=report['source_chunk_sha256'],source_time_s=report['source_time_s'],reference_phase_envelope=envelope,actual_leaf_lag_rad=args.actual_leaf_lag_rad,lag_start_angle_rad=args.lag_start_angle_rad,lag_scope='Static collision screen only; does not assume or guarantee the physical tracking lag. The exact initial pose is unshifted.',duration_s=args.duration_s,samples=args.samples,exact_initial_state=True,optimizer_initial_coordinate_adjustment_removed=optimizer_initial_change,limits=limits,maxima=maxima,minimum_all_rh_scene_clearance_capped_m=minimum_clearance,hand_shapes=len(hand),scene_shapes=len(scene),exact_distance_pairs=exact_pairs,failures=failures)
     (args.output/'report.json').write_text(json.dumps(receipt,indent=2)+'\n')
     np.savez_compressed(args.output/'target-traces.npz',values=np.array(traces))
     plan=dict(schema='doorbench.whole-body-panel-plan.v1',initial_qpos=initial.tolist(),initial_qvel=report['initial_qvel'],initial_robot_joints={m.joint(j).name.removeprefix('robot/'):float(initial[m.jnt_qposadr[j]]) for j in range(m.njnt) if m.joint(j).name.startswith('robot/') and m.jnt_type[j] in (2,3)},robot_xml_sha256=hashlib.file_digest(robot.open('rb'),'sha256').hexdigest(),initial_leaf_velocity_rad_s=float(report['initial_qvel'][m.jnt_dofadr[m.joint('leaf_hinge').id]]),initial_leaf_angle_rad=float(angles[0]),final_leaf_angle_rad=float(angles[-1]),initial_episode_time_s=report['source_time_s'],root_qpos_address=int(rq),joint_names=names,joint_qpos_addresses=qa.tolist(),progress=((angles-angles[0])/(angles[-1]-angles[0])).tolist(),coordinates=coords.tolist(),duration_s=args.duration_s,screen_receipt=receipt)

@@ -53,7 +53,20 @@ def main():
     p.add_argument("--record-panel-targets", action="store_true")
     p.add_argument("--whole-body-panel-plan",type=Path)
     p.add_argument("--screened-panel-feedforward-n",type=float,default=3.5)
+    p.add_argument("--screened-panel-lead-rad",type=float,default=.005)
+    p.add_argument("--screened-panel-lead-start-rad",type=float)
+    p.add_argument("--screened-panel-lead-ramp-rad",type=float,default=.1)
+    p.add_argument("--record-screened-panel-phase",action="store_true")
+    p.add_argument("--screened-panel-lead-audit",type=Path)
     a = p.parse_args()
+    if a.screened_panel_lead_rad>.005 and a.screened_panel_lead_audit is None:
+        raise ValueError("Increased panel lead requires the passed shifted-geometry audit")
+    if not math.isfinite(a.screened_panel_lead_rad) or not 0 <= a.screened_panel_lead_rad <= .02:
+        raise ValueError("Require a finite declared screened-panel tracking lead in [0,.02] rad")
+    if a.record_screened_panel_phase and not a.whole_body_panel_plan:
+        raise ValueError("Phase recording requires the screened whole-body panel")
+    if a.screened_panel_lead_rad != .005 and not a.whole_body_panel_plan:
+        raise ValueError("Tracking lead applies only to the screened whole-body panel")
     if not math.isfinite(a.screened_panel_feedforward_n) or not 0 < a.screened_panel_feedforward_n <= 8.:
         raise ValueError("Require a finite declared screened-panel feedforward in (0,8] N")
     if a.screened_panel_feedforward_n != 3.5 and not a.whole_body_panel_plan:
@@ -99,6 +112,7 @@ def main():
         for module in ('screened_panel_path.py','screened_panel_teacher.py'):
             shutil.copy2(own/'doorbench/dexterous'/module,stage/'doorbench/dexterous'/module)
         shutil.copy2(a.whole_body_panel_plan,stage/'whole-body-panel-plan.json')
+        if a.screened_panel_lead_audit:shutil.copy2(a.screened_panel_lead_audit,stage/'panel-lead-audit.json')
     if a.hybrid_include_waist or a.record_panel_targets:
         shutil.copy2(own/'doorbench/dexterous/panel_chain_projection.py',stage/'doorbench/dexterous/panel_chain_projection.py')
     shutil.copy2(own / "doorbench/dexterous/right_hand_release.py",
@@ -166,13 +180,14 @@ def main():
     import doorbench.dexterous.full_opening_teacher as full
     if a.whole_body_panel_plan:
         from doorbench.dexterous.screened_panel_teacher import ScreenedWholeBodyPanel
-        full.CoordinatedPanelPush=lambda left,**options:ScreenedWholeBodyPanel(left,stage/'whole-body-panel-plan.json',normal_feedforward_N=a.screened_panel_feedforward_n,**options)
+        full.CoordinatedPanelPush=lambda left,**options:ScreenedWholeBodyPanel(left,stage/'whole-body-panel-plan.json',normal_feedforward_N=a.screened_panel_feedforward_n,tracking_lead_rad=a.screened_panel_lead_rad,lead_start_angle=a.screened_panel_lead_start_rad,lead_ramp_rad=a.screened_panel_lead_ramp_rad,lead_receipt=stage/'panel-lead-audit.json' if a.screened_panel_lead_audit else None,**options)
     original_force = full.FullOpeningTeacher.force
     panel_trace=None
+    panel_phase_trace=None
 
     def measured_force(self, t, root, joints, velocities, handle_pose, leaf_pose,
                        angles, hand_forces, **kwargs):
-        nonlocal panel_trace
+        nonlocal panel_trace,panel_phase_trace
         if a.release_mode in ("controlled-return", "whole-body-return", "whole-body-ungrip"):
             self.release.observe_operation(t, handle_pose, leaf_pose, angles, self.geometry)
             if a.release_mode == 'whole-body-ungrip':
@@ -207,6 +222,22 @@ def main():
                      weighted_task_jacobian_singular_values=chain['weighted_task_jacobian_singular_values'].tolist(),
                      assembled_motor_forces=force.tolist(),left_info=self.left.info,projection=projection)
             panel_trace.write(json.dumps(row)+'\n');panel_trace.flush()
+        if a.record_screened_panel_phase and self.push.started is not None:
+            import gzip
+            if panel_phase_trace is None:panel_phase_trace=gzip.open(output/'panel-phase.jsonl.gz','wt')
+            offset=self._diagnostic_episode_offset
+            local_interval=info['contact_interval_s']
+            row=dict(episode_time_s=float(t+offset),local_time_s=float(t),opening_clock_offset_s=float(offset),
+                     pose_time_s=float(kwargs['pose_time_s']+offset),
+                     previous_contact_interval_s=[float(x+offset) for x in local_interval],
+                     reference_aperture_rad=float(self.push.latest['aperture']),actual_aperture_rad=float(angles['leaf']),
+                     normal_feedforward_N=float(self.push.normal_feedforward_N),tracking_lead_rad=float(self.push.phase.lead_at(angles['leaf'])),
+                     body_coordinates=self.push.latest['coordinate'][:6].tolist(),
+                     planned_coordinates=self.push.latest['coordinate'].tolist(),
+                     planned_velocity=self.push.latest['velocity'].tolist(),planned_acceleration=self.push.latest['acceleration'].tolist(),
+                     latched_motor_targets=self.acquisition.target.tolist(),
+                     left_arm_targets=self.left.target.tolist(),left_arm_target_velocity=self.left.target_velocity.tolist())
+            panel_phase_trace.write(json.dumps(row,allow_nan=False)+'\n')
         return force,info
 
     full.FullOpeningTeacher.force = measured_force
@@ -215,6 +246,7 @@ def main():
         original_walking_force=WalkingOpeningTeacher.force
         def moving_stance_force(self,t,*args,**kwargs):
             release=self.opening.release
+            self.opening._diagnostic_episode_offset=self.acquisition_started
             if a.whole_body_panel_plan and self.opening.push.started is not None:
                 self.opening.push.advance(t-self.acquisition_started,args[6]['leaf'])
                 apply_stance_goal(self.body.controller,self.opening.push.body_goal(t-self.acquisition_started))
@@ -320,6 +352,10 @@ def main():
             whole_body_panel_plan_sha256=digest(stage/'whole-body-panel-plan.json') if a.whole_body_panel_plan else None,
             whole_body_panel_profile='screened-position-v1' if a.whole_body_panel_plan else None,
             screened_panel_normal_feedforward_N=a.screened_panel_feedforward_n if a.whole_body_panel_plan else None,
+            screened_panel_tracking_lead_rad=a.screened_panel_lead_rad if a.whole_body_panel_plan else None,
+            record_screened_panel_phase=a.record_screened_panel_phase,
+            screened_panel_lead_audit_sha256=digest(stage/"panel-lead-audit.json") if a.screened_panel_lead_audit else None,
+            screened_panel_lead_start_rad=a.screened_panel_lead_start_rad,screened_panel_lead_ramp_rad=a.screened_panel_lead_ramp_rad,
             record_panel_targets=a.record_panel_targets or a.hybrid_include_waist,
             panel_profile=config.get('panel_profile'),
             panel_profile_changed_from_baseline=config.get('panel_profile')!=baseline['configuration'].get('panel_profile'),
@@ -338,6 +374,7 @@ def main():
         return runner.main()
     finally:
         if panel_trace is not None:panel_trace.close()
+        if panel_phase_trace is not None:panel_phase_trace.close()
 
 
 if __name__ == "__main__":
