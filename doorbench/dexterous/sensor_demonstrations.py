@@ -22,8 +22,13 @@ class SensorDemonstration:
             raise ValueError('Select a declared robot-task qualification report')
         report=json.loads((self.path/qualification).read_text())
         mechanics=json.loads((self.path/'mechanical-audit.json').read_text())
-        if not report.get('passed') or not mechanics.get('passed') or report.get('runtime_robot_pose_writes')!=0 or report.get('direct_door_commands') is not False:
+        if report.get('passed') is not True or mechanics.get('passed') is not True or report.get('runtime_robot_pose_writes')!=0 or report.get('direct_door_commands') is not False:
             raise ValueError('Imitation archive is not qualified for the declared physical task')
+        sensor_report=json.loads((self.path/'sensors/report.json').read_text())
+        if (sensor_report.get('control_source')!='privileged_teacher' or
+                report.get('control_source','privileged_teacher')!='privileged_teacher' or
+                report.get('closed_loop_evaluated') is True):
+            raise ValueError('Teacher imitation requires an explicitly privileged_teacher capture, not a sensor_actor rollout')
         tendons=json.loads((self.path/'passive-tendon-audit.json').read_text())
         motors=json.loads((self.path/'motor-contract.json').read_text())
         self.motor_contract_sha256=motor_contract_fingerprint(motors)
@@ -60,13 +65,14 @@ class SensorDemonstration:
         if any(value.shape!=(len(frames),128,128,3) for key,value in self.rgb.items() if key!='time_s'):
             raise ValueError('RGB records disagree with the frozen camera resolution')
         self.metadata=dict(source=str(self.path.resolve()),qualification=qualification,
+            control_source='privileged_teacher',
             grasp_profile=report.get('grasp_profile',report.get('final_pad_grasp',{}).get('grasp_profile','distal-pad-v1')),
             physics_dt_s=float(report['physics_dt_s']),examples=len(self),
             files={name:hashlib.sha256((sensor/name).read_bytes()).hexdigest() for name in ('layout.json','actor-sensors.npz','actor-rgb.npz')},
             robot_xml_sha256=self.layout['robot_xml_sha256'],
             motor_contract_sha256=self.motor_contract_sha256,
             qualification_files={name:hashlib.sha256((self.path/name).read_bytes()).hexdigest() for name in
-                (qualification,'mechanical-audit.json','passive-tendon-audit.json','motor-contract.json')},
+                (qualification,'mechanical-audit.json','passive-tendon-audit.json','motor-contract.json','sensors/report.json')},
             limitation='Teacher imitation data; no student rollout or generalization result')
 
     def __len__(self):

@@ -48,8 +48,11 @@ plant must still be validated against that contract; a digest cannot inspect a
 running simulator. Older schema checkpoints without this identity are rejected.
 
 Each demonstration also preserves hashes of its selected qualification report,
-mechanical audit, passive-tendon audit, motor contract and sensor arrays.
-Qualification metadata never enters the actor packet. The controller and
-demonstration boundary pass 52 tests, including future-frame rejection, explicit
+mechanical audit, passive-tendon audit, motor contract, sensor report and sensor
+arrays. The sensor report must explicitly identify `control_source` as
+`privileged_teacher`; actor rollouts cannot enter teacher imitation by selecting
+an acquisition report instead of an operation report. Missing source identity
+is rejected. Qualification metadata never enters the actor packet. The controller and
+demonstration boundary pass 56 tests, including future-frame rejection, explicit
 episode-local memory, original force caps, changed-mechanics rejection and
 preservation of causal next-step targets.

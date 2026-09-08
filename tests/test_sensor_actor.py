@@ -49,6 +49,7 @@ def test_state_is_explicit_episode_local_and_commands_respect_asymmetric_caps():
 
 def archive(tmp_path):
     sensor=tmp_path/'sensors';sensor.mkdir()
+    (sensor/'report.json').write_text(json.dumps(dict(control_source='privileged_teacher')))
     report=dict(passed=True,runtime_robot_pose_writes=0,direct_door_commands=False,physics_dt_s=.002)
     (tmp_path/'operation-report.json').write_text(json.dumps(report))
     (tmp_path/'mechanical-audit.json').write_text(json.dumps(dict(passed=True)))
@@ -90,7 +91,25 @@ def test_demonstration_binds_qualification_and_static_motor_contract(tmp_path):
     assert data.motor_contract_sha256==motor_contract_fingerprint(motors)
     assert data.metadata['grasp_profile']=='distal-pad-v1'
     assert set(data.metadata['qualification_files'])=={
-        'operation-report.json','mechanical-audit.json','passive-tendon-audit.json','motor-contract.json'}
+        'operation-report.json','mechanical-audit.json','passive-tendon-audit.json','motor-contract.json','sensors/report.json'}
     old=data.motor_contract_sha256;motors['actuators'][0]['force_range']=[-2,2]
     (tmp_path/'motor-contract.json').write_text(json.dumps(motors))
     assert SensorDemonstration(tmp_path).motor_contract_sha256!=old
+
+
+@pytest.mark.parametrize('defect',['missing_control_source','sensor_actor_capture','actor_task_report','actor_control_source'])
+def test_sensor_actor_rollouts_cannot_be_called_teacher_demonstrations(tmp_path,defect):
+    archive(tmp_path)
+    sensor=tmp_path/'sensors/report.json';report=tmp_path/'operation-report.json'
+    if defect=='missing_control_source':sensor.write_text('{}')
+    elif defect=='sensor_actor_capture':sensor.write_text(json.dumps(dict(control_source='sensor_actor')))
+    else:
+        r=json.loads(report.read_text())
+        if defect=='actor_task_report':r.update(closed_loop_evaluated=True,teacher_fallback=False)
+        else:r['control_source']='sensor_actor'
+        report.write_text(json.dumps(r))
+    # The alternative curriculum qualification must not bypass source identity.
+    (tmp_path/'acquisition-report.json').write_text(report.read_text())
+    for qualification in ['operation-report.json','acquisition-report.json']:
+        with pytest.raises(ValueError,match='privileged_teacher'):
+            SensorDemonstration(tmp_path,qualification=qualification)
