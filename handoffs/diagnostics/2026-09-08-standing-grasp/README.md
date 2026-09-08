@@ -1,5 +1,7 @@
 # Door55 standing grasp and initialized regrasp diagnostics
 
+**Subsequent anatomical audit:** the thumb-first-001 thumb load is dorsal, not a valid thumb-pad seat. Failed acquisition-013 also contains a dorsal index contact and a tip-only middle-finger contact. See `strict-pad-summary.json` and `docs/STRICT_GRASP_EVIDENCE.md`; keep these corrections alongside the historical reports.
+
 The standing grasp is feasible. A six-second initialized native hold passed the physical and five-digit opposition gates. Acquisition and opening are **not** established by this result.
 
 | Experiment | Result | Limitation |
