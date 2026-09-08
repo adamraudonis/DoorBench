@@ -213,7 +213,10 @@ passes 12/12 stationary checks and 14/14 original physical checks over exactly
 occurs. This is analytical balance with encoders, IMU and tactile input, not a
 learned policy or door interaction. Source `f7c07f111`, calibration, reset and
 all 81 outputs/509 frozen source files are hash-verified off-pod. Independent
-raw-contact and exact-packet replay audits are in progress. Root inspected the
+raw-contact audit reproduces every interval with zero error. Strict packet
+replay fails at the second command after a 0.125525 Nm initial leg-QP difference,
+including in the original runtime; this discrepancy remains under investigation.
+Root inspected the
 actual wide view and handle close-up; the latter misses the raised hand.
 
 The [independent native reproduction](../results/dexterous/2026-09-08/sensor-balance-native-root-001.json)

@@ -223,6 +223,7 @@ class SensorBalanceController:
         self.last_time=now;self.last_sensor_times=times.copy();self.ticks+=1
         self.last_info=dict(controller='sensor_balance_v1',scope='stationary support component',cold_start=cold,
             qp_status=self.status,qp_failures=self.qp_failures,estimated_root_local=d.qpos[:7].tolist(),
+            qp_solver=dict(self.stance.last_solver_metadata),
             estimated_velocity_local=d.qvel[:6].tolist(),foot_tactile_force_norm_N=self.support_loads.tolist(),
             calculator_time_s=float(d.time),input_streams=list(SENSOR_KEYS[:5]))
         return self.last_force.copy(),dict(self.last_info)

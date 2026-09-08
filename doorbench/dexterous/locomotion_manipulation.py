@@ -5,6 +5,7 @@ The zero margin uses the actual sole bounds; physical rollouts must still verify
 that the planned support is realizable rather than trusting the planner alone.
 """
 import numpy as np
+import hashlib
 import mujoco
 import osqp
 from scipy import sparse
@@ -92,6 +93,23 @@ class LandedFootStanceController(StanceController):
              verbose=False,eps_abs=1e-4,eps_rel=1e-4,max_iter=maximum_iterations,**settings)
         if self.last is not None:solver.warm_start(x=self.last)
         result=solver.solve(raise_error=False) if modern else solver.solve()
+        # Diagnostics are computed after solving, so recording does not alter
+        # the problem, warm start or requested solver parameters. Retain the
+        # numerical problem identity to investigate cross-runtime replay.
+        fingerprint=hashlib.sha256()
+        for values in (H,linear,A.toarray(),lower,upper):
+            values=np.asarray(values,dtype='<f8')
+            fingerprint.update(np.asarray(values.shape,dtype='<i8').tobytes())
+            fingerprint.update(values.tobytes())
+        self.last_solver_metadata=dict(status=result.info.status,iterations=int(result.info.iter),
+            primal_residual=float(getattr(result.info,'prim_res',getattr(result.info,'pri_res',np.nan))),
+            dual_residual=float(getattr(result.info,'dual_res',getattr(result.info,'dua_res',np.nan))),
+            rho_updates=int(getattr(result.info,'rho_updates',0)),
+            rho_estimate=float(getattr(result.info,'rho_estimate',np.nan)),
+            problem_sha256=fingerprint.hexdigest(),osqp_version=osqp.__version__,
+            eps_abs=1e-4,eps_rel=1e-4,max_iter=maximum_iterations,
+            requested_settings=dict(settings),adaptive_rho_note='Unspecified interval uses the solver wall-time heuristic',
+            polishing=False)
         if result.info.status_val not in (1,2):return None,result.info.status
         self.last=result.x
         controls=(result.x[n:n+nt]-bias)/m.actuator_gainprm[self.act,0]

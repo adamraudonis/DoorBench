@@ -223,3 +223,14 @@ Root also [independently reproduced native005](../results/dexterous/2026-09-08/s
 all 2,500 states, velocities, motor commands and sensor packets match exactly.
 Neither reproduction nor stationary Isaac balance establishes reaching,
 manipulation, locomotion, robustness or a learned vision policy.
+
+The [independent Isaac audit](evidence/sensor-balance-isaac-001-independent.json)
+reconstructs all 2,500 floor-support and hand-contact intervals with zero error,
+and reproduces the physical pass. Strict command replay is **not yet exact**:
+the first command differs by up to 0.125525 Nm on the ten leg-QP motors, while
+the other 51 commands agree within 1e-6 Nm. The replay correctly stops at the
+next command because previous-action ownership no longer matches. Both the
+local and original-runtime replay failures are retained. Package versions alone
+do not explain it; solver numerical behavior remains a hypothesis. Subsequent
+runs record dependency versions and numerical QP fingerprints, iterations and
+residuals without changing the control objective or motor limits.
