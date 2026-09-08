@@ -23,7 +23,9 @@ def check_upstream(root):
     return root
 
 
-def prepare_robot(upstream, destination):
+def prepare_robot(upstream, destination, *, mechanics_profile="upstream-v1"):
+    if mechanics_profile not in ("upstream-v1", "shadow-loopback-v2"):
+        raise ValueError("Unknown robot mechanics profile")
     root = check_upstream(upstream)
     source = root / "humanoid_bench/assets/envs/h1touch_pos_stand.xml"
     spec = mujoco.MjSpec.from_file(str(source))
@@ -49,15 +51,26 @@ def prepare_robot(upstream, destination):
                     objtype=mujoco.mjtObj.mjOBJ_SITE, objname="imu")
     spec.add_sensor(name="imu_accelerometer", type=mujoco.mjtSensor.mjSENS_ACCELEROMETER,
                     objtype=mujoco.mjtObj.mjOBJ_SITE, objname="imu")
+    mechanics = {"profile": mechanics_profile, "passive_tendons": []}
+    unchanged = spec.compile()
+    if mechanics_profile == "shadow-loopback-v2":
+        from .shadow_loopback import add_loopbacks
+        mechanics = add_loopbacks(spec, unchanged)
     destination = Path(destination).resolve()
+    if mechanics_profile != "upstream-v1" and destination.name == "h1-shadow.xml":
+        raise ValueError("Use a versioned output filename; preserve the historical h1-shadow.xml")
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(spec.to_xml())
     # Compile the serialized model, not just the in-memory spec.
     robot = mujoco.MjModel.from_xml_path(str(destination))
+    if mechanics_profile == "shadow-loopback-v2":
+        from .shadow_loopback import assert_only_passive_loopbacks_changed
+        assert_only_passive_loopbacks_changed(unchanged, robot, mechanics)
     if robot.nu != 61 or not np.all(robot.actuator_forcelimited):
         raise ValueError("Unexpected actuator structure or unbounded actuators")
     audit = {
         "upstream": UPSTREAM_URL, "revision": UPSTREAM_REVISION,
+        "mechanics_profile": mechanics_profile, "mechanics": mechanics,
         "mujoco": mujoco.__version__, "robot_xml_sha256": hashlib.sha256(destination.read_bytes()).hexdigest(),
         "nq": robot.nq, "nv": robot.nv, "actuators": robot.nu,
         "left_hand_actuators": sum(robot.actuator(i).name.startswith("lh_") for i in range(robot.nu)),
