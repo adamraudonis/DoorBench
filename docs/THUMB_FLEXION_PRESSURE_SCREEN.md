@@ -95,3 +95,54 @@ with the prior force/hierarchy flags plus:
 Thirty-one focused tests verify scope admission, direct original virtual work,
 preserved opposition effort, legacy defaults, original capped command ownership
 and sensor chronology. Physical results must be reported separately.
+
+## First physical trial: continuous grasp, incomplete operation
+
+`out/continuous/sensor-thumb-flexion-001`, sourcee23de8999, completed36s and
+18,000 actual2ms steps: **failed26/28**. The first19s matches the retained
+acquisition bitwise. All original loaded distal-patch and continuous opposed
+grasp gates pass throughout the force phase; no loaded middle/endcap patch or
+unintended hand contact occurred. Caps, loopbacks, balance, original physical
+tolerances and all warning gates pass. The route clock reached27s and settled.
+
+The independent remaining failures are motor-coordinate tracking and actual
+operation. The lever reaches0.683547rad and the latch9.89183mm, short of the
+unchanged0.8rad/11mm requirement. THJ2 first exceeds40mrad tracking at24.122s,
+peaks at71.137mrad at28.718s, and physically crosses its authored lower soft
+stop at24.494s. Maximum stop penetration is16.684mrad, within the existing20mrad
+numerical tolerance but unsuitable as an intended interior hand configuration.
+The failed report remains unchanged; this is not reclassified as an operation
+success because the controlled axes now use force feedback.
+
+The diagnostic uses the **effort-space** projector actually applied by the
+controller. With position stiffnessK, it separatesPKe and(I−P)Ke before mapping
+each component back throughK⁻¹. Final mean THJ2/THJ1 errors are−69.817/−45.679mrad;
+the retained tangential equivalents are only+1.067/−4.094mrad. Across the whole
+force phase, retained tangential error≤4.171mrad and THJ3/4/5 opposition
+error≤17.257mrad. Most tracking error is therefore in the removed normal
+posture direction, yet its resulting contact with the soft stop remains a
+physical limitation.
+
+In the final second, local thumb pressure is6.586N and independently qualified
+normal load8.945N even though the clipped virtual-normal request is0N. The
+actual saved contact wrenches, transformed through matching pre-integration
+Jacobians, apply THJ2/THJ1 moments of−0.18998/−0.05626Nm. Normal-only components
+are−0.34347/−0.12552Nm; friction changes the total. THJ2's actual motor also
+commands−0.02151Nm toward its lower stop. No actual joint-limit constraint
+torque was saved, so its magnitude is not invented by a fresh dynamics solve.
+
+The geometry explains why stronger interior posture alone is insufficient:
+at the final fixed palm/opposition pose, THJ2+2mrad increases distal overlap
+by76.2µm. THJ2+30mrad, restoring interior margin, changes overlap from0.211 to
+1.354mm. THJ1−20mrad compensation still leaves1.071mm overlap. Thus the fixed
+palm, fixed opposition targets and current lever position constrain the two
+flexion axes to a compressed configuration. Thumb opposition coordination must
+be screened before expanding to wrist/palm relief. No gain or strength increase
+is justified by this evidence.
+
+Independent contact classification and qualified loads match the lossless raw
+archive exactly; the contact auditor rejects the task solely through its
+unchanged physical report. All recorded finger commands reconstruct within
+4.64e−15Nm with zero motor saturation. Full evidence and the personally inspected
+final close-up remain under the run directory; see `pressure-limit-diagnostic.json`
+and `touch-operation-hand-az150-0002.png`.
