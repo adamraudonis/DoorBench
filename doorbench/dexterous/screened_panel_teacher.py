@@ -45,7 +45,7 @@ def validate_tracking_lead_receipt(plan, receipt, lead, start):
 
 
 class ScreenedWholeBodyPanel:
-    def __init__(self,left,path,*,normal_feedforward_N=3.5,tracking_lead_rad=.005,lead_start_angle=None,lead_ramp_rad=.1,lead_receipt=None,actual_base_correction=False,**legacy_options):
+    def __init__(self,left,path,*,normal_feedforward_N=3.5,tracking_lead_rad=.005,lead_start_angle=None,lead_ramp_rad=.1,lead_receipt=None,actual_base_correction=False,palm_normal_admittance=False,**legacy_options):
         if type(normal_feedforward_N) not in (int,float) or not np.isfinite(normal_feedforward_N) or not 0 < normal_feedforward_N <= 8.:
             raise ValueError('Require a finite declared normal feedforward in (0,8] N; original motor caps remain unchanged')
         self.normal_feedforward_N=float(normal_feedforward_N)
@@ -70,6 +70,12 @@ class ScreenedWholeBodyPanel:
         self.loaded_since=None;self.latest=None
         self.legacy_options=dict(legacy_options)
         if type(actual_base_correction) is not bool:raise ValueError("Require explicit actual-base correction choice")
+        if type(palm_normal_admittance) is not bool or (palm_normal_admittance and not actual_base_correction):
+            raise ValueError("Palm-normal feedback requires explicit actual-base correction")
+        self.admittance=None
+        if palm_normal_admittance:
+            from .palm_normal_admittance import PalmNormalAdmittance
+            self.admittance=PalmNormalAdmittance()
         self.correction=None
         if actual_base_correction:
             from .actual_base_palm import ActualBasePalmCorrection
@@ -129,19 +135,24 @@ class ScreenedWholeBodyPanel:
         d.qpos[:3]=goal['position'];quat=Rotation.from_matrix(goal['rotation']).as_quat();d.qpos[3:7]=np.r_[quat[3],quat[:3]]
         for name,value in self.plan['initial_robot_joints'].items():d.qpos[m.jnt_qposadr[m.joint(name).id]]=value
         d.qpos[self.qa]=self.previous;mujoco.mj_kinematics(m,d)
+        commanded_position_world=d.site_xpos[self.left.palm].copy()
+        if self.admittance is not None:
+            offset,admittance_info=self.admittance.update(t,palm_load)
+            commanded_position_world+=self.left.normal*offset
+            self.latest['normal_admittance']=admittance_info
         if self.correction is not None:
             # This privileged teacher supplies a world reference. The correction
             # itself receives only its goal in the actual measured base frame
             # and complete scalar proprioception, never the planned base pose.
             measured_rotation=Rotation.from_quat([*root[4:7],root[3]]).as_matrix()
-            goal_position_base=measured_rotation.T@(d.site_xpos[self.left.palm]-root[:3])
+            goal_position_base=measured_rotation.T@(commanded_position_world-root[:3])
             goal_rotation_base=measured_rotation.T@d.site_xmat[self.left.palm].reshape(3,3)
             self.left.target,self.left.target_velocity,correction_info=self.correction.update(t,joints,goal_position_base,goal_rotation_base,self.left.target)
             correction_info['maximum_change_from_nominal_rad']=float(np.max(abs(self.left.target-self.previous[left_indices])))
             if correction_info['maximum_change_from_nominal_rad']>.1:
                 raise ValueError('The actual-base target correction exceeded its screened0.1rad envelope')
             self.latest['actual_base_correction']=correction_info
-        position_error=float(np.linalg.norm(self.left.d.site_xpos[self.left.palm]-d.site_xpos[self.left.palm]))
+        position_error=float(np.linalg.norm(self.left.d.site_xpos[self.left.palm]-commanded_position_world))
         if palm_load>=2.:
             if self.loaded_since is None:self.loaded_since=float(t)
         else:self.loaded_since=None

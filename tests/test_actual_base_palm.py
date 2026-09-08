@@ -64,3 +64,13 @@ def test_strict_finite_proprioception_and_clock_contract(fault):
     if fault=='rotation':rotation[0,0]=2.
     if fault=='time_gap':t=.004
     with pytest.raises(ValueError):correction.update(t,joints,[0,0,0],rotation,np.zeros(3))
+
+
+def test_replay_admission_compares_to_original_plan_not_already_corrected_command():
+    import importlib.util
+    from pathlib import Path
+    spec=importlib.util.spec_from_file_location('actual_base_screen',Path(__file__).resolve().parents[1]/'scripts/dexterous/screen_actual_base_palm.py')
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    plan={'joint_names':['torso','arm_a','arm_b']}
+    row={'planned_coordinates':[0.]*6+[.1,.2,.3],'left_arm_targets':[.5,.6]}
+    np.testing.assert_array_equal(module.screened_nominal_arm_targets(plan,row,['arm_b','arm_a']),[.3,.2])

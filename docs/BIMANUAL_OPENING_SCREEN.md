@@ -829,3 +829,23 @@ The next declared comparison will use palm-load feedback to move only the
 normal Cartesian goal within a separately screened2mm envelope, retaining
 3.5N feedforward, the same tangential/orientation targets and phase lead, and
 all original mechanical and contact gates.
+
+The separately frozen panel007 profile uses scalar measured palm load to adjust
+only the normal Cartesian goal. Its target is4N, with a0.1N deadband and a50ms
+load filter; gain is0.1mm/(N·s), offset0–2mm, speed≤0.25mm/s and
+acceleration≤0.5mm/s². Exact discrete braking prevents integrator windup at
+either offset bound. The actual-base arm solver still enforces its0.1rad target
+correction envelope and original joint/rate limits. The3.5N motor feedforward,
+phase lead, tangential palm pose and palm orientation are unchanged. No load is
+inferred from that target, and the actual ≥2N palm gate remains unchanged.
+
+The first two admittance replay screens are retained as invalid-method
+diagnostics: unlike panel005, panel006's recorded LH targets are already
+corrected. The screen initially compared against those recorded targets rather
+than the original whole-body plan. The runtime helper already used the proper
+original nominal path. Before any physical admittance trial, the screen was
+corrected to derive nominal LH targets explicitly from `planned_coordinates`;
+a regression test prevents substituting the corrected command. Neither earlier
+screen is used to admit the new controller. The corrected screen checks the
+maximum reachable normal-offset trajectory under continuous zero load; fresh
+physical evidence is still required to qualify support or opening.
