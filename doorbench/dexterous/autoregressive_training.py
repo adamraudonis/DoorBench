@@ -25,12 +25,13 @@ def actor_history_prediction(model, inputs, burn_in, *, episode_start, return_hi
     if set(inputs)!={'proprio','tactile','images'}:
         raise ValueError('Only prepared actor sensor channels are permitted')
     d=model.dimensions;batch,total=inputs['proprio'].shape[:2]
-    if (not 0<=burn_in<total or inputs['proprio'].shape!=(batch,total,d.proprio_dimension)
+    if (type(burn_in) is not int or not 0<=burn_in<total or inputs['proprio'].shape!=(batch,total,d.proprio_dimension)
             or inputs['tactile'].shape!=(batch,total,d.tactile)
             or inputs['images'].shape!=(batch,total,2,3,d.image_size,d.image_size)):
         raise ValueError('Invalid actual-history window dimensions')
-    starts=torch.as_tensor(episode_start,device=inputs['proprio'].device,dtype=torch.bool)
-    if starts.shape!=(batch,):raise ValueError('Explicit episode boundary per window is required')
+    starts=torch.as_tensor(episode_start,device=inputs['proprio'].device)
+    if starts.shape!=(batch,) or starts.dtype!=torch.bool:
+        raise ValueError('Explicit boolean episode boundary per window is required')
     slot=previous_action_slice(d)
     previous=inputs['proprio'][:,0,slot].detach()
     if torch.any(previous[starts]!=0):

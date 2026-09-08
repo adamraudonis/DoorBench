@@ -72,3 +72,17 @@ def test_true_reset_and_truncated_boundary_have_distinct_explicit_contracts():
     torch.testing.assert_close(history[:,0],torch.full((1,4),.25))
     with pytest.raises(ValueError,match='Only prepared actor sensor'):
         actor_history_prediction(model,dict(inputs,teacher_command=torch.zeros(4)),2,episode_start=[False])
+
+
+@pytest.mark.parametrize('boundaries',[[1],[float('nan')],[1.0]])
+def test_episode_boundaries_cannot_be_silently_coerced(boundaries):
+    model,inputs=fixture()
+    with pytest.raises(ValueError,match='boolean episode boundary'):
+        actor_history_prediction(model,inputs,2,episode_start=boundaries)
+
+
+@pytest.mark.parametrize('burn',[True,2.0])
+def test_warmup_requires_an_integer_sample_count(burn):
+    model,inputs=fixture()
+    with pytest.raises(ValueError,match='history window'):
+        actor_history_prediction(model,inputs,burn,episode_start=[True])
