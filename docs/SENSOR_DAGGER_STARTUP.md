@@ -528,3 +528,33 @@ residual or joint-target controller could isolate that architectural choice:
 its stabilizing motor feedback must use only actual encoders and original
 motor caps, and it must not hide a privileged stance teacher. That would be
 a separately declared controller, not a reinterpretation of these failures.
+
+## Continuous-history010 protocol and CPU preflight
+
+The [frozen010 configuration](../configs/dexterous/sensor-imitation-continuous-010.json)
+uses009/4500 as a warm start for64 complete-source accumulated updates.
+Optimizer state is explicitly fresh **AdamW**, preserving009's learning
+rate1e-4, default weight decay0.01 and gradient clip1. Each update traverses
+all6971 admitted labels, with separate continuous recorded and actor-owned
+histories. Numeric GRU states persist across32-frame gradient chunks;
+parameters change only after all four sources finish. Source weighting is
+uniform. Half of each source's objective is its first32-label mean, and
+half is its complete-source mean; both histories receive equal weight.
+
+The portable package includes the initial checkpoint, its exact SHA256 and
+original optimizer-step number, all unchanged source evidence/calibration,
+and the trainer. It preserves a checkpoint and both full-history evaluations
+every8 completed updates, with a2700-second training budget. If the budget
+ends during a source pass, gradients are discarded and the saved model is
+the last complete update. No partial source pass can be credited as an update.
+All original six fitting thresholds and the runtime actor interface remain
+unchanged. The root agent controls any GPU launch and resource teardown.
+
+The CPU preflight completed one actual accumulated update in55.72 seconds;
+full evaluation took35.84 seconds. Its smoke checkpoint passed all four
+runtime-loading/inference checks, but only three of six fitting gates, so
+it is not admitted for a robot trial. A separate budget-interruption smoke
+processed32 actual examples, then retained zero optimizer updates, empty
+optimizer state, zero supervision counts and bit-identical initial weights.
+The focused regression suite passes91 tests. These checks validate the
+implementation; they do not establish convergence or physical balance.

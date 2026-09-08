@@ -42,6 +42,12 @@ def main():
     baseline=config['baseline_run']
     evidence(baseline,['manifest.json','source.tar.gz','report.json','early-force-comparison.json',
         'prediction-evaluation.json']+[f'actor00{i}-model{m}-prediction.json' for i in (2,3,4) for m in (4,5)])
+    initial=None
+    if 'initial_checkpoint' in config:
+        initial=dict(config['initial_checkpoint'])
+        initial['path']=copy(args.base/initial.pop('source'),'initial/actor.pt')
+        if digest(args.output/initial['path'])!=initial.get('sha256'):
+            raise ValueError('Declared initial checkpoint SHA differs')
     copy(args.experiment,'experiment.json')
     sources=sorted(set(root.glob('doorbench/**/*.py'))|set(root.glob('scripts/dexterous/*.py'))|{root/'pyproject.toml'})
     for source in sources:
@@ -51,6 +57,7 @@ def main():
         training_settings=config['training_settings'],readiness_limits=config['readiness_limits'],
         immutable_evidence=True,source_reports_rewritten=False,
         scope='Training inputs and actor/runtime calibration only. Simulator meshes are unnecessary for fitting and are not bundled. No physical execution or success claim.')
+    if initial:manifest['initial_checkpoint']=initial
     manifest_path=args.output/'dataset-manifest.json'
     manifest_path.write_text(json.dumps(manifest,indent=2)+'\n')
     episodes,_=load_bundle(manifest_path)
@@ -61,7 +68,9 @@ def main():
         if episode.metadata.get('correction_report_sha256')!=expected.get('correction_report_sha256'):
             raise ValueError('Frozen005 correction labels differ')
     settings=config['training_settings']|config['execution']
-    argv=['python','source/scripts/dexterous/train_sensor_imitation.py','--dataset-manifest','dataset-manifest.json','--output','run']
+    entry=config.get('training_entrypoint','scripts/dexterous/train_sensor_imitation.py')
+    if entry not in ('scripts/dexterous/train_sensor_imitation.py','scripts/dexterous/train_sensor_continuous.py'):raise ValueError('Unknown training entrypoint')
+    argv=['python','source/'+entry,'--dataset-manifest','dataset-manifest.json','--output','run']
     for key,value in settings.items():
         if isinstance(value,bool):
             if value:argv+=['--'+key.replace('_','-')]
