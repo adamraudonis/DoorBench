@@ -96,3 +96,18 @@ uniform ±5 mrad, clips individual limits, and applies a reset-only J1 ≤ J2
 projection preserving motor sums. The root, legs, target route and controller
 remain unchanged. These are small initial-condition tests, not a broad robustness
 or sensor-noise benchmark; all outcomes must be retained.
+
+All three predeclared seeds passed the complete native and strict per-2-ms audits
+without controller or target changes, giving **4/4 tested initializations** when
+including the nominal run. Exact reset perturbations, final digit forces and
+mechanical extrema are in
+[the repeat receipt](evidence/door55-precurl-repeats-2026-09-08.json).
+Full artifacts are `precurl-repeat-seed-17/`, `precurl-repeat-seed-29/` and
+`precurl-repeat-seed-43/` under the evidence directories above.
+
+The scratch repeat entry point originally captured no repository source files;
+that defective capture remains visible. Each run now includes its exact executed
+`diagnostic-source.py`, a hashed `source-supplement.json`, and the nominal
+`baseline-source.tar.gz` / `baseline-manifest.json` covering the unchanged native
+dependencies. The supplemental receipt explicitly identifies the reset-only
+script override. It does not silently replace the original manifest.
