@@ -59,7 +59,7 @@ def screen_state(m,d,q):
                 maximum_loopback_violation_rad=max(0.,*loopbacks))
 
 
-def plan_stow(sim,reset,*,retreat_m=.14,samples=101,inward_roll=0.):
+def plan_stow(sim,reset,*,retreat_m=.14,samples=101,inward_roll=0.,retreat_normal_world=None):
     """Retreat along measured leaf outward normal, then each arm, then waist.
 
     The loaded side is chosen from the measured contact normal. No geometry or
@@ -75,8 +75,13 @@ def plan_stow(sim,reset,*,retreat_m=.14,samples=101,inward_roll=0.):
         bodies=[m.body(m.geom_bodyid[g]).name for g in c.geom]
         if 'leaf' in bodies and any(n.startswith('robot/lh_') for n in bodies):
             normals.append((1 if bodies[1].startswith('robot/lh_') else -1)*c.frame[:3])
-    if not normals:raise ValueError('Expected attained left-hand panel contact')
-    normal=np.mean(normals,axis=0);normal/=np.linalg.norm(normal)
+    if retreat_normal_world is None:
+        if not normals:raise ValueError('Expected attained left-hand panel contact')
+        normal=np.mean(normals,axis=0);normal/=np.linalg.norm(normal)
+    else:
+        normal=np.asarray(retreat_normal_world,float)
+        if normal.shape!=(3,) or not np.isfinite(normal).all() or not np.isclose(np.linalg.norm(normal),1.,atol=1e-6,rtol=0):
+            raise ValueError('Expected a normalized measured outward release direction')
     names=['left_'+n for n in ('shoulder_pitch','shoulder_roll','shoulder_yaw','elbow','wrist_yaw')]+['lh_WRJ2','lh_WRJ1']
     js=np.array([m.joint('robot/'+n).id for n in names]);qa=m.jnt_qposadr[js]
     lo=m.jnt_range[js,0]+.015;hi=m.jnt_range[js,1]-.015

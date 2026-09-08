@@ -134,3 +134,7 @@ The new stow was screened against the recorded failing gait before the physical
 repeat. These results cover one initialized state, not a robustness matrix.
 Changed opening endpoints and the future uninterrupted native/Isaac sequence
 require their own actual physical qualification.
+
+The numeric [portable teacher interface](POST_OPENING_TEACHER.md) now reproduces
+009's recorded motor decisions and passes a fresh physical native repeat (010).
+It accepts newly attained state measurements and does not reset an active plant.
