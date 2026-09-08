@@ -504,3 +504,12 @@ to 18/251 (final force 13.67 N), while original joint/collision/motor/anatomy ga
 remain clean. These are recorded failures, not completed opening references.
 `scripts/dexterous/summarize_native_opening.py RUN` computes these summaries from
 the preserved every-step evidence without modifying the original pass/fail report.
+
+The 10 N comparison actual009 worsens unloading to 49/251 samples; pressure
+escalation stopped. An exact-state/control convergence study of actual008 finds
+only 17.55 µm maximum palm separation and 2 ms unsupported intervals, while
+every rolling 10 ms window still carries at least 5.85 N average palm load.
+Finer 1/0.5 ms integration preserves the integrated load and aperture. The
+[contact investigation and proposed support protocol](DEXTEROUS_PALM_SUPPORT_PROTOCOL.md)
+records the evidence and validation needed before any new acceptance profile.
+Actual008 remains failed under its frozen 20/22 score.
