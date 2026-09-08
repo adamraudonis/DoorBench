@@ -9,7 +9,7 @@
 #
 # Usage on the box:  bash scripts/pod_bootstrap.sh 2>&1 | tee /workspace/bootstrap.log   (root or sudo; DOORBENCH_WORK=/workspace)
 # isaaclab/cloud/setup.sh is a thin wrapper around this script.
-set -uo pipefail
+set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 # Isaac Lab calls tput even without a TTY; some cloud shells inherit an unsupported TERM.
 export TERM=xterm-256color
@@ -24,29 +24,33 @@ ISAACSIM_VERSION="${ISAACSIM_VERSION:-5.1.0}"
 ISAACLAB_TAG="${ISAACLAB_TAG:-v2.3.2}"
 DOORBENCH_REPO="${DOORBENCH_REPO:-https://github.com/adamraudonis/DoorBench.git}"
 
-echo "== [1/6] system packages"
+phase() {
+  echo "$1"
+  python3 "$DB/scripts/isaac/status.py" "$DB/out/launch/pipeline.json" "$1"
+}
+phase "== [1/6] system packages"
 $SUDO apt-get update -qq
 $SUDO apt-get install -y -qq --no-install-recommends git git-lfs rsync tmux htop ffmpeg curl ca-certificates \
   libglu1-mesa libxt6 libxrandr2 libxinerama1 libxcursor1 libxi6 libxkbcommon0 libx11-xcb1 libxcb1 libgl1 libglib2.0-0 \
   libvulkan1 vulkan-tools libegl1 libsm6 libice6 libfontconfig1 libfreetype6 >/dev/null
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv
 
-echo "== [2/6] uv + Python 3.11 venv"
+phase "== [2/6] uv + Python 3.11 venv"
 command -v uv >/dev/null || (curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1)
 export PATH=$HOME/.local/bin:$PATH
-[ -x $W/venv/bin/python ] || uv venv --python 3.11 $W/venv
+[ -x $W/venv/bin/python ] || uv venv --python 3.11.15 $W/venv
 source $W/venv/bin/activate
 uv pip install -q pip setuptools wheel "packaging>=24"
 python -V
 
-echo "== [3/6] Isaac Sim $ISAACSIM_VERSION (pip wheels, ~10 GB)"
+phase "== [3/6] Isaac Sim $ISAACSIM_VERSION (pip wheels, ~10 GB)"
 # uv downloads the ~10 GB of wheels concurrently (24 MB/s measured) where pip crawled at 0.4 MB/s on one RunPod host.
 export UV_LINK_MODE=copy UV_CACHE_DIR="$W/.uv-cache"
 python -c "import isaacsim" 2>/dev/null || {
   uv pip install "isaacsim[all,extscache]==$ISAACSIM_VERSION" --extra-index-url https://pypi.nvidia.com || exit 1
 }
 
-echo "== [4/6] Isaac Lab $ISAACLAB_TAG (installs torch cu128 + rsl_rl)"
+phase "== [4/6] Isaac Lab $ISAACLAB_TAG (installs torch cu128 + rsl_rl)"
 if [ ! -d $W/IsaacLab ]; then git clone -q --depth 1 --branch "$ISAACLAB_TAG" https://github.com/isaac-sim/IsaacLab.git $W/IsaacLab; fi
 # pre-fetch torch cu128 with uv (fast, concurrent) so isaaclab.sh's pip step finds it installed
 uv pip install "torch==2.7.0" "torchvision==0.22.0" --index-url https://download.pytorch.org/whl/cu128 2>&1 | tail -1
@@ -61,11 +65,25 @@ pip install -q -e $W/IsaacLab/source/isaaclab 2>&1 | tail -1
 # NOTE: `import isaaclab` only works inside a running Kit app (it needs pxr), so check the packages resolve instead.
 python -c "import importlib.util as u; assert all(u.find_spec(m) for m in ('isaaclab', 'isaaclab_tasks', 'rsl_rl')); print('ISAACLAB_IMPORT_OK')" || { echo "ISAACLAB_IMPORT_FAILED"; exit 1; }
 
-echo "== [5/6] DoorBench"
+phase "== [5/6] DoorBench"
 if [ ! -d "$DB" ]; then git clone -q "$DOORBENCH_REPO" "$DB"; fi
 cd "$DB" && pip install -q -e . 2>&1 | tail -1
 [ -d "$DB/isaaclab" ] && pip install -q -e "$DB/isaaclab" 2>&1 | tail -1 || true
-[ -f "$DB/assets/manifest.json" ] || python scripts/generate_dataset.py --out assets --workers 8 --no-thumbs 2>&1 | tail -1
+# Asset generation has its own environment: importing pip's usd-core into Kit's
+# Python process risks mixing incompatible USD libraries. MuJoCo QA is required
+# even when the consuming simulator is Isaac.
+[ -x "$W/asset-venv/bin/python" ] || uv venv --python 3.12.13 "$W/asset-venv"
+uv pip install --python "$W/asset-venv/bin/python" -e "$DB" 'mujoco==3.12.0' 'usd-core==26.8' || exit 1
+ASSET_CHECK=("$W/asset-venv/bin/python" "$DB/scripts/isaac/check_assets.py" "$DB/assets")
+if [ -n "${DOORBENCH_GENERATE_IDS:-}" ]; then ASSET_CHECK+=(--ids "$DOORBENCH_GENERATE_IDS"); fi
+if ! "${ASSET_CHECK[@]}" >/dev/null 2>&1; then
+  if [ -n "${DOORBENCH_GENERATE_IDS:-}" ]; then
+    "$W/asset-venv/bin/python" scripts/generate_dataset.py --out assets --ids "$DOORBENCH_GENERATE_IDS" --workers 1 --no-thumbs
+  else
+    "$W/asset-venv/bin/python" scripts/generate_dataset.py --out assets --workers 8 --no-thumbs
+  fi
+fi
+"${ASSET_CHECK[@]}"
 # Isaac Lab's torch upgrade can replace Isaac Sim's pinned utility dependencies.
 # Restore the shared 5.1 / 2.3.2 contract after all editable packages are installed.
 if [ "$ISAACSIM_VERSION" = "5.1.0" ] && [ "$ISAACLAB_TAG" = "v2.3.2" ]; then
@@ -75,6 +93,8 @@ if [ "$ISAACSIM_VERSION" = "5.1.0" ] && [ "$ISAACLAB_TAG" = "v2.3.2" ]; then
   uv pip install "torchaudio==2.7.0" --index-url https://download.pytorch.org/whl/cu128 || exit 1
   python "$DB/scripts/isaaclab/check_g1_runtime.py" || exit 1
 fi
+# Native kinematics support for the optional closed-loop teacher; no pip USD in Kit.
+uv pip install 'mujoco==3.12.0' || exit 1
 # environment file used by isaaclab/cloud/*.sh (validate / train / hero / eval)
 {
   echo "# generated by scripts/pod_bootstrap.sh - source me:  source isaaclab/cloud/env.sh"
@@ -83,7 +103,7 @@ fi
   echo "export OMNI_KIT_ACCEPT_EULA=YES ACCEPT_EULA=Y PRIVACY_CONSENT=Y TERM=xterm-256color"
 } > "$DB/isaaclab/cloud/env.sh"
 
-echo "== [6/6] first headless Isaac Sim start (pulls the extension registry, up to ~10 min)"
+phase "== [6/6] first headless Isaac Sim start (pulls the extension registry, up to ~10 min)"
 cd $W/IsaacLab
 STARTUP_LOG="$W/isaacsim-first-start.log"
 timeout 1500 python -c "from isaacsim import SimulationApp; app = SimulationApp({'headless': True}); print('ISAACSIM_OK', flush=True); app.close()" > "$STARTUP_LOG" 2>&1

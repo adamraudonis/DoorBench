@@ -2,6 +2,7 @@
 """DoorBench local Run Center. No credentials or remote control exposed to the browser."""
 
 import argparse
+import hashlib
 import json
 import shlex
 import subprocess
@@ -55,6 +56,10 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--config", type=Path, default=Path("out/gpu-dashboard/runs.json"))
     p.add_argument("--port", type=int, default=5183)
+    p.add_argument(
+        "--allowed-host", action="append", default=[],
+        help="Additional exact Host header accepted through a trusted local proxy",
+    )
     p.add_argument(
         "--results", help="Register a local directory or remote result directory"
     )
@@ -155,6 +160,7 @@ def main():
             if self.headers.get("Host") not in (
                 f"127.0.0.1:{a.port}",
                 f"localhost:{a.port}",
+                *a.allowed_host,
             ):
                 self.send_error(403)
                 return
@@ -162,7 +168,8 @@ def main():
             if path == "/api/runs":
                 with lock:
                     body = json.dumps(
-                        {"runs": list(cache.values()), "server_time": time.time()},
+                        {"runs": list(cache.values()), "server_time": time.time(),
+                         "registry_id": hashlib.sha256(str(a.config).encode()).hexdigest()},
                         allow_nan=False,
                     ).encode()
                 kind = "application/json"
