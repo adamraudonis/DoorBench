@@ -43,6 +43,7 @@ FullOpeningTeacher = module.FullOpeningTeacher
 
 def physical_sample_passed(row):
     return bool(row['finite'] and row['numerical_warnings']==0 and
+                row.get('mujoco_warning_interval',{}).get('passed',True) and
                 row['root_height_m']>.7 and row['torso_tilt_deg']<12 and
                 row['max_joint_limit_violation_rad']<=.02 and
                 row['max_nonfoot_penetration_m']<=.003 and
@@ -63,6 +64,7 @@ def main():
     p.add_argument('--follow-leaf-during-transfer',action='store_true')
     p.add_argument('--panel-profile',choices=('plain-v1','hybrid-surface-v2'),default='hybrid-surface-v2')
     p.add_argument('--palm-load-target',type=float)
+    p.add_argument('--transfer-load-target',type=float,default=4.,help='Pre-release total left-panel load target; original motor caps unchanged')
     a = p.parse_args()
     if a.output.exists(): raise SystemExit('Use a new output directory')
     ref=json.loads(a.reference.read_text());motors=json.loads(a.motors.read_text())
@@ -88,7 +90,7 @@ def main():
         dict(operator_origin=m.jnt_pos[hj],operator_axis=m.jnt_axis[hj],leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),
         door_xml=a.door,left_targets=a.plan,release_screen=a.release_path,runtime_screen=a.runtime_screen,
         opening_options=dict(target_aperture=a.target_aperture,open_on_latch_clear=a.open_on_latch_clear,
-            operator_compliance_gain=a.operator_compliance_gain,follow_leaf_during_transfer=a.follow_leaf_during_transfer,panel_profile=a.panel_profile,palm_load_target=a.palm_load_target))
+            operator_compliance_gain=a.operator_compliance_gain,follow_leaf_during_transfer=a.follow_leaf_during_transfer,panel_profile=a.panel_profile,palm_load_target=a.palm_load_target,transfer_load_target=a.transfer_load_target))
     opening=sequence.opening
     teacher=opening.acquisition
     d.qpos[sim.root_qadr:sim.root_qadr+7]=reset['initial_root']
@@ -148,6 +150,7 @@ def main():
         report['checks'].update(acquisition_precedes_operation=opening.operation_started is not None,operator_driven_to_release=max(r['handle_angle_rad'] for r in physics)>=.8 and max(r.get('bolt_slide_m',0) for r in physics)>=.011,left_contact_reached=opening.left.started is not None and opening.left.progress>=.999,sustained_left_panel_load=bool(tail) and all(r.get('left_surface_audit',{}).get('total_normal_load_N',0)>=2. for r in tail),usable_aperture_under_palm_load=physics[-1]['door_q']>=a.target_aperture and physics[-1]['left_surface_audit']['palm_normal_load_N']>=2.,no_invalid_right_pad_patch=all(all(c['pad_qualified'] for c in r['pad_grasp']['contacts']) for r in physics),sustained_left_palm_load=bool(tail) and all(r.get('left_surface_audit',{}).get('palm_normal_load_N',0)>=2. for r in tail),qualified_grasp_before_intentional_release=opening.release.started is not None,right_release_completed=opening.release.info.get('release_fraction',0)>=.999 and min(float(mujoco.mj_geomDistance(m,d,g,lever,1.,None)) for g in geoms)>=.02)
         report['checks']={key:bool(value) for key,value in report['checks'].items()}
         report['checks']['actual_transition_geometry_matches_pre_state']=all(r.get('pre_integration_body_poses_match',True) for r in physics)
+        report['checks']['complete_runtime_warning_audit']=all(r.get('mujoco_warning_interval',{}).get('passed',False) for r in physics[1:])
         report['checks']['pre_integration_state_limits']=all(r['pre_integration_state']['max_joint_limit_violation_rad']<=.02 and r['pre_integration_state']['max_shadow_loopback_violation_rad']<=.02 and r['pre_integration_state']['root_height_m']>.7 and r['pre_integration_state']['torso_tilt_deg']<12 and r['pre_integration_state']['finite'] for r in physics[1:])
         preparation_rows=[r for r in physics[1:] if r.get('teacher',{}).get('phase')=='arm preparation']
         report['checks'].update(separated_start=float(np.linalg.norm(np.array(reset['initial_root'])[:2]-reset['goal_xy']))>=.5,

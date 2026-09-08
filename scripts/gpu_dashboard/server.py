@@ -9,10 +9,68 @@ import subprocess
 import threading
 import time
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+
+
+class RunMonitor:
+    """Bounded independent polling; an unavailable archive cannot hold live data."""
+    def __init__(self, cache, lock, *, fetch=None, workers=8, clock=time.time):
+        self.cache, self.lock = cache, lock
+        self.fetch = fetch or snapshot
+        self.clock = clock
+        self.pool = ThreadPoolExecutor(max_workers=workers)
+        self.workers = workers
+        self.pending = {}
+
+    def poll(self, runs):
+        current = {run['id']: run for run in runs}
+        now = self.clock()
+        for id, (run, future) in list(self.pending.items()):
+            if not future.done():
+                continue
+            del self.pending[id]
+            if current.get(id) != run:
+                continue
+            with self.lock:
+                old = dict(self.cache.get(id, {}))
+            try:
+                data = future.result()
+                terminated = False
+                if run.get('teardown'):
+                    try:
+                        terminated = json.loads(Path(run['teardown']).read_text()).get('confirmed_absent') is True
+                    except (OSError, ValueError):
+                        pass
+                item = dict(id=id, name=run['name'], source='SSH' if run.get('ssh_host') else
+                            'Local archive' if data['complete'] else 'Local files',
+                            fetched_at=now, last_poll=now, error=None,
+                            terminated=terminated, data=data)
+            except Exception as error:
+                item = dict(old, id=id, name=run.get('name', id), error=str(error), last_poll=now)
+            with self.lock:
+                self.cache[id] = item
+        with self.lock:
+            for id in list(self.cache):
+                if id not in current:
+                    del self.cache[id]
+            prior = {id: dict(value) for id, value in self.cache.items()}
+        due = []
+        for index, run in enumerate(runs):
+            id = run['id']
+            if id in self.pending:
+                continue
+            old = prior.get(id, {})
+            status = old.get('data', {}).get('status')
+            live = status in ('running', 'retrying', 'hero')
+            interval = 5 if live or not old else 15 if old.get('error') else 60
+            if now - old.get('last_poll', old.get('fetched_at', -float('inf'))) >= interval:
+                due.append((0 if live else 1 if not old else 2, index, run))
+        for _, _, run in sorted(due)[:max(0, self.workers-len(self.pending))]:
+            self.pending[run['id']] = (dict(run), self.pool.submit(self.fetch, dict(run)))
 
 
 def snapshot(run):
@@ -101,57 +159,16 @@ def main():
         return
     cache = {}
     lock = threading.Lock()
+    monitor = RunMonitor(cache, lock)
 
     def refresh():
         while True:
             try:
                 runs = json.loads(a.config.read_text())
-                for run in runs:
-                    id = run["id"]
-                    old = cache.get(id, {})
-                    try:
-                        data = snapshot(run)
-                        terminated = False
-                        if run.get("teardown"):
-                            try:
-                                terminated = (
-                                    json.loads(Path(run["teardown"]).read_text()).get(
-                                        "confirmed_absent"
-                                    )
-                                    is True
-                                )
-                            except (OSError, ValueError):
-                                pass
-                        item = dict(
-                            id=id,
-                            name=run["name"],
-                            source="SSH"
-                            if run.get("ssh_host")
-                            else "Local archive"
-                            if data["complete"]
-                            else "Local files",
-                            fetched_at=time.time(),
-                            error=None,
-                            terminated=terminated,
-                            data=data,
-                        )
-                    except Exception as e:
-                        item = {
-                            **old,
-                            "id": id,
-                            "name": run.get("name", id),
-                            "error": str(e),
-                            "last_poll": time.time(),
-                        }
-                    with lock:
-                        cache[id] = item
-                with lock:
-                    for id in list(cache):
-                        if id not in {r["id"] for r in runs}:
-                            del cache[id]
+                monitor.poll(runs)
             except (OSError, ValueError, TypeError):
                 pass
-            time.sleep(5)
+            time.sleep(1)
 
     threading.Thread(target=refresh, daemon=True).start()
 

@@ -51,7 +51,8 @@ class FullOpeningTeacher:
                  open_on_latch_clear=False, operator_compliance_gain=0.,
                  follow_leaf_during_transfer=False,
                  operator_compliance_limit=.15, freeze_compliance_on_release=True,
-                 panel_profile="hybrid-surface-v2", palm_load_target=None):
+                 panel_profile="hybrid-surface-v2", palm_load_target=None,
+                 transfer_load_target=4.):
         if panel_profile not in ("plain-v1","hybrid-surface-v2"):
             raise ValueError("Unknown declared panel controller profile")
         self.panel_profile=panel_profile
@@ -93,7 +94,8 @@ class FullOpeningTeacher:
         self.left_cup_motor=int(cup_motors[0])
         targets = load_screen_targets(left_targets, robot_xml, door_xml,
                                       runtime_screen=runtime_screen)
-        self.left = LeftPalmContact(self.acquisition, motors, targets, fixed_waist=True)
+        self.left = LeftPalmContact(self.acquisition, motors, targets, fixed_waist=True,
+                                    support_load_target=transfer_load_target)
         self.release = AxialRightRelease(self.acquisition, Path(release_screen))
         if panel_profile=="plain-v1":
             self.push=CoordinatedPanelPush(self.left,target_palm_load=3. if palm_load_target is None else palm_load_target)

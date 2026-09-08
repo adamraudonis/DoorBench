@@ -11,6 +11,7 @@ import numpy as np
 
 from .grasp_verification import native_grasp_sample
 from .hand_surface_audit import native_hand_surface_loads
+from .native_warning_audit import warning_counts, warning_interval
 
 
 def _joint_state(sim,qpos):
@@ -66,7 +67,8 @@ class NativeTransitionRecorder:
         self.pending=dict(time=float(d.time),qpos=d.qpos.copy(),qvel=d.qvel.copy(),
             controls=d.ctrl.copy(),diagnostics=self.sim.diagnostics().copy(),
             body_positions=d.xpos.copy(),body_rotations=d.xmat.copy(),
-            body_wrench_max=float(np.max(np.abs(d.xfrc_applied))))
+            body_wrench_max=float(np.max(np.abs(d.xfrc_applied))),
+            warning_counts=warning_counts(d))
 
     def after_step(self):
         if self.pending is None:raise ValueError('Missing pre-step state snapshot')
@@ -96,7 +98,8 @@ class NativeTransitionRecorder:
             geometry_time_s=before['time'],qpos_before=before['qpos'].tolist(),
             qvel_before=before['qvel'].tolist(),qpos_after=d.qpos.copy().tolist(),
             qvel_after=d.qvel.copy().tolist(),controls=before['controls'].tolist(),
-            actuator_force=d.actuator_force.copy().tolist())
+            actuator_force=d.actuator_force.copy().tolist(),
+            mujoco_warning_interval=warning_interval(before['warning_counts'],warning_counts(d)))
         q=d.qpos.copy();v=d.qvel.copy();force=d.actuator_force.copy()
         mujoco.mj_kinematics(m,d)
         if d.time!=end or not np.array_equal(q,d.qpos) or not np.array_equal(v,d.qvel) or not np.array_equal(force,d.actuator_force):
@@ -111,6 +114,7 @@ class NativeTransitionRecorder:
             contact_interval_start_s=before['time'],contact_interval_end_s=end,
             contact_force_source='actual_mj_step_dynamics',
             body_pose_refresh='mj_kinematics_only',pre_integration_body_poses_match=True)
+        row['mujoco_warning_interval']=raw['mujoco_warning_interval']
         self.contact_time_s=before['time'];self.contact_interval_end_s=end
         self.pending=None
         return row,raw

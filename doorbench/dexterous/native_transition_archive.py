@@ -25,10 +25,21 @@ def packed(rows):
     for key,(shape,dtype) in BODY_FIELDS.items():
         shape=(shape,) if isinstance(shape,int) else shape
         out[key]=np.asarray([v for row in rows for v in row[key]],dtype=dtype).reshape((-1,*shape))
+    warning_present=['mujoco_warning_interval' in row for row in rows]
+    if any(warning_present):
+        if not all(warning_present):raise ValueError('Warning evidence cannot be missing inside a chunk')
+        from doorbench.dexterous.native_warning_audit import warning_interval
+        for row in rows:
+            actual=row['mujoco_warning_interval']
+            if actual!=warning_interval(np.asarray(actual['before']),np.asarray(actual['after'])):
+                raise ValueError('Warning result does not match its actual counters')
+        for key in ('before','after'):
+            out['warning_'+key]=np.asarray([row['mujoco_warning_interval'][key] for row in rows],dtype=np.int64)
     return out
 
 
 def unpacked(arrays):
+    if ('warning_before' in arrays)!=('warning_after' in arrays):raise ValueError('Incomplete archived warning counters')
     for i in range(len(arrays['interval_start_s'])):
         row={key:arrays[key][i].tolist() for key in STATE_FIELDS}
         start,end=arrays['contact_offsets'][i:i+2]
@@ -36,6 +47,9 @@ def unpacked(arrays):
                          for j in range(start,end)]
         start,end=arrays['body_offsets'][i:i+2]
         row.update({key:arrays[key][start:end].tolist() for key in BODY_FIELDS})
+        if 'warning_before' in arrays:
+            from doorbench.dexterous.native_warning_audit import warning_interval
+            row['mujoco_warning_interval']=warning_interval(arrays['warning_before'][i],arrays['warning_after'][i])
         yield row
 
 
@@ -67,6 +81,7 @@ class NativeTransitionArchive:
         temporary.replace(path)
         self.chunks.append(dict(file=name,rows=len(self.rows),bytes=path.stat().st_size,
             sha256=hashlib.file_digest(path.open('rb'),'sha256').hexdigest(),
+            warning_counters_recorded=all('mujoco_warning_interval' in row for row in self.rows),
             interval_start_s=self.rows[0]['interval_start_s'],interval_end_s=self.rows[-1]['interval_end_s']))
         self.rows=[];self._manifest(False)
 
