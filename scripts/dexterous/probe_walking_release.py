@@ -14,6 +14,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -51,7 +52,12 @@ def main():
     p.add_argument("--hybrid-include-waist", action="store_true")
     p.add_argument("--record-panel-targets", action="store_true")
     p.add_argument("--whole-body-panel-plan",type=Path)
+    p.add_argument("--screened-panel-feedforward-n",type=float,default=3.5)
     a = p.parse_args()
+    if not math.isfinite(a.screened_panel_feedforward_n) or not 0 < a.screened_panel_feedforward_n <= 8.:
+        raise ValueError("Require a finite declared screened-panel feedforward in (0,8] N")
+    if a.screened_panel_feedforward_n != 3.5 and not a.whole_body_panel_plan:
+        raise ValueError("The declared feedforward applies only to the screened whole-body panel")
     if (a.release_mode in ('whole-body-return', 'whole-body-ungrip')) != (a.whole_body_path is not None):
         raise ValueError('Whole-body return requires the exact screened path')
     if (a.release_mode == 'whole-body-ungrip') != (a.ungrip_path is not None):
@@ -160,7 +166,7 @@ def main():
     import doorbench.dexterous.full_opening_teacher as full
     if a.whole_body_panel_plan:
         from doorbench.dexterous.screened_panel_teacher import ScreenedWholeBodyPanel
-        full.CoordinatedPanelPush=lambda left,**options:ScreenedWholeBodyPanel(left,stage/'whole-body-panel-plan.json',**options)
+        full.CoordinatedPanelPush=lambda left,**options:ScreenedWholeBodyPanel(left,stage/'whole-body-panel-plan.json',normal_feedforward_N=a.screened_panel_feedforward_n,**options)
     original_force = full.FullOpeningTeacher.force
     panel_trace=None
 
@@ -313,6 +319,7 @@ def main():
             hybrid_include_waist=a.hybrid_include_waist,
             whole_body_panel_plan_sha256=digest(stage/'whole-body-panel-plan.json') if a.whole_body_panel_plan else None,
             whole_body_panel_profile='screened-position-v1' if a.whole_body_panel_plan else None,
+            screened_panel_normal_feedforward_N=a.screened_panel_feedforward_n if a.whole_body_panel_plan else None,
             record_panel_targets=a.record_panel_targets or a.hybrid_include_waist,
             panel_profile=config.get('panel_profile'),
             panel_profile_changed_from_baseline=config.get('panel_profile')!=baseline['configuration'].get('panel_profile'),

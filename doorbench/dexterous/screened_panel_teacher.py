@@ -31,7 +31,10 @@ def validate_attained_panel_state(plan, initial_root, root, joints, angle):
 
 
 class ScreenedWholeBodyPanel:
-    def __init__(self,left,path,**legacy_options):
+    def __init__(self,left,path,*,normal_feedforward_N=3.5,**legacy_options):
+        if type(normal_feedforward_N) not in (int,float) or not np.isfinite(normal_feedforward_N) or not 0 < normal_feedforward_N <= 8.:
+            raise ValueError('Require a finite declared normal feedforward in (0,8] N; original motor caps remain unchanged')
+        self.normal_feedforward_N=float(normal_feedforward_N)
         self.left=left;self.teacher=left.teacher
         self.plan=json.loads(Path(path).read_text());plan=self.plan
         if plan.get('schema')!='doorbench.whole-body-panel-plan.v1' or plan['screen_receipt'].get('passed') is not True:
@@ -59,7 +62,7 @@ class ScreenedWholeBodyPanel:
         self.started=float(t);self.clear=True
         self.advance(t,angle)
         self.teacher.arm_joints=np.array([],int);self.teacher.arm_q=np.array([],int);self.teacher.arm_v=np.array([],int)
-        self.left.contact_force=3.5
+        self.left.contact_force=self.normal_feedforward_N
         for name in ('lh_LFJ5','rh_LFJ5'):
             self.teacher.path[-1,self.teacher.names.index(name)]=joints[name]
         if hasattr(self.left,'hybrid_normal_target'):
@@ -107,4 +110,4 @@ class ScreenedWholeBodyPanel:
         if palm_load>=2.:
             if self.loaded_since is None:self.loaded_since=float(t)
         else:self.loaded_since=None
-        self.left.info=dict(phase='screened_whole_body_panel',left_progress=1.,left_tracking_error_m=position_error,left_rotation_error_rad=float(np.linalg.norm(Rotation.from_matrix(d.site_xmat[self.left.palm].reshape(3,3)@self.left.d.site_xmat[self.left.palm].reshape(3,3).T).as_rotvec())),left_panel_load_N=float(palm_load),left_offset_m=0.,left_ik_residual=position_error*100.,left_loaded_duration_s=0. if self.loaded_since is None else t-self.loaded_since,right_release_clear=True,reference_aperture_rad=self.latest['aperture'],measured_aperture_rad=float(angle),target_maximum_joint_speed_rad_s=float(max(abs(self.latest['velocity'][6:]))),target_maximum_joint_acceleration_rad_s2=float(max(abs(self.latest['acceleration'][6:]))),target_root_speed_m_s=float(np.linalg.norm(self.latest['velocity'][:3])),target_root_rotvec_speed_rad_s=float(np.linalg.norm(self.latest['velocity'][3:6])),target_time_s=float(t),profile='screened-position-v1; original doubled damping and cup feedback retained; no hybrid normal projection')
+        self.left.info=dict(phase='screened_whole_body_panel',left_progress=1.,left_tracking_error_m=position_error,left_rotation_error_rad=float(np.linalg.norm(Rotation.from_matrix(d.site_xmat[self.left.palm].reshape(3,3)@self.left.d.site_xmat[self.left.palm].reshape(3,3).T).as_rotvec())),left_panel_load_N=float(palm_load),left_offset_m=0.,left_ik_residual=position_error*100.,left_loaded_duration_s=0. if self.loaded_since is None else t-self.loaded_since,right_release_clear=True,reference_aperture_rad=self.latest['aperture'],measured_aperture_rad=float(angle),target_maximum_joint_speed_rad_s=float(max(abs(self.latest['velocity'][6:]))),target_maximum_joint_acceleration_rad_s2=float(max(abs(self.latest['acceleration'][6:]))),target_root_speed_m_s=float(np.linalg.norm(self.latest['velocity'][:3])),target_root_rotvec_speed_rad_s=float(np.linalg.norm(self.latest['velocity'][3:6])),target_time_s=float(t),normal_feedforward_N=self.normal_feedforward_N,profile='screened-position-v1; original doubled damping and cup feedback retained; no hybrid normal projection')

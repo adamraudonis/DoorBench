@@ -663,3 +663,29 @@ samples. Its exact worst-case envelope is 0.16472 rad/s joint speed,
 the inherited right-hand withdrawal and cannot erase its three wrong-pad
 contacts. No outcome is claimed before the actual-force trial and independent
 archive audit complete.
+
+Panel003 completed the declared 95 s and passed 27/29 frozen checks. All
+mechanics and sustained palm support passed; the final leaf angle was
+0.549978 rad with 3.718344 N palm load. The original three right-pad errors
+remain, and usable aperture failed. The actual moment-arm correction increased
+final normal moment to +0.498577 Nm and net moment to +0.457343 Nm, still below
+the unchanged 0.457638 Nm hinge frictionloss limit. This confirms that the
+realized moment increased but does not qualify a complete opening. The
+independent audit verified all 47,500 transitions and 20,750 post-return frames
+with zero force-cap excess or body-frame disagreement. The identical prefix
+through 69.5 s occupies 139 byte-verified hardlinked raw chunks.
+
+Panel003, torque series for baseline002, and all retained-radius screens010–016
+are immutable in `native-panel-moment-arm-development-001`: 673 files, manifest
+SHA256 `35d5f355a7901fdbd50fba2ddf10eaa7d4222bdc8896fa0a4b5d3cfb94c522af`.
+
+The next controlled comparison, `walked-whole-body-panel-004`, returns to the
+original qualified flat-palm002 path (screen009) and changes only normal
+Jacobian feedforward from 3.5 N to 4 N. This is a declared 0.5 N target-force
+increment motivated by the actual hinge-moment deficit; it changes no motor
+cap or plant parameter. The probe records `--screened-panel-feedforward-n 4`
+and the controller reports the consumed feedforward explicitly. Actual contact
+force and hinge moment still require measurement; the configured 4 N value is
+not a measured contact load. The default remains 3.5 N. All anatomy, support,
+clearance, balance, derivative and collision gates remain unchanged, including
+the cumulative inherited right-hand failure.
