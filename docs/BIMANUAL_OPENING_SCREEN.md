@@ -178,3 +178,36 @@ The source archive includes the endpoint scans, failed trials, exact executed
 sources, 50 Hz full-state trajectories, 500 Hz audit rows, and close-view images.
 The third trial's final serialization failed before its full evidence was saved;
 its remaining source and progress logs are preserved without a full-gate claim.
+
+### Robot identity when moving to another cluster
+
+New target receipts also carry `doorbench.compiled-robot-identity.v1`, generated
+by `robot_identity.robot_file_identity`. The reader verifies that identity even
+when the XML SHA is unchanged, so an altered mesh behind the same filename does
+not silently pass. Older target files retain their exact XML SHA requirement.
+The identity includes 327 compiled physical arrays for this H1: collision mesh
+vertices/faces, body mass/inertia, joint and motor properties, transmissions,
+passive tendons, named bindings, and the native solver settings. It pins the
+MuJoCo version, normalizes floating arrays to 12 decimal places and integers to
+64-bit little-endian encoding, and excludes asset paths, memory layout and
+render-only assets. An identity match is not an Isaac runtime parity claim.
+
+Only the version-pinned built-in `mujoco.sensor.touch_grid` plugin is accepted,
+with its compiled sensor arrays and expanded XML configuration included. It
+must be attached exclusively to sensors. Other plugins fail closed pending an
+explicit identity contract. MuJoCo documents this plugin as a contact-force
+sensor, not a physical actuator:
+[official plugin source and documentation](https://github.com/google-deepmind/mujoco/blob/main/plugin/sensor/README.md).
+
+The local relocation check recompiled the real H1 after rewriting every asset
+location to a different symlink path and obtained the same identity. Tests
+reject changes to geometry, masses, motor caps, passive tendon limits, solver
+settings, joint names and sensor configuration. Cross-operating-system
+compilation still needs a live check with the pinned MuJoCo version; a mismatch
+must be investigated rather than bypassed or assigned a fresh expected hash.
+
+The identity compile explicitly clears MuJoCo's compiler asset cache first.
+A regression test exposed that two edits to one mesh path within the filesystem
+timestamp granularity could otherwise reuse cached geometry. Clearing the cache
+changes no existing model or simulation state, and the test now rejects a mesh
+change while the XML bytes remain identical.

@@ -20,7 +20,10 @@ from doorbench.dexterous.environment import DexterousDoorEnv
 def load_screen_targets(report_path, robot, door):
     report=json.loads(Path(report_path).read_text())
     if not report.get('passed'):raise ValueError('Use a passed sampled bimanual screen')
-    if report.get('robot_sha256')!=hashlib.sha256(Path(robot).read_bytes()).hexdigest():
+    if 'compiled_robot_identity' in report:
+        from doorbench.dexterous.robot_identity import verify_robot_identity
+        verify_robot_identity(robot,report['compiled_robot_identity'])
+    elif report.get('robot_sha256')!=hashlib.sha256(Path(robot).read_bytes()).hexdigest():
         raise ValueError('Static route belongs to a different robot model')
     if report.get('schema')=='doorbench.left-palm-targets.v1':
         names=report['joint_names'];rows=[]
@@ -53,9 +56,10 @@ def load_screen_targets(report_path, robot, door):
 
 
 class LeftPalmContact:
-    def __init__(self, teacher, motors, targets, *, reach_seconds=5., contact_force=8., fixed_waist=False):
+    def __init__(self, teacher, motors, targets, *, reach_seconds=5., contact_force=8., fixed_waist=False, track_fixed_pads=False):
         self.teacher=teacher;self.m=teacher.m;self.d=mujoco.MjData(self.m)
         self.fixed_waist=bool(fixed_waist)
+        self.track_fixed_pads=bool(track_fixed_pads)
         self.names,self.rows=targets;self.path=[row for row in self.rows if row['phase']=='left_reach']
         self.reach_seconds=reach_seconds;self.contact_force=contact_force
         if not np.isfinite([reach_seconds,contact_force]).all() or reach_seconds<=0 or not 0<contact_force<=20:
@@ -94,9 +98,10 @@ class LeftPalmContact:
         self.m.body_quat[self.teacher.lever_body]=handle_pose[3:7]
         mujoco.mj_forward(self.m,self.d)
         distal={digit:[g for g in geoms if self.m.body(self.m.geom_bodyid[g]).name.endswith('distal')] for digit,geoms in self.teacher.digit_geoms.items()}
-        from doorbench.dexterous.pad_tracking import PadTracker
-        self.pads=PadTracker(self.m,self.d,distal,self.teacher.lever,digits=('ff','mf','rf','lf','th'),stiffness=800.,damping=2.,maximum_force=6.)
-        self.pad_targets_handle={digit:hr.T@(position-handle_pose[:3]) for digit,position in self.pads.positions(self.d).items()}
+        if self.track_fixed_pads:
+            from doorbench.dexterous.pad_tracking import PadTracker
+            self.pads=PadTracker(self.m,self.d,distal,self.teacher.lever,digits=('ff','mf','rf','lf','th'),stiffness=800.,damping=2.,maximum_force=6.)
+            self.pad_targets_handle={digit:hr.T@(position-handle_pose[:3]) for digit,position in self.pads.positions(self.d).items()}
         # Keep the waist target explicit during bimanual work. Right-arm IK
         # still compensates through its seven actual joints as the waist moves.
         keep=np.array([self.m.joint(int(j)).name!='torso' for j in self.teacher.arm_joints])
@@ -166,7 +171,7 @@ class LeftPalmContact:
         push=self.contact_force*np.clip((self.progress-.94)/.06,0.,1.)
         left_force+=self.jp[:,self.va].T@(self.normal*push)
         result=forces.copy();result[self.act]=np.clip(left_force,teacher.caps[self.act,0],teacher.caps[self.act,1])
-        if self.fixed_waist:return result
+        if self.fixed_waist or not self.track_fixed_pads:return result
         hr=Rotation.from_quat([*self.handle_pose[4:7],self.handle_pose[3]]).as_matrix()
         pad_targets={digit:self.handle_pose[:3]+hr@local for digit,local in self.pad_targets_handle.items()}
         generalized,errors=self.pads.generalized_force(d,pad_targets)

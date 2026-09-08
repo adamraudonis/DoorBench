@@ -16,6 +16,7 @@ def inputs(tmp_path):
     robot = tmp_path / 'robot.xml'
     robot.write_text('fixture model identity')
     config = json.loads(CONFIG.read_text())
+    config.pop('compiled_robot_identity',None)
     config['robot_sha256'] = hashlib.sha256(robot.read_bytes()).hexdigest()
     path = tmp_path / 'targets.json'
     path.write_text(json.dumps(config))
