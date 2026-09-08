@@ -45,7 +45,7 @@ def validate_tracking_lead_receipt(plan, receipt, lead, start):
 
 
 class ScreenedWholeBodyPanel:
-    def __init__(self,left,path,*,normal_feedforward_N=3.5,tracking_lead_rad=.005,lead_start_angle=None,lead_ramp_rad=.1,lead_receipt=None,**legacy_options):
+    def __init__(self,left,path,*,normal_feedforward_N=3.5,tracking_lead_rad=.005,lead_start_angle=None,lead_ramp_rad=.1,lead_receipt=None,actual_base_correction=False,**legacy_options):
         if type(normal_feedforward_N) not in (int,float) or not np.isfinite(normal_feedforward_N) or not 0 < normal_feedforward_N <= 8.:
             raise ValueError('Require a finite declared normal feedforward in (0,8] N; original motor caps remain unchanged')
         self.normal_feedforward_N=float(normal_feedforward_N)
@@ -69,6 +69,11 @@ class ScreenedWholeBodyPanel:
         self.started=None;self.last_update=None;self.clear=False;self.previous=None
         self.loaded_since=None;self.latest=None
         self.legacy_options=dict(legacy_options)
+        if type(actual_base_correction) is not bool:raise ValueError("Require explicit actual-base correction choice")
+        self.correction=None
+        if actual_base_correction:
+            from .actual_base_palm import ActualBasePalmCorrection
+            self.correction=ActualBasePalmCorrection(self.teacher.m,self.left.names[1:],"lh_palm_touch")
 
     def begin(self,t,root,joints,leaf_pose,angle):
         if self.started is not None:raise ValueError('Panel already started')
@@ -76,6 +81,8 @@ class ScreenedWholeBodyPanel:
         if self.left.started is None or self.left.progress<.999:
             raise ValueError('Require the completed actual left contact approach')
         self.started=float(t);self.clear=True
+        if getattr(self,"correction",None) is not None:
+            self.correction.begin(t,self.left.target,getattr(self.left,"target_velocity",np.zeros_like(self.left.target)))
         self.advance(t,angle)
         self.teacher.arm_joints=np.array([],int);self.teacher.arm_q=np.array([],int);self.teacher.arm_v=np.array([],int)
         self.left.contact_force=self.normal_feedforward_N
@@ -122,6 +129,18 @@ class ScreenedWholeBodyPanel:
         d.qpos[:3]=goal['position'];quat=Rotation.from_matrix(goal['rotation']).as_quat();d.qpos[3:7]=np.r_[quat[3],quat[:3]]
         for name,value in self.plan['initial_robot_joints'].items():d.qpos[m.jnt_qposadr[m.joint(name).id]]=value
         d.qpos[self.qa]=self.previous;mujoco.mj_kinematics(m,d)
+        if self.correction is not None:
+            # This privileged teacher supplies a world reference. The correction
+            # itself receives only its goal in the actual measured base frame
+            # and complete scalar proprioception, never the planned base pose.
+            measured_rotation=Rotation.from_quat([*root[4:7],root[3]]).as_matrix()
+            goal_position_base=measured_rotation.T@(d.site_xpos[self.left.palm]-root[:3])
+            goal_rotation_base=measured_rotation.T@d.site_xmat[self.left.palm].reshape(3,3)
+            self.left.target,self.left.target_velocity,correction_info=self.correction.update(t,joints,goal_position_base,goal_rotation_base,self.left.target)
+            correction_info['maximum_change_from_nominal_rad']=float(np.max(abs(self.left.target-self.previous[left_indices])))
+            if correction_info['maximum_change_from_nominal_rad']>.1:
+                raise ValueError('The actual-base target correction exceeded its screened0.1rad envelope')
+            self.latest['actual_base_correction']=correction_info
         position_error=float(np.linalg.norm(self.left.d.site_xpos[self.left.palm]-d.site_xpos[self.left.palm]))
         if palm_load>=2.:
             if self.loaded_since is None:self.loaded_since=float(t)

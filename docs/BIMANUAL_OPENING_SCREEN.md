@@ -768,3 +768,33 @@ Panel005 and these independent diagnostics are preserved in
 `efc5baf0058ba962af297e3d5f83de5e9ce5e9b1689ca9f70a44003e6a409b9c`.
 The full-chain trial remains failed, and no traversal or sensor-policy success
 is claimed by these teacher diagnostics.
+
+The panel006 comparison adds an opt-in actual-base Cartesian correction to
+that same panel005 profile. It preserves the3.5N feedforward, delayed5→10mrad
+lead, original61 motor caps, original body path and all physical gates. The
+separate unstepped helper accepts complete scalar proprioception and a commanded
+palm pose expressed in the actual robot base frame. It receives no world base,
+door state, contact identity, or active plant handle. Its seven target joints
+retain the original1.2rad/s and3rad/s² envelope, and the comparison rejects a
+correction beyond0.1rad from the nominal target. The current caller remains a
+privileged teacher; this is not a sensor-policy claim.
+
+The helper uses bounded Cartesian velocity feedback, commanded-pose feedforward
+and measured noncontrolled-joint drift compensation. Its exact discrete braking
+bound matches trapezoidal target integration, including a last partial stop.
+It starts from the actually commanded LH target at the panel handoff. Controlled
+arm FK uses that target, not measured arm angles: its reported residual is
+**commanded-FK error**, and physical joint/palm tracking is separately measured.
+The previous complete body pose is never substituted for the actual base.
+A failed update is terminal; callers must not resume from its mutated state.
+
+`screen_actual_base_palm.py` replays all12,598 panel005 target intervals and
+checks2,521 actual-base collision configurations. This is a geometric/rate
+screen of corrected targets, not a physical load test or a reproduction of
+the static optimizer's100µm palm-pose tolerance. The fresh physical trial must
+qualify all original mechanics/contact/anatomy gates independently and retains
+the three inherited RH release errors until a separately screened release is
+physically executed. Initial unit tests cover discrete stopping, static target
+convergence, actual noncontrolled-joint compensation, and forbidden/nonfinite
+or mistimed input rejection; an independent source review checked the drift
+subtraction and its limited commanded-FK scope.

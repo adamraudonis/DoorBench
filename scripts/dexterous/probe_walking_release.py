@@ -58,7 +58,10 @@ def main():
     p.add_argument("--screened-panel-lead-ramp-rad",type=float,default=.1)
     p.add_argument("--record-screened-panel-phase",action="store_true")
     p.add_argument("--screened-panel-lead-audit",type=Path)
+    p.add_argument("--screened-panel-actual-base-correction",action="store_true")
     a = p.parse_args()
+    if a.screened_panel_actual_base_correction and not a.whole_body_panel_plan:
+        raise ValueError("Actual-base correction requires the screened panel")
     if a.screened_panel_lead_rad>.005 and a.screened_panel_lead_audit is None:
         raise ValueError("Increased panel lead requires the passed shifted-geometry audit")
     if not math.isfinite(a.screened_panel_lead_rad) or not 0 <= a.screened_panel_lead_rad <= .02:
@@ -109,7 +112,7 @@ def main():
         shutil.copy2(source / stored, stage / "doorbench/dexterous" / module)
     own = Path(__file__).resolve().parents[2]
     if a.whole_body_panel_plan:
-        for module in ('screened_panel_path.py','screened_panel_teacher.py'):
+        for module in ('screened_panel_path.py','screened_panel_teacher.py','actual_base_palm.py'):
             shutil.copy2(own/'doorbench/dexterous'/module,stage/'doorbench/dexterous'/module)
         shutil.copy2(a.whole_body_panel_plan,stage/'whole-body-panel-plan.json')
         if a.screened_panel_lead_audit:shutil.copy2(a.screened_panel_lead_audit,stage/'panel-lead-audit.json')
@@ -180,7 +183,7 @@ def main():
     import doorbench.dexterous.full_opening_teacher as full
     if a.whole_body_panel_plan:
         from doorbench.dexterous.screened_panel_teacher import ScreenedWholeBodyPanel
-        full.CoordinatedPanelPush=lambda left,**options:ScreenedWholeBodyPanel(left,stage/'whole-body-panel-plan.json',normal_feedforward_N=a.screened_panel_feedforward_n,tracking_lead_rad=a.screened_panel_lead_rad,lead_start_angle=a.screened_panel_lead_start_rad,lead_ramp_rad=a.screened_panel_lead_ramp_rad,lead_receipt=stage/'panel-lead-audit.json' if a.screened_panel_lead_audit else None,**options)
+        full.CoordinatedPanelPush=lambda left,**options:ScreenedWholeBodyPanel(left,stage/'whole-body-panel-plan.json',normal_feedforward_N=a.screened_panel_feedforward_n,actual_base_correction=a.screened_panel_actual_base_correction,tracking_lead_rad=a.screened_panel_lead_rad,lead_start_angle=a.screened_panel_lead_start_rad,lead_ramp_rad=a.screened_panel_lead_ramp_rad,lead_receipt=stage/'panel-lead-audit.json' if a.screened_panel_lead_audit else None,**options)
     original_force = full.FullOpeningTeacher.force
     panel_trace=None
     panel_phase_trace=None
@@ -236,7 +239,8 @@ def main():
                      planned_coordinates=self.push.latest['coordinate'].tolist(),
                      planned_velocity=self.push.latest['velocity'].tolist(),planned_acceleration=self.push.latest['acceleration'].tolist(),
                      latched_motor_targets=self.acquisition.target.tolist(),
-                     left_arm_targets=self.left.target.tolist(),left_arm_target_velocity=self.left.target_velocity.tolist())
+                     left_arm_targets=self.left.target.tolist(),left_arm_target_velocity=self.left.target_velocity.tolist(),
+                     actual_base_correction=self.push.latest.get('actual_base_correction'))
             panel_phase_trace.write(json.dumps(row,allow_nan=False)+'\n')
         return force,info
 
@@ -354,6 +358,7 @@ def main():
             screened_panel_normal_feedforward_N=a.screened_panel_feedforward_n if a.whole_body_panel_plan else None,
             screened_panel_tracking_lead_rad=a.screened_panel_lead_rad if a.whole_body_panel_plan else None,
             record_screened_panel_phase=a.record_screened_panel_phase,
+            screened_panel_actual_base_correction=a.screened_panel_actual_base_correction,
             screened_panel_lead_audit_sha256=digest(stage/"panel-lead-audit.json") if a.screened_panel_lead_audit else None,
             screened_panel_lead_start_rad=a.screened_panel_lead_start_rad,screened_panel_lead_ramp_rad=a.screened_panel_lead_ramp_rad,
             record_panel_targets=a.record_panel_targets or a.hybrid_include_waist,
