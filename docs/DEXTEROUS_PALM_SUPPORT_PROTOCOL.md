@@ -11,6 +11,11 @@ contact impulses. It is an initialized numerical experiment on Door55 and the
 versioned H1/dual-Shadow v2 plant. It is not an Isaac result, learned policy,
 walking result, or complete new opening qualification.
 
+The captured deep-stance Door55 XML has SHA256 `d3b367b6…`; the later
+`walking-opening-native-002` scene uses `5b12a0a1…` with an additional body.
+Full input hashes are in the evidence receipt. The convergence result applies
+to its exact captured scene; it does not establish identity with later scenes.
+
 ## What was measured
 
 The last 0.5 s contains 250 physical intervals. Eighteen intervals have zero

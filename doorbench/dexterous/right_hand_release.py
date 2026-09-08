@@ -67,3 +67,85 @@ class AxialRightRelease:
         else:self.teacher.positions[-1]=self.frozen[0];self.teacher.rotations[-1]=self.frozen[1]
         scale=float(np.clip(1-elapsed/.4,0,1));self.teacher.digit_forces={d:f*scale for d,f in self.digit_forces.items()}
         self.info=dict(phase='right_axial_release',release_fraction=u,release_elapsed_s=elapsed,grip_preload_scale=scale,axial_slide_m=self.distance*blend,goal_frozen_after_measured_clearance=self.frozen is not None)
+
+
+def _pose_matrix(pose):
+    value = np.asarray(pose, dtype=float)
+    axial_release_goal(value, np.zeros(3), np.eye(3), 0.)
+    return value[:3], Rotation.from_quat([*value[4:7], value[3]]).as_matrix()
+
+
+def bind_handle_to_leaf(handle_pose, leaf_pose):
+    """Bind the attained pressed handle frame to the measured leaf, once."""
+    hp, hr = _pose_matrix(handle_pose)
+    lp, lr = _pose_matrix(leaf_pose)
+    return lr.T @ (hp - lp), lr.T @ hr
+
+
+def handle_from_leaf(leaf_pose, relative_position, relative_rotation):
+    """Reconstruct a target frame; this never writes the physical handle."""
+    lp, lr = _pose_matrix(leaf_pose)
+    p = np.asarray(relative_position, float)
+    r = np.asarray(relative_rotation, float)
+    # Reuse the same strict relative-transform validation as the axial goal.
+    axial_release_goal(leaf_pose, p, r, 0.)
+    q = Rotation.from_matrix(lr @ r).as_quat()
+    return np.r_[lp + lr @ p, q[3], q[:3]]
+
+
+class PressedLeafFrameRightRelease(AxialRightRelease):
+    """Development opt-in: retain pressed orientation during axial withdrawal.
+
+    The original release follows the measured springing operator. This variant
+    keeps its attained pressed frame relative to the *measured moving leaf*,
+    so releasing grip preload does not also command the wrist to follow the
+    returning lever. Original distances, timing, finger targets, motor limits,
+    and independent clearance/patch gates remain unchanged. A geometric screen
+    of a frozen pressed lever is insufficient to qualify this physical route.
+
+    The caller must deliver the current measured leaf via ``observe_leaf``
+    before each begin/update, on the same local teacher clock. This remains a
+    privileged teacher and is unqualified until a fresh physical trial passes.
+    """
+    def __init__(self, teacher, path, *, retain_grip_until_clear=False):
+        super().__init__(teacher, path)
+        if type(retain_grip_until_clear) is not bool:
+            raise ValueError("Require an explicit boolean grip-retention option")
+        self.retain_grip_until_clear = retain_grip_until_clear
+        self.clear_time = None
+        self.leaf_time = None
+        self.leaf_pose = None
+
+    def observe_leaf(self, t, pose):
+        _pose_matrix(pose)
+        if not np.isfinite(t) or t < 0 or (self.leaf_time is not None and t < self.leaf_time):
+            raise ValueError("Require a monotonic finite measured leaf clock")
+        self.leaf_time = float(t)
+        self.leaf_pose = np.asarray(pose, float).copy()
+
+    def _current_leaf(self, t):
+        if self.leaf_time is None or abs(self.leaf_time - t) > 1e-8:
+            raise ValueError("Release requires current measured leaf pose")
+        return self.leaf_pose
+
+    def begin(self, t, joints, root, handle_pose):
+        leaf = self._current_leaf(t)
+        super().begin(t, joints, root, handle_pose)
+        self.pressed_position_leaf, self.pressed_rotation_leaf = bind_handle_to_leaf(handle_pose, leaf)
+
+    def update(self, t):
+        if self.started is None:
+            return
+        leaf = self._current_leaf(t)
+        self.handle_pose = handle_from_leaf(leaf, self.pressed_position_leaf, self.pressed_rotation_leaf)
+        super().update(t)
+        if self.retain_grip_until_clear:
+            if self.frozen is not None and self.clear_time is None:
+                self.clear_time = float(t)
+            scale = 1. if self.clear_time is None else float(np.clip(1 - (t - self.clear_time) / .4, 0., 1.))
+            self.teacher.digit_forces = {digit: force * scale for digit, force in self.digit_forces.items()}
+            self.info['grip_preload_scale'] = scale
+        self.info.update(release_frame="attained_pressed_handle_relative_to_measured_leaf",
+                         leaf_pose_time_s=self.leaf_time, controller_status="development_unqualified",
+                         retain_grip_until_clear=self.retain_grip_until_clear,
+                         measured_clear_time_s=self.clear_time)
