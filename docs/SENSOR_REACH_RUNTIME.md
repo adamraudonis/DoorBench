@@ -30,3 +30,38 @@ The adapter replayed every packet of the qualified `sensor-reach-balance-006` ca
 Reproduce the two checks with `check_sensor_reach_runtime.py` and `evaluate_native_sensor_reach.py`; each accepts `--run`, `--robot`, `--calibration`, `--protocol`, `--joint-route` and an unused `--output` path. They refuse to overwrite evidence. The committed compact receipt binds all original inputs and recorded arrays. These native results do not establish Isaac success; a fresh actual Isaac run must pass the same evaluator.
 
 The 84 focused tests cover this adapter and the unchanged five-second stationary and six-second arm protocols. Reach tests include strict input projection/hash binding, previous-action ownership, missing/shifted evidence, actual movement, root/FK endpoint error, contact/support and illegal coupled-finger geometry.
+
+## Actual Isaac result — September 8, 2026, 18:52 UTC
+
+[Reach001](../results/dexterous/2026-09-08/sensor-reach-balance-isaac-001.json)
+passes all 20 reach checks and 14 original physical checks over 11 seconds and
+5,500 actual 2 ms steps. Maximum motor-coordinate error is 0.0158981 rad,
+palm endpoint error is 5.05381 mm, and torso tilt stays below 0.383595 degrees.
+No hand contacts, solver failures, runtime pose writes or direct door commands
+occur. All 111 outputs and 551 frozen source/input files are hash-verified off-pod.
+The source is `f933a7b5d`; the full source identity is in the linked receipt.
+Root inspected actual wide, hand close-up and robot-camera frames.
+
+The passive finger split differs between engines: Isaac's maximum nominal
+per-joint error is 0.219368 rad, compared with 0.068824 rad in the native trial.
+The coupled motor sums and all physical joint/loopback limits pass, but this
+result does not establish identical finger poses or a transferred grasp.
+The full 19-second acquisition needs its own actual contact test. No exact
+cross-cluster command replay or learned vision-based task success is claimed.
+
+Reproduce with the frozen inputs and existing Isaac runner, retaining its
+contact-free reset receipt and original robot/motor/door assets:
+
+```sh
+python scripts/dexterous/isaac_opening.py [original frozen plant/reset arguments] \
+  --sensor-balance-calibration configs/dexterous/sensor-balance-v1.json \
+  --sensor-balance-robot /path/to/h1-shadow-loopback-v2.xml \
+  --sensor-reach-protocol /path/to/protocol.json \
+  --sensor-reach-route /path/to/joint-route.json --seconds 11
+```
+
+The archived `frozen-source/launch-request.json` contains the complete exact
+command, and `balance-reach-reset.json` contains evaluator-only actual reset
+state. Runtime receives only the byte-bound joint-only route, static robot
+calibration, sensor packets and clock. The reference used for reset and offline
+screening is not passed to the runtime controller.

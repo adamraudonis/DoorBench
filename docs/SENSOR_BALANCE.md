@@ -244,3 +244,8 @@ the 0.125525 Nm difference. An explicit 25-iteration adaptive-rho interval takes
 replay explanation; it does not establish exact replay of the remaining
 episode. The original failed strict replays remain failed. No physical run or
 qualification threshold was changed by this numerical diagnostic.
+
+This diagnosis is consistent with the [OSQP solver documentation](https://osqp.org/docs/solver/index.html),
+which describes choosing the default adaptive-rho update interval from iteration
+time relative to setup time. A portable deterministic solver profile still needs
+its own full physical qualification; matching one cold command is insufficient.
