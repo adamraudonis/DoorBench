@@ -57,6 +57,10 @@ class RunMonitor:
             for id in list(self.cache):
                 if id not in current:
                     del self.cache[id]
+            # Worker completion order must not bury the newest registered runs.
+            for index, run in enumerate(runs):
+                if run['id'] in self.cache:
+                    self.cache[run['id']]['registry_index'] = index
             prior = {id: dict(value) for id, value in self.cache.items()}
         due = []
         for index, run in enumerate(runs):

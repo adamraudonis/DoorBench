@@ -52,3 +52,16 @@ def test_changed_or_removed_registry_entry_cannot_receive_stale_result():
         monitor.poll([])
         assert cache=={} and monitor.pending=={}
     finally: monitor.pool.shutdown()
+
+
+def test_registry_order_updates_without_waiting_for_archives_to_refresh():
+    cache = {name: dict(id=name, last_poll=100., data=dict(status='completed'))
+             for name in ('old','new')}
+    monitor = module.RunMonitor(cache, threading.Lock(), clock=lambda:100.)
+    try:
+        monitor.poll([run('new'),run('old')])
+        assert cache['new']['registry_index']==0 and cache['old']['registry_index']==1
+        assert not monitor.pending
+        monitor.poll([run('old'),run('new')])
+        assert cache['old']['registry_index']==0 and cache['new']['registry_index']==1
+    finally: monitor.pool.shutdown()
