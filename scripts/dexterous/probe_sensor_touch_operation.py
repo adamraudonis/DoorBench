@@ -99,11 +99,13 @@ def main():
     p.add_argument('--index-screen',type=Path,help='Matching detached index coordination geometry receipt')
     p.add_argument('--palm-protocol',type=Path,help='Opt-in opposing-touch and own-robot-FK palm coordination')
     p.add_argument('--palm-screen',type=Path,help='Matching detached quarter-millimeter palm geometry receipt')
+    p.add_argument('--digit-force-protocol',type=Path,help='Opt-in local pad-Jacobian force correction over the index profile')
     a=p.parse_args()
     if not 0<a.seconds<=40 or not np.isfinite([a.seconds,a.initial_velocity]).all() or abs(a.initial_velocity)>.1:p.error('Bounded finite protocol required')
     if a.output.exists():p.error('Fresh evidence directory required')
     if (a.index_protocol is None)!=(a.index_screen is None) or (a.index_protocol and not a.impedance_protocol):p.error('Index profile requires matched screen and declared impedance profile')
     if (a.palm_protocol is None)!=(a.palm_screen is None) or (a.palm_protocol and not a.index_protocol):p.error('Palm profile requires matched screen and declared index profile')
+    if a.digit_force_protocol and (not a.index_protocol or a.palm_protocol):p.error('Digit force comparison requires index profile and excludes the separate palm-shift experiment')
     a.output.mkdir(parents=True)
     robot=Path(a.robot);door=a.door if a.door.is_dir() else a.door.parent
     ref=json.loads(a.reference.read_text());motors=json.loads(a.motors.read_text());layout=export_layout(robot)
@@ -145,6 +147,9 @@ def main():
             or palm_screen['robot_xml_sha256']!=sha(robot) or palm_screen['door_xml_sha256']!=sha(door/'door.xml')):
             raise ValueError('Palm coordination requires a matching passed whole-route geometry screen')
         touch=SensorPalmTouchController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile,palm_profile)
+    if a.digit_force_protocol:
+        from doorbench.dexterous.sensor_digit_force_control import SensorDigitForceController
+        touch=SensorDigitForceController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile,json.loads(a.digit_force_protocol.read_text()))
     builder=ActorObservationBuilder(joint_count=69,action_count=61,tactile_dimension=layout['tactile_dimension'])
     provenance=dict(scope=__doc__,controller_input='Numeric sensor.v2 packet+clock for balance, plus separately declared coordinated torso/right-arm/right-hand joint goals',
         calibration=dict(desired_joint_angles=desired,derived_local_root_height_m=float(controller.calibration_root[2]),initial_orientation='upright, arbitrary yaw zero'),
@@ -181,6 +186,10 @@ def main():
     if a.palm_protocol:
         for name,path in [('palm-protocol.json',a.palm_protocol),('palm-screen.json',a.palm_screen)]:
             shutil.copy2(path,a.output/name);provenance[name.removesuffix('.json')+'_sha256']=sha(path)
+        write(a.output/'provenance.json',provenance)
+    if a.digit_force_protocol:
+        shutil.copy2(a.digit_force_protocol,a.output/'digit-force-protocol.json')
+        provenance['digit_force_protocol_sha256']=sha(a.digit_force_protocol)
         write(a.output/'provenance.json',provenance)
     audit=json.loads(robot.with_suffix('.audit.json').read_text())
     sim=DexterousDoorEnv(door,robot,audit,frame_skip=1);sim.reset(images=False,randomize=False)
@@ -307,6 +316,9 @@ def main():
     write(a.output/'grasp-audit.json',grasp_audit)
     checks['original_opposed_distal_grasp_hold']=grasp_audit['passed']
     checks['qualified_acquisition_before_press']=handoff is not None and handoff['passed']
+    if a.digit_force_protocol:
+        force_phase=[r for r in rows if r['contact_interval_start_s']>=19.-1e-9]
+        checks['continuous_original_opposed_grasp_during_force_phase']=bool(force_phase) and all(r['pad_grasp']['valid_pad_grasp'] for r in force_phase)
     checks['local_press_route_completed']=touch.finished_at is not None and duration-touch.finished_at>=3.
     checks['sustained_handle_depression']=len(final)>=500 and all(r['handle_angle_rad']>=.8 and r['bolt_slide_m']>=.011 for r in final[-251:])
     actual_palm=d.site_xpos[m.site('robot/rh_palm_touch').id].copy()
