@@ -17,6 +17,7 @@ import torch
 from doorbench.dexterous.provenance import capture
 from doorbench.dexterous.sensor_actor import SensorActor
 from doorbench.dexterous.sensor_demonstrations import SensorDemonstration
+from doorbench.dexterous.motor_contract_identity import SENSOR_ACTOR_CHECKPOINT_SCHEMA
 
 
 def main():
@@ -43,7 +44,9 @@ def main():
     if {identity(e) for e in episodes}&{identity(e) for e in validation}:
         raise ValueError('Validation must use separate episodes, not renamed training archives')
     for episode in episodes+validation:
-        if episode.layout!=first.layout or episode.dimensions!=dimensions or episode.metadata['physics_dt_s']!=first.metadata['physics_dt_s']:
+        if (episode.layout!=first.layout or episode.dimensions!=dimensions or
+                episode.metadata['physics_dt_s']!=first.metadata['physics_dt_s'] or
+                episode.motor_contract_sha256!=first.motor_contract_sha256):
             raise ValueError('Freeze one embodiment, calibration, action order and control timestep per checkpoint')
         if len(episode)<args.sequence_length+args.burn_in:
             raise ValueError('Episode is too short for the declared recurrent window')
@@ -82,7 +85,8 @@ def main():
                 with torch.inference_mode():
                     vi,vl=batch(validation);row['separate_episode_prediction_mse']=float(torch.mean((prediction(vi)-vl[:,args.burn_in:])**2))
             history.append(row);(args.output/'progress.json').write_text(json.dumps(row)+'\n');print(json.dumps(row),flush=True)
-    checkpoint=dict(schema='doorbench.sensor-actor.v1',dimensions=asdict(dimensions),model_state=model.state_dict(),
+    checkpoint=dict(schema=SENSOR_ACTOR_CHECKPOINT_SCHEMA,dimensions=asdict(dimensions),model_state=model.state_dict(),
+        motor_contract_sha256=first.motor_contract_sha256,
         sensor_layout=first.layout,physics_dt_s=first.metadata['physics_dt_s'],seed=args.seed,
         training_episodes=[e.metadata for e in episodes],validation_episodes=[e.metadata for e in validation])
     torch.save(checkpoint,args.output/'actor.pt')

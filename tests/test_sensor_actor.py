@@ -81,3 +81,16 @@ def test_next_force_label_is_separate_and_future_image_cannot_leak(tmp_path):
     with pytest.raises(ValueError,match='episode'):data.sequence(1,3)
     report=tmp_path/'operation-report.json';r=json.loads(report.read_text());r['passed']=False;report.write_text(json.dumps(r))
     with pytest.raises(ValueError,match='qualified'):SensorDemonstration(tmp_path)
+
+
+def test_demonstration_binds_qualification_and_static_motor_contract(tmp_path):
+    archive(tmp_path);data=SensorDemonstration(tmp_path)
+    from doorbench.dexterous.motor_contract_identity import motor_contract_fingerprint
+    motors=json.loads((tmp_path/'motor-contract.json').read_text())
+    assert data.motor_contract_sha256==motor_contract_fingerprint(motors)
+    assert data.metadata['grasp_profile']=='distal-pad-v1'
+    assert set(data.metadata['qualification_files'])=={
+        'operation-report.json','mechanical-audit.json','passive-tendon-audit.json','motor-contract.json'}
+    old=data.motor_contract_sha256;motors['actuators'][0]['force_range']=[-2,2]
+    (tmp_path/'motor-contract.json').write_text(json.dumps(motors))
+    assert SensorDemonstration(tmp_path).motor_contract_sha256!=old

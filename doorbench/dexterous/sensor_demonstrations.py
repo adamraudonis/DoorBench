@@ -12,6 +12,7 @@ import numpy as np
 
 from .sensor_actor import ActorDimensions,prepare_actor_packet
 from .sensor_contract import SENSOR_KEYS,INTERFACE_VERSION
+from .motor_contract_identity import motor_contract_fingerprint
 
 
 class SensorDemonstration:
@@ -25,6 +26,7 @@ class SensorDemonstration:
             raise ValueError('Imitation archive is not qualified for the declared physical task')
         tendons=json.loads((self.path/'passive-tendon-audit.json').read_text())
         motors=json.loads((self.path/'motor-contract.json').read_text())
+        self.motor_contract_sha256=motor_contract_fingerprint(motors)
         from .isaac_readiness import validate_passive_audit
         validate_passive_audit(tendons,motors,'shadow-loopback-v2')
         sensor=self.path/'sensors'
@@ -58,9 +60,13 @@ class SensorDemonstration:
         if any(value.shape!=(len(frames),128,128,3) for key,value in self.rgb.items() if key!='time_s'):
             raise ValueError('RGB records disagree with the frozen camera resolution')
         self.metadata=dict(source=str(self.path.resolve()),qualification=qualification,
+            grasp_profile=report.get('grasp_profile',report.get('final_pad_grasp',{}).get('grasp_profile','distal-pad-v1')),
             physics_dt_s=float(report['physics_dt_s']),examples=len(self),
             files={name:hashlib.sha256((sensor/name).read_bytes()).hexdigest() for name in ('layout.json','actor-sensors.npz','actor-rgb.npz')},
             robot_xml_sha256=self.layout['robot_xml_sha256'],
+            motor_contract_sha256=self.motor_contract_sha256,
+            qualification_files={name:hashlib.sha256((self.path/name).read_bytes()).hexdigest() for name in
+                (qualification,'mechanical-audit.json','passive-tendon-audit.json','motor-contract.json')},
             limitation='Teacher imitation data; no student rollout or generalization result')
 
     def __len__(self):

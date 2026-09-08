@@ -19,6 +19,7 @@ import torch
 
 from .sensor_actor import ActorDimensions, SensorActor, native_motor_forces
 from .sensor_contract import INTERFACE_VERSION, validate_actor_packet
+from .motor_contract_identity import motor_contract_fingerprint, SENSOR_ACTOR_CHECKPOINT_SCHEMA
 
 
 def _finite_positive(value, name):
@@ -69,6 +70,7 @@ class SensorPolicyController:
         if motor_contract.get("hand_mechanics_profile") != "shadow-loopback-v2":
             raise ValueError("Sensor policy requires the explicit shadow-loopback-v2 plant")
         model_hash = motor_contract.get("source_xml_sha256")
+        self.motor_contract_sha256 = motor_contract_fingerprint(motor_contract)
         if type(model_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", model_hash):
             raise ValueError("Actual motor contract must identify the source XML SHA-256")
         self.joint_order = _ordered_names(motor_contract.get("joint_names"), 69, "Motor joint order")
@@ -100,8 +102,10 @@ class SensorPolicyController:
         checkpoint_bytes = Path(checkpoint).read_bytes()
         self.checkpoint_sha256 = hashlib.sha256(checkpoint_bytes).hexdigest()
         payload = torch.load(io.BytesIO(checkpoint_bytes), map_location="cpu", weights_only=True)
-        if type(payload) is not dict or payload.get("schema") != "doorbench.sensor-actor.v1":
+        if type(payload) is not dict or payload.get("schema") != SENSOR_ACTOR_CHECKPOINT_SCHEMA:
             raise ValueError("Unsupported sensor actor checkpoint schema")
+        if payload.get('motor_contract_sha256') != self.motor_contract_sha256:
+            raise ValueError('Checkpoint motor mechanics contract differs from the actual runtime')
         if _layout_json(payload.get("sensor_layout")) != layout_json:
             raise ValueError("Checkpoint sensor layout/calibration differs from the actual runtime")
         checkpoint_dt = _finite_positive(payload.get("physics_dt_s"), "Checkpoint timestep")

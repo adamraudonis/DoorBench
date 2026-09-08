@@ -11,6 +11,7 @@ torch = pytest.importorskip("torch")
 from doorbench.dexterous.sensor_actor import ActorDimensions, SensorActor
 from doorbench.dexterous.sensor_contract import SENSOR_KEYS
 from doorbench.dexterous.sensor_policy_controller import SensorPolicyController
+from doorbench.dexterous.motor_contract_identity import motor_contract_fingerprint, SENSOR_ACTOR_CHECKPOINT_SCHEMA
 
 
 class UnsupportedPayload:
@@ -31,7 +32,8 @@ def fixture(tmp_path):
                   joint_order=names.copy(), action_order=actions.copy(), tactile_dimension=24,
                   cameras={"left_eye_camera": {"fovy_degrees": 70}},
                   channel_order=["z", "x", "y"])
-    weights = dict(schema="doorbench.sensor-actor.v1", dimensions=asdict(d),
+    weights = dict(schema=SENSOR_ACTOR_CHECKPOINT_SCHEMA, dimensions=asdict(d),
+                   motor_contract_sha256=motor_contract_fingerprint(motors),
                    model_state=SensorActor(d).state_dict(), sensor_layout=copy.deepcopy(layout),
                    physics_dt_s=.002, training_episodes=[], validation_episodes=[])
     checkpoint = tmp_path / "untrained-synthetic-actor.pt"
@@ -195,3 +197,26 @@ def test_missing_sensor_flags_zero_payload_without_teacher_fallback(fixture):
     for key in SENSOR_KEYS:
         p[key][:] = 100
     np.testing.assert_array_equal(c.force(p, 0.), a)
+
+
+@pytest.mark.parametrize('change',['valid_force_caps','transmission','passive_damping','passive_tendon_limit'])
+def test_valid_but_changed_motor_mechanics_cannot_reuse_xml_identity(fixture,change):
+    f=copy.deepcopy(fixture);m=f['motor_contract']
+    if change=='valid_force_caps':m['actuators'][0]['force_range']=[-2.,3.]
+    elif change=='transmission':m['actuators'][0]['terms']={'joint_0':2.}
+    elif change=='passive_damping':m['passive']={'joint_0':{'damping':.1}}
+    elif change=='passive_tendon_limit':m['passive_tendons']=[{'name':'rh_FF_loopback','range_rad':[-2.5708,.1]}]
+    assert m['source_xml_sha256']==fixture['motor_contract']['source_xml_sha256']
+    with pytest.raises(ValueError,match='motor mechanics'):
+        controller(f)
+
+
+def test_canonical_motor_identity_ignores_dict_order_and_missing_identity_fails(fixture):
+    motors=fixture['motor_contract']
+    reordered=dict(reversed(list(motors.items())))
+    assert motor_contract_fingerprint(reordered)==motor_contract_fingerprint(motors)
+    controller(fixture,motor_contract=reordered)
+    del fixture['weights']['motor_contract_sha256']
+    torch.save(fixture['weights'],fixture['checkpoint'])
+    with pytest.raises(ValueError,match='motor mechanics'):
+        controller(fixture)
