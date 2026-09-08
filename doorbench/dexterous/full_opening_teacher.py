@@ -179,11 +179,13 @@ class FullOpeningTeacher:
             self.initial_leaf_goal = self.operation_info.get('goal_leaf_rad', 0.)
             self.handoffs['latch_released'] = float(t)
         goal_l = 0. if self.open_started is None else self.initial_leaf_goal+(.08-self.initial_leaf_goal)*_smooth((t-self.open_started)/self.opening_seconds)
-        if self.follow_leaf_during_transfer and self.left.started is not None:
-            # The left hand now supplies the panel load. The right hand retains
+        if (self.follow_leaf_during_transfer and self.left.progress >= .999 and
+                self.left.loaded_since is not None and t-self.left.loaded_since >= self.qualification_seconds):
+            # The arrived left hand has supplied sustained panel load. The right hand retains
             # its lever-relative grip and follows the measured moving panel,
-            # rather than resisting the other hand at the earlier 0.08 rad goal.
-            goal_l=angles['leaf']
+            # within the declared transfer window. Unbounded following before
+            # support removes aperture stiffness and can let the leaf run away.
+            goal_l=float(np.clip(angles['leaf'],.08,.12))
         hp, hr = _pose(handle_pose)
         lp, lr = _pose(leaf_pose)
         ha = hp+hr@self.geometry['operator_origin']

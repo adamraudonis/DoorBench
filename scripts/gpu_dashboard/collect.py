@@ -54,7 +54,7 @@ def collect(directory, telemetry=False):
         except (OSError, ValueError):
             pass
         complete = bool(config.get('completion_marker')) and any(config['completion_marker'] in line for line in lines)
-        failed=config.get('result_passed') is False or any('READINESS_FAILED' in line or 'PREPARATION_FAILED:' in line for line in lines)
+        failed=(root/'error.txt').is_file() or config.get('result_passed') is False or any('READINESS_FAILED' in line or 'PREPARATION_FAILED:' in line for line in lines)
         # Explicit final reports survive log rotation and remote teardown. A
         # stage label or an optimistic config status is never result evidence.
         result = None

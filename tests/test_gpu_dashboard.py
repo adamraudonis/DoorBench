@@ -172,3 +172,11 @@ def test_pipeline_status_without_report_does_not_claim_success(tmp_path):
     (tmp_path/'pipeline.json').write_text(json.dumps(dict(
         status='passed', report_file='../report.json')))
     assert module.collect(tmp_path)['status']=='stopped'
+
+
+def test_pipeline_setup_error_is_failure_without_trial_report(tmp_path):
+    (tmp_path/'pipeline.json').write_text(json.dumps({'stage':'launch','report_file':'report.json'}))
+    (tmp_path/'error.txt').write_text('Original exception retained')
+    data=module.collect(tmp_path,telemetry=False)
+    assert data['status']=='failed'
+    assert data['complete'] is False

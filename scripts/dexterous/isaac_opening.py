@@ -83,8 +83,8 @@ if a.full_sequence_reset and a.acquisition_middle_finger_force is not None:
     p.error('Full sequence currently uses the frozen original five-digit preload')
 if a.acquisition_index_finger_force is not None and (not a.acquisition or not math.isfinite(a.acquisition_index_finger_force) or a.acquisition_index_finger_force<0):
     p.error('Index-finger preload requires acquisition and a finite nonnegative value')
-if a.full_opening and (not a.operate_after_acquisition or not all((a.native_door,a.left_palm_targets,a.right_release_screen)) or a.full_sequence_reset):
-    p.error('Full opening requires acquisition/operation and screened native geometry; approach integration is a separate mode')
+if a.full_opening and (not a.operate_after_acquisition or not all((a.native_door,a.left_palm_targets,a.right_release_screen))):
+    p.error('Full opening requires acquisition/operation and screened native geometry')
 if not math.isfinite(a.target_aperture) or a.target_aperture<=0:p.error('Aperture must be finite and positive')
 if a.full_opening and any(v is not None for v in (a.acquisition_index_finger_force,a.acquisition_middle_finger_force)):
     p.error('Full opening uses its explicitly frozen default acquisition forces')
@@ -333,7 +333,7 @@ def main():
                 joint_geometry[role+'_origin']=np.array(joint.GetLocalPos1Attr().Get())
                 joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*map(float,basis))))
             operation=DoorOperationTeacher(teacher,joint_geometry,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain)
-            if sequence_reset:
+            if sequence_reset and not a.full_opening:
                 from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
                 sequence=FullSequenceTeacher(a.native_robot,motors,ref,
                     json.loads(Path(a.preparation_reference).read_text()),sequence_reset,a.locomotion_checkpoint,
@@ -345,12 +345,23 @@ def main():
             if a.full_opening:
                 from doorbench.dexterous.full_opening_teacher import FullOpeningTeacher
                 from doorbench.dexterous.isaac_opening_measurements import OpeningGeometryMeasurements
-                full_opening=FullOpeningTeacher(a.native_robot,motors,ref,joint_geometry,
-                    door_xml=a.native_door,left_targets=a.left_palm_targets,
-                    release_screen=a.right_release_screen,runtime_screen=a.bimanual_runtime_screen,
-                    open_on_latch_clear=a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,
-                    target_aperture=a.target_aperture,follow_leaf_during_transfer=a.follow_leaf_during_transfer,
+                opening_options=dict(open_on_latch_clear=a.open_on_latch_clear,
+                    operator_compliance_gain=a.operator_compliance_gain,target_aperture=a.target_aperture,
+                    follow_leaf_during_transfer=a.follow_leaf_during_transfer,
                     panel_profile=a.panel_profile or 'hybrid-surface-v2',palm_load_target=a.palm_load_target)
+                if sequence_reset:
+                    from doorbench.dexterous.walking_opening_teacher import WalkingOpeningTeacher
+                    sequence=WalkingOpeningTeacher(a.native_robot,motors,ref,
+                        json.loads(Path(a.preparation_reference).read_text()),sequence_reset,a.locomotion_checkpoint,
+                        joint_geometry,door_xml=a.native_door,left_targets=a.left_palm_targets,
+                        release_screen=a.right_release_screen,runtime_screen=a.bimanual_runtime_screen,
+                        opening_options=opening_options)
+                    full_opening=sequence.opening
+                else:
+                    full_opening=FullOpeningTeacher(a.native_robot,motors,ref,joint_geometry,
+                        door_xml=a.native_door,left_targets=a.left_palm_targets,
+                        release_screen=a.right_release_screen,runtime_screen=a.bimanual_runtime_screen,
+                        **opening_options)
                 teacher=full_opening.acquisition;operation=None
                 opening_geometry=OpeningGeometryMeasurements(a.native_door,a.native_robot,rnames)
             (out/'operation-protocol.json').write_text(json.dumps(dict(
@@ -369,7 +380,7 @@ def main():
                     terminal_event='First measured target-aperture crossing or declared timeout',
                     final_hold='Final uninterrupted 0.5 s of actual left-palm projected load >= 2 N',
                     right_release='Requires prior 0.5 s of opposed right-hand grip and actual left-panel support >= 2 N',
-                    scope='Initialized contact-free acquisition through bimanual loaded aperture; no approach/traversal',
+                    scope='Continuous approach through bimanual aperture; no traversal' if sequence else 'Initialized contact-free acquisition through bimanual loaded aperture; no approach/traversal',
                     original_caps_and_physics=True,open_on_latch_clear=a.open_on_latch_clear,
                     operator_compliance_gain=a.operator_compliance_gain,
                     follow_leaf_during_transfer=a.follow_leaf_during_transfer,
@@ -392,7 +403,7 @@ def main():
         dt=dt,robot_mass_kg=float(robot.root_physx_view.get_masses().sum()),latch_scale=scale,
         simulator_effort_limits=robot.root_physx_view.get_dof_max_forces()[0].cpu().tolist(),
         runtime_pose_writes=0,direct_door_commands=bool(a.mechanism_test),contact_material_audit=contact_material_audit,
-        scope='Contact-free acquisition through bimanual loaded aperture; privileged live PhysX; no approach/traversal' if full_opening else 'Sensor-only recurrent force actor; declared curriculum objective; no teacher or traversal claim' if sensor_actor else 'Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
+        scope='Continuous approach through bimanual loaded aperture; privileged live PhysX; no traversal' if full_opening and sequence else 'Contact-free acquisition through bimanual loaded aperture; privileged live PhysX; no approach/traversal' if full_opening else 'Sensor-only recurrent force actor; declared curriculum objective; no teacher or traversal claim' if sensor_actor else 'Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
     sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py')]
     if a.panel_push:sources.append(Path(__file__).with_name('panel_push_teacher.py'))
     if a.acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('acquisition_teacher.py','isaac_tendons.py','grasp_verification.py','isaac_pad_audit.py')]
@@ -409,7 +420,7 @@ def main():
     if full_opening:
         inputs += [Path(v) for v in (a.left_palm_targets,a.right_release_screen,a.native_door,a.bimanual_runtime_screen) if v]
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
-            ('full_opening_teacher.py','full_opening_audit.py','isaac_opening_measurements.py','bimanual_transfer.py','bimanual_runtime.py',
+            ('full_opening_teacher.py','walking_opening_teacher.py','full_opening_audit.py','isaac_opening_measurements.py','bimanual_transfer.py','bimanual_runtime.py',
              'panel_continuation.py','right_hand_release.py','robot_design_identity.py')]
     if sensor_actor:
         inputs += [Path(a.sensor_policy_checkpoint),Path(a.sensor_reset_preflight)]
@@ -550,10 +561,14 @@ def main():
                         right_pad_patches_valid=all(c['pad_qualified'] for c in pad_steps[-1]['contacts']),
                         hand_contact_count=right_hand_contact_count,left_panel_load_N=surface['total_normal_load_N'],
                         left_palm_load_N=surface['palm_normal_load_N'],right_lever_clearance_m=geometry['right_lever_clearance_m'])
-                    forces,teacher_info=full_opening.force(*measured_args,body[door.body_names.index('leaf')],
-                        state['angles'],state['hand_forces'],evidence=evidence,
-                        right_palm_pose=geometry['right_palm_pose'],pose_time_s=geometry['time_s'],
-                        contact_interval_s=(max(0.,step*dt-dt),step*dt))
+                    opening_measurements=dict(evidence=evidence,right_palm_pose=geometry['right_palm_pose'],
+                        pose_time_s=geometry['time_s'],contact_interval_s=(max(0.,step*dt-dt),step*dt))
+                    if sequence:
+                        forces,teacher_info=sequence.force(*measured_args[:4],foot_loads,measured_args[4],
+                            body[door.body_names.index('leaf')],state['angles'],state['hand_forces'],**opening_measurements)
+                    else:
+                        forces,teacher_info=full_opening.force(*measured_args,body[door.body_names.index('leaf')],
+                            state['angles'],state['hand_forces'],**opening_measurements)
                 elif operation:
                     angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
                     if sequence:
@@ -574,6 +589,9 @@ def main():
                     else:
                         forces,teacher_info=operation.force(*measured_args,body[door.body_names.index('leaf')],angles,loads,grasp_qualified=pad_steps[-1]['valid_pad_grasp'])
                 elif not full_opening:forces,teacher_info=teacher.force(*measured_args,loads)
+                if sequence and sequence.readiness_screen is not None and not (out/'actual-preparation-screen.json').exists():
+                    (out/'actual-preparation-screen.json').write_text(json.dumps(sequence.readiness_screen,indent=2)+'\n')
+                    (out/'actual-preparation-reference.json').write_text(json.dumps(sequence.actual_preparation)+'\n')
                 ctrl=teacher.target.copy();feedforward=np.zeros_like(forces)
             if sensor_actor:
                 measured_body=door.data.body_state_w[0,:,:7].cpu().numpy()
@@ -881,15 +899,28 @@ def main():
             from doorbench.dexterous.full_opening_audit import full_opening_checks
             full_checks=full_opening_checks(checks,steps=full_opening_steps,pad_steps=pad_steps,
                 physics_dt=dt,maximum_seconds=a.seconds,target_aperture=a.target_aperture,
-                operation_started=full_opening.operation_started,release_started=full_opening.release.started)
+                operation_started=None if full_opening.operation_started is None else full_opening.operation_started+(sequence.acquisition_started if sequence else 0.),
+                release_started=None if full_opening.release.started is None else full_opening.release.started+(sequence.acquisition_started if sequence else 0.))
+            if sequence:
+                full_checks.update(separated_start=bool(np.linalg.norm(np.array(initial_root[:2])-sequence_reset['goal_xy'])>=.5-1e-9),
+                    walked_from_separate_start=bool(np.linalg.norm(root_states[-1,:2]-np.array(initial_root[:2]))>.5),
+                    both_feet_swung=bool(all(any(r['foot_loads_N'][i]<10 and r['foot_height_m'][i]>foot_initial[i]+.015 for r in sequence_steps) for i in (0,1))),
+                    readiness_screen_passed=bool(sequence.readiness_screen and sequence.readiness_screen['passed']),
+                    actual_contact_free_preparation=bool(sequence.prep_started is not None and sequence.acquisition_started is not None and
+                        all(r['right_hand_contact_count']==0 for r in sequence_steps if sequence.prep_started<=r['time_s']<=sequence.acquisition_started)),
+                    body_solver_succeeded=sequence.body.controller.solver_failures==0,
+                    continuous_walk_to_opening=sequence.acquisition_started is not None)
+                with gzip.open(out/'full-sequence-steps.json.gz','wt') as stream:json.dump(sequence_steps,stream)
             end=acquisition_states['time_s'][-1]
-            full_report=dict(scope='Live PhysX contact-free acquisition, lever/latch operation and bimanual loaded aperture; no approach/traversal or sensor-only claim',
+            full_report=dict(scope='Continuous live PhysX approach, acquisition and bimanual loaded aperture; no traversal or sensor-only claim' if sequence else 'Live PhysX contact-free acquisition, lever/latch operation and bimanual loaded aperture; no approach/traversal or sensor-only claim',
                 passed=all(full_checks.values()),checks=full_checks,physics_dt_s=dt,duration_s=end,
                 maximum_seconds=a.seconds,target_aperture_rad=a.target_aperture,
                 termination='declared_aperture_crossing' if full_aperture_crossed else 'declared_timeout_or_failure',
                 final_leaf_rad=full_opening_steps[-1]['angles']['leaf'],
                 final_palm_load_N=full_opening_steps[-1]['surface']['palm_normal_load_N'],
                 grasp_profile=a.grasp_profile,handoffs=full_opening.handoffs,
+                opening_clock_offset_s=sequence.acquisition_started if sequence else 0.,
+                sequence_handoffs=sequence.handoffs if sequence else None,
                 runtime_robot_pose_writes=0,direct_door_commands=False,native_mirror_steps=0,
                 max_motor_delivery_error_Nm=max_motor_delivery_error,
                 clearance_scope='Authored native geometry at synchronized actual PhysX state; independent PhysX contact/penetration gates retained',
