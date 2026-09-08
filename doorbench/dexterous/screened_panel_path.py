@@ -36,6 +36,30 @@ class ScreenedPanelPath:
                     position=position, velocity=velocity, acceleration=acceleration)
 
 
+    def derivative_bounds(self):
+        """Exact per-coordinate derivative bounds over every cubic segment."""
+        first=np.zeros(self.spline.c.shape[-1]);second=first.copy()
+        groups=[(0,3),(3,6)];norms=np.zeros(2)
+        for i,span in enumerate(np.diff(self.spline.x)):
+            a,b,c,_=self.spline.c[:,i,:]
+            for j in range(len(first)):
+                samples=[0.,float(span)]
+                if abs(a[j])>1e-15:
+                    critical=-b[j]/(3*a[j])
+                    if 0<critical<span:samples.append(float(critical))
+                first[j]=max(first[j],max(abs(3*a[j]*s*s+2*b[j]*s+c[j]) for s in samples))
+                second[j]=max(second[j],abs(2*b[j]),abs(6*a[j]*span+2*b[j]))
+            for k,(start,end) in enumerate(groups):
+                if len(first)<end:continue
+                squared=np.zeros(5)
+                for j in range(start,end):squared+=np.convolve([c[j],2*b[j],3*a[j]],[c[j],2*b[j],3*a[j]])
+                derivative=np.polynomial.polynomial.polyder(squared)
+                candidates=[0.,float(span)]
+                candidates += [float(root.real) for root in np.polynomial.polynomial.polyroots(derivative) if abs(root.imag)<1e-10 and 0<root.real<span]
+                norms[k]=max(norms[k],max(np.linalg.norm(3*a[start:end]*s*s+2*b[start:end]*s+c[start:end]) for s in candidates))
+        return dict(first=first,second=second,root_translation_first_norm=norms[0],root_rotvec_first_norm=norms[1])
+
+
 class MeasuredAperturePhase:
     """Bound a reference aperture's speed/acceleration while following the plant.
 

@@ -600,3 +600,18 @@ manifest SHA256
 `3ac423b7ccfe92cae7b6c133e387fb87658f6023bbc0f929e0cce8d76f2d14af`.
 Working-tree `out/` links preserve these canonical files without duplicate raw
 archives. Generated evidence is not committed to the source repository.
+
+The flattened-palm candidate `attained-panel-screen-009` passes the unchanged
+geometric and target-rate checks. It rotates the palm over the first 0.35 rad
+of opening while preserving its original collision support plane; all finger
+joint targets stay as before. Its 201 nodes and 2,001 dense samples keep RH
+clearance >=40 mm, palm tracking error <=25.45 micrometres, foot error
+<=2.08 micrometres, body translation <=28.55 mm and body rotation <=0.03446 rad.
+Exact cubic-segment derivative extrema bound the measured-aperture reference at
+0.1735 rad/s joint speed, 1.8865 rad/s² joint acceleration, 17.28 mm/s body
+translation and 0.01924 rad/s body rotation-vector speed. The aperture phase
+limits remain 0.149 rad/s and 0.08 rad/s². Intermediate screens006–008 retain
+their original bounds or interpolation failures; no tolerance was enlarged.
+The candidate is ready for a fresh physical comparison with the same original
+force profile. The close-up tool and original actual-contact reports do not
+synthesize forces from an unstepped geometric calculation.

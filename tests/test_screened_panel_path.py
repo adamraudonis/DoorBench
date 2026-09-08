@@ -60,3 +60,13 @@ def test_phase_cannot_accept_missing_physics_or_unbounded_initial_velocity():
     with pytest.raises(ValueError):MeasuredAperturePhase(.2,1.2,.3)
     phase=MeasuredAperturePhase(.2,1.2,.1);phase.update(0,.2)
     with pytest.raises(ValueError):phase.update(.01,.2)
+
+
+def test_exact_cubic_derivative_envelope_bounds_all_dense_evaluations():
+    rng=np.random.default_rng(22);x=np.linspace(0,1,13);y=rng.normal(size=(13,9))
+    path=ScreenedPanelPath(x,y,10.);bounds=path.derivative_bounds();s=np.linspace(0,1,10001)
+    first=path.spline(s,1);second=path.spline(s,2)
+    assert np.all(abs(first)<=bounds['first']+1e-10)
+    assert np.all(abs(second)<=bounds['second']+1e-10)
+    assert max(np.linalg.norm(first[:,:3],axis=1))<=bounds['root_translation_first_norm']+1e-10
+    assert max(np.linalg.norm(first[:,3:6],axis=1))<=bounds['root_rotvec_first_norm']+1e-10

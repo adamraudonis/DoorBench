@@ -66,6 +66,8 @@ def main():
     high=np.r_[np.full(3,max(1e-12,a.root_extent_m)),np.full(3,max(1e-12,a.root_rotation_rad)),m.jnt_range[js,1]-.001]
     previous=np.r_[np.zeros(6),initial];rows=[]
     a.output.mkdir(parents=True,exist_ok=False)
+    (a.output/'screen-source.py').write_bytes(Path(__file__).read_bytes())
+    (a.output/'palm-panel-geometry-source.py').write_bytes((Path(__file__).resolve().parents[2]/'doorbench/dexterous/palm_panel_geometry.py').read_bytes())
     for angle in np.linspace(base[leafq],a.target_aperture_rad,a.nodes):
         if a.admit_exact_soft_limit_start:
             progress=float(np.clip((angle-base[leafq])/.1,0,1));ramp=progress**3*(10+progress*(-15+6*progress))
@@ -105,7 +107,7 @@ def main():
             forbidden_collisions=collisions,nfev=int(fit.nfev))
         rows.append(row);print(json.dumps({k:v for k,v in row.items() if k not in ('qpos','joint_targets')}),flush=True)
     summary=dict(scope='Fresh unstepped attained-state panel workspace screen. No physical or loaded-palm qualification; target-rate resampling and dense collision audit are still required.',
-        configuration={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},source_time_s=time,source_chunk_sha256=chunk['sha256'],
+        configuration={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},source_code_sha256=hashlib.file_digest(Path(__file__).open('rb'),'sha256').hexdigest(),source_time_s=time,source_chunk_sha256=chunk['sha256'],
         maximum_actual_fk_error=error,initial_qpos=base.tolist(),initial_qvel=velocity.tolist(),names=names,rows=rows,
         maximum_palm_position_error_m=max(max(r['left_position_error_m'],r['right_position_error_m']) for r in rows),
         maximum_foot_position_error_m=max(r['maximum_foot_position_error_m'] for r in rows),maximum_torso_tilt_deg=max(r['torso_tilt_deg'] for r in rows),
