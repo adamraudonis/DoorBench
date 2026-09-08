@@ -114,3 +114,7 @@ The [H1 capture report](../results/dexterous/2026-09-08/isaac-h1-sensor-capture.
 **Visual review failed the native camera configuration for manipulation.** Both forward-facing 45° eye images mostly show a nearby wall/door crop; they do not provide a useful view of the manipulating hand and handle. The inspected images remain in the archive. Training must wait for a declared fixed wider/downward calibration or suitable wrist camera and another visual review. A numeric packet pass does not override this failure.
 
 The complete source, wide video, traces, actor archives, camera samples and both audits are retained in the 20.7 MB `h1-001-evidence.tar.gz` archive under `~/Desktop/Projects/DoorBench-runs/2026-09-08-isaac-sensors/`. Its checksum is in the linked report.
+
+## Adjacent live walking fixture
+
+`scripts/dexterous/isaac_h1_walking.py` ports the separately documented [H1 walking actor and phase braking](DEXTEROUS_LOCOMOTION.md) to the unchanged prepared Isaac articulation. `export_h1_walking_reset.py` derives its reset from the native collision soles. The first declared schedule is one second at zero command, eight seconds forward at 0.4 m/s, then five seconds at zero command with one-second phase fade. The live fixture retains native motor/servo bounds, 20 ms policy and 2 ms physics clocks, and tests a strict final-second stop (<0.02 m/s, <1 cm excursion, >30 N per foot). This is an empty-plane motor-skill test with perfect attitude input, not vision/tactile door control. Live result remains pending until the report is produced and inspected.
