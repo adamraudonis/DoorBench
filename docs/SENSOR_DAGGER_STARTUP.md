@@ -156,3 +156,21 @@ closed-loop controllability. Reproduce it with:
 python scripts/dexterous/audit_correction_imu.py \
   --corrections "$CORRECTIONS" --robot "$ROBOT" --output "$IMU_AUDIT"
 ```
+
+## Bounded numerical query retry
+
+Model003's 40-ms QP used the original 4,000-iteration budget. Before making a
+fresh query, freeze a numerical-only retry with `max_iter=100000` and initial
+`rho=0.001`. The QP objective, support/contact assumptions, constraints, motor
+caps and both 1e-4 residual tolerances remain unchanged. Only `max_iter` and
+`rho` may be configured through the new optional API; defaults reproduce the
+previous controller. Record settings, solver iterations and primal/dual
+residuals. Keep the earlier rejected query and its admission result intact.
+No physical recovery or new training follows merely from a solved query.
+
+```sh
+python scripts/dexterous/query_acquisition_teacher.py \
+  --run "$ACTOR003" --robot "$ROBOT" --reference "$ACTUAL_REFERENCE" \
+  --solver-max-iterations 100000 --solver-rho .001 \
+  --output "$NUMERICAL_RETRY"
+```

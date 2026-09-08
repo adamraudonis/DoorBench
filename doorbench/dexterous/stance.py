@@ -10,8 +10,22 @@ from scipy import sparse
 from scipy.spatial.transform import Rotation
 
 
+def validate_stance_solver_settings(settings):
+    """Allow numerical iteration/penalty choices; never relax residual bounds."""
+    settings={} if settings is None else dict(settings)
+    if set(settings)-{'max_iter','rho'}:
+        raise ValueError('Only stance solver max_iter and rho may be configured')
+    if 'max_iter' in settings and (type(settings['max_iter']) is not int or settings['max_iter']<=0):
+        raise ValueError('Stance solver max_iter must be a positive integer')
+    if 'rho' in settings and (not np.isscalar(settings['rho']) or not np.isfinite(settings['rho']) or settings['rho']<=0):
+        raise ValueError('Stance solver rho must be finite and positive')
+    return settings
+
+
 class StanceController:
-    def __init__(self,sim):
+    def __init__(self,sim,*,solver_settings=None):
+        self.solver_settings=validate_stance_solver_settings(solver_settings)
+        self.last_solver_metadata=None
         self.sim=sim;m,d=sim.m,sim.d
         prefix=getattr(sim,'joint_prefix','robot/')
         names=[side+'_'+joint for side in ('left','right') for joint in ('hip_yaw','hip_roll','hip_pitch','knee','ankle')]
@@ -103,10 +117,16 @@ class StanceController:
         A=sparse.csc_matrix(np.vstack([eq,limits]));lower=np.r_[rhs,lo];upper=np.r_[rhs,hi]
         modern=int(osqp.__version__.split('.')[0])>=1
         settings={'polishing' if modern else 'polish':False}
+        settings.update(self.solver_settings);maximum_iterations=settings.pop('max_iter',4000)
         solver=osqp.OSQP();solver.setup(P=sparse.csc_matrix(H),q=linear,A=A,l=lower,u=upper,
-             verbose=False,eps_abs=1e-4,eps_rel=1e-4,max_iter=4000,**settings)
+             verbose=False,eps_abs=1e-4,eps_rel=1e-4,max_iter=maximum_iterations,**settings)
         if self.last is not None:solver.warm_start(x=self.last)
         result=solver.solve(raise_error=False) if modern else solver.solve()
+        self.last_solver_metadata=dict(status=result.info.status,iterations=int(result.info.iter),
+            primal_residual=float(getattr(result.info,'prim_res',getattr(result.info,'pri_res',np.nan))),
+            dual_residual=float(getattr(result.info,'dual_res',getattr(result.info,'dua_res',np.nan))),
+            eps_abs=1e-4,eps_rel=1e-4,max_iter=maximum_iterations,rho_requested=self.solver_settings.get('rho'),
+            polishing=False)
         if result.info.status_val not in (1,2):return None,result.info.status
         self.last=result.x
         controls=(result.x[n:n+nt]-bias)/m.actuator_gainprm[self.act,0]

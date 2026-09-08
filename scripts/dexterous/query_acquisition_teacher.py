@@ -19,6 +19,8 @@ from doorbench.dexterous.provenance import capture
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     for name in ('run','robot','reference','output'):ap.add_argument('--'+name,type=Path,required=True)
+    ap.add_argument('--solver-max-iterations',type=int)
+    ap.add_argument('--solver-rho',type=float)
     args=ap.parse_args()
     if args.output.exists():raise FileExistsError('Preserve existing correction experiments')
     queries,contract,physical,source=load_query_evidence(args.run)
@@ -27,9 +29,10 @@ def main():
     original=[v for k,v in provenance['files'].items() if k.endswith('/reference.json')]
     if original!=[sha(args.reference)] or sha(args.robot)!=motors['source_xml_sha256']:
         raise ValueError('Teacher model/reference differ from actual actor reset source')
-    capture(Path(__file__).resolve().parents[2],args.output,dict(run=str(args.run),robot=str(args.robot),reference=str(args.reference),scope=__doc__),timing='before_offline_teacher_queries')
+    settings={k:v for k,v in (('max_iter',args.solver_max_iterations),('rho',args.solver_rho)) if v is not None}
+    capture(Path(__file__).resolve().parents[2],args.output,dict(run=str(args.run),robot=str(args.robot),reference=str(args.reference),stance_solver_settings=settings,scope=__doc__),timing='before_offline_teacher_queries')
     args.output.joinpath('reference.json').write_bytes(args.reference.read_bytes())
-    teacher=AcquisitionTeacher(args.robot,motors,reference)
+    teacher=AcquisitionTeacher(args.robot,motors,reference,stance_solver_settings=settings)
     def forbidden_step(*args,**kwargs):raise RuntimeError('A teacher-query diagnostic must never step a physics model')
     mujoco.mj_step=forbidden_step
     if hasattr(mujoco,'mj_step1'):mujoco.mj_step1=forbidden_step
@@ -64,6 +67,7 @@ def main():
         maximum_teacher_internal_sim_time_s=float(teacher.d.time),teacher_force_calls=teacher.ticks,
         teacher_actions_delivered_to_physics=False,student_actions_used_as_expert_labels=False,physical_recovery_evaluated=False,
         teacher_contract='Original continuous AcquisitionTeacher, strict solved QP; no resets between visited states; measured normal hand loads only',
+        stance_solver_settings=settings,stance_residual_tolerances=dict(eps_abs=1e-4,eps_rel=1e-4),
         files_sha256={name:sha(args.output/name) for name in ('reference.json','counterfactual-teacher-actions.npz','queries.json','manifest.json','source.tar.gz')},
         limitations=['Counterfactual analytic labels are not physically validated corrective trajectories.',
             'Global source mechanical bounds are preserved; upright validity and solver feasibility are checked for each actual visited state.',

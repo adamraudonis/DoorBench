@@ -8,6 +8,7 @@ from doorbench.dexterous.offline_teacher_queries import load_query_evidence,corr
 from doorbench.dexterous.correction_demonstrations import CorrectionDemonstration
 from doorbench.dexterous.sensor_actor import ActorDimensions
 from doorbench.dexterous.sensor_contract import SENSOR_KEYS
+from doorbench.dexterous.stance import validate_stance_solver_settings
 
 
 def make_source(root,*,extra_query=False):
@@ -82,6 +83,16 @@ def test_correction_eligibility_preserves_physical_and_numerical_bounds(defect):
     elif defect=='cap':force[0]=11.
     else:source=False
     assert not correction_quality(root,force,caps,solver_status=status,source_physical=source)['candidate_label_valid']
+
+
+@pytest.mark.parametrize('settings',[{'eps_abs':1e-2},{'eps_rel':1e-2},{'max_iter':0},{'max_iter':1.5},{'rho':0.},{'rho':float('inf')}])
+def test_solver_tuning_cannot_relax_residual_tolerances_or_use_invalid_values(settings):
+    with pytest.raises(ValueError):validate_stance_solver_settings(settings)
+
+
+def test_solver_tuning_is_explicit_and_preserves_default_settings():
+    assert validate_stance_solver_settings(None)=={}
+    assert validate_stance_solver_settings({'max_iter':100000,'rho':.001})=={'max_iter':100000,'rho':.001}
 
 
 def test_correction_labels_are_expert_forces_at_same_decision_not_student_actions(tmp_path):
