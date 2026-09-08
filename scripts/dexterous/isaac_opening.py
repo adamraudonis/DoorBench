@@ -28,6 +28,7 @@ p.add_argument('--native-robot',help='Enable closed-loop kinematic teacher using
 p.add_argument('--acquisition',action='store_true',help='Execute the shared contact-free acquisition teacher from reference.path_qpos; privileged development only')
 p.add_argument('--acquisition-middle-finger-force',type=float,help='Explicit acquisition middle-finger preload in N; original motor caps unchanged')
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
+p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
 p.add_argument('--grip-rotation-fraction',type=float,default=1.,help='Fraction of operator rotation tracked by palm orientation; physical contacts remain unconstrained')
 p.add_argument('--arm-impedance',type=float,default=1.,help='Software arm position-gain multiplier at the 500 Hz motor loop; native force caps remain unchanged')
 p.add_argument('--grip-impedance',type=float,default=1.,help='Finger position-gain multiplier; native force caps remain unchanged')
@@ -51,6 +52,7 @@ if not math.isfinite(a.finger_curl):p.error('--finger-curl must be finite')
 if not math.isfinite(a.torso_damping) or a.torso_damping<0:p.error('--torso-damping must be finite and nonnegative')
 if a.acquisition and (not a.native_robot or a.panel_push or a.mechanism_test):p.error('Acquisition requires --native-robot and a separate acquisition-only trial')
 if a.operate_after_acquisition and not a.acquisition:p.error('--operate-after-acquisition requires --acquisition')
+if a.open_on_latch_clear and not a.operate_after_acquisition:p.error('--open-on-latch-clear requires --operate-after-acquisition')
 if a.record or a.sensor_layout:a.enable_cameras=True
 launcher=AppLauncher(a);app=launcher.app
 import numpy as np
@@ -93,6 +95,7 @@ def add_latch_tendon(stage):
 def main():
     out=Path(a.output);out.mkdir(parents=True,exist_ok=False)
     ref=json.loads(Path(a.reference).read_text());motors=json.loads(Path(a.motors).read_text())
+    (out/'motor-contract.json').write_bytes(Path(a.motors).read_bytes())
     if a.acquisition:
         ref['initial_joints']=dict(zip(ref['acquisition']['joint_names'],ref['acquisition']['path_qpos'][0]))
     dt=.002
@@ -267,12 +270,13 @@ def main():
                     raise ValueError('Operation requires the declared measured child-body joint frame')
                 basis=np.eye(3)['XYZ'.index(joint.GetAxisAttr().Get())]
                 joint_geometry[role+'_origin']=np.array(joint.GetLocalPos1Attr().Get())
-                joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*basis)))
-            operation=DoorOperationTeacher(teacher,joint_geometry)
+                joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*map(float,basis))))
+            operation=DoorOperationTeacher(teacher,joint_geometry,wait_for_press_completion=not a.open_on_latch_clear)
             (out/'operation-protocol.json').write_text(json.dumps(dict(
                 joint_geometry={k:v.tolist() for k,v in joint_geometry.items()},
                 qualification='Path fraction >= 0.999 and uninterrupted 0.5 s of measured valid five-pad grasp',
                 operator_target_rad=.87,leaf_target_rad=.08,press_duration_s=5.,opening_duration_s=3.,
+                wait_for_press_completion=not a.open_on_latch_clear,
                 scope='Contact-free acquisition to lever, latch and partial opening; no approach or traversal',
                 final_hold='The final 0.5 s must pass the unchanged strict five-pad check and hold leaf angle in [0.075, 0.10] rad; report intermediate digit unloads separately'),indent=2)+'\n')
     elif a.native_robot:

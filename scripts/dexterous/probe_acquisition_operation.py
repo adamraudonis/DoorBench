@@ -92,6 +92,7 @@ def main():
     parser.add_argument('--seconds', type=float, default=22.)
     parser.add_argument('--press-seconds', type=float, default=5.)
     parser.add_argument('--portable-wrapper', action='store_true')
+    parser.add_argument('--open-on-latch-clear', action='store_true')
     parser.add_argument('--min-acquisition-seconds', type=float, default=10.6,
                         help='Earliest event-triggered portable transition; 10.6 retains the native comparison protocol')
     args = parser.parse_args()
@@ -130,7 +131,7 @@ def main():
     if args.portable_wrapper:
         from doorbench.dexterous.operation_teacher import DoorOperationTeacher
         operation = DoorOperationTeacher(teacher,dict(operator_origin=m.jnt_pos[hj],operator_axis=m.jnt_axis[hj],
-            leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),min_acquisition_seconds=args.min_acquisition_seconds,press_seconds=args.press_seconds)
+            leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),min_acquisition_seconds=args.min_acquisition_seconds,press_seconds=args.press_seconds,wait_for_press_completion=not args.open_on_latch_clear)
         wrapper_source = Path(inspect.getfile(DoorOperationTeacher))
         shutil.copy2(wrapper_source,args.output/'operation-teacher-source.py')
         (args.output/'operation-teacher-source.json').write_text(json.dumps(dict(

@@ -73,6 +73,18 @@ def test_opening_requires_actual_release_and_keeps_goal_continuous():
     assert 0. < wrapper.info['goal_leaf_rad'] < 1e-6
 
 
+def test_measured_release_can_start_before_press_timer_without_a_goal_jump():
+    wrappers=[DoorOperationTeacher(Acquisition(),GEOMETRY,press_seconds=5.,wait_for_press_completion=value) for value in (True,False)]
+    for wrapper in wrappers:
+        for t in np.arange(0.,.51,.01):tick(wrapper,t)
+        tick(wrapper,1.,operator=.85,latch=.005)
+        assert wrapper.open_started is None
+        tick(wrapper,1.01,operator=.85,latch=.012)
+    assert wrappers[0].open_started is None
+    assert wrappers[1].open_started==pytest.approx(1.01)
+    assert wrappers[1].info['goal_leaf_rad']==0.
+
+
 def transformed_pose(pose, rotation, translation):
     p, r = pose_components(pose)
     q = Rotation.from_matrix(rotation @ r).as_quat()

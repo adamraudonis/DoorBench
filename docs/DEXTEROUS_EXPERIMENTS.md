@@ -124,3 +124,21 @@ All details and retained initial PhysX fixture failure are in the
 The earlier v1 bounded searches each completed 192 rollouts with zero qualifying
 grasps; [their records](../results/dexterous/2026-09-08/grasp-search-v1.json) are
 historical diagnostics and are not being reused as mechanically valid targets.
+
+## Continuous v2 integration, September 8, 10:55 UTC
+
+| Trial | Outcome | Scope |
+|---|---|---|
+| Frozen native acquisition plus seeds 17/29/43 | 4/4 tested initializations pass | One-door acquisition; no catalogue score |
+| [Native walk, lower, prepare, acquire and operate](DOOR55_CONTINUOUS_WALK_GRASP.md) | 55 uninterrupted seconds; all physical/task-stage checks pass; final leaf 0.0846 rad | Partial opening only; old intermediate heading target remains failed |
+| [Native left-palm contact](BIMANUAL_OPENING_SCREEN.md) | 18/18 checks; left palm minimum final load 3.788 N; right pads preserved | Stops before right release and full opening |
+| Isaac acquisition 001 / 002 | Both fail the strict final hold; all other checks pass | Four / three isolated middle-finger unload steps in the final 251 samples |
+| [Isaac operation 001](../results/dexterous/2026-09-08/isaac-operation-v2-001.json) | Final hold and partial-opening hold fail | Lever crossed release before the press timer ended; transition never started |
+| [Native measured-release transition](../results/dexterous/2026-09-08/native-operation-clear-v2.json) | 16/16 checks; final leaf 0.0872 rad | Opens on actual clearance; ten intermediate digit-unload ticks, no invalid pads |
+| [v2 one-click readiness](ISAAC_V2_READY.md) | Live regeneration, import and solver verification pass | Environment readiness, not task performance |
+
+The next Isaac run records fixed robot cameras and tactile packets alongside the
+privileged teacher. The [sensor learner](DEXTEROUS_SENSOR_IMITATION.md) has passed
+synthetic boundary/optimizer tests; no closed-loop learned result exists. Release,
+complete opening, traversal, repeated task evaluation and broad coverage remain
+work in progress. Every failed physical run remains archived.

@@ -39,7 +39,7 @@ class DoorOperationTeacher:
     def __init__(self, acquisition_teacher, joint_geometry, *, qualified_hold_seconds=.5,
                  min_acquisition_seconds=0., press_seconds=5., opening_seconds=3.,
                  operator_target=.87, release_operator_threshold=.80,
-                 release_bolt_threshold=.011, leaf_target=.08):
+                 release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True):
         self.acquisition = acquisition_teacher
         self.geometry = {k:np.asarray(joint_geometry[k], float) for k in
                          ('operator_origin','operator_axis','leaf_origin','leaf_axis')}
@@ -58,6 +58,9 @@ class DoorOperationTeacher:
         self.operator_target, self.leaf_target = operator_target, leaf_target
         self.release_operator_threshold = release_operator_threshold
         self.release_bolt_threshold = release_bolt_threshold
+        if type(wait_for_press_completion) is not bool:
+            raise ValueError('Explicit press-completion policy is required')
+        self.wait_for_press_completion = wait_for_press_completion
         self.qualified_since = self.last_time = self.started = self.open_started = None
         self.info = dict(phase='acquisition')
 
@@ -101,7 +104,8 @@ class DoorOperationTeacher:
                 self._bind(t,handle_pose,angles)
             return force, {**info,**self.info}
         goal_h = self.initial_handle+(self.operator_target-self.initial_handle)*smooth_phase((t-self.started)/self.press_seconds)
-        if self.open_started is None and t >= self.started+self.press_seconds and angles['operator'] >= self.release_operator_threshold and angles['latch'] >= self.release_bolt_threshold:
+        press_ready = not self.wait_for_press_completion or t >= self.started+self.press_seconds
+        if self.open_started is None and press_ready and angles['operator'] >= self.release_operator_threshold and angles['latch'] >= self.release_bolt_threshold:
             self.open_started = t
             self.initial_leaf_goal = self.info.get('goal_leaf_rad',0.)
         goal_l = 0. if self.open_started is None else self.initial_leaf_goal+(self.leaf_target-self.initial_leaf_goal)*smooth_phase((t-self.open_started)/self.opening_seconds)
