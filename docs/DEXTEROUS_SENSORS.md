@@ -1,6 +1,6 @@
 # Finite vision/tactile interface for the Isaac student
 
-**Status, September 8, 2026:** implemented sensor emulation and an actor packet boundary; 19 CPU tests pass, including real MuJoCo contact/plugin parity and USD collider discovery. Exporting the current H1/dual-Shadow model yields 53 tactile mounts, 448 three-axis taxels (1,344 scalar channels), 69 joint sensors and 61 actions. **The standalone live PhysX fixture subsequently passed 10/10 checks at 2026-09-08 07:43:28 UTC. No sensor-only Isaac policy or H1 sensor-parity result is claimed.** This work implements part of stage 3 of [the execution plan](DEXTEROUS_NEXT_STEPS.md), independently of the privileged opening teacher.
+**Status, September 8, 2026:** implemented sensor emulation and an actor packet boundary; 19 CPU tests pass, including real MuJoCo contact/plugin parity and USD collider discovery. Exporting the current H1/dual-Shadow model yields 53 tactile mounts, 448 three-axis taxels (1,344 scalar channels), 69 joint sensors and 61 actions. **The standalone live PhysX fixture subsequently passed 10/10 checks at 2026-09-08 07:43:28 UTC. The subsequent H1 capture passed its numeric stream and opening audits, but native camera usefulness failed visual review. No sensor-only policy is claimed.** This work implements part of stage 3 of [the execution plan](DEXTEROUS_NEXT_STEPS.md), independently of the privileged opening teacher.
 
 ## Actor contract
 
@@ -99,3 +99,12 @@ python scripts/isaac/run_handle_demo.py --sensors
 ```
 
 It exports the native layout, runs the initialized teacher, and executes both the existing opening audit and the independent sensor-archive audit. This command still does not train or evaluate a sensor-only controller.
+
+
+### H1 capture: numeric passes, camera-view failure retained
+
+The [H1 capture report](../results/dexterous/2026-09-08/isaac-h1-sensor-capture.json) records 5,000 full-body sensor packets and 250 frames per eye over ten seconds. The independent opening audit passed 18/18 checks: final opening 95°, maximum torso tilt 1.805°, and loaded opposition throughout the measured lever-turn window. The separate archive audit passed 16/16 checks, including all 1,344 finite tactile channels, physical right-hand contact, fixed numeric fields, normalized previous motor forces and causal image timestamps. These are separate instrumentation and initialized-opening results, not sensor-driven control.
+
+**Visual review failed the native camera configuration for manipulation.** Both forward-facing 45° eye images mostly show a nearby wall/door crop; they do not provide a useful view of the manipulating hand and handle. The inspected images remain in the archive. Training must wait for a declared fixed wider/downward calibration or suitable wrist camera and another visual review. A numeric packet pass does not override this failure.
+
+The complete source, wide video, traces, actor archives, camera samples and both audits are retained in the 20.7 MB `h1-001-evidence.tar.gz` archive under `~/Desktop/Projects/DoorBench-runs/2026-09-08-isaac-sensors/`. Its checksum is in the linked report.
