@@ -4,7 +4,7 @@ Owner-approved objective, September 7, 2026: a full simulated humanoid with two 
 
 ## Current status
 
-The H1/dual-Shadow robot compiles and attaches to a freshly generated `db0055_swing_single` lever door. The source model has 61 actuators (20 for each Shadow Hand), 69 articulated joints plus a free base, 53.239896 kg mass, and 448 three-axis tactile cells. Native state is separated from copied student observations. No door-opening policy has been achieved yet.
+The H1/dual-Shadow robot compiles and attaches to a freshly generated `db0055_swing_single` lever door. The source model has 61 actuators (20 for each Shadow Hand), 69 articulated joints plus a free base, 53.239896 kg mass, and 448 three-axis tactile cells in the native MuJoCo sensor model. A privileged initialized teacher now opens this door in live Isaac Sim; four fixed-start repetitions passed the opening audit. This is not yet approach, traversal, robustness, or a vision/tactile policy. See [the Isaac evidence](ISAAC_HANDLE_DEMO.md) and [the next execution milestones](DEXTEROUS_NEXT_STEPS.md). The finite tactile student interface still needs Isaac implementation and validation.
 
 A borrowed two-hand reaching policy crouched substantially and fell on larger reaches. Body adaptation remains below its upright-reaching gate: the latest experiment passed 1/30 development trials with two falls. Separately, a tactile hand controller passed 30/30 narrow initialized-contact trials versus 0/30 for constant preload, and passed a separate three-second hold test. It starts at the handle and does not yet approach, fully release the lever, open or traverse the door. See the ledger for exact checkpoints, stress-test failures and conditions.
 

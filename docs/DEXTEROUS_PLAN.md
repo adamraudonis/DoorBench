@@ -2,6 +2,8 @@
 
 Revised September 7, 2026, following the owner's clarification: no real hardware is available. This plan supersedes the hardware-dependent stages in the earlier vision/tactile proposal. All targets below are proposed acceptance criteria, not completed results.
 
+The [September 8 execution plan](DEXTEROUS_NEXT_STEPS.md) records the next milestones from the verified initialized Isaac opening to complete traversal and sensor-only control, with current limitations and progress requirements.
+
 **Objective: a freely moving, physically simulated humanoid with two high-DOF, five-finger hands that reliably opens almost every DoorBench door a human could open under the same task conditions, and traverses the openings intended for passage. The final policy uses simulated vision, tactile sensing, and its own body state.**
 
 Real data collection, hardware procurement, sensor calibration against a physical device, and real-world deployment are outside this project milestone. Physical plausibility remains essential: success must come from the robot's actuators and valid interactions with the mechanism.
