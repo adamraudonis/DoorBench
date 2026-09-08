@@ -112,7 +112,9 @@ class PhysXShadowPadAudit:
         self.side = side
         self.profile = grasp_profile(profile)
 
-    def read(self, *, physics_dt, time_s, center, axis, half_length, radius):
+    def read(self, *, physics_dt, time_s, center, axis, half_length, radius, include_evidence=False):
+        if type(include_evidence) is not bool:
+            raise ValueError('Raw evidence capture must be explicitly boolean')
         if not np.isfinite([physics_dt, time_s]).all() or physics_dt <= 0 or time_s < 0:
             raise ValueError("Invalid evidence clock")
         # PhysX getters can reuse count/start arrays: copy before another getter.
@@ -153,6 +155,20 @@ class PhysXShadowPadAudit:
             raise ValueError("Patch normal directions/loads disagree with independent PhysX pair forces")
         result = shadow_physx_pad_grasp(patches, dict(zip(self.paths, transforms)),
             center, axis, half_length=half_length, radius=radius, side=self.side, profile=self.profile)
-        return dict(**result, sim_time_s=float(time_s), physics_dt_s=float(physics_dt),
+        output = dict(**result, sim_time_s=float(time_s), physics_dt_s=float(physics_dt),
             contact_capacity=capacity, active_contact_count=int(count.sum()),
             normal_pair_force_consistency_error_N=force_error)
+
+        if include_evidence:
+            # Reuse the synchronized copies already reduced above. No second
+            # contact getter, transform fetch, inference or simulation step.
+            output['raw_evidence'] = dict(schema='doorbench.shadow-raw-pad-evidence.v1',
+                interval_start_s=max(0.,float(time_s)-float(physics_dt)), interval_end_s=float(time_s),
+                geometry_time_s=float(time_s), clock='physx-interval-end', scope='complete-handle-body',
+                contacts=[dict(body=p['body'],position=p['position'].tolist(),normal=p['normal'].tolist(),normal_force_N=p['normal_force_N']) for p in patches],
+                body_transforms_xyzw={path:pose.tolist() for path,pose in zip(self.paths,transforms)},
+                handle_pair_forces_world_N={path:matrix[i,self.filter_index].tolist() for i,path in enumerate(self.paths)},
+                lever=dict(center=np.asarray(center,dtype=float).tolist(),axis=np.asarray(axis,dtype=float).tolist(),half_length=float(half_length),radius=float(radius)),
+                contact_capacity=int(capacity),active_contact_count=int(count.sum()),
+                normal_pair_force_consistency_error_N=force_error)
+        return output

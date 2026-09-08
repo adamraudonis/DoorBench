@@ -128,3 +128,24 @@ def test_reversed_force_normal_sign_and_mismatched_row_order_are_rejected():
     bodies.prim_paths.reverse()
     with pytest.raises(ValueError, match="rows"):
         PhysXShadowPadAudit(bodies, Contacts(patches))
+
+
+def test_opt_in_raw_evidence_reuses_single_read_and_preserves_default_result():
+    import json
+    patches,poses=fixture();contacts=Contacts(patches);bodies=Bodies(poses)
+    calls={'contact':0,'matrix':0,'body':0}
+    def counted(obj,name,key):
+        old=getattr(obj,name)
+        def call(*args):calls[key]+=1;return old(*args)
+        setattr(obj,name,call)
+    counted(contacts,'get_contact_data','contact');counted(contacts,'get_contact_force_matrix','matrix');counted(bodies,'get_transforms','body')
+    actual=PhysXShadowPadAudit(bodies,contacts).read(physics_dt=.002,time_s=1.,center=[0,0,0],axis=[1,0,0],half_length=.053,radius=.007,include_evidence=True)
+    raw=actual.pop('raw_evidence');default=PhysXShadowPadAudit(Bodies(poses),Contacts(patches)).read(physics_dt=.002,time_s=1.,center=[0,0,0],axis=[1,0,0],half_length=.053,radius=.007)
+    assert actual==default and calls=={'contact':1,'matrix':1,'body':1}
+    assert raw['clock']=='physx-interval-end' and raw['geometry_time_s']==1. and raw['interval_start_s']==.998
+    assert len(raw['contacts'])==5 and raw['active_contact_count']==5
+    restored=json.loads(json.dumps(raw,allow_nan=False))
+    result=shadow_physx_pad_grasp(restored['contacts'],restored['body_transforms_xyzw'],**restored['lever'])
+    assert result['valid_pad_grasp'] and result['qualified_pad_forces_N']==default['qualified_pad_forces_N']
+    bodies.transforms.fill(99);contacts.points.fill(99);contacts.force.fill(99)
+    assert raw==restored
