@@ -36,8 +36,11 @@ def main():
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--seconds", type=float, default=66.)
     p.add_argument("--retain-grip-until-clear", action="store_true")
-    p.add_argument("--release-mode", choices=("pressed-frame", "controlled-return"), default="pressed-frame")
+    p.add_argument("--release-mode", choices=("pressed-frame", "controlled-return", "whole-body-return"), default="pressed-frame")
+    p.add_argument("--whole-body-path", type=Path)
     a = p.parse_args()
+    if (a.release_mode == 'whole-body-return') != (a.whole_body_path is not None):
+        raise ValueError('Whole-body return requires the exact screened path')
     if a.release_mode == 'controlled-return' and a.retain_grip_until_clear:
         raise ValueError('Controlled return already retains grip; do not combine release options')
     source = a.source_run.resolve()
@@ -67,9 +70,12 @@ def main():
     own = Path(__file__).resolve().parents[2]
     shutil.copy2(own / "doorbench/dexterous/right_hand_release.py",
                  stage / "doorbench/dexterous/right_hand_release.py")
-    if a.release_mode == "controlled-return":
+    if a.release_mode in ("controlled-return", "whole-body-return"):
         shutil.copy2(own / "doorbench/dexterous/right_release_return.py",
                      stage / "doorbench/dexterous/right_release_return.py")
+    if a.release_mode == 'whole-body-return':
+        shutil.copy2(own/'doorbench/dexterous/whole_body_return.py',stage/'doorbench/dexterous/whole_body_return.py')
+        shutil.copy2(a.whole_body_path,stage/'whole-body-path.json')
     driver = stage / "scripts/dexterous/frozen_walking_opening_driver.py"
     shutil.copy2(source / "diagnostic-source.py", driver)
     shutil.copy2(Path(__file__), stage / "scripts/dexterous/probe_walking_release.py")
@@ -78,10 +84,14 @@ def main():
     # The baseline constructor is untouched; this isolated experiment replaces
     # only its release class and supplies the explicitly measured leaf channel.
     import doorbench.dexterous.right_hand_release as releases
-    if a.release_mode == "controlled-return":
+    if a.release_mode in ("controlled-return", "whole-body-return"):
         from doorbench.dexterous.right_release_return import ControlledLeverReturn
+    if a.release_mode == 'whole-body-return':
+        from doorbench.dexterous.whole_body_return import WholeBodyLeverReturn, apply_stance_goal
     def selected_release(teacher, path):
-        if a.release_mode == "controlled-return":
+        if a.release_mode == 'whole-body-return':
+            return WholeBodyLeverReturn(teacher,path,stage/'whole-body-path.json')
+        if a.release_mode in ("controlled-return", "whole-body-return"):
             return ControlledLeverReturn(teacher, path)
         return releases.PressedLeafFrameRightRelease(teacher, path,
             retain_grip_until_clear=a.retain_grip_until_clear)
@@ -91,7 +101,7 @@ def main():
 
     def measured_force(self, t, root, joints, velocities, handle_pose, leaf_pose,
                        angles, hand_forces, **kwargs):
-        if a.release_mode == "controlled-return":
+        if a.release_mode in ("controlled-return", "whole-body-return"):
             self.release.observe_operation(t, handle_pose, leaf_pose, angles, self.geometry)
         else:
             self.release.observe_leaf(t, leaf_pose)
@@ -99,6 +109,16 @@ def main():
                               leaf_pose, angles, hand_forces, **kwargs)
 
     full.FullOpeningTeacher.force = measured_force
+    if a.release_mode == 'whole-body-return':
+        from doorbench.dexterous.walking_opening_teacher import WalkingOpeningTeacher
+        original_walking_force=WalkingOpeningTeacher.force
+        def moving_stance_force(self,t,*args,**kwargs):
+            release=self.opening.release
+            if release.started is not None:
+                goal=release.body_goal(t-self.acquisition_started)
+                apply_stance_goal(self.body.controller,goal)
+            return original_walking_force(self,t,*args,**kwargs)
+        WalkingOpeningTeacher.force=moving_stance_force
     runner = load("_frozen_walking_release_probe", driver)
     base_archive = runner.NativeTransitionArchive
     old_raw = source / "raw-transitions"
@@ -174,9 +194,10 @@ def main():
             baseline_run=str(source), baseline_source_sha256=baseline["source_archive_sha256"],
             baseline_driver_sha256=digest(source / "diagnostic-source.py"),
             release_module_sha256=digest(stage / "doorbench/dexterous/right_hand_release.py"),
-            intervention=("ControlledLeverReturn with actual joint geometry and measured operation" if a.release_mode == "controlled-return" else "PressedLeafFrameRightRelease with current same-clock measured leaf"),
+            intervention=("WholeBodyLeverReturn with attained-foot stance motor targets" if a.release_mode=="whole-body-return" else "ControlledLeverReturn with actual joint geometry and measured operation" if a.release_mode == "controlled-return" else "PressedLeafFrameRightRelease with current same-clock measured leaf"),
             retain_grip_until_clear=a.retain_grip_until_clear,
             release_mode=a.release_mode,
+            whole_body_path_sha256=digest(stage/'whole-body-path.json') if a.release_mode=='whole-body-return' else None,
             default_release_unchanged=True, gates_unchanged=True,
             no_runtime_pose_reset=True, no_helper_forces=True,
             scope="Development continuous native single-release comparison; no actor or Isaac claim")

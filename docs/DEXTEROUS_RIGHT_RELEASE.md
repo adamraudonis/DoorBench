@@ -91,3 +91,71 @@ The next bounded hypothesis is to open the fingers while withdrawing the palm
 along a screened curve that respects the returning lever. The earlier measured
 release came from an **unpressed canonical grasp**; its timing and 160 mm retreat
 are proposals, not evidence that the actual walked, pressed grasp can release.
+
+## A small physical body shift allows the lever to return
+
+The next experiment succeeds at the **controlled lever-return component**.
+It is still not a completed right-hand release or full opening.
+
+A whole-body geometric path keeps the two attained foot frames and both palm
+poses while returning the lever. Its final pelvis displacement is
+`[+8.47, -14.55, +15.11]` mm, with a small orientation change. The 401-state
+interpolation audit has at most 13.8 µm palm error, 0.35 µm foot error, 2.336°
+torso tilt, and no forbidden collision. The robot COM remains inside the hull
+of the measured initial foot contacts. This geometric evidence does not impose
+physical foot constraints.
+
+`WholeBodyLeverReturn` supplies the existing stance QP with those pelvis and
+leg targets and the existing arm teacher with the screened torso target. The
+physical trial retains all original motors, limits, contact geometry and
+attained foot references. Its raw walking/acquisition prefix again matches the
+original run through 53.500 s, before intervention at 53.504 s.
+
+The 60 s native trial physically returns the lever to rest while retaining the
+opposed grasp and left-palm support. An independent audit reads all 30,000 raw
+transitions, checks motor caps and state continuity, and reconstructs the actual
+body/contact frames for all 3,250 intervals after the intervention. Frame error
+is exactly zero and no invalid loaded distal patch occurs. During the final
+half second the operator stays within 0.630 mrad of rest and all five pads stay
+loaded. Final left-palm load is 13.02 N and aperture is 0.09692 rad. Every
+original mechanical, anatomy and stance check passes; the original full task
+report correctly fails **usable aperture** and **right release completion**.
+[Measured result and canonical archive receipts](../results/dexterous/2026-09-08/whole-body-lever-return-development.json)
+
+```sh
+# Regenerate the unstepped geometry path from the exact recorded state.
+python scripts/dexterous/screen_whole_body_return.py \
+  --source-run /path/to/walking-opening-native-002 \
+  --state-run /path/to/walked-controlled-return-002 \
+  --source-package /path/to/walked-controlled-return-002-source \
+  --at 53.504 --output out/whole-body-return-screen
+
+# Apply only motor targets in a fresh continuous physical comparison.
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python scripts/dexterous/probe_walking_release.py \
+  --source-run /path/to/walking-opening-native-002 \
+  --whole-body-path /path/to/controlled-return-whole-body-path-001/report.json \
+  --release-mode whole-body-return --seconds 60 \
+  --output out/whole-body-return-repeat
+```
+
+These targets are tied to the actual walked state and its robot/scene inputs.
+The adapter rejects a different attained root/joint configuration. Re-screen a
+different robot, scene, or initial stance; this is a privileged teacher component,
+not a vision/tactile actor.
+
+## Reject disconnected release configurations
+
+A shorter diagonal ungrip initially appeared feasible when each hand frame was
+allowed to choose its own collision-free lever angle. Dense checking revealed
+that these feasible sets were disconnected: near 53% progress only a pressed
+lever fit, while at 54% only a resting lever fit. No continuous motion connected
+them. `release_connectivity.monotone_release_path` now rejects this specific
+failure mode; a returned sampled path still requires swept-edge refinement and
+physical execution. Seventeen reachable fixed-timing curves and four searches
+with independent hand, finger, thumb and operator progress produced no qualified
+release. Those failures and the diagnostic plot are retained in the archive.
+The unrun curved controller prototype was not installed as a release option.
+
+The next trial must withdraw from the **actually attained resting-lever state**.
+The measured canonical ungrip still exceeds the current fixed-waist arm reach,
+so another bounded body movement or a newly screened hand path is required.
