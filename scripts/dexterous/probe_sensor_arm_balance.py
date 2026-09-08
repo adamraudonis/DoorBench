@@ -19,31 +19,13 @@ from doorbench.dexterous.environment import DexterousDoorEnv
 from doorbench.dexterous.motor_contract_identity import motor_contract_fingerprint
 from doorbench.dexterous.native_transition_audit import NativeTransitionRecorder
 from doorbench.dexterous.sensor_arm_balance import SensorArmBalanceController
+from doorbench.dexterous.arm_balance_schedule import validate_schedule,scripted_goals
 from doorbench.dexterous.sensor_contract import ActorObservationBuilder
 from scripts.dexterous.export_sensor_layout import export_layout
 
 
 def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 def write(path,value):Path(path).write_text(json.dumps(value,indent=2,allow_nan=False)+'\n')
-
-
-def validate_schedule(schedule,names,duration):
-    wanted={'schema','scope','start_s','outward_seconds','hold_seconds','return_seconds','duration_s','deltas_rad'}
-    if type(schedule) is not dict or set(schedule)!=wanted or schedule['schema']!='doorbench.scripted-arm-balance.v1':raise ValueError('Explicit scripted arm schedule required')
-    if type(schedule['deltas_rad']) is not dict or set(schedule['deltas_rad'])-set(names):raise ValueError('Script may move only arm/wrist joints')
-    values=[schedule[k] for k in ('start_s','outward_seconds','hold_seconds','return_seconds','duration_s')]
-    if not np.isfinite(values).all() or min(values)<=0 or duration!=schedule['duration_s'] or sum(values[:4])+1>duration:raise ValueError('Schedule requires positive phases and at least1s final quiet')
-    if not np.isfinite(list(schedule['deltas_rad'].values())).all() or any(abs(v)>.3 for v in schedule['deltas_rad'].values()):raise ValueError('This probe only qualifies modest bounded arm motions')
-
-
-def scripted_goals(t,desired,names,schedule):
-    local=t-schedule['start_s'];outward=schedule['outward_seconds'];hold=schedule['hold_seconds'];returning=schedule['return_seconds']
-    if local<=0:u=0.
-    elif local<=outward:u=local/outward
-    elif local<=outward+hold:u=1.
-    else:u=max(0.,1-(local-outward-hold)/returning)
-    blend=u**3*(10+u*(-15+6*u))
-    return {name:float(desired[name]+blend*schedule['deltas_rad'].get(name,0.)) for name in names}
 
 
 def screen_motion(sim,arm,schedule):
@@ -139,12 +121,18 @@ def main():
     d.qvel[sim.root_vadr]=a.initial_velocity
     m.actuator_gainprm[aids,0]=1.;m.actuator_biasprm[aids,:3]=0.;m.actuator_ctrlrange[aids]=controller.caps
     d.ctrl[:]=0.;mujoco.mj_forward(m,d)
+    write(a.output/'reset.json',dict(root=d.qpos[sim.root_qadr:sim.root_qadr+7].tolist(),joints=dict(zip(names,d.qpos[qa])),qpos=d.qpos.tolist(),qvel=d.qvel.tolist()))
     screen=screen_motion(sim,arm,schedule)
+    screen['schema']='doorbench.sensor-arm-static-screen.v1'
+    screen['binding']=dict(schedule_sha256=sha(a.schedule),robot_xml_sha256=sha(robot),door_xml_sha256=sha(door/'door.xml'),
+        reset_sha256=sha(a.output/'reset.json'),reference_sha256=sha(a.reference),motor_contract_sha256=sha(a.motors),
+        calibration_sha256=sha(a.calibration),sensor_layout_sha256=sha(a.output/'sensor-layout.json'),
+        screen_source_sha256=sha(__file__),schedule_source_sha256=sha(root/'doorbench/dexterous/arm_balance_schedule.py'),
+        controller_source_sha256=sha(root/'doorbench/dexterous/sensor_arm_balance.py'))
     write(a.output/'static-screen.json',screen)
     if not screen['passed']:
         write(a.output/'report.json',dict(passed=False,scope='Static path rejected before physics',screen=screen))
         print(json.dumps({k:v for k,v in screen.items() if k!='bad_samples'},indent=2));return
-    write(a.output/'reset.json',dict(root=d.qpos[sim.root_qadr:sim.root_qadr+7].tolist(),joints=dict(zip(names,d.qpos[qa])),qpos=d.qpos.tolist(),qvel=d.qvel.tolist()))
     immutable=('body_mass','body_inertia','body_gravcomp','jnt_range','tendon_range','tendon_solref_lim','tendon_solimp_lim',
         'geom_friction','geom_contype','geom_conaffinity','dof_damping','dof_armature','dof_frictionloss','actuator_gainprm','actuator_biasprm','actuator_ctrlrange','actuator_forcerange')
     originals={k:getattr(m,k).copy() for k in immutable}

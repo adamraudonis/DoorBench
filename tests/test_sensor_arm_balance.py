@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from test_sensor_balance import authored,create,cold,valid
 from doorbench.dexterous.sensor_arm_balance import SensorArmBalanceController
-from scripts.dexterous.probe_sensor_arm_balance import scripted_goals,validate_schedule
+from doorbench.dexterous.arm_balance_schedule import scripted_goals,validate_schedule
 
 
 def wrapper(authored):return SensorArmBalanceController(*copy.deepcopy(authored),image_shape=(8,8,3))
@@ -64,3 +64,17 @@ def test_script_has_zero_endpoint_slew_and_bounded_goals():
     assert np.max(abs(np.diff(values,axis=0)))/.002<.5
     np.testing.assert_array_equal(values[0],values[-1])
     assert np.max(abs(values))==pytest.approx(.2)
+
+
+@pytest.mark.parametrize('kind',['forbidden','too_large','too_fast','bad_duration','nan'])
+def test_invalid_script_admission(kind):
+    import json
+    from pathlib import Path
+    s=json.loads((Path(__file__).resolve().parents[1]/'configs/dexterous/sensor-arm-balance-v1.json').read_text())
+    names=tuple(s['deltas_rad'])
+    if kind=='forbidden':s['deltas_rad']['torso']=.1
+    if kind=='too_large':s['deltas_rad']['left_elbow']=.4
+    if kind=='too_fast':s['outward_seconds']=.1
+    if kind=='bad_duration':s['duration_s']=5.
+    if kind=='nan':s['deltas_rad']['left_elbow']=np.nan
+    with pytest.raises(ValueError):validate_schedule(s,names,6.)

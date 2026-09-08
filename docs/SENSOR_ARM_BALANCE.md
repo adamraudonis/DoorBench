@@ -42,6 +42,15 @@ coupled joint/tendon anatomy contract and a separate physical qualification.
 
 ## Native component protocol
 
+The reusable evaluator has no simulator dependencies:
+
+```python
+from doorbench.dexterous.arm_balance_schedule import validate_schedule, scripted_goals
+validate_schedule(schedule, controller.goal_names, duration=6.0)
+goals = scripted_goals(local_time_s, calibration['desired_posture'],
+                       controller.goal_names, schedule)
+```
+
 The frozen schedule is
 [`sensor-arm-balance-v1.json`](../configs/dexterous/sensor-arm-balance-v1.json):
 1 s initial balance, 1.5 s smooth outward motion, .5 s hold, 1.5 s return, then
@@ -83,7 +92,8 @@ Evidence lives under `/tmp/doorbench-continuous/out/continuous/`.
 | sensor-arm-balance-001 | Static rejection; zero physics steps | Initial script brushed the slab with RH distal fingers, maximum 2.334 mm penetration. |
 | sensor-arm-balance-002 | Static rejection; zero physics steps | Revised script avoided contact but minimum clearance was 2.014 mm, below 5 mm. |
 | sensor-arm-balance-003 | 22/22; 6 s / 3,000 steps | Both arm directions corrected using measured geometric clearance. |
-| sensor-arm-balance-004 | 22/22; 6 s / 3,000 steps | Same physical trajectory, final source/dependency provenance. |
+| sensor-arm-balance-004 | 22/22; 6 s / 3,000 steps | Same physical trajectory, source/dependency provenance. |
+| sensor-arm-balance-005 | 22/22; 6 s / 3,000 steps | Reusable schedule module and explicitly bound static-screen receipt. |
 
 Trial004 measured maximum torso tilt **0.3331°**, arm tracking error
 **0.002760 rad**, original joint-stop penetration **0.696 mrad**, and passive
@@ -102,7 +112,7 @@ endpoint trajectory. Both rejected scripts and their original screens remain
 intact. No generated evidence is committed.
 
 Run `pytest tests/test_sensor_arm_balance.py tests/test_sensor_balance.py`:
-39 tests pass, including exact stationary force equivalence, denied body/finger
+44 tests pass, including exact stationary force equivalence, denied body/finger
 commands, authored limits, slew continuity, hold/reset behavior and sensor-only
 boundary checks. A separate review found no arm-goal path into torso/leg targets
 or divergence in previous-action history.
@@ -115,3 +125,22 @@ python scripts/dexterous/render_sensor_arm_balance.py --trial /path/to/arm-balan
 
 Rendering replays saved physical states only and is explicitly labeled with the
 scripted high-level input. It is not a new simulation or a contact-force audit.
+
+## Static screen binding
+
+`static-screen.json` schema `doorbench.sensor-arm-static-screen.v1` now includes
+`binding`: exact SHA256 hashes of schedule, robot XML, door XML, reset JSON,
+reference, motors JSON, fixed calibration, sensor layout, and the screen,
+schedule and controller source files. **These are file-byte hashes**; the motors
+hash here differs from the canonical contract fingerprint inside calibration.
+The reset JSON contains the exact full native reset qpos/qvel, root WXYZ pose
+and all69 named joint angles. Its world coordinates are evaluator evidence,
+not balance-controller inputs. A different reset/model/schedule requires a new
+screen; a source screen does not qualify a different imported collision model.
+
+Trial005's provenance hash is
+`ed62e22cd65e68014894f92dfec1f1ce2932126fd5545a58704c2813d6925973`.
+Its six-second physical trajectory exactly matches004; it independently repeats
+all22 gates with the reusable module. The video of004 was personally inspected
+at beginning, maximum arm excursion and end: the torso remains upright and both
+hands stay clear during this modest out-and-back motion.
