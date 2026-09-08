@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Render recorded native acquisition states, with explicit outcome/time labels."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -17,6 +18,7 @@ def main():
     for name in ('robot','door','trial'):
         p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--view',choices=('hand','body'),default='hand')
+    p.add_argument('--at',type=float,action='append',help='Render these actual recorded times only, without advancing physics')
     p.add_argument('--azimuth',type=float,default=150.)
     p.add_argument('--elevation',type=float)
     p.add_argument('--distance',type=float)
@@ -28,6 +30,9 @@ def main():
     times=np.asarray([row['sim_time_s'] for row in trace])
     if len(times)!=len(trajectory['qpos']) or not np.isfinite(times).all() or np.any(np.diff(times)<=0):
         raise ValueError('Recorded states need a matching monotonic physics clock')
+    for recorded,actual in ((args.trial/'robot-input.xml',args.robot),(args.trial/'door-input.xml',args.door/'door.xml')):
+        if recorded.exists() and hashlib.sha256(recorded.read_bytes()).digest()!=hashlib.sha256(actual.read_bytes()).digest():
+            raise ValueError('Rendering must use the exact recorded robot and door inputs: '+str(actual))
     sim=DexterousDoorEnv(args.door,args.robot,json.loads(args.robot.with_suffix('.audit.json').read_text()))
     sim.reset(randomize=False,images=False)
     if trajectory['qpos'].shape[1]!=sim.m.nq:
@@ -45,26 +50,27 @@ def main():
     camera.distance=args.distance if args.distance is not None else (.48 if args.view=='hand' else 3.1)
     camera.azimuth=args.azimuth;camera.elevation=args.elevation if args.elevation is not None else (-25 if args.view=='hand' else -12)
     options=mujoco.MjvOption();options.sitegroup[:]=0
-    frame_times=np.arange(times[0],times[-1]+1e-8,.04)
+    if args.at and any(not np.isfinite(t) or t<times[0] or t>times[-1] for t in args.at):raise ValueError('Snapshot times must be inside the recorded episode')
+    frame_times=np.asarray(args.at) if args.at else np.arange(times[0],times[-1]+1e-8,.04)
     indices=np.minimum(np.searchsorted(times,frame_times),len(times)-1)
     out=args.trial/f'{args.view}.mp4'
     from contextlib import nullcontext
     try:
         with mujoco.Renderer(sim.m,height=720,width=960) as renderer:
-            with (nullcontext(None) if args.snapshots_only else imageio.get_writer(out,fps=25,codec='libx264',quality=8)) as writer:
+            with (nullcontext(None) if args.snapshots_only or args.at else imageio.get_writer(out,fps=25,codec='libx264',quality=8)) as writer:
                 for frame,i in enumerate(indices):
-                    if args.snapshots_only and frame not in (0,len(indices)//2,len(indices)-1):continue
+                    if args.snapshots_only and not args.at and frame not in (0,len(indices)//2,len(indices)-1):continue
                     sim.d.qpos[:]=trajectory['qpos'][i]
                     mujoco.mj_kinematics(sim.m,sim.d)
                     renderer.update_scene(sim.d,camera=camera,scene_option=options)
                     sim.hide_sensor_overlays(renderer.scene)
                     image=Image.fromarray(renderer.render());draw=ImageDraw.Draw(image)
                     draw.rectangle((0,0,960,35),fill='black')
-                    outcome='PROBE CHECKS PASSED' if report['passed'] else 'FAILED ACQUISITION'
+                    outcome='PROBE CHECKS PASSED' if report['passed'] else 'FAILED TASK CHECKS'
                     draw.text((12,12),f'RECORDED MUJOCO PHYSICS | {outcome} | t={times[i]:.2f}s | thumb: blue',fill='white')
                     if writer:writer.append_data(np.asarray(image))
-                    if frame in (0,len(indices)//2,len(indices)-1):
-                        suffix=f'-az{args.azimuth:g}-el{camera.elevation:g}' if args.snapshots_only else ''
+                    if args.at or frame in (0,len(indices)//2,len(indices)-1):
+                        suffix=f'-t{times[i]:.3f}-az{args.azimuth:g}-el{camera.elevation:g}' if args.at else f'-az{args.azimuth:g}-el{camera.elevation:g}' if args.snapshots_only else ''
                         image.save(args.trial/f'{args.view}{suffix}-{frame:04d}.png')
         print(out)
     finally:

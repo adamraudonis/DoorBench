@@ -87,9 +87,8 @@ constraints, changed mechanics and stale assets. The acquisition wrapper itself
 has only completed preflight in this readiness checkout; the long manipulation
 trial is tracked separately by the controller work package.
 
-The current development allocation has an independent **11:21 UTC** teardown
-on September 8. The approach-to-acquisition chain and repeated live acquisition
-trials require another bounded allocation if they do not fit the remaining time.
-No readiness launch extends that existing guard. Archive evidence before its
-deadline, then use a new owned allocation with the same profile and exact source
-manifest; on a cluster, request the equivalent scheduler wall time.
+Allocation deadlines are live run metadata, not a readiness property. Inspect
+Run Center and the current owned-allocation journal before launching a long
+trial. Readiness does not extend a guard. Sustained authorized work can use
+[explicit bounded guard renewal](ISAAC_ONE_CLICK.md); preserve evidence off-pod
+and retain the exact source, robot, door and checkpoint identities.

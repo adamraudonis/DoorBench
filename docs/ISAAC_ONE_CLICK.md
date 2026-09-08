@@ -65,3 +65,21 @@ The default readiness fixture contains one lever door. Generate the complete cat
 Use your configured work directory instead of `/workspace` on another cluster. Existing G1 instructions and benchmark commands are in [the Isaac policy guide](ISAAC_G1_DEMO.md). The [initialized H1/Shadow opening demo](ISAAC_HANDLE_DEMO.md) runs with `python scripts/isaac/run_handle_demo.py` after activation. It remains a privileged one-door experiment, not a vision/tactile policy.
 
 RunPod allocations have a six-hour default deadline (configurable up to eight hours). Copy results off the pod before that deadline: termination deletes its ephemeral volume. To terminate this launcher's owned pod early, use `python3 scripts/dexterous/pod.py terminate`. A failed preparation does not immediately delete debugging evidence; its deadline remains armed.
+
+For explicitly continued research, the owned-allocation renewal helper can set
+a larger finite total ceiling while retaining independent local/remote teardown
+and at most three hours per renewal. The default total ceiling remains eight
+hours. For example, prepare a two-hour extension within a twelve-hour ceiling:
+
+```bash
+python3 scripts/dexterous/renew_owned_guard.py --pod-id YOUR_OWNED_POD \
+  --hours 2 --max-total-hours 12 --output out/isaac-launch/renewal-plan.json
+python3 scripts/dexterous/renew_owned_guard.py \
+  --apply-plan out/isaac-launch/renewal-plan.json \
+  --output out/isaac-launch/renewal-applied.json
+```
+
+The helper verifies the journal, API identity, exact old guard processes and both
+new acknowledgements before replacing guards. It never signals GPU jobs or
+selects another allocation. The total ceiling is explicitly recorded in the
+plan and receipt, capped at24hours; it is not an automatic recurring renewal.

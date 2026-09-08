@@ -57,3 +57,12 @@ def test_deadline_guard_deletes_only_captured_id_and_preserves_new_journal(tmp_p
     updated=json.loads(journal.read_text())
     assert updated['id']==journal_id and updated['costPerHr']==1.25
     assert updated['active']==(journal_id!='owned')
+
+
+def test_extended_work_requires_explicit_total_ceiling_and_keeps_window_bound():
+    value=state();value.update(created=0.,deadline=30000.)
+    with pytest.raises(ValueError):renew.validate_owned(value,'owned',28000.,2.)
+    assert renew.validate_owned(value,'owned',28000.,2.,max_total_hours=12.)==35200.
+    for ceiling in (7.,25.,float('nan'),float('inf')):
+        with pytest.raises(ValueError):renew.validate_owned(value,'owned',28000.,2.,max_total_hours=ceiling)
+    with pytest.raises(ValueError):renew.validate_owned(value,'owned',28000.,4.,max_total_hours=12.)

@@ -115,12 +115,13 @@ else:raise ValueError('Unknown remote operation')
 
 def sha(value):return hashlib.sha256(value).hexdigest()
 
-def validate_owned(state,pod_id,now,hours):
+def validate_owned(state,pod_id,now,hours,*,max_total_hours=8.):
     if not all(math.isfinite(float(value)) for value in (now,hours,state.get('created',float('nan')),state.get('deadline',float('nan')))):raise ValueError('Finite allocation times required')
     if state.get('id')!=pod_id or state.get('active') is not True:raise ValueError('Only the active journaled allocation can be renewed')
     if not 0<hours<=3:raise ValueError('A renewal is bounded to at most three hours')
+    if not math.isfinite(max_total_hours) or not 8<=max_total_hours<=24:raise ValueError('Explicit total allocation ceiling must be 8..24 hours')
     deadline=now+hours*3600
-    if deadline>state['created']+8*3600:raise ValueError('Total allocation must remain within eight hours of creation')
+    if deadline>state['created']+max_total_hours*3600:raise ValueError('Total allocation exceeds the declared ceiling')
     if state['deadline']-now<120:raise ValueError('Too close to the existing teardown to renew safely')
     if deadline<=state['deadline']:raise ValueError('Renewal must extend the existing deadline')
     return deadline
@@ -167,15 +168,15 @@ def save(path,value,mode=0o600):
     with tmp.open('w') as stream:os.chmod(tmp,mode);json.dump(value,stream,indent=2);stream.write('\n');stream.flush();os.fsync(stream.fileno())
     os.replace(tmp,path)
 
-def dry_run(pod_id,hours,output):
-    state=json.loads(STATE.read_text());now=time.time();deadline=validate_owned(state,pod_id,now,hours);api=pod.api();record=api._req('GET','/pods/'+pod_id)
+def dry_run(pod_id,hours,output,*,max_total_hours=8.):
+    state=json.loads(STATE.read_text());now=time.time();deadline=validate_owned(state,pod_id,now,hours,max_total_hours=max_total_hours);api=pod.api();record=api._req('GET','/pods/'+pod_id)
     if record.get('id')!=pod_id or record.get('name')!='doorbench-dexterous-humanoid':raise ValueError('API allocation identity differs')
     host='root@'+record['publicIp'];port=int(record['portMappings']['22']);key=str(api.KEY_FILE)
     ssh=['ssh','-o','BatchMode=yes','-o','ConnectTimeout=20','-i',key,'-p',str(port),host]
     old_local=local_inventory(state)
     old_remote=remote(ssh,dict(action='inventory',id=pod_id,old_deadline=state['deadline'],legacy_hash=sha(LEGACY_REMOTE.encode()),guard_hash=sha(GUARD.encode())))
     if not old_remote:raise ValueError('No existing remote guard was verified')
-    plan=dict(schema='doorbench.guard-renewal.v1',dry_run=True,pod_id=pod_id,planned_at_unix=now,old_deadline=state['deadline'],new_deadline=deadline,hours=hours,state_sha256=sha(STATE.read_bytes()),ssh=ssh,old_local=old_local,old_remote=old_remote,generation=time.strftime('%Y%m%dT%H%M%SZ',time.gmtime(now))+'-'+uuid.uuid4().hex[:8],guard_source_sha256=sha(GUARD.encode()),steps=['Arm fresh local guard','Arm fresh remote guard','Verify both live acknowledgements','Atomically update only owned journal','Verify and signal only inventoried old guard PIDs','Verify both replacements remain alive'])
+    plan=dict(schema='doorbench.guard-renewal.v1',dry_run=True,pod_id=pod_id,planned_at_unix=now,old_deadline=state['deadline'],new_deadline=deadline,hours=hours,max_total_hours=max_total_hours,state_sha256=sha(STATE.read_bytes()),ssh=ssh,old_local=old_local,old_remote=old_remote,generation=time.strftime('%Y%m%dT%H%M%SZ',time.gmtime(now))+'-'+uuid.uuid4().hex[:8],guard_source_sha256=sha(GUARD.encode()),steps=['Arm fresh local guard','Arm fresh remote guard','Verify both live acknowledgements','Atomically update only owned journal','Verify and signal only inventoried old guard PIDs','Verify both replacements remain alive'])
     save(output,plan);return plan
 
 def check_new_local(record,pod_id,deadline):
@@ -186,8 +187,8 @@ def apply(plan_path,output):
     plan=json.loads(Path(plan_path).read_text());state=json.loads(STATE.read_text())
     if plan.get('schema')!='doorbench.guard-renewal.v1' or not plan.get('dry_run'):raise ValueError('A dry-run plan is required')
     if sha(STATE.read_bytes())!=plan['state_sha256'] or time.time()-plan['planned_at_unix']>300:raise ValueError('Plan is stale; run a new dry run')
-    validate_owned(state,plan['pod_id'],plan['planned_at_unix'],plan['hours'])
-    expected_deadline=validate_owned(state,plan['pod_id'],plan['planned_at_unix'],plan['hours'])
+    validate_owned(state,plan['pod_id'],plan['planned_at_unix'],plan['hours'],max_total_hours=plan.get('max_total_hours',8.))
+    expected_deadline=validate_owned(state,plan['pod_id'],plan['planned_at_unix'],plan['hours'],max_total_hours=plan.get('max_total_hours',8.))
     if plan['new_deadline']!=expected_deadline or state['deadline']-time.time()<120:raise ValueError('Planned deadline changed or old guard is too close')
     record=pod.api()._req('GET','/pods/'+state['id'])
     expected_ssh=['ssh','-o','BatchMode=yes','-o','ConnectTimeout=20','-i',str(pod.api().KEY_FILE),'-p',str(int(record['portMappings']['22'])),'root@'+record['publicIp']]
@@ -210,7 +211,7 @@ def apply(plan_path,output):
     remote(plan['ssh'],dict(action='verify',id=state['id'],deadline=plan['new_deadline'],expected=new_remote))
     if sha(STATE.read_bytes())!=plan['state_sha256']:raise ValueError('Owned journal changed during renewal; old guards retained')
     updated=dict(state,deadline=plan['new_deadline'],guard_pid=new_local['pid'],remote_guard_pid=new_remote['pid'],guard_generation=plan['generation'],last_guard_renewal_unix=time.time())
-    updated['guard_renewals']=state.get('guard_renewals',[])+[dict(previous_deadline=state['deadline'],deadline=plan['new_deadline'],local_pid=new_local['pid'],remote_pid=new_remote['pid'])]
+    updated['guard_renewals']=state.get('guard_renewals',[])+[dict(previous_deadline=state['deadline'],deadline=plan['new_deadline'],max_total_hours=plan.get('max_total_hours',8.),local_pid=new_local['pid'],remote_pid=new_remote['pid'])]
     save(STATE,updated)
     for expected in plan['old_local']:
         if not same_process(local_snapshot(expected['pid']),expected):raise ValueError('Old local guard identity changed; no signal sent')
@@ -223,18 +224,18 @@ def apply(plan_path,output):
     if any(local_snapshot(x['pid']) for x in plan['old_local']):raise ValueError('An old local guard did not stop')
     check_new_local(new_local,state['id'],plan['new_deadline'])
     remote(plan['ssh'],dict(action='verify',id=state['id'],deadline=plan['new_deadline'],expected=new_remote))
-    result=dict(renewed=True,pod_id=state['id'],previous_deadline=state['deadline'],deadline=plan['new_deadline'],verified_at_unix=time.time(),local_guard=new_local,remote_guard=new_remote,stopped_local=[r['pid'] for r in plan['old_local']],stopped_remote=stopped_remote['stopped'],scope='Only journaled allocation deadline and exact verified guard processes changed; no GPU process signals')
+    result=dict(renewed=True,pod_id=state['id'],previous_deadline=state['deadline'],deadline=plan['new_deadline'],max_total_hours=plan.get('max_total_hours',8.),verified_at_unix=time.time(),local_guard=new_local,remote_guard=new_remote,stopped_local=[r['pid'] for r in plan['old_local']],stopped_remote=stopped_remote['stopped'],scope='Only journaled allocation deadline and exact verified guard processes changed; no GPU process signals')
     save(output,result);return result
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--pod-id');p.add_argument('--hours',type=float,default=3.);p.add_argument('--output',type=Path,required=True);p.add_argument('--apply-plan',type=Path);a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--pod-id');p.add_argument('--hours',type=float,default=3.);p.add_argument('--max-total-hours',type=float,default=8.,help='Explicit finite total allocation ceiling for sustained work; default8, maximum24. Each renewal remains at most3hours.');p.add_argument('--output',type=Path,required=True);p.add_argument('--apply-plan',type=Path);a=p.parse_args()
     with STATE.with_suffix('.renewal.lock').open('w') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         if a.apply_plan:result=apply(a.apply_plan,a.output)
         else:
             if not a.pod_id:p.error('--pod-id is required for dry run')
-            result=dry_run(a.pod_id,a.hours,a.output)
+            result=dry_run(a.pod_id,a.hours,a.output,max_total_hours=a.max_total_hours)
     print(json.dumps(result,indent=2))
 
 if __name__=='__main__':main()
