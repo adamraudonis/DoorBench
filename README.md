@@ -17,6 +17,8 @@ The robotics collection contains **985 doors**. The **15 [pet doors](https://ada
 
 ## Isaac Sim · Unitree G1
 
+**Start Isaac easily:** double-click [Start Isaac Sim.command](Start%20Isaac%20Sim.command), or run `python3 scripts/isaac/launch.py`. It opens a live Run Center and checks the GPU environment before marking it ready. [Setup and cluster instructions](docs/ISAAC_ONE_CLICK.md).
+
 [![Sixteen Unitree G1 robots traversing sixteen doors simultaneously in native Isaac Sim](docs/media/isaac-g1-4x4.gif)](https://github.com/adamraudonis/DoorBench/releases/download/g1-isaac-2026-09-06/isaac-g1-4x4.mp4)
 
 Actual L40S recording on September 6, 2026: **16 / 16 selected demonstration cases crossed their openings**. These are selected successes, not a random sample or the catalogue score. [Full-resolution still](docs/media/isaac-g1-4x4.png) · [Recording and evaluation details](docs/ISAAC_G1_CATALOGUE.md).

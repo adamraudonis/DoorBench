@@ -4,6 +4,7 @@ import csv
 import hashlib
 import json
 import math
+import os
 import subprocess
 import sys
 import time
@@ -40,6 +41,31 @@ def collect(directory, telemetry=False):
     root = Path(directory)
     if not root.is_dir():
         raise FileNotFoundError("Results directory does not exist yet")
+    if (root / 'pipeline.json').exists():
+        config = read(root / 'pipeline.json', {})
+        lines = tail(root / 'run.log')
+        running = False
+        try:
+            pid=int((root / 'run.pid').read_text())
+            os.kill(pid, 0)
+            running = True
+            proc_state=Path(f'/proc/{pid}/stat')
+            if proc_state.exists() and proc_state.read_text().rsplit(')',1)[-1].split()[0]=='Z':running=False
+        except (OSError, ValueError):
+            pass
+        complete = bool(config.get('completion_marker')) and any(config['completion_marker'] in line for line in lines)
+        failed=any('READINESS_FAILED' in line or 'PREPARATION_FAILED:' in line for line in lines)
+        if failed:complete=False
+        gpu = []
+        if telemetry:
+            proc = subprocess.run(['nvidia-smi','--query-gpu=name,utilization.gpu,memory.used,memory.total','--format=csv,noheader,nounits'], capture_output=True,text=True,timeout=5)
+            if proc.returncode == 0:
+                gpu = [dict(zip(('name','utilization','memory_used','memory_total'),[v.strip() for v in row])) for row in csv.reader(proc.stdout.splitlines())]
+        return dict(pipeline=True, config=config, complete=complete,
+            status='failed' if failed else 'completed' if complete else 'running' if running else 'stopped',
+            stage=next((line for line in reversed(lines) if line.startswith('== [')),config.get('stage')),
+            heartbeat=time.time(), gpu=gpu, log=lines,
+            log_updated=(root/'run.log').stat().st_mtime if (root/'run.log').exists() else None)
     if (root / 'config.json').exists() and (root / 'progress.json').exists():
         progress = read(root / 'progress.json', {})
         if progress.get('stage') in ('privileged body reach training','initialized tactile grasp training'):

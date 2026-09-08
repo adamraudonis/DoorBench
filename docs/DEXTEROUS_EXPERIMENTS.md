@@ -55,3 +55,16 @@ These tests clip initialized joint positions to native joint limits. They are se
 A separate three-second continuous-hold test within a five-second horizon, at the original ±0.002-radian perturbation, passed 30/30 with no falls. [Trials](../results/dexterous/2026-09-07/grasp-001-hold-3s.json). Reproduce using `evaluate_grasp.py --hold-steps 150 --horizon 250` with the same checkpoint and input files. This longer initialized hold still does not establish opening or traversal.
 
 `scripts/dexterous/fit_grasp_seed.py`, `optimize_grasp_contact.py` and `probe_grasp_seed.py` save inputs and source manifests for subsequent experiments. Their output directories contain the exact initialized pose, preload, contact traces and native trajectories. Rendered close-ups are diagnostic views; the gold operator color changes visualization only.
+
+## Isaac import and controller development, September 7–8
+
+These are development attempts, not benchmark results. Each attempt uses one initialized H1/Shadow grasp on Door55. The final sensor-only policy and traversal task remain unsolved.
+
+- The pinned Isaac 5.1 / Lab 2.3.2 environment starts successfully on L40S. A full automated readiness invocation passed on September 8 at 01:00:21 UTC; see [one-click setup](ISAAC_ONE_CLICK.md).
+- Import attempts exposed nested joint-default errors, an incorrectly converted free joint, and concurrent mesh-conversion races. The corrected native/imported link comparison has micrometre-scale position error. Automated tests cover free-root and nested-axis preservation.
+- Opening attempts 006–008 showed door movement, but their recording path inserted extra physics steps. They are retained as invalid timing diagnostics, excluded from any controller score. Later attempts enforce the 2 ms clock explicitly.
+- The initial open-loop motor reference did not transfer reliably. Closed-loop task-space control is being tested with actual Isaac body/door state. This is a privileged teacher; MuJoCo is used for analytic FK/IK only, while PhysX alone advances the plant.
+- Actuator transmission bounds are authored explicitly after import. Actual torque commands sent to PhysX are recorded alongside the native motor calculation. Hand forces come from the solved rigid-contact tensor view.
+- The first correct-clock teacher could depress the handle and retract the latch but reached its arm limit before opening sufficiently. A lower reset and gravity-feedforward stance are being investigated; they are not yet validated successful policies.
+
+The native opening probes and stance-controller prototypes in this development branch include unsuccessful experiments. They are opt-in diagnostic scripts, not default benchmark policies. Retain their source and failed trajectories when reproducing development decisions.

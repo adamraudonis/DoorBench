@@ -135,3 +135,10 @@ def test_training_heartbeat_failure_and_completion(tmp_path):
     (tmp_path/'progress.json').write_text(json.dumps(progress))
     (tmp_path/'completed.json').write_text(json.dumps({'timesteps':930000}))
     assert module.collect(tmp_path)['progress']['timesteps']==500000
+
+
+def test_pipeline_failure_overrides_stale_completion(tmp_path):
+    (tmp_path/'pipeline.json').write_text(json.dumps(dict(completion_marker='ISAAC_ENVIRONMENT_READY')))
+    (tmp_path/'run.log').write_text('ISAAC_ENVIRONMENT_READY\nREADINESS_FAILED exit=1\n')
+    d=module.collect(tmp_path)
+    assert d['status']=='failed' and not d['complete']

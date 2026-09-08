@@ -24,6 +24,7 @@ class DexterousDoorEnv:
         self.image_size = image_size
         self.frame_skip = frame_skip
         self.renderer = None
+        self.motor_control_filter = None
         self.actuators = np.array([i for i in range(self.m.nu)
                                  if self.m.actuator(i).name.startswith("robot/")])
         if len(self.actuators) != 61:
@@ -113,7 +114,12 @@ class DexterousDoorEnv:
         control = self.denormalize(action)
         self.previous_action = np.clip(action, -1, 1).astype(np.float32)
         for _ in range(self.frame_skip):
-            self.d.ctrl[self.actuators] = control
+            applied = control
+            if self.motor_control_filter is not None:
+                applied = np.asarray(self.motor_control_filter(control.copy()),dtype=float)
+                if applied.shape != control.shape or not np.all(np.isfinite(applied)):
+                    raise ValueError('Motor controller must return finite robot motor targets')
+            self.d.ctrl[self.actuators] = np.clip(applied,self.low,self.high)
             self.plant.step()
         return self.observe(images=images)
 
