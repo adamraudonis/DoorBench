@@ -137,6 +137,18 @@ This establishes the portable native implementation, not an Isaac result.
 
 Add `--portable-wrapper --min-acquisition-seconds 10.6` to the command above to
 reproduce its fixed-time native comparison. Use zero for event-triggered engine
-integration. The seven-argument constructor defaults do not change acquisition
-forces. Unit tests cover qualification interruptions, measured release gates,
+integration. The wrapper defaults do not change acquisition forces. Unit tests cover qualification interruptions, measured release gates,
 continuous leaf goals, coordinate-frame invariance and invalid measurements.
+
+The default event trigger was subsequently executed in a separate native run:
+actual qualified acquisition started lever operation at **7.780 s**, followed by
+opening at **12.780 s**. All sixteen gates pass over 22 s; final leaf travel is
+**0.087022 rad**, maximum lever travel 0.841613 rad and maximum latch travel
+12.200 mm. There are eight isolated digit-unload samples during operation and
+zero invalid contact patches. Maximum joint excursion is 8.399 mrad and maximum
+loopback excursion 0.948 mrad. The [event-trigger receipt](evidence/door55-event-operation-2026-09-08.json)
+retains the exact timings and source hashes. Close hand views at three phases
+and final body views were inspected: thumb and fingers oppose the handle and
+the torso remains upright. The artifact directory is
+`/tmp/doorbench-shadow-loopback/continuous-operation-portable-002/`, also copied
+to the durable run archive above.
