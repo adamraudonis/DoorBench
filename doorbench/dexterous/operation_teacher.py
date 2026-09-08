@@ -1,0 +1,118 @@
+"""Engine-independent privileged acquisition, lever and partial-opening wrapper.
+
+All poses are measured world [x,y,z,qw,qx,qy,qz]. Joint anchors/axes are expressed
+in their measured child-body frames. Only the wrapped acquisition teacher emits
+motor forces; this module changes reference goals, never a physical pose.
+"""
+import numpy as np
+from scipy.spatial.transform import Rotation
+
+
+def smooth_phase(value):
+    u = np.clip(value, 0., 1.)
+    return u**3*(10+u*(-15+6*u))
+
+
+def pose_components(pose):
+    pose = np.asarray(pose, dtype=float)
+    if pose.shape != (7,) or not np.isfinite(pose).all() or np.linalg.norm(pose[3:]) < 1e-8:
+        raise ValueError('Expected finite measured world position and wxyz quaternion')
+    return pose[:3], Rotation.from_quat([*pose[4:7], pose[3]]).as_matrix()
+
+
+def reproject_grasp(handle_pose, leaf_pose, angles, goals, relative_position, relative_rotation, geometry):
+    """Apply desired hinge-angle differences about measured world joint frames."""
+    hp, hr = pose_components(handle_pose)
+    lp, lr = pose_components(leaf_pose)
+    ha = hp+hr@geometry['operator_origin']
+    la = lp+lr@geometry['leaf_origin']
+    dh = Rotation.from_rotvec(hr@geometry['operator_axis']*(goals['operator']-angles['operator'])).as_matrix()
+    dl = Rotation.from_rotvec(lr@geometry['leaf_axis']*(goals['leaf']-angles['leaf'])).as_matrix()
+    hp = ha+dh@(hp-ha)
+    hr = dh@hr
+    hp = la+dl@(hp-la)
+    hr = dl@hr
+    return hp+hr@relative_position, hr@relative_rotation
+
+
+class DoorOperationTeacher:
+    def __init__(self, acquisition_teacher, joint_geometry, *, qualified_hold_seconds=.5,
+                 min_acquisition_seconds=0., press_seconds=5., opening_seconds=3.,
+                 operator_target=.87, release_operator_threshold=.80,
+                 release_bolt_threshold=.011, leaf_target=.08):
+        self.acquisition = acquisition_teacher
+        self.geometry = {k:np.asarray(joint_geometry[k], float) for k in
+                         ('operator_origin','operator_axis','leaf_origin','leaf_axis')}
+        for key, value in self.geometry.items():
+            if value.shape != (3,) or not np.isfinite(value).all():
+                raise ValueError('Joint geometry must contain finite 3D vectors')
+            if key.endswith('axis') and not np.isclose(np.linalg.norm(value),1.,atol=1e-6):
+                raise ValueError('Joint axes must be normalized')
+        values = [qualified_hold_seconds,min_acquisition_seconds,press_seconds,opening_seconds,
+                  operator_target,release_operator_threshold,release_bolt_threshold,leaf_target]
+        if not np.isfinite(values).all() or min(values) < 0 or min(qualified_hold_seconds,press_seconds,opening_seconds) <= 0:
+            raise ValueError('Invalid operation timing or travel')
+        self.qualified_hold_seconds = qualified_hold_seconds
+        self.min_acquisition_seconds = min_acquisition_seconds
+        self.press_seconds, self.opening_seconds = press_seconds, opening_seconds
+        self.operator_target, self.leaf_target = operator_target, leaf_target
+        self.release_operator_threshold = release_operator_threshold
+        self.release_bolt_threshold = release_bolt_threshold
+        self.qualified_since = self.last_time = self.started = self.open_started = None
+        self.info = dict(phase='acquisition')
+
+    def _bind(self, t, handle_pose, angles):
+        hp, hr = pose_components(handle_pose)
+        teacher = self.acquisition
+        # FK is from the current measured robot state just consumed by force().
+        self.p_relative = hr.T@(teacher.d.site_xpos[teacher.palm]-hp)
+        self.r_relative = hr.T@teacher.d.site_xmat[teacher.palm].reshape(3,3)
+        self.initial_handle = angles['operator']
+        self.started = t
+        teacher.position_integral[:] = 0.
+        teacher.rotation_integral[:] = 0.
+        self.info = dict(phase='lever_operation',operation_start_s=t,goal_leaf_rad=0.)
+
+    def force(self, t, root, joints, velocities, handle_pose, leaf_pose, angles, hand_loads, *, grasp_qualified):
+        """Return native-capped motors; qualify transitions using actual contact data.
+
+        ``angles`` contains operator/leaf angles in radians and latch retraction
+        in metres. ``grasp_qualified`` is supplied by the active plant's pad audit;
+        no contact is inferred from the reference path. A >50 ms observation gap
+        breaks the qualification hold. The physical per-step audit is separate.
+        """
+        angles = {key:float(angles[key]) for key in ('operator','leaf','latch')}
+        if not np.isfinite([t,*angles.values()]).all():
+            raise ValueError('Nonfinite operation measurements')
+        if not isinstance(grasp_qualified,(bool,np.bool_)):
+            raise ValueError('Explicit actual grasp qualification is required')
+        if self.last_time is not None and t < self.last_time-1e-9:
+            raise ValueError('Operation clock went backwards')
+        stale = self.last_time is not None and t-self.last_time > .05+1e-9
+        self.last_time = t
+        teacher = self.acquisition
+        if self.started is None:
+            force, info = teacher.force(t,root,joints,velocities,handle_pose,hand_loads)
+            if stale or not grasp_qualified or info.get('path_fraction',0) < .999:
+                self.qualified_since = None
+            elif self.qualified_since is None:
+                self.qualified_since = t
+            if self.qualified_since is not None and t-self.qualified_since >= self.qualified_hold_seconds-1e-9 and t >= self.min_acquisition_seconds-1e-9:
+                self._bind(t,handle_pose,angles)
+            return force, {**info,**self.info}
+        goal_h = self.initial_handle+(self.operator_target-self.initial_handle)*smooth_phase((t-self.started)/self.press_seconds)
+        if self.open_started is None and t >= self.started+self.press_seconds and angles['operator'] >= self.release_operator_threshold and angles['latch'] >= self.release_bolt_threshold:
+            self.open_started = t
+            self.initial_leaf_goal = self.info.get('goal_leaf_rad',0.)
+        goal_l = 0. if self.open_started is None else self.initial_leaf_goal+(self.leaf_target-self.initial_leaf_goal)*smooth_phase((t-self.open_started)/self.opening_seconds)
+        pos, rot = reproject_grasp(handle_pose,leaf_pose,angles,dict(operator=goal_h,leaf=goal_l),
+                                  self.p_relative,self.r_relative,self.geometry)
+        teacher.positions[-1] = pos
+        teacher.rotations[-1] = rot
+        force, info = teacher.force(t,root,joints,velocities,handle_pose,hand_loads)
+        self.info = dict(phase='lever_operation' if self.open_started is None else 'partial_opening',
+                         operation_start_s=self.started,opening_start_s=self.open_started,
+                         goal_handle_rad=float(goal_h),goal_leaf_rad=float(goal_l),
+                         actual_handle_rad=angles['operator'],actual_leaf_rad=angles['leaf'],
+                         actual_bolt_m=angles['latch'])
+        return force, {**info,**self.info}

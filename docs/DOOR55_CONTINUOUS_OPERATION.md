@@ -91,3 +91,52 @@ includes both runs. Original recordings contain 50 Hz physical states and full
 driver additionally saves an exact terminal state and the measured handle-frame
 binding on future runs; these fields are not retroactively claimed for the old
 artifacts.
+
+## Portable operation controller
+
+[`DoorOperationTeacher`](../doorbench/dexterous/operation_teacher.py) wraps the
+same acquisition motor law using measured poses and mechanism travel. It has no
+simulator dependency and returns only the wrapped teacher's native-capped motor
+forces. The wrapped teacher's analytic robot FK supplies the measured palm at
+the handoff; the physical robot or door is never reset.
+
+```python
+operation = DoorOperationTeacher(
+    acquisition, joint_geometry,
+    qualified_hold_seconds=0.5, min_acquisition_seconds=0.0,
+)
+force, info = operation.force(
+    time_s, root_state, joint_positions, joint_velocities,
+    measured_handle_pose, measured_leaf_pose,
+    {"operator": lever_rad, "leaf": leaf_rad, "latch": bolt_m},
+    measured_hand_body_forces, grasp_qualified=actual_pad_audit_passed,
+)
+```
+
+Poses contain world `[x, y, z, qw, qx, qy, qz]`. `joint_geometry` supplies
+`operator_origin`, `operator_axis`, `leaf_origin`, and `leaf_axis`, all in their
+respective measured child-body frames; the axes must be unit vectors. Use the
+unchanged asset's joint frames. Door55's operator and leaf targets are 0.87 and
+0.08 rad, with a five-second lever press and three-second partial opening.
+
+The event trigger requires a completed acquisition route and 0.5 s of actual
+qualified contact. An unload or more than 50 ms without observations resets
+that qualification interval. `min_acquisition_seconds` is an optional additional
+delay, default zero, so a valid earlier grasp need not wait for a particular
+recording boundary. Opening still waits for actual lever and bolt travel.
+The caller must continue the full physical audit every simulation step and
+report transient digit unloads during operation.
+
+The portable controller passed a separate 22 s native test with all sixteen
+declared gates clean: final leaf **0.086459 rad**, maximum lever **0.840455 rad**,
+and maximum bolt travel **12.183 mm**. Seven isolated 2 ms samples during
+operation briefly unload a digit; no pad patch is invalid, and the final 0.5 s
+is fully qualified. Its exact terminal state and handle-frame binding are saved.
+See the [portable measurement receipt](evidence/door55-portable-operation-2026-09-08.json).
+This establishes the portable native implementation, not an Isaac result.
+
+Add `--portable-wrapper --min-acquisition-seconds 10.6` to the command above to
+reproduce its fixed-time native comparison. Use zero for event-triggered engine
+integration. The seven-argument constructor defaults do not change acquisition
+forces. Unit tests cover qualification interruptions, measured release gates,
+continuous leaf goals, coordinate-frame invariance and invalid measurements.

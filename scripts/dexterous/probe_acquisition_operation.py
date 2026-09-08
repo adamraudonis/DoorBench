@@ -91,8 +91,11 @@ def main():
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--seconds', type=float, default=22.)
     parser.add_argument('--press-seconds', type=float, default=5.)
+    parser.add_argument('--portable-wrapper', action='store_true')
+    parser.add_argument('--min-acquisition-seconds', type=float, default=10.6,
+                        help='Earliest event-triggered portable transition; 10.6 retains the native comparison protocol')
     args = parser.parse_args()
-    if not np.isfinite([args.seconds,args.press_seconds]).all() or min(args.seconds,args.press_seconds) <= 0:
+    if not np.isfinite([args.seconds,args.press_seconds,args.min_acquisition_seconds]).all() or min(args.seconds,args.press_seconds) <= 0 or args.min_acquisition_seconds < 0:
         parser.error('Use finite positive operation durations')
     if args.output.exists():
         raise SystemExit('Use a new output directory')
@@ -122,8 +125,18 @@ def main():
     m.actuator_biasprm[aids, :3] = 0.
     m.actuator_ctrlrange[aids] = teacher.caps
     d.ctrl[aids] = 0.
-    operation = OperationGoals(teacher, m, d, press_seconds=args.press_seconds)
-    hb, palm = operation.hb, operation.palm
+    hj, lj, bj = [m.joint(n).id for n in ('leaf_handle_hinge','leaf_hinge','leaf_latch_bolt_slide')]
+    hb, lb, palm = m.body('leaf_handle').id, m.body('leaf').id, m.site('robot/rh_palm_touch').id
+    if args.portable_wrapper:
+        from doorbench.dexterous.operation_teacher import DoorOperationTeacher
+        operation = DoorOperationTeacher(teacher,dict(operator_origin=m.jnt_pos[hj],operator_axis=m.jnt_axis[hj],
+            leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),min_acquisition_seconds=args.min_acquisition_seconds,press_seconds=args.press_seconds)
+        wrapper_source = Path(inspect.getfile(DoorOperationTeacher))
+        shutil.copy2(wrapper_source,args.output/'operation-teacher-source.py')
+        (args.output/'operation-teacher-source.json').write_text(json.dumps(dict(
+            source_path=str(wrapper_source),sha256=hashlib.sha256(wrapper_source.read_bytes()).hexdigest()),indent=2)+'\n')
+    else:
+        operation = OperationGoals(teacher, m, d, press_seconds=args.press_seconds)
     hand_names = {b:m.body(b).name.removeprefix('robot/') for b in range(m.nbody)
                   if m.body(b).name.startswith(('robot/rh_', 'robot/lh_'))}
     physics = [native_grasp_sample(sim, 'leaf_handle_lever_col_n', handle_joint='leaf_handle_hinge')]
@@ -131,11 +144,11 @@ def main():
     traces = []
     try:
         for step in range(round(args.seconds/m.opt.timestep)):
-            if operation.started is None and d.time >= 10.6-1e-8:
+            if not args.portable_wrapper and operation.started is None and d.time >= 10.6-1e-8:
                 tail = [r for r in physics if r['sim_time_s'] >= d.time-.5-1e-8]
                 if len(tail) >= 250 and all(r['pad_grasp']['valid_pad_grasp'] for r in tail) and teacher.info.get('path_fraction',0) >= .999:
                     operation.begin()
-            goal_info = operation.update()
+            goal_info = operation.info if args.portable_wrapper else operation.update()
             loads = {name:np.zeros(3) for name in hand_names.values()}
             for index, contact in enumerate(d.contact[:d.ncon]):
                 wrench = np.zeros(6)
@@ -148,11 +161,18 @@ def main():
             rot = d.xmat[sim.pelvis].reshape(3, 3)
             root = np.r_[d.qpos[sim.root_qadr:sim.root_qadr+7],d.qvel[sim.root_vadr:sim.root_vadr+3],
                          rot@d.qvel[sim.root_vadr+3:sim.root_vadr+6]]
-            force, info = teacher.force(float(d.time),root,dict(zip(teacher.names,d.qpos[qa])),
-                dict(zip(teacher.names,d.qvel[va])),np.r_[d.xpos[hb],d.xquat[hb]],loads)
+            measured_joints, measured_velocities = dict(zip(teacher.names,d.qpos[qa])),dict(zip(teacher.names,d.qvel[va]))
+            if args.portable_wrapper:
+                force,info = operation.force(float(d.time),root,measured_joints,measured_velocities,
+                    np.r_[d.xpos[hb],d.xquat[hb]],np.r_[d.xpos[lb],d.xquat[lb]],
+                    dict(operator=d.qpos[m.jnt_qposadr[hj]],leaf=d.qpos[m.jnt_qposadr[lj]],latch=d.qpos[m.jnt_qposadr[bj]]),
+                    loads,grasp_qualified=physics[-1]['pad_grasp']['valid_pad_grasp'])
+                goal_info = operation.info
+            else:
+                force, info = teacher.force(float(d.time),root,measured_joints,measured_velocities,np.r_[d.xpos[hb],d.xquat[hb]],loads)
             d.ctrl[aids] = force
             row = audited_native_step(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')
-            row['bolt_slide_m'] = float(d.qpos[m.jnt_qposadr[operation.bj]])
+            row['bolt_slide_m'] = float(d.qpos[m.jnt_qposadr[bj]])
             row['operation'] = goal_info
             physics.append(row)
             if step % 10 == 0:
