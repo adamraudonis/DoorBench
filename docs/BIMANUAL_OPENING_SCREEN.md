@@ -119,3 +119,62 @@ Assets and rendered frames remain outside Git.
    upright and fingertip-pad checks. Measure actual final aperture.
 4. Repeat in Isaac only after native execution passes. Static FK, a solvable
    stance problem and a plausible rendered pose are insufficient evidence.
+
+## Continuous native left contact: 2026-09-08
+
+`contact-006` passed all 18 gates over **34 uninterrupted seconds** with the
+corrected Shadow v2 mechanics. Starting with the existing contact-free deep
+acquisition, it physically pressed the lever, opened the leaf to 0.08953 rad,
+and maintained approximately 4 N of left-palm panel load while the right-hand
+five-distal-pad grasp remained valid. The every-2-ms audit checks all original
+motor caps, individual joint and unilateral loopback limits, upright stance,
+non-foot penetration and absence of external assistance. No invalid right pad
+patch occurred during operation or contact transfer (five brief digit-unload
+samples occurred earlier during lever operation). This is a contact stage,
+not a usable-aperture opening or traversal result.
+
+The original perpendicular palm near the hinge required a waist turn. Physical
+trial 004 reached the left contact but lost right distal pads during that turn.
+Trial 005 added fixed-pad force feedback and also failed an individual joint
+limit. Both failures are archived. The successful hypothesis keeps the waist
+under the unchanged right-hand controller, reaches 0.22 m from the hinge at
+1.0 m height, and permits a roughly 24-degree left-palm tilt. I inspected close
+views of both actual simulated hands and the complete body pose.
+
+The portable target configuration is
+[`bimanual-left-contact-v2.json`](../configs/dexterous/bimanual-left-contact-v2.json).
+The measured-state interface is in
+[`bimanual_transfer.py`](../doorbench/dexterous/bimanual_transfer.py):
+
+```python
+names, targets = load_screen_targets(config, robot_xml, door_dir)
+left = LeftPalmContact(acquisition_teacher, motors, (names, targets), fixed_waist=True)
+# Begin only after actual strict RH pad hold and partial opening are qualified.
+left.begin(t, root_state, joint_positions, leaf_pose, handle_pose)
+# At every 2 ms tick, before the acquisition/operation teacher motor call:
+left.update_targets(t, root_state, joint_positions, leaf_pose,
+                    measured_left_panel_load_N, handle_pose)
+forces, info = operation_teacher.force(...)  # consumes current measured state
+forces = left.apply_forces(forces, joint_positions, joint_velocities)
+```
+
+`root_state` has 13 entries: world position, **wxyz** orientation, world linear
+velocity, world angular velocity. Body poses have seven entries in the same
+position/wxyz convention. Named joint dictionaries use the imported motor
+contract's complete joint names, radians and rad/s. Left normal load is the
+actual force of hand-to-panel contact projected onto the panel normal. The
+reported loaded duration requires at least 2 N; the target tracks about 4 N.
+Only original left-arm/wrist motor forces are overridden; the analytic FK
+model is never stepped. The adapter is privileged teacher control, not actor
+observations. Isaac transfer, right release and loaded substantial opening
+remain unverified.
+
+Reproduce the native stage with `probe_bimanual_contact.py`, supplying the v2
+robot, imported motor JSON, qualified acquisition reference, Door55 directory,
+`--plan configs/dexterous/bimanual-left-contact-v2.json`, and a fresh `--output`.
+The numerical receipt and complete evidence hashes are in
+[`native-bimanual-contact-v2.json`](../results/dexterous/2026-09-08/native-bimanual-contact-v2.json).
+The source archive includes the endpoint scans, failed trials, exact executed
+sources, 50 Hz full-state trajectories, 500 Hz audit rows, and close-view images.
+The third trial's final serialization failed before its full evidence was saved;
+its remaining source and progress logs are preserved without a full-gate claim.
