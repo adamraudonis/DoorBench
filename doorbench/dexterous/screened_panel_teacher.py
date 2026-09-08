@@ -15,6 +15,21 @@ from scipy.spatial.transform import Rotation
 from .screened_panel_path import MeasuredAperturePhase, ScreenedPanelPath
 
 
+def validate_attained_panel_state(plan, initial_root, root, joints, angle):
+    """Reject a plan from another attained body/hand state, including fingers."""
+    root=np.asarray(root,float);expected=plan['initial_robot_joints']
+    if root.shape!=(13,) or set(expected)!=set(joints):
+        raise ValueError('Require complete current root and scalar joint observations')
+    if not np.isfinite(np.r_[root,list(joints.values()),angle]).all():
+        raise ValueError('Require finite current actual panel observations')
+    if not np.allclose(root[:7],initial_root,atol=1e-5,rtol=0):
+        raise ValueError('Require this panel screen’s exact attained root')
+    if not np.allclose([joints[n] for n in expected],list(expected.values()),atol=1e-5,rtol=0):
+        raise ValueError('Require this panel screen’s exact complete attained joint state')
+    if abs(angle-plan['initial_leaf_angle_rad'])>1e-5:
+        raise ValueError('Require this panel screen’s measured starting aperture')
+
+
 class ScreenedWholeBodyPanel:
     def __init__(self,left,path,**legacy_options):
         self.left=left;self.teacher=left.teacher
@@ -38,13 +53,7 @@ class ScreenedWholeBodyPanel:
 
     def begin(self,t,root,joints,leaf_pose,angle):
         if self.started is not None:raise ValueError('Panel already started')
-        if not np.allclose(root[:7],self.initial_root,atol=1e-5,rtol=0):
-            raise ValueError('Require this panel screen’s exact attained root')
-        expected=self.plan['initial_robot_joints']
-        if set(expected)!=set(joints) or not np.allclose([joints[n] for n in expected],list(expected.values()),atol=1e-5,rtol=0):
-            raise ValueError('Require this panel screen’s exact complete attained joint state')
-        if abs(angle-self.plan['initial_leaf_angle_rad'])>1e-5:
-            raise ValueError('Require this panel screen’s measured starting aperture')
+        validate_attained_panel_state(self.plan,self.initial_root,root,joints,angle)
         if self.left.started is None or self.left.progress<.999:
             raise ValueError('Require the completed actual left contact approach')
         self.started=float(t);self.clear=True

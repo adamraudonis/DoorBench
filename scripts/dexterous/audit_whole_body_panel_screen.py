@@ -29,6 +29,7 @@ def main():
     config=json.loads((run/'manifest.json').read_text())['configuration']
     sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
     from doorbench.dexterous.screened_panel_path import ScreenedPanelPath
+    from doorbench.dexterous.palm_panel_geometry import original_palm_vertices,flatten_palm_goal
     from doorbench.dexterous.environment import DexterousDoorEnv
     robot=Path(config['robot'])
     sim=DexterousDoorEnv(config['door'],robot,json.loads(robot.with_suffix('.audit.json').read_text()))
@@ -50,6 +51,7 @@ def main():
     rhp=d.site_xpos[rh].copy();rhr=d.site_xmat[rh].reshape(3,3).copy()
     lr=d.xmat[leafbody].reshape(3,3).copy();lp=d.xpos[leafbody].copy()
     lhp=lr.T@(d.site_xpos[lh]-lp);lhr=lr.T@d.site_xmat[lh].reshape(3,3)
+    palm_vertices=original_palm_vertices(m,d,lh) if report['configuration'].get('flatten_palm') else None
     robot_body=m.jnt_bodyid[m.joint('robot/free_base').id];com=d.subtree_com[robot_body].copy()
     torso=m.body('robot/torso_link').id;floor=m.geom('floor').id
     scalar=np.array([j for j in range(m.njnt) if m.jnt_limited[j] and m.jnt_type[j] in (2,3)])
@@ -82,7 +84,11 @@ def main():
         leafr=d.xmat[leafbody].reshape(3,3);leafp=d.xpos[leafbody]
         u=np.clip((d.qpos[leafq]-angles[0])/.35,0,1);blend=u**3*(10+u*(-15+6*u))
         local=lhp.copy();local[0]-=.04*blend;local[2]-=report['configuration']['height_drop_m']*blend
-        targetp=leafp+leafr@local;targetr=leafr@lhr
+        localr=lhr
+        if palm_vertices is not None:
+            fu=float(np.clip((d.qpos[leafq]-angles[0])/report['configuration'].get('flatten_over_rad',.2),0,1));fb=fu**3*(10+fu*(-15+6*fu))
+            local,localr,_=flatten_palm_goal(local,lhr,palm_vertices,fb)
+        targetp=leafp+leafr@local;targetr=leafr@localr
         rotation_error=lambda target,actual:float(np.linalg.norm(Rotation.from_matrix(target@actual.T).as_rotvec()))
         max_joint_increase=float(np.max(np.maximum(m.jnt_range[scalar,0]-d.qpos[sq],d.qpos[sq]-m.jnt_range[scalar,1])-np.maximum(initial_violation,0)))
         vals=dict(left_position_m=float(np.linalg.norm(d.site_xpos[lh]-targetp)),left_rotation_rad=rotation_error(targetr,d.site_xmat[lh].reshape(3,3)),right_position_m=float(np.linalg.norm(d.site_xpos[rh]-rhp)),right_rotation_rad=rotation_error(rhr,d.site_xmat[rh].reshape(3,3)),foot_position_m=max(float(np.linalg.norm(d.xpos[b]-feetp[k])) for k,b in enumerate(feet)),foot_rotation_rad=max(rotation_error(feetr[k],d.xmat[b].reshape(3,3)) for k,b in enumerate(feet)),joint_violation_increase_rad=max(0.,max_joint_increase),torso_tilt_deg=float(np.degrees(np.arccos(np.clip(d.xmat[torso].reshape(3,3)[2,2],-1,1)))),root_translation_m=float(np.linalg.norm(x[:3])),root_rotation_rad=float(np.linalg.norm(x[3:6])),com_xy_displacement_m=float(np.linalg.norm(d.subtree_com[robot_body,:2]-com[:2])),joint_velocity_rad_s=float(np.max(abs(sample['velocity'][6:]))),joint_acceleration_rad_s2=float(np.max(abs(sample['acceleration'][6:]))),root_velocity_m_s=float(np.linalg.norm(sample['velocity'][:3])),root_rotvec_velocity_rad_s=float(np.linalg.norm(sample['velocity'][3:6])))

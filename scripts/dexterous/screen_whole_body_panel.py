@@ -22,13 +22,16 @@ def main():
     p.add_argument('--root-rotation-rad',type=float,default=.15)
     p.add_argument('--target-aperture-rad',type=float,default=1.2)
     p.add_argument('--nodes',type=int,default=61)
+    p.add_argument('--flatten-over-rad',type=float,default=.2)
+    p.add_argument('--flatten-palm',action='store_true',help='Rotate the actual palm face toward the panel over0.2rad while preserving its collision support plane')
     p.add_argument('--admit-exact-soft-limit-start',action='store_true',help='Retain only the measured initial solver-limit excursion, then smoothly regain the 1mm/rad numeric joint margin within 0.1rad aperture')
     a=p.parse_args()
-    if not 0<=a.height_drop_m<=.15 or not 0<=a.root_extent_m<=.08 or not 0<=a.root_rotation_rad<=.2 or a.nodes<21:
+    if not .1<=a.flatten_over_rad<=.6 or not 0<=a.height_drop_m<=.15 or not 0<=a.root_extent_m<=.08 or not 0<=a.root_rotation_rad<=.2 or a.nodes<21:
         raise ValueError('Require bounded declared geometry settings')
     run=a.source_run.resolve();config=json.loads((run/'manifest.json').read_text())['configuration']
-    sys.path.insert(0,str(run.with_name(run.name+'-source')))
+    sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
     from doorbench.dexterous.environment import DexterousDoorEnv
+    from doorbench.dexterous.palm_panel_geometry import original_palm_vertices,flatten_palm_goal
     robot=Path(config['robot']);sim=DexterousDoorEnv(config['door'],robot,json.loads(robot.with_suffix('.audit.json').read_text()))
     m,d=sim.m,sim.d
     manifest=json.loads((run/'raw-transitions/manifest.json').read_text())
@@ -51,6 +54,7 @@ def main():
     leaf=m.body('leaf').id;leafj=m.joint('leaf_hinge').id;leafq=m.jnt_qposadr[leafj]
     leaf_p=d.xpos[leaf].copy();leaf_r=d.xmat[leaf].reshape(3,3).copy()
     local_p=leaf_r.T@(d.site_xpos[lh]-leaf_p);local_r=leaf_r.T@d.site_xmat[lh].reshape(3,3)
+    palm_vertices=original_palm_vertices(m,d,lh) if a.flatten_palm else None
     right_p=d.site_xpos[rh].copy();right_r=d.site_xmat[rh].reshape(3,3).copy()
     feet=[m.body('robot/'+side+'_ankle_link').id for side in ('left','right')]
     feet_p=d.xpos[feet].copy();feet_r=d.xmat[feet].reshape(2,3,3).copy()
@@ -71,7 +75,11 @@ def main():
         lr=d.xmat[leaf].reshape(3,3).copy();lp=d.xpos[leaf].copy()
         u=float(np.clip((angle-base[leafq])/.35,0,1));blend=u**3*(10+u*(-15+6*u))
         local=local_p.copy();local[0]-=.04*blend;local[2]-=a.height_drop_m*blend
-        goal_p=lp+lr@local;goal_r=lr@local_r
+        goal_rotation=local_r
+        if a.flatten_palm:
+            fu=float(np.clip((angle-base[leafq])/a.flatten_over_rad,0,1));fb=fu**3*(10+fu*(-15+6*fu))
+            local,goal_rotation,_=flatten_palm_goal(local,local_r,palm_vertices,fb)
+        goal_p=lp+lr@local;goal_r=lr@goal_rotation
         def evaluate(x):
             d.qpos[:]=state;d.qpos[rq:rq+3]=rp+x[:3]
             quat=(Rotation.from_rotvec(x[3:6])*rr).as_quat();d.qpos[rq+3:rq+7]=np.r_[quat[3],quat[:3]]

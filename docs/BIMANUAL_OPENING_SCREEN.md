@@ -562,3 +562,41 @@ that the controller does not silently alter the screened collision geometry.
 This remains physically unqualified until a new actual-force archive completes.
 The optional probe argument is `--whole-body-panel-plan PATH`; historical
 controller defaults and every actual anatomy/mechanics gate remain unchanged.
+
+The first continuous physical comparison, `walked-whole-body-panel-001`, ran
+95 seconds from the original walking reset and passed 26/29 frozen checks.
+It remained upright and satisfied the original joint, loopback, collision-depth,
+motor-limit and landed-stance checks throughout. It finished at 0.640815 rad
+with 0.792383 N palm load, so the aperture and sustained-palm checks failed.
+The original three RH wrong-pad contacts remain disqualifying. Independent
+reconstruction checked all 47,500 transitions and 20,750 post-return contact/body
+frames: maximum frame disagreement and motor-cap excess were both exactly zero.
+The 139 byte-identical raw chunks preserve the old prefix through 69.5 seconds.
+During the new panel stage, measured target joint speed and acceleration stayed
+below 0.11390 rad/s and 1.35764 rad/s²; torso tilt stayed below 2.694 degrees.
+This resolves the previous balance collapse for this declared experiment but
+qualifies neither the hand release nor a complete opening.
+
+`inspect_palm_support.py` reconstructs one exact archived pre-integration pose
+and its actual interval wrenches, then renders the original collision meshes.
+Six close-ups at 94.998 s were personally inspected. The palm normal is tilted
+23.290 degrees from the panel normal. Its loaded corner is at palm-local
+`[35.93, 45.43, -21.64]` mm; the little-finger middle contacts lie around
+`[37.8, -94, -3.3]` mm. All support therefore lies along the same outer edge
+of the hand. The actual loads are palm 0.792 N, little-finger knuckle 0.601 N,
+and little-finger middle 1.131 N. The pressure at the palm centre cannot be
+mistaken for broad face contact. The next declared geometric candidate rotates
+the palm face toward the panel while preserving the support plane of every
+original palm collision vertex. It keeps the same rate, force-cap, and
+palm-specific load gates; it does not increase motor strength or relabel the
+inherited RH failures.
+
+Immutable local evidence lives in
+`DoorBench-runs/2026-09-08-robust-opening/native-screened-panel-development-001`:
+615 files; manifest SHA256
+`b7fc9b955a85a18479435908893e95507e2733dff9686693bd75aaf35616839e`.
+The preceding 31-file geometric archive is `native-attained-panel-workspace-001`,
+manifest SHA256
+`3ac423b7ccfe92cae7b6c133e387fb87658f6023bbc0f929e0cce8d76f2d14af`.
+Working-tree `out/` links preserve these canonical files without duplicate raw
+archives. Generated evidence is not committed to the source repository.
