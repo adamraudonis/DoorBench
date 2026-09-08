@@ -8,6 +8,32 @@ RAW_FIELDS={'schema','interval_start_s','interval_end_s','geometry_time_s','cloc
     'body_transforms_xyzw','handle_pair_forces_world_N','lever','contact_capacity','active_contact_count','normal_pair_force_consistency_error_N'}
 
 
+def _physx_source_pair_error(contacts,pairs):
+    """Replay v1 PhysX float32 product/axis-sum/difference/norm in source order.
+
+    JSON preserves each source scalar but not NumPy's arithmetic dtype. The
+    v1 producer reduces its copied PhysX float32 arrays *before* serialization.
+    Casting scalars to float64 and then comparing that norm to the producer's
+    recorded float32 norm is not a reproduction of that calculation.
+    This is only the receipt comparison; a separate float64 force-balance
+    calculation still has to meet the original 1e-3 N physical threshold.
+    """
+    groups={name:[] for name in pairs}
+    for c in contacts:groups[c['body']].append(c)
+    error=0.
+    for name,patches in groups.items():
+        force=np.asarray([c['normal_force_N'] for c in patches],float)
+        normal=np.asarray([c['normal'] for c in patches],float).reshape(-1,3)
+        pair=np.asarray(pairs[name],float)
+        for value in (force,normal,pair):
+            if not np.array_equal(value,value.astype(np.float32).astype(float)):
+                raise ValueError('PhysX v1 force/normal/matrix scalars must preserve exact float32 source values')
+        vectors=force.astype(np.float32)[:,None]*normal.astype(np.float32)
+        difference=vectors.sum(axis=0)-pair.astype(np.float32)
+        error=max(error,float(np.linalg.norm(difference)))
+    return error
+
+
 def evaluate_pad_evidence(evidence,*,time_s,physics_dt_s=.002):
     """Recompute distal surfaces, cylinder margins, load opposition and pair sums.
 
@@ -39,7 +65,7 @@ def evaluate_pad_evidence(evidence,*,time_s,physics_dt_s=.002):
         point=np.asarray(c['position'],float);normal=np.asarray(c['normal'],float)
         if point.shape!=(3,) or normal.shape!=(3,) or not np.isfinite(np.r_[point,normal]).all() or abs(np.linalg.norm(normal)-1)>1e-5:raise ValueError('Invalid raw contact point/normal')
         sums[c['body']]+=c['normal_force_N']*normal
-    pair_error=None
+    pair_error=None;source_pair_error=None
     if physx:
         pairs=e['handle_pair_forces_world_N'];declared=e['normal_pair_force_consistency_error_N']
         if type(pairs) is not dict or set(pairs)!=set(poses) or not _number(declared) or not 0<=declared<=1e-3:raise ValueError('Missing independent PhysX pair-force evidence')
@@ -48,7 +74,8 @@ def evaluate_pad_evidence(evidence,*,time_s,physics_dt_s=.002):
             v=np.asarray(value,float)
             if v.shape!=(3,) or not np.isfinite(v).all():raise ValueError('Invalid actual pair-force vector')
             pair_error=max(pair_error,float(np.linalg.norm(sums[name]-v)))
-        if pair_error>1e-3 or abs(pair_error-declared)>1e-8:raise ValueError('Raw patches do not reproduce recorded pair forces')
+        source_pair_error=_physx_source_pair_error(contacts,pairs)
+        if pair_error>1e-3 or source_pair_error>1e-3 or abs(source_pair_error-declared)>1e-8:raise ValueError('Raw patches do not reproduce recorded pair forces')
     elif e['handle_pair_forces_world_N'] is not None or e['normal_pair_force_consistency_error_N'] is not None:
         raise ValueError('Native archive cannot invent independent PhysX pair measurements')
     lever=e['lever']
@@ -56,5 +83,7 @@ def evaluate_pad_evidence(evidence,*,time_s,physics_dt_s=.002):
     result=shadow_physx_pad_grasp(contacts,poses,**lever,profile='distal-pad-v1')
     result['invalid_loaded_patches']=sum(c['normal_force_N']>1e-6 and not c['pad_qualified'] for c in result['contacts'])
     result['raw_pair_force_reconstruction_error_N']=pair_error
+    result['raw_source_pair_force_reconstruction_error_N']=source_pair_error
+    result['raw_pair_force_source_arithmetic']='float32-product-axis-sum-difference-norm-v1' if physx else None
     result['raw_geometry_clock']=e['clock'];result['raw_contact_scope']=e['scope']
     return result
