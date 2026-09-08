@@ -558,3 +558,39 @@ processed32 actual examples, then retained zero optimizer updates, empty
 optimizer state, zero supervision counts and bit-identical initial weights.
 The focused regression suite passes91 tests. These checks validate the
 implementation; they do not establish convergence or physical balance.
+
+##010 completed: fitting pass, separate physical failure
+
+The L40S finished all64 updates in818.32 seconds. Every source's6971 total
+labels was supervised exactly64 times in both histories. All32 remote output
+files,294 source files and eight checkpoint digests were independently
+verified. The optimizer state contains exactly64 steps for each parameter.
+The [final receipt](evidence/sensor-imitation-acquisition-010.json) retains
+all periodic fitting scores and failures.
+
+Checkpoint56 is the **first** to pass all six original fitting checks;64
+also passes but does not replace it. At56, nominal normalized-force MSE is
+0.00031933, correction-source MSEs are0.00040384/0.00044543/0.00028835,
+and startup body-force RMSE is0.9212/2.1218 Nm for100/500ms. The
+[selected-candidate receipt](evidence/sensor-first-qualified-candidate-010.json)
+binds its SHA256 and16 independently exercised runtime boundary checks.
+The exact checkpoint is `89a49d64dbb0422a223fb312318eb0840d369bdcf8ab66e871d36700c7167db5`.
+
+The [frozen diagnostic](evidence/sensor-continuous-history-diagnostics-010.json)
+finds positive cross-source gradient cosines at the initial,8 and56 states.
+The total gradient norm falls from0.02411 to0.00394; these sampled gradients
+do not show antagonistic source objectives. Startup error is concentrated
+outside the heavily weighted cold prefix: at56, labels32–50 (64–100ms)
+contribute80.68% of first100ms body-force squared error, with RMSE1.3557 Nm
+versus0.5112 Nm for labels0–31. Every label is still supervised; this is
+unequal weighting, not the old sampler coverage gap. These diagnostics
+change no weights, gates or physical inputs.
+
+Fitting is not closed-loop stability. The separate physical actor006 trial
+uses checkpoint56 with the exact actor005 runtime, plant and reset. Its
+reported duration is0.702 seconds before the fall cutoff, with no qualified
+grasp or lever operation. Original motor delivery, mechanical and collision
+checks pass; upright, full duration and grasp fail. This remains a failed
+physical result even though010 fitting completed successfully. The next
+diagnostic must use the actual006 visited states and observations rather
+than assuming an offline force-error threshold guarantees balance.
