@@ -33,7 +33,15 @@ try:
     ok,result=omni.kit.commands.execute('MJCFCreateAsset',mjcf_path=str(Path(a.mjcf).resolve()),
         import_config=config,prim_path='/H1')
     assert ok, result
+    from doorbench.dexterous.isaac_materials import bind_robot_contact_material
+    contract=json.loads(Path(a.mjcf).with_suffix('.motors.json').read_text())
+    contact_audit=bind_robot_contact_material(stage,'/H1',contract['contact_material'])
+    (out/'contact-material-audit.json').write_text(json.dumps(contact_audit,indent=2)+'\n')
     for prim in stage.Traverse():
+        # Author original mesh sources, including those referenced by instances.
+        if prim.HasAPI(UsdPhysics.CollisionAPI):
+            collision=PhysxSchema.PhysxCollisionAPI.Apply(prim)
+            collision.CreateContactOffsetAttr(.001);collision.CreateRestOffsetAttr(0.)
         if prim.GetName()=='worldBody' and prim.HasAPI(UsdPhysics.ArticulationRootAPI) and not any(p.HasAPI(UsdPhysics.RigidBodyAPI) for p in Usd.PrimRange(prim)):
             prim.RemoveAPI(UsdPhysics.ArticulationRootAPI)
     rows=[]

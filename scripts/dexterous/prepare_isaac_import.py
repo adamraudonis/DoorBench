@@ -13,6 +13,7 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 import mujoco
 import numpy as np
+from doorbench.dexterous.isaac_materials import native_contact_contract
 
 
 def main():
@@ -83,7 +84,7 @@ def main():
         shutil.copy2(source,destination)
         node.set('file','meshes/'+name)
     ET.indent(tree);tree.write(a.output,encoding='unicode')
-    data={'mass_kg':float(m.body_mass.sum()),'free_root':True,
+    data={'mass_kg':float(m.body_mass.sum()),'free_root':True,'contact_material':native_contact_contract(m),
           'sensor_status':'native touch-grid removed; PhysX contact adapter required',
           'joint_names':[m.joint(j).name for j in range(m.njnt) if int(m.jnt_type[j])!=int(mujoco.mjtJoint.mjJNT_FREE)],
           'actuators':[]}

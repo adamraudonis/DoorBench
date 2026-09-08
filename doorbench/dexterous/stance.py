@@ -13,13 +13,14 @@ from scipy.spatial.transform import Rotation
 class StanceController:
     def __init__(self,sim):
         self.sim=sim;m,d=sim.m,sim.d
+        prefix=getattr(sim,'joint_prefix','robot/')
         names=[side+'_'+joint for side in ('left','right') for joint in ('hip_yaw','hip_roll','hip_pitch','knee','ankle')]
-        self.joints=[m.joint('robot/'+n).id for n in names]
-        self.act=np.array([m.actuator('robot/'+n).id for n in names])
+        self.joints=[m.joint(prefix+n).id for n in names]
+        self.act=np.array([m.actuator(prefix+n).id for n in names])
         self.local=np.array([list(sim.actuators).index(i) for i in self.act])
         self.v=np.r_[np.arange(sim.root_vadr,sim.root_vadr+6),m.jnt_dofadr[self.joints]]
         self.qa=m.jnt_qposadr[self.joints]
-        self.feet=[m.body('robot/'+side+'_ankle_link').id for side in ('left','right')]
+        self.feet=[m.body(prefix+side+'_ankle_link').id for side in ('left','right')]
         self.target_root=d.qpos[sim.root_qadr:sim.root_qadr+3].copy()
         yaw=np.arctan2(d.xmat[sim.pelvis].reshape(3,3)[1,0],d.xmat[sim.pelvis].reshape(3,3)[0,0])
         self.target_rotation=Rotation.from_euler('z',yaw).as_matrix()
@@ -54,8 +55,9 @@ class StanceController:
         external=np.zeros(m.nv)
         # Native constraint vector includes contacts and joint limits. Foot forces
         # are removed explicitly, leaving measured loads on the robot elsewhere.
-        external[:]=d.qfrc_constraint
-        for i,c in enumerate(d.contact[:d.ncon]):
+        supplied=getattr(s,'external_generalized_force',None)
+        external[:]=d.qfrc_constraint if supplied is None else supplied
+        for i,c in enumerate(d.contact[:d.ncon] if supplied is None else []):
             bodies=[int(m.geom_bodyid[g]) for g in c.geom]
             if not any(b in self.feet for b in bodies):continue
             wrench=np.zeros(6);mujoco.mj_contactForce(m,d,i,wrench)
@@ -73,7 +75,7 @@ class StanceController:
         desired=np.r_[60*(self.target_root-root)-15*d.qvel[s.root_vadr:s.root_vadr+3],
             80*orient-18*d.qvel[s.root_vadr+3:s.root_vadr+6],
             20*(self.joint_target-d.qpos[self.qa])-6*d.qvel[self.v[6:]]]
-        weights=np.r_[[200,200,1000,300,300,2],np.full(10,.01)]
+        weights=getattr(s,'stance_weights',np.r_[[200,200,1000,300,300,2],np.full(10,.01)])
         H=np.diag(np.r_[weights,np.full(nt,.002),np.full(nf,.00001)])
         linear=np.r_[-weights*desired,np.zeros(nt+nf)]
         limits=[];lo=[];hi=[]
@@ -99,10 +101,12 @@ class StanceController:
                     row=np.zeros(N);row[offset+moment]=sign;row[offset+force]=sign*force_coef;row[offset+2]=-limit
                     limits.append(row);lo.append(-np.inf);hi.append(0.)
         A=sparse.csc_matrix(np.vstack([eq,limits]));lower=np.r_[rhs,lo];upper=np.r_[rhs,hi]
+        modern=int(osqp.__version__.split('.')[0])>=1
+        settings={'polishing' if modern else 'polish':False}
         solver=osqp.OSQP();solver.setup(P=sparse.csc_matrix(H),q=linear,A=A,l=lower,u=upper,
-             verbose=False,eps_abs=1e-4,eps_rel=1e-4,max_iter=4000,polishing=False)
+             verbose=False,eps_abs=1e-4,eps_rel=1e-4,max_iter=4000,**settings)
         if self.last is not None:solver.warm_start(x=self.last)
-        result=solver.solve(raise_error=False)
+        result=solver.solve(raise_error=False) if modern else solver.solve()
         if result.info.status_val not in (1,2):return None,result.info.status
         self.last=result.x
         controls=(result.x[n:n+nt]-bias)/m.actuator_gainprm[self.act,0]

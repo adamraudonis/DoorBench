@@ -6,13 +6,20 @@ import mujoco
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.spatial.transform import Rotation
+from doorbench.dexterous.reset import check_joint_reset
 
-p=argparse.ArgumentParser();p.add_argument('--robot',required=True);p.add_argument('--reference',required=True);p.add_argument('--output',required=True);p.add_argument('--bend',type=float,default=.55)
+p=argparse.ArgumentParser();p.add_argument('--robot',required=True);p.add_argument('--reference',required=True);p.add_argument('--output',required=True);p.add_argument('--bend',type=float,default=.55);p.add_argument('--grip-roll-deg',type=float,default=0.)
+p.add_argument('--base-x',type=float,default=0.);p.add_argument('--base-y',type=float,default=0.);p.add_argument('--yaw-deg',type=float,default=0.)
 a=p.parse_args();m=mujoco.MjModel.from_xml_path(a.robot);d=mujoco.MjData(m)
 r=json.loads(Path(a.reference).read_text());d.qpos[:7]=r['initial_root']
 for n,v in r['initial_joints'].items():d.qpos[m.jnt_qposadr[m.joint(n).id]]=v
 mujoco.mj_forward(m,d);palm=m.site('rh_palm_touch').id;position=d.site_xpos[palm].copy();rotation=d.site_xmat[palm].reshape(3,3).copy()
+roll=Rotation.from_euler('x',a.grip_roll_deg,degrees=True).as_matrix()
+center=np.array([.26,-.077,.914])
+position=center+roll@(position-center);rotation=roll@rotation
 feet=[m.body(n+'_ankle_link').id for n in ('left','right')];height=d.xpos[feet,2].mean()
+d.qpos[:2]+=[a.base_x,a.base_y]
+q=(Rotation.from_euler('z',a.yaw_deg,degrees=True)*Rotation.from_quat(d.qpos[[4,5,6,3]])).as_quat();d.qpos[3:7]=q[[3,0,1,2]]
 for side in ('left','right'):
  for n,v in [('hip_pitch',-a.bend),('knee',2*a.bend),('ankle',-a.bend)]:d.qpos[m.jnt_qposadr[m.joint(side+'_'+n).id]]=v
 mujoco.mj_forward(m,d);d.qpos[2]+=height-d.xpos[feet,2].mean()
@@ -45,7 +52,8 @@ base=np.array(r['controls'][40]);base[leg]=controls[leg]
 for n,value in zip(names,fit.x):
  act=m.actuator('rh_A_'+n[3:] if n.startswith('rh_') else n).id;base[act]=value
 base=np.clip(base,m.actuator_ctrlrange[:,0],m.actuator_ctrlrange[:,1])
+check_joint_reset([m.joint(j).name for j in range(1,m.njnt)],d.qpos[m.jnt_qposadr[1:]],m.jnt_range[1:])
 r['initial_root']=d.qpos[:7].tolist();r['initial_joints']={m.joint(j).name:float(d.qpos[m.jnt_qposadr[j]]) for j in range(1,m.njnt)}
 r['controls']=[base.tolist()]*600
-r['reset_fit']=dict(bend_rad=a.bend,palm_error_m=error,palm_rotation_error_rad=angle,gravity_feedforward_Nm=gravity,planned_foot_wrenches=wrench.tolist())
+r['reset_fit']=dict(bend_rad=a.bend,grip_roll_deg=a.grip_roll_deg,base_x=a.base_x,base_y=a.base_y,yaw_deg=a.yaw_deg,palm_error_m=error,palm_rotation_error_rad=angle,gravity_feedforward_Nm=gravity,planned_foot_wrenches=wrench.tolist())
 Path(a.output).write_text(json.dumps(r)+'\n');print(json.dumps(r['reset_fit'],indent=2));print('root',r['initial_root'])

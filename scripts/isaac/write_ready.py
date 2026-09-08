@@ -12,6 +12,10 @@ a=p.parse_args();audit=json.loads((a.trial/'kinematics-audit.json').read_text())
 rows=json.loads((a.trial/'trace.json').read_text());config=json.loads((a.trial/'configuration.json').read_text())
 assert len(rows)>=45 and rows[-1]['time_s']>=.9
 assert config['runtime_pose_writes']==0 and not config['direct_door_commands']
+assert config['contact_material_audit']['colliders_checked']>0
+assert config['contact_material_audit']['contract']['combine_mode']=='max'
+assert config['contact_material_audit']['backend_values_verified']
+assert config['contact_material_audit']['backend_offsets_verified']
 assert not (a.trial/'error.txt').exists()
 assert min(r['root'][2] for r in rows)>.7 and max(r['torso_tilt_deg'] for r in rows)<20
 assert max(abs(r['sim_time_s']-r['time_s']) for r in rows)<.003

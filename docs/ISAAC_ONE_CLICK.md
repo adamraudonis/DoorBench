@@ -8,6 +8,8 @@ python3 scripts/isaac/launch.py
 
 The launcher opens a local Run Center, provisions or reuses its own RunPod allocation, installs the pinned runtime, prepares the H1 robot with Shadow Hands and one development door, and runs live physics checks. The first installation downloads several gigabytes and takes approximately 30 minutes; an installed runtime is reused. **Environment ready** means the checks passed, not that a door-opening policy has succeeded.
 
+The installed macOS shortcut is **Start DoorBench Isaac.command** on the desktop. Its source lives under `~/Library/Application Support/DoorBench/Isaac Launcher`, independently of temporary development worktrees. The desktop launch and a cached restart passed on an L40S; the latest verification was **September 8, 2026 at 02:01:41 UTC** ([receipt summary](../results/dexterous/2026-09-08/isaac-desktop-readiness.json)).
+
 First-time requirements: Python 3, Git, SSH, and a RunPod API key in `RUNPOD_API_KEY` or `~/.runpod/config.toml`. The key stays outside the repository. The Mac launcher requires executable permission; `chmod +x 'Start Isaac Sim.command'` fixes a checkout that loses that bit. Linux uses the same Python command.
 
 ## What happens automatically
