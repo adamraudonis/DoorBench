@@ -29,3 +29,9 @@ def test_brief_brush_near_threshold_does_not_count_as_substantial_push():
     result=audit_panel_opening(rows([.69,.70,.71]),{'passed':True},{'passed':True})
     assert not result['passed']
     assert not result['checks']['substantial_loaded_panel_travel']
+
+
+def test_loaded_closing_motion_does_not_count_as_opening():
+    result=audit_panel_opening(rows([.69,.5,.2]),{'passed':True},{'passed':True})
+    assert not result['passed']
+    assert result['loaded_panel_travel_rad']==0.

@@ -12,8 +12,12 @@ def audit_panel_opening(rows, opening, mechanical):
         if phase in ('reach', 'push', 'complete') and np.isfinite(load) and load > 1.:
             contacts.append((float(row['time_s']), float(row['door']['leaf_hinge']), load))
     loaded_angles = [c[1] for c in contacts]
-    loaded_travel = max(loaded_angles)-min(loaded_angles) if loaded_angles else 0.
-    first = min(loaded_angles) if loaded_angles else None
+    loaded_travel = 0.
+    prior_minimum = float('inf')
+    for angle in loaded_angles:
+        loaded_travel = max(loaded_travel, angle-prior_minimum)
+        prior_minimum = min(prior_minimum, angle)
+    first = loaded_angles[0] if loaded_angles else None
     maximum = max(loaded_angles) if loaded_angles else None
     checks = {
         'original_opening_gate': bool(opening.get('passed', False)),
