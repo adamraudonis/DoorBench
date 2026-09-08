@@ -52,7 +52,19 @@ class FullOpeningTeacher:
                  follow_leaf_during_transfer=False,
                  operator_compliance_limit=.15, freeze_compliance_on_release=True,
                  panel_profile="hybrid-surface-v2", palm_load_target=None,
-                 transfer_load_target=4., whole_body_return_path=None):
+                 transfer_load_target=4., whole_body_return_path=None,
+                 whole_body_ungrip_path=None, left_planning_profile=None):
+        from .runtime_left_planner import PROFILES
+        if left_planning_profile is not None and left_planning_profile not in PROFILES:
+            raise ValueError('Unknown attained left-contact planning profile')
+        if whole_body_ungrip_path is not None and whole_body_return_path is None:
+            raise ValueError('Whole-body ungrip requires its screened lever-return path')
+        self.left_planning_profile = left_planning_profile
+        planning_door = Path(door_xml)
+        if planning_door.is_dir():
+            planning_door = planning_door/'door.xml'
+        self.left_planning_inputs = (Path(robot_xml), planning_door, Path(left_targets))
+        self.left_planning_receipt = self.left_planning_targets = None
         if panel_profile not in ("plain-v1","hybrid-surface-v2"):
             raise ValueError("Unknown declared panel controller profile")
         self.panel_profile=panel_profile
@@ -97,7 +109,12 @@ class FullOpeningTeacher:
         self.left = LeftPalmContact(self.acquisition, motors, targets, fixed_waist=True,
                                     support_load_target=transfer_load_target)
         self.whole_body_return_path = whole_body_return_path
-        if whole_body_return_path is None:
+        self.whole_body_ungrip_path = whole_body_ungrip_path
+        if whole_body_ungrip_path is not None:
+            from .whole_body_ungrip import WholeBodyMeasuredUngrip
+            self.release = WholeBodyMeasuredUngrip(self.acquisition, Path(release_screen),
+                                                   whole_body_return_path, whole_body_ungrip_path)
+        elif whole_body_return_path is None:
             self.release = AxialRightRelease(self.acquisition, Path(release_screen))
         else:
             from .whole_body_return import WholeBodyLeverReturn
@@ -191,6 +208,59 @@ class FullOpeningTeacher:
         self.acquisition.rotation_integral[:] = 0.
         self.handoffs['qualified_grasp'] = float(t)
 
+    def _plan_left_at_measured_state(self, t, root, joints, leaf_pose, handle_pose, angles,
+                                     *, episode_pose_time_s):
+        if self.left_planning_profile is None:
+            return
+        if self.left.started is not None or self.left_planning_receipt is not None:
+            raise ValueError('Attained left planning is a single fail-closed handoff')
+        if not np.isfinite(episode_pose_time_s) or episode_pose_time_s < t-1e-7:
+            raise ValueError('Attained left planning requires the actual episode pose clock')
+        from .runtime_left_planner import plan_attained_left_contact, RuntimeLeftPlanFailure
+        # The Door55 teacher exposes these three actual mechanism coordinates.
+        # The planner rejects any scene with an additional unmeasured joint.
+        measured = dict(pose_time_s=float(episode_pose_time_s), root=np.asarray(root)[:7].copy(),
+            joints=dict(joints), door_positions=dict(leaf_hinge=angles['leaf'],
+                leaf_handle_hinge=angles['operator'], leaf_latch_bolt_slide=angles['latch']),
+            door_body_poses=dict(leaf=np.asarray(leaf_pose).copy(), leaf_handle=np.asarray(handle_pose).copy()))
+        try:
+            config, receipt = plan_attained_left_contact(*self.left_planning_inputs, measured,
+                at_time_s=episode_pose_time_s, clearance_profile=self.left_planning_profile)
+        except RuntimeLeftPlanFailure as error:
+            self.left_planning_receipt = error.receipt
+            raise
+        self.left_planning_receipt = receipt
+        try:
+            from .landed_left_planner import digest
+            if receipt.get('passed') is not True or config.get('passed') is not True:
+                raise ValueError('Attained left planning did not return a qualified geometric target')
+            if digest(config) != receipt.get('target_content_sha256'):
+                raise ValueError('Attained target content differs from its independent screen')
+            if config.get('schema') != 'doorbench.left-palm-targets.v1' or config['joint_names'] != self.left.names:
+                raise ValueError('Attained left planning changed the arm contract')
+            rows = []
+            for source in config['targets']:
+                row = dict(source)
+                for name, shape in (('position', (3,)), ('normal', (3,)), ('nominal', (8,))):
+                    row[name] = np.asarray(row[name], float)
+                    if row[name].shape != shape or not np.isfinite(row[name]).all():
+                        raise ValueError('Invalid attained left target dimensions')
+                if not np.isclose(np.linalg.norm(row['normal']), 1., atol=1e-6):
+                    raise ValueError('Invalid attained palm normal')
+                rows.append(row)
+            path = [row for row in rows if row['phase'] == 'left_reach']
+            if len(path) < 2:
+                raise ValueError('Attained left planning returned no approach')
+        except Exception as error:
+            self.left_planning_receipt.update(geometric_screen_passed=receipt.get('passed') is True,
+                passed=False, targets_installed=False, installation_error=str(error))
+            raise
+        self.left.rows, self.left.path = rows, path
+        self.left_planning_targets = config
+        self.left_planning_receipt['targets_installed'] = True
+        self.left_planning_receipt['opening_time_s'] = float(t)
+        self.left_planning_receipt['opening_clock_offset_s'] = float(episode_pose_time_s-t)
+
     def _operation_targets(self, t, handle_pose, leaf_pose, angles):
         goal_h = self.initial_handle+(.87-self.initial_handle)*_smooth(
             (t-self.operation_started)/self.press_seconds)
@@ -230,7 +300,7 @@ class FullOpeningTeacher:
 
     def force(self, t, root, joints, velocities, handle_pose, leaf_pose, angles,
               hand_forces, *, evidence, right_palm_pose, pose_time_s,
-              contact_interval_s=None):
+              contact_interval_s=None, episode_pose_time_s=None):
         """Return (61 original capped forces, info), consuming actual state once.
 
         root13 is xyz+wxyz+world linear/angular velocity; body poses are xyz+wxyz.
@@ -257,6 +327,8 @@ class FullOpeningTeacher:
         self._record_evidence(float(t), angles, evidence)
         if self.whole_body_return_path is not None:
             self.release.observe_operation(t, handle_pose, leaf_pose, angles, self.geometry)
+        if self.whole_body_ungrip_path is not None:
+            self.release.observe_state(t, root, joints)
         teacher, left = self.acquisition, self.left
         left._read(root, joints)
         if self.operation_started is None and t >= self.min_acquisition_seconds-1e-8:
@@ -266,6 +338,8 @@ class FullOpeningTeacher:
             self._operation_targets(t, handle_pose, leaf_pose, angles)
         if left.started is None and t >= self.min_left_seconds-1e-8 and self.open_started is not None:
             if self._qualified(lambda row: row['grasp_qualified'] and .075 <= row['leaf'] <= .10):
+                self._plan_left_at_measured_state(t, root, joints, leaf_pose, handle_pose, angles,
+                    episode_pose_time_s=pose_time_s if episode_pose_time_s is None else episode_pose_time_s)
                 left.begin(float(t), root, joints, leaf_pose, handle_pose)
                 self.handoffs['left_approach'] = float(t)
         if self.release.started is None and t >= self.min_release_seconds-1e-8 and left.loaded_since is not None and t-left.loaded_since >= self.qualification_seconds:

@@ -9,7 +9,7 @@ import pytest
 
 # Load this owned module against the integration tree during isolated development.
 # The actual public imports are used in the uninterrupted native regression.
-spec=importlib.util.spec_from_file_location('_full_opening_teacher_test',Path(__file__).resolve().parents[1]/'doorbench/dexterous/full_opening_teacher.py')
+spec=importlib.util.spec_from_file_location('doorbench.dexterous._full_opening_teacher_test',Path(__file__).resolve().parents[1]/'doorbench/dexterous/full_opening_teacher.py')
 module=importlib.util.module_from_spec(spec);sys.modules[spec.name]=module;spec.loader.exec_module(module)
 FullOpeningTeacher=module.FullOpeningTeacher
 
@@ -180,3 +180,53 @@ def test_contact_forces_must_identify_the_completed_physics_interval(interval):
     with pytest.raises(ValueError,match='completed physics interval'):
         obj.force(1.,None,{}, {},pose,pose,dict(operator=0.,leaf=0.,latch=0.),{},
             evidence=evidence(),right_palm_pose=pose,pose_time_s=1.,contact_interval_s=interval)
+
+
+def test_failed_attained_planning_cannot_install_targets_or_retry(monkeypatch):
+    from doorbench.dexterous import runtime_left_planner as planner
+    obj=FullOpeningTeacher.__new__(FullOpeningTeacher)
+    old_path=[object(),object()]
+    obj.left=SimpleNamespace(started=None,path=old_path)
+    obj.left_planning_profile='strict-v1'
+    obj.left_planning_inputs=('robot','door','targets')
+    obj.left_planning_receipt=obj.left_planning_targets=None
+    captured=[]
+    def failed(*args,**kwargs):
+        captured.append((args,kwargs))
+        raise planner.RuntimeLeftPlanFailure('Actual stance is unreachable',dict(passed=False))
+    monkeypatch.setattr(planner,'plan_attained_left_contact',failed)
+    pose=[0.,0.,0.,1.,0.,0.,0.]
+    for expected in ('unreachable','single fail-closed'):
+        with pytest.raises(ValueError,match=expected):
+            obj._plan_left_at_measured_state(22.,pose+[0.]*6,{},pose,pose,
+                dict(leaf=.08,operator=.6,latch=.01),episode_pose_time_s=45.5)
+    assert len(captured)==1
+    assert captured[0][0][-1]['pose_time_s']==45.5
+    assert captured[0][1]['at_time_s']==45.5
+    assert obj.left.path is old_path and obj.left_planning_targets is None
+    assert obj.left_planning_receipt['passed'] is False
+
+
+def test_disabled_attained_planner_does_not_consume_state(monkeypatch):
+    from doorbench.dexterous import runtime_left_planner as planner
+    monkeypatch.setattr(planner,'plan_attained_left_contact',lambda *a,**kw:pytest.fail('Unexpected planning'))
+    obj=FullOpeningTeacher.__new__(FullOpeningTeacher);obj.left_planning_profile=None
+    obj._plan_left_at_measured_state(None,None,None,None,None,None,episode_pose_time_s=None)
+
+
+def test_corrupted_attained_target_cannot_preserve_a_passing_installation_receipt(monkeypatch):
+    from doorbench.dexterous import runtime_left_planner as planner
+    obj=FullOpeningTeacher.__new__(FullOpeningTeacher)
+    old_path=[object(),object()];obj.left=SimpleNamespace(started=None,path=old_path)
+    obj.left_planning_profile='strict-v1';obj.left_planning_inputs=('robot','door','targets')
+    obj.left_planning_receipt=obj.left_planning_targets=None
+    monkeypatch.setattr(planner,'plan_attained_left_contact',lambda *args,**kwargs:
+        (dict(passed=True),dict(passed=True,target_content_sha256='corrupted')))
+    pose=[0.,0.,0.,1.,0.,0.,0.]
+    with pytest.raises(ValueError,match='differs from its independent screen'):
+        obj._plan_left_at_measured_state(22.,pose+[0.]*6,{},pose,pose,
+            dict(leaf=.08,operator=.6,latch=.01),episode_pose_time_s=45.5)
+    assert obj.left_planning_receipt['passed'] is False
+    assert obj.left_planning_receipt['targets_installed'] is False
+    assert obj.left_planning_receipt['geometric_screen_passed'] is True
+    assert obj.left.path is old_path and obj.left_planning_targets is None

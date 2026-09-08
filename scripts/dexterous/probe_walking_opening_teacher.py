@@ -68,6 +68,8 @@ def main():
     p.add_argument('--transfer-load-target',type=float,default=4.,help='Pre-release total left-panel load target; original motor caps unchanged')
     p.add_argument('--traverse',action='store_true',help='Require one uninterrupted qualified opening, stow, rise, passage and quiet finish')
     p.add_argument('--whole-body-return-path',type=Path,help='Opt-in exact-attained-state screened body path; returns lever while retaining grip, not a completed withdrawal')
+    p.add_argument('--whole-body-ungrip-path',type=Path,help='Opt-in dense-screened withdrawal after the supplied whole-body lever return')
+    p.add_argument('--left-planning-profile',choices=('strict-v1','intermediate-clearance-3mm-v1'),help='Replan and independently screen left approach at its actual episode state')
     a = p.parse_args()
     if a.output.exists(): raise SystemExit('Use a new output directory')
     ref=json.loads(a.reference.read_text());motors=json.loads(a.motors.read_text())
@@ -78,8 +80,9 @@ def main():
     capture(root_source, a.output, {k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()})
     for key in ('body_reset','preparation','checkpoint'):
         source=getattr(a,key);shutil.copy2(source,a.output/(key+source.suffix))
-    if a.whole_body_return_path is not None:
-        shutil.copy2(a.whole_body_return_path,a.output/'whole-body-return-path.json')
+    for name in ('whole_body_return_path','whole_body_ungrip_path'):
+        if getattr(a,name) is not None:
+            shutil.copy2(getattr(a,name),a.output/(name.replace('_','-')+'.json'))
     for source,name in ((Path(__file__),'diagnostic-source.py'),(Path(inspect.getfile(FullOpeningTeacher)),'full-opening-teacher-source.py'),(a.robot,'robot-input.xml'),(a.robot.with_suffix('.audit.json'),'robot-input.audit.json'),(a.motors,'motors-input.json'),(a.door/'door.xml','door-input.xml'),(a.reference,'reference.json'),(a.plan,'static-plan.json'),(a.release_path,'release-path.json')):
         shutil.copy2(source,a.output/name)
     shutil.copy2(Path(panel_spec.origin),a.output/'panel-continuation-source.py')
@@ -97,7 +100,7 @@ def main():
         dict(operator_origin=m.jnt_pos[hj],operator_axis=m.jnt_axis[hj],leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),
         door_xml=a.door,left_targets=a.plan,release_screen=a.release_path,runtime_screen=a.runtime_screen,
         opening_options=dict(target_aperture=a.target_aperture,open_on_latch_clear=a.open_on_latch_clear,
-            operator_compliance_gain=a.operator_compliance_gain,follow_leaf_during_transfer=a.follow_leaf_during_transfer,panel_profile=a.panel_profile,palm_load_target=a.palm_load_target,transfer_load_target=a.transfer_load_target,whole_body_return_path=a.whole_body_return_path),
+            operator_compliance_gain=a.operator_compliance_gain,follow_leaf_during_transfer=a.follow_leaf_during_transfer,panel_profile=a.panel_profile,palm_load_target=a.palm_load_target,transfer_load_target=a.transfer_load_target,whole_body_return_path=a.whole_body_return_path,whole_body_ungrip_path=a.whole_body_ungrip_path,left_planning_profile=a.left_planning_profile),
         **({'maximum_seconds':a.seconds} if a.traverse else {}))
     sequence=controller.walking if a.traverse else controller
     opening=sequence.opening
@@ -221,6 +224,9 @@ def main():
         completed=True
     finally:
         raw_stream.close(complete=completed)
+        for name,value in (('actual-left-planning',opening.left_planning_receipt),
+                           ('actual-left-targets',opening.left_planning_targets)):
+            if value is not None:(a.output/(name+'.json')).write_text(json.dumps(value,indent=2)+'\n')
         (a.output/'trace.json').write_text(json.dumps(traces)+'\n')
         with gzip.open(a.output/'physics-steps.json.gz','wt') as stream:json.dump(physics,stream)
         np.savez_compressed(a.output/'trajectory.npz',**states,terminal_qpos=d.qpos.copy(),terminal_qvel=d.qvel.copy(),terminal_ctrl=d.ctrl.copy(),terminal_time_s=float(d.time))

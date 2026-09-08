@@ -2,7 +2,7 @@
 
 
 def validate_sensor_actor_mode(options):
-    if not getattr(options,'sensor_policy_checkpoint',None):
+    if not (getattr(options,'sensor_policy_checkpoint',None) or getattr(options,'sensor_balance_calibration',None)):
         return
     if not getattr(options,'sensor_layout',None):
         raise ValueError('Sensor policy requires the actual sensor calibration')
@@ -13,7 +13,9 @@ def validate_sensor_actor_mode(options):
         'arm_impedance':1.,'grip_impedance':1.,'grip_rotation_fraction':1.,
         'operator_compliance_gain':0.,'acquisition_middle_finger_force':None,
         'acquisition_index_finger_force':None,'time_scale':1.,
-        'follow_leaf_during_transfer':False,'panel_profile':None,'palm_load_target':None}
+        'follow_leaf_during_transfer':False,'panel_profile':None,'palm_load_target':None,
+        'left_planning_profile':None,'whole_body_return_path':None,'whole_body_ungrip_path':None,
+        'transfer_load_target':4.}
     enabled=[name for name,default in forbidden.items() if getattr(options,name,default)!=default]
     if enabled:
         raise ValueError('Sensor-only execution cannot enable teacher/extra feedback controls: '+', '.join(enabled))

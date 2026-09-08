@@ -189,3 +189,13 @@ grouped checks while retaining its 19 underlying physical checks. Replay steps
 no physics and does not constitute an Isaac result. The adapter/controller
 boundary suites pass 64 tests. The canonical calibration SHA256 is
 `d98e7c1a84ca463e4023ef588aed178e5b8d0d909522a75779313768d965cf72`.
+
+The shared Isaac runner accepts `--sensor-balance-calibration` and
+`--sensor-balance-robot` for a separate five-second stationary experiment.
+It requires the same bound contact-free reset and sensor layout as the learned
+actor tests, and rejects teacher control options or a simultaneous checkpoint.
+`balance-steps.json.gz` contains every actual post-step actor-origin pose and
+velocity, floor-only loads, hand contacts and preceding controller diagnostics.
+`balance-contacts.jsonl.gz` retains the occupied raw contact slots separately.
+The scoped result is `balance-report.json`; its acquisition diagnostic remains
+incomplete. RGB is recorded for inspection and is unused by this controller.

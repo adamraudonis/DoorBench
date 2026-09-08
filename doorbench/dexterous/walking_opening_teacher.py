@@ -72,7 +72,8 @@ class WalkingOpeningTeacher(FullSequenceTeacher):
         force,info=self.opening.force(t,root,joints,velocities,handle_pose,leaf_pose,
             angles,hand_forces,evidence=measured['evidence'],
             right_palm_pose=measured['right_palm_pose'],
-            pose_time_s=measured['pose_time_s']-offset,contact_interval_s=local_interval)
+            pose_time_s=measured['pose_time_s']-offset,contact_interval_s=local_interval,
+            episode_pose_time_s=measured['pose_time_s'])
         return force,{**info,'episode_pose_time_s':measured['pose_time_s'],
                       'episode_contact_interval_s':measured['contact_interval_s'].tolist(),
                       'opening_clock_offset_s':float(offset)}

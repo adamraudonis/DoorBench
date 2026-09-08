@@ -20,7 +20,7 @@ def validate_traversal_mode(args):
         return
     if not args.full_sequence_reset or not args.full_opening:
         raise ValueError('--traverse requires --full-sequence-reset and --full-opening')
-    if args.sensor_policy_checkpoint or args.mechanism_test or args.panel_push:
+    if args.sensor_policy_checkpoint or getattr(args,'sensor_balance_calibration',None) or args.mechanism_test or args.panel_push:
         raise ValueError('Traversal is an explicit privileged motor-teacher mode')
     if args.target_aperture < 1.2 or args.time_scale != 1.:
         raise ValueError('Traversal requires >=1.2 rad aperture and the unchanged controller clock')
@@ -136,6 +136,8 @@ p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
 p.add_argument('--operator-compliance-gain',type=float,default=0.,help='Bounded palm-reference integral compensation for actual operator-angle error; motor and mechanism limits unchanged')
 p.add_argument('--sensor-policy-checkpoint',help='Execute the recurrent actor using only robot sensor packets; no teacher fallback')
+p.add_argument('--sensor-balance-calibration',help='Opt-in stationary sensor-only balance calibration; no learned policy or acquisition claim')
+p.add_argument('--sensor-balance-robot',help='Static robot-only XML calibration for the sensor balance estimator')
 p.add_argument('--sensor-objective',choices=['acquisition','partial-opening'],default='partial-opening',help='Declared curriculum qualification; neither establishes traversal')
 p.add_argument('--sensor-reset-preflight',help='Required frozen native reset receipt for a sensor-only actor')
 p.add_argument('--reset-from-acquisition-path',action='store_true',help='Use the frozen contact-free first configuration at reset only')
@@ -155,6 +157,9 @@ p.add_argument('--follow-leaf-during-transfer',action='store_true',help='Let the
 p.add_argument('--panel-profile',choices=('plain-v1','hybrid-surface-v2'),help='Explicit development panel controller; original physical limits remain unchanged')
 p.add_argument('--palm-load-target',type=float,help='Explicit development palm-pressure target in N; requires full opening')
 p.add_argument('--transfer-load-target',type=float,default=4.,help='Declared left-panel support target in N before right-hand release; original motor caps unchanged')
+p.add_argument('--left-planning-profile',choices=('strict-v1','intermediate-clearance-3mm-v1'),help='Independently replan the left approach from the current episode state')
+p.add_argument('--whole-body-return-path',help='Opt-in exact-attained-state screened lever return; requires continuous walking stance')
+p.add_argument('--whole-body-ungrip-path',help='Opt-in screened whole-body withdrawal after the lever-return path')
 p.add_argument('--grip-rotation-fraction',type=float,default=1.,help='Fraction of operator rotation tracked by palm orientation; physical contacts remain unconstrained')
 p.add_argument('--arm-impedance',type=float,default=1.,help='Software arm position-gain multiplier at the 500 Hz motor loop; native force caps remain unchanged')
 p.add_argument('--grip-impedance',type=float,default=1.,help='Finger position-gain multiplier; native force caps remain unchanged')
@@ -201,6 +206,16 @@ if not math.isfinite(a.transfer_load_target) or not 2<a.transfer_load_target<=10
     p.error('Transfer target must be finite, above 2 N and at most 10 N')
 if a.transfer_load_target!=4. and not a.full_opening:
     p.error('A nondefault transfer target requires --full-opening')
+if a.left_planning_profile is not None and not a.full_opening:
+    p.error('Attained left planning requires --full-opening')
+if a.whole_body_return_path and not (a.full_opening and a.full_sequence_reset):
+    p.error('Whole-body return requires full opening and the continuous landed stance')
+if a.whole_body_ungrip_path and not a.whole_body_return_path:
+    p.error('Whole-body ungrip requires its screened whole-body return path')
+if bool(a.sensor_balance_calibration) != bool(a.sensor_balance_robot):
+    p.error('Sensor balance requires both frozen calibration and robot-only XML')
+if a.sensor_balance_calibration and (a.sensor_policy_checkpoint or a.seconds!=5.):
+    p.error('Sensor balance is a separate stationary trial with a frozen5-second protocol')
 try:validate_traversal_mode(a)
 except ValueError as error:p.error(str(error))
 if a.record or a.sensor_layout:a.enable_cameras=True
@@ -247,10 +262,11 @@ def main():
     ref=json.loads(Path(a.reference).read_text());motors=json.loads(Path(a.motors).read_text())
     (out/'motor-contract.json').write_bytes(Path(a.motors).read_bytes())
     sequence_reset=json.loads(Path(a.full_sequence_reset).read_text()) if a.full_sequence_reset else None
-    physics_audit_enabled=bool(a.acquisition or a.sensor_policy_checkpoint)
+    sensor_control=bool(a.sensor_policy_checkpoint or a.sensor_balance_calibration)
+    physics_audit_enabled=bool(a.acquisition or sensor_control)
     if a.acquisition or a.reset_from_acquisition_path:
         ref['initial_joints']=dict(zip(ref['acquisition']['joint_names'],ref['acquisition']['path_qpos'][0]))
-    if a.sensor_policy_checkpoint:
+    if sensor_control:
         from doorbench.dexterous.sensor_reset_preflight import validate_sensor_reset_preflight
         actor_reset=validate_sensor_reset_preflight(a.sensor_reset_preflight,reference=a.reference,motors=a.motors,
             robot_usd=a.robot_usd,door_usd=a.door_usd)
@@ -334,13 +350,13 @@ def main():
         from isaaclab.sensors import Camera,CameraCfg
         camera=Camera(CameraCfg(prim_path='/World/Camera',update_period=0.,height=720,width=960,
             data_types=['rgb'],spawn=sim_utils.PinholeCameraCfg(focal_length=48. if a.view=='hand' else 24.,clipping_range=(.02,100.))))
-        if sequence_reset or a.full_opening or a.sensor_policy_checkpoint:
+        if sequence_reset or a.full_opening or sensor_control:
             hand_camera=Camera(CameraCfg(prim_path='/World/HandReviewCamera',update_period=0.,height=720,width=720,
                 data_types=['rgb'],spawn=sim_utils.PinholeCameraCfg(focal_length=48.,clipping_range=(.02,100.))))
     sensor_recorder=None
     if a.sensor_layout:
         from doorbench.dexterous.isaac_sensor_recording import IsaacSensorRecorder
-        sensor_recorder=IsaacSensorRecorder(stage,a.sensor_layout,out/'sensors',control_source='sensor_actor' if a.sensor_policy_checkpoint else 'privileged_teacher')
+        sensor_recorder=IsaacSensorRecorder(stage,a.sensor_layout,out/'sensors',control_source='sensor_actor' if sensor_control else 'privileged_teacher')
     contacts=[]
     all_contacts=[]
     report_counts=[0,0]
@@ -427,7 +443,7 @@ def main():
     for i,n in enumerate(dnames):
         prim=stage.GetPrimAtPath('/World/Door/Articulation/Joints/'+n)
         target[0,i]=prim.GetAttribute('doorbench:target_si').Get() or 0.
-    controls=None if a.sensor_policy_checkpoint else np.array(ref['controls']);rows=[]
+    controls=None if sensor_control else np.array(ref['controls']);rows=[]
     teacher=None;teacher_info={};teacher_control=None;sequence=None;operation=None;sensor_actor=None;full_opening=None;opening_geometry=None;continuous=None
     if a.acquisition:
         from doorbench.dexterous.acquisition_teacher import AcquisitionTeacher
@@ -460,7 +476,8 @@ def main():
                     operator_compliance_gain=a.operator_compliance_gain,target_aperture=a.target_aperture,
                     follow_leaf_during_transfer=a.follow_leaf_during_transfer,
                     panel_profile=a.panel_profile or 'hybrid-surface-v2',palm_load_target=a.palm_load_target,
-                    transfer_load_target=a.transfer_load_target)
+                    transfer_load_target=a.transfer_load_target,left_planning_profile=a.left_planning_profile,
+                    whole_body_return_path=a.whole_body_return_path,whole_body_ungrip_path=a.whole_body_ungrip_path)
                 if sequence_reset:
                     from doorbench.dexterous.walking_opening_teacher import WalkingOpeningTeacher
                     sequence_type=WalkingOpeningTeacher
@@ -524,14 +541,20 @@ def main():
         sensor_actor=SensorPolicyController(a.sensor_policy_checkpoint,motor_contract=motors,
             sensor_layout=sensor_recorder.layout,physics_dt_s=dt,device=a.device)
         sensor_actor.reset_episode()
+    elif a.sensor_balance_calibration:
+        from doorbench.dexterous.sensor_balance_runtime import SensorBalanceRuntime
+        sensor_actor=SensorBalanceRuntime(a.sensor_balance_robot,motors,sensor_recorder.layout,
+            a.sensor_balance_calibration)
+        sensor_actor.reset_episode()
     release_time=None
     ankle_motors=[i for i,motor in enumerate(motors['actuators']) if any(n in motor['terms'] for n in ('left_ankle','right_ankle'))]
     (out/'configuration.json').write_text(json.dumps(dict(args=vars(a),robot_joint_names=rnames,door_joint_names=dnames,
         dt=dt,robot_mass_kg=float(robot.root_physx_view.get_masses().sum()),latch_scale=scale,
         root_state_convention='actor-origin pose and world actor-origin linear/angular velocity' if continuous else 'legacy IsaacLab actor pose plus world COM linear/angular velocity',
+        balance_root_state_convention='balance-steps uses root_link_state_w: actor-origin pose and world actor-origin linear/angular velocity; evaluator only' if a.sensor_balance_calibration else None,
         simulator_effort_limits=robot.root_physx_view.get_dof_max_forces()[0].cpu().tolist(),
         runtime_pose_writes=0,direct_door_commands=bool(a.mechanism_test),contact_material_audit=contact_material_audit,
-        scope='Uninterrupted approach, opening, release and traversal; privileged live PhysX development' if continuous else 'Continuous approach through bimanual loaded aperture; privileged live PhysX; no traversal' if full_opening and sequence else 'Contact-free acquisition through bimanual loaded aperture; privileged live PhysX; no approach/traversal' if full_opening else 'Sensor-only recurrent force actor; declared curriculum objective; no teacher or traversal claim' if sensor_actor else 'Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
+        scope='Uninterrupted approach, opening, release and traversal; privileged live PhysX development' if continuous else 'Continuous approach through bimanual loaded aperture; privileged live PhysX; no traversal' if full_opening and sequence else 'Contact-free acquisition through bimanual loaded aperture; privileged live PhysX; no approach/traversal' if full_opening else 'Sensor-only analytical stationary balance; RGB unused; no learned policy, acquisition or door task claim' if a.sensor_balance_calibration else 'Sensor-only recurrent force actor; declared curriculum objective; no teacher or traversal claim' if sensor_actor else 'Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
     sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py')]
     if a.panel_push:sources.append(Path(__file__).with_name('panel_push_teacher.py'))
     if a.acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('acquisition_teacher.py','isaac_tendons.py','grasp_verification.py','isaac_pad_audit.py')]
@@ -547,15 +570,33 @@ def main():
             (out/(name+'.json')).write_bytes(Path(value).read_bytes())
     if full_opening:
         inputs += [Path(v) for v in (a.left_palm_targets,a.right_release_screen,a.native_door,a.bimanual_runtime_screen) if v]
+        for name in ('whole_body_return_path','whole_body_ungrip_path'):
+            if getattr(a,name):
+                path=Path(getattr(a,name));inputs.append(path)
+                (out/(name.replace('_','-')+'.json')).write_bytes(path.read_bytes())
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
             ('full_opening_teacher.py','walking_opening_teacher.py','full_opening_audit.py','isaac_opening_measurements.py','bimanual_transfer.py','bimanual_runtime.py',
              'panel_continuation.py','right_hand_release.py','robot_design_identity.py')]
+        if a.left_planning_profile:
+            sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
+                ('runtime_left_planner.py','landed_left_planner.py','landed_left_audit.py','left_approach_clearance.py')]
+        if a.whole_body_return_path:
+            sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
+                ('whole_body_return.py','right_release_return.py')]
+        if a.whole_body_ungrip_path:
+            sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/whole_body_ungrip.py')
     if continuous:
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
             ('continuous_door_teacher.py','post_opening_teacher.py','post_opening.py','post_opening_route.py',
              'passage.py','isaac_post_opening_measurements.py')]
     if sensor_actor:
-        inputs += [Path(a.sensor_policy_checkpoint),Path(a.sensor_reset_preflight)]
+        inputs.append(Path(a.sensor_reset_preflight))
+        if a.sensor_policy_checkpoint:inputs.append(Path(a.sensor_policy_checkpoint))
+        if a.sensor_balance_calibration:
+            inputs += [Path(a.sensor_balance_calibration),Path(a.sensor_balance_robot)]
+            (out/'sensor-balance-calibration.json').write_bytes(Path(a.sensor_balance_calibration).read_bytes())
+            sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
+                ('sensor_balance_runtime.py','sensor_balance.py','locomotion_manipulation.py','stance.py','isaac_post_opening_measurements.py')]
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
             ('sensor_actor.py','sensor_policy_controller.py','control_mode.py','isaac_pad_audit.py','isaac_tendons.py','grasp_verification.py','motor_contract_identity.py','sensor_reset_preflight.py','teacher_query_recording.py')]
     if a.sensor_layout:
@@ -621,6 +662,12 @@ def main():
         (out/'acquisition-reset.json').write_text(json.dumps(acquisition_reset,indent=2)+'\n')
     foot_loads=np.zeros(2);right_hand_contact_count=0;right_hand_buffered_contact_count=0
     sequence_steps=[];full_opening_steps=[];full_aperture_crossed=False;max_motor_delivery_error=0.
+    balance_steps=[];balance_contact_stream=None
+    if a.sensor_balance_calibration:
+        balance_contact_stream=gzip.open(out/'balance-contacts.jsonl.gz','wt',compresslevel=1)
+        (out/'balance-contact-layout.json').write_text(json.dumps(dict(sensor_paths=audit_paths,
+            filter_paths=audit_filters.tolist(),capacity=16384,
+            scope='Occupied actual post-step normal contact slots; evaluator only'),indent=2)+'\n')
     traversal_steps=[];frozen_opening_report=None;max_transmission_residual=0.
     traversal_contact_stream=None
     if continuous:
@@ -745,7 +792,16 @@ def main():
         (out/'continuous-controller.json').write_text(json.dumps(dict(info=continuous.info,
             failure=continuous.failure,handoffs=continuous.handoffs,opening_audit=continuous.opening_audit,
             handoff=continuous.handoff),indent=2)+'\n')
+    def save_attained_left_plan():
+        if not full_opening:return
+        for name,value in (('actual-left-planning',full_opening.left_planning_receipt),
+                           ('actual-left-targets',full_opening.left_planning_targets)):
+            if value is not None:(out/(name+'.json')).write_text(json.dumps(value,indent=2)+'\n')
     def checkpoint_prefix():
+        save_attained_left_plan()
+        if a.sensor_balance_calibration:
+            with gzip.open(out/'balance-steps.partial.json.gz','wt') as stream:json.dump(balance_steps,stream)
+            balance_contact_stream.flush()
         # Periodic atomic checkpoints survive a native shutdown that bypasses
         # Python exceptions. They are explicitly incomplete, never scored passes.
         (out/'trace.partial.json.tmp').write_text(json.dumps(rows)+'\n')
@@ -884,7 +940,8 @@ def main():
                 packet=sensor_recorder.builder.observe(now_s=step*dt,previous_action=sensor_actor.previous_action)
                 forces=sensor_actor.force(packet,now_s=step*dt)
                 if step==0:sensor_recorder.record_initial_decision(packet,forces)
-                teacher_info=dict(phase='sensor_policy',runtime_inputs='numeric robot sensor packet and local acquisition clock',teacher_fallback=False)
+                teacher_info=dict(phase='sensor_policy',runtime_inputs='numeric robot sensor packet and local acquisition clock',teacher_fallback=False) if not a.sensor_balance_calibration else dict(
+                    **sensor_actor.last_info,phase='sensor_balance',teacher_fallback=False)
             torque=matrix.T@forces-damp*vel-friction*np.tanh(vel/.001)
             robot.set_joint_effort_target(torch.tensor(torque[None],device=a.device,dtype=torch.float32))
             door.set_joint_position_target(target);door.set_joint_velocity_target(torch.zeros_like(target))
@@ -965,6 +1022,25 @@ def main():
                                     continue
                                 else:key='max_nonfoot_environment_penetration_m'
                                 mechanical_audit[key]=max(mechanical_audit[key],depth)
+                    if a.sensor_balance_calibration:
+                        from doorbench.dexterous.isaac_post_opening_measurements import continuation_contact_summary
+                        summary=continuation_contact_summary(audit_paths,audit_filters,af,an,ad,ac,ast,
+                            capacity=16384,physics_qualified=True)
+                        touched=0;occupied=[]
+                        for i,path in enumerate(audit_paths):
+                            for j in range(ac.shape[1]):
+                                for k in range(int(ast[i,j]),int(ast[i,j]+ac[i,j])):
+                                    occupied.append(dict(sensor=i,filter=j,slot=k,position=ap[k].tolist(),
+                                        normal=an[k].tolist(),force_N=float(af[k,0]),distance_m=float(ad[k,0])))
+                                    if path.rsplit('/',1)[-1].startswith(('rh_','lh_')):
+                                        touched+=int(float(ad[k,0])<=0. or float(af[k,0])>1e-8)
+                        balance_contact_stream.write(json.dumps(dict(interval_start_s=step*dt,
+                            interval_end_s=(step+1)*dt,contacts=occupied),separators=(',',':'))+'\n')
+                        balance_steps.append(dict(time_s=(step+1)*dt,
+                            root13_actororigin=robot.data.root_link_state_w[0].cpu().tolist(),
+                            torso_tilt_deg=float(np.degrees(np.arccos(np.clip(-robot.data.projected_gravity_b[0,2].item(),-1,1)))),
+                            foot_floor_loads=summary['foot_loads'].tolist(),hand_contact_count=touched,
+                            controller_info=sensor_actor.last_info))
             if sequence:
                 if step%250==0:
                     debug_contacts=[]
@@ -1077,6 +1153,15 @@ def main():
                 (out/'early-stop.json').write_text(json.dumps(dict(reason='Robot fell',time_s=(step+1)*dt))+'\n')
                 break
     except BaseException as run_error:
+        save_attained_left_plan()
+        if balance_contact_stream:
+            balance_contact_stream.close()
+            with gzip.open(out/'balance-steps.json.gz','wt') as stream:json.dump(balance_steps,stream)
+            failed_balance=dict(passed=False,scope='Incomplete sensor-only stationary balance component; no door-task result',
+                error=str(run_error),duration_s=balance_steps[-1]['time_s'] if balance_steps else 0.,
+                physical_evidence_complete=False,teacher_fallback=False)
+            for name in ('balance-report.json','report.json'):
+                (out/name).write_text(json.dumps(failed_balance,indent=2)+'\n')
         # Preserve the actual executed prefix even when a controller or backend
         # error prevents normal qualification. These files never imply a pass.
         (out/'trace.json').write_text(json.dumps(rows)+'\n')
@@ -1106,6 +1191,10 @@ def main():
         if writer:writer.close()
         if hand_writer:hand_writer.close()
         raise
+    save_attained_left_plan()
+    if balance_contact_stream:
+        balance_contact_stream.close()
+        with gzip.open(out/'balance-steps.json.gz','wt') as stream:json.dump(balance_steps,stream)
     (out/'trace.json').write_text(json.dumps(rows)+'\n')
     if physics_audit_enabled:np.savez_compressed(out/'acquisition-physics.npz',**acquisition_states)
     if physics_audit_enabled:
@@ -1139,13 +1228,13 @@ def main():
             motor_delivery_matches_command=max_motor_delivery_error<1e-4,
             native_motor_caps=bool(np.all(motor_forces>=force_ranges[:,0]-1e-5) and np.all(motor_forces<=force_ranges[:,1]+1e-5)),
             sustained_pad_grasp=bool(len(tail)>=round(.5/dt)+1 and all(r['valid_pad_grasp'] for r in tail)))
-        report=dict(scope='Right-hand acquisition diagnostic only; intentional later release means this is not the full-opening run result. See full-opening-report.json' if full_opening else 'Sensor-only actor physical acquisition/hold audit within declared curriculum task' if sensor_actor else 'Acquisition/hold audit within a continuous operation trial; see operation-report.json for mechanism outcome' if operation else 'Live PhysX privileged acquisition only; no approach/opening/traversal or sensor-only claim',passed=all(checks.values()),checks=checks,
+        report=dict(scope='Right-hand acquisition diagnostic only; intentional later release means this is not the full-opening run result. See full-opening-report.json' if full_opening else 'Acquisition diagnostic remains incomplete during the separate stationary balance experiment; balance-report.json is the scoped result' if a.sensor_balance_calibration else 'Sensor-only actor physical acquisition/hold audit within declared curriculum task' if sensor_actor else 'Acquisition/hold audit within a continuous operation trial; see operation-report.json for mechanism outcome' if operation else 'Live PhysX privileged acquisition only; no approach/opening/traversal or sensor-only claim',passed=all(checks.values()),checks=checks,
             grasp_profile=a.grasp_profile,
             original_distal_pad_hold=bool(len(tail)>=round(.5/dt)+1 and all(r.get('distal_pad_grasp',r)['valid_pad_grasp'] for r in tail)),
             max_motor_delivery_error_Nm=max_motor_delivery_error,
             physics_dt_s=dt,duration_s=acquisition_states['time_s'][-1],runtime_robot_pose_writes=0,direct_door_commands=False,
             initial_contact_evidence_note=acquisition_reset['contact_evidence_note'],final_pad_grasp=pad_steps[-1])
-        if sensor_actor:
+        if sensor_actor and not a.sensor_balance_calibration:
             actor_checks=dict(checks)
             actor_checks.update(motor_delivery=max_motor_delivery_error<1e-4,
                 no_wrong_pad_patch=all(c['pad_qualified'] for row in pad_steps for c in row['contacts']))
@@ -1165,6 +1254,18 @@ def main():
             (out/'actor-report.json').write_text(json.dumps(actor_report,indent=2)+'\n')
             (out/'report.json').write_text(json.dumps(actor_report,indent=2)+'\n')
             print('ACTOR_RESULT '+json.dumps({k:v for k,v in actor_report.items() if k!='final_pad_grasp'}),flush=True)
+        if a.sensor_balance_calibration:
+            from doorbench.dexterous.sensor_balance_runtime import evaluate_sensor_balance
+            balance_checks={k:v for k,v in checks.items() if k!='sustained_pad_grasp'}
+            balance_report=evaluate_sensor_balance(balance_steps,balance_checks,
+                physics_dt_s=dt,expected_duration_s=a.seconds)
+            balance_report.update(calibration_sha256=hashlib.sha256(Path(a.sensor_balance_calibration).read_bytes()).hexdigest(),
+                runtime_robot_pose_writes=0,direct_door_commands=False,teacher_fallback=False,
+                runtime_controller_inputs='Encoders, local IMU, foot tactile and previous command; fixed robot/posture calibration; RGB captured but unused',
+                force_readback='Submitted backend actuation input, not an independent joint torque sensor')
+            for name in ('balance-report.json','report.json'):
+                (out/name).write_text(json.dumps(balance_report,indent=2)+'\n')
+            print('BALANCE_RESULT '+json.dumps(balance_report),flush=True)
         (out/'acquisition-report.json').write_text(json.dumps(report,indent=2)+'\n')
         print('ACQUISITION_RESULT '+json.dumps({k:v for k,v in report.items() if k!='final_pad_grasp'}),flush=True)
         if operation:
@@ -1292,5 +1393,10 @@ except BaseException:
     traceback.print_exc()
     Path(a.output).mkdir(parents=True,exist_ok=True)
     (Path(a.output)/'error.txt').write_text(traceback.format_exc())
+    if a.sensor_balance_calibration and not (Path(a.output)/'balance-report.json').exists():
+        for name in ('balance-report.json','report.json'):
+            (Path(a.output)/name).write_text(json.dumps(dict(passed=False,
+                scope='Sensor-only stationary balance setup or finalization failure; no qualified physical result',
+                error=traceback.format_exc()),indent=2)+'\n')
 finally:app.close()
 if failed:raise SystemExit(1)

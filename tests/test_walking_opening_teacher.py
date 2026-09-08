@@ -24,6 +24,7 @@ def test_physical_handoff_retains_episode_interval_and_starts_fresh_hold_clock()
         args,kwargs=received[-1]
         assert args[0]==t
         assert kwargs['pose_time_s']==pytest.approx(t)
+        assert kwargs['episode_pose_time_s']==pytest.approx(absolute)
         assert kwargs['contact_interval_s']==pytest.approx([max(0.,t-.002),t])
         assert info['episode_contact_interval_s']==pytest.approx([absolute-.002,absolute])
     # The source measurements retain the preceding preparation interval; only

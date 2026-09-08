@@ -186,7 +186,7 @@ def test_source_preserves_independent_opening_prefix_and_actual_traversal_arrays
     assert "if full_opening and (not continuous or frozen_opening_report is None):" in text
     assert "if not continuous:break" in text
     assert "if continuous.done:" in text
-    assert "if sequence_reset or a.full_opening or a.sensor_policy_checkpoint:" in text
+    assert "if sequence_reset or a.full_opening or sensor_control:" in text
     assert "acquisition_states['actual_motor_forces'].append(last_actual_motor_forces.copy())" in text
     assert "acquisition_states['actual_joint_effort'].append(delivered.copy())" in text
     assert "acquisition_states['legacy_root_state_w'].append(robot.data.root_state_w[0].cpu().numpy().copy())" in text

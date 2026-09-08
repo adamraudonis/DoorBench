@@ -1,8 +1,8 @@
 # Replan left contact at the attained stance
 
-`plan_attained_left_contact` is an opt-in geometric helper for a future
-continuous native or Isaac controller. Existing controllers and defaults are
-unchanged. It accepts detached actual measurements, fits the left arm and wrist,
+`plan_attained_left_contact` is an opt-in geometric helper integrated with the
+continuous native and Isaac teachers through `--left-planning-profile`. Existing
+defaults are unchanged. It accepts detached actual measurements, fits the left arm and wrist,
 and returns a target only if the independent dense screen passes. It cannot
 step or write an active plant and does not qualify a physical opening.
 
@@ -39,6 +39,14 @@ needs an explicit offset, not silently relabeled state. A stale timestamp,
 incomplete joint map or inconsistent leaf/handle frame raises a failure with a
 retained receipt. The body-frame check uses the existing 3 mm position and 0.02
 rotation-matrix tolerances; it does not change collision or contact thresholds.
+
+The integrated teacher preserves the global episode timestamp alongside its
+local manipulation clock. It installs targets only after checking the complete
+target hash, arm ordering and finite rows. A failed screen or installation stops
+the handoff and retains a failed receipt; it cannot silently retry with old
+targets. The native and Isaac runners save `actual-left-planning.json` and,
+only after successful installation, `actual-left-targets.json`. Actual physics
+qualification remains separate from this geometric installation.
 
 The torso, root, legs, opposite arm, fingers and complete door coordinates remain
 frozen in the unstepped calculator. Seven arm/wrist joints fit the panel-local
