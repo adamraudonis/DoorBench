@@ -18,7 +18,8 @@ def smooth(u):
     return u**3*(10+u*(-15+6*u))
 
 
-def compact_posture(model, start, reset):
+def compact_posture(model, start, reset, *, inward_roll=0.):
+    if not np.isfinite(inward_roll) or not 0<=inward_roll<=.1:raise ValueError('Invalid bounded inward shoulder roll')
     q=np.array(start,copy=True)
     values={n:v for n,v in reset['joints'].items() if not any(t in n for t in ('hip','knee','ankle'))}
     for hand in ('lh','rh'):
@@ -26,7 +27,7 @@ def compact_posture(model, start, reset):
             for j,v in ((3,.35),(2,.8),(1,.8)):values[f'{hand}_{digit}J{j}']=v
         for j,v in ((5,.5),(4,.7),(3,0),(2,.5),(1,.5)):values[f'{hand}_THJ{j}']=v
         values[f'{hand}_LFJ5']=.12
-    for side in ('left','right'):values[side+'_shoulder_roll']=0.
+    for side,sign in (('left',-1),('right',1)):values[side+'_shoulder_roll']=sign*inward_roll
     for name,value in values.items():q[model.jnt_qposadr[model.joint('robot/'+name).id]]=value
     return q
 
@@ -58,7 +59,7 @@ def screen_state(m,d,q):
                 maximum_loopback_violation_rad=max(0.,*loopbacks))
 
 
-def plan_stow(sim,reset,*,retreat_m=.14,samples=101):
+def plan_stow(sim,reset,*,retreat_m=.14,samples=101,inward_roll=0.):
     """Retreat along measured leaf outward normal, then each arm, then waist.
 
     The loaded side is chosen from the measured contact normal. No geometry or
@@ -67,7 +68,7 @@ def plan_stow(sim,reset,*,retreat_m=.14,samples=101):
     """
     if samples<51 or not 0<retreat_m<=.2:raise ValueError('Invalid bounded route resolution')
     m=sim.m;d=mujoco.MjData(m);start=sim.d.qpos.copy();d.qpos[:]=start;mujoco.mj_forward(m,d)
-    target=compact_posture(m,start,reset);palm=m.site('robot/lh_palm_touch').id
+    target=compact_posture(m,start,reset,inward_roll=inward_roll);palm=m.site('robot/lh_palm_touch').id
     position=d.site_xpos[palm].copy();rotation=d.site_xmat[palm].reshape(3,3).copy()
     normals=[]
     for c in d.contact[:d.ncon]:
@@ -101,7 +102,7 @@ def plan_stow(sim,reset,*,retreat_m=.14,samples=101):
             path.append(q.copy());stage.append(name)
     return dict(passed=not bad,path_qpos=np.array(path).tolist(),stage=stage,
                 bad_samples=bad[:30],bad_sample_count=len(bad),sample_count=len(path),
-                retreat_normal_world=normal.tolist(),retreat_distance_m=retreat_m,
+                retreat_normal_world=normal.tolist(),retreat_distance_m=retreat_m,inward_shoulder_roll_rad=inward_roll,
                 scope='Static measured terminal leaf/root; no dynamic or passage proof')
 
 
@@ -128,7 +129,10 @@ class StowRiseController:
         self.policy=H1WalkingPolicy(checkpoint) if checkpoint is not None and rise else None
         self.walk_target=DEFAULT_ANGLES.copy();self.walk_started=None
 
-    def force(self,t,*,left_contacts,left_load):
+    def force(self,t,*,left_contacts,left_load,walking_command=None,walking_amplitude=None,hand_forces=None):
+        if walking_command is not None:
+            walking_command=np.asarray(walking_command,float)
+            if walking_command.shape!=(3,) or not np.isfinite(walking_command).all() or np.any(abs(walking_command)>[.3,.15,.4]) or walking_amplitude is None or not 0<=walking_amplitude<=1:raise ValueError('Invalid bounded walking command')
         m,d=self.sim.m,self.sim.d;name=self.phases[self.phase];elapsed=t-self.phase_start
         if left_contacts==0 and left_load<.1:
             if self.clear_since is None:self.clear_since=t
@@ -157,13 +161,14 @@ class StowRiseController:
             # origins, not solver-generated robot joint-limit impulses.
             external=self.sim.external_generalized_force;external[:]=0.
             jp=np.zeros((3,m.nv));jr=np.zeros((3,m.nv))
-            for i,c in enumerate(d.contact[:d.ncon]):
-                wrench=np.zeros(6);mujoco.mj_contactForce(m,d,i,wrench)
-                world=c.frame.reshape(3,3).T@wrench[:3]
-                for sign,g in zip((-1,1),c.geom):
-                    body=int(m.geom_bodyid[g])
-                    if m.body(body).name.startswith(('robot/lh_','robot/rh_')):
-                        mujoco.mj_jacBody(m,d,jp,jr,body);external+=sign*(jp.T@world)
+            if hand_forces is None:
+                raise ValueError('Stance requires separately captured actual-interval hand forces')
+            for body_name,world in hand_forces.items():
+                if not body_name.startswith(('lh_','rh_')):raise ValueError('Unexpected hand-load body')
+                world=np.asarray(world,float)
+                if world.shape!=(3,) or not np.isfinite(world).all():raise ValueError('Malformed actual hand force')
+                body=m.body('robot/'+body_name).id
+                mujoco.mj_jacBody(m,d,jp,jr,body);external+=jp.T@world
             proposed,status=self.stance.command()
             if proposed is None:self.solver_failures+=1
             else:self.stance_force=proposed
@@ -173,7 +178,7 @@ class StowRiseController:
             if self.walk_started is None:self.walk_started=t;self.policy.reset()
             q=d.qpos[self.stance.qa];v=d.qvel[self.stance.v[6:]]
             if self.tick%10==0:
-                self.walk_target=self.policy.step(q,v,d.qvel[self.sim.root_vadr+3:self.sim.root_vadr+6],d.xmat[self.sim.pelvis].reshape(3,3).T@np.array([0.,0.,-1.]),np.zeros(3),t-self.walk_started,phase_amplitude=max(0.,min(1.,4.4-(t-self.walk_started))))
+                self.walk_target=self.policy.step(q,v,d.qvel[self.sim.root_vadr+3:self.sim.root_vadr+6],d.xmat[self.sim.pelvis].reshape(3,3).T@np.array([0.,0.,-1.]),np.zeros(3) if walking_command is None else walking_command,t-self.walk_started,phase_amplitude=max(0.,min(1.,4.4-(t-self.walk_started))) if walking_amplitude is None else walking_amplitude)
             force[self.stance.local]=self.policy.torques(self.walk_target,q,v)
         self.tick+=1;force=np.clip(force,self.caps[:,0],self.caps[:,1])
         if not np.isfinite(force).all():raise ValueError('Nonfinite motor force')

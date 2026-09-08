@@ -1,107 +1,136 @@
-# Release, stow, rise and restart: one initialized H1 component
+# Initialized H1 release, stow, rise and passage
 
-Native trial **007 passes 19/19 checks** over 34 seconds (17,001 timestamped
-states, including reset). It starts from the *attained* terminal qpos **and qvel**
-of `full-push-portable-001`, physically releases the left palm, retracts each
-arm, closes the hands, turns the waist back, rises to 1.000 m and hands control
-to the official H1 walking policy. A short gait-settle/phase-brake sequence ends
-in a quiet standing posture at 1.047 m.
+Native **trial 009 passes all 24 checks** over 65 seconds and 32,500 actual
+2 ms physics transitions. From an attained open-door state, it releases the
+left hand, stows both arms, returns the waist, rises, restarts the official H1
+walking policy, aligns with the opening, walks through and stops quietly.
+A separate archive audit verifies continuous state and motor delivery across
+every transition, and exactly matches 325 sampled contact-epoch body poses.
 
-This is an **initialized continuation**, not an uninterrupted approach/open/
-traverse demonstration, an Isaac result, or a vision/touch policy. World pose,
-contact loads and unstepped inverse dynamics are privileged controller inputs.
-No root, foot or door pose is written after reset. All efforts go through the
-original 61 bounded motors. Robot masses, passive dynamics, geometry, friction,
-joint limits and eight corrected Shadow loopbacks stay unchanged.
+This is an **initialized continuation from one attained qpos/qvel**, not an
+uninterrupted approach/open/traverse demonstration, an Isaac result, or a
+vision/touch policy. The controller uses privileged body pose, contact loads
+and inverse dynamics. The earlier opening component does not transfer its
+qualification to this result. The entire sequence still needs a continuous
+physical run from a closed, untouched door.
 
-| Measurement | Trial 007 |
+| Measurement | Trial 009 |
 |---|---:|
-| Left palm released and cleared | 4.002 s |
+| Left hand release stage completed | 4.002 s |
 | Left / right arm stowed | 8.004 / 12.004 s |
 | Waist returned | 16.004 s |
-| Walking policy received control | 23.006 s |
-| Maximum torso tilt | 2.060° |
+| H1 walking controller received control | 23.006 s |
+| Alignment finished / whole-body passage declared | 39.000 / 49.400 s |
+| Trailing collision extent at passage declaration | 0.943 m beyond the door plane |
+| Maximum torso tilt | 2.983° |
 | Maximum nonfoot penetration | 0.090 mm |
 | Maximum joint-stop excess, including door joints | 0.714 mrad |
 | Failed stance QP updates | 0 |
-| Final-second maximum horizontal speed | 0.0154 m/s |
-| Final-second horizontal excursion | 7.91 mm |
+| Actual motor-command delivery error | 0 Nm |
+| Final-second maximum horizontal speed | 0.00326 m/s |
+| Final-second horizontal excursion | 1.68 mm |
+| Final root XYZ | [0.01574, 1.06324, 1.04745] m |
 | Final leaf angle | 1.623 rad |
 
-The source leaf starts at 1.201 rad with 0.511 rad/s velocity. Its existing
-momentum carries it farther open after hand release; no opening torque is added.
-The body's final XY is `[-0.12117, -0.71411]` m, compared with the initial
-`[-0.15600, -0.58732]` m. This approximately 13 cm settling displacement matters
-for subsequent navigation. Passage remains untested: the body is outside the
-previously screened straight corridor, and the door must remain sufficiently
-open during any later crossing.
+No root, foot or door pose is written after the single reset. The original 61
+motor force caps, masses, joint ranges, passive dynamics, friction, collision
+shapes and eight corrected Shadow loopbacks remain unchanged. The stance QP's
+support constraints exist only in its planner; the simulated feet remain free.
+The independent actual-contact archive contains inherited left-hand/panel
+contacts during the first 4 ms and no later nonfoot environment contacts.
 
-## What changed
+## Controller and evidence
 
-A direct joint interpolation was rejected by the static screen. The accepted
-404-state route first withdraws the loaded hand 14 cm along the measured contact
-normal, moves the left arm, moves the right arm, then turns the waist. Reversing
-that order drives the hand into the door. The screen uses a separate unstepped
-`MjData`; each live 2 ms step still independently checks actual contact, limits,
-uprightness, finite state and motor caps with refreshed post-step geometry.
+The source terminal preserves the exact robot and door qpos, qvel and motor
+commands. Its leaf starts at 1.201 rad with 0.511 rad/s velocity. That existing
+momentum carries it farther open after release; this continuation commands no
+door effort. It does not establish passage for a door that closes before the
+body clears it.
 
-Reference progress waits for measured left-hand clearance and sufficiently
-small arm motor error. The stance QP only computes motor forces. Its support
-polygons are planning assumptions, not simulator constraints. Failed numerical
-updates retain the last bounded effort and are counted as failures. A six-case
-solver comparison selected `rho=.001`, adaptive update interval 25 and 100,000
-maximum iterations; residual tolerances remain the existing 1e-4 values.
+A 404-state geometric route on separate unstepped data withdraws the loaded
+palm 14 cm along its measured outward normal, stows the left arm, stows the right
+arm, and then returns the waist. Reversing that order causes collision. Both
+shoulders roll inward by 0.07 rad during stow, giving the hands more clearance.
+Reference progression waits for actual hand clearance and bounded arm error.
 
-Standing directly to 1.035 m with the fixed-foot QP failed. Rising to 1.000 m and
-handing over to the H1 gait controller works for this attained posture. Immediate
-zero-phase control drifts; 3.4 s of gait phase followed by a one-second phase
-fade produces the qualified stop. The checkpoint is the pinned **H1**, not G1,
-policy documented in [H1 locomotion](DEXTEROUS_LOCOMOTION.md).
+The original-capped stance controller rises to 1.000 m, then hands its legs to
+the pinned **H1**, not G1, policy described in [H1 locomotion](DEXTEROUS_LOCOMOTION.md).
+A 3.4-second gait settle and one-second phase fade produce a quiet standing
+state. Bounded privileged waypoint commands then align and traverse. The guard
+checks the actual leaf aperture (at least 1.57 rad) and native robot/environment
+shapes before passage, including receiving-only colliders and recorded gait
+root orientations. A sampled static corridor cannot certify future dynamic
+clearance; every physical interval remains audited. Completion requires the
+whole collision shape beyond the frame and a quiet final second.
+
+Starting with 009, [NativeTransitionRecorder](NATIVE_TRANSITION_AUDIT.md) copies
+the actual `mj_step` contact solution, force frames, matching pre-state body
+transforms, controls and actual motor forces before any refresh. Endpoint joint
+limits and body pose are checked independently. Only `mj_kinematics` refreshes
+the active plant's endpoint poses. Inertia, Jacobians and servo calculations use
+separate unstepped planning data; its hand loads come from the preceding actual
+interval, with explicit interval timestamps. The compressed raw archive retains
+every transition for independent reevaluation.
 
 ## Reproduce and inspect
 
-Use the established native Python environment, original H1 checkpoint, corrected
-robot audit, matching motor contract, and original terminal trajectory. The
-runner verifies that the source manifest's robot and door XML hashes match the
-active continuation plant. It refuses an unscreened route or reused output
-folder. Its output freezes input and source hashes, the geometric route, all
-physics records, and the exact terminal state.
+The runner validates the exact source robot and door hashes, the corrected
+hand mechanics profile, motor contract and original H1 checkpoint. It requires
+a fresh output directory and refuses a failed stow screen. Exact local paths,
+input hashes and evidence hashes are in the committed
+[009 receipt](../results/dexterous/2026-09-08/post-opening/trial-009.json).
 
 ```bash
 PYTHONPATH=. "$NATIVE_PYTHON" scripts/dexterous/probe_post_opening.py \
-  --robot "$H1_V2_XML" \
-  --door "$DOOR55_DIRECTORY" \
+  --robot "$H1_V2_XML" --door "$DOOR55_DIRECTORY" \
   --motors "$H1_V2_MOTOR_CONTRACT" \
   --initial-trajectory "$FULL_PUSH_RUN/trajectory.npz" \
   --body-reset configs/dexterous/door55-readiness-v2/body-reset.json \
   --checkpoint "$H1_MOTION_PT" \
-  --seconds 34 --output out/post-opening/my-run
+  --passage --inward-roll .07 --seconds 65 \
+  --output out/post-opening/my-run
+
+PYTHONPATH=. "$NATIVE_PYTHON" scripts/dexterous/audit_post_opening_record.py \
+  --trial out/post-opening/my-run
 
 PYTHONPATH=. "$NATIVE_PYTHON" scripts/dexterous/render_post_opening.py \
-  --trial out/post-opening/my-run
+  --trial out/post-opening/my-run --azimuth 120 --distance 4.5 \
+  --reverse-after 42 --reverse-azimuth 270
+
+PYTHONPATH=. "$NATIVE_PYTHON" scripts/dexterous/inspect_post_opening_hands.py \
+  --trial out/post-opening/my-run --times 39.952 41.002 42.002 49.402
 ```
 
-The video renders recorded physical states; it never generates the motion.
-The committed [trial 007 receipt](../results/dexterous/2026-09-08/post-opening/trial-007.json)
-contains exact development paths and evidence hashes. Generated robot assets,
-trajectory arrays and videos are excluded from git.
+The video renders recorded physical states. Its explicit camera cut exposes
+both sides of the wall; it does not change the motion. Hand close-ups at the
+strike crossing were inspected separately. Generated robot assets, raw
+trajectories and videos remain outside git.
 
-## Retained failures
+## Retained failures and corrections
 
 | Trial | Outcome |
 |---|---|
-| 001 | 8 s release prefix physically safe; incomplete stow and 66 QP failures. |
-| 002 |Full-height QP rise falls; 214 QP failures. |
-| 003 |Measured-hand-load variant still falls during full-height rise; 196 QP failures. |
-| 004 |Preserving prior forces fixes support continuity; 20 QP failures and substantial backward drift remain. |
-| 005 |Solver failures eliminated; immediate zero-phase restart drifts and violates upright/joint gates. |
-| 006 |Complete motion records retained; final report serialization failed. |
-| 007 |Clean identical replay of 006 after serialization fix; 19/19 checks pass. |
+| 001 | 8 s release prefix; incomplete stow and 66 QP failures. |
+| 002 / 003 | Full-height QP rise falls; 214 / 196 QP failures. |
+| 004 | Prior-force retention improves support; 20 QP failures and drift remain. |
+| 005 | QP failures eliminated; immediate zero-phase restart drifts and violates upright/joint gates. |
+| 006 | Motion retained; final report serialization failed. |
+| 007 | Identical replay of 006 originally reported 19/19; contact qualification subsequently withdrawn. |
+| 008 | Traverses and stops, but right index J4 exceeds its stop by 26.17 mrad, beyond the unchanged 20 mrad gate; 29 failing samples. |
+| 009 | Correct actual-step audit and inward stow; 24/24 checks plus 5/5 independent archive checks pass. |
 
-These are development trials on one attained state, not a robustness matrix.
-The full opening trajectory that supplied the reset had stale derived-pose
-logging; this component refreshes poses and contacts at reset and after every
-physical step and does not inherit the earlier component's qualification.
-A changed aperture, stance or grasp endpoint must be geometrically screened and
-physically tested again. Continuous passage and the Isaac port remain follow-up
-work.
+Trials 001–008 recomputed contact forces using `mj_forward` at each endpoint.
+Those forces are counterfactual solves, not the forces used by the preceding
+physical transition. Their original reports remain immutable; the
+[timing review](../results/dexterous/2026-09-08/post-opening/contact-timing-review.json)
+withdraws contact qualification while retaining real integrated states and
+coherent endpoint geometry.
+
+In 008, the right index struck the included `stop_strike` collider because
+forward gait left the stopped/settling posture envelope. Receiving-only collider
+hardening fixes a general omission in candidate selection, but that omission
+did not cause this door's failure: this scene has no receiving-only geometry.
+The new stow was screened against the recorded failing gait before the physical
+repeat. These results cover one initialized state, not a robustness matrix.
+Changed opening endpoints and the future uninterrupted native/Isaac sequence
+require their own actual physical qualification.
