@@ -23,7 +23,7 @@ from doorbench.dexterous.motor_contract_identity import SENSOR_ACTOR_CHECKPOINT_
 from doorbench.dexterous.sensor_training_bundle import load_bundle, digest
 from doorbench.dexterous.sensor_fit_evaluation import evaluate_frozen_fit
 from doorbench.dexterous.recurrent_sampling import sample_windows
-from doorbench.dexterous.autoregressive_training import actor_history_prediction
+from doorbench.dexterous.autoregressive_training import actor_history_prediction,dual_history_loss
 
 
 def atomic_json(path, value):
@@ -55,7 +55,8 @@ def main():
     parser.add_argument('--learning-rate',type=float,default=1e-4)
     parser.add_argument('--seed',type=int,default=0)
     parser.add_argument('--window-sampling',choices=['legacy_fixed_burn','prefix_complete_v1'],default='legacy_fixed_burn')
-    parser.add_argument('--previous-action-training',choices=['recorded','actor_detached_v1'],default='recorded')
+    parser.add_argument('--previous-action-training',choices=['recorded','actor_detached_v1','dual_history_v1'],default='recorded')
+    parser.add_argument('--evaluate-actor-history-sources',action='store_true',help='Report continuous actor-owned history on every complete frozen source, alongside unchanged original fit checks')
     parser.add_argument('--checkpoint-every',type=int,default=0,help='Atomically preserve periodic weights and latest optimizer/RNG state')
     parser.add_argument('--evaluate-every',type=int,default=0,help='Full-history four-source and actual-start fit audit; requires frozen bundle')
     parser.add_argument('--max-wall-seconds',type=float,default=0.,help='Bound training wall time; zero disables the bound')
@@ -96,7 +97,7 @@ def main():
             raise ValueError('Freeze one embodiment, calibration, action order and control timestep per checkpoint')
         if len(episode)<args.sequence_length+(args.burn_in if args.window_sampling=='legacy_fixed_burn' else 0):
             raise ValueError('Episode is too short for the declared recurrent window')
-        if args.previous_action_training=='actor_detached_v1' and (episode.times[0]!=0 or np.any(episode.numeric['previous_action'][0]!=0)):
+        if (args.previous_action_training!='recorded' or args.evaluate_actor_history_sources) and (episode.times[0]!=0 or np.any(episode.numeric['previous_action'][0]!=0)):
             raise ValueError('Actor-history training requires an audited actual cold episode reset')
     capture(Path(__file__).resolve().parents[2],args.output,{k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()})
     random.seed(args.seed);np.random.seed(args.seed);torch.manual_seed(args.seed)
@@ -111,7 +112,8 @@ def main():
             never_supervised_first128=np.flatnonzero(count[:128]==0).tolist(),last_example_supervisions=int(count[-1]))
             for i,count in enumerate(supervised_counts)]
         atomic_json(args.output/f'coverage-step-{step:06d}.json',dict(completed_optimizer_steps=step,
-            window_sampling=args.window_sampling,datasets=coverage))
+            window_sampling=args.window_sampling,datasets=coverage,
+            loss_views_per_logical_label=2 if args.previous_action_training=='dual_history_v1' else 1))
         value=dict(schema=SENSOR_ACTOR_CHECKPOINT_SCHEMA,dimensions=asdict(dimensions),model_state=model.state_dict(),
             motor_contract_sha256=first.motor_contract_sha256,sensor_layout=first.layout,
             physics_dt_s=first.metadata['physics_dt_s'],seed=args.seed,completed_optimizer_steps=step,
@@ -146,8 +148,8 @@ def main():
             result.append((inputs,torch.as_tensor(np.stack([target for _,target,_ in rows]),device=device),burn,[start for _,_,start in rows]))
         return result
 
-    def prediction(inputs,burn,episode_start):
-        if args.previous_action_training=='actor_detached_v1':
+    def prediction(inputs,burn,episode_start,history=None):
+        if (history or args.previous_action_training)=='actor_detached_v1':
             return actor_history_prediction(model,inputs,burn,episode_start=episode_start)
         hidden=None
         if burn:
@@ -155,20 +157,32 @@ def main():
                 _,hidden=model(**{k:v[:,:burn] for k,v in inputs.items()})
         return model(**{k:v[:,burn:] for k,v in inputs.items()},hidden=hidden)[0]
 
+    def window_loss(inputs,labels,burn,episode_start):
+        target=labels[:,burn:]
+        if args.previous_action_training=='dual_history_v1':
+            return dual_history_loss(prediction(inputs,burn,episode_start,history='recorded'),
+                prediction(inputs,burn,episode_start,history='actor_detached_v1'),target)
+        loss=torch.mean((prediction(inputs,burn,episode_start)-target)**2)
+        return loss,None,None
+
     completed=0;last_evaluation=None
     for iteration in range(args.iterations):
         model.train();groups=batch(episodes);optimizer.zero_grad(set_to_none=True)
-        loss=sum(torch.mean((prediction(inputs,burn,episode_start)-labels[:,burn:])**2)*(len(labels)/args.batch_size)
-                 for inputs,labels,burn,episode_start in groups)
+        objectives=[(window_loss(inputs,labels,burn,episode_start),len(labels)/args.batch_size)
+                    for inputs,labels,burn,episode_start in groups]
+        loss=sum(values[0]*weight for values,weight in objectives)
         if not torch.isfinite(loss):raise ValueError('Nonfinite imitation objective')
         loss.backward();torch.nn.utils.clip_grad_norm_(model.parameters(),1.);optimizer.step()
         completed=iteration+1
         if iteration%25==0 or iteration==args.iterations-1:
             row=dict(iteration=iteration+1,training_normalized_force_mse=float(loss.detach()),elapsed_s=time.time()-started)
+            if args.previous_action_training=='dual_history_v1':
+                row['training_recorded_history_mse']=float(sum(values[1]*weight for values,weight in objectives).detach())
+                row['training_actor_history_mse']=float(sum(values[2]*weight for values,weight in objectives).detach())
             if validation:
                 model.eval()
                 with torch.inference_mode():
-                    row['separate_episode_prediction_mse']=float(sum(torch.mean((prediction(vi,vburn,vstart)-vl[:,vburn:])**2)*(len(vl)/args.batch_size)
+                    row['separate_episode_prediction_mse']=float(sum(window_loss(vi,vl,vburn,vstart)[0]*(len(vl)/args.batch_size)
                         for vi,vl,vburn,vstart in batch(validation)))
             history.append(row);atomic_json(args.output/'progress.json',row);print(json.dumps(row),flush=True)
         bounded_stop=bool(args.max_wall_seconds and time.time()-started>=args.max_wall_seconds)
@@ -178,7 +192,8 @@ def main():
             saved=checkpoint(completed)
         if evaluate_now:
             evaluated=time.time()
-            last_evaluation=evaluate_frozen_fit(model,episodes,[r['name'] for r in bundle['datasets']],readiness_limits=bundle['readiness_limits'])
+            last_evaluation=evaluate_frozen_fit(model,episodes,[r['name'] for r in bundle['datasets']],readiness_limits=bundle['readiness_limits'],
+                include_actor_history_sources=args.evaluate_actor_history_sources)
             last_evaluation.update(completed_optimizer_steps=completed,checkpoint_sha256=digest(saved),elapsed_s=time.time()-started,evaluation_duration_s=time.time()-evaluated)
             atomic_json(args.output/f'fit-step-{completed:06d}.json',last_evaluation)
             atomic_json(args.output/'latest-fit.json',last_evaluation)
@@ -192,7 +207,8 @@ def main():
         episode_start_probability=args.episode_start_probability,
         window_sampling=args.window_sampling,
         previous_action_training=args.previous_action_training,
-        command_history_semantics=('Offline actor-owned previous commands on fixed recorded sensor states; reset command zero, truncated-window first command anchored to its actual recorded predecessor. Warm-up and action feedback detached; GRU BPTT retained across scored steps. No teacher command substitution within scored rollout.'
+        command_history_semantics=('Two separate losses on the SAME sampled window:50% actual recorded previous-command history and50% actor-owned detached history. Predictions are never averaged before scoring; no teacher substitution inside the actor-owned view.'
+            if args.previous_action_training=='dual_history_v1' else 'Offline actor-owned previous commands on fixed recorded sensor states; reset command zero, truncated-window first command anchored to its actual recorded predecessor. Warm-up and action feedback detached; GRU BPTT retained across scored steps. No teacher command substitution within scored rollout.'
             if args.previous_action_training=='actor_detached_v1' else 'Actual recorded previous commands are replayed throughout training windows.'),
         history_semantics=('Uniform supervised-start indices; warm up from max(0,label_start-burn_in). Early prefixes use all available real history. Equal-history groups are batched; no padded observations.'
             if args.window_sampling=='prefix_complete_v1' else 'Original fixed-burn random windows plus explicit true-start windows; if burn_in exceeds sequence_length, intermediate early labels are unreachable.'),

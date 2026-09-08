@@ -3,7 +3,7 @@ import pytest
 torch=pytest.importorskip('torch')
 
 from doorbench.dexterous.sensor_actor import ActorDimensions,SensorActor,prepare_actor_packet
-from doorbench.dexterous.autoregressive_training import actor_history_prediction,previous_action_slice
+from doorbench.dexterous.autoregressive_training import actor_history_prediction,previous_action_slice,actor_history_chunk,dual_history_loss
 from test_sensor_actor import packet
 
 
@@ -86,3 +86,32 @@ def test_warmup_requires_an_integer_sample_count(burn):
     model,inputs=fixture()
     with pytest.raises(ValueError,match='history window'):
         actor_history_prediction(model,inputs,burn,episode_start=[True])
+
+
+def test_actor_history_survives_evaluation_chunk_boundaries():
+    model,inputs=fixture();zero=torch.zeros((1,4))
+    full,_,_,_=actor_history_chunk(model,inputs,previous=zero)
+    a,hidden,previous,_=actor_history_chunk(model,{k:v[:,:3] for k,v in inputs.items()},previous=zero)
+    b,_,_,_=actor_history_chunk(model,{k:v[:,3:] for k,v in inputs.items()},previous=previous,hidden=hidden)
+    torch.testing.assert_close(full,torch.cat((a,b),dim=1),rtol=1e-5,atol=1e-6)
+
+
+def test_cached_future_camera_and_touch_frames_cannot_affect_earlier_commands():
+    model,inputs=fixture();changed={k:v.clone() for k,v in inputs.items()}
+    changed['images'][:,4:]=torch.randn_like(changed['images'][:,4:])
+    changed['tactile'][:,4:]=torch.randn_like(changed['tactile'][:,4:])
+    first=actor_history_prediction(model,inputs,0,episode_start=[True])
+    second=actor_history_prediction(model,changed,0,episode_start=[True])
+    torch.testing.assert_close(first[:,:4],second[:,:4],rtol=1e-5,atol=1e-6)
+    assert not torch.allclose(first[:,4:],second[:,4:])
+
+
+def test_dual_history_errors_cannot_cancel_by_averaging_predictions():
+    recorded=torch.ones((1,3,4),requires_grad=True)
+    actor=-torch.ones((1,3,4));actor.requires_grad_(True)
+    loss,recorded_loss,actor_loss=dual_history_loss(recorded,actor,torch.zeros_like(recorded))
+    assert loss.item()==recorded_loss.item()==actor_loss.item()==1.
+    loss.backward()
+    assert torch.all(recorded.grad>0) and torch.all(actor.grad<0)
+    with pytest.raises(ValueError,match='same labels'):
+        dual_history_loss(recorded,actor[:,:2],torch.zeros_like(recorded))

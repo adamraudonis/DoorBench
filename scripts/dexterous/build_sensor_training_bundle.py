@@ -62,7 +62,10 @@ def main():
             raise ValueError('Frozen005 correction labels differ')
     settings=config['training_settings']|config['execution']
     argv=['python','source/scripts/dexterous/train_sensor_imitation.py','--dataset-manifest','dataset-manifest.json','--output','run']
-    for key,value in settings.items():argv+=['--'+key.replace('_','-'),str(value)]
+    for key,value in settings.items():
+        if isinstance(value,bool):
+            if value:argv+=['--'+key.replace('_','-')]
+        else:argv+=['--'+key.replace('_','-'),str(value)]
     launch=dict(schema='doorbench.sensor-training-launch.v1',argv=argv,
         working_directory='Extracted bundle root',environment=dict(PYTHONPATH='source',OMP_NUM_THREADS='1',OPENBLAS_NUM_THREADS='1'),
         dataset_manifest_sha256=digest(manifest_path),source_and_data_files=len(hashes),

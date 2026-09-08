@@ -71,3 +71,8 @@ def test_periodic_fit_does_not_change_weights_training_mode_or_rng(tmp_path):
     assert all(torch.equal(v,model.state_dict()[k]) for k,v in state.items())
     second=evaluate_frozen_fit(model,[Episode()],['nominal'])
     assert first==second
+    owned=evaluate_frozen_fit(model,[Episode()],['nominal'],include_actor_history_sources=True)
+    assert owned['full_source_actor_history']['nominal']['examples']==251
+    assert owned['prediction_mse_normalized_force']==first['prediction_mse_normalized_force']
+    assert owned['startup']==first['startup']
+    assert torch.equal(rng,torch.get_rng_state())

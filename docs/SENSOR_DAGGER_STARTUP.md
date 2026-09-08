@@ -421,3 +421,34 @@ The separate [autoregressive008 preflight](evidence/sensor-training-autoregressi
 records 84 passing focused tests, an independently reviewed input/gradient
 contract, and a three-step CPU smoke with four passing runtime loading checks.
 It remains a prepared training experiment, with no physical success claim.
+
+## Dual-history009 fitting experiment
+
+The [declared009 protocol](../configs/dexterous/sensor-imitation-dual-history-009.json)
+uses both histories on each **same sampled window**. Its objective is
+`0.5 * recorded_history_MSE + 0.5 * actor_history_MSE`; it never averages
+predictions before calculating loss. Each source, label index, sampling draw,
+architecture, seed, optimizer setting and 5000-step budget remains fixed.
+Recorded commands belong to the teacher on nominal data and the original
+student on correction data. The actor-owned view retains008's explicit
+zero reset, truncated-boundary anchor and detached-feedback semantics.
+
+This is a bounded response to the observed history tradeoff, rather than an
+additional source of physical demonstrations. Substituted commands may be
+inconsistent with captured acceleration or contact measurements. The extra
+view is offline robustness regularization; it must not be described as a new
+physically executed recovery.
+
+The trainer records both objective terms and preserves two separate histories
+through the full-source evaluation. Recurrent state and the actor's own
+previous commands continue across evaluation chunks; only source boundaries
+reset them. All original six fitting criteria remain unchanged. The extra
+per-source diagnostics cannot qualify a checkpoint that fails those criteria.
+Tests reject cancellation between opposite prediction errors and check chunk
+continuity, future-image isolation, reset boundaries and gradient ownership.
+
+The new arguments are:
+
+```sh
+--previous-action-training dual_history_v1 --evaluate-actor-history-sources
+```
