@@ -69,3 +69,15 @@ def test_reach_archive_dispatches_exact_reset_and_joint_only_inputs(tmp_path,mon
     assert calls[0][2]['initial_joint_position']==reset['joint_position']
     assert calls[0][2]['protocol']==run/'balance-reach-protocol.json' and calls[0][2]['joint_route']==run/'balance-reach-route.json'
     assert 'actual_stationary_trial_passed' not in receipt
+
+
+def test_acquisition_raw_hand_admission_rejects_panel_palm_and_left_hand():
+    layout,row=fixture();p=row['contacts'][-1];p['force_N']=1.;p['distance_m']=-.001
+    layout['sensor_paths'][-1]='/World/H1/rh_ffdistal';layout['filter_paths'][-1][1]='/World/Door/Articulation/leaf_handle'
+    assert m.recompute_unintended_contacts(layout,row)==0
+    layout['filter_paths'][-1][1]='/World/Door/Articulation/leaf'
+    assert m.recompute_unintended_contacts(layout,row)==1
+    layout['filter_paths'][-1][1]='/World/Door/Articulation/leaf_handle'
+    for name in ('rh_palm','lh_ffdistal'):
+        layout['sensor_paths'][-1]='/World/H1/'+name
+        assert m.recompute_unintended_contacts(layout,row)==1
