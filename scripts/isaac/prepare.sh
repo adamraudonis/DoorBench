@@ -7,7 +7,14 @@ cd "$DB"
 export OMNI_KIT_ACCEPT_EULA=YES ACCEPT_EULA=Y PRIVACY_CONSENT=Y TERM=xterm-256color
 export DOORBENCH_GENERATE_IDS="${DOORBENCH_GENERATE_IDS:-db0055_swing_single}"
 export PATH="$HOME/.local/bin:$PATH"
-R="$DB/out/isaac-ready"
+PROFILE="${DOORBENCH_MECHANICS_PROFILE:-upstream-v1}"
+case "$PROFILE" in
+  upstream-v1) R="$DB/out/isaac-ready"; ROBOT_NAME=h1-shadow.xml ;;
+  shadow-loopback-v2) R="$DB/out/isaac-ready/shadow-loopback-v2"; ROBOT_NAME=h1-shadow-loopback-v2.xml ;;
+  *) echo "Unknown robot mechanics profile: $PROFILE" >&2; exit 2 ;;
+esac
+ROBOT="$R/$ROBOT_NAME"
+export DOORBENCH_MECHANICS_PROFILE="$PROFILE" DOORBENCH_READY_DIR="$R"
 mkdir -p "$R"
 rm -f "$R/ready.json"
 trap 'status=$?; if [ "$status" -ne 0 ]; then echo "READINESS_FAILED exit=$status"; fi' EXIT
@@ -37,6 +44,7 @@ mkdir -p "$DB/isaaclab/cloud"
 {
   printf 'source %q\n' "$W/venv/bin/activate"
   printf 'export ISAACLAB_DIR=%q DOORBENCH_DIR=%q DOORBENCH_ASSETS=%q PYTHONPATH=%q DOORBENCH_WORK=%q\n' "$W/IsaacLab" "$DB" "$DB/assets" "$DB" "$W"
+  printf 'export DOORBENCH_MECHANICS_PROFILE=%q DOORBENCH_READY_DIR=%q\n' "$PROFILE" "$R"
   echo 'export OMNI_KIT_ACCEPT_EULA=YES ACCEPT_EULA=Y PRIVACY_CONSENT=Y TERM=xterm-256color'
 } > "$DB/isaaclab/cloud/env.sh"
 export PYTHONPATH="$DB${PYTHONPATH:+:$PYTHONPATH}"
@@ -46,9 +54,9 @@ if ! "$AP" scripts/isaac/check_assets.py assets --ids "$DOORBENCH_GENERATE_IDS";
 fi
 "$AP" scripts/isaac/check_assets.py assets --ids "$DOORBENCH_GENERATE_IDS"
 phase '== [3/5] Prepare pinned robot and explicit motor contract'
-"$AP" scripts/dexterous/setup_robot.py --upstream "$W/humanoid-bench" --output "$R/h1-shadow.xml"
-"$AP" scripts/dexterous/prepare_isaac_import.py --robot "$R/h1-shadow.xml" --output "$R/h1-import.xml"
-"$AP" scripts/isaac/make_smoke_reference.py --robot "$R/h1-shadow.xml" --output "$R/reference.json"
+"$AP" scripts/dexterous/setup_robot.py --upstream "$W/humanoid-bench" --mechanics-profile "$PROFILE" --output "$ROBOT"
+"$AP" scripts/dexterous/prepare_isaac_import.py --robot "$ROBOT" --output "$R/h1-import.xml"
+"$AP" scripts/isaac/make_smoke_reference.py --robot "$ROBOT" --output "$R/reference.json"
 phase '== [4/5] Import into Isaac Sim and validate live PhysX'
 IMPORT="$R/import-$(date -u +%Y%m%dT%H%M%S)"
 "$IP" -u scripts/dexterous/isaac_import_audit.py --mjcf "$R/h1-import.xml" --output "$IMPORT"
@@ -57,9 +65,9 @@ TRIAL="$R/trial-$(date -u +%Y%m%dT%H%M%S)"
 "$IP" -u scripts/dexterous/isaac_opening.py --robot-usd "$IMPORT/robot.usda" \
   --door-usd "$DB/assets/doors/db0055_swing_single/door.usda" --motors "$R/h1-import.motors.json" \
   --reference "$R/reference.json" --output "$TRIAL" --seconds 1 --headless --device cuda:0 --record
-"$AP" scripts/dexterous/check_isaac_fk.py --robot "$R/h1-shadow.xml" --run "$TRIAL"
+"$AP" scripts/dexterous/check_isaac_fk.py --robot "$ROBOT" --run "$TRIAL"
 phase '== [5/5] Save readiness receipt and exact runtime'
 uv pip freeze --python "$IP" > "$R/requirements-isaac.lock.txt"
 uv pip freeze --python "$AP" > "$R/requirements-assets.lock.txt"
-"$AP" scripts/isaac/write_ready.py --trial "$TRIAL" --output "$R/ready.json"
+"$AP" scripts/isaac/write_ready.py --trial "$TRIAL" --output "$R/ready.json" --native-robot "$ROBOT" --motors "$R/h1-import.motors.json" --mechanics-profile "$PROFILE"
 echo 'ISAAC_ENVIRONMENT_READY'

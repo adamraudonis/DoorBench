@@ -12,6 +12,8 @@ On the development Mac, the installed shortcut is **Start DoorBench Isaac.comman
 
 First-time requirements: Python 3, Git, SSH, and a RunPod API key in `RUNPOD_API_KEY` or `~/.runpod/config.toml`. The key stays outside the repository. The Mac launcher requires executable permission; `chmod +x 'Start Isaac Sim.command'` fixes a checkout that loses that bit. Linux uses the same Python command.
 
+For the corrected Shadow finger mechanics, use the opt-in [v2 environment and acquisition demo](ISAAC_V2_READY.md). The default above preserves the original v1 model for reproduction.
+
 ## What happens automatically
 
 1. Connect to the owned GPU, with an allocation deadline and independent local/remote teardown guards. Existing unrelated pods are never selected or modified.

@@ -21,6 +21,8 @@ import urllib.request
 import webbrowser
 
 ROOT=Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(ROOT))
+from doorbench.dexterous.isaac_readiness import mechanics_profile,cache_identity,ready_directory,robot_filename
 DEFAULT=ROOT/'configs/isaac/runtime.json'
 LOCAL=ROOT/'out/isaac-launch'
 
@@ -79,6 +81,7 @@ def dashboard(config,port,show=True):
 
 
 def prepare(a,cfg):
+    profile=mechanics_profile(cfg.get('mechanics_profile','upstream-v1'))
     session=LOCAL/a.session;session.mkdir(parents=True,exist_ok=True)
     (session/'run.pid').write_text(str(os.getpid()))
     pipeline=dict(stage='Connecting to GPU',scope='Isaac environment preparation, not a policy score',completion_marker='ISAAC_ENVIRONMENT_READY')
@@ -116,7 +119,8 @@ def prepare(a,cfg):
     work=a.work or cfg['work']
     if not work.startswith('/') or '\n' in work:raise ValueError('Remote work must be an absolute path')
     digest=source_bundle(session/'source.tar.gz')
-    remote=work+'/doorbench-ready/'+digest[:16]
+    identity=cache_identity(digest,profile)
+    remote=work+'/doorbench-ready/'+profile+'/'+identity[:16]
     remote_status=remote+'/out/launch'
     run(ssh+[shlex.join(['mkdir','-p',remote,remote_status])])
     # An unfinished process in this exact source checkout is attached, never restarted.
@@ -125,11 +129,12 @@ def prepare(a,cfg):
         with (session/'source.tar.gz').open('rb') as source:
             run(ssh+[shlex.join(['tar','xzf','-','-C',remote])],stdin=source)
         pipeline.update(stage='Preparing pinned runtime and checking live physics',deadline_unix=deadline,
-                        pod_id=pod_id,source_sha256=digest,started_at_unix=time.time(),hourly_cost_usd=record.get('costPerHr') if pod else None)
+                        pod_id=pod_id,source_sha256=digest,cache_identity=identity,mechanics_profile=profile,started_at_unix=time.time(),hourly_cost_usd=record.get('costPerHr') if pod else None)
         run(ssh+[shlex.join(['tee',remote+'/source-manifest.json'])],input=(session/'source-manifest.json').read_text(),text=True,stdout=subprocess.DEVNULL)
         run(ssh+[shlex.join(['tee',remote_status+'/pipeline.json'])],input=json.dumps(pipeline),text=True,stdout=subprocess.DEVNULL)
         script=f'''cd {shlex.quote(remote)}
 export DOORBENCH_WORK={shlex.quote(work)}
+export DOORBENCH_MECHANICS_PROFILE={shlex.quote(profile)}
 export DOORBENCH_GENERATE_IDS={shlex.quote(cfg['door'])}
 nohup bash scripts/isaac/prepare.sh > {shlex.quote(remote_status+'/run.log')} 2>&1 < /dev/null &
 echo $! > {shlex.quote(remote_status+'/run.pid')}
@@ -137,7 +142,7 @@ echo $! > {shlex.quote(remote_status+'/run.pid')}
         run(ssh+['bash -s'],input=script,text=True)
     register(host,port,key,remote_status)
     receipt=dict(host=host,port=port,key=str(key),source_sha256=digest,remote=remote,status=remote_status,pod_id=pod_id,deadline_unix=deadline,
-                 connect_command=shlex.join(ssh),ready_receipt=remote+'/out/isaac-ready/ready.json')
+                 connect_command=shlex.join(ssh),mechanics_profile=profile,cache_identity=identity,ready_receipt=str(ready_directory(remote,profile)/'ready.json'),native_robot=str(ready_directory(remote,profile)/robot_filename(profile)))
     (session/'connection.json').write_text(json.dumps(receipt,indent=2)+'\n')
     print('Preparation running. Run Center shows all stages and errors.',flush=True)
     print('Connection details: '+str(session/'connection.json'),flush=True)
@@ -151,7 +156,7 @@ def main():
     p.add_argument('--work');p.add_argument('--hours',type=float);p.add_argument('--dashboard-port',type=int)
     p.add_argument('--no-browser',action='store_true');p.add_argument('--foreground',action='store_true')
     p.add_argument('--session',default=time.strftime('%Y%m%dT%H%M%SZ',time.gmtime()))
-    a=p.parse_args();cfg=json.loads(a.config.read_text());LOCAL.mkdir(parents=True,exist_ok=True)
+    a=p.parse_args();cfg=json.loads(a.config.read_text());mechanics_profile(cfg.get('mechanics_profile','upstream-v1'));LOCAL.mkdir(parents=True,exist_ok=True)
     a.dashboard_port=dashboard(LOCAL/'runs.json',a.dashboard_port or cfg['dashboard_port'],not a.no_browser)
     if a.foreground:
         lock=(LOCAL/'launch.lock').open('w')
