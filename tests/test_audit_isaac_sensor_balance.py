@@ -1,4 +1,6 @@
 import copy
+import gzip
+import json
 import importlib.util
 from pathlib import Path
 import numpy as np
@@ -30,3 +32,18 @@ def test_bad_raw_contacts_cannot_produce_support_evidence(change):
     if change=='capacity':row['contacts'][0]['slot']=20
     if change=='missing_foot':layout['sensor_paths'][0]='/robot/elbow'
     with pytest.raises(ValueError):m.recompute_contacts(layout,row)
+
+
+def test_exception_prefix_cannot_become_a_qualified_report(tmp_path,monkeypatch):
+    run=tmp_path/'failed';run.mkdir();(run/'sensors').mkdir()
+    with gzip.open(run/'balance-steps.json.gz','wt') as f:json.dump([],f)
+    with gzip.open(run/'balance-contacts.jsonl.gz','wt') as f:f.write('')
+    layout,_=fixture();(run/'balance-contact-layout.json').write_text(json.dumps(layout))
+    (run/'balance-report.json').write_text(json.dumps(dict(passed=False,error='controller rejected packet',physical_evidence_complete=False)))
+    for name in ('sensor-balance-calibration.json','configuration.json','provenance.json','motor-contract.json','sensors/layout.json'):
+        (run/name).write_text('{}')
+    output=tmp_path/'independent.json'
+    monkeypatch.setattr('sys.argv',['audit','--run',str(run),'--output',str(output)])
+    m.main();r=json.loads(output.read_text())
+    assert not r['verification_passed'] and not r['actual_stationary_trial_passed']
+    assert r['errors']==['No completed supported balance qualification report']

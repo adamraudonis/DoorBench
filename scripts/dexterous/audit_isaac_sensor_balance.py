@@ -6,7 +6,7 @@ normal-contact slots. No inference, physics step, source mutation or GPU action.
 import argparse,gzip,hashlib,json
 from pathlib import Path
 import numpy as np
-from doorbench.dexterous.sensor_balance_runtime import evaluate_sensor_balance
+from doorbench.dexterous.sensor_balance_runtime import evaluate_sensor_balance,BALANCE_PROTOCOL
 
 
 def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
@@ -49,9 +49,20 @@ def main():
             load_error=max(load_error,float(abs(feet-np.asarray(r['foot_floor_loads'])).max()))
             hand_error=max(hand_error,abs(hands-r['hand_contact_count']))
         except (ValueError,KeyError,TypeError) as e:errors.append(f'Contact row{i}: {e}')
-    scored=evaluate_sensor_balance(steps,declared['original_physics_checks'])
-    reproduced=scored['checks']==declared['checks'] and scored['passed']==declared['passed']
     names=['balance-steps.json.gz','balance-contacts.jsonl.gz','balance-contact-layout.json','balance-report.json','sensor-balance-calibration.json','configuration.json','provenance.json','motor-contract.json','sensors/layout.json']
+    if declared.get('schema')==BALANCE_PROTOCOL:
+        scored=evaluate_sensor_balance(steps,declared.get('original_physics_checks'))
+    else:
+        from doorbench.dexterous.sensor_arm_balance_runtime import evaluate_sensor_arm_balance,ARM_PROTOCOL
+        if declared.get('schema')==ARM_PROTOCOL:
+            names+=['balance-arm-reset.json','balance-arm-schedule.json']
+            scored=evaluate_sensor_arm_balance(steps,declared.get('original_physics_checks'),
+                initial_arm_joint_position=json.loads((run/'balance-arm-reset.json').read_text()),schedule=run/'balance-arm-schedule.json')
+        else:
+            # An exception-prefix report has no completed qualification schema.
+            # Preserve that failure instead of crashing or inventing a pass.
+            scored=dict(passed=False,checks={});errors.append('No completed supported balance qualification report')
+    reproduced=scored['checks']==declared.get('checks') and scored['passed']==declared.get('passed')
     report=dict(scope=__doc__,run=str(run),verification_passed=bool(reproduced and not errors and load_error<1e-8 and hand_error==0),
         actual_stationary_trial_passed=scored['passed'],recomputed_checks=scored['checks'],declared_report_reproduced=reproduced,
         steps=len(steps),contact_intervals=len(contacts),maximum_floor_load_reconstruction_error_N=load_error,
