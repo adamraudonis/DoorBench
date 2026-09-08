@@ -322,3 +322,39 @@ targets agree with one another and differ from the nominal target by at most
 0.0546 Nm, far below model005's multi-Nm initial error. This small mismatch
 does not explain the observed failure by itself; all original labels remain
 unchanged for the longer-fit experiment.
+
+## Recurrent sampling defect and separate correction
+
+An independent [coverage audit](evidence/sensor-training-coverage-001.json)
+found a concrete defect in model005 and the already launched frozen006 run:
+true-start windows supervise decisions 0–31, while fixed-64-step warm-up
+windows cannot begin supervision before decision 64. Decisions **32–63
+(64–126 ms after reset)** therefore receive no training labels, regardless of
+optimizer steps or random seed. The original runs and code packages remain
+unchanged. This defect overlaps early instability; it is not yet a proven
+complete explanation for the physical failures.
+
+The separate [sampler007 protocol](../configs/dexterous/sensor-imitation-sampler-007.json)
+uses exactly the same four datasets, architecture, seed and optimizer settings.
+Its `--window-sampling prefix_complete_v1` samples the supervised start first,
+then warms up from `max(0, start-64)` using only preceding real observations.
+For early windows, all available episode history is used. Examples with
+different history lengths form separate groups; there are no synthetic zero
+observations, padded recurrent steps or skipped early labels. Each supervised
+label retains equal loss weight. The 50% explicit true-start batch probability
+remains unchanged.
+
+Exhaustive index tests prove every admitted label is reachable without crossing
+its causal prefix. Replaying the frozen seed covers all correction labels by
+1000 steps, and all first128 decisions in every source by5000. It still leaves
+18 late nominal labels unvisited after5000 random steps; this finite-sample
+limitation remains visible. The trainer records actual supervised counts with
+every checkpoint. The legacy default reproduces all5000 original batch index
+selections exactly. Sampler007 is a separate controlled follow-up; its fitting
+results and any eventual physical result must be reported independently.
+
+```sh
+python scripts/dexterous/audit_sensor_training_coverage.py \
+  --dataset-manifest "$FROZEN006/dataset-manifest.json" \
+  --output "$COVERAGE_AUDIT"
+```

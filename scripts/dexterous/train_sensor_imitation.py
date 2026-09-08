@@ -22,6 +22,7 @@ from doorbench.dexterous.correction_demonstrations import CorrectionDemonstratio
 from doorbench.dexterous.motor_contract_identity import SENSOR_ACTOR_CHECKPOINT_SCHEMA
 from doorbench.dexterous.sensor_training_bundle import load_bundle, digest
 from doorbench.dexterous.sensor_fit_evaluation import evaluate_frozen_fit
+from doorbench.dexterous.recurrent_sampling import sample_windows
 
 
 def atomic_json(path, value):
@@ -52,6 +53,7 @@ def main():
     parser.add_argument('--batch-size',type=int,default=2)
     parser.add_argument('--learning-rate',type=float,default=1e-4)
     parser.add_argument('--seed',type=int,default=0)
+    parser.add_argument('--window-sampling',choices=['legacy_fixed_burn','prefix_complete_v1'],default='legacy_fixed_burn')
     parser.add_argument('--checkpoint-every',type=int,default=0,help='Atomically preserve periodic weights and latest optimizer/RNG state')
     parser.add_argument('--evaluate-every',type=int,default=0,help='Full-history four-source and actual-start fit audit; requires frozen bundle')
     parser.add_argument('--max-wall-seconds',type=float,default=0.,help='Bound training wall time; zero disables the bound')
@@ -90,15 +92,22 @@ def main():
                 episode.metadata['physics_dt_s']!=first.metadata['physics_dt_s'] or
                 episode.motor_contract_sha256!=first.motor_contract_sha256):
             raise ValueError('Freeze one embodiment, calibration, action order and control timestep per checkpoint')
-        if len(episode)<args.sequence_length+args.burn_in:
+        if len(episode)<args.sequence_length+(args.burn_in if args.window_sampling=='legacy_fixed_burn' else 0):
             raise ValueError('Episode is too short for the declared recurrent window')
     capture(Path(__file__).resolve().parents[2],args.output,{k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()})
     random.seed(args.seed);np.random.seed(args.seed);torch.manual_seed(args.seed)
     rng=np.random.default_rng(args.seed);device=torch.device(args.device)
     model=SensorActor(dimensions).to(device);optimizer=torch.optim.AdamW(model.parameters(),lr=args.learning_rate)
     history=[];started=time.time()
+    supervised_counts=[np.zeros(len(e),np.int64) for e in episodes]
 
     def checkpoint(step):
+        coverage=[dict(dataset_index=i,examples=len(count),supervised_events=int(count.sum()),
+            unique_supervised_examples=int(np.count_nonzero(count)),unsupervised_examples=int(np.count_nonzero(count==0)),
+            never_supervised_first128=np.flatnonzero(count[:128]==0).tolist(),last_example_supervisions=int(count[-1]))
+            for i,count in enumerate(supervised_counts)]
+        atomic_json(args.output/f'coverage-step-{step:06d}.json',dict(completed_optimizer_steps=step,
+            window_sampling=args.window_sampling,datasets=coverage))
         value=dict(schema=SENSOR_ACTOR_CHECKPOINT_SCHEMA,dimensions=asdict(dimensions),model_state=model.state_dict(),
             motor_contract_sha256=first.motor_contract_sha256,sensor_layout=first.layout,
             physics_dt_s=first.metadata['physics_dt_s'],seed=args.seed,completed_optimizer_steps=step,
@@ -109,21 +118,29 @@ def main():
         atomic_torch(args.output/'training-state.pt',dict(schema='doorbench.sensor-optimizer-state.v1',
             completed_optimizer_steps=step,actor=value,optimizer=optimizer.state_dict(),
             numpy_generator_state=rng.bit_generator.state,python_random_state=random.getstate(),
+            supervised_counts=[torch.from_numpy(c.copy()) for c in supervised_counts],
             torch_rng_state=torch.get_rng_state(),cuda_rng_states=torch.cuda.get_rng_state_all() if device.type=='cuda' else [],
             settings=json.loads(json.dumps(vars(args),default=str)),
             note='Optimizer/RNG preservation only; resume is not exposed by this training command'))
         return destination
 
     def batch(pool):
-        windows=[];targets=[]
-        start_window=bool(args.episode_start_probability and rng.random()<args.episode_start_probability)
-        burn=0 if start_window else args.burn_in
-        total=args.sequence_length+burn
-        for _ in range(args.batch_size):
-            episode=pool[int(rng.integers(len(pool)))];start=0 if start_window else int(rng.integers(len(episode)-total+1))
-            values,target=episode.sequence(start,total);windows.append(values);targets.append(target)
-        inputs={key:torch.as_tensor(np.stack([w[key] for w in windows]),device=device) for key in windows[0]}
-        return inputs,torch.as_tensor(np.stack(targets),device=device),burn
+        selected=sample_windows(rng,[len(e) for e in pool],batch_size=args.batch_size,
+            supervised_length=args.sequence_length,burn_in=args.burn_in,
+            episode_start_probability=args.episode_start_probability,mode=args.window_sampling)
+        # Equal history lengths can share a batch. Different lengths use their
+        # actual prefix, with no synthetic zero observations or padded GRU steps.
+        grouped={}
+        for window in selected:
+            if pool is episodes:
+                supervised_counts[window.episode][window.label_start:window.label_start+window.supervised_length]+=1
+            values,target=pool[window.episode].sequence(window.observation_start,window.total_length)
+            grouped.setdefault(window.burn_in,[]).append((values,target))
+        result=[]
+        for burn,rows in grouped.items():
+            inputs={key:torch.as_tensor(np.stack([w[key] for w,_ in rows]),device=device) for key in rows[0][0]}
+            result.append((inputs,torch.as_tensor(np.stack([target for _,target in rows]),device=device),burn))
+        return result
 
     def prediction(inputs,burn):
         hidden=None
@@ -134,9 +151,9 @@ def main():
 
     completed=0;last_evaluation=None
     for iteration in range(args.iterations):
-        model.train();inputs,labels,burn=batch(episodes);optimizer.zero_grad(set_to_none=True)
-        estimate=prediction(inputs,burn);target=labels[:,burn:]
-        loss=torch.mean((estimate-target)**2)
+        model.train();groups=batch(episodes);optimizer.zero_grad(set_to_none=True)
+        loss=sum(torch.mean((prediction(inputs,burn)-labels[:,burn:])**2)*(len(labels)/args.batch_size)
+                 for inputs,labels,burn in groups)
         if not torch.isfinite(loss):raise ValueError('Nonfinite imitation objective')
         loss.backward();torch.nn.utils.clip_grad_norm_(model.parameters(),1.);optimizer.step()
         completed=iteration+1
@@ -145,7 +162,8 @@ def main():
             if validation:
                 model.eval()
                 with torch.inference_mode():
-                    vi,vl,vburn=batch(validation);row['separate_episode_prediction_mse']=float(torch.mean((prediction(vi,vburn)-vl[:,vburn:])**2))
+                    row['separate_episode_prediction_mse']=float(sum(torch.mean((prediction(vi,vburn)-vl[:,vburn:])**2)*(len(vl)/args.batch_size)
+                        for vi,vl,vburn in batch(validation)))
             history.append(row);atomic_json(args.output/'progress.json',row);print(json.dumps(row),flush=True)
         bounded_stop=bool(args.max_wall_seconds and time.time()-started>=args.max_wall_seconds)
         evaluate_now=bool(args.evaluate_every and (completed%args.evaluate_every==0 or completed==args.iterations or bounded_stop))
@@ -166,6 +184,9 @@ def main():
         final_fit=last_evaluation,dataset_manifest_sha256=digest(args.dataset_manifest) if args.dataset_manifest else None,
         recurrent_training='Truncated windows with sensor-only burn-in; optional explicitly weighted true-start windows have zero hidden state and no masked prefix',
         episode_start_probability=args.episode_start_probability,
+        window_sampling=args.window_sampling,
+        history_semantics=('Uniform supervised-start indices; warm up from max(0,label_start-burn_in). Early prefixes use all available real history. Equal-history groups are batched; no padded observations.'
+            if args.window_sampling=='prefix_complete_v1' else 'Original fixed-burn random windows plus explicit true-start windows; if burn_in exceeds sequence_length, intermediate early labels are unreachable.'),
         dataset_sampling='Uniform per dataset; qualified teacher episodes and counterfactual correction prefixes remain separately identified',
         training_datasets=[e.metadata for e in episodes],
         observations='Stereo RGB, local tactile bins, encoders, IMU, previous action, sensor age/validity; no absolute clock or task state')
