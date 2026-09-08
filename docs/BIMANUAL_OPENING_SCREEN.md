@@ -737,3 +737,34 @@ views confirm that the inherited three bad patches are distal tip-edge grazes
 on LF and FF during withdrawal, rather than a thumb-opposition defect. The
 rendered points and recovered body-local normals exactly match the independent
 actual-contact audit. No anatomy criterion was changed.
+
+Panel005 completed 95 s with the same27/29 outcome: all mechanics and
+sustained-palm checks pass, usable aperture and the inherited RH anatomy
+failure remain. Final aperture is0.547740rad and palm load4.290893N. The
+independent same-step join covers all12,598 panel intervals with zero current
+leaf-observation error, zero body-frame error and zero motor-cap excess. The
+actual reference lead reaches0.010000097rad. Final normal opening moment is
++0.539451Nm, offset by−0.082102Nm tangential contact moment, leaving
++0.457349Nm. Increasing target lead therefore raises normal load but does not
+resolve the opposing shear. No additional pressure or lead increment is
+inferred from this failure.
+
+`audit_panel_phase_moment.py` aligns the complete reference trace with actual
+current-interval forces and separately verifies the previous-interval force
+clock delivered to the teacher. `diagnose_panel_shear.py` reconstructs the
+same actual pose and target without stepping physics. At the final005 state,
+the complete body plan requests palm displacement `[+2.694,-1.318,-0.913]`mm
+in leaf coordinates. Applying only the commanded seven LH joint angles to
+the actual measured base/torso instead requests `[-1.015,+0.114,-1.155]`mm.
+The arm servo therefore seeks inward radial motion while the full plan seeks
+outward motion. This is a measured Cartesian mismatch caused by executing
+joint targets on an attained base that differs from the planned base; it is
+not evidence that the radial path alone caused the stall. The next bounded
+repair will correct the arm targets using actual base/joint measurements while
+retaining the same pressure, lead, motion bounds and physical gates.
+
+Panel005 and these independent diagnostics are preserved in
+`native-panel-phase-development-001`:614 files, manifest SHA256
+`efc5baf0058ba962af297e3d5f83de5e9ce5e9b1689ca9f70a44003e6a409b9c`.
+The full-chain trial remains failed, and no traversal or sensor-policy success
+is claimed by these teacher diagnostics.
