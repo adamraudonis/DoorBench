@@ -16,7 +16,7 @@ from .motor_contract_identity import motor_contract_fingerprint
 
 
 class SensorDemonstration:
-    def __init__(self,run,*,qualification='operation-report.json',legacy_teacher_receipt=None):
+    def __init__(self,run,*,qualification='operation-report.json',legacy_teacher_receipt=None,reset_observation_run=None):
         self.path=Path(run)
         if qualification not in ('operation-report.json','acquisition-report.json'):
             raise ValueError('Select a declared robot-task qualification report')
@@ -84,6 +84,16 @@ class SensorDemonstration:
                 raise ValueError('Legacy acquisition boundary differs from the loaded sensor clock')
             self.times=self.times[:count]
             self.numeric={key:value[:count] for key,value in self.numeric.items()}
+        reset_metadata=None
+        if reset_observation_run is not None:
+            if legacy is None or qualification!='acquisition-report.json':
+                raise ValueError('Cold-start augmentation requires the audited acquisition-only prefix')
+            from .reset_demonstration import matched_cold_start_packet
+            packet,reset_metadata=matched_cold_start_packet(self.path,reset_observation_run,self.dimensions)
+            if abs(self.times[0]-float(report['physics_dt_s']))>1e-9:
+                raise ValueError('Cold-start target must be the actual first physical teacher action')
+            self.times=np.r_[0.,self.times]
+            self.numeric={key:np.concatenate((packet[key][None],value),axis=0) for key,value in self.numeric.items()}
         self.metadata=dict(source=str(self.path.resolve()),qualification=qualification,
             control_source='privileged_teacher',
             grasp_profile=report.get('grasp_profile',report.get('final_pad_grasp',{}).get('grasp_profile','distal-pad-v1')),
@@ -94,6 +104,7 @@ class SensorDemonstration:
             qualification_files={name:hashlib.sha256((self.path/name).read_bytes()).hexdigest() for name in
                 (qualification,'mechanical-audit.json','passive-tendon-audit.json','motor-contract.json','sensors/report.json')},
             limitation='Teacher imitation data; no student rollout or generalization result')
+        if reset_metadata is not None:self.metadata['reset_observation']=reset_metadata
         if legacy is not None:
             self.metadata['legacy_teacher_receipt_sha256']=hashlib.sha256(Path(legacy_teacher_receipt).read_bytes()).hexdigest()
             self.metadata['admitted_sample_end_time_s']=legacy['sample_end_time_s']

@@ -32,11 +32,12 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--chunk-length", type=int, default=64)
     parser.add_argument("--threads", type=int, default=1)
+    parser.add_argument('--reset-observation-run',type=Path)
     args = parser.parse_args()
     if min(args.chunk_length, args.threads) <= 0:
         parser.error("Use positive chunk and thread counts")
     torch.set_num_threads(args.threads)
-    episode = SensorDemonstration(args.episode,qualification=args.qualification,legacy_teacher_receipt=args.legacy_teacher_receipt)
+    episode = SensorDemonstration(args.episode,qualification=args.qualification,legacy_teacher_receipt=args.legacy_teacher_receipt,reset_observation_run=args.reset_observation_run)
     payload = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
     if (payload.get("schema") != SENSOR_ACTOR_CHECKPOINT_SCHEMA or
             payload.get('motor_contract_sha256') != episode.motor_contract_sha256 or
