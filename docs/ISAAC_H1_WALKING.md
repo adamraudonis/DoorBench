@@ -30,3 +30,12 @@ The complete 10.7 MB evidence archive is `~/Desktop/Projects/DoorBench-runs/2026
 Later tooling adds automatic live pipeline metadata and before/after readback of mass, joint limits, effort caps and contact materials/offsets. Those extra readback checks are **not retroactively counted** in the first run. Repeat the full gate after changing the robot, sensor/actuator interface or simulator.
 
 Actual doorway clearance, approach-to-grasp coordination and transitions to/from a lowered manipulation posture remain separate gates. The native raised-arm stopping failures remain in their existing report and are not replaced by this standard-arm Isaac success.
+
+## Ready-environment command
+
+```bash
+source isaaclab/cloud/env.sh
+python scripts/isaac/run_walking_demo.py
+```
+
+The wrapper verifies the readiness receipt, fetches the pinned checkpoint/license if needed, derives the native sole reset and runs the live fixture with video and its pass/fail report. Supply `--checkpoint /shared/motion.pt` to use an existing copy; its hash is still checked. `--no-video` skips camera rendering. The wrapper itself was syntax/CLI checked after the first live run; the measured result above used its underlying commands directly.
