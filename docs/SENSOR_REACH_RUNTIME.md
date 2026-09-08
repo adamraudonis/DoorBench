@@ -73,3 +73,22 @@ Independent reconstruction of all 5,500 raw contact intervals exactly reproduces
 The FF paired split differs by 0.438030 rad from the nominal path.
 
 One source-auditor receipt initially failed because it incorrectly paired backend joint ordering with actor sensor ordering. The original receipt is retained. The corrected audit checks the preserved backend order and every named reset angle against the frozen float32 calibration; it passes without changing run data. The [independent receipts](evidence/sensor-reach-balance-isaac-001.json) also avoid claiming a strict full Isaac command replay; native packet replay and physical Isaac qualification are distinct results.
+
+### Remaining numerical replay limitation
+
+The [detached solver comparison](evidence/sensor-reach-solver-diagnostic-002.json)
+retains strict previous-command ownership. With the default local solver, the
+cold command differs by 0.125525 Nm and replay stops at 2 ms. Fixing the detached
+adaptive-rho interval to 25 matches that first command within 4.4e-13 Nm, but the
+next QP differs by 0.0587383 Nm at 10 ms; replay stops at 12 ms. The inferred root
+and velocity still agree within 6.9e-13 and 1.3e-11 respectively at that point.
+The actual solver stopped after 25 iterations, while the local version took 50.
+
+This is a counterfactual numerical diagnostic, not a new controller qualification
+or a replay pass. No packet, previous command, original result or physical
+threshold was overwritten. Exact cross-cluster command reproduction remains
+unresolved despite the independently reproduced physical reach checks. Reproduce
+with `diagnose_sensor_reach_solver.py --run ... --robot ... --output ...`, loading
+the frozen run source through `PYTHONPATH`; the receipt records package versions
+and all input hashes. A deterministic solver profile requires separate physical
+qualification before adoption.
