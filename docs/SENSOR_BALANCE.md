@@ -155,3 +155,37 @@ The video renders recorded native states; it does not resimulate or qualify
 contact forces. Beginning/middle/end images were personally inspected: torso
 upright, both feet on the floor, and both hands away from contact. No rendering
 or annotation enters the controller sensor packet.
+## Shared runtime and independent Isaac evaluation
+
+`SensorBalanceRuntime(robot_xml, motors, layout, calibration_json)` validates the
+frozen calibration and delegates to the same sensor controller. Call
+`reset_episode()` before the first command, then `force(packet, now_s)` every 2 ms.
+It returns 61 original bounded motor forces. `previous_action` is the normalized
+last command; `last_info` is detached controller diagnostics. A rejected
+inference ends the episode until an explicit reset. It accepts no simulator,
+root pose, object state, target trajectory or learned checkpoint.
+
+The calibration schema is `doorbench.sensor-balance-calibration.v1`.
+It binds the robot XML SHA256, canonical motor-contract fingerprint,
+exact69-name `desired_posture`, timestep, gravity correction and upright
+local gauge. Source provenance identifies the constant joint posture only.
+Additional root/door coordinate fields are rejected.
+
+`evaluate_sensor_balance(rows, physics_checks)` is evaluator-only. Each actual
+post-step row supplies `time_s`, `root13_actororigin` (xyz, wxyz, world linear
+and angular velocity), `torso_tilt_deg`, two floor-only `foot_floor_loads`,
+`hand_contact_count`, and the preceding command's `controller_info`.
+It requires2500 uninterrupted2ms steps, height0.82–0.92m, tilt≤12°, no hand
+contact or QP failure, an unstepped calculator and the cold first command.
+Throughout the final second, root XY speed must remain<0.03m/s, angular
+speed<0.05rad/s and both floor support loads>30N. Every supplied original
+physical check must pass. Missing, malformed, short or gapped evidence
+fails. This stationary protocol claims neither acquisition nor door opening.
+
+The [adapter receipt](evidence/sensor-balance-runtime-001.json) replays all2500
+actual sensor packets from final-source native005 with **zero motor-force
+difference**. The independent evaluator passes that original run under all 12
+grouped checks while retaining its 19 underlying physical checks. Replay steps
+no physics and does not constitute an Isaac result. The adapter/controller
+boundary suites pass 64 tests. The canonical calibration SHA256 is
+`d98e7c1a84ca463e4023ef588aed178e5b8d0d909522a75779313768d965cf72`.
