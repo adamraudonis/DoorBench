@@ -10,8 +10,9 @@ import sys,json,hashlib
 import numpy as np,mujoco
 from scipy.spatial.transform import Rotation
 from scipy.optimize import least_squares
-parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--source-run',type=Path,required=True);parser.add_argument('--measured-release',type=Path,required=True);parser.add_argument('--release-trajectory',type=Path,required=True);parser.add_argument('--output',type=Path,required=True);parser.add_argument('--finger-lead-seconds',type=float,default=0.);parser.add_argument('--withdrawal-profile',choices=('recorded','clearance-lift-v1','clearance-lift-v2','clearance-lift-v3','clearance-lift-v4'),default='recorded');args=parser.parse_args();
+parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--source-run',type=Path,required=True);parser.add_argument('--measured-release',type=Path,required=True);parser.add_argument('--release-trajectory',type=Path,required=True);parser.add_argument('--output',type=Path,required=True);parser.add_argument('--finger-lead-seconds',type=float,default=0.);parser.add_argument('--early-lift-m',type=float,default=.002);parser.add_argument('--withdrawal-profile',choices=('recorded','clearance-lift-v1','clearance-lift-v2','clearance-lift-v3','clearance-lift-v4'),default='recorded');args=parser.parse_args();
 if not np.isfinite(args.finger_lead_seconds) or not 0<=args.finger_lead_seconds<=.5:raise ValueError('Require a bounded finger lead')
+if not np.isfinite(args.early_lift_m) or not 0<=args.early_lift_m<=.01:raise ValueError('Require a bounded early geometric lift')
 root=Path(__file__).resolve().parents[2];run=args.source_run.resolve();sys.path.insert(0,str(run.with_name(run.name+'-source')))
 from doorbench.dexterous.environment import DexterousDoorEnv
 c=json.load(open(run/'manifest.json'))['configuration'];r=Path(c['robot']);s=DexterousDoorEnv(c['door'],r,json.load(open(r.with_suffix('.audit.json'))));m,d=s.m,s.d
@@ -34,11 +35,11 @@ for dx,dy,roll in [(0,-.16056,0)]:
   if phase=='grasp_adjustment':
    fraction=u;relative_p=(1-u)*initial_relative_p+u*source_initial_p;relative_r=Rotation.from_rotvec(u*Rotation.from_matrix(source_initial_r@initial_relative_r.T).as_rotvec()).as_matrix()@initial_relative_r;f=(1-u)*base[fqa]+u*source_fingers[0];clock=4*u
   elif phase=='clearance_lift':
-   start_i=int(np.argmin(abs(times-4.1)));fraction=u;blend=u**3*(10+u*(-15+6*u));relative_p=pp[start_i]+np.array([0.,0.,.002 if args.withdrawal_profile in ('clearance-lift-v2','clearance-lift-v3','clearance-lift-v4') else 0.])+np.array([-.006 if args.withdrawal_profile=='clearance-lift-v4' else 0.,-.016 if args.withdrawal_profile in ('clearance-lift-v3','clearance-lift-v4') else -.010,.040])*blend;relative_r=Rotation.from_rotvec(blend*Rotation.from_matrix(source_rotations[-1]@source_rotations[start_i].T).as_rotvec()).as_matrix()@source_rotations[start_i];source_t=float(times[start_i])+blend*(times[-1]-times[start_i]);f=np.array([np.interp(source_t,times,source_fingers[:,k]) for k in range(len(fn))]);clock=4+float(times[start_i])+.7*u
+   start_i=int(np.argmin(abs(times-4.1)));fraction=u;blend=u**3*(10+u*(-15+6*u));relative_p=pp[start_i]+np.array([0.,0.,args.early_lift_m if args.withdrawal_profile in ('clearance-lift-v2','clearance-lift-v3','clearance-lift-v4') else 0.])+np.array([-.006 if args.withdrawal_profile=='clearance-lift-v4' else 0.,-.016 if args.withdrawal_profile in ('clearance-lift-v3','clearance-lift-v4') else -.010,.040])*blend;relative_r=Rotation.from_rotvec(blend*Rotation.from_matrix(source_rotations[-1]@source_rotations[start_i].T).as_rotvec()).as_matrix()@source_rotations[start_i];source_t=float(times[start_i])+blend*(times[-1]-times[start_i]);f=np.array([np.interp(source_t,times,source_fingers[:,k]) for k in range(len(fn))]);clock=4+float(times[start_i])+.7*u
   else:
    i=round(u*(len(fds)-1));fraction=u;relative_p=pp[i];relative_r=source_rotations[i];finger_t=float(times[i])+args.finger_lead_seconds*np.sin(np.pi*u)**2;f=np.array([np.interp(finger_t,times,source_fingers[:,k]) for k in range(len(fn))]);clock=4+float(times[i])
   if args.withdrawal_profile in ('clearance-lift-v2','clearance-lift-v3','clearance-lift-v4') and phase=='measured_release':
-   lift_u=float(np.clip((clock-6.)/1.,0.,1.));relative_p=relative_p+np.array([0.,0.,.002*lift_u**3*(10+lift_u*(-15+6*lift_u))])
+   lift_u=float(np.clip((clock-6.)/1.,0.,1.));relative_p=relative_p+np.array([0.,0.,args.early_lift_m*lift_u**3*(10+lift_u*(-15+6*lift_u))])
   PR=handleP+H@relative_p;RR=H@relative_r;f=np.clip(f,m.jnt_range[fjs,0],m.jnt_range[fjs,1])
   for digit in ('FF','MF','RF','LF'):
    a,b=[fn.index(f'rh_{digit}J{k}') for k in (1,2)]

@@ -305,3 +305,11 @@ python scripts/dexterous/audit_panel_energy.py \
 ```
 
 [Frozen failed report, interval mechanics and verified archive](../results/dexterous/2026-09-08/short-release-panel-development.json)
+
+For the next fresh comparison, `--early-lift-m .006` increases only the early
+geometric lift within `clearance-lift-v4`; omission preserves 2 mm. The parameter
+is limited to 0–10 mm and recorded in the geometry receipt. It must pass the
+same dense anatomy/collision/foot/endpoint screen before execution. The replay
+probe also accepts `--panel-profile hybrid-surface-v2`, which selects the existing
+frozen controller implementation and records the change from baseline. Omission
+preserves the baseline profile. These are experiment controls, not claimed fixes.

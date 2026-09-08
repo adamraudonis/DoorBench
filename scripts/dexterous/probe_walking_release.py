@@ -2,8 +2,9 @@
 """Repeat a frozen walking-opening run with one opt-in pressed-frame release.
 
 The immutable source run supplies the complete baseline code and configuration.
-The original active robot/door is stepped continuously from reset. Only the
-release target frame differs. Byte-identical raw prefix chunks are hardlinked
+The original active robot/door is stepped continuously from reset. Declared
+release and optional existing panel-profile interventions are recorded.
+Byte-identical raw prefix chunks are hardlinked
 after verification to avoid storing another large copy of the walking prefix.
 """
 import argparse
@@ -44,6 +45,8 @@ def main():
     p.add_argument("--ungrip-goal-frame", choices=("attained-resting-world", "measured-handle"), default="attained-resting-world")
     p.add_argument("--verified-prefix-run", type=Path)
     p.add_argument("--hold-full-left-orientation", action="store_true")
+    p.add_argument("--panel-profile", choices=("plain-v1", "hybrid-surface-v2"),
+                   help="Explicit existing profile comparison; omitted inherits frozen baseline")
     a = p.parse_args()
     if (a.release_mode in ('whole-body-return', 'whole-body-ungrip')) != (a.whole_body_path is not None):
         raise ValueError('Whole-body return requires the exact screened path')
@@ -230,6 +233,8 @@ def main():
             config[key] = str(path if path.is_absolute() else original_cwd / path)
     config["output"] = str(output)
     config["seconds"] = a.seconds
+    if a.panel_profile is not None:
+        config["panel_profile"] = a.panel_profile
     argv = [str(driver)]
     for key, value in config.items():
         if value is None or value is False:
@@ -250,6 +255,8 @@ def main():
             retain_grip_until_clear=a.retain_grip_until_clear,
             release_mode=a.release_mode,
             hold_full_left_orientation=a.hold_full_left_orientation,
+            panel_profile=config.get('panel_profile'),
+            panel_profile_changed_from_baseline=config.get('panel_profile')!=baseline['configuration'].get('panel_profile'),
             ungrip_goal_frame=a.ungrip_goal_frame if a.release_mode=="whole-body-ungrip" else None,
             prefix_source=str(prefix_source),
             ungrip_path_sha256=digest(stage/'ungrip-path.json') if a.release_mode=='whole-body-ungrip' else None,
