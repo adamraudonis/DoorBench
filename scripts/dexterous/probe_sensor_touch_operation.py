@@ -102,6 +102,8 @@ def main():
     p.add_argument('--digit-force-protocol',type=Path,help='Opt-in local pad-Jacobian force correction over the index profile')
     p.add_argument('--hierarchical-force-protocol',type=Path,help='Opt-in normal-effort/posture hierarchy over the digit-force profile')
     p.add_argument('--hierarchical-force-screen',type=Path,help='Matching frozen recorded-pose effort algebra screen')
+    p.add_argument('--contact-mode-protocol',type=Path,help='Opt-in smooth contact-mode recovery; whole-thumb projection unchanged')
+    p.add_argument('--contact-mode-screen',type=Path,help='Matching frozen contact-mode command algebra screen')
     a=p.parse_args()
     if not 0<a.seconds<=40 or not np.isfinite([a.seconds,a.initial_velocity]).all() or abs(a.initial_velocity)>.1:p.error('Bounded finite protocol required')
     if a.output.exists():p.error('Fresh evidence directory required')
@@ -110,6 +112,7 @@ def main():
     if (a.hierarchical_force_protocol is None)!=(a.hierarchical_force_screen is None):p.error('Hierarchical profile requires its matching effort screen')
     if a.digit_force_protocol and a.seconds!=36.:p.error('Frozen digit-force comparisons require36seconds')
     if a.hierarchical_force_protocol and not a.digit_force_protocol:p.error('Hierarchical profile requires the frozen digit-force inner loop')
+    if (a.contact_mode_protocol is None)!=(a.contact_mode_screen is None) or (a.contact_mode_protocol and not a.hierarchical_force_protocol):p.error('Contact-mode profile requires hierarchy and matching algebra screen')
     if a.digit_force_protocol and (not a.index_protocol or a.palm_protocol):p.error('Digit force comparison requires index profile and excludes the separate palm-shift experiment')
     a.output.mkdir(parents=True)
     robot=Path(a.robot);door=a.door if a.door.is_dir() else a.door.parent
@@ -160,6 +163,17 @@ def main():
             hierarchy_source=Path(inspect.getfile(SensorHierarchicalDigitForceController))
             if (hierarchy_screen.get('passed') is not True or hierarchy_screen.get('protocol')!=hierarchy or hierarchy_screen.get('controller_sha256')!=sha(hierarchy_source) or hierarchy_screen.get('robot_xml_sha256')!=sha(robot) or hierarchy_screen.get('motor_contract_sha256')!=sha(a.motors) or hierarchy_screen.get('input_sha256',{}).get('index-screen.json')!=sha(a.index_screen) or hierarchy_screen.get('input_sha256',{}).get('preload-screen.json')!=sha(a.preload_screen)):raise ValueError('Matching frozen hierarchical source/protocol effort screen required')
             touch=SensorHierarchicalDigitForceController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile,json.loads(a.digit_force_protocol.read_text()),hierarchy)
+            if a.contact_mode_protocol:
+                from doorbench.dexterous.sensor_smooth_contact_force import SensorSmoothContactForceController
+                from doorbench.dexterous.tactile_contact_mode import TactileContactMode
+                mode_profile=json.loads(a.contact_mode_protocol.read_text());mode_screen=json.loads(a.contact_mode_screen.read_text())
+                expected={n:sha(Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n) for n in (
+                    'sensor_smooth_contact_force.py','sensor_hierarchical_digit_force.py','sensor_distal_touch_control.py','sensor_index_touch_control.py')}
+                if (mode_screen.get('passed') is not True or mode_screen.get('protocol')!=mode_profile or
+                    mode_screen.get('robot_xml_sha256')!=sha(robot) or mode_screen.get('mode_source_sha256')!=sha(inspect.getfile(TactileContactMode)) or
+                    mode_screen.get('controller_sources_sha256')!=expected):raise ValueError('Matching source-bound smooth contact-mode algebra required')
+                touch=SensorSmoothContactForceController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile,
+                    json.loads(a.digit_force_protocol.read_text()),hierarchy,contact_mode_protocol=mode_profile)
         else:
             touch=SensorDigitForceController(arm,route,layout,json.loads(a.impedance_protocol.read_text()),motors,index_profile,json.loads(a.digit_force_protocol.read_text()))
     builder=ActorObservationBuilder(joint_count=69,action_count=61,tactile_dimension=layout['tactile_dimension'])
@@ -187,6 +201,10 @@ def main():
         target=a.output/'frozen-source'/src;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(root/src,target);provenance['sources'][src]=sha(target)
     for name,path in [('preload-screen.json',a.preload_screen),('press-plan.json',a.press_plan),('reference.json',a.reference),('motors.json',a.motors),('calibration.json',a.calibration),('schedule.json',a.schedule)]:shutil.copy2(path,a.output/name)
     write(a.output/'sensor-layout.json',layout);write(a.output/'provenance.json',provenance)
+    if a.contact_mode_protocol:
+        for name,path in [('contact-mode-protocol.json',a.contact_mode_protocol),('contact-mode-screen.json',a.contact_mode_screen)]:
+            shutil.copy2(path,a.output/name);provenance[name.removesuffix('.json')+'_sha256']=sha(path)
+        write(a.output/'provenance.json',provenance)
     if a.impedance_protocol:
         shutil.copy2(a.impedance_protocol,a.output/'impedance-protocol.json')
         provenance['impedance_protocol_sha256']=sha(a.impedance_protocol)

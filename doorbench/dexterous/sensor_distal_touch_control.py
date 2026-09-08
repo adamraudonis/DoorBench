@@ -58,6 +58,14 @@ class SensorDistalTouchController:
         # band; those remain independent evaluator checks.
         return np.array([max(0.,float(packet['tactile'][self.slices[d]].reshape(3,2,4)[0,:,1:3].sum())) for d in self.digits])
 
+    def closure_integration_mask(self,raw):
+        """Legacy profile integrates every bounded closure coordinate."""
+        return np.ones(5,dtype=bool)
+
+    def progression_contact_ready(self,raw):
+        """Legacy profile uses its filtered load and encoder gates below."""
+        return True
+
     def force(self,packet,*,now_s):
         if self.failed_reason is not None:raise RuntimeError('Touch controller requires reset_episode: '+self.failed_reason)
         try:
@@ -71,10 +79,10 @@ class SensorDistalTouchController:
                 raw=self.local_distal_loads(packet)
                 if self.last_time<19.-1e-9:self.filtered=raw.copy()
                 else:self.filtered+=(-np.expm1(-self.dt/self.tau))*(raw-self.filtered)
-                self.delta=np.clip(self.delta+self.dt*np.clip(self.integral_gain*(self.target-self.filtered),-self.maximum_rate,self.maximum_rate),0.,self.maximum)
+                self.delta=np.clip(self.delta+self.closure_integration_mask(raw)*self.dt*np.clip(self.integral_gain*(self.target-self.filtered),-self.maximum_rate,self.maximum_rate),0.,self.maximum)
                 prior=self.schedule.goals(self.virtual_s)
                 tracking=bool(max(abs(packet['joint_position'][i]-prior[n]) for n,i in zip(self.schedule.press_names,self.press_joint_indices))<.03)
-                ready=bool(np.all(self.filtered>=self.minimum) and tracking)
+                ready=bool(np.all(self.filtered>=self.minimum) and tracking and self.progression_contact_ready(raw))
                 if ready:
                     if self.good_since is None:self.good_since=now
                 else:self.good_since=None

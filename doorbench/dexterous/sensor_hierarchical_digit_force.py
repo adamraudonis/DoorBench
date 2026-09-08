@@ -78,7 +78,7 @@ class _ProjectedArm:
             if self.initial_normal is None:
                 self.initial_normal=np.array([unit[rows]@position[rows]/(unit[rows]@unit[rows]) for _,rows,_,_ in groups.values()])
                 if np.any(self.initial_normal<0) or np.any(self.initial_normal>2):raise ValueError('Initial equivalent normal effort is outside frozen transfer range')
-            weight=np.clip(owner.local_distal_loads(packet)/.2,0.,1.)
+            weight=owner.normal_contact_weight(packet)
             t=float(np.clip((now-19.)/2.,0.,1.));alpha=weight*t**3*(10+t*(-15+6*t))
             adjustment,details=normal_posture_transfer(position,unit,groups,self.initial_normal,owner.virtual_force,alpha)
             # Outer controller reset this array to its original + current
@@ -99,6 +99,8 @@ class SensorHierarchicalDigitForceController(SensorDigitForceController):
         projected=_ProjectedArm(arm_controller)
         super().__init__(projected,operation_schedule,sensor_layout,impedance_protocol,motor_contract,index_protocol,force_protocol)
         projected.owner=self
+    def normal_contact_weight(self,packet):
+        return np.clip(self.local_distal_loads(packet)/.2,0.,1.)
     def force(self,packet,*,now_s):
         force,info=super().force(packet,now_s=now_s)
         self.info=dict(info,high_level_controller='hierarchical_local_digit_force_v1')

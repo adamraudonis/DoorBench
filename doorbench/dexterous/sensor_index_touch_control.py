@@ -60,6 +60,9 @@ class SensorIndexTouchController(SensorDistalTouchImpedanceController):
         self.index_delta=0.;self._index_schedule.offset=0.
         super().reset_episode()
 
+    def index_integration_allowed(self,packet):
+        return True
+
     def force(self,packet,*,now_s):
         if self.failed_reason is not None:
             raise RuntimeError('Index controller requires reset_episode: '+self.failed_reason)
@@ -69,7 +72,7 @@ class SensorIndexTouchController(SensorDistalTouchImpedanceController):
                 raise ValueError('Finite nonnegative numeric clock required')
             now=float(now_s)
             used_load=None;used_decision=None
-            if now>19.+1e-9:
+            if now>19.+1e-9 and self.index_integration_allowed(packet):
                 if self.last_time is None or abs(now-self.last_time-self.dt)>1e-8:
                     raise ValueError('Exact2ms episode clock required')
                 # One decision of additional delay is explicit. This is the
