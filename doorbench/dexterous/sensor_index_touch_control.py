@@ -41,7 +41,7 @@ class _IndexGoalSchedule:
     def __init__(self, schedule):self.original=schedule;self.offset=0.
     def __getattr__(self,name):return getattr(self.original,name)
     def goals(self,t):
-        goals=self.original.goals(t)
+        goals=dict(self.original.goals(t))
         if t>=19.-1e-9:goals['rh_FFJ3']+=self.offset
         return goals
 

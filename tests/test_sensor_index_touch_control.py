@@ -9,7 +9,7 @@ from test_sensor_distal_touch_control import packet
 from test_sensor_distal_touch_impedance import make as impedance
 from doorbench.dexterous.sensor_distal_touch_impedance import PROTOCOL
 from doorbench.dexterous.sensor_index_touch_control import (
-    INDEX_PROTOCOL,SensorIndexTouchController,validate_index_protocol)
+    INDEX_PROTOCOL,SensorIndexTouchController,validate_index_protocol,_IndexGoalSchedule)
 
 
 def make(authored,stub=False):
@@ -25,6 +25,15 @@ def test_frozen_scope_and_parameters_reject_target_or_gate_changes():
                 ('start_after_s',18.),('maximum_offset_rate_radps',True)]:
         bad=dict(INDEX_PROTOCOL);bad[k]=v
         with pytest.raises(ValueError):validate_index_protocol(bad)
+
+
+def test_goal_proxy_cannot_mutate_or_accumulate_into_original_schedule():
+    class AliasingSchedule:
+        value={'rh_FFJ3':.5,'rh_FFJ1':.2}
+        def goals(self,t):return self.value
+    original=AliasingSchedule();proxy=_IndexGoalSchedule(original);proxy.offset=.01
+    assert proxy.goals(19.)==proxy.goals(19.)=={'rh_FFJ3':.51,'rh_FFJ1':.2}
+    assert original.value=={'rh_FFJ3':.5,'rh_FFJ1':.2}
 
 
 def test_unchanged_first19s_then_exact_index_only_bounded_offset(authored):
