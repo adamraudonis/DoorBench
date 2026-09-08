@@ -798,3 +798,34 @@ physically executed. Initial unit tests cover discrete stopping, static target
 convergence, actual noncontrolled-joint compensation, and forbidden/nonfinite
 or mistimed input rejection; an independent source review checked the drift
 subtraction and its limited commanded-FK scope.
+
+Panel006 completed95s and remains failed (25/29). Original mechanics, motor
+limits, body balance and complete release pass; aperture, both sustained-load
+checks and the inherited RH pad errors fail. Final leaf0.524566rad and palm
+load0.650990N are below the required outcome. The independent archive audit
+verifies47,500 continuous transitions, zero motor-cap excess and zero actual
+frame error. The corrected LH targets peak at0.417652rad/s and3rad/s²; their
+recorded q/dq exactly obey trapezoidal target integration. No target-rate claim
+is inferred merely from the nominal whole-body path.
+
+The correction fixes the direction discrepancy: its final commanded-FK palm
+error in leaf coordinates is `[+0.880,-1.582,-0.713]`mm, close to the complete
+plan's `[+0.995,-1.430,-0.803]`mm. The remaining normal error points away from
+the surface. `diagnose_panel_motor_effort.py` reconstructs the actual seven
+capped arm efforts from the exact frozen controller to within8.9e−16. In an
+analytic free-arm normal coordinate, position servo contributes−3.40454N
+against+3.5N normal feedforward, with negligible velocity contribution. These
+are equivalent effort coordinates, not measured contact loads. Actual final
+normal hinge moment is+0.084737Nm and tangential moment+0.024217Nm, total
++0.108955Nm, below the original0.457638Nm frictionloss limit. Normal position
+tracking therefore opposes the contact effort after the base correction;
+increasing constant pressure is not the proposed repair.
+
+All006 source, physical evidence, independent audits and two detached target
+screens are immutable in `native-actual-base-panel-development-001`:629 files,
+manifest SHA256
+`09698cea1cc5bbbaca4c3bc11c302703ee1edd83b3e40640cce1133bb3c57542`.
+The next declared comparison will use palm-load feedback to move only the
+normal Cartesian goal within a separately screened2mm envelope, retaining
+3.5N feedforward, the same tangential/orientation targets and phase lead, and
+all original mechanical and contact gates.
