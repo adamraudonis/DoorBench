@@ -882,3 +882,37 @@ The remaining destination-state return/ungrip planner extraction is tracked in
 [Actual-state release port](ACTUAL_STATE_RELEASE_PORT.md). Exact attained-state
 admission guards remain intact; native component evidence does not authorize
 copying those paths into an Isaac state that differs.
+
+Panel008 completes130s with the same27/29 failed outcome. All190 raw chunks
+through95s match007 byte for byte. At the final2mm feedback bound, palm load
+is3.717700N and leaf angle0.531857rad; actual normal/tangential hinge moments
+are+0.483532/−0.026961Nm, net+0.456571Nm. Additional time therefore does not
+resolve the static stall. Independent audits verify65,000 continuous actual
+transitions, zero frame disagreement and original motor caps; the inherited
+three RH bad patches remain. No pressure or target-offset bound is increased.
+
+The next declared panel009 comparison includes the original torso joint in the
+actual-base Cartesian solve. Detached screen002 covers12,598 target intervals,
+2,521 collision configurations and8,210,751 exact RH-scene distance tests
+(308 hand shapes,64 scene shapes). Minimum RH clearance remains≥40mm;
+maximum nonfoot penetration0.794mm, COM XY correction0.138mm, torso tilt2.70°.
+Maximum waist correction14.46mrad fits the declared30mrad bound; all target
+joints remain below0.191rad/s and3rad/s². At the final screened pose, adding
+the waist reduces commanded-FK error to3.4nm/32nrad and restores11.27mrad
+minimum joint margin. This is unstepped target geometry, not physical support.
+
+The controller uses the same4N tactile target,0–2mm normal envelope,3.5N
+feedforward, phase lead, tangential pose and orientation. The torso output is
+explicitly reconstructed with its original kp/bias/gain/damping and original
+200Nm cap, with q/dq target continuity. Its direct unit joint transmission is
+validated. The other60 motor entries are preserved at that assembly step;
+subsequent landed-leg assembly must preserve the torso entry exactly. The
+independent actual archive also verifies delivered torso effort and the entire
+eight-joint target integration, rather than trusting a seven-joint trace.
+The default seven-joint controller remains unchanged. Independent source
+review found no force-routing/formula blocker; scalar/transmission hardening
+and62 focused tests pass before the fresh physical trial.
+
+Panel008 and both waist screens are preserved in
+`native-palm-feedback-horizon-development-001`:695 files, manifest SHA256
+`ca8b02986069e4dd0207d81e0acd652cabccd436d56ce04710cff9c3250ba8c3`.

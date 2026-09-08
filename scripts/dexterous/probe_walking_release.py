@@ -61,7 +61,10 @@ def main():
     p.add_argument("--screened-panel-lead-audit",type=Path)
     p.add_argument("--screened-panel-actual-base-correction",action="store_true")
     p.add_argument("--screened-panel-normal-admittance",action="store_true")
+    p.add_argument("--screened-panel-include-waist",action="store_true")
     a = p.parse_args()
+    if a.screened_panel_include_waist and not a.screened_panel_actual_base_correction:
+        raise ValueError("Waist correction requires the actual-base correction")
     if a.screened_panel_normal_admittance and not a.screened_panel_actual_base_correction:
         raise ValueError("Normal admittance requires the actual-base correction")
     if a.screened_panel_actual_base_correction and not a.whole_body_panel_plan:
@@ -118,7 +121,7 @@ def main():
         shutil.copy2(source / stored, stage / "doorbench/dexterous" / module)
     own = Path(__file__).resolve().parents[2]
     if a.whole_body_panel_plan:
-        for module in ('screened_panel_path.py','screened_panel_teacher.py','actual_base_palm.py','palm_normal_admittance.py'):
+        for module in ('screened_panel_path.py','screened_panel_teacher.py','actual_base_palm.py','palm_normal_admittance.py','panel_torso_target.py'):
             shutil.copy2(own/'doorbench/dexterous'/module,stage/'doorbench/dexterous'/module)
         shutil.copy2(a.whole_body_panel_plan,stage/'whole-body-panel-plan.json')
         if a.screened_panel_lead_audit:shutil.copy2(a.screened_panel_lead_audit,stage/'panel-lead-audit.json')
@@ -189,7 +192,7 @@ def main():
     import doorbench.dexterous.full_opening_teacher as full
     if a.whole_body_panel_plan:
         from doorbench.dexterous.screened_panel_teacher import ScreenedWholeBodyPanel
-        full.CoordinatedPanelPush=lambda left,**options:ScreenedWholeBodyPanel(left,stage/'whole-body-panel-plan.json',normal_feedforward_N=a.screened_panel_feedforward_n,actual_base_correction=a.screened_panel_actual_base_correction,palm_normal_admittance=a.screened_panel_normal_admittance,tracking_lead_rad=a.screened_panel_lead_rad,lead_start_angle=a.screened_panel_lead_start_rad,lead_ramp_rad=a.screened_panel_lead_ramp_rad,lead_receipt=stage/'panel-lead-audit.json' if a.screened_panel_lead_audit else None,**options)
+        full.CoordinatedPanelPush=lambda left,**options:ScreenedWholeBodyPanel(left,stage/'whole-body-panel-plan.json',normal_feedforward_N=a.screened_panel_feedforward_n,actual_base_correction=a.screened_panel_actual_base_correction,palm_normal_admittance=a.screened_panel_normal_admittance,correction_include_waist=a.screened_panel_include_waist,tracking_lead_rad=a.screened_panel_lead_rad,lead_start_angle=a.screened_panel_lead_start_rad,lead_ramp_rad=a.screened_panel_lead_ramp_rad,lead_receipt=stage/'panel-lead-audit.json' if a.screened_panel_lead_audit else None,**options)
     original_force = full.FullOpeningTeacher.force
     panel_trace=None
     panel_phase_trace=None
@@ -208,6 +211,9 @@ def main():
             self.release.observe_leaf(t, leaf_pose)
         force,info=original_force(self, t, root, joints, velocities, handle_pose,
                               leaf_pose, angles, hand_forces, **kwargs)
+        if a.screened_panel_include_waist and self.push.started is not None:
+            force,torso_info=self.push.apply_corrected_torso_force(force,joints,velocities)
+            self._last_corrected_torso=(torso_info["motor_index"],torso_info["consumed_torso_effort_Nm"])
         projection=None
         if a.hybrid_include_waist:
             from doorbench.dexterous.panel_chain_projection import apply_waist_arm_projection
@@ -247,7 +253,11 @@ def main():
                      latched_motor_targets=self.acquisition.target.tolist(),
                      left_arm_targets=self.left.target.tolist(),left_arm_target_velocity=self.left.target_velocity.tolist(),
                      actual_base_correction=self.push.latest.get('actual_base_correction'),
-                     normal_admittance=self.push.latest.get('normal_admittance'))
+                     normal_admittance=self.push.latest.get('normal_admittance'),
+                     corrected_chain_joint_names=self.push.correction_names if self.push.correction is not None else None,
+                     corrected_chain_targets=self.push.corrected_chain_target.tolist() if self.push.corrected_chain_target is not None else None,
+                     corrected_chain_velocity=self.push.corrected_chain_velocity.tolist() if self.push.corrected_chain_velocity is not None else None,
+                     actual_torso_force=self.push.latest.get('actual_torso_force'))
             panel_phase_trace.write(json.dumps(row,allow_nan=False)+'\n')
         return force,info
 
@@ -265,6 +275,9 @@ def main():
                 goal=release.body_goal(t-self.acquisition_started)
                 apply_stance_goal(self.body.controller,goal)
             result=original_walking_force(self,t,*args,**kwargs)
+            if a.screened_panel_include_waist and hasattr(self.opening,"_last_corrected_torso"):
+                index,expected=self.opening._last_corrected_torso
+                if result[0][index]!=expected:raise AssertionError("Walking assembly overwrote the actual corrected torso effort")
             if a.hybrid_include_waist and hasattr(self.opening,'_last_projected_chain'):
                 import numpy as np
                 indices,expected=self.opening._last_projected_chain
@@ -371,6 +384,7 @@ def main():
             record_screened_panel_phase=a.record_screened_panel_phase,
             screened_panel_actual_base_correction=a.screened_panel_actual_base_correction,
             screened_panel_normal_admittance=a.screened_panel_normal_admittance,
+            screened_panel_include_waist=a.screened_panel_include_waist,
             screened_panel_lead_audit_sha256=digest(stage/"panel-lead-audit.json") if a.screened_panel_lead_audit else None,
             screened_panel_lead_start_rad=a.screened_panel_lead_start_rad,screened_panel_lead_ramp_rad=a.screened_panel_lead_ramp_rad,
             record_panel_targets=a.record_panel_targets or a.hybrid_include_waist,

@@ -45,7 +45,7 @@ def validate_tracking_lead_receipt(plan, receipt, lead, start):
 
 
 class ScreenedWholeBodyPanel:
-    def __init__(self,left,path,*,normal_feedforward_N=3.5,tracking_lead_rad=.005,lead_start_angle=None,lead_ramp_rad=.1,lead_receipt=None,actual_base_correction=False,palm_normal_admittance=False,**legacy_options):
+    def __init__(self,left,path,*,normal_feedforward_N=3.5,tracking_lead_rad=.005,lead_start_angle=None,lead_ramp_rad=.1,lead_receipt=None,actual_base_correction=False,palm_normal_admittance=False,correction_include_waist=False,**legacy_options):
         if type(normal_feedforward_N) not in (int,float) or not np.isfinite(normal_feedforward_N) or not 0 < normal_feedforward_N <= 8.:
             raise ValueError('Require a finite declared normal feedforward in (0,8] N; original motor caps remain unchanged')
         self.normal_feedforward_N=float(normal_feedforward_N)
@@ -76,10 +76,19 @@ class ScreenedWholeBodyPanel:
         if palm_normal_admittance:
             from .palm_normal_admittance import PalmNormalAdmittance
             self.admittance=PalmNormalAdmittance()
+        if type(correction_include_waist) is not bool or (correction_include_waist and not actual_base_correction):
+            raise ValueError("Waist correction requires explicit actual-base correction")
+        self.correction_include_waist=correction_include_waist
+        self.correction_names=(["torso"] if correction_include_waist else [])+self.left.names[1:]
+        self.corrected_chain_target=None;self.corrected_chain_velocity=None
+        self.torso_motor=list(self.teacher.act).index(self.teacher.m.actuator("torso").id) if correction_include_waist else None
+        if correction_include_waist:
+            from .panel_torso_target import validate_unit_joint_motor
+            validate_unit_joint_motor(self.teacher.m,self.teacher.act[self.torso_motor],self.teacher.m.joint("torso").id)
         self.correction=None
         if actual_base_correction:
             from .actual_base_palm import ActualBasePalmCorrection
-            self.correction=ActualBasePalmCorrection(self.teacher.m,self.left.names[1:],"lh_palm_touch")
+            self.correction=ActualBasePalmCorrection(self.teacher.m,self.correction_names,"lh_palm_touch")
 
     def begin(self,t,root,joints,leaf_pose,angle):
         if self.started is not None:raise ValueError('Panel already started')
@@ -88,7 +97,10 @@ class ScreenedWholeBodyPanel:
             raise ValueError('Require the completed actual left contact approach')
         self.started=float(t);self.clear=True
         if getattr(self,"correction",None) is not None:
-            self.correction.begin(t,self.left.target,getattr(self.left,"target_velocity",np.zeros_like(self.left.target)))
+            target=self.left.target.copy();velocity=getattr(self.left,"target_velocity",np.zeros_like(target)).copy()
+            if self.correction_include_waist:
+                target=np.r_[self.teacher.target[self.torso_motor],target];velocity=np.r_[0.,velocity]
+            self.correction.begin(t,target,velocity)
         self.advance(t,angle)
         self.teacher.arm_joints=np.array([],int);self.teacher.arm_q=np.array([],int);self.teacher.arm_v=np.array([],int)
         self.left.contact_force=self.normal_feedforward_N
@@ -147,8 +159,16 @@ class ScreenedWholeBodyPanel:
             measured_rotation=Rotation.from_quat([*root[4:7],root[3]]).as_matrix()
             goal_position_base=measured_rotation.T@(commanded_position_world-root[:3])
             goal_rotation_base=measured_rotation.T@d.site_xmat[self.left.palm].reshape(3,3)
-            self.left.target,self.left.target_velocity,correction_info=self.correction.update(t,joints,goal_position_base,goal_rotation_base,self.left.target)
-            correction_info['maximum_change_from_nominal_rad']=float(np.max(abs(self.left.target-self.previous[left_indices])))
+            correction_indices=[self.names.index(n) for n in self.correction_names]
+            nominal=self.previous[correction_indices]
+            corrected,corrected_velocity,correction_info=self.correction.update(t,joints,goal_position_base,goal_rotation_base,nominal)
+            self.corrected_chain_target=corrected.copy();self.corrected_chain_velocity=corrected_velocity.copy()
+            self.left.target=corrected[-7:].copy();self.left.target_velocity=corrected_velocity[-7:].copy()
+            if self.correction_include_waist:
+                correction_info['waist_change_from_nominal_rad']=float(abs(corrected[0]-nominal[0]))
+                if correction_info['waist_change_from_nominal_rad']>.03:raise ValueError('The waist correction exceeded its screened30mrad envelope')
+                self.teacher.path[-1,self.teacher.names.index('torso')]=corrected[0]
+            correction_info['maximum_change_from_nominal_rad']=float(np.max(abs(corrected-nominal)))
             if correction_info['maximum_change_from_nominal_rad']>.1:
                 raise ValueError('The actual-base target correction exceeded its screened0.1rad envelope')
             self.latest['actual_base_correction']=correction_info
@@ -162,3 +182,12 @@ class ScreenedWholeBodyPanel:
             self.left.info['actual_base_correction']=dict(self.latest['actual_base_correction'])
         if 'normal_admittance' in self.latest:
             self.left.info['normal_admittance']=dict(self.latest['normal_admittance'])
+
+    def apply_corrected_torso_force(self,forces,joints,velocities):
+        if not self.correction_include_waist or self.started is None:
+            return np.asarray(forces).copy(),None
+        from .panel_torso_target import original_torso_target_force
+        teacher=self.teacher;index=self.torso_motor
+        result,info=original_torso_target_force(forces,index,self.corrected_chain_target[0],self.corrected_chain_velocity[0],joints['torso'],velocities['torso'],kp=teacher.kp[index],bias=teacher.bias[index],gain=teacher.gain[index],damping=teacher.damping[index],caps=teacher.caps)
+        self.latest['actual_torso_force']=info
+        return result,info

@@ -46,6 +46,19 @@ def validate_panel_reference_row(row, previous=None):
             if np.max(abs(change-.5*dt*(velocity+previous_velocity)))>1e-12:
                 raise ValueError('Consumed LH targets differ from bounded target integration')
             if acceleration>3.+1e-8:raise ValueError('Consumed LH target exceeds original acceleration bound')
+    chain=row.get('corrected_chain_targets')
+    if chain is not None:
+        names=row['corrected_chain_joint_names'];chain=np.asarray(chain,float);chainv=np.asarray(row['corrected_chain_velocity'],float)
+        expected=['left_'+n for n in ('shoulder_pitch','shoulder_roll','shoulder_yaw','elbow','wrist_yaw')]+['lh_WRJ2','lh_WRJ1']
+        if names not in (expected,['torso']+expected) or chain.shape!=(len(names),) or chainv.shape!=chain.shape or not np.isfinite(np.r_[chain,chainv]).all():
+            raise ValueError('Require the declared finite corrected actuator chain')
+        if not np.array_equal(chain[-7:],row['left_arm_targets']) or not np.array_equal(chainv[-7:],velocity):
+            raise ValueError('Corrected chain and consumed LH targets differ')
+        if np.max(abs(chainv))>1.2+1e-9:raise ValueError('Corrected chain exceeds original speed bound')
+        if previous is not None and previous.get('corrected_chain_targets') is not None:
+            prior=np.asarray(previous['corrected_chain_targets']);priorv=np.asarray(previous['corrected_chain_velocity']);dt=row['episode_time_s']-previous['episode_time_s']
+            if prior.shape!=chain.shape or np.max(abs(chain-prior-.5*dt*(chainv+priorv)))>1e-12 or np.max(abs((chainv-priorv)/dt))>3.+1e-8:
+                raise ValueError('Corrected whole chain differs from bounded target integration')
     normal=row.get('normal_admittance')
     if normal is not None:
         if not np.isfinite(list(normal.values())).all():raise ValueError('Nonfinite palm-normal evidence')
@@ -95,7 +108,7 @@ def main():
             body=model.body_parentid[body]
         return False
     members={b for b in range(model.nbody) if belongs_to_leaf(b)}
-    index=0;values=[];max_frame_error=0.;max_phase_error=0.;max_force_excess=0.;previous_row=None
+    index=0;values=[];max_frame_error=0.;max_phase_error=0.;max_force_excess=0.;previous_row=None;max_torso_delivery_error=0.
     for raw in NativeTransitionArchive.read(run/'raw-transitions'):
         time=float(raw['interval_start_s'])
         if time<times[0]-1e-9:continue
@@ -114,6 +127,12 @@ def main():
             raise ValueError('Actual body geometry or current leaf observation differs')
         forces=np.asarray(raw['actuator_force'])
         max_force_excess=max(max_force_excess,float(np.max(forces-model.actuator_forcerange[:,1])),float(np.max(model.actuator_forcerange[:,0]-forces)))
+        torso=row.get('actual_torso_force')
+        if torso is not None:
+            if not np.isfinite(list(torso.values())).all():raise ValueError('Nonfinite actual torso delivery evidence')
+            aid=model.actuator('robot/torso').id
+            error=abs(float(forces[aid])-torso['consumed_torso_effort_Nm']);max_torso_delivery_error=max(max_torso_delivery_error,error)
+            if error>1e-9:raise ValueError('Corrected torso effort was overwritten before the actual plant step')
         normal_moment=0.;tangential_moment=0.;couple_moment=0.;palm_load=0.;finger_load=0.
         for contact in raw['contacts']:
             membership=[int(b) in members for b in contact['body']]
@@ -149,7 +168,7 @@ def main():
     result=dict(scope='Actual current-interval wrenches joined to same-time reference inputs; evaluator-only. Original frictionloss is a model limit, not a measured multiplier.',
                 samples=len(values),first_interval_start_s=float(array[0,0]),last_interval_start_s=float(array[-1,0]),
                 columns=columns,maximum_actual_body_frame_error=max_frame_error,maximum_current_leaf_observation_error=max_phase_error,
-                maximum_original_motor_cap_excess=max_force_excess,original_hinge_frictionloss_limit_Nm=float(model.dof_frictionloss[va]),
+                maximum_original_motor_cap_excess=max_force_excess,maximum_corrected_torso_delivery_error_Nm=max_torso_delivery_error,original_hinge_frictionloss_limit_Nm=float(model.dof_frictionloss[va]),
                 minimums=dict(zip(columns,array.min(axis=0).tolist())),maximums=dict(zip(columns,array.max(axis=0).tolist())),
                 final=dict(zip(columns,array[-1].tolist())),raw_manifest_sha256=digest(run/'raw-transitions/manifest.json'),
                 phase_trace_sha256=digest(run/'panel-phase.jsonl.gz'),moment_helper_sha256=digest(helper_path),

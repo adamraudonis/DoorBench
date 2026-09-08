@@ -43,3 +43,13 @@ def test_normal_admittance_report_cannot_claim_a_bounded_teleported_offset():
     with pytest.raises(ValueError):module.validate_panel_reference_row(item,previous)
     item['normal_admittance']['normal_offset_m']=0.
     module.validate_panel_reference_row(item,previous)
+
+
+def test_corrected_waist_target_cannot_jump_behind_valid_seven_arm_telemetry():
+    previous=row();names=['torso']+['left_'+n for n in ('shoulder_pitch','shoulder_roll','shoulder_yaw','elbow','wrist_yaw')]+['lh_WRJ2','lh_WRJ1']
+    previous.update(corrected_chain_joint_names=names,corrected_chain_targets=[0.]*8,corrected_chain_velocity=[0.]*8)
+    item=copy.deepcopy(previous);item['episode_time_s']=item['local_time_s']=.002
+    item['corrected_chain_targets'][0]=.01
+    with pytest.raises(ValueError):module.validate_panel_reference_row(item,previous)
+    item['corrected_chain_targets'][0]=0.
+    module.validate_panel_reference_row(item,previous)
