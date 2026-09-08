@@ -68,3 +68,18 @@ observations or qualify a destination-engine mapping. A future Isaac adapter
 must bind its actual complete observations and independently validate imported
 geometry. No runtime return/ungrip admission guard was changed. Resting-state
 withdrawal, released-state panel replanning and live composition remain open.
+
+The withdrawal numerical core is now extracted into
+`whole_body_ungrip_planner.iter_whole_body_ungrip`. All 276 original target rows
+reproduce exactly for the existing 10 mm early-lift candidate, and the separate
+dense geometry audit passes again. The CLI retains its frozen environment source
+and records the independent solver source hash. The solver receives copied
+terminal coordinates and numeric measured-release samples, creates private model
+data and never steps physics. This extraction does not supply missing actual
+body observations, prove forces, or qualify the pending physical withdrawal.
+[Executed comparison and dense screen](evidence/whole-body-ungrip-extraction-001.json).
+
+Legacy ungrip target plans compare 25 body joints and 22 right finger joints at
+admission, while `observe_state` receives all 69. New destination-state receipts
+must bind all 69 initial joints; historical plans/results are retained unchanged.
+The panel planner and complete runtime state adapters remain to be extracted.
