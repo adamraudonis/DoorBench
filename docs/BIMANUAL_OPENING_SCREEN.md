@@ -461,3 +461,15 @@ load gates. The original 20 gates remain unchanged. Exact failures and sources
 are preserved in the byte-verified archives referenced by
 [`full-opening-teacher-development.json`](../results/dexterous/2026-09-08/full-opening-teacher-development.json).
 Do not score a completed opening from these development runs.
+
+The operation controller also exposes explicit engine-transfer options:
+`open_on_latch_clear=True` permits the leaf trajectory once the **actual** handle
+has reached 0.8 rad and the latch has retracted 11 mm, without waiting for the
+nominal press schedule. `operator_compliance_gain=.5` integrates measured handle
+tracking error into a palm-reference rotation, clipped to 0.15 rad and frozen at
+that measured release. Both options reproduce the separately qualified Isaac
+operation controller's settings. They remain **off by default** in the native
+full-opening reproduction, and do not change any door state, joint limit or
+motor cap. The CLI equivalents are `--open-on-latch-clear` and
+`--operator-compliance-gain .5`. Porting these options into the full-opening
+controller does not establish an Isaac full-opening pass.

@@ -2,6 +2,7 @@ from collections import deque
 import importlib.util
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -80,3 +81,46 @@ def test_dense_sample_count_cannot_replace_the_actual_hold_duration():
     obj=clock_only();angles=dict(operator=0.,leaf=0.)
     for i in range(251):obj._record_evidence(i*.001,angles,evidence())
     assert not obj._qualified(lambda row:row['grasp_qualified'])
+
+
+def operation_only(*, early=False,gain=0.):
+    obj=clock_only()
+    obj.acquisition=SimpleNamespace(positions=np.zeros((1,3)),rotations=np.array([np.eye(3)]))
+    obj.initial_handle=0.;obj.operation_started=0.;obj.operation_last_time=0.
+    obj.press_seconds=5.;obj.opening_seconds=3.;obj.open_started=None
+    obj.open_on_latch_clear=early;obj.operator_compliance_gain=gain
+    obj.operator_compliance_limit=.15;obj.operator_compliance=0.
+    obj.freeze_compliance_on_release=True
+    obj.geometry=dict(operator_origin=np.zeros(3),operator_axis=np.array([1.,0.,0.]),
+                      leaf_origin=np.zeros(3),leaf_axis=np.array([0.,0.,1.]))
+    obj.p_relative=np.array([0.,.1,0.]);obj.r_relative=np.eye(3)
+    obj.operation_info=dict(goal_leaf_rad=0.);obj.handoffs={}
+    return obj
+
+
+def test_early_opening_is_opt_in_and_retains_both_actual_release_thresholds():
+    pose=[0,0,0,1,0,0,0]
+    ordinary=operation_only();early=operation_only(early=True)
+    for obj in (ordinary,early):
+        obj._operation_targets(1.,pose,pose,dict(operator=.79,leaf=0.,latch=.012))
+        assert obj.open_started is None
+        obj._operation_targets(1.002,pose,pose,dict(operator=.81,leaf=0.,latch=.0109))
+        assert obj.open_started is None
+        obj._operation_targets(1.004,pose,pose,dict(operator=.81,leaf=0.,latch=.012))
+    assert ordinary.open_started is None
+    assert early.open_started==1.004
+    assert early.operator_compliance==0.
+
+
+def test_compensation_is_bounded_and_freezes_on_actual_latch_release():
+    obj=operation_only(early=True,gain=.5);pose=[0,0,0,1,0,0,0]
+    for t in np.arange(.002,4.,.002):
+        obj._operation_targets(float(t),pose,pose,dict(operator=0.,leaf=0.,latch=0.))
+    assert obj.operator_compliance==.15
+    obj._operation_targets(4.,pose,pose,dict(operator=.81,leaf=0.,latch=.012))
+    frozen=obj.operator_compliance
+    assert obj.open_started==4.
+    for t in np.arange(4.002,6.,.002):
+        obj._operation_targets(float(t),pose,pose,dict(operator=0.,leaf=.08,latch=.012))
+        assert obj.operator_compliance==frozen
+    assert obj.operation_info['goal_handle_rad']==pytest.approx(.87)

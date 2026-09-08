@@ -179,6 +179,7 @@ class LeftPalmContact:
         kp=teacher.kp[self.act];bias=teacher.bias[self.act]
         damping=np.array([.8 if 'WRJ' in n else 10. for n in self.names[1:]])*getattr(self,'damping_scale',1.0)
         left_force=kp*self.target+bias[:,0]+bias[:,1]*q+bias[:,2]*v+kp*9*(self.target-q)-damping*v+d.qfrc_bias[self.va]
+        left_force+=damping*getattr(self,'target_velocity',np.zeros_like(v))
         mujoco.mj_jacSite(m,d,self.jp,self.jr,self.palm)
         push=self.contact_force*np.clip((self.progress-.94)/.06,0.,1.)
         left_force+=self.jp[:,self.va].T@(self.normal*push)

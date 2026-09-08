@@ -47,7 +47,9 @@ class FullOpeningTeacher:
                  left_targets, release_screen, runtime_screen=None,
                  min_acquisition_seconds=10.6, min_left_seconds=22.,
                  min_release_seconds=30., press_seconds=5., opening_seconds=3.,
-                 qualification_seconds=.5, physics_dt=.002, target_aperture=1.2):
+                 qualification_seconds=.5, physics_dt=.002, target_aperture=1.2,
+                 open_on_latch_clear=False, operator_compliance_gain=0.,
+                 operator_compliance_limit=.15, freeze_compliance_on_release=True):
         times = [min_acquisition_seconds, min_left_seconds, min_release_seconds,
                  press_seconds, opening_seconds, qualification_seconds, physics_dt,
                  target_aperture]
@@ -55,6 +57,15 @@ class FullOpeningTeacher:
             raise ValueError('Expected finite positive opening settings')
         if min_left_seconds < min_acquisition_seconds or min_release_seconds < min_left_seconds:
             raise ValueError('Stage minimum times must be ordered')
+        if type(open_on_latch_clear) is not bool or type(freeze_compliance_on_release) is not bool:
+            raise ValueError('Explicit operation transition and compliance policies required')
+        if not np.isfinite([operator_compliance_gain,operator_compliance_limit]).all() or min(operator_compliance_gain,operator_compliance_limit)<0:
+            raise ValueError('Invalid bounded operator compliance settings')
+        self.open_on_latch_clear=open_on_latch_clear
+        self.operator_compliance_gain=operator_compliance_gain
+        self.operator_compliance_limit=operator_compliance_limit
+        self.freeze_compliance_on_release=freeze_compliance_on_release
+        self.operator_compliance=0.
         self.geometry = {k: np.asarray(joint_geometry[k], float) for k in
                          ('operator_origin', 'operator_axis', 'leaf_origin', 'leaf_axis')}
         for key, value in self.geometry.items():
@@ -77,7 +88,8 @@ class FullOpeningTeacher:
         self.left = LeftPalmContact(self.acquisition, motors, targets, fixed_waist=True)
         self.release = AxialRightRelease(self.acquisition, Path(release_screen))
         self.push = CoordinatedPanelPush(self.left, target_palm_load=5.0,
-                                        maximum_normal_offset=.025,left_cup_seconds=.25)
+                                        maximum_normal_offset=.025,left_cup_seconds=.25,
+                                        flatten_palm=True,track_target_velocity=True)
         self.min_acquisition_seconds = float(min_acquisition_seconds)
         self.min_left_seconds = float(min_left_seconds)
         self.min_release_seconds = float(min_release_seconds)
@@ -138,6 +150,7 @@ class FullOpeningTeacher:
         self.r_relative = hr.T@pr
         self.initial_handle = angles['operator']
         self.operation_started = t
+        self.operation_last_time = t
         self.acquisition.position_integral[:] = 0.
         self.acquisition.rotation_integral[:] = 0.
         self.handoffs['qualified_grasp'] = float(t)
@@ -145,7 +158,11 @@ class FullOpeningTeacher:
     def _operation_targets(self, t, handle_pose, leaf_pose, angles):
         goal_h = self.initial_handle+(.87-self.initial_handle)*_smooth(
             (t-self.operation_started)/self.press_seconds)
-        if self.open_started is None and t >= self.operation_started+self.press_seconds and angles['operator'] >= .80 and angles['latch'] >= .011:
+        elapsed=min(.05,max(0.,t-self.operation_last_time));self.operation_last_time=t
+        if self.open_started is None or not self.freeze_compliance_on_release:
+            self.operator_compliance=float(np.clip(self.operator_compliance+self.operator_compliance_gain*elapsed*(goal_h-angles['operator']),0.,self.operator_compliance_limit))
+        press_ready=self.open_on_latch_clear or t >= self.operation_started+self.press_seconds
+        if self.open_started is None and press_ready and angles['operator'] >= .80 and angles['latch'] >= .011:
             self.open_started = t
             self.initial_leaf_goal = self.operation_info.get('goal_leaf_rad', 0.)
             self.handoffs['latch_released'] = float(t)
@@ -154,7 +171,7 @@ class FullOpeningTeacher:
         lp, lr = _pose(leaf_pose)
         ha = hp+hr@self.geometry['operator_origin']
         la = lp+lr@self.geometry['leaf_origin']
-        dh = Rotation.from_rotvec(hr@self.geometry['operator_axis']*(goal_h-angles['operator'])).as_matrix()
+        dh = Rotation.from_rotvec(hr@self.geometry['operator_axis']*(goal_h+self.operator_compliance-angles['operator'])).as_matrix()
         dl = Rotation.from_rotvec(lr@self.geometry['leaf_axis']*(goal_l-angles['leaf'])).as_matrix()
         hp = ha+dh@(hp-ha)
         hr = dh@hr
@@ -164,6 +181,7 @@ class FullOpeningTeacher:
         self.acquisition.rotations[-1] = hr@self.r_relative
         self.operation_info = dict(phase='lever_operation' if self.open_started is None else 'partial_opening',
                                    goal_handle_rad=float(goal_h), goal_leaf_rad=float(goal_l),
+                                   palm_compliance_rotation_rad=self.operator_compliance,
                                    actual_handle_rad=angles['operator'], actual_leaf_rad=angles['leaf'],
                                    actual_bolt_m=angles['latch'])
 

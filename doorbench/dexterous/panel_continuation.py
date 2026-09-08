@@ -19,7 +19,7 @@ from scipy.spatial.transform import Rotation
 class CoordinatedPanelPush:
 
     def __init__(self, left, *, target_palm_load=3.0, maximum_normal_offset=.012,
-                 left_cup_seconds=2.0):
+                 left_cup_seconds=2.0, flatten_palm=False, track_target_velocity=False):
         if not np.isfinite(target_palm_load) or not 2.0 < target_palm_load <= 10.0:
             raise ValueError('Expected a finite palm-load target above the 2 N qualification floor')
         self.target_palm_load = float(target_palm_load)
@@ -27,6 +27,8 @@ class CoordinatedPanelPush:
             raise ValueError('Invalid bounded panel controller settings')
         self.maximum_normal_offset = float(maximum_normal_offset)
         self.left_cup_seconds = float(left_cup_seconds)
+        self.flatten_palm = bool(flatten_palm)
+        self.track_target_velocity = bool(track_target_velocity)
         self.left = left
         self.teacher = left.teacher
         self.started = None
@@ -46,6 +48,26 @@ class CoordinatedPanelPush:
         self.local_position = R.T @ (l.d.site_xpos[l.palm] - leaf_pose[:3])
         self.initial_angle = float(angle)
         self.local_rotation = R.T @ l.d.site_xmat[l.palm].reshape(3, 3)
+        self.flatten_rotation = np.zeros(3)
+        if self.flatten_palm:
+            # Shadow's volar palm faces -site-Z. Rotate its actual surface
+            # toward the panel, preserving its geometric support plane.
+            z=self.local_rotation[:,2];goal_z=np.array([0.,-1.,0.])
+            cross=np.cross(z,goal_z);angle=np.arctan2(np.linalg.norm(cross),z@goal_z)
+            if np.linalg.norm(cross)>1e-10:self.flatten_rotation=cross/np.linalg.norm(cross)*angle
+            palm_body=l.m.site_bodyid[l.palm];cloud=[]
+            site_R=l.d.site_xmat[l.palm].reshape(3,3)
+            for geom in range(l.m.ngeom):
+                if l.m.geom_bodyid[geom]!=palm_body or not l.m.geom_contype[geom]:continue
+                mesh=int(l.m.geom_dataid[geom])
+                if l.m.geom_type[geom]!=mujoco.mjtGeom.mjGEOM_MESH or mesh<0:raise ValueError('Expected original palm collision meshes')
+                start=l.m.mesh_vertadr[mesh];count=l.m.mesh_vertnum[mesh]
+                vertices=l.m.mesh_vert[start:start+count]
+                world=vertices@l.d.geom_xmat[geom].reshape(3,3).T+l.d.geom_xpos[geom]
+                cloud.extend((world-l.d.site_xpos[l.palm])@site_R)
+            self.palm_surface=np.asarray(cloud)
+            if self.palm_surface.ndim!=2 or not len(self.palm_surface):raise ValueError('Missing actual palm surface')
+            self.initial_support=float(np.max(self.palm_surface@self.local_rotation[1,:]))
         self.initial_offset = 0.0
         l.contact_force = 3.5
         self.right_names = ['right_' + n for n in ('shoulder_pitch', 'shoulder_roll', 'shoulder_yaw', 'elbow', 'wrist_yaw')] + ['rh_WRJ2', 'rh_WRJ1']
@@ -71,7 +93,7 @@ class CoordinatedPanelPush:
         self.indices = [self.teacher.names.index(n) for n in names]
         self.low = m.jnt_range[self.js, 0] + 0.01
         self.high = m.jnt_range[self.js, 1] - 0.01
-        for name in ('rh_WRJ2', 'rh_WRJ1'):
+        for name in (('rh_WRJ2', 'rh_WRJ1','lh_WRJ2','lh_WRJ1') if self.flatten_palm else ('rh_WRJ2', 'rh_WRJ1')):
             if name in names:
                 i = names.index(name)
                 self.low[i] += 0.03
@@ -117,8 +139,14 @@ class CoordinatedPanelPush:
         local[0] -= 0.04 * blend
         local[2] -= 0.15 * blend
         self.offset = float(np.clip(self.offset + dt * 0.016 * np.clip((self.target_palm_load - palm_load) / 4.0, -1.0, 1.0), -0.015, self.maximum_normal_offset))
-        goal = leaf_pose[:3] + R @ local + normal * self.offset
-        rotation = R @ self.local_rotation
+        contact_rotation=self.local_rotation
+        surface_shift=0.
+        if self.flatten_palm:
+            urot=float(np.clip((t-self.started)/.8,0.,1.));brot=urot**3*(10+urot*(-15+6*urot))
+            contact_rotation=Rotation.from_rotvec(self.flatten_rotation*brot).as_matrix()@self.local_rotation
+            surface_shift=self.initial_support-float(np.max(self.palm_surface@contact_rotation[1,:]))
+        goal = leaf_pose[:3] + R @ local + normal * (self.offset+surface_shift)
+        rotation = R @ contact_rotation
         right_goal = self.right_hold_position
         right_rotation = self.right_hold_rotation
         seed = self.previous.copy()
@@ -136,6 +164,10 @@ class CoordinatedPanelPush:
             clearance = np.array([max(0.0, 0.025 - float(mujoco.mj_geomDistance(m, d, g, teacher.lever, 0.1, None))) for g in self.right_geoms])
             return np.r_[100 * (d.site_xpos[l.palm] - goal), 10 * Rotation.from_matrix(rotation @ d.site_xmat[l.palm].reshape(3, 3).T).as_rotvec(), right, 100 * clearance, 0.1 * (q - seed)]
         fit = least_squares(fun, np.clip(self.previous, self.low, self.high), bounds=(self.low, self.high), max_nfev=160)
+        if self.track_target_velocity:
+            velocity=np.zeros(7) if dt<=0 else np.clip((fit.x[1:8]-seed[1:8])/dt,-2.,2.)
+            previous_velocity=getattr(l,'target_velocity',np.zeros(7))
+            l.target_velocity=previous_velocity+(0. if dt<=0 else dt/(.04+dt))*(velocity-previous_velocity)
         self.previous = fit.x.copy()
         l.target = fit.x[1:8].copy()
         teacher.path[-1, self.indices] = fit.x
