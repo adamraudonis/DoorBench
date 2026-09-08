@@ -73,7 +73,7 @@ cd "$DB" && pip install -q -e . 2>&1 | tail -1
 # Python process risks mixing incompatible USD libraries. MuJoCo QA is required
 # even when the consuming simulator is Isaac.
 [ -x "$W/asset-venv/bin/python" ] || uv venv --python 3.12.13 "$W/asset-venv"
-uv pip install --python "$W/asset-venv/bin/python" -e "$DB" 'mujoco==3.12.0' 'usd-core==26.8' || exit 1
+uv pip install --python "$W/asset-venv/bin/python" -e "$DB" 'mujoco==3.12.0' 'usd-core==26.8' 'osqp==1.1.3' || exit 1
 ASSET_CHECK=("$W/asset-venv/bin/python" "$DB/scripts/isaac/check_assets.py" "$DB/assets")
 if [ -n "${DOORBENCH_GENERATE_IDS:-}" ]; then ASSET_CHECK+=(--ids "$DOORBENCH_GENERATE_IDS"); fi
 if ! "${ASSET_CHECK[@]}" >/dev/null 2>&1; then

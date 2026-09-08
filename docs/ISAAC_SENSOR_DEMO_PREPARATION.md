@@ -4,7 +4,7 @@ On an **existing ready `shadow-loopback-v2` Isaac host**, this single command
 prepares the nineteen-second grasp experiment:
 
 ```bash
-/workspace/venv/bin/python scripts/isaac/prepare_sensor_demo.py \
+/workspace/asset-venv/bin/python scripts/isaac/prepare_sensor_demo.py \
   --receipt out/isaac-ready/shadow-loopback-v2/ready.json \
   --task grasp --joint-passive-profile backend-dry-v2 \
   --isaac-python /workspace/venv/bin/python \
@@ -20,8 +20,10 @@ or alter its teardown timer. See [v2 environment setup](ISAAC_V2_READY.md) first
 
 The command runs five CPU phases, keeping each log and failure:
 
-Use the full Isaac preparation environment, which includes MuJoCo, SciPy and
-OSQP. The lighter asset-generation environment may lack controller dependencies.
+The asset environment supplies MuJoCo, SciPy, standalone USD and OSQP. Fresh
+bootstrap installs OSQP 1.1.3 there. For a host prepared before that addition,
+run `uv pip install --python /workspace/asset-venv/bin/python osqp==1.1.3` once.
+The separate Isaac environment keeps its pinned simulator dependencies.
 Interpreter paths retain their virtual-environment symlinks.
 
 1. Project the frozen reference into the strictly joint-only runtime route.
