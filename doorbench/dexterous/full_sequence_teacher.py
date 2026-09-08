@@ -121,6 +121,11 @@ class FullSequenceTeacher:
         self.blocked_reason = None
         self.info = dict(phase='initial')
 
+    def _manipulation_force(self,t,root,joints,velocities,handle_pose,leaf_pose,angles,
+                            hand_forces,grasp_qualified):
+        return self.operation.force(t,root,joints,velocities,handle_pose,leaf_pose,
+                                    angles,hand_forces,grasp_qualified=grasp_qualified)
+
     def force(self,t,root,joints,velocities,foot_loads,handle_pose,leaf_pose,angles,hand_forces,
               *,grasp_qualified,hand_contact_count):
         """Consume actual state once per 2 ms; return 61 native-capped forces.
@@ -178,8 +183,8 @@ class FullSequenceTeacher:
                 self.handoffs['acquisition'] = dict(time_s=t,root=root[:7].tolist(),
                     palm_error_m=info['tracking_error_m'],hand_contact_count=hand_contact_count)
         if self.acquisition_started is not None:
-            force,info = self.operation.force(t-self.acquisition_started,root,joints,velocities,
-                handle_pose,leaf_pose,angles,hand_forces,grasp_qualified=grasp_qualified)
+            force,info = self._manipulation_force(t-self.acquisition_started,root,joints,velocities,
+                handle_pose,leaf_pose,angles,hand_forces,grasp_qualified)
         # Retain the same actual landed-body controller through arm loading.
         force[self.leg_local] = body_force[self.leg_local]
         force = np.clip(force,self.caps[:,0],self.caps[:,1])
