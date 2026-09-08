@@ -1,7 +1,8 @@
 # One-second traversal adapter smoke
 
 The prepared fixture uses source commit
-`7016c2a80dc085470eba73c8d3e370449864aa71`. It has **not been uploaded or run**.
+`7016c2a80dc085470eba73c8d3e370449864aa71`. The preparation receipt records its original unlaunched state. The owner later
+ran the exact fixture; see the [independent result](ISAAC_TRAVERSAL_SMOKE_RESULT.md).
 Its purpose is to check initialization, original motor limits, contact epochs and
 actor-origin velocity in the new continuous Isaac adapter. A one-second trial
 cannot qualify opening or traversal; its whole-task report must remain false.
