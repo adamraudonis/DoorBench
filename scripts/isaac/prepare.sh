@@ -17,7 +17,8 @@ phase() {
 }
 STAMP="$W/doorbench-runtime-bootstrap.sha256"
 HASH=$(sha256sum scripts/pod_bootstrap.sh | cut -d ' ' -f 1)
-if [ ! -f "$STAMP" ] || [ "$(cat "$STAMP")" != "$HASH" ]; then
+if [ ! -f "$STAMP" ] || [ "$(cat "$STAMP")" != "$HASH" ] || ! "$W/venv/bin/python" scripts/isaaclab/check_g1_runtime.py; then
+  phase '== [1/5] Install or repair pinned runtime'
   bash scripts/pod_bootstrap.sh
   echo "$HASH" > "$STAMP"
 else
