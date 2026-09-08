@@ -64,10 +64,11 @@ def main():
             scored=dict(passed=False,checks={});errors.append('No completed supported balance qualification report')
     reproduced=scored['checks']==declared.get('checks') and scored['passed']==declared.get('passed')
     report=dict(scope=__doc__,run=str(run),verification_passed=bool(reproduced and not errors and load_error<1e-8 and hand_error==0),
-        actual_stationary_trial_passed=scored['passed'],recomputed_checks=scored['checks'],declared_report_reproduced=reproduced,
+        actual_balance_trial_passed=scored['passed'],actual_protocol=declared.get('schema'),recomputed_checks=scored['checks'],declared_report_reproduced=reproduced,
         steps=len(steps),contact_intervals=len(contacts),maximum_floor_load_reconstruction_error_N=load_error,
         maximum_hand_contact_count_error=hand_error,errors=errors,source_sha256={n:sha(run/n) for n in names},
-        audit_source_sha256=sha(__file__),physics_steps_in_audit=0,limitation='Verifying a failed report never changes the actual failure to a pass. This remains stationary support, not a door task.')
+        audit_source_sha256=sha(__file__),physics_steps_in_audit=0,limitation='Verifying a failed report never changes the actual failure to a pass. This remains the declared balance component, not a door task.')
+    if declared.get('schema')==BALANCE_PROTOCOL:report['actual_stationary_trial_passed']=scored['passed']
     a.output.parent.mkdir(parents=True,exist_ok=True);a.output.write_text(json.dumps(report,indent=2)+'\n')
-    print(json.dumps({k:report[k] for k in ('verification_passed','actual_stationary_trial_passed','steps','maximum_floor_load_reconstruction_error_N','maximum_hand_contact_count_error','errors')}),flush=True)
+    print(json.dumps({k:report[k] for k in ('verification_passed','actual_balance_trial_passed','actual_protocol','steps','maximum_floor_load_reconstruction_error_N','maximum_hand_contact_count_error','errors')}),flush=True)
 if __name__=='__main__':main()

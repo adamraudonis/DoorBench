@@ -45,5 +45,5 @@ def test_exception_prefix_cannot_become_a_qualified_report(tmp_path,monkeypatch)
     output=tmp_path/'independent.json'
     monkeypatch.setattr('sys.argv',['audit','--run',str(run),'--output',str(output)])
     m.main();r=json.loads(output.read_text())
-    assert not r['verification_passed'] and not r['actual_stationary_trial_passed']
+    assert not r['verification_passed'] and not r['actual_balance_trial_passed']
     assert r['errors']==['No completed supported balance qualification report']

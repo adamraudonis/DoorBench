@@ -44,10 +44,15 @@ def decision_packet(index,initial,numeric,rgb,dimensions):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('run','robot','output'):p.add_argument('--'+name,type=Path,required=True)
+    p.add_argument('--scripted-arms',action='store_true',help='Explicitly replay the separate six-second arm runtime')
     a=p.parse_args()
     if a.output.exists():raise FileExistsError('Preserve earlier replay evidence')
     run=a.run;motors=json.loads((run/'motor-contract.json').read_text());layout=json.loads((run/'sensors/layout.json').read_text())
-    controller=SensorBalanceRuntime(a.robot,motors,layout,run/'sensor-balance-calibration.json');controller.reset_episode()
+    if a.scripted_arms:
+        from doorbench.dexterous.sensor_arm_balance_runtime import SensorArmBalanceRuntime
+        controller=SensorArmBalanceRuntime(a.robot,motors,layout,run/'sensor-balance-calibration.json',run/'balance-arm-schedule.json')
+    else:controller=SensorBalanceRuntime(a.robot,motors,layout,run/'sensor-balance-calibration.json')
+    controller.reset_episode()
     dimensions=ActorDimensions(tactile=layout['tactile_dimension'])
     initial=arrays(run/'sensors/actor-initial-decision.npz');numeric=arrays(run/'sensors/actor-sensors.npz')
     rgb=arrays(run/'sensors/actor-rgb.npz');physical=arrays(run/'acquisition-physics.npz')
@@ -66,11 +71,13 @@ def main():
             failure=dict(decision=i,time_s=i*.002,error=type(exc).__name__+': '+str(exc));break
     names=['sensor-balance-calibration.json','motor-contract.json','sensors/layout.json','sensors/actor-initial-decision.npz',
         'sensors/actor-sensors.npz','sensors/actor-rgb.npz','acquisition-physics.npz','balance-report.json','configuration.json','provenance.json']
+    if a.scripted_arms:names.append('balance-arm-schedule.json')
     maximum=max(errors,default=None)
     report=dict(scope=__doc__,run=str(run),replay_passed=failure is None and maximum is not None and maximum<1e-5 and normalization_error<2e-7 and initial_error<1e-8,
         decisions=n,replayed_decisions=len(errors),maximum_motor_force_error_Nm=maximum,maximum_normalized_action_error=normalization_error,
         initial_force_record_error_Nm=initial_error,failure=failure,physics_steps_in_replay=0,teacher_calls=0,
-        calculator_time_s=controller.last_info.get('calculator_time_s'),actual_stationary_trial_passed=json.loads((run/'balance-report.json').read_text()).get('passed') is True,
+        calculator_time_s=controller.last_info.get('calculator_time_s'),actual_balance_trial_passed=json.loads((run/'balance-report.json').read_text()).get('passed') is True,
+        runtime_mode='scripted_arm_balance' if a.scripted_arms else 'stationary_balance',
         source_sha256={name:sha(run/name) for name in names},robot_sha256=sha(a.robot),script_sha256=sha(__file__))
     a.output.parent.mkdir(parents=True,exist_ok=True);a.output.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps({k:report[k] for k in ('replay_passed','decisions','replayed_decisions','maximum_motor_force_error_Nm','failure')}),flush=True)
