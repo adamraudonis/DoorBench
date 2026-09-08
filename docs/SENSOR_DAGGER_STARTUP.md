@@ -76,3 +76,34 @@ python scripts/dexterous/evaluate_sensor_predictions.py \
 Use new output directories and the actual actor002 reset reference. Canonical
 archives are under `DoorBench-runs/2026-09-08-shadow-loopback`. This protocol
 commit precedes the fresh label query and training experiment.
+
+## First correction fit result
+
+The frozen query reproduced 157 admissible labels. Model003 completed 200 CPU
+steps in 70.02 seconds, starting **2026-09-08 13:17:15 UTC**. Correction MSE on
+the actual visited-state prefix falls from 0.044499 for model002 to 0.005537,
+versus recorded-command persistence 0.044533. That is an eightfold prediction
+improvement on the newly supplied training states.
+
+Nominal behavior regresses: original teacher-prefix MSE rises to 0.001859,
+versus persistence 0.000033535. With actor-owned previous-command history on
+teacher sensor states, first-100-ms body force RMSE increases from 1.269 to
+4.263 Nm, and first-500-ms error from 1.605 to 4.469 Nm. The reset knee commands
+remain similar to model002: left −48.63 and right −42.33 Nm, versus teacher
+−51.42/−53.53 Nm. All four runtime checks pass, but this tradeoff needs an actual
+physical trial. The [complete receipt](evidence/sensor-imitation-acquisition-003.json)
+preserves the checkpoint hash, source, labels and both favorable and unfavorable
+scores. A live actor003 trial is being evaluated separately by the parent agent;
+its result is not assumed here.
+
+## Bounded longer fit, frozen before execution
+
+Keep the identical seed, dataset admission, balanced sampling, recurrent
+windows, architecture, learning rate and physical evaluation. Train a fresh
+model for **1,000 CPU optimizer steps**, changing only the iteration count from
+the first correction fit. The hypothesis is that 200 steps underfit the two
+distinct feedback regimes; additional optimization can reduce their conflict.
+Do not add failed-state labels, alter gates or change the motor interface.
+Preserve model003 regardless of the result. Evaluate both the correction prefix
+and the original teacher trajectory with the same scripts, including cold-start
+commands and runtime integration. This protocol update precedes the longer run.
