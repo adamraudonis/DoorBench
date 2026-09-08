@@ -20,7 +20,7 @@ from .stance import StanceController
 class AcquisitionTeacher:
     def __init__(self, robot_xml, motors, reference, *, reach_seconds=6.6,
                  grip_force=6., finger_grip_scale=1/3, grip_start=.995,
-                 palm_integral=1., torso_impedance=10.):
+                 palm_integral=1., torso_impedance=10., middle_finger_force=None):
         if motors.get('source_xml_sha256')!=hashlib.sha256(Path(robot_xml).read_bytes()).hexdigest():
             raise ValueError('Acquisition model does not match imported motor contract')
         if motors.get('hand_mechanics_profile')!='shadow-loopback-v2':
@@ -28,6 +28,7 @@ class AcquisitionTeacher:
         values=[reach_seconds,grip_force,finger_grip_scale,grip_start,palm_integral,torso_impedance]
         if not np.isfinite(values).all() or reach_seconds<=0 or min(values[1:])<0 or grip_start>1:
             raise ValueError('Invalid acquisition controller configuration')
+        if middle_finger_force is not None and (not np.isfinite(middle_finger_force) or middle_finger_force<0):raise ValueError('Invalid middle-finger pressure')
         spec=mujoco.MjSpec.from_file(str(robot_xml))
         spec.worldbody.add_body(name='analytic_lever').add_geom(name='analytic_lever_capsule',
             type=mujoco.mjtGeom.mjGEOM_CAPSULE,size=[.007,.053,0],
@@ -67,6 +68,8 @@ class AcquisitionTeacher:
         self.jp=np.zeros((3,m.nv));self.jr=self.jp.copy()
         self.reach_seconds=reach_seconds;self.grip_force=grip_force;self.finger_grip_scale=finger_grip_scale
         self.grip_start=grip_start;self.integral_gain=palm_integral
+        self.digit_forces={digit:grip_force*(1. if digit=='th' else finger_grip_scale) for digit in self.digit_geoms}
+        if middle_finger_force is not None:self.digit_forces['mf']=middle_finger_force
         self.position_integral=np.zeros(3);self.rotation_integral=np.zeros(3)
         self.progress=0.;self.tracking_error=0.;self.last_update=None;self.stance=None
         self.target=self.matrix@self.path[0];self.last_force=np.zeros(len(self.act));self.stance_targets=None
@@ -140,7 +143,7 @@ class AcquisitionTeacher:
                 if distance<1e-7 or gap>.05:continue
                 direction=delta/distance*(1 if gap>=0 else -1)
                 mujoco.mj_jac(m,d,self.jp,self.jr,pair[:3],int(m.geom_bodyid[geom]))
-                generalized+=self.jp.T@direction*self.grip_force*(1. if digit=='th' else self.finger_grip_scale)
+                generalized+=self.jp.T@direction*self.digit_forces[digit]
             force[self.fingers]+=self.finger_inverse@generalized[self.va]
             force[self.arm_motors]+=self.arm_inverse@generalized[self.va]
         if self.stance_targets is not None:

@@ -26,6 +26,7 @@ p.add_argument('--view',choices=['wide','hand'],default='wide')
 p.add_argument('--upright-gain',type=float,default=0.,help='Post-opening IMU ankle feedback; bounded robot motors only')
 p.add_argument('--native-robot',help='Enable closed-loop kinematic teacher using this native robot XML for FK only')
 p.add_argument('--acquisition',action='store_true',help='Execute the shared contact-free acquisition teacher from reference.path_qpos; privileged development only')
+p.add_argument('--acquisition-middle-finger-force',type=float,help='Explicit acquisition middle-finger preload in N; original motor caps unchanged')
 p.add_argument('--grip-rotation-fraction',type=float,default=1.,help='Fraction of operator rotation tracked by palm orientation; physical contacts remain unconstrained')
 p.add_argument('--arm-impedance',type=float,default=1.,help='Software arm position-gain multiplier at the 500 Hz motor loop; native force caps remain unchanged')
 p.add_argument('--grip-impedance',type=float,default=1.,help='Finger position-gain multiplier; native force caps remain unchanged')
@@ -253,7 +254,7 @@ def main():
     teacher=None;teacher_info={};teacher_control=None
     if a.acquisition:
         from doorbench.dexterous.acquisition_teacher import AcquisitionTeacher
-        teacher=AcquisitionTeacher(a.native_robot,motors,ref)
+        teacher=AcquisitionTeacher(a.native_robot,motors,ref,middle_finger_force=a.acquisition_middle_finger_force)
     elif a.native_robot:
         from physx_teacher import HandleTeacher
         if a.panel_push:
@@ -361,7 +362,9 @@ def main():
                 pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
                 hrot=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
                 center=pose[:3]+hrot@grip_center
-                camera.set_world_poses_from_view(eyes=torch.tensor([[.15,-.38,1.45]],device=a.device,dtype=torch.float32),
+                # A shallow side view exposes the opposed pads; the former
+                # overhead view hid them behind the back of the hand.
+                camera.set_world_poses_from_view(eyes=torch.tensor(np.array([center+np.array([.275,-.159,.148])]),device=a.device,dtype=torch.float32),
                                                 targets=torch.tensor(np.array([center]),device=a.device,dtype=torch.float32))
             sim.render()
         if abs(float(sim.current_time)-time_origin-(step+1)*dt)>.0001:

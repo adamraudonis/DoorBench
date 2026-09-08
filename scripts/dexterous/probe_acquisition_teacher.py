@@ -20,6 +20,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('robot','door','reference','motors','output'):p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--seconds',type=float,default=10.6)
+    p.add_argument('--middle-finger-force',type=float)
     a=p.parse_args()
     if a.output.exists():raise SystemExit('Use a new output directory')
     if not json.loads((a.reference.parent/'geometry-audit.json').read_text())['passed']:raise ValueError('Unscreened acquisition candidate')
@@ -30,7 +31,7 @@ def main():
     pipeline=dict(stage='Shared acquisition controller native execution',started_at_unix=time.time(),completion_marker='ACQUISITION_TEACHER_COMPLETE')
     (a.output/'pipeline.json').write_text(json.dumps(pipeline))
     sim=DexterousDoorEnv(a.door,a.robot,json.loads(a.robot.with_suffix('.audit.json').read_text()));m,d=sim.m,sim.d
-    teacher=AcquisitionTeacher(a.robot,motors,ref)
+    teacher=AcquisitionTeacher(a.robot,motors,ref,middle_finger_force=a.middle_finger_force)
     sim.reset(randomize=False,images=False)
     d.qpos[sim.root_qadr:sim.root_qadr+7]=teacher.initial_root
     ids=np.array([m.joint('robot/'+n).id for n in teacher.names]);qa=m.jnt_qposadr[ids];va=m.jnt_dofadr[ids]
