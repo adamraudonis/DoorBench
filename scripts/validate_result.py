@@ -15,6 +15,10 @@ A result file may hold both, but never mixed: each episode's `suite` must match 
 table per suite whose counts must equal the episodes of that suite, and a table listing a scenario of the other
 suite is rejected.  The leaderboard (--submission) needs a core table over all doors on every scenario each door
 lists, >= 3 seeds; a human table is optional (and may come in its own file, `results/<team>_<policy>_human.json`).
+
+The four immutable shipped baselines are checked against their exact recorded Git manifests using
+results/provenance/historical-baselines.json. Missing or mismatched provenance fails; new files and
+--submission always enforce the current manifest and eligibility rules. See docs/HISTORICAL_RESULTS.md.
 """
 from __future__ import annotations
 
@@ -31,6 +35,7 @@ MANIFEST = os.path.join(ROOT, "assets", "manifest.json")
 RESERVED = {"schema.json", "index.json"}
 sys.path.insert(0, ROOT)
 from doorbench.benchmark_eligibility import is_benchmark_eligible, POLICY_VERSION
+from doorbench.result_provenance import historical_context
 
 SUBMISSION_MIN_SEEDS = 3
 # mirrors doorbench.benchmark.scenarios.SCENARIO_SUITE (kept inline so CI can validate without the package's dependencies)
@@ -189,7 +194,7 @@ def _table_errors(suite: str, tab: dict, eps: list[dict]) -> list[str]:
     return errs
 
 
-def semantic_errors(doc: dict, manifest: dict | None, submission: bool, path: str) -> list[str]:
+def semantic_errors(doc: dict, manifest: dict | None, submission: bool, path: str, *, enforce_current=False) -> list[str]:
     errs = []
     eps = doc.get("episodes", [])
     agg = doc.get("aggregate", {})
@@ -197,12 +202,12 @@ def semantic_errors(doc: dict, manifest: dict | None, submission: bool, path: st
     ids = {d["id"] for d in manifest["doors"]} if manifest else None
     fam = {d["id"]: d["family"] for d in manifest["doors"]} if manifest else None
     current_policy = doc.get("benchmark", {}).get("eligibility_policy")
-    enforce_eligibility = submission or current_policy is not None
+    enforce_eligibility = submission or enforce_current or current_policy is not None
     eligible_ids = {d["id"] for d in manifest["doors"] if is_benchmark_eligible(d)} if manifest else None
     listed = manifest_scenarios(manifest, eligible_only=enforce_eligibility)
     if current_policy is not None and current_policy != POLICY_VERSION:
         errs.append(f"unknown benchmark eligibility policy {current_policy!r}")
-    if current_policy is not None and eligible_ids is not None and doc.get("benchmark", {}).get("n_doors_total") != len(eligible_ids):
+    if enforce_eligibility and eligible_ids is not None and doc.get("benchmark", {}).get("n_doors_total") != len(eligible_ids):
         errs.append(f"benchmark.n_doors_total must count {len(eligible_ids)} eligible doors")
     run_suite = run.get("suite")
     run_scen = {s.get("name") for s in run.get("scenarios", [])}
@@ -233,8 +238,7 @@ def semantic_errors(doc: dict, manifest: dict | None, submission: bool, path: st
             errs.append(f"episodes[{i}]: unknown door id {e.get('door_id')}")
         if fam is not None and e.get("door_id") in fam and e.get("family") != fam[e["door_id"]]:
             errs.append(f"episodes[{i}]: family {e.get('family')} does not match the manifest ({fam[e['door_id']]})")
-        historical_pet = not enforce_eligibility and (e.get("family") == "pet_door" or (fam is not None and fam.get(e.get("door_id")) == "pet_door"))
-        if not historical_pet and listed is not None and e.get("door_id") in listed and e.get("scenario") not in listed[e["door_id"]]:
+        if listed is not None and e.get("door_id") in listed and e.get("scenario") not in listed[e["door_id"]]:
             errs.append(f"episodes[{i}]: {e.get('door_id')} does not list the scenario {e.get('scenario')} (it lists {listed[e['door_id']]})")
         if e.get("success") and e.get("outcome") != "success":
             errs.append(f"episodes[{i}]: success=true but outcome={e.get('outcome')}")
@@ -311,6 +315,16 @@ def semantic_errors(doc: dict, manifest: dict | None, submission: bool, path: st
     return errs
 
 
+def validation_manifest(path, doc, current_manifest, submission=False):
+    source, context = historical_context(path, doc)
+    if source is not None and not submission:
+        return source, context
+    if not current_manifest:
+        raise ValueError('Current asset manifest is required for new results/submissions; validation cannot be skipped')
+    return current_manifest, dict(mode='current-submission' if submission else 'current-manifest',
+        dataset_version=current_manifest.get('version'), dataset_generated=current_manifest.get('generated'))
+
+
 def validate_file(path: str, schema: dict, manifest: dict | None, submission: bool) -> list[str]:
     try:
         with open(path) as f:
@@ -319,7 +333,12 @@ def validate_file(path: str, schema: dict, manifest: dict | None, submission: bo
         return [f"not valid JSON: {e}"]
     errs = schema_errors(doc, schema)
     if not errs:
-        errs = semantic_errors(doc, manifest, submission, path)
+        try:
+            selected, context = validation_manifest(path, doc, manifest, submission)
+        except (ValueError, OSError) as error:
+            return [str(error)]
+        errs = semantic_errors(doc, selected, submission, path,
+            enforce_current=context['mode'] != 'historical-source-revision')
     return errs
 
 
@@ -338,7 +357,7 @@ def main(argv=None) -> int:
     ap.add_argument("--all", action="store_true", help="validate every results/*.json (except schema.json / index.json)")
     ap.add_argument("--submission", action="store_true", help="also enforce the leaderboard submission rules")
     ap.add_argument("--schema", default=SCHEMA)
-    ap.add_argument("--manifest", default=MANIFEST, help="assets/manifest.json for door-id / scenario checks ('' to skip)")
+    ap.add_argument("--manifest", default=MANIFEST, help="current assets/manifest.json; historical runs additionally require their frozen Git source")
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args(argv)
     files = list(a.files)

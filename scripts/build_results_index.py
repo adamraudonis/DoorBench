@@ -27,7 +27,7 @@ RESERVED = {"schema.json", "index.json"}
 START, END = "<!-- leaderboard:start -->", "<!-- leaderboard:end -->"
 ROOT_START, ROOT_END = "<!-- baseline-results:start -->", "<!-- baseline-results:end -->"
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from validate_result import CORE_SCENARIOS, HUMAN_SCENARIOS, SUITE_OF, SUITES, manifest_scenarios, validate_file  # noqa: E402
+from validate_result import CORE_SCENARIOS, HUMAN_SCENARIOS, SUITE_OF, SUITES, manifest_scenarios, validate_file, validation_manifest  # noqa: E402
 
 sys.path.insert(0, ROOT)
 from doorbench.benchmark_eligibility import is_benchmark_eligible, collection_counts, POLICY_VERSION
@@ -62,17 +62,18 @@ def suite_block(suite: str, tab: dict, eps: list[dict], n_doors_suite: int) -> d
     }
 
 
-def summarize(path: str, n_total: int, n_human: int, manifest: dict | None = None) -> dict:
+def summarize(path: str, n_total: int, n_human: int, manifest: dict | None = None, *, source_manifest=None, validation_context=None) -> dict:
     with open(path) as f:
         doc = json.load(f)
     run, pol, bench = doc["run"], doc["policy"], doc["benchmark"]
     by_id = {d["id"]: d for d in manifest["doors"]} if manifest else {}
+    source_by_id = {d['id']: d for d in source_manifest['doors']} if source_manifest else by_id
     original = doc["episodes"]
     retained = [e for e in original if is_benchmark_eligible(e) and is_benchmark_eligible(by_id.get(e["door_id"], e))]
     excluded = [e for e in original if not is_benchmark_eligible(e) or not is_benchmark_eligible(by_id.get(e["door_id"], e))]
     # Preserve unchanged aggregate blocks when there is no exclusion. Recompute
     # affected runs from episode data using precisely the runner's formula.
-    agg = aggregate(retained, by_id) if excluded else doc["aggregate"]
+    agg = aggregate(retained, source_by_id) if excluded else doc["aggregate"]
     subset = {"policy": POLICY_VERSION, "applied": bool(excluded), "source_file": os.path.basename(path),
               "source_sha256": hashlib.sha256(open(path, "rb").read()).hexdigest(),
               "original_n_doors": len({e["door_id"] for e in original}), "original_n_episodes": len(original),
@@ -80,7 +81,12 @@ def summarize(path: str, n_total: int, n_human: int, manifest: dict | None = Non
               "excluded_n_doors": len({e["door_id"] for e in excluded}), "excluded_n_episodes": len(excluded),
               "retained_n_doors": len({e["door_id"] for e in retained}), "retained_n_episodes": len(retained),
               "note": "Historical run filtered to benchmark-eligible doors; not a new evaluation. Wall time and host describe the original full run."}
-    expected = manifest_scenarios(manifest) or {}
+    expected = manifest_scenarios(source_manifest or manifest) or {}
+    if source_manifest is not None:
+        expected = {door: scenarios for door, scenarios in expected.items()
+                    if is_benchmark_eligible(by_id.get(door, source_by_id[door]))}
+        n_total = len(expected)
+        n_human = sum(any(SUITE_OF[s] == 'human' for s in scenarios) for scenarios in expected.values())
     suites = {}
     for suite in SUITES:
         if suite in agg:
@@ -90,7 +96,7 @@ def summarize(path: str, n_total: int, n_human: int, manifest: dict | None = Non
                 required = {(d, s, seed) for d, names in expected.items() for s in names if SUITE_OF[s] == suite for seed in run["seeds"]}
                 actual = {(e["door_id"], e["scenario"], e["seed"]) for e in eps}
                 suites[suite]["complete"] = bool(required) and required <= actual
-    return {
+    result = {
         "file": os.path.basename(path), "policy": pol["name"], "description": pol.get("description", ""), "embodiment": pol.get("embodiment", "hand_base"),
         "policy_class": pol.get("class"), "extra": pol.get("extra", {}),
         "simulator": run["simulator"], "simulator_version": run.get("simulator_version"), "tier": run["tier"], "date": run["date"][:10], "label": run.get("label", ""),
@@ -102,6 +108,9 @@ def summarize(path: str, n_total: int, n_human: int, manifest: dict | None = Non
         "leaderboard": "core" in suites and suites["core"]["complete"] and run.get("scenario_filter", "all") == "all" and not isinstance(run.get("time_budget_s"), (int, float)),
         "suites": suites,
     }
+    if validation_context is not None:
+        result['validation_manifest'] = validation_context
+    return result
 
 
 def _rows(index: dict, suite: str, complete_only: bool = False) -> list[dict]:
@@ -169,6 +178,8 @@ def leaderboard_md(index: dict) -> str:
     lines.append("")
     if any(r.get("historical_subset", {}).get("applied") for r in index["results"]):
         lines.append("Historical eligible subsets exclude standalone pet-door episodes from the original runs; these are recomputed summaries, not new evaluations. Raw result files remain unchanged. Runtime and host metadata describe the original run.")
+    if any(r.get('validation_manifest', {}).get('mode') == 'historical-source-revision' for r in index['results']):
+        lines.append('Historical scenario coverage and lock-state groups use the exact asset manifest at each recorded run commit. These scores do not establish performance on current door mechanics. See [historical validation](../docs/HISTORICAL_RESULTS.md).')
     lines.append(f"_Generated by `scripts/build_results_index.py` on {index['generated'][:10]} from {len(index['results'])} result file(s)._")
     return "\n".join(lines)
 
@@ -284,7 +295,13 @@ def build(check: bool = False, index_only: bool = False) -> int:
         return 1
     if not manifest:
         raise ValueError("An asset manifest is required to establish the eligible benchmark denominator")
-    results = [summarize(p, n_total, n_human, manifest) for p in files]
+    results = []
+    for p in files:
+        with open(p) as stream:
+            document = json.load(stream)
+        source, context = validation_manifest(p, document, manifest)
+        results.append(summarize(p, n_total, n_human, manifest, source_manifest=source,
+                                 validation_context=context))
     prev_generated = None
     ip = os.path.join(RESULTS, "index.json")
     if os.path.exists(ip):

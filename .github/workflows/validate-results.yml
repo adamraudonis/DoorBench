@@ -4,10 +4,10 @@ name: Validate benchmark results
 # (`python scripts/build_results_index.py`).  See docs/SUBMITTING.md.
 on:
   pull_request:
-    paths: ["results/**", "scripts/validate_result.py", "scripts/build_results_index.py"]
+    paths: ["results/**", "assets/manifest.json", "scripts/validate_result.py", "scripts/build_results_index.py", "doorbench/result_provenance.py", "doorbench/result_aggregation.py", "doorbench/benchmark_eligibility.py", ".github/workflows/validate-results.yml"]
   push:
     branches: [main, master]
-    paths: ["results/**", "scripts/validate_result.py", "scripts/build_results_index.py"]
+    paths: ["results/**", "assets/manifest.json", "scripts/validate_result.py", "scripts/build_results_index.py", "doorbench/result_provenance.py", "doorbench/result_aggregation.py", "doorbench/benchmark_eligibility.py", ".github/workflows/validate-results.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -29,7 +29,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           base="${{ github.event.pull_request.base.sha }}"
-          changed=$(git diff --name-only --diff-filter=AM "$base"...HEAD -- 'results/*.json' | grep -v -e 'results/schema.json' -e 'results/index.json' || true)
+          changed=$(git diff --name-only --diff-filter=AM "$base"...HEAD -- ':(top,glob)results/*.json' | grep -v -e 'results/schema.json' -e 'results/index.json' || true)
           if [ -z "$changed" ]; then echo "no result files changed"; exit 0; fi
           echo "changed: $changed"
           python scripts/validate_result.py --submission $changed
