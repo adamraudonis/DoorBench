@@ -24,3 +24,16 @@ The next teacher call receives current endpoint poses and joints, plus `recorder
 The original full-opening primitive mixed old body measurements and newly integrated joints. Follow-up trials named `full-opening-teacher-coherent-001` through `010` used an additional `mj_forward`; their refreshed loads are counterfactual endpoint solves, not the actual preceding transition. All are retained as diagnostics and do not qualify the new synchronized force-only teacher.
 
 `full-opening-teacher-actual-001` exercised the corrected recorder into operation, with geometry-epoch assertions intact, but local storage filled before completion. It is an incomplete attempt, not a pass. Full physical qualification is pending a fresh complete trial. Tests use real MuJoCo contact dynamics to verify force signs, matching pre-state geometry, immutable archived buffers after a counterfactual solve, and rejection of unsupported/incorrect step ordering.
+
+## Lossless raw archives
+
+`NativeTransitionArchive` stores complete float64 arrays in compressed NPZ chunks with ragged contact/body offsets. It preserves every contact, including unloaded/speculative pairs, and uses neither quantization nor pickle. Chunk hashes and counts are checked on reading; interrupted streams remain explicitly incomplete. This avoids repeated JSON text overhead while bounding writer memory.
+
+```python
+from doorbench.dexterous.native_transition_archive import NativeTransitionArchive
+archive = NativeTransitionArchive("out/run/raw-transitions")
+archive.write(raw)  # each recorder result, every physics tick
+archive.close(complete=True)  # only after the full trial finishes
+for transition in NativeTransitionArchive.read("out/run/raw-transitions"):
+    pass  # independent evaluator
+```
