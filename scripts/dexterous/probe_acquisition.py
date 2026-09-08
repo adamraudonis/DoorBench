@@ -5,6 +5,7 @@ MuJoCo development trial only. This does not establish Isaac parity, opening,
 traversal, or sensor-only control. No robot pose writes occur after reset.
 """
 import argparse
+import gzip
 import json
 import os
 import time
@@ -20,6 +21,7 @@ from doorbench.dexterous.provenance import capture
 from doorbench.dexterous.reset import check_joint_reset
 from doorbench.dexterous.stance import StanceController
 from doorbench.dexterous.grasp_route import reproject_attached_pose
+from doorbench.dexterous.grasp_verification import (native_grasp_sample, audited_native_step, audit_grasp_steps, scalar_transmission_matrix)
 
 
 def main():
@@ -95,22 +97,13 @@ def main():
     d.qpos[qa] = path[0]
     d.qvel[:] = 0.
     mujoco.mj_forward(m,d)
-    matrix = np.zeros((len(sim.actuators), len(ids)))
+    matrix = scalar_transmission_matrix(m,sim.actuators,ids)
     recorded_motor_force=np.asarray(ref['acquisition'].get('recorded_motor_force',[]))
     if args.recorded_finger_forces:
         if recorded_motor_force.shape!=(len(path),len(sim.actuators)) or not np.isfinite(recorded_motor_force).all():raise ValueError('Invalid recorded motor-force path')
         if ref['acquisition'].get('recorded_motor_force_names')!=[m.actuator(aid).name.removeprefix('robot/') for aid in sim.actuators]:raise ValueError('Recorded motor-force ordering mismatch')
         if args.grip_force:p.error('Recorded force feedforward and nearest-point preload are separate experiments')
     joint_index = {j:i for i,j in enumerate(ids)}
-    for i, aid in enumerate(sim.actuators):
-        tid = int(m.actuator_trnid[aid,0])
-        if m.actuator_trntype[aid] == mujoco.mjtTrn.mjTRN_JOINT:
-            matrix[i,joint_index[tid]] = m.actuator_gear[aid,0]
-        elif m.actuator_trntype[aid] == mujoco.mjtTrn.mjTRN_TENDON:
-            for k in range(m.tendon_adr[tid],m.tendon_adr[tid]+m.tendon_num[tid]):
-                matrix[i,joint_index[int(m.wrap_objid[k])]] = m.wrap_prm[k]
-        else:
-            raise ValueError('Unsupported native motor transmission')
     stance = StanceController(sim)
     kp = m.actuator_gainprm[sim.actuators,0].copy()
     native_bias=m.actuator_biasprm[sim.actuators,:3].copy()
@@ -152,6 +145,7 @@ def main():
     rows = []; poses = []; velocities = []; controls = []
     initial = sim.diagnostics()
     initial_contacts = lever_contacts(m,d,'leaf_handle_lever_col_n')
+    physics_steps=[native_grasp_sample(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')]
     states = mujoco.MjData(m)
     states.qpos[:] = d.qpos
     states.qpos[qa] = path[-1]
@@ -291,7 +285,7 @@ def main():
             else:
                 if stance_target is not None:command[stance.local]=stance_target
                 d.ctrl[sim.actuators] = np.clip(command,sim.low,sim.high)
-            sim.plant.step()
+            physics_steps.append(audited_native_step(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge'))
             if step%10 == 0:
                 contact = lever_contacts(m,d,'leaf_handle_lever_col_n')
                 joint_violation=float(np.maximum(m.jnt_range[ids,0]-d.qpos[qa],d.qpos[qa]-m.jnt_range[ids,1]).max())
@@ -326,12 +320,16 @@ def main():
             path_completed=bool(rows[-1]['path_fraction']>=.999),
             reaches_grasp=bool(tail and max(r['palm_error_m'] for r in tail)<.02),
             holds_opposed_contacts=bool(tail and all(r['contacts']['opposed'] for r in tail)))
-        report = dict(scope=__doc__, passed=all(checks.values()),checks=checks, initial=initial,
+        strict_audit=audit_grasp_steps(physics_steps,physics_dt=m.opt.timestep,expected_duration=horizon)
+        checks.update({'strict_'+key:value for key,value in strict_audit['checks'].items()})
+        report = dict(scope=__doc__, passed=all(checks.values()),checks=checks, initial=initial,strict_grasp_audit=strict_audit,
             max_torso_tilt_deg=max(r['torso_tilt_deg'] for r in rows),
             final_palm_error_m=rows[-1]['palm_error_m'], final_contacts=rows[-1]['contacts'],
             runtime_robot_pose_writes=0, direct_door_commands=False, explicit_motor_mode=args.explicit_motors, trials=1)
         np.savez_compressed(args.output/'trajectory.npz',qpos=poses,qvel=velocities,ctrl=controls)
         (args.output/'trace.json').write_text(json.dumps(rows)+'\n')
+        with gzip.open(args.output/'physics-steps.json.gz','wt') as stream:json.dump(physics_steps,stream)
+        (args.output/'strict-grasp-audit.json').write_text(json.dumps(strict_audit,indent=2)+'\n')
         (args.output/'report.json').write_text(json.dumps(report,indent=2)+'\n')
         emit({k:v for k,v in report.items() if k not in ('initial','final_contacts')})
         emit({k:v for k,v in report['final_contacts'].items() if k!='contacts'})

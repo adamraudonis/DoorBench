@@ -1,4 +1,6 @@
-# Isaac: H1/Shadow uses a lever and opens a door
+# Historical Isaac H1/Shadow opening diagnostics (v1 model)
+
+**Mechanical qualification withdrawn, September 8, 2026:** Shadow Robot documents a passive loopback constraint, `J1 <= J2`, between distal and middle finger joints. The imported model omitted it. Saved sensor-enabled opening repeats violate it by up to **1.383 rad**, despite passing individual joint-limit checks. Consequently, the historical audits below do not establish a physically correct Shadow-hand grasp. Keep these recordings as diagnostics of the explicitly incomplete v1 model; corrected-mechanics runs must use a new model hash and separate results. [Manufacturer's finger mechanics](https://shadow-robot-company-dexterous-hand.readthedocs-hosted.com/en/latest/user_guide/md_finger.html).
 
 This development demo uses a free-base H1 with Shadow Hands in **Isaac Sim 5.1 / Isaac Lab 2.3.2, CUDA PhysX on an L40S**. The hand turns the lever, retracts the passive latch, pushes the leaf, releases and withdraws while the robot remains standing.
 

@@ -32,13 +32,9 @@ Actual L40S recording on September 6, 2026: **16 / 16 selected demonstration cas
 
 The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock manipulation. This closed-start diagnostic is separate from the core benchmark. All 18 horizontal hatches were attempted but are not upright doorway tasks; errors remain in the denominator. [Per-door results and limitations](docs/review/isaac-g1-catalogue/README.md) · [Reproduce the run](docs/ISAAC_G1_CATALOGUE.md) · [Test your policy](docs/ISAAC_G1_DEMO.md).
 
-**Dexterous handle demo — September 8, 2026 (L40S):** H1 with Shadow Hands turns the lever, releases the latch and opens one door in live CUDA PhysX.
+**Dexterous humanoid development:** the original H1/Shadow demo used an incomplete hand model. It omitted the manufacturer's passive finger-coupling constraint, and recorded grasps violated it substantially. Its four initially passing opening audits are retained as **v1 diagnostics, not physically qualified robot successes**. A corrected, versioned model and continuous approach–grasp–open–traverse demonstration are in development. No vision/tactile-only traversal result exists yet.
 
-| Scope | Audited repetitions | Final opening |
-|---|---:|---:|
-| One initialized door, privileged motor controller | 4 / 4 | 60.3–95.0° |
-
-A later sensor-enabled repeat on September 8 at **08:25 UTC failed**, stopping at **25.7°**. The teacher releases before a usable opening and depends on subsequent door motion; that weakness is being corrected. These initialized demonstrations use exact simulator state. Approach, grasp, opening and traversal have not yet passed as one continuous task. [Current execution plan and progress](docs/DEXTEROUS_NEXT_STEPS.md). [Wide video](https://github.com/adamraudonis/DoorBench/releases/download/isaac-h1-handle-20260908/isaac-h1-handle-wide.mp4) · [Hand close-up](https://github.com/adamraudonis/DoorBench/releases/download/isaac-h1-handle-20260908/isaac-h1-handle-closeup.mp4) · [Run it yourself, timestamps and checks](docs/ISAAC_HANDLE_DEMO.md).
+[Current plan and measured progress](docs/DEXTEROUS_NEXT_STEPS.md) · [Historical recordings, run times and discovered limitations](docs/ISAAC_HANDLE_DEMO.md).
 
 ## Scripted baseline
 
