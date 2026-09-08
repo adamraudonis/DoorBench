@@ -16,6 +16,7 @@ from doorbench.dexterous.environment import DexterousDoorEnv
 from doorbench.dexterous.grasp_verification import native_grasp_sample, audited_native_step, audit_grasp_steps
 from doorbench.dexterous.hand_surface_audit import native_hand_surface_loads
 from doorbench.dexterous.provenance import capture
+from doorbench.dexterous.native_post_opening_measurements import measured_contacts, measured_state, outward_release_normal
 
 transition_spec = importlib.util.spec_from_file_location('doorbench.dexterous.native_transition_audit', Path(__file__).resolve().parents[2]/'doorbench/dexterous/native_transition_audit.py')
 transition_module = importlib.util.module_from_spec(transition_spec)
@@ -65,6 +66,7 @@ def main():
     p.add_argument('--panel-profile',choices=('plain-v1','hybrid-surface-v2'),default='hybrid-surface-v2')
     p.add_argument('--palm-load-target',type=float)
     p.add_argument('--transfer-load-target',type=float,default=4.,help='Pre-release total left-panel load target; original motor caps unchanged')
+    p.add_argument('--traverse',action='store_true',help='Require one uninterrupted qualified opening, stow, rise, passage and quiet finish')
     a = p.parse_args()
     if a.output.exists(): raise SystemExit('Use a new output directory')
     ref=json.loads(a.reference.read_text());motors=json.loads(a.motors.read_text())
@@ -86,11 +88,15 @@ def main():
     hj=m.joint('leaf_handle_hinge').id;lj=m.joint('leaf_hinge').id;bj=m.joint('leaf_latch_bolt_slide').id
     hb=m.body('leaf_handle').id;leaf=m.body('leaf').id
     from doorbench.dexterous.walking_opening_teacher import WalkingOpeningTeacher
-    sequence=WalkingOpeningTeacher(a.robot,motors,ref,preparation,reset,a.checkpoint,
+    from doorbench.dexterous.continuous_door_teacher import ContinuousDoorTeacher, ContinuousDoorFailure
+    controller_type=ContinuousDoorTeacher if a.traverse else WalkingOpeningTeacher
+    controller=controller_type(a.robot,motors,ref,preparation,reset,a.checkpoint,
         dict(operator_origin=m.jnt_pos[hj],operator_axis=m.jnt_axis[hj],leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),
         door_xml=a.door,left_targets=a.plan,release_screen=a.release_path,runtime_screen=a.runtime_screen,
         opening_options=dict(target_aperture=a.target_aperture,open_on_latch_clear=a.open_on_latch_clear,
-            operator_compliance_gain=a.operator_compliance_gain,follow_leaf_during_transfer=a.follow_leaf_during_transfer,panel_profile=a.panel_profile,palm_load_target=a.palm_load_target,transfer_load_target=a.transfer_load_target))
+            operator_compliance_gain=a.operator_compliance_gain,follow_leaf_during_transfer=a.follow_leaf_during_transfer,panel_profile=a.panel_profile,palm_load_target=a.palm_load_target,transfer_load_target=a.transfer_load_target),
+        **({'maximum_seconds':a.seconds} if a.traverse else {}))
+    sequence=controller.walking if a.traverse else controller
     opening=sequence.opening
     teacher=opening.acquisition
     d.qpos[sim.root_qadr:sim.root_qadr+7]=reset['initial_root']
@@ -107,8 +113,10 @@ def main():
     originals={k:getattr(m,k).copy() for k in immutable}
     physics=[native_grasp_sample(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')]
     recorder=NativeTransitionRecorder(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')
+    _,previous_raw=transition_module._contact_solution(sim)
+    previous_raw.update(interval_start_s=0.,interval_end_s=0.)
     raw_stream=NativeTransitionArchive(a.output/'raw-transitions')
-    completed=False
+    completed=False;controller_error=None
     states={key:[] for key in ('qpos','qvel','ctrl')};traces=[]
     try:
         for step in range(round(a.seconds/m.opt.timestep)):
@@ -121,12 +129,35 @@ def main():
             gap=min(float(mujoco.mj_geomDistance(m,d,g,lever,1.,None)) for g in geoms)
             evidence=dict(grasp_qualified=previous['pad_grasp']['valid_pad_grasp'],physics_qualified=physical_sample_passed(previous),right_pad_patches_valid=all(c['pad_qualified'] for c in previous['pad_grasp']['contacts']),hand_contact_count=previous['hand_contact_count'],left_panel_load_N=surface['total_normal_load_N'],left_palm_load_N=surface['palm_normal_load_N'],right_lever_clearance_m=gap)
             palm=m.site('robot/rh_palm_touch').id;palm_quat=np.empty(4);mujoco.mju_mat2Quat(palm_quat,d.site_xmat[palm])
-            force,info=sequence.force(float(d.time),root,dict(zip(teacher.names,d.qpos[qa])),dict(zip(teacher.names,d.qvel[va])),foot_loads,np.r_[d.xpos[hb],d.xquat[hb]],np.r_[d.xpos[leaf],d.xquat[leaf]],angles,loads,evidence=evidence,right_palm_pose=np.r_[d.site_xpos[palm],palm_quat],pose_time_s=float(d.time),contact_interval_s=(recorder.contact_time_s,recorder.contact_interval_end_s))
+            measured=dict(evidence=evidence,right_palm_pose=np.r_[d.site_xpos[palm],palm_quat],pose_time_s=float(d.time),contact_interval_s=(recorder.contact_time_s,recorder.contact_interval_end_s))
+            force_args=(float(d.time),root,dict(zip(teacher.names,d.qpos[qa])),dict(zip(teacher.names,d.qvel[va])),foot_loads,np.r_[d.xpos[hb],d.xquat[hb]],np.r_[d.xpos[leaf],d.xquat[leaf]],angles,loads)
+            if a.traverse:
+                _,_,_,post_state=measured_state(sim,controller.names,controller.post.door_names,controller.post.pose_names)
+                _,_,post_evidence=measured_contacts(m,previous_raw,physics_qualified=physical_sample_passed(previous))
+                normal=None
+                if angles['leaf']>=a.target_aperture and controller.handoff is None:
+                    normal=outward_release_normal(m,previous_raw)
+                try:
+                    force,continuous_info=controller.force(*force_args,**measured,
+                        body_poses=post_state['body_poses'],door_velocities=post_state['door_velocities'],
+                        continuation_evidence=post_evidence,
+                        applied_motor_forces=np.asarray(previous_raw['actuator_force'])[aids] if step else np.zeros(61),
+                        release_normal_world=normal)
+                except ContinuousDoorFailure as exc:
+                    controller_error=dict(time_s=float(d.time),reason=str(exc));break
+                info=continuous_info['component']
+                if controller.opening_audit is not None and not (a.output/'opening-handoff-audit.json').exists():
+                    (a.output/'opening-handoff-audit.json').write_text(json.dumps(controller.opening_audit,indent=2)+'\n')
+                    (a.output/'opening-handoff-state.json').write_text(json.dumps(controller.handoff,indent=2)+'\n')
+                    (a.output/'post-opening-geometry-screen.json').write_text(json.dumps(controller.post.plan,indent=2)+'\n')
+            else:
+                force,info=sequence.force(*force_args,**measured)
             d.ctrl[aids]=force
             recorder.before_step()
             sim.plant.step()
             row,raw=recorder.after_step()
             raw_stream.write(raw)
+            previous_raw=raw
             foot_loads[:]=0.
             for c in raw['contacts']:
                 if not any(m.geom(g).name=='floor' for g in c['geom']):continue
@@ -137,17 +168,27 @@ def main():
                 (a.output/'actual-preparation-screen.json').write_text(json.dumps(sequence.readiness_screen,indent=2)+'\n')
                 (a.output/'actual-preparation-reference.json').write_text(json.dumps(sequence.actual_preparation)+'\n')
             row.update(bolt_slide_m=float(d.qpos[m.jnt_qposadr[bj]]),teacher=info)
+            if a.traverse:row['continuous_controller']=continuous_info
             physics.append(row)
             if step%10==0:
                 trace=dict(**sim.diagnostics(),teacher=info);traces.append(trace)
                 for key in states:states[key].append(getattr(d,key).copy())
                 (a.output/'latest.json').write_text(json.dumps(trace)+'\n')
                 if step%500==0:print(json.dumps(trace),flush=True)
-            if sequence.blocked_reason or row['door_q']>=a.target_aperture or not row['finite'] or row['torso_tilt_deg']>35:break
-        end=float(d.time);tail=[r for r in physics if r['sim_time_s']>=end-.5-1e-8]
+            if (controller.done if a.traverse else row['door_q']>=a.target_aperture) or sequence.blocked_reason or not row['finite'] or row['torso_tilt_deg']>35:break
+        end=float(d.time)
+        opening_end=controller.opening_audit['time_s'] if a.traverse and controller.opening_audit is not None else end
+        opening_rows=[r for r in physics if r['sim_time_s']<=opening_end+1e-8]
+        opening_final=opening_rows[-1]
+        tail=[r for r in opening_rows if r['sim_time_s']>=opening_end-.5-1e-8]
+        if a.traverse:
+            for name,value in (('opening-handoff-audit',controller.opening_audit),
+                               ('opening-handoff-state',controller.handoff),
+                               ('post-opening-geometry-screen',controller.post.plan)):
+                if value is not None:(a.output/(name+'.json')).write_text(json.dumps(value,indent=2)+'\n')
         report=audit_grasp_steps(physics,physics_dt=m.opt.timestep,expected_duration=end)
         report['checks'].pop('sustained_pad_grasp')
-        report['checks'].update(acquisition_precedes_operation=opening.operation_started is not None,operator_driven_to_release=max(r['handle_angle_rad'] for r in physics)>=.8 and max(r.get('bolt_slide_m',0) for r in physics)>=.011,left_contact_reached=opening.left.started is not None and opening.left.progress>=.999,sustained_left_panel_load=bool(tail) and all(r.get('left_surface_audit',{}).get('total_normal_load_N',0)>=2. for r in tail),usable_aperture_under_palm_load=physics[-1]['door_q']>=a.target_aperture and physics[-1]['left_surface_audit']['palm_normal_load_N']>=2.,no_invalid_right_pad_patch=all(all(c['pad_qualified'] for c in r['pad_grasp']['contacts']) for r in physics),sustained_left_palm_load=bool(tail) and all(r.get('left_surface_audit',{}).get('palm_normal_load_N',0)>=2. for r in tail),qualified_grasp_before_intentional_release=opening.release.started is not None,right_release_completed=opening.release.info.get('release_fraction',0)>=.999 and min(float(mujoco.mj_geomDistance(m,d,g,lever,1.,None)) for g in geoms)>=.02)
+        report['checks'].update(acquisition_precedes_operation=opening.operation_started is not None,operator_driven_to_release=max(r['handle_angle_rad'] for r in physics)>=.8 and max(r.get('bolt_slide_m',0) for r in physics)>=.011,left_contact_reached=opening.left.started is not None and opening.left.progress>=.999,sustained_left_panel_load=bool(tail) and all(r.get('left_surface_audit',{}).get('total_normal_load_N',0)>=2. for r in tail),usable_aperture_under_palm_load=opening_final['door_q']>=a.target_aperture and opening_final['left_surface_audit']['palm_normal_load_N']>=2.,no_invalid_right_pad_patch=all(all(c['pad_qualified'] for c in r['pad_grasp']['contacts']) for r in physics),sustained_left_palm_load=bool(tail) and all(r.get('left_surface_audit',{}).get('palm_normal_load_N',0)>=2. for r in tail),qualified_grasp_before_intentional_release=opening.release.started is not None,right_release_completed=opening.release.info.get('release_fraction',0)>=.999 and min(float(mujoco.mj_geomDistance(m,d,g,lever,1.,None)) for g in geoms)>=.02)
         report['checks']={key:bool(value) for key,value in report['checks'].items()}
         report['checks']['actual_transition_geometry_matches_pre_state']=all(r.get('pre_integration_body_poses_match',True) for r in physics)
         report['checks']['complete_runtime_warning_audit']=all(r.get('mujoco_warning_interval',{}).get('passed',False) for r in physics[1:])
@@ -163,6 +204,16 @@ def main():
         report['maximum_foot_lift_m']=maximum_foot_lift.tolist()
         report['blocked_reason']=sequence.blocked_reason
         report.update(passed=all(report['checks'].values()),handoffs=opening.handoffs,declared_target_aperture_rad=a.target_aperture,final_leaf_rad=physics[-1]['door_q'],final_palm_load_N=physics[-1]['left_surface_audit']['palm_normal_load_N'],runtime_pose_writes=0,native_mirror_steps=0,scope='Continuous native approach, preparation and full-opening development with actual transition contacts; no traversal/Isaac/actor claim',measurement_refresh='mj_kinematics only after archived actual mj_step solution',pose_joint_clock_aligned=True,contact_force_source='actual_mj_step_dynamics',final_contact_interval_s=[physics[-1]['contact_interval_start_s'],physics[-1]['contact_interval_end_s']])
+        if a.traverse:
+            report['checks'].update(qualified_opening_before_traversal=bool(controller.opening_audit and controller.opening_audit['passed'] and controller.handoff),
+                continuous_controller_contract=controller_error is None,
+                qualified_post_opening_geometry=bool(controller.post.plan and controller.post.plan['passed']),
+                whole_body_passage_and_quiet_finish=controller.done,
+                complete_full_episode=bool(controller.done and end<=a.seconds+1e-7))
+            report.update(passed=all(report['checks'].values()),controller_error=controller_error,
+                opening_end_time_s=opening_end,opening_audit=controller.opening_audit,
+                continuous_handoffs=controller.handoffs,completed_time_s=controller.completed_time_s,
+                scope='Continuous actual native approach, grasp, mechanism opening, release, stow, rise, whole-body passage and quiet finish; privileged teacher, no Isaac or sensor-only claim')
         (a.output/'report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report),flush=True)
         completed=True
     finally:

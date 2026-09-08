@@ -59,7 +59,7 @@ def continuation_contact_summary(sensor_paths, filter_paths, normal_forces,
                 duplicate = (other.rsplit('/', 1)[-1].startswith('lh_') and
                              other in paths and paths[i] > other)
                 if not duplicate:
-                    left_count += int(gap <= 0)
+                    left_count += int(gap <= 0 or load > 1e-8)
                     left_load += load
                 if (other == '/World/Door/Articulation/leaf' and
                         (gap <= 0 or load > 1e-8)):

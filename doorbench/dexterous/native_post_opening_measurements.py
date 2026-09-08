@@ -17,7 +17,7 @@ def measured_contacts(m,raw,*,physics_qualified):
             if name in forces:forces[name]+=sign*force
             if name in ('left_ankle_link','right_ankle_link'):feet[('left_ankle_link','right_ankle_link').index(name)]+=sign*force[2]
         if any(n.startswith('lh_') for n in names):
-            left_count+=int(c['distance_m']<=0);left_load+=max(0.,float(c['wrench_contact_frame'][0]))
+            left_count+=int(c['distance_m']<=0 or c['wrench_contact_frame'][0]>1e-8);left_load+=max(0.,float(c['wrench_contact_frame'][0]))
         if any(n.startswith('robot/rh_') for n in full_names) and not all(n.startswith('robot/') for n in full_names):
             right_count+=int(c['distance_m']<=0 or c['wrench_contact_frame'][0]>1e-8)
     return feet,forces,dict(physics_qualified=bool(physics_qualified),left_hand_contacts=left_count,left_hand_load_N=left_load,right_environment_contacts=right_count)

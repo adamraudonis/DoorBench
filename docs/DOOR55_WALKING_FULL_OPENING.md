@@ -1,8 +1,8 @@
 # Continuous walking and full-opening development
 
-The best native run reaches a 1.200824 rad aperture while upright, after real
+The latest native run reaches a 1.200903 rad aperture while upright, after real
 walking, contact-free preparation, opposed acquisition and lever operation.
-It **fails 1 of 29 checks**: right-hand withdrawal loads invalid finger surfaces.
+It **fails 1 of 30 checks**: right-hand withdrawal loads invalid finger surfaces.
 It does not traverse and is not a qualified complete task.
 
 | Native trial | Outcome | Diagnosis |
@@ -11,6 +11,7 @@ It does not traverse and is not a qualified complete task.
 | [002](../results/dexterous/2026-09-08/native-walking-opening-002.json) | 28/29, 61.166 s; 1.200824 rad, 8.310 N final palm load | Actual-state LH targets work. Withdrawal produces 1,200 invalid RH contacts over 53.934–57.070 s. |
 | [003](../results/dexterous/2026-09-08/native-walking-opening-003-recovered.json) | Failed; 1.200427 rad at 48.644 s without palm support | Unrestricted following removes aperture stiffness before LH support. Final report serialization also failed; recovered diagnostics and complete numeric prefix remain separate. |
 | [004](../results/dexterous/2026-09-08/native-walking-opening-004.json) | Failed, 85 s; final leaf 0.086126 rad | Restricting following to sustained support and a bounded aperture still disrupts transfer. This option stays disabled by default. |
+| [005](../results/dexterous/2026-09-08/native-walking-opening-005.json) | 29/30, 60.416 s; 1.200903 rad, 9.092 N final palm load | Raising only pre-release LH panel load target from 4 to 6 N preserves all support/mechanical checks; original RH withdrawal still fails. Every actual transition now also records all warning counters. |
 
 All attempts use the original capped motors, free base, eight passive hand
 loopbacks and unchanged active model parameters. Actual `mj_step` forces are
@@ -42,7 +43,24 @@ runner's required-new output directory. Isaac004 fixes launch ordering and tests
 the actual-state LH targets with the explicit plain-v1 8 N panel controller;
 measured-leaf following is disabled. It begins on September 8, 2026 at
 14:51:10 UTC. Its source, inputs and destination planning evidence are frozen.
-No result is claimed before its final report and independent review.
+Its final [004 result](../results/dexterous/2026-09-08/isaac-full-opening-v2-004.json)
+fails 7 of 24 checks after a graceful stop at 43.1 s. LH support becomes sustained
+only after invalid RH pad contact has already occurred. Independent reduction
+finds 3,308 invalid pad intervals beginning at 35.142 s; late support cannot
+qualify an earlier failed grasp. All 152 run files and 476 frozen source files
+were copied off-pod and verified against their remote SHA256 hashes.
+
+Isaac005 tests only the explicit 6 N pre-release panel target; the plant, motor
+caps, 8 N post-release palm target, original release and qualification gates are
+unchanged. It remains a separate experiment, not a reclassification of 004.
+
+The root inspected exact recorded Isaac states at 14.000, 35.142 and 42.000 s
+using `render_isaac_state_replay.py`. This is clearly labeled MuJoCo **geometry
+replay**, with no new physics or contact solve; robot/door source hashes and the
+reconstructed palm pose are checked against the original recording. The early
+opposed grip is visible; later the lever bears across the finger links. Several
+oblique views are occluded by the jamb, so frontal close-ups are retained too.
+New recorded full-opening trials also have a dedicated native Isaac hand camera.
 
 ## Scene and continuation boundaries
 
@@ -52,8 +70,11 @@ principal-frame representation. The older initialized passage and palm-contact
 convergence experiments use `d3b367b62eed…`, which has different mechanism
 geometry. Their internal replay checks do not establish cross-scene equivalence.
 
-The portable passage controller now builds a fresh stow route from actual
-measured state. The current door's first route is rejected for collisions, and
-its first physical sequential-route attempt hits one stance-solver iteration
-limit. Both failures are retained. Joining approach, opening and passage still
-requires one uninterrupted physical qualification, then a separate Isaac run.
+The portable passage controller builds a fresh stow route from actual measured
+state. After the collision and solver-limit failures, [current-door continuation012](POST_OPENING_REVISED_DOOR.md)
+passes 26/26 physical and 6/6 independent checks. It starts from a separately
+attained open state. The [continuous wrapper](CONTINUOUS_DOOR_TEACHER.md) is now
+wired to both native and Isaac runners. A one-second native interface test has
+500 actual transitions bit-identical to the walking baseline and passes 5/5
+interface checks; its deliberately incomplete full-task report remains failed.
+Joining all components still requires one uninterrupted physical qualification.

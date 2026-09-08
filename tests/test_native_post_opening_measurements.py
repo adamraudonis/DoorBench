@@ -34,6 +34,10 @@ def test_right_self_contact_does_not_falsely_block_environment_release():
     assert measured_contacts(m,dict(contacts=[c]),physics_qualified=True)[2]['right_environment_contacts']==1
     c['wrench_contact_frame'][0]=0.
     assert measured_contacts(m,dict(contacts=[c]),physics_qualified=True)[2]['right_environment_contacts']==0
+    left=contact(m,'leaf','robot/lh_palm',.01);left['distance_m']=.0001
+    assert measured_contacts(m,dict(contacts=[left]),physics_qualified=True)[2]['left_hand_contacts']==1
+    left['wrench_contact_frame'][0]=0.
+    assert measured_contacts(m,dict(contacts=[left]),physics_qualified=True)[2]['left_hand_contacts']==0
 
 
 def test_current_state_reader_preserves_every_active_state_and_force_array():

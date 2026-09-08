@@ -31,6 +31,8 @@ def test_positive_gap_loaded_contact_still_blocks_release():
     args['normal_forces'][3] = 0
     args['distances'][3] = 0
     assert continuation_contact_summary(**args)['evidence']['right_environment_contacts'] == 1
+    args['distances'][2] = .001
+    assert continuation_contact_summary(**args)['evidence']['left_hand_contacts'] == 1
 
 
 def test_missing_panel_contact_cannot_invent_release_direction():
