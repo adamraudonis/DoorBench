@@ -27,6 +27,7 @@ p.add_argument('--upright-gain',type=float,default=0.,help='Post-opening IMU ank
 p.add_argument('--native-robot',help='Enable closed-loop kinematic teacher using this native robot XML for FK only')
 p.add_argument('--acquisition',action='store_true',help='Execute the shared contact-free acquisition teacher from reference.path_qpos; privileged development only')
 p.add_argument('--acquisition-middle-finger-force',type=float,help='Explicit acquisition middle-finger preload in N; original motor caps unchanged')
+p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--grip-rotation-fraction',type=float,default=1.,help='Fraction of operator rotation tracked by palm orientation; physical contacts remain unconstrained')
 p.add_argument('--arm-impedance',type=float,default=1.,help='Software arm position-gain multiplier at the 500 Hz motor loop; native force caps remain unchanged')
 p.add_argument('--grip-impedance',type=float,default=1.,help='Finger position-gain multiplier; native force caps remain unchanged')
@@ -49,6 +50,7 @@ if not math.isfinite(a.grip_impedance) or a.grip_impedance<0:p.error('--grip-imp
 if not math.isfinite(a.finger_curl):p.error('--finger-curl must be finite')
 if not math.isfinite(a.torso_damping) or a.torso_damping<0:p.error('--torso-damping must be finite and nonnegative')
 if a.acquisition and (not a.native_robot or a.panel_push or a.mechanism_test):p.error('Acquisition requires --native-robot and a separate acquisition-only trial')
+if a.operate_after_acquisition and not a.acquisition:p.error('--operate-after-acquisition requires --acquisition')
 if a.record or a.sensor_layout:a.enable_cameras=True
 launcher=AppLauncher(a);app=launcher.app
 import numpy as np
@@ -255,6 +257,24 @@ def main():
     if a.acquisition:
         from doorbench.dexterous.acquisition_teacher import AcquisitionTeacher
         teacher=AcquisitionTeacher(a.native_robot,motors,ref,middle_finger_force=a.acquisition_middle_finger_force)
+        operation=None
+        if a.operate_after_acquisition:
+            from doorbench.dexterous.operation_teacher import DoorOperationTeacher
+            joint_geometry={}
+            for role,name,child in [('operator','leaf_handle_hinge','leaf_handle'),('leaf','leaf_hinge','leaf')]:
+                joint=UsdPhysics.RevoluteJoint(stage.GetPrimAtPath('/World/Door/Articulation/Joints/'+name))
+                if not joint or [str(path) for path in joint.GetBody1Rel().GetTargets()]!=['/World/Door/Articulation/'+child]:
+                    raise ValueError('Operation requires the declared measured child-body joint frame')
+                basis=np.eye(3)['XYZ'.index(joint.GetAxisAttr().Get())]
+                joint_geometry[role+'_origin']=np.array(joint.GetLocalPos1Attr().Get())
+                joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*basis)))
+            operation=DoorOperationTeacher(teacher,joint_geometry)
+            (out/'operation-protocol.json').write_text(json.dumps(dict(
+                joint_geometry={k:v.tolist() for k,v in joint_geometry.items()},
+                qualification='Path fraction >= 0.999 and uninterrupted 0.5 s of measured valid five-pad grasp',
+                operator_target_rad=.87,leaf_target_rad=.08,press_duration_s=5.,opening_duration_s=3.,
+                scope='Contact-free acquisition to lever, latch and partial opening; no approach or traversal',
+                final_hold='The final 0.5 s must pass the unchanged strict five-pad check and hold leaf angle in [0.075, 0.10] rad; report intermediate digit unloads separately'),indent=2)+'\n')
     elif a.native_robot:
         from physx_teacher import HandleTeacher
         if a.panel_push:
@@ -267,10 +287,11 @@ def main():
         dt=dt,robot_mass_kg=float(robot.root_physx_view.get_masses().sum()),latch_scale=scale,
         simulator_effort_limits=robot.root_physx_view.get_dof_max_forces()[0].cpu().tolist(),
         runtime_pose_writes=0,direct_door_commands=bool(a.mechanism_test),contact_material_audit=contact_material_audit,
-        scope='Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
+        scope='Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
     sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py')]
     if a.panel_push:sources.append(Path(__file__).with_name('panel_push_teacher.py'))
     if a.acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('acquisition_teacher.py','isaac_tendons.py','grasp_verification.py')]
+    if a.operate_after_acquisition:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/operation_teacher.py')
     inputs=[Path(a.robot_usd),Path(a.door_usd),Path(a.motors),Path(a.reference)]
     if a.native_robot:inputs.append(Path(a.native_robot))
     if a.sensor_layout:
@@ -304,7 +325,7 @@ def main():
             max_joint_stop_penetration_rad=0.,max_self_penetration_m=0.,max_nonfoot_environment_penetration_m=0.,
             max_hand_door_penetration_m=0.,max_loopback_violation_rad=0.,contact_samples=0,capacity=16384)
     loop_pairs=[(index[f'{side}_{digit}J1'],index[f'{side}_{digit}J2']) for side in ('rh','lh') for digit in ('FF','MF','RF','LF')]
-    acquisition_states={k:[] for k in ('time_s','root','joints','motor_forces')}
+    acquisition_states={k:[] for k in ('time_s','root','joints','motor_forces','door','door_velocity','torso_tilt_deg')}
     pad_evaluator=None;pad_steps=[]
     if a.acquisition:
         from doorbench.dexterous.isaac_pad_audit import PhysXShadowPadAudit
@@ -343,8 +364,12 @@ def main():
         forces=np.clip(kp*ctrl+bias[:,0]+bias[:,1]*lengths+bias[:,2]*speeds+feedforward+impedance,force_ranges[:,0],force_ranges[:,1])
         if a.acquisition:
             body=door.data.body_state_w[0,:,:7].cpu().numpy()
-            forces,teacher_info=teacher.force(step*dt,robot.data.root_state_w[0].cpu().numpy(),dict(zip(rnames,pos)),dict(zip(rnames,vel)),
-                body[door.body_names.index('leaf_handle')],dict(zip(hand_paths,hand_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().sum(axis=1))))
+            measured_args=(step*dt,robot.data.root_state_w[0].cpu().numpy(),dict(zip(rnames,pos)),dict(zip(rnames,vel)),body[door.body_names.index('leaf_handle')])
+            loads=dict(zip(hand_paths,hand_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().sum(axis=1)))
+            if operation:
+                angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
+                forces,teacher_info=operation.force(*measured_args,body[door.body_names.index('leaf')],angles,loads,grasp_qualified=pad_steps[-1]['valid_pad_grasp'])
+            else:forces,teacher_info=teacher.force(*measured_args,loads)
             ctrl=teacher.target.copy();feedforward=np.zeros_like(forces)
         torque=matrix.T@forces-damp*vel-friction*np.tanh(vel/.001)
         robot.set_joint_effort_target(torch.tensor(torque[None],device=a.device,dtype=torch.float32))
@@ -396,6 +421,9 @@ def main():
             acquisition_states['root'].append(robot.data.root_state_w[0].cpu().numpy().copy())
             acquisition_states['joints'].append(robot.data.joint_pos[0].cpu().numpy().copy())
             acquisition_states['motor_forces'].append(forces.copy())
+            acquisition_states['door'].append(door.data.joint_pos[0].cpu().numpy().copy())
+            acquisition_states['door_velocity'].append(door.data.joint_vel[0].cpu().numpy().copy())
+            acquisition_states['torso_tilt_deg'].append(float(np.degrees(np.arccos(np.clip(-robot.data.projected_gravity_b[0,2].item(),-1,1)))))
             pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
             rotation=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
             pad_steps.append(pad_evaluator.read(physics_dt=dt,time_s=(step+1)*dt,center=pose[:3]+rotation@grip_center,axis=rotation@grip_axis,half_length=grip_half,radius=grip_radius))
@@ -480,14 +508,37 @@ def main():
             resting_operator_start=abs(acquisition_reset['door']['leaf_handle_hinge'])<=.001,
             initial_hand_door_contact_buffer_empty=pad_steps[0]['active_contact_count']==0,
             finite=bool(all(np.isfinite(np.asarray(v)).all() for v in acquisition_states.values())),
-            upright=bool(len(rows) and max(r['torso_tilt_deg'] for r in rows)<12 and root_states[:,2].min()>.7),
+            upright=bool(len(rows) and max(acquisition_states['torso_tilt_deg'])<12 and root_states[:,2].min()>.7),
             native_motor_caps=bool(np.all(motor_forces>=force_ranges[:,0]-1e-5) and np.all(motor_forces<=force_ranges[:,1]+1e-5)),
             sustained_pad_grasp=bool(len(tail)>=round(.5/dt)+1 and all(r['valid_pad_grasp'] for r in tail)))
-        report=dict(scope='Live PhysX privileged acquisition only; no approach/opening/traversal or sensor-only claim',passed=all(checks.values()),checks=checks,
+        report=dict(scope='Acquisition/hold audit within a continuous operation trial; see operation-report.json for mechanism outcome' if operation else 'Live PhysX privileged acquisition only; no approach/opening/traversal or sensor-only claim',passed=all(checks.values()),checks=checks,
             physics_dt_s=dt,duration_s=acquisition_states['time_s'][-1],runtime_robot_pose_writes=0,direct_door_commands=False,
             initial_contact_evidence_note=acquisition_reset['contact_evidence_note'],final_pad_grasp=pad_steps[-1])
         (out/'acquisition-report.json').write_text(json.dumps(report,indent=2)+'\n')
         print('ACQUISITION_RESULT '+json.dumps({k:v for k,v in report.items() if k!='final_pad_grasp'}),flush=True)
+        if operation:
+            positions=np.asarray(acquisition_states['door']);times=np.asarray(acquisition_states['time_s'])
+            leaf=positions[:,dnames.index('leaf_hinge')]
+            handle=positions[:,dnames.index('leaf_handle_hinge')]
+            bolt=positions[:,dnames.index('leaf_latch_bolt_slide')]
+            operation_checks=dict(checks)
+            operation_checks.update(acquisition_precedes_operation=operation.started is not None,
+                operator_driven_to_release=bool(handle.max()>=.80 and bolt.max()>=.011),
+                partial_leaf_opening_held=bool(np.all((leaf[times>=a.seconds-.5]>=.075)&(leaf[times>=a.seconds-.5]<=.10))),
+                opening_bounded_for_transfer=bool(leaf.max()<=.12))
+            operation_rows=[r for r in pad_steps if operation.started is not None and r['sim_time_s']>=operation.started]
+            operation_report=dict(report,scope='Live PhysX contact-free acquisition to lever, latch and partial opening; no approach/traversal or sensor-only claim',
+                checks=operation_checks,passed=all(operation_checks.values()),
+                maximum_handle_rad=float(handle.max()),maximum_leaf_rad=float(leaf.max()),
+                final_leaf_rad=float(leaf[-1]),maximum_bolt_retraction_m=float(bolt.max()),
+                operation_digit_unload_samples=sum(not r['valid_pad_grasp'] for r in operation_rows),
+                operation_invalid_pad_patch_samples=sum(any(not c['pad_qualified'] for c in r['contacts']) for r in operation_rows),
+                operation_reference=dict(operation_start_s=operation.started,opening_start_s=operation.open_started,final_goals=operation.info))
+            if operation.started is not None:
+                operation_report['operation_reference'].update(palm_position_in_handle_m=operation.p_relative.tolist(),palm_rotation_in_handle=operation.r_relative.tolist())
+            (out/'operation-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
+            (out/'report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
+            print('OPERATION_RESULT '+json.dumps({k:v for k,v in operation_report.items() if k!='final_pad_grasp'}),flush=True)
     if sensor_recorder:sensor_recorder.finish()
     if writer:writer.close()
     print('PHYSX_RUN_COMPLETE',flush=True)
