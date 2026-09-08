@@ -194,3 +194,54 @@ relative rule. A solver status is still not a physical recovery qualification.
 The selected query command uses `--solver-max-iterations 100000` and omits
 `--solver-rho`. Its canonical directory is
 `teacher-corrections-actor003-004-iterations-only`.
+
+## Actual model004 and accumulated correction experiment
+
+Model004 still failed in Isaac, ending at **1.042 s**. Its first 12-degree
+upright violation moves to 0.412 s; it later returns near upright while losing
+height, then ends at 0.419 m pelvis height and 28.65 degrees of tilt. Initial
+force error improves: its largest error is 1.367 Nm at the right hip yaw,
+followed by 1.208 Nm at the right knee. It never acquires a qualified handle
+grip. Incidental hand/door contacts must not be omitted: they begin at 0.390 s,
+reach 5.305 N within the upright prefix and later reach 1,576.94 N on the middle
+finger knuckle at 0.482 s, after the first physical-bound failure.
+
+The iterations-only continuous expert query admits 206 initial labels through
+0.410 s. It preserves the actual measured normal contact vectors and the
+acquisition teacher's body-origin approximation; friction/moments remain
+outside that declared query contract. Later states that return inside the
+upright bound are still excluded by the contiguous-prefix rule. These labels
+remain counterfactual corrections, not a validated recovery.
+
+On the admitted actual model004 observations, full recurrent replay matches
+recorded motor commands to body RMSE 0.000684 Nm and maximum difference
+0.002392 Nm. There is a measurable training-history discrepancy: over seven
+matching 32-step windows, resetting and warming up for 32 steps gives body
+RMSE 0.6174 Nm versus full history; warming up for 64 steps reduces it to
+0.2297 Nm. This is a history approximation error, not an inference frame bug.
+The audit requires the exact checkpoint that executed the recorded trial.
+
+Freeze one next candidate before execution: a fresh seed-zero model trained
+for **1,000 CPU steps**, with uniform sampling across the qualified nominal
+prefix and the 157/151/206 eligible correction prefixes from actor002/003/004.
+Use **64-step burn-in** and the existing 32 supervised steps, batch two,
+learning rate 0.0001, and 50% true-start batches without a masked prefix.
+The actor architecture, sensors, force outputs, physical limits and task gates
+remain unchanged. No other parameter sweep is part of this experiment.
+Evaluate all four sources, original startup commands and runtime integration
+before another physical attempt. Use these additional training arguments:
+
+```sh
+--burn-in 64 --iterations 1000 \
+--correction-dataset "$ACTOR002_CORRECTIONS" \
+--correction-dataset "$ACTOR003_ITERATIONS_ONLY_CORRECTIONS" \
+--correction-dataset "$ACTOR004_CORRECTIONS"
+```
+
+Reproduce the history audit with:
+
+```sh
+python scripts/dexterous/audit_sensor_recurrent_history.py \
+  --corrections "$ACTOR004_CORRECTIONS" --checkpoint "$MODEL004/actor.pt" \
+  --output "$HISTORY_AUDIT"
+```
