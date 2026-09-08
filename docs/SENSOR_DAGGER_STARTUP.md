@@ -452,3 +452,28 @@ The new arguments are:
 ```sh
 --previous-action-training dual_history_v1 --evaluate-actor-history-sources
 ```
+
+Autoregressive008 completed all 5000 GPU steps in 784.69 seconds. Its
+[independent final receipt](evidence/sensor-imitation-acquisition-008.json)
+verifies 38 downloaded outputs, 290 source files, all ten checkpoint hashes,
+and exact agreement with the corrected sampler's predeclared coverage.
+None of the ten checkpoints satisfies all six readiness criteria; the final
+checkpoint fails all six. The failed result remains archived.
+
+A separate command-history audit explains why merely choosing a different
+checkpoint would be insufficient. At008 step4000, body-force RMSE over the
+same correction prefixes improves to 4.079/4.836/3.846 Nm when commands come
+from the actor, compared with 18.748/16.084/23.125 Nm for007 step5000. Yet
+recorded-command errors worsen to 9.938/11.215/14.038 Nm. Nominal first500ms
+shows the same tradeoff: own-history error improves from4.886 to2.455 Nm,
+while recorded-history error worsens from2.516 to3.513 Nm. This diagnostic
+supports testing both losses, while preserving008's failed fitting score.
+
+The [009 preflight receipt](evidence/sensor-training-dual-history-009-preflight.json)
+records 87 passing focused tests and a three-step CPU smoke. The first
+recorded-history loss exactly reproduces007's first loss, and the first
+actor-history loss exactly reproduces008's; their equally weighted mean is
+the new objective. Continuous own-history evaluation covered all
+6457/157/151/206 admitted source examples. Four runtime checkpoint checks
+passed. This is implementation verification, not convergence or a robot
+trial. The frozen bundle and its SHA256 are recorded in the receipt.
