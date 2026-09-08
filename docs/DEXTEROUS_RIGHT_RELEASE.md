@@ -220,3 +220,38 @@ to reproduce the rejected moving-frame option. These exact-state native paths
 must not be admitted to another robot, attained state, or Isaac import without
 a new geometric screen and physical trial. No sensor-only actor or traversal
 success is claimed.
+
+## Full palm orientation fixes the gross support mismatch
+
+The next single-change comparison retains the same right-hand/body route and
+original total-load feedback. It binds the **full attained left-palm rotation**
+at episode 60s. The previous arm IK constrained position and palm normal, leaving
+a free twist about that normal; actual FK found roughly 10° twist during the body
+adjustment, although the normal error stayed below 0.53°. The geometry screen
+had preserved the full rotation, so that was a controller/screen mismatch.
+
+The optional `palm_orientation_error` retains the original normal residual when
+no full rotation is supplied. `bind_attained_palm_orientation` reads current
+measured state in the unstepped FK model and binds the rotation relative to the
+leaf. `--hold-full-left-orientation` applies this one change in the isolated
+probe; it does not change the shared default, contact-force target, or motors.
+
+Actual 2 ms load evidence over 61–67s:
+
+| Left orientation target | Mean palm load | Minimum | Zero-load samples | Samples below 2 N |
+|---|---:|---:|---:|---:|
+| Position + normal (002) |0.788N|0N|2,319/3,000|2,511/3,000|
+| Full pose (003) |3.529N|1.766N|0/3,000|38/3,000|
+
+The remaining 38 low-load samples still fail the frozen gate. Total hand load
+averages 4.053 N while palm load averages 3.529 N, so total-load control does not
+match the scored palm-load objective exactly. No threshold is relaxed.
+
+Trial 003 also remains a failed release/opening trial: six distal-tip contacts
+occur at 68.576–68.674s. Later, while the long withdrawal delays panel continuation,
+the left arm reaches its workspace limit; 76 joint-stop samples at 70.758–70.926s
+reach 59.79 mrad. Right clearance is already above 20 mm around 69 s, but this tested
+route waits until 71.584 s to finish. A new shorter route must be densely screened
+and end with the fingers open and all right-hand collision shapes at least 40 mm
+from scene geometry before a fresh physical test. This does not reclassify 003.
+[Comparison and archive receipt](../results/dexterous/2026-09-08/left-palm-orientation-development.json)

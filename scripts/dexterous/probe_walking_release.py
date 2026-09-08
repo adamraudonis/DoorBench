@@ -43,6 +43,7 @@ def main():
     p.add_argument("--ungrip-path", type=Path)
     p.add_argument("--ungrip-goal-frame", choices=("attained-resting-world", "measured-handle"), default="attained-resting-world")
     p.add_argument("--verified-prefix-run", type=Path)
+    p.add_argument("--hold-full-left-orientation", action="store_true")
     a = p.parse_args()
     if (a.release_mode in ('whole-body-return', 'whole-body-ungrip')) != (a.whole_body_path is not None):
         raise ValueError('Whole-body return requires the exact screened path')
@@ -102,6 +103,17 @@ def main():
         core=core.replace('    def _begin_operation(',method_source+'    def _begin_operation(',1)
         core_path.write_text(core)
         (stage/'approved-readiness-source.py').write_text(approved)
+    if a.hold_full_left_orientation:
+        if a.release_mode != 'whole-body-ungrip':
+            raise ValueError('Full left orientation comparison requires the attained ungrip stage')
+        shutil.copy2(own/'doorbench/dexterous/left_palm_orientation.py',stage/'doorbench/dexterous/left_palm_orientation.py')
+        left_path=stage/'doorbench/dexterous/bimanual_transfer.py';left_source=left_path.read_text()
+        old='10*(d.site_xmat[self.palm].reshape(3,3)[:,2]-desired_z)'
+        new='10*palm_orientation_error(d.site_xmat[self.palm].reshape(3,3),desired_z,rotation@self.attained_palm_rotation_leaf if hasattr(self,"attained_palm_rotation_leaf") else None)'
+        if left_source.count(old)!=1:raise ValueError('Frozen left orientation residual changed')
+        left_source=left_source.replace(old,new)
+        left_source=left_source.replace('import json\n','from .left_palm_orientation import palm_orientation_error\nimport json\n',1)
+        left_path.write_text(left_source)
     driver = stage / "scripts/dexterous/frozen_walking_opening_driver.py"
     shutil.copy2(source / "diagnostic-source.py", driver)
     shutil.copy2(Path(__file__), stage / "scripts/dexterous/probe_walking_release.py")
@@ -135,6 +147,9 @@ def main():
             self.release.observe_operation(t, handle_pose, leaf_pose, angles, self.geometry)
             if a.release_mode == 'whole-body-ungrip':
                 self.release.observe_state(t, root, joints)
+                if a.hold_full_left_orientation and self.release.started is not None and t-self.release.started >= self.release.ungrip_delay-1e-8 and not hasattr(self.left,'attained_palm_rotation_leaf'):
+                    from doorbench.dexterous.left_palm_orientation import bind_attained_palm_orientation
+                    bind_attained_palm_orientation(self.left,t,root,joints,leaf_pose)
         else:
             self.release.observe_leaf(t, leaf_pose)
         return original_force(self, t, root, joints, velocities, handle_pose,
@@ -234,6 +249,7 @@ def main():
             intervention=("WholeBodyMeasuredUngrip with exact attained resting grasp and complete screened withdrawal" if a.release_mode=="whole-body-ungrip" else "WholeBodyLeverReturn with attained-foot stance motor targets" if a.release_mode=="whole-body-return" else "ControlledLeverReturn with actual joint geometry and measured operation" if a.release_mode == "controlled-return" else "PressedLeafFrameRightRelease with current same-clock measured leaf"),
             retain_grip_until_clear=a.retain_grip_until_clear,
             release_mode=a.release_mode,
+            hold_full_left_orientation=a.hold_full_left_orientation,
             ungrip_goal_frame=a.ungrip_goal_frame if a.release_mode=="whole-body-ungrip" else None,
             prefix_source=str(prefix_source),
             ungrip_path_sha256=digest(stage/'ungrip-path.json') if a.release_mode=='whole-body-ungrip' else None,
