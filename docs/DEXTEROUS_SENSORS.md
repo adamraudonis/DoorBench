@@ -4,6 +4,8 @@
 
 ## Actor contract
 
+**Robot-model correction:** a subsequent [audit of the preserved v1 recordings](../results/dexterous/2026-09-08/isaac-shadow-v1-loopback-audit.json) found missing passive Shadow finger loopback constraints. The manufacturer specifies [distal J1 ≤ middle J2](https://shadow-robot-company-dexterous-hand.readthedocs-hosted.com/en/latest/user_guide/md_finger.html); recorded right fingers exceed that relationship by up to 1.383 rad. Numeric sensor checks remain evidence about the recorded simulator streams. The original opening passes do **not** establish hardware-faithful Shadow manipulation. The robot model and grasp must be corrected and revalidated before that claim.
+
 The new `doorbench.sensors.v2` interface exposes copied numeric arrays only:
 
 | Field | Meaning and units |
