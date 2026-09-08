@@ -52,3 +52,38 @@ using the original affine equation and original caps. A stance constructed after
 that conversion reads the force-mode motor contract and returns leg forces;
 those `.stance.act` entries must not be converted a second time. Record and test
 this adapter separately; no physical motor cap is enlarged by the representation.
+
+## Measured-state body teacher
+
+[`ApproachBodyTeacher`](../doorbench/dexterous/approach_teacher.py) ports this body
+controller to an active simulator through an unstepped native FK/dynamics mirror.
+Construct it with the versioned native XML, imported motor contract, exported
+walking reset and official H1 checkpoint. The native XML hash, all transmissions,
+servo coefficients and original force/control limits must match the contract.
+
+Call `force(t, root, joints, velocities, foot_loads)` once every 2 ms. `root` is
+the measured 13-vector `[position, quaternion_wxyz, world_linear_velocity,
+world_angular_velocity]`; joint dictionaries use unprefixed native names, and
+foot loads are measured world-up forces `[left, right]`. It returns 61 forces in
+the import contract's actuator order. The active simulator applies the original
+motor transmissions and passive joint damping/friction. It must audit all solved
+contacts, limits and motor delivery independently. The mirror never advances
+physics or applies support to the live robot.
+
+The mirror deliberately does not model hand loads during this contact-free body
+phase. Switch to a contact-aware interaction controller at handoff. Native trial
+`approach-lowering-portable-001` completes 18 s with all physical/quiet/height/XY
+gates clean and zero solver failures. Its final XY error is 15.15 mm and heading
+error 12.29°; the original precision-heading gate remains failed. This is a CPU
+qualification of the interface, not a live Isaac body-port result. A second
+18-second run with seed 1 and ±0.005 rad leg reset noise also passes every
+continuation gate with zero QP failures; its precision-heading score remains
+failed. Both runs are preserved in the
+[portable teacher result](../results/dexterous/2026-09-08/h1-approach-body-teacher.json).
+
+To run the same physical validation, add
+`--portable-motors /path/to/h1-import.motors.json` to the command above. The active
+native plant remains on its original affine motors: returned forces are mapped
+back through the original per-step servo inverse and original caps. The complete
+state, control and source archive is retained as usual. Tests also check the
+world-to-local angular velocity conversion and reject a skipped physics tick.
