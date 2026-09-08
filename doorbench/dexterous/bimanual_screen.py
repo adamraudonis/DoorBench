@@ -43,4 +43,6 @@ def screen_checks(rows, maximum_arm_step):
         for row in rows)
     checks["continuous_arm_waypoints"] = math.isfinite(maximum_arm_step) and 0 <= maximum_arm_step < .2
     checks["target_aperture"] = any(row["phase"] == "left_push" and row["leaf_rad"] >= 1.2 for row in rows)
+    release = [row for row in rows if row["phase"] == "right_release"]
+    checks["right_release_clearance"] = bool(release) and release[-1]["right_hand_lever_distance_m"] >= .02
     return checks

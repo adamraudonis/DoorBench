@@ -17,6 +17,7 @@ from scipy.spatial.transform import Rotation
 from doorbench.dexterous.environment import DexterousDoorEnv
 from doorbench.dexterous.stance import StanceController
 from doorbench.dexterous.bimanual_screen import screen_checks, validate_grasp_reference
+from doorbench.dexterous.measured_release import relocate_release
 
 
 def main():
@@ -32,6 +33,9 @@ def main():
     p.add_argument('--reach-roll-bump',type=float,default=0.)
     p.add_argument('--reach-pitch-bump',type=float,default=.8)
     p.add_argument('--release-slide',type=float,default=0.)
+    p.add_argument('--measured-release',type=Path)
+    p.add_argument('--release-start-seconds',type=float,default=.9)
+    p.add_argument('--release-end-seconds',type=float,default=7.5)
     p.add_argument('--endpoint-only',action='store_true')
     a=p.parse_args()
     if a.output.exists():raise SystemExit('Use a new output directory')
@@ -63,11 +67,44 @@ def main():
     hrot=d.xmat[handle].reshape(3,3);rh_relative=hrot.T@(d.site_xpos[palms['rh']]-d.xpos[handle]);rh_rotation=hrot.T@d.site_xmat[palms['rh']].reshape(3,3)
     initial_left=d.site_xpos[palms['lh']].copy();initial_left_z=d.site_xmat[palms['lh']].reshape(3,3)[:,2].copy()
     left_geoms=[g for g in range(m.ngeom) if m.geom_contype[g] and m.body(m.geom_bodyid[g]).name.startswith('robot/lh_')]
+    right_geoms=[g for g in range(m.ngeom) if m.geom_contype[g] and m.body(m.geom_bodyid[g]).name.startswith('robot/rh_')]
+    lever_geom=m.geom('leaf_handle_lever_col_n').id
     slab=m.geom('leaf_slab').id
     actuators=[]
     for n in names:
         actuators.append(m.actuator('robot/'+('lh_A_'+n[3:] if n.startswith('lh_') else 'rh_A_'+n[3:] if n.startswith('rh_') else n)).id)
     force_limits=m.actuator_forcerange[actuators]
+    measured_release=None;measured_finger_correction=0.
+    if a.measured_release:
+        audit=json.loads((a.measured_release/'release-audit.json').read_text())
+        manifest=json.loads((a.measured_release/'manifest.json').read_text())
+        if manifest['inputs']['robot']['sha256']!=hashlib.sha256(a.robot.read_bytes()).hexdigest():
+            raise ValueError('Measured release belongs to a different robot model')
+        if not audit.get('passed'):raise ValueError('Measured release must have passed its physical audit')
+        trace=json.loads((a.measured_release/'trace.json').read_text())
+        trajectory=np.load(a.measured_release/'trajectory.npz',allow_pickle=False)
+        indices=[i for i,row in enumerate(trace) if a.release_start_seconds<=row['sim_time_s']<=a.release_end_seconds]
+        if len(indices)<2 or trajectory['qpos'].shape!=(len(trace),m.nq):raise ValueError('Incompatible measured release state/time arrays')
+        path=[]
+        for i in indices:
+            d.qpos[:]=trajectory['qpos'][i];mujoco.mj_kinematics(m,d)
+            R=d.xmat[handle].reshape(3,3)
+            path.append(dict(qpos=d.qpos.copy(),relative_position=R.T@(d.site_xpos[palms['rh']]-d.xpos[handle]),
+                relative_rotation=R.T@d.site_xmat[palms['rh']].reshape(3,3)))
+        measured_release=path
+        portable=dict(scope='Measured physical source release, reprojected teacher targets need new physical qualification',
+            source=str(a.measured_release),robot_sha256=manifest['inputs']['robot']['sha256'],
+            source_files={name:hashlib.sha256((a.measured_release/name).read_bytes()).hexdigest() for name in ('trajectory.npz','trace.json','release-audit.json')},
+            source_frames=indices,time_s=[trace[i]['sim_time_s']-trace[indices[0]]['sim_time_s'] for i in indices],
+            palm_position_handle=[sample['relative_position'].tolist() for sample in path],
+            palm_rotation_handle=[sample['relative_rotation'].tolist() for sample in path],
+            finger_joint_names=[m.joint(j).name.removeprefix('robot/') for j in sim.joints if m.joint(j).name.startswith('robot/rh_') and 'WRJ' not in m.joint(j).name])
+        fqa=[m.jnt_qposadr[m.joint('robot/'+n).id] for n in portable['finger_joint_names']]
+        portable['finger_joint_delta_rad']=[(sample['qpos'][fqa]-path[0]['qpos'][fqa]).tolist() for sample in path]
+        (a.output/'measured-release-portable.json').write_text(json.dumps(portable,indent=2)+'\n')
+        for filename in ('trajectory.npz','trace.json','reference.json','release-audit.json','manifest.json'):
+            (a.output/('measured-release-'+filename)).write_bytes((a.measured_release/filename).read_bytes())
+        d.qpos[:]=base;mujoco.mj_kinematics(m,d)
     initial_arm=d.qpos[qa].copy()
     endpoint_goal=d.xpos[leaf]+d.xmat[leaf].reshape(3,3)@np.array([a.radius,a.offset,a.height])
     endpoint_normal=-d.xmat[leaf].reshape(3,3)[:,1].copy()
@@ -96,7 +133,7 @@ def main():
     schedule=[('left_reach',0.,0.,float(x)) for x in np.linspace(0,1,41)]
     schedule += [('operator',float(h),0.,1.) for h in np.linspace(.1,.87,9)]
     schedule += [('both_push',.87,float(t),1.) for t in np.linspace(.02,a.transfer_angle,9)]
-    schedule += [('right_release',.87,a.transfer_angle,float(x)) for x in np.linspace(0,1,41)]
+    schedule += [('right_release',.87,a.transfer_angle,float(x)) for x in np.linspace(0,1,len(measured_release) if measured_release else 41)]
     schedule += [('left_push',0.,float(t),1.) for t in np.linspace(a.transfer_angle+.02,1.2,56)]
     all_rows=[];previous=np.clip(d.qpos[qa],low,high);left_offset=a.offset;release_position=None;release_rotation=None
     jp=np.zeros((3,m.nv));jr=jp.copy()
@@ -107,6 +144,13 @@ def main():
             for j in sim.joints:
                 n=m.joint(int(j)).name
                 if n.startswith('robot/rh_') and 'WRJ' not in n:
+                    if measured_release:
+                        sample=measured_release[-1] if phase=='left_push' else measured_release[round(u*(len(measured_release)-1))]
+                        qindex=m.jnt_qposadr[j]
+                        raw_target=base[qindex]+sample['qpos'][qindex]-measured_release[0]['qpos'][qindex]
+                        d.qpos[qindex]=np.clip(raw_target,*m.jnt_range[j])
+                        measured_finger_correction=max(measured_finger_correction,abs(d.qpos[qindex]-raw_target))
+                        continue
                     if phase=='left_push':fade=1.
                     elif a.release_slide:fade=float(np.clip((u-.55)/.3,0,1))
                     elif any(n.endswith(f'{digit}J{k}') for digit in ('FF','MF','RF','LF') for k in (1,2)):
@@ -114,6 +158,12 @@ def main():
                     elif '/rh_TH' in n:fade=float(np.clip((u-.1)/.3,0,1))
                     else:fade=float(np.clip((u-.6)/.4,0,1))
                     d.qpos[m.jnt_qposadr[j]]=base[m.jnt_qposadr[j]]*(1-fade)
+        if measured_release and phase in ('right_release','left_push'):
+            for digit in ('FF','MF','RF','LF'):
+                indices=m.jnt_qposadr[[m.joint(f'robot/rh_{digit}J{k}').id for k in (1,2)]]
+                if d.qpos[indices[0]]>d.qpos[indices[1]]:
+                    measured_finger_correction=max(measured_finger_correction,abs(d.qpos[indices[0]]-d.qpos[indices[1]])/2)
+                    d.qpos[indices]=d.qpos[indices].mean()
         mujoco.mj_kinematics(m,d)
         R=d.xmat[leaf].reshape(3,3).copy();normal=R[:,1];hrot=d.xmat[handle].reshape(3,3).copy()
         right_goal=d.xpos[handle]+hrot@rh_relative;right_rotation=hrot@rh_rotation
@@ -126,6 +176,11 @@ def main():
                 slide=1. if phase=='left_push' else float(np.clip(u/.5,0,1))
                 retreat=1. if phase=='left_push' else float(np.clip((u-.65)/.35,0,1))
                 right_goal=release_position-a.release_slide*slide*release_axis-.16*retreat*release_normal
+        if measured_release and phase in ('right_release','left_push'):
+            sample=measured_release[-1] if phase=='left_push' else measured_release[round(u*(len(measured_release)-1))]
+            source0=measured_release[0]
+            right_goal,right_rotation=relocate_release(sample['relative_position'],sample['relative_rotation'],
+                source0['relative_position'],source0['relative_rotation'],release_position,release_rotation)
         left_goal=d.xpos[leaf]+R@np.array([a.radius,left_offset,a.height])
         desired_z=-normal
         if phase=='left_reach':
@@ -162,6 +217,7 @@ def main():
         right_constrained=phase!='left_push' or angle<=a.transfer_angle+.02
         normal_error=float(np.linalg.norm(d.site_xmat[palms['lh']].reshape(3,3)[:,2]-desired_z))
         nearest=min(float(mujoco.mj_geomDistance(m,d,g,slab,1.,None)) for g in left_geoms)
+        right_gap=min(float(mujoco.mj_geomDistance(m,d,g,lever_geom,1.,None)) for g in right_geoms)
         collisions=[]
         for c in d.contact[:d.ncon]:
             bodies=[m.body(m.geom_bodyid[g]).name for g in c.geom];geoms=[m.geom(int(g)).name for g in c.geom]
@@ -181,13 +237,13 @@ def main():
         root_acceleration=stance.last[:6].tolist() if stance.last is not None else None
         loops={f'{s}_{f}':float(d.qpos[m.jnt_qposadr[m.joint(f'robot/{s}_{f}J1').id]]-d.qpos[m.jnt_qposadr[m.joint(f'robot/{s}_{f}J2').id]]) for s in ('lh','rh') for f in ('FF','MF','RF','LF')}
         row=dict(frame=frame,phase=phase,handle_rad=h,leaf_rad=angle,left_position_error_m=errors[0],right_position_error_m=errors[1],right_pose_constrained=right_constrained,left_normal_error=normal_error,
-            left_hand_slab_distance_m=nearest,arm_static_motor_utilization=utilization,stance_status=stance_status,planned_root_acceleration=root_acceleration,
+            left_hand_slab_distance_m=nearest,right_hand_lever_distance_m=right_gap,arm_static_motor_utilization=utilization,stance_status=stance_status,planned_root_acceleration=root_acceleration,
             max_loopback_violation_rad=max(loops.values()),collisions=collisions,qpos=d.qpos.tolist())
         all_rows.append(row)
         print(json.dumps({k:v for k,v in row.items() if k not in ('qpos','collisions')})+' collisions='+str(len(collisions)),flush=True)
     arm_steps=np.diff(np.asarray([r['qpos'] for r in all_rows])[:,qa],axis=0)
     checks=screen_checks(all_rows,float(np.abs(arm_steps).max()))
-    report=dict(scope=__doc__,passed=all(checks.values()),checks=checks,projection=projection,robot_sha256=hashlib.sha256(a.robot.read_bytes()).hexdigest(),
+    report=dict(scope=__doc__,passed=all(checks.values()),measured_finger_target_correction_rad=measured_finger_correction,checks=checks,projection=projection,robot_sha256=hashlib.sha256(a.robot.read_bytes()).hexdigest(),
         reference_sha256=hashlib.sha256(a.reference.read_bytes()).hexdigest(),planner_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),parameters={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},max_arm_waypoint_step_rad=float(np.abs(arm_steps).max()),limitations=['FK and static arm-load screen only; no right-grasp force qualification, dynamic stance or contact-transfer proof.','Use the recorded versioned v2 robot and qualified grasp; no physical controller has executed these candidates.'],rows=all_rows)
     (a.output/'report.json').write_text(json.dumps(report,indent=2)+'\n');np.savez_compressed(a.output/'poses.npz',qpos=[r['qpos'] for r in all_rows]);print(json.dumps({'passed':report['passed'],'checks':checks}))
     sim.close()

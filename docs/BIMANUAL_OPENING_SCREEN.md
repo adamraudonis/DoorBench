@@ -1,8 +1,49 @@
 # Bimanual contact-transfer development
 
-The current candidate is a **failed static planning screen**, not an executed
-teacher. Its remaining sampled geometry failure is right-hand release. Do not
-use it as a successful door-opening reference or policy target.
+The latest candidate passes **11 sampled FK/static planning gates**, including
+right-hand release. It is not an executed teacher or a successful door-opening
+reference. The earlier failed candidate is retained below.
+
+## Measured-release candidate: screen-014
+
+The fix reuses the actual 0.9–7.5 s motion from the separately qualified native
+`release-v2-001` experiment. It transports measured palm motion through the
+initial palm/handle frame and retains measured finger-angle changes. This
+preserves the new grasp's actual axial offset. It does not replace the hand
+with an arbitrary zero-angle pose.
+
+All **445 sampled waypoints** pass the screen. Maximum adjacent arm motion is
+0.0834 rad; maximum static arm demand is 40.76% of the original motor cap.
+The released right hand clears the lever by **45.69 mm**. The nearest left
+geometry is the actual palm, approximately 0.472 mm from the slab. This gap is
+geometric proximity, not measured contact load. A physical controller still
+needs to establish left-palm loading and maintain it through opening.
+
+Run the command below with the additional argument:
+
+```bash
+--measured-release /path/to/qualified/release-v2-001
+```
+
+The source model hash and physical release receipt must match. The output also
+contains `measured-release-portable.json`: source times, finger deltas and palm
+poses in the handle frame, with source hashes. `relocate_release()` applies the
+same relative motion to an actual reached grasp pose. Small sampled finger
+target corrections restore original joint bounds and legal loopback ordering;
+the maximum correction is 16.23 mrad and is recorded in the report. Those targets need new
+physical qualification.
+
+See [the measured-release screen report](../results/dexterous/2026-09-08/bimanual-v2-measured-release-screen.json).
+Close views of the grasp and release were inspected. The next gate is continuous
+unchanged-motor execution, starting from the actual achieved partial-opening
+state. Contact loading, motor tracking, dynamic balance and actual aperture
+remain unverified for this combined candidate.
+
+The archive `DoorBench-runs/2026-09-08-robust-opening/bimanual-measured-release-001.tar.gz`
+retains screens 012–014, measured inputs, close views and source. SHA-256:
+`2f2a3ec8a82104dd6ac4fd4f17af69fcad48b65f3d3cff87db7eef8cb89e2a54`.
+
+## Earlier rejected candidate: screen-011
 
 The sequence places the left palm on the closed leaf, uses the qualified right
 grasp to rotate the operator and open the leaf to 0.08 rad, releases the right
