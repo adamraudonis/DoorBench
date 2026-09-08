@@ -594,3 +594,44 @@ checks pass; upright, full duration and grasp fail. This remains a failed
 physical result even though010 fitting completed successfully. The next
 diagnostic must use the actual006 visited states and observations rather
 than assuming an offline force-error threshold guarantees balance.
+
+## Actual006: early balance feedback is the remaining failure
+
+The [independent006 audit](evidence/sensor-actor006-feedback-diagnosis.json)
+binds the actual simulator archive,145 eligible counterfactual labels and
+separate sensory/Jacobian diagnostics. The robot crosses12° at0.352s and
+stops at0.702s with root height0.4418m and tilt27.49°; this cutoff is a
+height collapse, not a45° tilt crossing. The original14/17 passing checks
+and all failed checks remain unchanged.
+
+The initial reset matches the teacher exactly, and the largest initial
+motor-force discrepancy is only0.945Nm. On the actual states visited after
+those commands, the continuous analytic teacher remains feasible through
+0.288s, then first reports an infeasible QP at0.290s. Later isolated feasible
+queries are retained but excluded from the continuous correction prefix.
+No correction is delivered to the robot or added to training.
+
+The same-state body-force errors are2.02Nm over0–62ms,8.42Nm over64–100ms,
+36.51Nm over102–200ms and72.19Nm over202–288ms. In the64–100ms interval,
+the torso receives an average−2.18Nm from the actor while the counterfactual
+teacher requests−21.90Nm. By202ms, the teacher reaches its original−200Nm
+torso limit, while the actor continues near+12Nm. Corrective force requirements
+have moved far outside the nominal recording before large visible tilt.
+
+The local IMU gyro agrees with independent body FK to2.65e-6rad/s; this is
+not an observed gyro-frame error. Recorded-command replay reproduces the
+CUDA actor to0.00186Nm. At100ms, local instantaneous torso angle/velocity
+gains are only−1.37Nm/rad and−1.15Nm/(rad/s); knee damping gains are−0.43
+and−0.71Nm/(rad/s). Several stronger same-unit gains involve finger inputs.
+After valid sensors arrive, the sampled one-step previous-command Jacobian
+has largest singular values0.46–0.76. That does not show an instantaneous
+command-feedback explosion, although these fixed-history derivatives are
+not a plant stability analysis. Six finite-difference checks reproduce the
+selected previous-command Jacobian entries within0.00048Nm/Nm.
+
+This supports testing explicit sensor-only stabilization below manipulation:
+use encoders, IMU and local foot contact to provide reliable restoring and
+damping feedback under the original motor caps. Keep the learned perception
+and manipulation boundary separate from that controller. A new component
+must be qualified in the actual simulator; none of this analysis establishes
+successful physical recovery or silently introduces a privileged teacher.
