@@ -14,6 +14,47 @@ import numpy as np
 
 from .contact_audit import DIGITS
 
+GRASP_PROFILES = ('distal-pad-v1', 'volar-phalange-v1')
+
+
+def grasp_profile(value):
+    """An explicit surface contract; unknown profiles cannot silently fall back."""
+    if value not in GRASP_PROFILES:
+        raise ValueError('Unknown Shadow grasp profile: '+str(value))
+    return value
+
+
+def shadow_surface_qualified(digit, segment, local_point, outward, *, profile='distal-pad-v1'):
+    """Frozen Shadow local -Y surfaces, independent of the contact object.
+
+    The opt-in profile admits four-finger proximal/middle inner surfaces within
+    their 45/25 mm segment lengths. A 2 mm exclusion around the proximal joint
+    origin rejects knuckle/joint-origin loads. Thumb anatomy remains distal-only.
+    Caller additionally checks lever-side geometry and radial normal alignment.
+    """
+    grasp_profile(profile)
+    point=np.asarray(local_point,dtype=float);normal=np.asarray(outward,dtype=float)
+    if point.shape!=(3,) or normal.shape!=(3,) or not np.isfinite(np.r_[point,normal]).all():
+        raise ValueError('Expected finite local contact point and outward normal')
+    if digit not in DIGITS:
+        return False
+    upper={'distal':.040}
+    if profile=='volar-phalange-v1' and digit!='th':
+        upper.update(proximal=.045,middle=.025)
+    return bool(segment in upper and point[1]<-.001 and
+                .002<=point[2]<=upper[segment] and -normal[1]>.5)
+
+
+def profile_pad_opposition(contacts, center, axis, *, profile='distal-pad-v1'):
+    """Score selected surfaces and retain the unchanged distal counter-score."""
+    grasp_profile(profile)
+    result=pad_opposition(contacts,center,axis)
+    if profile=='volar-phalange-v1':
+        distal=[dict(c,pad_qualified=c['distal_pad_qualified']) for c in contacts]
+        result['distal_pad_grasp']=pad_opposition(distal,center,axis)
+        result['reason']=result['reason'].replace('distal volar pad','volar phalange')
+    return result
+
 
 def pad_opposition(contacts, center, axis, *, minimum_force=.2,
                    maximum_misplaced_fraction=.05):
@@ -63,17 +104,20 @@ policy observation or an annotation supplied by the actor.
     return result
 
 
-def shadow_lever_pad_grasp(model,data,lever_geom,*,side='rh',axial_margin=.001):
+def shadow_lever_pad_grasp(model,data,lever_geom,*,side='rh',axial_margin=.001,profile='distal-pad-v1'):
     """Qualify the chosen canonical straight-lever distal-palmar contact targets.
 
 In the unmodified Shadow asset, the distal palmar face is local -Y. The tested
-contact band is 2–40 mm along each distal link. A contact on the dorsal face,
-knuckle, middle link, or lateral edge cannot substitute for a fingertip pad.
+contact band is 2–40 mm along each distal link. By default, a contact on the
+dorsal face, knuckle, middle link, or lateral edge cannot substitute for a pad.
+The explicitly selected volar-phalange-v1 profile admits calibrated inner
+four-finger middle/proximal surfaces and retains the original distal score.
 Endcap hooks are rejected: require a 1 mm cylindrical-side margin and >0.8
 radial contact-normal alignment. This asset-specific anatomy must be replaced
 for a different robot.
     """
     if side not in ('rh','lh'):raise ValueError('Unknown Shadow hand side')
+    grasp_profile(profile)
     if not np.isfinite(axial_margin) or axial_margin<0:raise ValueError('Invalid axial margin')
     target=model.geom(lever_geom).id
     if int(model.geom_type[target]) not in (int(mujoco.mjtGeom.mjGEOM_CAPSULE),int(mujoco.mjtGeom.mjGEOM_CYLINDER)):
@@ -95,21 +139,26 @@ for a different robot.
         radial=relative-axial*axis;radial_length=np.linalg.norm(radial)
         alignment=float(np.dot(rotation@outward,-radial/radial_length)) if radial_length>1e-8 else 0.
         clearance=float(model.geom_size[target,1]-abs(axial))
-        pad=bool(match.group(2)=='distal' and local_point[1]<-.001 and
-                 .002<=local_point[2]<=.040 and -outward[1]>.5 and
-                 clearance>=axial_margin and alignment>.8)
+        geometry_ok=clearance>=axial_margin and alignment>.8
+        pad=bool(shadow_surface_qualified(match.group(1),match.group(2),local_point,outward,
+                                        profile=profile) and geometry_ok)
         contacts.append(dict(digit=match.group(1),body=name,
             position=contact.pos.copy().tolist(),normal_force_N=float(max(0,force[0])),
             distance_m=float(contact.dist),body_position_m=local_point.tolist(),
             hand_outward_normal_body=outward.tolist(),pad_qualified=pad,
             axial_clearance_m=clearance,inward_radial_normal_alignment=alignment))
-    result=pad_opposition(contacts,data.geom_xpos[target],data.geom_xmat[target].reshape(3,3)[:,2])
+        if profile=='volar-phalange-v1':
+            contacts[-1]['distal_pad_qualified']=bool(shadow_surface_qualified(
+                match.group(1),match.group(2),local_point,outward) and geometry_ok)
+    result=profile_pad_opposition(contacts,data.geom_xpos[target],data.geom_xmat[target].reshape(3,3)[:,2],profile=profile)
     return dict(**result,contacts=contacts,hand=side,lever_geom=lever_geom,
-                anatomy_contract='shadow-distal-volar-minus-y-v1',minimum_axial_clearance_m=axial_margin,
+                grasp_profile=profile,
+                anatomy_contract='shadow-distal-volar-minus-y-v1' if profile=='distal-pad-v1' else 'shadow-volar-phalange-minus-y-v1',
+                minimum_axial_clearance_m=axial_margin,
                 contract_scope='canonical straight-lever diagnostic, not universal grasp anatomy')
 
 
-def native_grasp_sample(sim,lever_geom,*,handle_joint,side='rh',pre_step_external_wrench_max=None):
+def native_grasp_sample(sim,lever_geom,*,handle_joint,side='rh',pre_step_external_wrench_max=None,profile='distal-pad-v1'):
     """Capture an initial or post-step state without changing states or controls.
 
     DoorEnv clears applied-force buffers after each step. Post-step callers must
@@ -151,15 +200,16 @@ def native_grasp_sample(sim,lever_geom,*,handle_joint,side='rh',pre_step_externa
         max_nonfoot_penetration_m=penetration,native_motor_limits=force_ok,
         hand_contact_count=hand_contacts,
         handle_angle_rad=float(d.qpos[m.jnt_qposadr[m.joint(handle_joint).id]]),
-        pad_grasp=shadow_lever_pad_grasp(m,d,lever_geom,side=side))
+        pad_grasp=shadow_lever_pad_grasp(m,d,lever_geom,side=side,profile=profile))
 
 
-def audited_native_step(sim,lever_geom,*,handle_joint,side='rh'):
+def audited_native_step(sim,lever_geom,*,handle_joint,side='rh',profile='distal-pad-v1'):
     """Step the unchanged plant once and retain otherwise-erased force evidence."""
+    grasp_profile(profile)
     body_wrench=float(np.max(np.abs(sim.d.xfrc_applied)))
     sim.plant.step()
     return native_grasp_sample(sim,lever_geom,handle_joint=handle_joint,side=side,
-                               pre_step_external_wrench_max=body_wrench)
+                               pre_step_external_wrench_max=body_wrench,profile=profile)
 
 
 def audit_grasp_steps(rows,*,physics_dt,expected_duration,required_hold=.5,

@@ -10,7 +10,7 @@ import re
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from .grasp_verification import pad_opposition
+from .grasp_verification import grasp_profile, profile_pad_opposition, shadow_surface_qualified
 
 
 def _copy(value):
@@ -23,7 +23,7 @@ def _copy(value):
 
 def shadow_physx_pad_grasp(contacts, body_transforms_xyzw, center, axis, *,
                          half_length, radius, side="rh", axial_margin=.001,
-                         surface_tolerance=.004):
+                         surface_tolerance=.004, profile="distal-pad-v1"):
     """Check every loaded handle-body patch in the actual distal link frame.
 
     ``normal`` is PhysX's normal force direction ON the sensor hand body. Its
@@ -36,6 +36,7 @@ def shadow_physx_pad_grasp(contacts, body_transforms_xyzw, center, axis, *,
     This is consequently stricter than native lever-collider-only evidence.
     """
     center = np.asarray(center, dtype=float)
+    grasp_profile(profile)
     axis = np.asarray(axis, dtype=float)
     if side not in ("rh", "lh") or center.shape != (3,) or axis.shape != (3,):
         raise ValueError("Expected a Shadow hand and finite straight-lever geometry")
@@ -73,17 +74,20 @@ def shadow_physx_pad_grasp(contacts, body_transforms_xyzw, center, axis, *,
         alignment = float((-normal) @ (-radial / length)) if length > 1e-8 else 0.
         clearance = float(half_length - abs(axial))
         on_side = bool(clearance >= axial_margin and abs(length - radius) <= surface_tolerance)
-        qualified = bool(match.group(2) == "distal" and local_point[1] < -.001 and
-            .002 <= local_point[2] <= .040 and -outward[1] > .5 and
-            on_side and alignment > .8)
+        qualified = bool(shadow_surface_qualified(match.group(1),match.group(2),local_point,outward,
+            profile=profile) and on_side and alignment > .8)
         patches.append(dict(digit=match.group(1), body=path, position=point.tolist(),
             normal_force_N=force, body_position_m=local_point.tolist(),
             hand_outward_normal_body=outward.tolist(), pad_qualified=qualified,
             axial_clearance_m=clearance, inward_radial_normal_alignment=alignment,
             on_lever_cylindrical_side=on_side))
-    result = pad_opposition(patches, center, axis)
+        if profile=="volar-phalange-v1":
+            patches[-1]['distal_pad_qualified']=bool(shadow_surface_qualified(
+                match.group(1),match.group(2),local_point,outward) and on_side and alignment>.8)
+    result = profile_pad_opposition(patches, center, axis, profile=profile)
     return dict(**result, contacts=patches, non_digit_handle_force_N=ignored_non_digit_force,
-        hand=side, anatomy_contract="shadow-distal-volar-minus-y-v1",
+        hand=side, grasp_profile=profile,
+        anatomy_contract="shadow-distal-volar-minus-y-v1" if profile=="distal-pad-v1" else "shadow-volar-phalange-minus-y-v1",
         contract_scope="Privileged PhysX handle-body patch audit; non-lever digit contacts count as misplaced",
         minimum_axial_clearance_m=axial_margin)
 
@@ -96,7 +100,7 @@ class PhysXShadowPadAudit:
     declaration. Call once after every robot.update()/physics step when using
     an every-step success gate. A 50 Hz trace cannot certify a 500 Hz hold.
     """
-    def __init__(self, hand_bodies, hand_contacts, *, handle_filter_index=0, side="rh"):
+    def __init__(self, hand_bodies, hand_contacts, *, handle_filter_index=0, side="rh", profile="distal-pad-v1"):
         self.bodies = hand_bodies
         self.contacts = hand_contacts
         self.paths = tuple(hand_bodies.prim_paths)
@@ -106,6 +110,7 @@ class PhysXShadowPadAudit:
             raise ValueError("Invalid handle-body filter index")
         self.filter_index = handle_filter_index
         self.side = side
+        self.profile = grasp_profile(profile)
 
     def read(self, *, physics_dt, time_s, center, axis, half_length, radius):
         if not np.isfinite([physics_dt, time_s]).all() or physics_dt <= 0 or time_s < 0:
@@ -147,7 +152,7 @@ class PhysXShadowPadAudit:
         if not np.isfinite(force_error) or force_error > 1e-3:
             raise ValueError("Patch normal directions/loads disagree with independent PhysX pair forces")
         result = shadow_physx_pad_grasp(patches, dict(zip(self.paths, transforms)),
-            center, axis, half_length=half_length, radius=radius, side=self.side)
+            center, axis, half_length=half_length, radius=radius, side=self.side, profile=self.profile)
         return dict(**result, sim_time_s=float(time_s), physics_dt_s=float(physics_dt),
             contact_capacity=capacity, active_contact_count=int(count.sum()),
             normal_pair_force_consistency_error_N=force_error)
