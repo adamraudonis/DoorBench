@@ -76,6 +76,8 @@ def main():
         if not trace[indices[-1]]['contacts']['opposed']:
             failures.append(dict(reason='selected interval does not begin with loaded opposition'))
         motor_targets = []
+        lever_positions = []
+        lever_rotations = []
         for i in range(len(recorded)):
             for fraction in ([0., .2, .4, .6, .8] if i < len(recorded) - 1 else [0.]):
                 d.qpos[:] = recorded[i] if fraction == 0. else (
@@ -87,6 +89,20 @@ def main():
                                 for f in collision_failures(m, d))
                 if fraction == 0.:
                     motor_targets.append(d.actuator_length[sim.actuators].copy())
+                    lever_positions.append(d.geom_xpos[lever].copy())
+                    lever_rotations.append(d.geom_xmat[lever].reshape(3, 3).copy())
+        lever_positions = np.asarray(lever_positions)
+        lever_rotations = np.asarray(lever_rotations)
+        if lever_positions.shape != (len(recorded), 3) or lever_rotations.shape != (len(recorded), 3, 3):
+            raise ValueError('Recorded lever poses must match the reversed state path dimensions')
+        if not np.isfinite(lever_positions).all() or not np.isfinite(lever_rotations).all():
+            raise ValueError('Recorded lever poses must be finite')
+        if not np.allclose(lever_rotations.transpose(0, 2, 1) @ lever_rotations, np.eye(3), atol=1e-6, rtol=0.) or not np.allclose(np.linalg.det(lever_rotations), 1., atol=1e-6, rtol=0.):
+            raise ValueError('Recorded lever rotations must be proper orthonormal rotations')
+        lever_frame = dict(geometry_name=m.geom(lever).name, coordinate_frame='world',
+                           position_units='metres', rotation_convention='local_to_world; column vectors; matrix rows serialized',
+                           sample_order='same reversed source_frames as path_qpos and recorded_root_path',
+                           sample_count=len(recorded), scope='Privileged reference geometry; not actor observations')
         report = dict(scope=__doc__, passed=not failures, failure_count=len(failures),
                       failures=failures, recorded_source=str(args.release),
                       source_frames=indices, command_target_clipping_max_rad=clipping,
@@ -98,12 +114,15 @@ def main():
         result['acquisition'].update(
             scope=__doc__, path_qpos=path.tolist(), recorded_root_path=root_path.tolist(),
             initial_plant_qpos=recorded[0].tolist(), source_release=str(args.release),
+            recorded_lever_position_m=lever_positions.tolist(), recorded_lever_rotation=lever_rotations.tolist(),
+            recorded_lever_frame=lever_frame,
             source_frames=indices, command_target_clipping_max_rad=clipping)
         (args.output / 'geometry-audit.json').write_text(json.dumps(report, indent=2) + '\n')
         (args.output / 'reference.json').write_text(json.dumps(result, indent=2) + '\n')
         np.savez_compressed(args.output / 'recorded-source.npz',
                             qpos=raw, qvel=trajectory['qvel'][indices], ctrl=trajectory['ctrl'][indices],
-                            command_motor_length=np.asarray(motor_targets))
+                            command_motor_length=np.asarray(motor_targets),
+                            lever_position_m=lever_positions, lever_rotation=lever_rotations)
         print(json.dumps({k: v for k, v in report.items() if k not in ('failures', 'source_frames')}))
     finally:
         sim.close()
