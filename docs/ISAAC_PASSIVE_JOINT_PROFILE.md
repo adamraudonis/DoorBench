@@ -102,3 +102,45 @@ Reproduce the read-only evidence review with
 Run CPU contracts with
 `python -m pytest -q tests/test_isaac_joint_passive.py tests/test_isaac_traversal_runner.py`.
 The review receipt is in `docs/evidence/passive-joint-fixture-review.json`.
+
+## Actual eleven-second reach qualification
+
+`sensor-reach-dry-isaac-001` (source `f5de2aec6`) passed all 20 reach checks
+and all 14 original physical checks. Independent replay of all 5,500 raw contact
+intervals reproduced floor loads and hand contact counts exactly. Startup and
+per-interval receipts match the original 69 named coefficients and armatures;
+all 5,500 checks report zero property changes. All 702 archived run/source files
+match their remote hashes. The wide and hand-close-up images were inspected:
+the body is upright and the hand remains clear of the handle.
+
+The reset, calibration, robot/door inputs, joint route and eleven controller
+modules match the original reach run by hash. Every applied nominal joint goal
+also matches. Comparing the actual recorded finger split `J1 − J2` gives:
+
+| Maximum nominal split error, rad | Legacy explicit friction | Backend dry friction |
+| --- | ---: | ---: |
+| Index | 0.43803 | 0.11618 |
+| Middle | 0.42852 | 0.12281 |
+| Ring | 0.42452 | 0.15829 |
+| Little | 0.32408 | 0.17590 |
+
+During the initial stationary second, the index split drift changed from
+−0.06039 rad to +0.00000257 rad. The maximum individual nominal joint error fell
+from 0.21937 to 0.08986 rad. Maximum motor-coordinate error rose slightly, from
+0.01590 to 0.01743 rad, within the unchanged 0.04-rad threshold. Both runs have
+zero actual hand contacts. Remaining passive split error matters for the next
+contact experiment; this reach result does not establish grasp success or exact
+cross-engine finger pose equivalence.
+
+The new offline `passive_evidence` audit reconstructs coefficients independently
+from `motor-contract.json`, validates named ordering and exact float32 readback,
+rejects duplicate explicit terms, and requires full interval coverage. It binds
+the original motor contract and guard source to pre-step provenance. Legacy
+archives remain supported with an explicit statement that per-step passive
+persistence was not recorded. Original run reports are never rewritten.
+
+Reproduce with `scripts/dexterous/audit_isaac_sensor_balance.py --run RUN
+--robot ORIGINAL_XML --output NEW_RECEIPT` and
+`scripts/dexterous/compare_recorded_reach_profiles.py --legacy OLD_RUN --dry RUN
+--output NEW_COMPARISON`. The compact evidence and immutable artifact hashes are
+in [sensor-reach-dry-isaac-001.json](evidence/sensor-reach-dry-isaac-001.json).

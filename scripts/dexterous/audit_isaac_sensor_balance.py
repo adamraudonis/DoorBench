@@ -7,6 +7,7 @@ import argparse,gzip,hashlib,json,re
 from pathlib import Path
 import numpy as np
 from doorbench.dexterous.sensor_balance_runtime import evaluate_sensor_balance,BALANCE_PROTOCOL
+from doorbench.dexterous.passive_evidence import audit_joint_passive_evidence
 
 
 def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
@@ -97,9 +98,12 @@ def main():
             # An exception-prefix report has no completed qualification schema.
             # Preserve that failure instead of crashing or inventing a pass.
             scored=dict(passed=False,checks={});errors.append('No completed supported balance qualification report')
+    passive=audit_joint_passive_evidence(run,steps,declared)
+    errors.extend('Passive evidence: '+error for error in passive['errors'])
     reproduced=scored['checks']==declared.get('checks') and scored['passed']==declared.get('passed')
     report=dict(scope=__doc__,run=str(run),verification_passed=bool(reproduced and not errors and load_error<1e-8 and hand_error==0 and unintended_error==0),
         actual_balance_trial_passed=scored['passed'],actual_protocol=declared.get('schema'),recomputed_checks=scored['checks'],declared_report_reproduced=reproduced,
+        passive_evidence=passive,actual_trial_with_passive_evidence_passed=bool(scored['passed'] and passive['verification_passed']),
         steps=len(steps),contact_intervals=len(contacts),maximum_floor_load_reconstruction_error_N=load_error,
         maximum_hand_contact_count_error=hand_error,maximum_unintended_hand_contact_count_error=unintended_error,errors=errors,source_sha256={n:sha(run/n) for n in names},
         audit_source_sha256=sha(__file__),physics_steps_in_audit=0,limitation='Verifying a failed report never changes the actual failure to a pass. This remains the declared balance component, not a door task.')
