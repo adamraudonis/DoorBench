@@ -477,3 +477,13 @@ the new objective. Continuous own-history evaluation covered all
 6457/157/151/206 admitted source examples. Four runtime checkpoint checks
 passed. This is implementation verification, not convergence or a robot
 trial. The frozen bundle and its SHA256 are recorded in the receipt.
+
+Dual-history009 completed 5000 GPU steps in 804.66 seconds. The
+[independent receipt](evidence/sensor-imitation-acquisition-009.json) preserves
+all ten checkpoints and verifies the remote output hashes, frozen source,
+and exact supervised-label counts. None satisfies all six unchanged gates.
+Step4500 passes four: nominal MSE0.0007070 and first500ms body-force
+RMSE2.3327 Nm still fail. The final checkpoint regresses to two passing
+checks, with nominal MSE0.0018883 and startup1.7088/3.7266 Nm. All four
+full-source actor-owned diagnostic scores remain available alongside the
+original recorded-history scores. No new physical actor trial is admitted.
