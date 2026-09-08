@@ -14,7 +14,7 @@ SOURCE = Path(__file__).parents[1]/'scripts/dexterous/isaac_opening.py'
 TREE = ast.parse(SOURCE.read_text())
 HELPERS = {}
 exec(compile(ast.Module(body=[n for n in TREE.body if isinstance(n, ast.FunctionDef) and
-    n.name in ('validate_traversal_mode','actual_motor_delivery','independent_traversal_checks')],
+    n.name in ('validate_traversal_mode','actual_motor_delivery','independent_traversal_checks','controller_root_state')],
     type_ignores=[]), str(SOURCE), 'exec'), {'np':np,'math':math}, HELPERS)
 
 
@@ -76,7 +76,7 @@ def transmission():
     return matrix,np.linalg.pinv(matrix.T)
 
 
-def test_actual_force_inverse_uses_matching_pre_step_passive_terms():
+def test_submitted_input_readback_inverse_uses_matching_pre_step_passive_terms():
     rng=np.random.default_rng(19);matrix,inverse=transmission()
     velocity=rng.normal(0,.3,69);damping=np.linspace(.1,1.,69);friction=np.full(69,.02)
     requested=rng.normal(0,20.,61)
@@ -92,6 +92,19 @@ def test_unactuated_differential_effort_cannot_be_hidden_by_inverse():
     matrix,inverse=transmission();delivered=np.zeros(69);delivered[-1]=.01
     with pytest.raises(ValueError,match='transmission'):
         HELPERS['actual_motor_delivery'](delivered,np.zeros(69),matrix,inverse,np.zeros(69),np.zeros(69))
+
+
+def test_traversal_selects_actor_origin_velocity_and_preserves_legacy_mode():
+    mixed=np.array([[.1,-.8,1.,1.,0.,0.,0.,.2,.1,0.,.3,.5,.7]])
+    link=mixed.copy();com_offset=np.array([-.0002,.00004,-.04522])
+    link[:,7:10]+=np.cross(mixed[:,10:13],-com_offset)
+    data=SimpleNamespace(root_state_w=mixed,root_link_state_w=link)
+    np.testing.assert_array_equal(HELPERS['controller_root_state'](data,traverse=False),mixed)
+    result=HELPERS['controller_root_state'](data,traverse=True)
+    np.testing.assert_array_equal(result,link)
+    np.testing.assert_array_equal(result[:,:7],mixed[:,:7])
+    np.testing.assert_array_equal(result[:,10:13],mixed[:,10:13])
+    assert not np.array_equal(result[:,7:10],mixed[:,7:10])
 
 
 def trial_rows():
@@ -176,4 +189,6 @@ def test_source_preserves_independent_opening_prefix_and_actual_traversal_arrays
     assert "if sequence_reset or a.full_opening or a.sensor_policy_checkpoint:" in text
     assert "acquisition_states['actual_motor_forces'].append(last_actual_motor_forces.copy())" in text
     assert "acquisition_states['actual_joint_effort'].append(delivered.copy())" in text
+    assert "acquisition_states['legacy_root_state_w'].append(robot.data.root_state_w[0].cpu().numpy().copy())" in text
+    assert "acquisition_states['root'].append(controller_root_state(robot.data,traverse=bool(continuous))" in text
     assert "traversal-contacts.jsonl.gz" in text

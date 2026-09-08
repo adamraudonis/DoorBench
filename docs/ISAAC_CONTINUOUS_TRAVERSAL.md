@@ -33,12 +33,25 @@ door velocities, the separate palm touch-site pose, and the preceding actual
 normal/friction contact interval. It starts once at the walking reset. The
 handoff does not reset the active plant or restart the global clock.
 
-PhysX joint-effort readback includes the runner's native passive damping and
-friction terms. The adapter restores those terms using the exact velocity used
+PhysX `get_dof_actuation_forces` returns submitted actuation inputs from the
+backend. It is a readback of inputs set through `set_dof_actuation_forces`, not
+an independently measured joint torque. That input includes the runner's native
+passive damping and friction terms. The adapter restores those terms using the exact velocity used
 when sending that command, then inverts the original full-rank 61-motor
 transmission. Both the residual in unactuated joint directions and the next
-command's agreement with the preceding delivered motor forces are checked. It
-does not pass a requested command off as actual delivery.
+command's agreement with the preceding backend input are checked. This verifies
+input ordering, float conversion and transmission; independent contacts and
+dynamics establish the physical outcome. Projected solver joint reactions are
+not substituted into this motor-input inversion.
+
+For `--traverse`, controller and root-speed audit inputs use IsaacLab
+`root_link_state_w`: body-origin position/orientation and world linear/angular
+velocity at that same origin. The older `root_state_w` combines body-origin pose
+with COM linear velocity. Its unchanged values are retained separately in
+`legacy_root_state_w`; older modes and archived results are preserved. World
+angular velocity is identical for both origins. See the source-bound
+[API review](ISAAC_MEASUREMENT_API_REVIEW.md) for the correction and measured
+impact on the previous run.
 
 At the first qualified aperture crossing, the independent opening audit freezes
 before applying another physical step. A failed opening prefix stops traversal.
@@ -67,7 +80,8 @@ extra command after the qualified finish.
 | `traversal-steps.json.gz` | Every controller measurement on the unchanged global clock |
 | `traversal-contacts.jsonl.gz` | Every occupied actual normal-contact and independent friction-patch slot |
 | `traversal-contact-layout.json` | Body/filter names, motor order and slot interpretation |
-| `acquisition-physics.npz` | Existing physics arrays plus actual motor/joint delivery, joint velocity, body origins and foot support |
+| `acquisition-physics.npz` | Existing arrays plus backend actuation-input readback, joint velocity, body origins, foot support and separately labeled legacy root state |
+| `motor-readback-contract.json` | Exact readback semantics and t=0 reset interval; old array names are explicitly described |
 | `full-sequence-steps.json.gz` | Existing approach/preparation contact and foot-motion evidence |
 | `continuous-controller.json` | Detached handoffs, current state, opening receipt and any sticky failure |
 

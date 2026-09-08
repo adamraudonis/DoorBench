@@ -28,9 +28,10 @@ def validate_traversal_mode(args):
 
 def actual_motor_delivery(delivered_joint_forces, pre_step_velocity, matrix,
                           inverse, damping, friction):
-    """Invert the original scalar transmission after restoring passive terms.
+    """Reconstruct submitted motor inputs from backend actuation-input readback.
 
-    PhysX reports the actual commanded generalized effort, which includes our
+    get_dof_actuation_forces returns the submitted generalized input, not
+    independently measured solver joint reaction/torque. That input includes our
     explicit native damping/friction subtraction. Use the velocity from the
     command's start, not the integrated endpoint. Residuals cannot be hidden in
     the eight unactuated differential finger coordinates.
@@ -45,6 +46,16 @@ def actual_motor_delivery(delivered_joint_forces, pre_step_velocity, matrix,
     if not np.isfinite(motor).all() or residual > 1e-5:
         raise ValueError('Actual joint delivery does not lie in the original motor transmission')
     return motor, residual
+
+
+def controller_root_state(robot_data, *, traverse):
+    """New traversal uses actor-origin world velocity required by native qvel.
+
+    IsaacLab root_state_w combines actor-frame pose with COM linear velocity.
+    root_link_state_w includes the world angular-velocity cross-offset term.
+    Angular velocity is world-frame in both. Preserve prior modes explicitly.
+    """
+    return robot_data.root_link_state_w if traverse else robot_data.root_state_w
 
 
 def independent_traversal_checks(base_checks, opening_report, steps, *, dt,
@@ -517,6 +528,7 @@ def main():
     ankle_motors=[i for i,motor in enumerate(motors['actuators']) if any(n in motor['terms'] for n in ('left_ankle','right_ankle'))]
     (out/'configuration.json').write_text(json.dumps(dict(args=vars(a),robot_joint_names=rnames,door_joint_names=dnames,
         dt=dt,robot_mass_kg=float(robot.root_physx_view.get_masses().sum()),latch_scale=scale,
+        root_state_convention='actor-origin pose and world actor-origin linear/angular velocity' if continuous else 'legacy IsaacLab actor pose plus world COM linear/angular velocity',
         simulator_effort_limits=robot.root_physx_view.get_dof_max_forces()[0].cpu().tolist(),
         runtime_pose_writes=0,direct_door_commands=bool(a.mechanism_test),contact_material_audit=contact_material_audit,
         scope='Uninterrupted approach, opening, release and traversal; privileged live PhysX development' if continuous else 'Continuous approach through bimanual loaded aperture; privileged live PhysX; no traversal' if full_opening and sequence else 'Contact-free acquisition through bimanual loaded aperture; privileged live PhysX; no approach/traversal' if full_opening else 'Sensor-only recurrent force actor; declared curriculum objective; no teacher or traversal claim' if sensor_actor else 'Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
@@ -580,12 +592,22 @@ def main():
     acquisition_states={k:[] for k in ('time_s','root','joints','motor_forces','door','door_velocity','torso_tilt_deg')}
     if continuous:
         acquisition_states.update({k:[] for k in ('joint_velocity','actual_motor_forces','actual_joint_effort',
-            'continuation_body_poses','actual_foot_loads')})
+            'continuation_body_poses','actual_foot_loads','legacy_root_state_w')})
         motor_inverse=np.linalg.pinv(matrix.T)
         if np.linalg.matrix_rank(matrix.T)!=61 or not np.allclose(motor_inverse@matrix.T,np.eye(61),atol=1e-12,rtol=0):
             raise ValueError('Exact full-rank 61-motor transmission required for delivered-force readback')
         last_actual_motor_forces,_=actual_motor_delivery(robot.root_physx_view.get_dof_actuation_forces()[0].cpu().numpy(),
             robot.data.joint_vel[0].cpu().numpy(),matrix,motor_inverse,damp,friction)
+        (out/'motor-readback-contract.json').write_text(json.dumps(dict(
+            api='ArticulationView.get_dof_actuation_forces',
+            semantics='Submitted generalized actuation-input readback from the backend; not independently measured joint torque',
+            independent_reaction_api='get_dof_projected_joint_forces is a solver joint-reaction diagnostic and is not inverted as a motor command',
+            archive_fields=dict(actual_joint_effort='Legacy field name: backend submitted generalized input',
+                actual_motor_forces='Legacy field name: motor-equivalent reconstruction of submitted input'),
+            initial_interval_s=[0.,0.],initial_motor_input=last_actual_motor_forces.tolist(),
+            t0_note='Unstepped reset input and empty contact interval; not force evidence from an executed physics step',
+            root_controller_field='root_link_state_w',legacy_diagnostic_field='legacy_root_state_w',
+            angular_velocity_frame='world; converted to body-local only inside native free-joint calculators'),indent=2)+'\n')
     pad_evaluator=None;pad_steps=[]
     if physics_audit_enabled:
         from doorbench.dexterous.isaac_pad_audit import PhysXShadowPadAudit
@@ -593,7 +615,7 @@ def main():
         pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
         rotation=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
         pad_steps.append(pad_evaluator.read(physics_dt=dt,time_s=0.,center=pose[:3]+rotation@grip_center,axis=rotation@grip_axis,half_length=grip_half,radius=grip_radius))
-        acquisition_reset=dict(root=robot.data.root_state_w[0].cpu().tolist(),joints=robot.data.joint_pos[0].cpu().tolist(),door=dict(zip(dnames,door.data.joint_pos[0].cpu().tolist())),
+        acquisition_reset=dict(root=controller_root_state(robot.data,traverse=bool(continuous))[0].cpu().tolist(),joints=robot.data.joint_pos[0].cpu().tolist(),door=dict(zip(dnames,door.data.joint_pos[0].cpu().tolist())),
             contact_evidence_note='t=0 contact buffers before the first explicit step; full static native path/initial clearances are recorded separately with the reference')
         (out/'acquisition-reset.json').write_text(json.dumps(acquisition_reset,indent=2)+'\n')
     foot_loads=np.zeros(2);right_hand_contact_count=0;right_hand_buffered_contact_count=0
@@ -623,7 +645,7 @@ def main():
         hp=measured_body[door.body_names.index('leaf_handle')];lp=measured_body[door.body_names.index('leaf')]
         angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in
                 [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
-        geometry=opening_geometry.read(time_s=t,pose_time_s=t,root=robot.data.root_state_w[0].cpu().numpy(),
+        geometry=opening_geometry.read(time_s=t,pose_time_s=t,root=controller_root_state(robot.data,traverse=bool(continuous))[0].cpu().numpy(),
             joints=dict(zip(rnames,robot.data.joint_pos[0].cpu().numpy())),angles=angles,
             body_poses=dict(zip(robot.body_names,robot.data.body_state_w[0,:,:7].cpu().numpy())),
             handle_pose=hp,leaf_pose=lp)
@@ -779,7 +801,7 @@ def main():
             forces=np.clip(kp*ctrl+bias[:,0]+bias[:,1]*lengths+bias[:,2]*speeds+feedforward+impedance,force_ranges[:,0],force_ranges[:,1])
             if a.acquisition:
                 body=door.data.body_state_w[0,:,:7].cpu().numpy()
-                measured_args=(step*dt,robot.data.root_state_w[0].cpu().numpy(),dict(zip(rnames,pos)),dict(zip(rnames,vel)),body[door.body_names.index('leaf_handle')])
+                measured_args=(step*dt,controller_root_state(robot.data,traverse=bool(continuous))[0].cpu().numpy(),dict(zip(rnames,pos)),dict(zip(rnames,vel)),body[door.body_names.index('leaf_handle')])
                 loads=dict(zip(hand_paths,hand_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().sum(axis=1)))
                 if full_opening:
                     state=full_measurement
@@ -959,13 +981,14 @@ def main():
                     right_hand_contact_count=right_hand_contact_count,buffered_hand_contact_count=right_hand_buffered_contact_count))
             if physics_audit_enabled:
                 acquisition_states['time_s'].append((step+1)*dt)
-                acquisition_states['root'].append(robot.data.root_state_w[0].cpu().numpy().copy())
+                acquisition_states['root'].append(controller_root_state(robot.data,traverse=bool(continuous))[0].cpu().numpy().copy())
                 acquisition_states['joints'].append(robot.data.joint_pos[0].cpu().numpy().copy())
                 acquisition_states['motor_forces'].append(forces.copy())
                 acquisition_states['door'].append(door.data.joint_pos[0].cpu().numpy().copy())
                 acquisition_states['door_velocity'].append(door.data.joint_vel[0].cpu().numpy().copy())
                 acquisition_states['torso_tilt_deg'].append(float(np.degrees(np.arccos(np.clip(-robot.data.projected_gravity_b[0,2].item(),-1,1)))))
                 if continuous:
+                    acquisition_states['legacy_root_state_w'].append(robot.data.root_state_w[0].cpu().numpy().copy())
                     acquisition_states['joint_velocity'].append(robot.data.joint_vel[0].cpu().numpy().copy())
                     acquisition_states['actual_motor_forces'].append(last_actual_motor_forces.copy())
                     acquisition_states['actual_joint_effort'].append(delivered.copy())
@@ -994,7 +1017,7 @@ def main():
                     robot=dict(zip(robot.body_names,robot.data.body_state_w[0,:,:7].cpu().tolist())),
                     door=dict(zip(door.body_names,door.data.body_state_w[0,:,:7].cpu().tolist()))),indent=2)+'\n')
             if step%10==0:
-                state=robot.data.root_state_w[0].cpu().numpy()
+                state=controller_root_state(robot.data,traverse=bool(continuous))[0].cpu().numpy()
                 up=robot.data.projected_gravity_b[0].cpu().numpy()
                 row=dict(time_s=(step+1)*dt,sim_time_s=float(sim.current_time)-time_origin,root=state.tolist(),torso_tilt_deg=float(np.degrees(np.arccos(np.clip(-up[2],-1,1)))),
                          joints=robot.data.joint_pos[0].cpu().tolist(),door=dict(zip(dnames,door.data.joint_pos[0].cpu().tolist())),
@@ -1246,7 +1269,7 @@ def main():
                 maximum_transmission_residual_Nm=max_transmission_residual,
                 stow_profile='sequential-v2',phase_seconds=5.,
                 runtime_robot_pose_writes=0,direct_door_commands=False,native_mirror_steps=0,
-                force_readback='Actual PhysX generalized effort plus matching pre-step native passive terms, inverted through full-rank original61motor transmission',
+                force_readback='Submitted backend actuation input plus matching pre-step native passive terms, inverted through full-rank original61motor transmission; not an independent torque measurement',
                 body_pose_order=list(continuous.post.pose_names),grasp_profile=a.grasp_profile,
                 clearance_scope='Actual root/joints and validated body origins in unchanged native-shape calculator; live PhysX penetration gates remain active')
             for name in ('traversal-report.json','report.json'):
