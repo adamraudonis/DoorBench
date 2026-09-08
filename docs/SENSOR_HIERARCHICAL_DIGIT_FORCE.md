@@ -71,3 +71,60 @@ probe invocation:
 Every prior failed run and every qualified stationary/reach/acquisition default
 is preserved. This new protocol does not address the separate actual-base palm
 correction or middle-link contact recovery needed by the corrected Isaac grasp.
+
+## Retained finite trial 001
+
+Source `2d09de4d3` completed all 36 seconds / 18,000 steps but **failed 22/28
+checks**. Maximum lever rotation was 0.368501 rad; latch retraction 5.316 mm.
+All motor caps, original mechanics, joint stops, passive loopbacks, collision
+and anatomical patch checks, balance, warning and assistance checks passed.
+Tracking, requested excursion, sustained/continuous opposed grasp, route
+completion and sustained operation remain failed. Peak motor-coordinate error
+was 47.60 mrad against the unchanged 40 mrad gate. There was no invalid loaded
+pad patch or unintended hand contact. The unchanged first19-second prefix and
+all raw contact classifications/loads were independently verified.
+
+The hierarchy initially improves index loading: its actual qualified normal
+load is 1.58 N at21s, 1.60 N at23s and 1.83 N at24s. At25.074s it still has
+1.534 N with a permitted distal patch and roughly10mm axial margin. Exact
+pre-integration geometry then crosses from7.13µm overlap to4.93µm separation
+at25.076s. Both the actual raw collision record and detached geometry show no
+index contact during that interval. This is normal separation, not an endcap
+escape or invalid thumb/middle-link contact.
+
+The feedback still uses its preceding valid tactile sample at25.076s, as required
+by the causal sensor timing. When zero touch becomes available at25.078s, the
+instantaneous contact weight switches the normal mode off and restores the
+accumulated positional restoring effort. Index FFJ3 changes from+0.17151 to
+−0.40140Nm in2ms. The first physical loss occurs before this command change;
+the abrupt reversal then causes continued separation and prevents recontact.
+The contact-weighted virtual force has a2N step even though the internal force
+state still respects its0.004N/step bound. That is a mode-switching defect.
+
+The thumb tracking gate fails earlier, at the25.010s endpoint: THJ5 is0.868993
+versus the0.909084rad nominal target, a40.091mrad error. Removing its normal
+posture effort allows opposition/orientation drift. A smooth index-loss response
+alone cannot erase this preceding failure. The two repairs need separate,
+explicit comparisons: bounded contact-mode retention and slew; and a thumb
+pressure subspace that preserves its opposition posture, justified by the
+original joint axes and reachable normal effort.
+
+The independent hierarchy algebra matches the recorded additional biases to
+3.01e-15Nm and preserves orthogonal motor posture to1.39e-16Nm. Exact finger
+command reconstruction matches to4.77e-15Nm; actual-step motor delivery error
+is zero. Therefore this failure does not arise from missing effort or a runtime
+projection mismatch. The endpoint hand image was personally inspected; visual
+proximity alone does not demonstrate index contact.
+
+Full evidence is under `out/continuous/sensor-hierarchical-force-001`.
+`first-loss-geometry-002.json` keeps every unnamed mesh separately by geometry
+ID and records the first failed tracking motor. The earlier receipt's signed-
+distance dictionary collapsed unnamed meshes; its distance field must not be
+used. Its actual contact list and detached contact reconstruction are unaffected.
+The corrected receipt does not modify any physical data.
+
+| Evidence | SHA256 |
+|---|---|
+| Provenance | `dfcfa5aa95ccaa2f4ea8f4815d7eb163bf8516b5b32c99d700eb1029522f6025` |
+| Trajectory | `881dc733a17a15022949d1f0ffa8cee5f5a49afcc28c4244c2c66d27a26bd4fe` |
+| Actual-step archive manifest | `673eedff82ec8b28dbccc2970524a712df6dddc390ff16861af7ec7860c2d987` |

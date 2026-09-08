@@ -28,6 +28,8 @@ def main():
     m=mujoco.MjModel.from_xml_path(str(robot));names=[m.joint(i).name for i in range(1,m.njnt)];actions=[m.actuator(i).name for i in range(m.nu)]
     M=scalar_transmission_matrix(m,np.arange(m.nu),np.arange(1,m.njnt));calc=RobotDigitForce(m,names,actions,M)
     rows_finger=np.concatenate([g[1] for g in calc.groups.values()]);other=np.setdiff1d(np.arange(61),rows_finger)
+    hierarchy=(a.trial/'hierarchical-force-protocol.json').exists()
+    initial_normal=None;max_hierarchy=max_tangent=0.
     max_map=max_orthogonal=max_passive=0.;first_loss=None;prefix_zero=True;max_nonfinger=0.
     states=[];applied=[];weights=[];biases=[]
     for i,(info,row,q) in enumerate(zip(infos,physics,encoders,strict=True)):
@@ -39,6 +41,20 @@ def main():
             for digit,detail in details.items():
                 residual=np.asarray(detail['unavailable_passive_split_moment_Nm']);A=calc.groups[digit][2]
                 max_orthogonal=max(max_orthogonal,float(abs(A@residual).max()));max_passive=max(max_passive,float(abs(residual).max()))
+            if hierarchy:
+                q=q.astype(float);goal=q.copy()
+                for name,value in zip(info['goal_joint_names'],info['goal_joint_position_rad'],strict=True):goal[names.index(name)]=value
+                position=info['effective_finger_position_gain_multiplier']*(m.actuator_gainprm[:,0]*(M@goal)+m.actuator_biasprm[:,1]*(M@q))
+                unit,_=calc.motor_bias(q,np.ones(5))
+                if initial_normal is None:initial_normal=np.array([unit[r]@position[r]/(unit[r]@unit[r]) for _,r,_,_ in calc.groups.values()])
+                adjustment=np.zeros(61);t=float(np.clip((row['contact_interval_start_s']-19.)/2.,0.,1.))
+                alpha=np.array(info['local_contact_weight'])*t**3*(10+t*(-15+6*t))
+                for k,(_,motor,_,_) in enumerate(calc.groups.values()):
+                    p=unit[motor];P=np.outer(p,p)/(p@p);correction=info['virtual_digit_force_state_N'][k]
+                    total=np.clip(initial_normal[k]+correction,0.,4.)
+                    adjustment[motor]=alpha[k]*(p*(total-correction)-P@position[motor])
+                    max_tangent=max(max_tangent,float(abs((np.eye(len(motor))-P)@adjustment[motor]).max()))
+                max_hierarchy=max(max_hierarchy,float(abs(adjustment-info['hierarchical_motor_bias_adjustment_Nm']).max()),float(abs(expected+adjustment-info['additional_bias_after_projection_Nm']).max()))
             if not row['pad_grasp']['valid_pad_grasp'] and first_loss is None:first_loss=dict(interval_start_s=i*.002,reason=row['pad_grasp']['reason'])
         max_nonfinger=max(max_nonfinger,float(abs(bias[other]).max()))
         states.append(info['virtual_digit_force_state_N']);applied.append(f);weights.append(info['local_contact_weight']);biases.append(bias)
@@ -49,7 +65,8 @@ def main():
         no_nonfinger_bias=max_nonfinger==0.,first19s_no_force_bias=bool(prefix_zero),virtual_force_bound=bool(np.max(abs(states))<=2.+1e-12),
         internal_force_slew_bound=internal_step<=.004+1e-12,zero_force_without_local_contact=bool(np.all(applied[weights==0.] == 0.)),
         calculator_never_stepped=calc.d.time==0.)
-    report=dict(scope=__doc__+'; this verifies controller algebra, not physical task success',passed=all(checks.values()),checks=checks,
+    if hierarchy:checks.update(hierarchical_bias_reconstructed=max_hierarchy<1e-12,tangential_motor_posture_preserved=max_tangent<1e-12)
+    report=dict(hierarchical_profile=hierarchy,maximum_hierarchical_bias_error_Nm=max_hierarchy,maximum_tangential_projection_error_Nm=max_tangent,initial_position_effort_equivalent_N=None if initial_normal is None else initial_normal.tolist(),scope=__doc__+'; this verifies controller algebra, not physical task success',passed=all(checks.values()),checks=checks,
         decisions=len(infos),maximum_bias_reconstruction_error_Nm=max_map,maximum_projection_orthogonality_error_Nm=max_orthogonal,
         maximum_unavailable_passive_moment_Nm=max_passive,maximum_additional_motor_bias_Nm=float(abs(biases).max()),
         maximum_internal_virtual_force_step_N=internal_step,maximum_contact_weighted_virtual_force_step_N=applied_step,
