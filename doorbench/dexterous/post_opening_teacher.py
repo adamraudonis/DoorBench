@@ -74,13 +74,16 @@ class PostOpeningTeacher:
     """
     def __init__(self,robot_xml,motors,body_reset,checkpoint,*,door_xml,
                  passage=True,inward_roll=.07,phase_seconds=4.,arm_gain=10.,
-                 physics_dt=.002,passage_options=None):
+                 physics_dt=.002,passage_options=None,stow_profile='original-v1'):
         robot_xml,door_xml=Path(robot_xml),Path(door_xml)
         if door_xml.is_dir():door_xml=door_xml/'door.xml'
         if motors.get('hand_mechanics_profile')!='shadow-loopback-v2' or hashlib.sha256(robot_xml.read_bytes()).hexdigest()!=motors.get('source_xml_sha256'):
             raise ValueError('Exact corrected native robot and motor contract required')
         if physics_dt!=.002 or type(passage) is not bool:
             raise ValueError('This H1 adapter requires the qualified 2 ms clock and explicit passage mode')
+        if stow_profile not in ('original-v1','sequential-v2'):
+            raise ValueError('Unknown explicit post-opening stow profile')
+        self.stow_profile=stow_profile
         scene=mujoco.MjSpec.from_file(str(door_xml));scene.memory=128*1024*1024
         scene.worldbody.add_site(name='robot_attach',pos=[0.,-1.5,0.])
         scene.attach(mujoco.MjSpec.from_file(str(robot_xml)),prefix='robot/',frame=scene.worldbody.add_frame(pos=[0.,-1.5,0.]))
@@ -162,7 +165,12 @@ class PostOpeningTeacher:
             if abs(normal@leaf_rot[:,1])<.99 or normal@(palm_pos-leaf_pos)<=0:raise ValueError('Release direction must point out of the attained left panel face')
             if min(feet)<10 or np.linalg.norm(root[7:10])>.1 or evidence['right_environment_contacts'] or door_positions['leaf_hinge']<1.2:
                 raise ValueError('Initialization requires supported quiet feet, a released right hand and attained aperture >=1.2 rad')
-            self.plan=plan_stow(self.sim,self.reset,inward_roll=self.inward_roll,retreat_normal_world=normal)
+            if self.stow_profile=='original-v1':
+                self.plan=plan_stow(self.sim,self.reset,inward_roll=self.inward_roll,retreat_normal_world=normal)
+            else:
+                from .post_opening_route import plan_sequential_stow
+                self.plan=plan_sequential_stow(self.sim,self.reset,inward_roll=self.inward_roll,
+                    retreat_normal_world=normal,left_style='yaw_first',right_style='lift_yaw')
             if not self.plan['passed']:raise ValueError('Newly attained opening state has no qualified static stow route')
             self.controller=StowRiseController(self.sim,self.motors,self.plan,checkpoint=self.checkpoint,phase_seconds=self.phase_seconds,arm_gain=self.arm_gain)
             self.controller.stance.foot_positions=np.array([poses[name][0] for name in self.feet])
@@ -170,6 +178,7 @@ class PostOpeningTeacher:
             self.started=float(t)
             self.navigator=PassageWaypoints(self.sim,self.controller,**self.passage_options) if self.passage_enabled else None
             self.initialization=dict(time_s=float(t),root=root.tolist(),joints=dict(joints),velocities=dict(velocities),door_positions=dict(door_positions),door_velocities=dict(door_velocities),body_poses={k:np.asarray(body_poses[k]).tolist() for k in self.pose_names},foot_loads_N=feet.tolist(),release_normal_world=normal.tolist(),previous_motor_forces=previous.tolist(),contact_interval_s=interval.tolist(),evidence=dict(evidence),sources=self.sources,scope='Actual attained endpoint; no inherited full-opening qualification')
+            self.initialization['stow_profile']=self.stow_profile
         elapsed=float(t-self.started)
         if self.navigator is not None and self.calls%10==0:
             self.command,self.amplitude=self.navigator.command(elapsed)

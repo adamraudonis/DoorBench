@@ -4,6 +4,7 @@ import argparse,gzip,hashlib,json
 from pathlib import Path
 import mujoco,numpy as np
 from doorbench.dexterous.environment import DexterousDoorEnv
+from doorbench.dexterous.native_warning_audit import warning_interval
 
 
 def main():
@@ -16,11 +17,19 @@ def main():
     m=s.m;planning=mujoco.MjData(m);motors=json.loads(Path(args['motors']).read_text());ids=np.array([m.actuator('robot/'+x['name']).id for x in motors['actuators']]);caps=np.array([x['force_range'] for x in motors['actuators']])
     initial=np.load(args['initial_trajectory']);prior_q=initial['terminal_qpos'];prior_v=initial['terminal_qvel'];previous_end=0.
     count=0;max_force_error=0.;max_geometry_error=0.;geometry_samples=0;max_overshoot=0.;pairs={}
+    warning_previous=report.get('initialized_warning_counts');warning_passed=True
     with gzip.open(a.trial/'actual-transitions.jsonl.gz','rt') as f:
         for line in f:
             row=json.loads(line);q=np.array(row['qpos_before']);v=np.array(row['qvel_before']);end=float(row['interval_end_s']);start=float(row['interval_start_s'])
             if abs(start-previous_end)>1e-8 or abs(end-start-m.opt.timestep)>1e-8 or row['geometry_time_s']!=start:raise ValueError('Broken actual transition clock')
             if not np.array_equal(q,prior_q) or not np.array_equal(v,prior_v):raise ValueError('State discontinuity or runtime reset')
+            if warning_previous is not None:
+                recorded=row.get('mujoco_warning_interval')
+                if not isinstance(recorded,dict) or recorded['before']!=warning_previous:
+                    raise ValueError('Missing or discontinuous actual warning counters')
+                recomputed=warning_interval(recorded['before'],recorded['after'])
+                if recomputed!=recorded:raise ValueError('Changed warning interval receipt')
+                warning_previous=recorded['after'];warning_passed=warning_passed and recomputed['passed']
             forces=np.array(row['actuator_force'])[ids];control=np.array(row['controls'])[ids]
             if not np.isfinite(np.r_[q,v,forces,control]).all():raise ValueError('Nonfinite state/action')
             max_force_error=max(max_force_error,float(np.max(abs(forces-control))))
@@ -42,6 +51,8 @@ def main():
             prior_q=np.array(row['qpos_after']);prior_v=np.array(row['qvel_after']);previous_end=end;count+=1
     final=np.load(a.trial/'trajectory.npz')
     checks=dict(complete=count==round(report['expected_duration_s']/m.opt.timestep),final_state_matches=np.array_equal(prior_q,final['terminal_qpos']) and np.array_equal(prior_v,final['terminal_qvel']),force_delivery=max_force_error<1e-5,motor_caps=max_overshoot<1e-5,independent_geometry_matches=max_geometry_error<1e-9)
+    if warning_previous is not None:
+        checks['all_actual_warning_counters']=warning_passed and warning_previous==report['final_warning_counts']
     out=dict(passed=all(checks.values()),checks=checks,actual_transitions=count,geometry_samples=geometry_samples,geometry_sample_stride=100,maximum_geometry_error=max_geometry_error,maximum_motor_delivery_error_Nm=max_force_error,maximum_force_cap_excess_Nm=max_overshoot,nonfoot_environment_contacts=pairs,scope='Read-only archive continuity and sampled FK replay; no physics steps or controller execution',files={str(path):hashlib.sha256(path.read_bytes()).hexdigest() for path in (a.trial/'actual-transitions.jsonl.gz',Path(__file__))})
     (a.trial/'independent-archive-audit.json').write_text(json.dumps(out,indent=2)+'\n');s.close();print(json.dumps(out))
     return 0 if out['passed'] else 1
