@@ -18,6 +18,8 @@ def validate_sensor_balance_protocol(options):
         raise ValueError('Acquisition requires both its frozen protocol and joint-only route')
     if acquisition and (not calibration or reach or arms):
         raise ValueError('Acquisition requires sensor balance and its own contact-enabled experiment')
+    if acquisition and getattr(options,'grasp_profile','distal-pad-v1')!='distal-pad-v1':
+        raise ValueError('Sensor acquisition requires the frozen distal-pad-v1 grasp_profile')
     if arms and not calibration:
         raise ValueError('Scripted arm balance requires the frozen sensor balance calibration')
     if reach and (not calibration or arms):

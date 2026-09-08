@@ -71,6 +71,7 @@ def test_reach_cannot_mix_in_a_different_experiment_or_omit_bound_inputs(changes
 
 @pytest.mark.parametrize('changes',[
     {'sensor_acquisition_route':None},{'sensor_acquisition_protocol':None},
+    {'grasp_profile':'volar-phalange-v1'},
     {'sensor_arm_schedule':'arms.json'},{'sensor_policy_checkpoint':'actor.pt'},
     {'sensor_reach_protocol':'reach.json','sensor_reach_route':'joints.json'},
     {'sensor_balance_calibration':None},{'sensor_balance_robot':None}])
