@@ -152,7 +152,7 @@ def main():
     if a.record:
         from isaaclab.sensors import Camera,CameraCfg
         camera=Camera(CameraCfg(prim_path='/World/Camera',update_period=0.,height=720,width=960,
-            data_types=['rgb'],spawn=sim_utils.PinholeCameraCfg(focal_length=24.,clipping_range=(.02,100.))))
+            data_types=['rgb'],spawn=sim_utils.PinholeCameraCfg(focal_length=48. if a.view=='hand' else 24.,clipping_range=(.02,100.))))
     contacts=[]
     all_contacts=[]
     report_counts=[0,0]
@@ -293,10 +293,8 @@ def main():
                 # Move only the diagnostic camera; never the robot or door.
                 pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
                 hrot=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
-                lpose=door.data.body_state_w[0,door.body_names.index('leaf'),:7].cpu().numpy()
-                lrot=Rotation.from_quat([*lpose[4:7],lpose[3]]).as_matrix()
                 center=pose[:3]+hrot@grip_center
-                camera.set_world_poses_from_view(eyes=torch.tensor(np.array([center+lrot@np.array([-.24,-.3,.18])]),device=a.device,dtype=torch.float32),
+                camera.set_world_poses_from_view(eyes=torch.tensor([[.15,-.38,1.45]],device=a.device,dtype=torch.float32),
                                                 targets=torch.tensor(np.array([center]),device=a.device,dtype=torch.float32))
             sim.render()
         if abs(float(sim.current_time)-time_origin-(step+1)*dt)>.0001:
