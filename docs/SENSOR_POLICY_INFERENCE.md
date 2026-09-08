@@ -115,3 +115,16 @@ no native physics model is instantiated by the actor execution path. The first
 all-invalid sensor packet and its actual bounded force action are saved in
 `sensors/actor-initial-decision.npz` before stepping. Periodic sensor checkpoints
 are explicitly incomplete; final sensor reports hash both numeric archives.
+
+
+Actor trials also store `teacher-query-evidence/` separately from policy inputs.
+These are actual pre-action simulator measurements, including reset and every
+2 ms state, for later offline acquisition-teacher corrections. They contain no
+expert labels. Their current force channel deliberately matches the original
+right-hand normal-force adapter; it is insufficient for full-body bimanual
+contact corrections. A loader must match each query time plus 2 ms to its
+executed physics sample and ignore any final attempted but unexecuted query.
+Failed student commands must never be treated as teacher demonstrations. The
+query recorder never constructs a teacher or changes an actor command. Wide
+and hand-close diagnostic videos are recorded separately from the fixed robot
+cameras consumed by the actor.

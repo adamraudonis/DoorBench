@@ -203,7 +203,7 @@ def main():
         from isaaclab.sensors import Camera,CameraCfg
         camera=Camera(CameraCfg(prim_path='/World/Camera',update_period=0.,height=720,width=960,
             data_types=['rgb'],spawn=sim_utils.PinholeCameraCfg(focal_length=48. if a.view=='hand' else 24.,clipping_range=(.02,100.))))
-        if sequence_reset:
+        if sequence_reset or a.sensor_policy_checkpoint:
             hand_camera=Camera(CameraCfg(prim_path='/World/HandReviewCamera',update_period=0.,height=720,width=720,
                 data_types=['rgb'],spawn=sim_utils.PinholeCameraCfg(focal_length=48.,clipping_range=(.02,100.))))
     sensor_recorder=None
@@ -364,7 +364,7 @@ def main():
     if sensor_actor:
         inputs += [Path(a.sensor_policy_checkpoint),Path(a.sensor_reset_preflight)]
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
-            ('sensor_actor.py','sensor_policy_controller.py','control_mode.py','isaac_pad_audit.py','isaac_tendons.py','grasp_verification.py','motor_contract_identity.py','sensor_reset_preflight.py')]
+            ('sensor_actor.py','sensor_policy_controller.py','control_mode.py','isaac_pad_audit.py','isaac_tendons.py','grasp_verification.py','motor_contract_identity.py','sensor_reset_preflight.py','teacher_query_recording.py')]
     if a.sensor_layout:
         inputs.append(Path(a.sensor_layout))
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name
@@ -431,6 +431,10 @@ def main():
         (out/'partial-evidence.json').write_text(json.dumps(dict(status='incomplete',passed=False,
             evidence_only=True,time_s=rows[-1]['time_s'] if rows else 0.,
             max_motor_delivery_error_Nm=max_motor_delivery_error,mechanical_audit=mechanical_audit))+'\n')
+    teacher_queries=None
+    if sensor_actor:
+        from doorbench.dexterous.teacher_query_recording import TeacherQueryRecorder
+        teacher_queries=TeacherQueryRecorder(out/'teacher-query-evidence',joint_names=rnames,hand_body_names=hand_paths,dt=dt)
     time_origin=float(sim.current_time)
     try:
         for step in range(round(a.seconds/dt)):
@@ -484,6 +488,12 @@ def main():
                 else:forces,teacher_info=teacher.force(*measured_args,loads)
                 ctrl=teacher.target.copy();feedforward=np.zeros_like(forces)
             if sensor_actor:
+                measured_body=door.data.body_state_w[0,:,:7].cpu().numpy()
+                teacher_queries.record(time_s=step*dt,root_state=robot.data.root_state_w[0].cpu().numpy(),
+                    joint_position=pos,joint_velocity=vel,handle_pose=measured_body[door.body_names.index('leaf_handle')],
+                    leaf_pose=measured_body[door.body_names.index('leaf')],
+                    door_position=door.data.joint_pos[0,[dnames.index(n) for n in ('leaf_handle_hinge','leaf_hinge','leaf_latch_bolt_slide')]].cpu().numpy(),
+                    right_hand_forces_world=hand_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().sum(axis=1))
                 packet=sensor_recorder.builder.observe(now_s=step*dt,previous_action=sensor_actor.previous_action)
                 forces=sensor_actor.force(packet,now_s=step*dt)
                 if step==0:sensor_recorder.record_initial_decision(packet,forces)
@@ -636,7 +646,9 @@ def main():
                 hand_camera.update(dt*20);hand_frame=hand_camera.data.output['rgb'][0].cpu().numpy()[...,:3]
                 hand_writer.append_data(hand_frame)
                 if step%500==0:imageio.imwrite(out/f'hand-frame-{step:05d}.png',hand_frame)
-            if (step+1)%1000==0:checkpoint_prefix()
+            if (step+1)%1000==0:
+                checkpoint_prefix()
+                if teacher_queries:teacher_queries.finish(complete=False,executed_steps=len(acquisition_states['time_s']))
             if sensor_recorder and (step+1)%2500==0:sensor_recorder.finish(complete=False)
             if (step+1)%50==0 and (out/'stop.request').exists():
                 (out/'early-stop.json').write_text(json.dumps(dict(reason='Requested graceful diagnostic stop',time_s=(step+1)*dt))+'\n')
@@ -655,6 +667,7 @@ def main():
         if sequence:
             with gzip.open(out/'full-sequence-steps.json.gz','wt') as stream:json.dump(sequence_steps,stream)
         if sensor_recorder and sensor_recorder.times:sensor_recorder.finish(complete=False)
+        if teacher_queries:teacher_queries.finish(complete=False,executed_steps=len(acquisition_states['time_s']))
         if writer:writer.close()
         if hand_writer:hand_writer.close()
         raise
@@ -765,7 +778,9 @@ def main():
             (out/'operation-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             (out/'report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             print('OPERATION_RESULT '+json.dumps({k:v for k,v in operation_report.items() if k!='final_pad_grasp'}),flush=True)
+    completed_recording=len(acquisition_states['time_s'])==round(a.seconds/dt) and not (out/'early-stop.json').exists()
     if sensor_recorder:sensor_recorder.finish(complete=len(sensor_recorder.times)==round(a.seconds/dt) and not (out/'early-stop.json').exists())
+    if teacher_queries:teacher_queries.finish(complete=completed_recording,executed_steps=len(acquisition_states['time_s']))
     if writer:writer.close()
     if hand_writer:hand_writer.close()
     print('PHYSX_RUN_COMPLETE',flush=True)
