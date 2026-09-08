@@ -58,6 +58,15 @@ Native reproduces that value to floating-point precision and PhysX to
 light passive finger coordinates at this timestep despite bounded motor sums.
 It does not prove the complete grasp failure is fixed by the new profile.
 
+![Measured joint velocities after fixture torque is removed](evidence/joint-friction-fixture.png)
+
+The plot is generated from the retained traces with
+`scripts/dexterous/plot_joint_friction_fixture.py`. The distinction follows
+[MuJoCo's friction-loss constraint model](https://mujoco.readthedocs.io/en/stable/computation/#friction-loss)
+and the [PhysX joint-friction properties](https://docs.omniverse.nvidia.com/kit/docs/omni_physics/latest/dev_guide/joints/physx_joint_schema.html).
+The installed Isaac 5.1 tensor API and actual fixture establish availability and
+SI scaling for this environment; current USD documentation alone does not.
+
 ## No double passive force or hidden motor contribution
 
 The runner uses the same profile-selected explicit damping/friction arrays in
