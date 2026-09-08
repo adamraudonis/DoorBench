@@ -542,7 +542,8 @@ def main():
                         left_palm_load_N=surface['palm_normal_load_N'],right_lever_clearance_m=geometry['right_lever_clearance_m'])
                     forces,teacher_info=full_opening.force(*measured_args,body[door.body_names.index('leaf')],
                         state['angles'],state['hand_forces'],evidence=evidence,
-                        right_palm_pose=geometry['right_palm_pose'],pose_time_s=geometry['time_s'])
+                        right_palm_pose=geometry['right_palm_pose'],pose_time_s=geometry['time_s'],
+                        contact_interval_s=(max(0.,step*dt-dt),step*dt))
                 elif operation:
                     angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
                     if sequence:
