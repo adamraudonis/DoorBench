@@ -7,6 +7,8 @@ release target frame differs. Byte-identical raw prefix chunks are hardlinked
 after verification to avoid storing another large copy of the walking prefix.
 """
 import argparse
+import ast
+import subprocess
 import hashlib
 import importlib.util
 import io
@@ -36,11 +38,16 @@ def main():
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--seconds", type=float, default=66.)
     p.add_argument("--retain-grip-until-clear", action="store_true")
-    p.add_argument("--release-mode", choices=("pressed-frame", "controlled-return", "whole-body-return"), default="pressed-frame")
+    p.add_argument("--release-mode", choices=("pressed-frame", "controlled-return", "whole-body-return", "whole-body-ungrip"), default="pressed-frame")
     p.add_argument("--whole-body-path", type=Path)
+    p.add_argument("--ungrip-path", type=Path)
+    p.add_argument("--ungrip-goal-frame", choices=("attained-resting-world", "measured-handle"), default="attained-resting-world")
+    p.add_argument("--verified-prefix-run", type=Path)
     a = p.parse_args()
-    if (a.release_mode == 'whole-body-return') != (a.whole_body_path is not None):
+    if (a.release_mode in ('whole-body-return', 'whole-body-ungrip')) != (a.whole_body_path is not None):
         raise ValueError('Whole-body return requires the exact screened path')
+    if (a.release_mode == 'whole-body-ungrip') != (a.ungrip_path is not None):
+        raise ValueError('Whole-body ungrip requires its screened actual-state path')
     if a.release_mode == 'controlled-return' and a.retain_grip_until_clear:
         raise ValueError('Controlled return already retains grip; do not combine release options')
     source = a.source_run.resolve()
@@ -70,12 +77,31 @@ def main():
     own = Path(__file__).resolve().parents[2]
     shutil.copy2(own / "doorbench/dexterous/right_hand_release.py",
                  stage / "doorbench/dexterous/right_hand_release.py")
-    if a.release_mode in ("controlled-return", "whole-body-return"):
+    if a.release_mode in ("controlled-return", "whole-body-return", "whole-body-ungrip"):
         shutil.copy2(own / "doorbench/dexterous/right_release_return.py",
                      stage / "doorbench/dexterous/right_release_return.py")
-    if a.release_mode == 'whole-body-return':
+    if a.release_mode in ('whole-body-return', 'whole-body-ungrip'):
         shutil.copy2(own/'doorbench/dexterous/whole_body_return.py',stage/'doorbench/dexterous/whole_body_return.py')
         shutil.copy2(a.whole_body_path,stage/'whole-body-path.json')
+    if a.release_mode == 'whole-body-ungrip':
+        shutil.copy2(own/'doorbench/dexterous/whole_body_ungrip.py',stage/'doorbench/dexterous/whole_body_ungrip.py')
+        shutil.copy2(a.ungrip_path,stage/'ungrip-path.json')
+        # Apply only the parent's reviewed readiness method to the frozen core.
+        # All other baseline behavior is retained and the actual prefix is checked.
+        approved = subprocess.check_output(['git','show','15ad820a3:doorbench/dexterous/full_opening_teacher.py'], cwd=own, text=True)
+        tree=ast.parse(approved);cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='FullOpeningTeacher')
+        method=next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='_freeze_release_if_ready')
+        lines=approved.splitlines(keepends=True);method_source=''.join(lines[method.lineno-1:method.end_lineno])+'\n\n'
+        core_path=stage/'doorbench/dexterous/full_opening_teacher.py';core=core_path.read_text()
+        start=core.index('            if self.release.frozen is None and t-self.release.started > 1.')
+        end=core.index('        self.release.update(float(t))', start)
+        core=core[:start]+"        release_ready = self._freeze_release_if_ready(t, root, joints, right_palm_pose, evidence)\n"+core[end:]
+        old='        if self.release.frozen is not None:\n            if self.push.started is None:'
+        assert core.count(old)==1
+        core=core.replace(old,'        if self.release.frozen is not None and release_ready:\n            if self.push.started is None:')
+        core=core.replace('    def _begin_operation(',method_source+'    def _begin_operation(',1)
+        core_path.write_text(core)
+        (stage/'approved-readiness-source.py').write_text(approved)
     driver = stage / "scripts/dexterous/frozen_walking_opening_driver.py"
     shutil.copy2(source / "diagnostic-source.py", driver)
     shutil.copy2(Path(__file__), stage / "scripts/dexterous/probe_walking_release.py")
@@ -84,14 +110,18 @@ def main():
     # The baseline constructor is untouched; this isolated experiment replaces
     # only its release class and supplies the explicitly measured leaf channel.
     import doorbench.dexterous.right_hand_release as releases
-    if a.release_mode in ("controlled-return", "whole-body-return"):
+    if a.release_mode in ("controlled-return", "whole-body-return", "whole-body-ungrip"):
         from doorbench.dexterous.right_release_return import ControlledLeverReturn
-    if a.release_mode == 'whole-body-return':
+    if a.release_mode in ('whole-body-return', 'whole-body-ungrip'):
         from doorbench.dexterous.whole_body_return import WholeBodyLeverReturn, apply_stance_goal
+    if a.release_mode == 'whole-body-ungrip':
+        from doorbench.dexterous.whole_body_ungrip import WholeBodyMeasuredUngrip
     def selected_release(teacher, path):
-        if a.release_mode == 'whole-body-return':
+        if a.release_mode == 'whole-body-ungrip':
+            return WholeBodyMeasuredUngrip(teacher,path,stage/'whole-body-path.json',stage/'ungrip-path.json',goal_frame=a.ungrip_goal_frame)
+        if a.release_mode in ('whole-body-return', 'whole-body-ungrip'):
             return WholeBodyLeverReturn(teacher,path,stage/'whole-body-path.json')
-        if a.release_mode in ("controlled-return", "whole-body-return"):
+        if a.release_mode in ("controlled-return", "whole-body-return", "whole-body-ungrip"):
             return ControlledLeverReturn(teacher, path)
         return releases.PressedLeafFrameRightRelease(teacher, path,
             retain_grip_until_clear=a.retain_grip_until_clear)
@@ -101,15 +131,17 @@ def main():
 
     def measured_force(self, t, root, joints, velocities, handle_pose, leaf_pose,
                        angles, hand_forces, **kwargs):
-        if a.release_mode in ("controlled-return", "whole-body-return"):
+        if a.release_mode in ("controlled-return", "whole-body-return", "whole-body-ungrip"):
             self.release.observe_operation(t, handle_pose, leaf_pose, angles, self.geometry)
+            if a.release_mode == 'whole-body-ungrip':
+                self.release.observe_state(t, root, joints)
         else:
             self.release.observe_leaf(t, leaf_pose)
         return original_force(self, t, root, joints, velocities, handle_pose,
                               leaf_pose, angles, hand_forces, **kwargs)
 
     full.FullOpeningTeacher.force = measured_force
-    if a.release_mode == 'whole-body-return':
+    if a.release_mode in ('whole-body-return', 'whole-body-ungrip'):
         from doorbench.dexterous.walking_opening_teacher import WalkingOpeningTeacher
         original_walking_force=WalkingOpeningTeacher.force
         def moving_stance_force(self,t,*args,**kwargs):
@@ -121,13 +153,18 @@ def main():
         WalkingOpeningTeacher.force=moving_stance_force
     runner = load("_frozen_walking_release_probe", driver)
     base_archive = runner.NativeTransitionArchive
-    old_raw = source / "raw-transitions"
+    prefix_source = a.verified_prefix_run.resolve() if a.verified_prefix_run else source
+    old_raw = prefix_source / "raw-transitions"
     prior = json.loads((old_raw / "manifest.json").read_text())
     if not prior["complete"]:
         raise ValueError("A complete baseline contact archive is required")
     old_chunks = {row["file"]: row for row in prior["chunks"]}
     baseline_report = json.loads((source / "report.json").read_text())
     release_at = baseline_report["opening_clock_offset_s"] + baseline_report["handoffs"]["right_release"]
+    if a.verified_prefix_run:
+        if a.release_mode != 'whole-body-ungrip':
+            raise ValueError('Alternate prefix is reserved for the exact return continuation')
+        release_at = json.loads(a.ungrip_path.read_text())['initial_episode_time_s']
     reuse = {"verified_linked_chunks": 0, "verified_linked_bytes": 0,
              "baseline_release_time_s": release_at, "matched_prefix_until_s": 0.}
 
@@ -194,10 +231,13 @@ def main():
             baseline_run=str(source), baseline_source_sha256=baseline["source_archive_sha256"],
             baseline_driver_sha256=digest(source / "diagnostic-source.py"),
             release_module_sha256=digest(stage / "doorbench/dexterous/right_hand_release.py"),
-            intervention=("WholeBodyLeverReturn with attained-foot stance motor targets" if a.release_mode=="whole-body-return" else "ControlledLeverReturn with actual joint geometry and measured operation" if a.release_mode == "controlled-return" else "PressedLeafFrameRightRelease with current same-clock measured leaf"),
+            intervention=("WholeBodyMeasuredUngrip with exact attained resting grasp and complete screened withdrawal" if a.release_mode=="whole-body-ungrip" else "WholeBodyLeverReturn with attained-foot stance motor targets" if a.release_mode=="whole-body-return" else "ControlledLeverReturn with actual joint geometry and measured operation" if a.release_mode == "controlled-return" else "PressedLeafFrameRightRelease with current same-clock measured leaf"),
             retain_grip_until_clear=a.retain_grip_until_clear,
             release_mode=a.release_mode,
-            whole_body_path_sha256=digest(stage/'whole-body-path.json') if a.release_mode=='whole-body-return' else None,
+            ungrip_goal_frame=a.ungrip_goal_frame if a.release_mode=="whole-body-ungrip" else None,
+            prefix_source=str(prefix_source),
+            ungrip_path_sha256=digest(stage/'ungrip-path.json') if a.release_mode=='whole-body-ungrip' else None,
+            whole_body_path_sha256=digest(stage/'whole-body-path.json') if a.release_mode in ('whole-body-return','whole-body-ungrip') else None,
             default_release_unchanged=True, gates_unchanged=True,
             no_runtime_pose_reset=True, no_helper_forces=True,
             scope="Development continuous native single-release comparison; no actor or Isaac claim")

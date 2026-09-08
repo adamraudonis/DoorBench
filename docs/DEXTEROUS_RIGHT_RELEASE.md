@@ -159,3 +159,64 @@ The unrun curved controller prototype was not installed as a release option.
 The next trial must withdraw from the **actually attained resting-lever state**.
 The measured canonical ungrip still exceeds the current fixed-waist arm reach,
 so another bounded body movement or a newly screened hand path is required.
+
+## Resting-grasp adjustment and measured withdrawal remain developmental
+
+A new geometric route first adjusts the actual attained resting grasp to the
+measured canonical grasp (about 12 mm palm depth and 2° orientation), then uses
+the source release's **absolute finger angles** and handle-relative palm path.
+Adding source finger deltas to the attained grasp was rejected: its finger
+angles differ by as much as 0.16 rad. Decimating the source also failed dense
+collision checks between samples. Retaining all 330 recorded release frames
+passes 2,360 interpolated geometry samples, including a continuous prelude from
+the attained state: maximum palm error 5.31 µm, foot error 1.18 µm, and torso
+tilt 4.45°. This is geometric evidence, not contact-force qualification.
+
+`WholeBodyMeasuredUngrip` is an explicit development option. It retains the
+qualified return commands until episode 60 s, verifies the exact measured
+root/joints/door configuration, bridges desired commands smoothly, and follows
+the screened body and finger route. The caller supplies both
+`observe_operation(...)` and `observe_state(t, root, joints)` on the same clock.
+`body_goal(...)` feeds only the existing landed-foot stance targets. Its
+`ready_for_panel` remains false until the entire route finishes, so an early
+20 mm clearance measurement cannot interrupt the planned motion. The core
+still requires actual clearance and all original physical gates.
+
+Both continuous trials reproduce all 120 raw prefix chunks through 60 s
+(310,752,869 bytes). Neither qualifies:
+
+| Ungrip goal frame | Result |
+|---|---|
+| Current measured handle | Removed right-hand leaf stiffness during adjustment; the door coasted to 1.2016 rad at 64.198 s with no palm support, before ungrip completed. Rejected. |
+| Attained resting-handle world frame | Completed the withdrawal and measured-clearance gate, with original motor/joint/stance limits intact. Ten brief RF/MF distal-tip contacts at 68.470–68.582 s fail the unchanged volar-normal gate. Left-palm support also unloads; final 1.2001 rad aperture has zero palm load. Rejected. |
+
+The independent second-trial audit checks all 37,415 state transitions and
+original motor caps, and reconstructs all 10,665 post-transfer body/contact
+frames with exactly zero error. Its six invalid contact intervals agree with
+the primary audit; late valid instantaneous samples do not erase them.
+[Sources, measured outcomes and canonical archive receipt](../results/dexterous/2026-09-08/whole-body-ungrip-development.json)
+
+```sh
+python scripts/dexterous/screen_whole_body_ungrip.py \
+  --source-run /path/to/walked-whole-body-return-001 \
+  --measured-release /path/to/measured-release-portable.json \
+  --release-trajectory /path/to/release-v2-001/trajectory.npz \
+  --output out/ungrip-screen
+python scripts/dexterous/audit_whole_body_ungrip_screen.py \
+  --source-run /path/to/walked-whole-body-return-001 \
+  --screen out/ungrip-screen/report.json
+OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 python scripts/dexterous/probe_walking_release.py \
+  --source-run /path/to/walking-opening-native-002 \
+  --verified-prefix-run /path/to/walked-whole-body-return-001 \
+  --whole-body-path /path/to/controlled-return-whole-body-path-001/report.json \
+  --ungrip-path out/ungrip-screen/target-plan.json \
+  --release-mode whole-body-ungrip --seconds 82 --output out/ungrip-repeat
+python scripts/dexterous/audit_walking_release.py --run out/ungrip-repeat
+```
+
+The fixed-frame option is the default only within this new development helper;
+`AxialRightRelease` remains unchanged. Use `--ungrip-goal-frame measured-handle`
+to reproduce the rejected moving-frame option. These exact-state native paths
+must not be admitted to another robot, attained state, or Isaac import without
+a new geometric screen and physical trial. No sensor-only actor or traversal
+success is claimed.
