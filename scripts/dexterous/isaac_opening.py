@@ -12,6 +12,98 @@ import math
 import time
 import os
 from pathlib import Path
+
+
+def validate_traversal_mode(args):
+    """Fail unsupported combinations before starting the Isaac application."""
+    if not args.traverse:
+        return
+    if not args.full_sequence_reset or not args.full_opening:
+        raise ValueError('--traverse requires --full-sequence-reset and --full-opening')
+    if args.sensor_policy_checkpoint or args.mechanism_test or args.panel_push:
+        raise ValueError('Traversal is an explicit privileged motor-teacher mode')
+    if args.target_aperture < 1.2 or args.time_scale != 1.:
+        raise ValueError('Traversal requires >=1.2 rad aperture and the unchanged controller clock')
+
+
+def actual_motor_delivery(delivered_joint_forces, pre_step_velocity, matrix,
+                          inverse, damping, friction):
+    """Invert the original scalar transmission after restoring passive terms.
+
+    PhysX reports the actual commanded generalized effort, which includes our
+    explicit native damping/friction subtraction. Use the velocity from the
+    command's start, not the integrated endpoint. Residuals cannot be hidden in
+    the eight unactuated differential finger coordinates.
+    """
+    delivered = np.asarray(delivered_joint_forces, float)
+    velocity = np.asarray(pre_step_velocity, float)
+    if delivered.shape != (69,) or velocity.shape != (69,):
+        raise ValueError('Actual 69-joint delivery and matching pre-step velocity required')
+    active = delivered + damping*velocity + friction*np.tanh(velocity/.001)
+    motor = inverse @ active
+    residual = float(np.max(np.abs(matrix.T @ motor-active)))
+    if not np.isfinite(motor).all() or residual > 1e-5:
+        raise ValueError('Actual joint delivery does not lie in the original motor transmission')
+    return motor, residual
+
+
+def independent_traversal_checks(base_checks, opening_report, steps, *, dt,
+                                 end_s, maximum_seconds, controller_done, failure):
+    """Reduce actual endpoint/interval records independently of wrapper .done."""
+    if (not isinstance(base_checks,dict) or
+            any(not isinstance(value,(bool,np.bool_)) for value in base_checks.values()) or
+            not isinstance(controller_done,(bool,np.bool_))):
+        raise ValueError('Independent physical/completion checks must be explicit booleans')
+    if not np.isfinite([dt,end_s,maximum_seconds]).all() or min(dt,end_s,maximum_seconds)<=0:
+        raise ValueError('Finite positive physical episode clocks are required')
+    if opening_report is not None and not isinstance(opening_report.get('passed'),(bool,np.bool_)):
+        raise ValueError('Opening-prefix outcome must be an explicit boolean')
+    for row in steps:
+        root=np.asarray(row['root'],float);feet=np.asarray(row['foot_loads_N'],float)
+        evidence=row['continuation_evidence']
+        if (root.shape!=(13,) or feet.shape!=(2,) or not np.isfinite([*root,*feet,row['time_s'],row['pose_time_s']]).all() or
+                any(not isinstance(value,(bool,np.bool_)) for value in
+                    (row['post_started'],row['passage_completed'],row['right_pad_patches_valid'],evidence['physics_qualified']))):
+            raise ValueError('Malformed measured traversal state or qualification')
+        if row['post_started'] and not np.isfinite(row['minimum_body_y_m']):
+            raise ValueError('Actual post-opening body clearance is required')
+        if not np.isfinite(evidence['left_hand_load_N']) or evidence['left_hand_load_N']<0:
+            raise ValueError('Actual nonnegative left-hand load is required')
+        for key in ('left_hand_contacts','right_environment_contacts'):
+            if (not isinstance(evidence[key],(int,np.integer)) or
+                    isinstance(evidence[key],(bool,np.bool_)) or evidence[key]<0):
+                raise ValueError('Actual nonnegative integer contact counts required')
+    checks = {k:bool(v) for k,v in base_checks.items() if k!='sustained_pad_grasp'}
+    times = np.asarray([row['time_s'] for row in steps], float)
+    expected = round(end_s/dt)
+    coverage = (expected > 0 and len(steps)==expected+1 and
+        np.allclose(times,np.arange(expected+1)*dt,atol=1e-8,rtol=0))
+    tail = [row for row in steps if end_s-1.-1e-8 <= row['time_s'] <= end_s+1e-8]
+    enough = (len(tail)==round(1./dt)+1 and
+        abs(tail[-1]['time_s']-end_s)<1e-8 and abs(tail[0]['time_s']-(end_s-1.))<1e-8)
+    def quiet(row):
+        root=np.asarray(row['root'],float);ev=row['continuation_evidence']
+        return bool(row['post_started'] and row['minimum_body_y_m']>.2 and
+            row['passage_completed'] and np.linalg.norm(root[7:9])<.03 and
+            min(row['foot_loads_N'])>=10. and ev['left_hand_contacts']==0 and
+            ev['left_hand_load_N']<.1 and ev['right_environment_contacts']==0 and
+            ev['physics_qualified'] and row['right_pad_patches_valid'])
+    held = bool(enough and all(quiet(row) for row in tail))
+    excursion = (max(float(np.linalg.norm(np.asarray(row['root'])[:2]-np.asarray(tail[0]['root'])[:2]))
+                     for row in tail) if tail else float('inf'))
+    checks.update(qualified_opening_prefix=bool(opening_report and opening_report['passed']),
+        complete_controller_measurements=bool(coverage and end_s<=maximum_seconds+1e-8),
+        contact_epoch_aligned=bool(steps and all(abs(row['pose_time_s']-row['time_s'])<1e-8 and
+            np.allclose(row['contact_interval_s'],[max(0.,row['time_s']-dt),row['time_s']],atol=1e-8,rtol=0)
+            for row in steps)),
+        all_interval_physics_qualified=bool(steps and all(row['continuation_evidence']['physics_qualified'] for row in steps)),
+        all_interval_right_pad_patches_valid=bool(steps and all(row['right_pad_patches_valid'] for row in steps)),
+        full_body_passage_and_quiet_unloaded_finish=held,
+        final_second_xy_excursion_below_3cm=bool(enough and excursion<.03),
+        continuous_controller_completed=bool(controller_done), no_controller_failure=failure is None)
+    return checks
+
+
 p=argparse.ArgumentParser()
 p.add_argument('--robot-usd',required=True)
 p.add_argument('--robot-source-prim',default='/H1')
@@ -43,6 +135,7 @@ p.add_argument('--preparation-reference',help='Contact-free readiness path; scre
 p.add_argument('--locomotion-checkpoint',help='Frozen original H1 locomotion checkpoint')
 p.add_argument('--native-door',help='Matching unstepped native door geometry for readiness collision checks')
 p.add_argument('--full-opening',action='store_true',help='Privileged acquisition, lever, bimanual transfer and loaded aperture development; no approach/traversal')
+p.add_argument('--traverse',action='store_true',help='Continue a qualified full walking/opening episode through measured release, stow, rise, passage and quiet stop without resetting')
 p.add_argument('--left-palm-targets',help='Source-bound screened left-palm workspace targets')
 p.add_argument('--right-release-screen',help='Frozen axial right-hand release path')
 p.add_argument('--bimanual-runtime-screen',help='Source/design-bound runtime geometry re-screen for another platform')
@@ -97,6 +190,8 @@ if not math.isfinite(a.transfer_load_target) or not 2<a.transfer_load_target<=10
     p.error('Transfer target must be finite, above 2 N and at most 10 N')
 if a.transfer_load_target!=4. and not a.full_opening:
     p.error('A nondefault transfer target requires --full-opening')
+try:validate_traversal_mode(a)
+except ValueError as error:p.error(str(error))
 if a.record or a.sensor_layout:a.enable_cameras=True
 launcher=AppLauncher(a);app=launcher.app
 import numpy as np
@@ -228,7 +323,7 @@ def main():
         from isaaclab.sensors import Camera,CameraCfg
         camera=Camera(CameraCfg(prim_path='/World/Camera',update_period=0.,height=720,width=960,
             data_types=['rgb'],spawn=sim_utils.PinholeCameraCfg(focal_length=48. if a.view=='hand' else 24.,clipping_range=(.02,100.))))
-        if sequence_reset or a.sensor_policy_checkpoint:
+        if sequence_reset or a.full_opening or a.sensor_policy_checkpoint:
             hand_camera=Camera(CameraCfg(prim_path='/World/HandReviewCamera',update_period=0.,height=720,width=720,
                 data_types=['rgb'],spawn=sim_utils.PinholeCameraCfg(focal_length=48.,clipping_range=(.02,100.))))
     sensor_recorder=None
@@ -322,7 +417,7 @@ def main():
         prim=stage.GetPrimAtPath('/World/Door/Articulation/Joints/'+n)
         target[0,i]=prim.GetAttribute('doorbench:target_si').Get() or 0.
     controls=None if a.sensor_policy_checkpoint else np.array(ref['controls']);rows=[]
-    teacher=None;teacher_info={};teacher_control=None;sequence=None;operation=None;sensor_actor=None;full_opening=None;opening_geometry=None
+    teacher=None;teacher_info={};teacher_control=None;sequence=None;operation=None;sensor_actor=None;full_opening=None;opening_geometry=None;continuous=None
     if a.acquisition:
         from doorbench.dexterous.acquisition_teacher import AcquisitionTeacher
         teacher=AcquisitionTeacher(a.native_robot,motors,ref,middle_finger_force=a.acquisition_middle_finger_force,index_finger_force=a.acquisition_index_finger_force)
@@ -357,11 +452,17 @@ def main():
                     transfer_load_target=a.transfer_load_target)
                 if sequence_reset:
                     from doorbench.dexterous.walking_opening_teacher import WalkingOpeningTeacher
-                    sequence=WalkingOpeningTeacher(a.native_robot,motors,ref,
+                    sequence_type=WalkingOpeningTeacher
+                    if a.traverse:
+                        from doorbench.dexterous.continuous_door_teacher import ContinuousDoorTeacher
+                        sequence_type=ContinuousDoorTeacher
+                    sequence=sequence_type(a.native_robot,motors,ref,
                         json.loads(Path(a.preparation_reference).read_text()),sequence_reset,a.locomotion_checkpoint,
                         joint_geometry,door_xml=a.native_door,left_targets=a.left_palm_targets,
                         release_screen=a.right_release_screen,runtime_screen=a.bimanual_runtime_screen,
-                        opening_options=opening_options)
+                        opening_options=opening_options,**({'maximum_seconds':a.seconds} if a.traverse else {}))
+                    if a.traverse:
+                        continuous=sequence;sequence=continuous.walking
                     full_opening=sequence.opening
                 else:
                     full_opening=FullOpeningTeacher(a.native_robot,motors,ref,joint_geometry,
@@ -383,16 +484,24 @@ def main():
             if full_opening:
                 (out/'full-opening-protocol.json').write_text(json.dumps(dict(
                     maximum_seconds=a.seconds,target_aperture_rad=a.target_aperture,
-                    terminal_event='First measured target-aperture crossing or declared timeout',
+                    terminal_event='Freeze opening prefix at first measured target crossing; continue physical traversal' if continuous else 'First measured target-aperture crossing or declared timeout',
                     final_hold='Final uninterrupted 0.5 s of actual left-palm projected load >= 2 N',
                     right_release='Requires prior 0.5 s of opposed right-hand grip and actual left-panel support >= 2 N',
-                    scope='Continuous approach through bimanual aperture; no traversal' if sequence else 'Initialized contact-free acquisition through bimanual loaded aperture; no approach/traversal',
+                    scope='Opening prefix of uninterrupted approach/open/traverse trial' if continuous else 'Continuous approach through bimanual aperture; no traversal' if sequence else 'Initialized contact-free acquisition through bimanual loaded aperture; no approach/traversal',
                     original_caps_and_physics=True,open_on_latch_clear=a.open_on_latch_clear,
                     operator_compliance_gain=a.operator_compliance_gain,
                     follow_leaf_during_transfer=a.follow_leaf_during_transfer,
                     panel_profile=full_opening.panel_profile,palm_load_target=full_opening.push.target_palm_load,
                     transfer_load_target=a.transfer_load_target,
                     geometry_source_hashes=opening_geometry.sources),indent=2)+'\n')
+                if continuous:
+                    (out/'traversal-protocol.json').write_text(json.dumps(dict(
+                        maximum_seconds=a.seconds,physics_dt_s=dt,stow_profile='sequential-v2',phase_seconds=5.,
+                        opening='Requires independently qualified opening prefix; any invalid pad or physical interval fails the whole episode',
+                        handoff='Actual root/q/dq/body poses/door velocities and preceding delivered motor forces at unchanged global clock; no plant reset',
+                        final_hold='Whole body y>0.2 m; horizontal root speed<0.03 m/s; both feet>=10 N; hands clear and LH normal load<0.1 N for1 s; XY excursion<0.03 m',
+                        original_caps_and_physics=True,runtime_pose_writes=0,
+                        scope='Privileged continuous controller development; no sensor-only policy claim'),indent=2)+'\n')
     elif a.native_robot:
         from physx_teacher import HandleTeacher
         if a.panel_push:
@@ -410,7 +519,7 @@ def main():
         dt=dt,robot_mass_kg=float(robot.root_physx_view.get_masses().sum()),latch_scale=scale,
         simulator_effort_limits=robot.root_physx_view.get_dof_max_forces()[0].cpu().tolist(),
         runtime_pose_writes=0,direct_door_commands=bool(a.mechanism_test),contact_material_audit=contact_material_audit,
-        scope='Continuous approach through bimanual loaded aperture; privileged live PhysX; no traversal' if full_opening and sequence else 'Contact-free acquisition through bimanual loaded aperture; privileged live PhysX; no approach/traversal' if full_opening else 'Sensor-only recurrent force actor; declared curriculum objective; no teacher or traversal claim' if sensor_actor else 'Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
+        scope='Uninterrupted approach, opening, release and traversal; privileged live PhysX development' if continuous else 'Continuous approach through bimanual loaded aperture; privileged live PhysX; no traversal' if full_opening and sequence else 'Contact-free acquisition through bimanual loaded aperture; privileged live PhysX; no approach/traversal' if full_opening else 'Sensor-only recurrent force actor; declared curriculum objective; no teacher or traversal claim' if sensor_actor else 'Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
     sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py')]
     if a.panel_push:sources.append(Path(__file__).with_name('panel_push_teacher.py'))
     if a.acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('acquisition_teacher.py','isaac_tendons.py','grasp_verification.py','isaac_pad_audit.py')]
@@ -429,6 +538,10 @@ def main():
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
             ('full_opening_teacher.py','walking_opening_teacher.py','full_opening_audit.py','isaac_opening_measurements.py','bimanual_transfer.py','bimanual_runtime.py',
              'panel_continuation.py','right_hand_release.py','robot_design_identity.py')]
+    if continuous:
+        sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
+            ('continuous_door_teacher.py','post_opening_teacher.py','post_opening.py','post_opening_route.py',
+             'passage.py','isaac_post_opening_measurements.py')]
     if sensor_actor:
         inputs += [Path(a.sensor_policy_checkpoint),Path(a.sensor_reset_preflight)]
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
@@ -465,6 +578,14 @@ def main():
             max_hand_door_penetration_m=0.,max_loopback_violation_rad=0.,contact_samples=0,capacity=16384)
     loop_pairs=[(index[f'{side}_{digit}J1'],index[f'{side}_{digit}J2']) for side in ('rh','lh') for digit in ('FF','MF','RF','LF')]
     acquisition_states={k:[] for k in ('time_s','root','joints','motor_forces','door','door_velocity','torso_tilt_deg')}
+    if continuous:
+        acquisition_states.update({k:[] for k in ('joint_velocity','actual_motor_forces','actual_joint_effort',
+            'continuation_body_poses','actual_foot_loads')})
+        motor_inverse=np.linalg.pinv(matrix.T)
+        if np.linalg.matrix_rank(matrix.T)!=61 or not np.allclose(motor_inverse@matrix.T,np.eye(61),atol=1e-12,rtol=0):
+            raise ValueError('Exact full-rank 61-motor transmission required for delivered-force readback')
+        last_actual_motor_forces,_=actual_motor_delivery(robot.root_physx_view.get_dof_actuation_forces()[0].cpu().numpy(),
+            robot.data.joint_vel[0].cpu().numpy(),matrix,motor_inverse,damp,friction)
     pad_evaluator=None;pad_steps=[]
     if physics_audit_enabled:
         from doorbench.dexterous.isaac_pad_audit import PhysXShadowPadAudit
@@ -477,6 +598,15 @@ def main():
         (out/'acquisition-reset.json').write_text(json.dumps(acquisition_reset,indent=2)+'\n')
     foot_loads=np.zeros(2);right_hand_contact_count=0;right_hand_buffered_contact_count=0
     sequence_steps=[];full_opening_steps=[];full_aperture_crossed=False;max_motor_delivery_error=0.
+    traversal_steps=[];frozen_opening_report=None;max_transmission_residual=0.
+    traversal_contact_stream=None
+    if continuous:
+        traversal_contact_stream=gzip.open(out/'traversal-contacts.jsonl.gz','wt',compresslevel=1)
+        (out/'traversal-contact-layout.json').write_text(json.dumps(dict(sensor_paths=audit_paths,
+            filter_paths=audit_filters.tolist(),capacity=16384,body_pose_order=list(continuous.post.pose_names),
+            motor_names=list(continuous.motor_names),robot_joint_names=rnames,
+            normal_and_friction_buffers_are_independent=True,
+            scope='All occupied actual PhysX normal-contact and friction-patch slots; unused buffer capacity is omitted'),indent=2)+'\n')
     if sequence:
         feet=['left_ankle_link','right_ankle_link']
         foot_rows=[next(i for i,path in enumerate(audit_paths) if path.rsplit('/',1)[-1]==name) for name in feet]
@@ -499,10 +629,99 @@ def main():
             handle_pose=hp,leaf_pose=lp)
         surface=panel_surface_loads(audit_paths,audit_filters,pairs,lp)
         loads={audit_paths[i]:pairs[i].sum(axis=0) for i in hand_audit_rows}
-        return dict(geometry=geometry,surface=surface,angles=angles,hand_forces=loads,
+        result=dict(geometry=geometry,surface=surface,angles=angles,hand_forces=loads,
             root_height_m=float(robot.data.root_state_w[0,2]),
             torso_tilt_deg=float(np.degrees(np.arccos(np.clip(-robot.data.projected_gravity_b[0,2].item(),-1,1)))))
+        if continuous:
+            from doorbench.dexterous.isaac_post_opening_measurements import continuation_contact_summary
+            af,ap,an,ad,ac,ast=[v.cpu().numpy().copy() for v in audit_contacts.get_contact_data(dt)]
+            result['continuation']=continuation_contact_summary(audit_paths,audit_filters,af,an,ad,ac,ast,
+                capacity=16384,physics_qualified=True)
+            result['body_poses']={name:robot.data.body_state_w[0,robot.body_names.index(name),:7].cpu().numpy().copy()
+                for name in continuous.post.pose_names if not name.startswith('leaf')}
+            result['body_poses'].update(leaf=lp.copy(),leaf_handle=hp.copy())
+            result['door_velocities']=dict(zip(dnames,door.data.joint_vel[0].cpu().numpy().copy()))
+            def sparse_buffer(count, start, arrays):
+                pairs=[];slots=[]
+                for i,j in zip(*np.nonzero(count)):
+                    n,first=int(count[i,j]),int(start[i,j])
+                    if n:
+                        pairs.append([int(i),int(j),first,n]);slots.extend(range(first,first+n))
+                return dict(pairs=pairs,slots=slots,**{key:np.asarray(value)[slots].tolist() for key,value in arrays.items()})
+            traversal_contact_stream.write(json.dumps(dict(time_s=t,pose_time_s=t,
+                contact_interval_s=[max(0.,t-dt),t],
+                normal=sparse_buffer(ac,ast,dict(force_N=af,point_world=ap,normal_world=an,distance_m=ad)),
+                friction=sparse_buffer(counts,starts,dict(force_N=vectors.reshape(16384,3),point_world=points.reshape(16384,3)))),
+                separators=(',',':'))+'\n')
+        return result
     full_measurement=read_full_opening_measurement(0.) if full_opening else None
+
+    def current_physics_checks():
+        """Independent active-plant reduction at this exact executed prefix."""
+        roots=np.asarray(acquisition_states['root']);commands=np.asarray(acquisition_states['motor_forces'])
+        n=len(acquisition_states['time_s'])
+        return dict(complete_physics_steps=bool(n and len(pad_steps)==n+1 and
+                mechanical_audit['contact_samples']==n and all(len(v)==n for v in acquisition_states.values()) and
+                np.allclose(acquisition_states['time_s'],np.arange(1,n+1)*dt,atol=1e-8,rtol=0)),
+            joint_stops=mechanical_audit['max_joint_stop_penetration_rad']<.02,
+            documented_loopbacks=mechanical_audit['max_loopback_violation_rad']<.02,
+            self_collision=mechanical_audit['max_self_penetration_m']<.003,
+            environment_collision=mechanical_audit['max_nonfoot_environment_penetration_m']<.003,
+            working_hand_collision=mechanical_audit['max_hand_door_penetration_m']<.003,
+            plant_parameters_unchanged=all(np.array_equal(invariants[n],f().cpu().numpy()) for n,f in invariant_getters.items()),
+            closed_leaf_start=abs(acquisition_reset['door']['leaf_hinge'])<=.001,
+            resting_operator_start=abs(acquisition_reset['door']['leaf_handle_hinge'])<=.001,
+            initial_hand_door_contact_buffer_empty=pad_steps[0]['active_contact_count']==0,
+            finite=bool(all(np.isfinite(np.asarray(v)).all() for v in acquisition_states.values())),
+            upright=bool(len(roots) and max(acquisition_states['torso_tilt_deg'])<12 and roots[:,2].min()>.7),
+            motor_delivery_matches_command=max_motor_delivery_error<1e-4,
+            native_motor_caps=bool(len(commands) and np.all(commands>=force_ranges[:,0]-1e-5) and np.all(commands<=force_ranges[:,1]+1e-5) and
+                (not continuous or (np.all(np.asarray(acquisition_states['actual_motor_forces'])>=force_ranges[:,0]-1e-5) and
+                                    np.all(np.asarray(acquisition_states['actual_motor_forces'])<=force_ranges[:,1]+1e-5)))))
+
+    def freeze_opening_prefix():
+        nonlocal frozen_opening_report
+        if frozen_opening_report is not None or continuous.opening_audit is None:
+            return
+        from doorbench.dexterous.full_opening_audit import full_opening_checks
+        offset=sequence.acquisition_started
+        full_checks=full_opening_checks(current_physics_checks(),steps=full_opening_steps,pad_steps=pad_steps,
+            physics_dt=dt,maximum_seconds=a.seconds,target_aperture=a.target_aperture,
+            operation_started=full_opening.operation_started+offset if full_opening.operation_started is not None else None,
+            release_started=full_opening.release.started+offset if full_opening.release.started is not None else None)
+        full_checks.update(separated_start=bool(np.linalg.norm(np.array(initial_root[:2])-sequence_reset['goal_xy'])>=.5-1e-9),
+            walked_from_separate_start=bool(np.linalg.norm(np.asarray(acquisition_states['root'])[-1,:2]-np.array(initial_root[:2]))>.5),
+            both_feet_swung=bool(all(any(r['foot_loads_N'][i]<10 and r['foot_height_m'][i]>foot_initial[i]+.015 for r in sequence_steps) for i in (0,1))),
+            readiness_screen_passed=bool(sequence.readiness_screen and sequence.readiness_screen['passed']),
+            actual_contact_free_preparation=bool(sequence.prep_started is not None and sequence.acquisition_started is not None and
+                all(r['right_hand_contact_count']==0 for r in sequence_steps if sequence.prep_started<=r['time_s']<=sequence.acquisition_started)),
+            body_solver_succeeded=sequence.body.controller.solver_failures==0,
+            continuous_walk_to_opening=sequence.acquisition_started is not None,
+            composition_crossing_qualified=continuous.opening_audit['passed'])
+        frozen_opening_report=dict(scope='Frozen opening prefix of a continuous live PhysX traversal trial',
+            passed=all(full_checks.values()),checks=full_checks,physics_dt_s=dt,
+            duration_s=continuous.opening_audit['time_s'],maximum_seconds=a.seconds,
+            target_aperture_rad=a.target_aperture,termination='frozen_actual_aperture_crossing',
+            final_leaf_rad=full_opening_steps[-1]['angles']['leaf'],
+            final_palm_load_N=full_opening_steps[-1]['surface']['palm_normal_load_N'],
+            grasp_profile=a.grasp_profile,handoffs=dict(full_opening.handoffs),opening_clock_offset_s=offset,
+            runtime_robot_pose_writes=0,direct_door_commands=False,native_mirror_steps=0,
+            max_motor_delivery_error_Nm=max_motor_delivery_error,
+            handoff_state_sha256=continuous.opening_audit['handoff_state_sha256'])
+        (out/'full-opening-report.json').write_text(json.dumps(frozen_opening_report,indent=2)+'\n')
+        (out/'opening-qualification.json').write_text(json.dumps(continuous.opening_audit,indent=2)+'\n')
+        if continuous.handoff is not None:
+            (out/'continuation-handoff.json').write_text(json.dumps(continuous.handoff,indent=2)+'\n')
+        with gzip.open(out/'full-opening-steps.json.gz','wt') as stream:json.dump(full_opening_steps,stream)
+        if not frozen_opening_report['passed']:
+            raise ValueError('Independent opening prefix audit failed; traversal cannot continue')
+
+    def save_traversal_evidence():
+        if not continuous:return
+        with gzip.open(out/'traversal-steps.json.gz','wt') as stream:json.dump(traversal_steps,stream)
+        (out/'continuous-controller.json').write_text(json.dumps(dict(info=continuous.info,
+            failure=continuous.failure,handoffs=continuous.handoffs,opening_audit=continuous.opening_audit,
+            handoff=continuous.handoff),indent=2)+'\n')
     def checkpoint_prefix():
         # Periodic atomic checkpoints survive a native shutdown that bypasses
         # Python exceptions. They are explicitly incomplete, never scored passes.
@@ -519,6 +738,10 @@ def main():
         if sequence:
             with gzip.open(out/'full-sequence-steps.partial.tmp.gz','wt') as stream:json.dump(sequence_steps,stream)
             os.replace(out/'full-sequence-steps.partial.tmp.gz',out/'full-sequence-steps.partial.json.gz')
+        if continuous:
+            with gzip.open(out/'traversal-steps.partial.tmp.gz','wt') as stream:json.dump(traversal_steps,stream)
+            os.replace(out/'traversal-steps.partial.tmp.gz',out/'traversal-steps.partial.json.gz')
+            traversal_contact_stream.flush()
         (out/'partial-evidence.json').write_text(json.dumps(dict(status='incomplete',passed=False,
             evidence_only=True,time_s=rows[-1]['time_s'] if rows else 0.,
             max_motor_delivery_error_Nm=max_motor_delivery_error,mechanical_audit=mechanical_audit))+'\n')
@@ -529,6 +752,7 @@ def main():
     time_origin=float(sim.current_time)
     try:
         for step in range(round(a.seconds/dt)):
+            delivery_failure=None
             pos=robot.data.joint_pos[0].cpu().numpy();vel=robot.data.joint_vel[0].cpu().numpy()
             ctrl=np.zeros(len(kp)) if sensor_actor else controls[min(int(step*dt*50/a.time_scale),len(controls)-1)].copy()
             if teacher and not a.acquisition:
@@ -570,7 +794,34 @@ def main():
                         left_palm_load_N=surface['palm_normal_load_N'],right_lever_clearance_m=geometry['right_lever_clearance_m'])
                     opening_measurements=dict(evidence=evidence,right_palm_pose=geometry['right_palm_pose'],
                         pose_time_s=geometry['time_s'],contact_interval_s=(max(0.,step*dt-dt),step*dt))
-                    if sequence:
+                    if continuous:
+                        continuation=state['continuation']
+                        continuation_evidence=dict(continuation['evidence'],physics_qualified=physical)
+                        evidence['hand_contact_count']+=continuation_evidence['left_hand_contacts']
+                        forces,continuous_info=continuous.force(*measured_args[:4],continuation['foot_loads'],measured_args[4],
+                            body[door.body_names.index('leaf')],state['angles'],state['hand_forces'],**opening_measurements,
+                            body_poses=state['body_poses'],door_velocities=state['door_velocities'],
+                            continuation_evidence=continuation_evidence,applied_motor_forces=last_actual_motor_forces,
+                            release_normal_world=continuation['release_normal_world'])
+                        teacher_info=dict(continuous_info['component'],continuous_phase=continuous_info['phase'],
+                            continuous_completed=continuous_info['completed'])
+                        traversal_steps.append(dict(time_s=step*dt,pose_time_s=geometry['time_s'],
+                            contact_interval_s=list(opening_measurements['contact_interval_s']),
+                            phase=teacher_info['phase'],root=measured_args[1].tolist(),
+                            foot_loads_N=continuation['foot_loads'].tolist(),
+                            continuation_evidence=continuation_evidence,
+                            right_pad_patches_valid=evidence['right_pad_patches_valid'],
+                            post_started=continuous.handoff is not None,
+                            minimum_body_y_m=teacher_info.get('minimum_body_y_m'),
+                            passage_completed=teacher_info.get('passage_completed',False),
+                            preceding_actual_motor_forces=last_actual_motor_forces.tolist()))
+                        freeze_opening_prefix()
+                        if continuous.done:
+                            # Current measurements end the last actual step. Do
+                            # not apply another command after the qualified stop.
+                            save_traversal_evidence()
+                            break
+                    elif sequence:
                         forces,teacher_info=sequence.force(*measured_args[:4],foot_loads,measured_args[4],
                             body[door.body_names.index('leaf')],state['angles'],state['hand_forces'],**opening_measurements)
                     else:
@@ -642,6 +893,20 @@ def main():
                 if sequence and foot_initial is None:foot_initial=robot.data.body_state_w[0,foot_bodies,2].cpu().numpy().copy()
                 delivered=robot.root_physx_view.get_dof_actuation_forces()[0].cpu().numpy()
                 max_motor_delivery_error=max(max_motor_delivery_error,float(np.max(np.abs(delivered-torque))))
+                if continuous:
+                    try:
+                        last_actual_motor_forces,residual=actual_motor_delivery(delivered,vel,matrix,motor_inverse,damp,friction)
+                        max_transmission_residual=max(max_transmission_residual,residual)
+                        if np.any(last_actual_motor_forces<force_ranges[:,0]-1e-5) or np.any(last_actual_motor_forces>force_ranges[:,1]+1e-5):
+                            raise ValueError('Actual reconstructed motor delivery exceeded original force caps')
+                    except ValueError as error:
+                        delivery_failure=str(error)
+                        # Retain the actual failed interval before stopping. This
+                        # algebraic reconstruction remains explicitly unqualified.
+                        last_actual_motor_forces=motor_inverse@(delivered+damp*vel+friction*np.tanh(vel/.001))
+                        (out/'motor-delivery-failure.json').write_text(json.dumps(dict(time_s=(step+1)*dt,
+                            error=delivery_failure,actual_joint_effort=delivered.tolist(),
+                            pre_step_velocity=vel.tolist(),requested_motor_forces=forces.tolist()))+'\n')
             if mechanical_audit is not None:
                 qnew=robot.data.joint_pos[0].cpu().numpy()
                 mechanical_audit['max_joint_stop_penetration_rad']=max(mechanical_audit['max_joint_stop_penetration_rad'],
@@ -700,6 +965,10 @@ def main():
                 acquisition_states['door'].append(door.data.joint_pos[0].cpu().numpy().copy())
                 acquisition_states['door_velocity'].append(door.data.joint_vel[0].cpu().numpy().copy())
                 acquisition_states['torso_tilt_deg'].append(float(np.degrees(np.arccos(np.clip(-robot.data.projected_gravity_b[0,2].item(),-1,1)))))
+                if continuous:
+                    acquisition_states['joint_velocity'].append(robot.data.joint_vel[0].cpu().numpy().copy())
+                    acquisition_states['actual_motor_forces'].append(last_actual_motor_forces.copy())
+                    acquisition_states['actual_joint_effort'].append(delivered.copy())
                 pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
                 rotation=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
                 pad_steps.append(pad_evaluator.read(physics_dt=dt,time_s=(step+1)*dt,center=pose[:3]+rotation@grip_center,axis=rotation@grip_axis,half_length=grip_half,radius=grip_radius))
@@ -707,8 +976,14 @@ def main():
                     (out/'latest-pad-audit.json').write_text(json.dumps(pad_steps[-1],indent=2)+'\n')
             if full_opening:
                 full_measurement=read_full_opening_measurement((step+1)*dt)
-                full_opening_steps.append(dict(time_s=(step+1)*dt,geometry=full_measurement['geometry'],
-                    surface=full_measurement['surface'],angles=full_measurement['angles'],teacher=teacher_info))
+                if frozen_opening_report is None:
+                    full_opening_steps.append(dict(time_s=(step+1)*dt,geometry=full_measurement['geometry'],
+                        surface=full_measurement['surface'],angles=full_measurement['angles'],teacher=teacher_info))
+                if continuous:
+                    acquisition_states['continuation_body_poses'].append(np.array([full_measurement['body_poses'][name] for name in continuous.post.pose_names]))
+                    acquisition_states['actual_foot_loads'].append(full_measurement['continuation']['foot_loads'].copy())
+            if delivery_failure is not None:
+                raise RuntimeError(delivery_failure)
             if sensor_recorder:
                 previous_action=2*(forces-force_ranges[:,0])/(force_ranges[:,1]-force_ranges[:,0])-1
                 sensor_recorder.update(robot_data=robot.data,dt=dt,time_s=(step+1)*dt,
@@ -772,12 +1047,12 @@ def main():
                 break
             if full_opening and full_measurement['angles']['leaf']>=a.target_aperture:
                 full_aperture_crossed=True
-                break
+                if not continuous:break
             if not torch.isfinite(robot.data.joint_pos).all():raise RuntimeError('Nonfinite robot state')
             if rows and (rows[-1]['root'][2]<.45 or rows[-1]['torso_tilt_deg']>45):
                 (out/'early-stop.json').write_text(json.dumps(dict(reason='Robot fell',time_s=(step+1)*dt))+'\n')
                 break
-    except BaseException:
+    except BaseException as run_error:
         # Preserve the actual executed prefix even when a controller or backend
         # error prevents normal qualification. These files never imply a pass.
         (out/'trace.json').write_text(json.dumps(rows)+'\n')
@@ -788,6 +1063,20 @@ def main():
             with gzip.open(out/'full-opening-steps.json.gz','wt') as stream:json.dump(full_opening_steps,stream)
         if sequence:
             with gzip.open(out/'full-sequence-steps.json.gz','wt') as stream:json.dump(sequence_steps,stream)
+        if continuous:
+            traversal_contact_stream.close()
+            try:freeze_opening_prefix()
+            except Exception as audit_error:
+                (out/'opening-freeze-error.txt').write_text(str(audit_error)+'\n')
+            save_traversal_evidence()
+            (out/'contacts.json').write_text(json.dumps(all_contacts)+'\n')
+            (out/'mechanical-audit.partial.json').write_text(json.dumps(mechanical_audit,indent=2)+'\n')
+            failure_report=dict(passed=False,status='controller_or_backend_failure',scope='Uninterrupted privileged traversal development',
+                error=str(run_error),duration_s=acquisition_states['time_s'][-1] if acquisition_states['time_s'] else 0.,
+                opening_prefix=frozen_opening_report,controller_failure=continuous.failure,
+                runtime_robot_pose_writes=0,direct_door_commands=False)
+            for name in ('traversal-report.json','report.json'):
+                (out/name).write_text(json.dumps(failure_report,indent=2)+'\n')
         if sensor_recorder and sensor_recorder.times:sensor_recorder.finish(complete=False)
         if teacher_queries:teacher_queries.finish(complete=False,executed_steps=len(acquisition_states['time_s']))
         if writer:writer.close()
@@ -799,6 +1088,8 @@ def main():
         with gzip.open(out/'acquisition-pad-steps.json.gz','wt') as stream:json.dump(pad_steps,stream)
     if full_opening:
         with gzip.open(out/'full-opening-steps.json.gz','wt') as stream:json.dump(full_opening_steps,stream)
+    save_traversal_evidence()
+    if traversal_contact_stream:traversal_contact_stream.close()
     (out/'contacts.json').write_text(json.dumps(all_contacts)+'\n')
     (out/'contact-report-counts.json').write_text(json.dumps(report_counts)+'\n')
     if mechanical_audit is not None:
@@ -902,7 +1193,7 @@ def main():
             (out/'operation-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             (out/'report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             print('OPERATION_RESULT '+json.dumps({k:v for k,v in operation_report.items() if k!='final_pad_grasp'}),flush=True)
-        if full_opening:
+        if full_opening and (not continuous or frozen_opening_report is None):
             from doorbench.dexterous.full_opening_audit import full_opening_checks
             full_checks=full_opening_checks(checks,steps=full_opening_steps,pad_steps=pad_steps,
                 physics_dt=dt,maximum_seconds=a.seconds,target_aperture=a.target_aperture,
@@ -935,7 +1226,34 @@ def main():
             (out/'full-opening-report.json').write_text(json.dumps(full_report,indent=2)+'\n')
             (out/'report.json').write_text(json.dumps(full_report,indent=2)+'\n')
             print('FULL_OPENING_RESULT '+json.dumps(full_report),flush=True)
-    completed_recording=(len(acquisition_states['time_s'])==round(a.seconds/dt) or bool(full_opening and full_aperture_crossed)) and not (out/'early-stop.json').exists()
+        if continuous:
+            end=acquisition_states['time_s'][-1]
+            final_checks=independent_traversal_checks(current_physics_checks(),frozen_opening_report,
+                traversal_steps,dt=dt,end_s=end,maximum_seconds=a.seconds,
+                controller_done=continuous.done,failure=continuous.failure)
+            final_checks['no_requested_early_stop']=not (out/'early-stop.json').exists()
+            final_checks['actual_motor_transmission_residual']=max_transmission_residual<=1e-5
+            final_checks['delivered_motor_command_continuity']=continuous.maximum_motor_delivery_error<=1e-5
+            traversal_report=dict(scope='Uninterrupted live PhysX approach, opening, release, stow, rise and passage; privileged teacher',
+                passed=all(final_checks.values()),checks=final_checks,duration_s=end,
+                physics_dt_s=dt,maximum_seconds=a.seconds,
+                termination='qualified_whole_body_quiet_finish' if continuous.done else 'declared_timeout_or_failure',
+                opening_prefix=frozen_opening_report,controller_failure=continuous.failure,
+                handoffs=continuous.handoffs,final_root=acquisition_states['root'][-1].tolist(),
+                final_leaf_rad=float(acquisition_states['door'][-1][dnames.index('leaf_hinge')]),
+                final_traversal_measurement=traversal_steps[-1] if traversal_steps else None,
+                maximum_actual_motor_delivery_error_Nm=continuous.maximum_motor_delivery_error,
+                maximum_transmission_residual_Nm=max_transmission_residual,
+                stow_profile='sequential-v2',phase_seconds=5.,
+                runtime_robot_pose_writes=0,direct_door_commands=False,native_mirror_steps=0,
+                force_readback='Actual PhysX generalized effort plus matching pre-step native passive terms, inverted through full-rank original61motor transmission',
+                body_pose_order=list(continuous.post.pose_names),grasp_profile=a.grasp_profile,
+                clearance_scope='Actual root/joints and validated body origins in unchanged native-shape calculator; live PhysX penetration gates remain active')
+            for name in ('traversal-report.json','report.json'):
+                (out/name).write_text(json.dumps(traversal_report,indent=2)+'\n')
+            print('TRAVERSAL_RESULT '+json.dumps({k:v for k,v in traversal_report.items() if k!='final_traversal_measurement'}),flush=True)
+    completed_recording=(len(acquisition_states['time_s'])==round(a.seconds/dt) or
+        bool(continuous.done if continuous else full_opening and full_aperture_crossed)) and not (out/'early-stop.json').exists()
     if sensor_recorder:sensor_recorder.finish(complete=completed_recording and len(sensor_recorder.times)==len(acquisition_states['time_s']))
     if teacher_queries:teacher_queries.finish(complete=completed_recording,executed_steps=len(acquisition_states['time_s']))
     if writer:writer.close()
