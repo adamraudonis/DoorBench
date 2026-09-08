@@ -16,9 +16,14 @@ Acceptance retains all 18 original opening checks and adds all-joint stop checki
 | Native original teacher | Opened 0.408 rad, then lost stance | Failed; direct 50 Hz analytic stance port is not native parity |
 | Native panel teacher, direct stance port | Opened 0.409 rad, then lost stance | Failed |
 | Native panel teacher, native 500 Hz stance | Recontacted panel and opened to 1.597 rad; maximum torso tilt 2.07° | Development only: replay found finger joint-stop overshoot up to 0.151 rad |
+| Single preserved-v1 Isaac panel trial | Original opening 18/18 and individual-joint/collision/property checks 5/5; final 95° | Failed panel-completion test: first panel load occurs only after the leaf has already reached 95°; zero loaded forward travel |
 
 The last native attempt's sampled non-foot penetration was 0.73 mm and its body/hand replay was visually inspected. The joint-stop failure overrides its coarse opening pass. By comparison, saved Isaac H1 sensor repeats 001/002 show sampled all-joint overshoot around 1e-6 rad. These measurements do not establish cross-engine equivalence.
 
-Native attempts, rejected geometry, source, states and inspected images are archived at `~/Desktop/Projects/DoorBench-runs/2026-09-08-robust-opening/native-development-001.tar.gz` (SHA256 `8dc0b4c81b4aac4b8ae617c97bf7d06ea3d58ae69a1eb214e7a81412c94f5c63`). Live Isaac verification remains pending.
+Native attempts, rejected geometry, source, states and inspected images are archived at `~/Desktop/Projects/DoorBench-runs/2026-09-08-robust-opening/native-development-001.tar.gz` (SHA256 `8dc0b4c81b4aac4b8ae617c97bf7d06ea3d58ae69a1eb214e7a81412c94f5c63`).
+
+The [single v1 Isaac result](../results/dexterous/2026-09-08/isaac-panel-opening-v1.json) includes 800 full-scene contact samples. Maximum individual joint overshoot was 1.67e-6 rad, self penetration 0.031 mm and working-hand penetration 0.668 mm, with no other non-foot environment penetration. These measured checks do not repair the omitted Shadow loopback constraint. Wide frames were personally inspected. The full source, run/video, traces and audits are in `isaac-panel-001-evidence.tar.gz` in the same archive directory. No further v1 manipulation repetitions are planned.
+
+The next hypothesis is overlapping contact transfer: the left palm reaches nearer the hinge while the right hand still operates the lever, then maintains panel contact across the aperture threshold. This needs a corrected-v2 hand/hold, independent workspace/collision/strength screens and another live physical test.
 
 For an isolated prepared-environment trial, use the usual `isaac_opening.py` arguments plus `--panel-push --seconds 16`. Run `audit_isaac_opening.py` first, then `audit_panel_opening.py --trial PATH`; retain both reports and `mechanical-audit.json`. The ready wrapper's default remains the historical teacher until the extension passes live verification.
