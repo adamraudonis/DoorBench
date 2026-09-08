@@ -33,6 +33,7 @@ p.add_argument('--grip-force',type=float,default=0.,help='Privileged inward fing
 p.add_argument('--torso-damping',type=float,default=0.,help='Additional bounded waist velocity feedback in Nm s/rad')
 p.add_argument('--stance-qp',action='store_true',help='Privileged inverse-dynamics motor controller for standing')
 p.add_argument('--press-feedforward',action='store_true',help='Task-space pressure via bounded robot motors')
+p.add_argument('--panel-push',action='store_true',help='Development: reacquire open-palm panel contact after handle release, through bounded motors')
 p.add_argument('--mechanism-test',action='store_true',help='Non-robot calibration: apply known forces directly to door joints')
 from isaaclab.app import AppLauncher
 AppLauncher.add_app_launcher_args(p)
@@ -240,6 +241,9 @@ def main():
     teacher=None;teacher_info={};teacher_control=None
     if a.native_robot:
         from physx_teacher import HandleTeacher
+        if a.panel_push:
+            from panel_push_teacher import PanelPushTeacher
+            HandleTeacher=PanelPushTeacher
         teacher=HandleTeacher(a.native_robot,motors,ref,stance_qp=a.stance_qp,grip_rotation_fraction=a.grip_rotation_fraction,grip_force=a.grip_force)
     release_time=None
     ankle_motors=[i for i,motor in enumerate(motors['actuators']) if any(n in motor['terms'] for n in ('left_ankle','right_ankle'))]
@@ -249,6 +253,7 @@ def main():
         runtime_pose_writes=0,direct_door_commands=bool(a.mechanism_test),contact_material_audit=contact_material_audit,
         scope='Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
     sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py')]
+    if a.panel_push:sources.append(Path(__file__).with_name('panel_push_teacher.py'))
     inputs=[Path(a.robot_usd),Path(a.door_usd),Path(a.motors),Path(a.reference)]
     if a.native_robot:inputs.append(Path(a.native_robot))
     if a.sensor_layout:
@@ -262,6 +267,22 @@ def main():
         if source.exists():(out/('source-'+source.name)).write_bytes(source.read_bytes())
     stage.GetRootLayer().Export(str((out/'scene.usda').resolve()))
     if sensor_recorder:sensor_recorder.initialize(sim.physics_sim_view,rnames)
+    mechanical_audit=None
+    if a.panel_push:
+        from doorbench.dexterous.isaac_sensors import all_scene_contact_paths
+        scene_paths=all_scene_contact_paths(stage)
+        robot_paths=[p for p in scene_paths if p.startswith('/World/H1/')]
+        audit_contacts=sim.physics_sim_view.create_rigid_contact_view(robot_paths,
+            filter_patterns=[list(scene_paths) for _ in robot_paths],max_contact_data_count=16384)
+        audit_paths=list(audit_contacts.sensor_paths)
+        audit_filters=np.array(audit_contacts.filter_paths).reshape(len(audit_paths),-1)
+        invariant_getters={'mass':robot.root_physx_view.get_masses,'limits':robot.root_physx_view.get_dof_limits,
+            'effort_caps':robot.root_physx_view.get_dof_max_forces,'materials':robot.root_physx_view.get_material_properties,
+            'contact_offsets':robot.root_physx_view.get_contact_offsets,'rest_offsets':robot.root_physx_view.get_rest_offsets}
+        invariants={n:f().cpu().numpy().copy() for n,f in invariant_getters.items()}
+        mechanical_audit=dict(scope='All-joint limits at 500 Hz; full-scene robot contacts at 50 Hz. Privileged evaluator only.',
+            max_joint_stop_penetration_rad=0.,max_self_penetration_m=0.,max_nonfoot_environment_penetration_m=0.,
+            max_hand_door_penetration_m=0.,contact_samples=0,capacity=16384)
     time_origin=float(sim.current_time)
     for step in range(round(a.seconds/dt)):
         pos=robot.data.joint_pos[0].cpu().numpy();vel=robot.data.joint_vel[0].cpu().numpy()
@@ -310,6 +331,26 @@ def main():
         if abs(float(sim.current_time)-time_origin-(step+1)*dt)>.0001:
             raise RuntimeError('Physics clock changed outside the explicit motor timestep')
         robot.update(dt);door.update(dt)
+        if mechanical_audit is not None:
+            qnew=robot.data.joint_pos[0].cpu().numpy()
+            mechanical_audit['max_joint_stop_penetration_rad']=max(mechanical_audit['max_joint_stop_penetration_rad'],
+                float(np.maximum(limits[:,0]-qnew,qnew-limits[:,1]).max()))
+            if step%10==0:
+                af,ap,an,ad,ac,ast=[v.cpu().numpy().copy() for v in audit_contacts.get_contact_data(dt)]
+                if ac.sum()>=16384:raise RuntimeError('Mechanical contact audit buffer exhausted')
+                mechanical_audit['contact_samples']+=1
+                for i,path in enumerate(audit_paths):
+                    for j in range(ac.shape[1]):
+                        for k in range(int(ast[i,j]),int(ast[i,j]+ac[i,j])):
+                            depth=max(0.,-float(ad[k,0]));other=audit_filters[i,j]
+                            if other.startswith('/World/H1/'):
+                                key='max_self_penetration_m'
+                            elif path.rsplit('/',1)[-1].startswith('rh_') and other.startswith('/World/Door/Articulation/'):
+                                key='max_hand_door_penetration_m'
+                            elif path.rsplit('/',1)[-1] in ('left_ankle_link','right_ankle_link'):
+                                continue
+                            else:key='max_nonfoot_environment_penetration_m'
+                            mechanical_audit[key]=max(mechanical_audit[key],depth)
         if sensor_recorder:
             previous_action=2*(forces-force_ranges[:,0])/(force_ranges[:,1]-force_ranges[:,0])-1
             sensor_recorder.update(robot_data=robot.data,dt=dt,time_s=(step+1)*dt,
@@ -367,6 +408,15 @@ def main():
     (out/'trace.json').write_text(json.dumps(rows)+'\n')
     (out/'contacts.json').write_text(json.dumps(all_contacts)+'\n')
     (out/'contact-report-counts.json').write_text(json.dumps(report_counts)+'\n')
+    if mechanical_audit is not None:
+        mechanical_audit['checks']={
+            'joint_stops':mechanical_audit['max_joint_stop_penetration_rad']<.02,
+            'self_collision':mechanical_audit['max_self_penetration_m']<.003,
+            'environment_collision':mechanical_audit['max_nonfoot_environment_penetration_m']<.003,
+            'working_hand_collision':mechanical_audit['max_hand_door_penetration_m']<.003,
+            'plant_parameters_unchanged':all(np.array_equal(invariants[n],f().cpu().numpy()) for n,f in invariant_getters.items())}
+        mechanical_audit['passed']=all(mechanical_audit['checks'].values())
+        (out/'mechanical-audit.json').write_text(json.dumps(mechanical_audit,indent=2)+'\n')
     if sensor_recorder:sensor_recorder.finish()
     if writer:writer.close()
     print('PHYSX_RUN_COMPLETE',flush=True)

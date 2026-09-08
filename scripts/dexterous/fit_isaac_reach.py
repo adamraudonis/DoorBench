@@ -74,7 +74,7 @@ for seed in range(18):
 score,fit=best;arms=fit.x[5:].reshape(n,k);setbase(fit.x[:4]);d.qpos[qa]=arms[0];mujoco.mj_kinematics(m,d)
 check_joint_reset([m.joint(j).name for j in range(1,m.njnt)],d.qpos[m.jnt_qposadr[1:]],m.jnt_range[1:])
 r['initial_root']=d.qpos[:7].tolist();r['initial_joints']={m.joint(j).name:float(d.qpos[m.jnt_qposadr[j]]) for j in range(1,m.njnt)}
-control=np.array(r['controls'][40])
+control=np.array(r['controls'][min(40,len(r['controls'])-1)])
 for n,v in idle_arm.items():control[m.actuator(n).id]=v
 for side in ('left','right'):
  for n in ('hip_pitch','knee','ankle'):control[m.actuator(side+'_'+n).id]=d.qpos[m.jnt_qposadr[m.joint(side+'_'+n).id]]
