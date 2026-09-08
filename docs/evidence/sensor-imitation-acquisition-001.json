@@ -1,0 +1,161 @@
+{
+  "scope": "First actual acquisition-only sensor imitation: CPU prediction and runtime-inference checks, no student task attempt",
+  "training_started_utc": "2026-09-08T12:27:57.273995+00:00",
+  "source_commit": "69df6bc3475d184f1894a00b5f5675204881dab7",
+  "training_archive": "/Users/adamraudonis/Desktop/Projects/DoorBench-runs/2026-09-08-shadow-loopback/sensor-imitation-acquisition-001",
+  "qualification_receipt": "/Users/adamraudonis/Desktop/Projects/DoorBench-runs/2026-09-08-shadow-loopback/teacher-curriculum-002/provenance.json",
+  "qualification_receipt_sha256": "32190f4464356ac905815e38dbd2ecc478506ebd1700667f3354b69a9d287df1",
+  "manifest_sha256": "a1729a4c2feb1b0525bcd80c7682fd39eda7cfc846b43e165c672aae67f850f4",
+  "source_archive_sha256": "ad87ec44b25017a4243d4be77de7510ab4b8d008ba3ec32613a76754083d4cd6",
+  "training": {
+    "scope": "Train a sensor-only recurrent force actor from qualified robot episodes.\n\nThis reports supervised prediction loss only. A checkpoint is not a door-opening\nresult until independently executed in the simulator without teacher assistance.\n",
+    "closed_loop_evaluated": false,
+    "task_success_rate": null,
+    "iterations": 200,
+    "parameters": 557949,
+    "history": [
+      {
+        "iteration": 1,
+        "training_normalized_force_mse": 0.030477769672870636,
+        "elapsed_s": 0.4922981262207031
+      },
+      {
+        "iteration": 26,
+        "training_normalized_force_mse": 0.0018538603326305747,
+        "elapsed_s": 10.676496028900146
+      },
+      {
+        "iteration": 51,
+        "training_normalized_force_mse": 0.0007722187438048422,
+        "elapsed_s": 21.10866379737854
+      },
+      {
+        "iteration": 76,
+        "training_normalized_force_mse": 0.000645932974293828,
+        "elapsed_s": 31.364365816116333
+      },
+      {
+        "iteration": 101,
+        "training_normalized_force_mse": 0.000618217047303915,
+        "elapsed_s": 41.67626976966858
+      },
+      {
+        "iteration": 126,
+        "training_normalized_force_mse": 0.0010950209107249975,
+        "elapsed_s": 51.98579382896423
+      },
+      {
+        "iteration": 151,
+        "training_normalized_force_mse": 0.00016353708633687347,
+        "elapsed_s": 62.292043924331665
+      },
+      {
+        "iteration": 176,
+        "training_normalized_force_mse": 0.0006319448002614081,
+        "elapsed_s": 72.63303303718567
+      },
+      {
+        "iteration": 200,
+        "training_normalized_force_mse": 0.0001662384602241218,
+        "elapsed_s": 82.56792879104614
+      }
+    ],
+    "recurrent_training": "Truncated windows with sensor-only burn-in; reset hidden state at every episode",
+    "observations": "Stereo RGB, local tactile bins, encoders, IMU, previous action, sensor age/validity; no absolute clock or task state"
+  },
+  "prediction": {
+    "scope": "Evaluate causal next-force prediction on a recorded qualified episode.\n\nTeacher physical states and previous actions are replayed as observations; this\nis teacher-forced prediction, never a student rollout or task success metric.\nReport the strong 2 ms previous-command persistence baseline explicitly.\n",
+    "closed_loop_evaluated": false,
+    "task_success_rate": null,
+    "episode": {
+      "source": "/Users/adamraudonis/Desktop/Projects/DoorBench-runs/2026-09-08-shadow-loopback/isaac-operation-v2-002",
+      "qualification": "acquisition-report.json",
+      "control_source": "privileged_teacher",
+      "grasp_profile": "distal-pad-v1",
+      "physics_dt_s": 0.002,
+      "examples": 6456,
+      "files": {
+        "layout.json": "d82d8a329ee9d161af6573e299f751d9c5266e483b7313cb0293897630709344",
+        "actor-sensors.npz": "88872d708a65dc40daaa86c7b29e5fb9c9fb5a7b47f84d2a2ec3f91020b8ba00",
+        "actor-rgb.npz": "1c3938ea8732dee4be4e1008c56957f9f3c78e342ea1030e17f551211ee6dd7a"
+      },
+      "robot_xml_sha256": "3148cbbefa04e65ae813080275008619a3d4ef94f1ca0887c8f51e79630c3c21",
+      "motor_contract_sha256": "6d120ad5be10e1f22a5aa7625b2101ce9fb9aadb90c7fddc8c710678f6ccd8ef",
+      "qualification_files": {
+        "acquisition-report.json": "6cc7fccc59c64b7f5ae9a83884a9d551f3d268fbf81ed8bbfa5b1b492ea3e809",
+        "mechanical-audit.json": "be8907d120e679e49a9b6b9c8b9392d9aea678093c475c82f2fc5e2802d37e6b",
+        "passive-tendon-audit.json": "c9c1567991ae4ce0ef34734f319c74500514e6f974402604c29f0b873e1d8a5d",
+        "motor-contract.json": "4303d14541c7981b6b166822315c5c8fe19a1965d44f34800e1d111e6e8521c9",
+        "sensors/report.json": "99f497a0ba4b7de3df1040085e33e206151cda2cfe260038cb6525a79c606465"
+      },
+      "limitation": "Teacher imitation data; no student rollout or generalization result",
+      "legacy_teacher_receipt_sha256": "32190f4464356ac905815e38dbd2ecc478506ebd1700667f3354b69a9d287df1",
+      "admitted_sample_end_time_s": 12.914,
+      "source_scope": "Acquisition-only immutable prefix; no opening/traversal or student-control claim"
+    },
+    "split": "training_episode",
+    "examples": 6456,
+    "hidden_state": "Reset once; recurrent state carried through every recorded sensor sample",
+    "prediction_mse_normalized_force": {
+      "learned": {
+        "all": 0.000181862056627929,
+        "body": 0.00024473494569328353,
+        "left_hand": 0.00010289469227264877,
+        "right_hand": 0.00019481288746458686
+      },
+      "persistence": {
+        "all": 3.23611093519048e-05,
+        "body": 6.589107092274891e-05,
+        "left_hand": 7.435304703184265e-09,
+        "right_hand": 2.95083237497201e-05
+      },
+      "zero": {
+        "all": 0.008658482356847753,
+        "body": 0.020582818761329273,
+        "left_hand": 0.00018226537222961858,
+        "right_hand": 0.004614146116760297
+      }
+    },
+    "learned_to_persistence_mse_ratio": {
+      "all": 5.619772012458048,
+      "body": 3.714235362485036,
+      "left_hand": 13838.665176503499,
+      "right_hand": 6.601963876936072
+    },
+    "elapsed_s": 16.410662917012814,
+    "device": "cpu",
+    "threads": 1,
+    "checkpoint_sha256": "4f375743040995e355a7bd47d7330346fa210bfc4bc5b9fd8215dfa46bf2c028",
+    "qualification_file_sha256": {
+      "acquisition-report.json": "6cc7fccc59c64b7f5ae9a83884a9d551f3d268fbf81ed8bbfa5b1b492ea3e809",
+      "mechanical-audit.json": "be8907d120e679e49a9b6b9c8b9392d9aea678093c475c82f2fc5e2802d37e6b",
+      "passive-tendon-audit.json": "c9c1567991ae4ce0ef34734f319c74500514e6f974402604c29f0b873e1d8a5d",
+      "motor-contract.json": "4303d14541c7981b6b166822315c5c8fe19a1965d44f34800e1d111e6e8521c9"
+    },
+    "limitations": [
+      "A single training episode cannot establish generalization.",
+      "Teacher-forced previous actions are not the student's own command history.",
+      "No physical state was advanced and no opening attempt was made by the student."
+    ]
+  },
+  "runtime_inference": {
+    "scope": "Actual trained checkpoint loaded by runtime actor; recorded physical observations and actor-owned command history. No simulator was stepped.",
+    "closed_loop_evaluated": false,
+    "task_success_rate": null,
+    "teacher_fallback": false,
+    "checks": {
+      "finite_64_consecutive_inferences": true,
+      "original_caps": true,
+      "explicit_reset_reproduces_first_action": true,
+      "changed_valid_motor_caps_rejected": true
+    },
+    "passed": true,
+    "checkpoint_sha256": "4f375743040995e355a7bd47d7330346fa210bfc4bc5b9fd8215dfa46bf2c028",
+    "motor_contract_sha256": "6d120ad5be10e1f22a5aa7625b2101ce9fb9aadb90c7fddc8c710678f6ccd8ef",
+    "robot_xml_sha256": "3148cbbefa04e65ae813080275008619a3d4ef94f1ca0887c8f51e79630c3c21",
+    "consecutive_inferences": 64,
+    "physics_dt_s": 0.002,
+    "maximum_absolute_motor_command": 59.85475480556488,
+    "limitation": "Inference integration check only; recorded sensor states do not respond to this actor's forces."
+  }
+}
