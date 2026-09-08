@@ -41,7 +41,18 @@ def export_layout(robot_xml):
             dimension=grid.dimension))
     if not sensors:
         raise ValueError('No native tactile sensors found')
-    return dict(interface_version=INTERFACE_VERSION, robot_xml_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+    cameras = []
+    for name in ('left_eye_camera', 'right_eye_camera'):
+        index = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_CAMERA, name)
+        if index < 0:
+            continue
+        cameras.append(dict(name=name, body_name=model.body(int(model.cam_bodyid[index])).name,
+            position_body_m=model.cam_pos[index].tolist(), quaternion_wxyz_body=model.cam_quat[index].tolist(),
+            convention='opengl', fovy_degrees=float(model.cam_fovy[index])))
+    imu_index = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SITE, 'imu')
+    imu = None if imu_index < 0 else dict(body_name=model.body(int(model.site_bodyid[imu_index])).name,
+        position_body_m=model.site_pos[imu_index].tolist(), quaternion_wxyz_body=model.site_quat[imu_index].tolist())
+    return dict(cameras=cameras, imu=imu, interface_version=INTERFACE_VERSION, robot_xml_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
         channel_order=['z','x','y'], layout='sensor order, then channel, vertical bin, horizontal bin',
         tactile_dimension=sum(row['dimension'] for row in sensors), sensors=sensors,
         joint_order=[model.joint(i).name for i in range(model.njnt) if model.jnt_type[i] != mujoco.mjtJoint.mjJNT_FREE],

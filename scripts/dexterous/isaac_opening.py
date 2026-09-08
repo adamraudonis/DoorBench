@@ -19,6 +19,7 @@ p.add_argument('--reference',required=True)
 p.add_argument('--output',required=True)
 p.add_argument('--seconds',type=float,default=12.)
 p.add_argument('--record',action='store_true')
+p.add_argument('--sensor-layout',help='Record finite robot-mounted sensors; teacher remains privileged')
 p.add_argument('--time-scale',type=float,default=1.,help='Slower motor-reference clock; physics dt is unchanged')
 p.add_argument('--view',choices=['wide','hand'],default='wide')
 p.add_argument('--upright-gain',type=float,default=0.,help='Post-opening IMU ankle feedback; bounded robot motors only')
@@ -43,7 +44,7 @@ if not math.isfinite(a.grip_force) or a.grip_force<0:p.error('--grip-force must 
 if not math.isfinite(a.grip_impedance) or a.grip_impedance<0:p.error('--grip-impedance must be finite and nonnegative')
 if not math.isfinite(a.finger_curl):p.error('--finger-curl must be finite')
 if not math.isfinite(a.torso_damping) or a.torso_damping<0:p.error('--torso-damping must be finite and nonnegative')
-if a.record:a.enable_cameras=True
+if a.record or a.sensor_layout:a.enable_cameras=True
 launcher=AppLauncher(a);app=launcher.app
 import numpy as np
 import torch
@@ -111,7 +112,7 @@ def main():
     shader.CreateInput('roughness',Sdf.ValueTypeNames.Float).Set(.35)
     material.CreateSurfaceOutput().ConnectToSource(shader.ConnectableAPI(),'surface')
     for prim in Usd.PrimRange(stage.GetPrimAtPath('/World/Door/Articulation/leaf_handle')):
-        if prim.IsA(UsdGeom.Gprim):UsdShade.MaterialBindingAPI.Apply(prim).Bind(material)
+        if prim.IsA(UsdGeom.Gprim) and not a.sensor_layout:UsdShade.MaterialBindingAPI.Apply(prim).Bind(material)
     contact_material_audit=bind_robot_contact_material(stage,'/World/H1',motors.get('contact_material'))
     (out/'contact-material-audit.json').write_text(json.dumps(contact_material_audit,indent=2)+'\n')
     roots=[]
@@ -153,6 +154,10 @@ def main():
         from isaaclab.sensors import Camera,CameraCfg
         camera=Camera(CameraCfg(prim_path='/World/Camera',update_period=0.,height=720,width=960,
             data_types=['rgb'],spawn=sim_utils.PinholeCameraCfg(focal_length=48. if a.view=='hand' else 24.,clipping_range=(.02,100.))))
+    sensor_recorder=None
+    if a.sensor_layout:
+        from doorbench.dexterous.isaac_sensor_recording import IsaacSensorRecorder
+        sensor_recorder=IsaacSensorRecorder(stage,a.sensor_layout,out/'sensors')
     contacts=[]
     all_contacts=[]
     report_counts=[0,0]
@@ -246,12 +251,17 @@ def main():
     sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py')]
     inputs=[Path(a.robot_usd),Path(a.door_usd),Path(a.motors),Path(a.reference)]
     if a.native_robot:inputs.append(Path(a.native_robot))
+    if a.sensor_layout:
+        inputs.append(Path(a.sensor_layout))
+        sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name
+            for name in ('sensor_contract.py','isaac_sensors.py','isaac_sensor_recording.py')]
     (out/'provenance.json').write_text(json.dumps(dict(captured_before_steps_unix=time.time(),
         files={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources+inputs if p.exists()},
-        camera_note='Diagnostic gold handle material; physical properties unchanged'),indent=2)+'\n')
+        camera_note='Native materials and fixed robot sensor cameras' if a.sensor_layout else 'Diagnostic gold handle material; physical properties unchanged'),indent=2)+'\n')
     for source in sources:
         if source.exists():(out/('source-'+source.name)).write_bytes(source.read_bytes())
     stage.GetRootLayer().Export(str((out/'scene.usda').resolve()))
+    if sensor_recorder:sensor_recorder.initialize(sim.physics_sim_view,rnames)
     time_origin=float(sim.current_time)
     for step in range(round(a.seconds/dt)):
         pos=robot.data.joint_pos[0].cpu().numpy();vel=robot.data.joint_vel[0].cpu().numpy()
@@ -288,8 +298,8 @@ def main():
             door.set_joint_effort_target(effort)
         robot.write_data_to_sim();door.write_data_to_sim()
         contacts.clear();sim.step(render=False)
-        if camera and step%20==0:
-            if a.view=='hand':
+        if (camera or sensor_recorder) and step%20==0:
+            if camera and a.view=='hand':
                 # Move only the diagnostic camera; never the robot or door.
                 pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
                 hrot=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
@@ -300,6 +310,10 @@ def main():
         if abs(float(sim.current_time)-time_origin-(step+1)*dt)>.0001:
             raise RuntimeError('Physics clock changed outside the explicit motor timestep')
         robot.update(dt);door.update(dt)
+        if sensor_recorder:
+            previous_action=2*(forces-force_ranges[:,0])/(force_ranges[:,1]-force_ranges[:,0])-1
+            sensor_recorder.update(robot_data=robot.data,dt=dt,time_s=(step+1)*dt,
+                previous_action=previous_action,rendered=step%20==0)
         all_contacts.extend(dict(time_s=(step+1)*dt,**c) for c in contacts)
         if step==0:
             (out/'initial-body-poses.json').write_text(json.dumps(dict(
@@ -353,6 +367,7 @@ def main():
     (out/'trace.json').write_text(json.dumps(rows)+'\n')
     (out/'contacts.json').write_text(json.dumps(all_contacts)+'\n')
     (out/'contact-report-counts.json').write_text(json.dumps(report_counts)+'\n')
+    if sensor_recorder:sensor_recorder.finish()
     if writer:writer.close()
     print('PHYSX_RUN_COMPLETE',flush=True)
 
