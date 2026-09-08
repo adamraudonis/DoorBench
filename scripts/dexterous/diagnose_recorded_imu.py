@@ -107,7 +107,7 @@ def main():
         states={k:initial_R.copy() for k in ('existing','gyro_only','gyro_include_first_span','fk_gyro_only')};previous=None
         metrics={k:[] for k in ('gyro_error_radps','gyro_minus_previous_epoch_radps','gyro_minus_next_epoch_radps','accel_error_mps2',
             'accel_minus_gravity_mps2','capture_age_s','gravity_update_error_rad','existing_replay_error_rad',
-            'imu_actual_increment_minus_gyro_rad','existing_capture_error_rad','existing_decision_error_rad',
+            'imu_actual_increment_minus_gyro_rad','imu_increment_minus_transported_endpoint_gyro_rad','existing_capture_error_rad','existing_decision_error_rad',
             'gyro_only_capture_error_rad','gyro_only_decision_error_rad','gyro_first_capture_error_rad','fk_gyro_capture_error_rad')};samples=[]
         for i in range(9500):
             if not sensors['sensor_valid'][i,2]:
@@ -131,6 +131,8 @@ def main():
                 gravity_update_error_rad=float(Rotation.from_matrix(states['existing']@(before@Rotation.from_rotvec(gyro*elapsed).as_matrix()).T).magnitude()),
                 existing_replay_error_rad=float(Rotation.from_matrix(states['existing']@recorded.T).magnitude()),
                 imu_actual_increment_minus_gyro_rad=(Rotation.from_matrix(frames[max(0,idx-1)].T@frames[idx]).as_rotvec()-gyro*.002),
+                imu_increment_minus_transported_endpoint_gyro_rad=(Rotation.from_matrix(frames[max(0,idx-1)].T@frames[idx]).as_rotvec()
+                    -(frames[max(0,idx-1)].T@frames[idx])@gyro*.002),
                 existing_capture_error_rad=err(states['existing'],idx),existing_decision_error_rad=err(states['existing'],i),
                 gyro_only_capture_error_rad=err(states['gyro_only'],idx),gyro_only_decision_error_rad=err(states['gyro_only'],i),
                 gyro_first_capture_error_rad=err(states['gyro_include_first_span'],idx),fk_gyro_capture_error_rad=err(states['fk_gyro_only'],idx))
