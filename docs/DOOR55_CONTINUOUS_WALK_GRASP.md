@@ -110,3 +110,65 @@ active until measured left-palm contact supports the leaf. The final right
 elbow is 2.45661 rad with a 2.61 rad limit: only 0.1534 rad remains, so a simple
 straight-back wrist withdrawal is not assumed feasible. Left-hand transfer,
 right release, full opening and traversal require their own continuous tests.
+
+## Portable full-sequence interface
+
+[`FullSequenceTeacher`](../doorbench/dexterous/full_sequence_teacher.py) now
+connects the measured-state body teacher, readiness reference, acquisition and
+operation behind one force-only API. A separate 55 s native run of this
+interface passes **all nineteen gates**. Final leaf travel is 0.084899 rad,
+stance solver failures are zero, preparation stays contact-free, and no handle
+contact patch is anatomically invalid. Nine isolated operation samples unload a
+digit; the final half-second qualifies all five pads. The measured low-stance
+heading error is 13.119° and is retained in its
+[separate receipt](evidence/door55-full-sequence-teacher-2026-09-08.json).
+
+```python
+teacher = FullSequenceTeacher(
+    robot_xml, motor_contract, acquisition_reference, readiness_reference,
+    reset, unitree_checkpoint, joint_geometry, door_xml=door_xml,
+    operation_options={},
+)
+motor_forces, info = teacher.force(
+    time_s, root13, measured_joint_positions, measured_joint_velocities,
+    measured_foot_loads, measured_handle_pose, measured_leaf_pose,
+    {"operator": lever_rad, "leaf": leaf_rad, "latch": bolt_m},
+    measured_world_hand_body_forces,
+    grasp_qualified=actual_strict_pad_audit,
+    hand_contact_count=actual_right_hand_contact_count,
+)
+```
+
+`reset` contains `initial_root` (world xyz+wxyz), named `joints`, named original
+servo `motor_targets`, `goal_xy` and `goal_yaw_rad`. It describes the active
+simulator's initial state; constructing the teacher does not set that simulator.
+`root13` contains world xyz+wxyz, world linear velocity, and world angular
+velocity. Foot loads are measured world-up support forces `[left, right]`.
+All poses, mechanism units and joint geometry follow the
+[operation interface](DOOR55_CONTINUOUS_OPERATION.md). Call once per active
+2 ms step. The caller still owns the actual physics and all safety audits.
+
+The body controller retains its measured landed foot frames through arm
+loading. Measured hand-body forces contribute to its analytic stance equations
+at body origins, matching the existing acquisition approximation; these are
+never externally applied robot forces. This loaded-body approximation was
+tested in the complete portable native run. The MuJoCo calculators are never
+stepped. A separate scene compiled from the same `door.xml` and robot XML checks
+readiness geometry at the actual measured root and mechanism angles. It rejects
+an asset-frame mismatch or any right-hand contact in the readiness samples;
+it does not assume that an old canonical root was reached.
+
+`operation_options` passes optional settings to `DoorOperationTeacher` without
+changing its defaults. This qualified run used an empty options dictionary.
+Any later compliance/timing options need their own physical qualification.
+If `info["blocked_reason"]` is non-null, the readiness screen failed and no arm
+preparation is started; the body controller continues to hold its actual stance.
+
+Add `--portable-sequence` to the reproduction command above. This requires
+`ApproachBodyTeacher` with optional measured hand loads, commit `55016fc9d` on
+the body adapter's `2e98e5008`/`8cdfd93c9` history. Its full evidence is
+`/tmp/doorbench-shadow-loopback/walk-grasp-portable-001/`. The direct committed
+driver was also rerun with the frozen readiness configuration as
+`walk-grasp-002`; all nineteen gates pass with the same final state as run 001.
+Readiness unit tests reject a 0.5 mm accidental precontact, which would fit
+under the older generic 3 mm penetration limit, and a mismatched asset frame.

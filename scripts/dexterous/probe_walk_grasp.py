@@ -56,6 +56,7 @@ def main():
         parser.add_argument('--'+name,type=Path,required=True)
     parser.add_argument('--seconds',type=float,default=55.)
     parser.add_argument('--prepare-seconds',type=float,default=8.)
+    parser.add_argument('--portable-sequence',action='store_true')
     args = parser.parse_args()
     if not np.isfinite([args.seconds,args.prepare_seconds]).all() or min(args.seconds,args.prepare_seconds)<=0:
         parser.error('Use finite positive durations')
@@ -83,6 +84,20 @@ def main():
     original_gain = m.actuator_gainprm[aids,0].copy()
     original_bias = m.actuator_biasprm[aids,:3].copy()
     original_controls = m.actuator_ctrlrange[aids].copy()
+    sequence = None
+    if args.portable_sequence:
+        from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
+        reset = dict(initial_root=d.qpos[sim.root_qadr:sim.root_qadr+7].tolist(),
+            joints=dict(zip(teacher.names,d.qpos[qa])),
+            motor_targets={v['name']:float(d.ctrl[a]) for v,a in zip(motors['actuators'],aids)},
+            goal_xy=goal.tolist(),goal_yaw_rad=yaw_goal)
+        hj,lj = m.joint('leaf_handle_hinge').id,m.joint('leaf_hinge').id
+        sequence = FullSequenceTeacher(args.robot,motors,ref,prep_ref,reset,args.checkpoint,
+            dict(operator_origin=m.jnt_pos[hj],operator_axis=m.jnt_axis[hj],leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),
+            door_xml=args.door/'door.xml',prepare_seconds=args.prepare_seconds)
+        source = Path(inspect.getfile(FullSequenceTeacher))
+        shutil.copy2(source,args.output/'full-sequence-teacher-source.py')
+        (args.output/'full-sequence-source.json').write_text(json.dumps(dict(source=str(source),sha256=hashlib.sha256(source.read_bytes()).hexdigest()),indent=2)+'\n')
     # Normalize only the adapter, once at reset; preserve original force caps.
     m.actuator_gainprm[aids,0] = 1.
     m.actuator_biasprm[aids,:3] = 0.
@@ -109,46 +124,49 @@ def main():
     try:
         for step in range(round(args.seconds/m.opt.timestep)):
             t = float(d.time)
-            walk_control = body.command(foot_loads)
-            bias = original_bias[:,0]+original_bias[:,1]*d.actuator_length[aids]+original_bias[:,2]*d.actuator_velocity[aids]
-            force = np.clip(original_gain*np.clip(walk_control[aids],original_controls[:,0],original_controls[:,1])+bias,
-                            teacher.caps[:,0],teacher.caps[:,1])
-            if body.stance_command is not None:
-                # After handoff, the QP reads the normalized model and already
-                # returns force units. Walking still uses original affine math.
-                force[leg_local] = walk_control[sim.adapter.actuators]
-            if prep is None and body.stage == 'low stance hold':
-                ready = (t-body.stance_started >= 5. and min(foot_loads)>30 and
-                         abs(d.qpos[sim.root_qadr+2]-ref['initial_root'][2])<.01 and
-                         np.linalg.norm(d.qvel[sim.root_vadr:sim.root_vadr+3])<.02 and
-                         physics[-1]['hand_contact_count']==0)
-                quiet_since = t if ready and quiet_since is None else quiet_since if ready else None
-                if quiet_since is not None and t-quiet_since >= .5:
-                    actual = d.qpos[qa].copy()
-                    proposal = copy.deepcopy(prep_ref)
-                    names = proposal['acquisition']['joint_names']
-                    path = np.asarray(proposal['acquisition']['path_qpos'])
-                    order = [teacher.names.index(n) for n in names]
-                    # Measured legs/root remain physical; only planning copies
-                    # receive them. First goal is the actual neutral hand pose.
-                    for i,n in enumerate(names):
-                        if any(v in n for v in ('hip_','knee','ankle')):
-                            path[:,i] = actual[order[i]]
-                    path[0] = actual[order]
-                    proposal['acquisition']['path_qpos'] = path.tolist()
-                    proposal['initial_root'] = d.qpos[sim.root_qadr:sim.root_qadr+7].tolist()
-                    (args.output/'actual-preparation-reference.json').write_text(json.dumps(proposal)+'\n')
-                    readiness_screen = screen_preparation(sim,proposal)
-                    (args.output/'actual-preparation-screen.json').write_text(json.dumps(readiness_screen,indent=2)+'\n')
-                    if not readiness_screen['passed']:
-                        break  # Preserve the complete executed prefix below.
-                    prep = AcquisitionTeacher(args.robot,motors,proposal,reach_seconds=args.prepare_seconds,
-                                              grip_force=0.,palm_integral=0.)
-                    prep_started = t
-                    R = d.xmat[sim.pelvis].reshape(3,3)
-                    actual_yaw = float(np.arctan2(R[1,0],R[0,0]))
-                    handoffs['lowered'] = dict(time_s=t,root=d.qpos[sim.root_qadr:sim.root_qadr+7].tolist(),
-                                              original_heading_error_deg=abs(float(np.rad2deg(wrap_angle(actual_yaw-yaw_goal)))))
+            if sequence is None:
+                walk_control = body.command(foot_loads)
+                bias = original_bias[:,0]+original_bias[:,1]*d.actuator_length[aids]+original_bias[:,2]*d.actuator_velocity[aids]
+                force = np.clip(original_gain*np.clip(walk_control[aids],original_controls[:,0],original_controls[:,1])+bias,
+                                teacher.caps[:,0],teacher.caps[:,1])
+                if body.stance_command is not None:
+                    # After handoff, the QP reads the normalized model and already
+                    # returns force units. Walking still uses original affine math.
+                    force[leg_local] = walk_control[sim.adapter.actuators]
+                if prep is None and body.stage == 'low stance hold':
+                    ready = (t-body.stance_started >= 5. and min(foot_loads)>30 and
+                             abs(d.qpos[sim.root_qadr+2]-ref['initial_root'][2])<.01 and
+                             np.linalg.norm(d.qvel[sim.root_vadr:sim.root_vadr+3])<.02 and
+                             physics[-1]['hand_contact_count']==0)
+                    quiet_since = t if ready and quiet_since is None else quiet_since if ready else None
+                    if quiet_since is not None and t-quiet_since >= .5:
+                        actual = d.qpos[qa].copy()
+                        proposal = copy.deepcopy(prep_ref)
+                        names = proposal['acquisition']['joint_names']
+                        path = np.asarray(proposal['acquisition']['path_qpos'])
+                        order = [teacher.names.index(n) for n in names]
+                        # Measured legs/root remain physical; only planning copies
+                        # receive them. First goal is the actual neutral hand pose.
+                        for i,n in enumerate(names):
+                            if any(v in n for v in ('hip_','knee','ankle')):
+                                path[:,i] = actual[order[i]]
+                        path[0] = actual[order]
+                        proposal['acquisition']['path_qpos'] = path.tolist()
+                        proposal['initial_root'] = d.qpos[sim.root_qadr:sim.root_qadr+7].tolist()
+                        (args.output/'actual-preparation-reference.json').write_text(json.dumps(proposal)+'\n')
+                        readiness_screen = screen_preparation(sim,proposal)
+                        (args.output/'actual-preparation-screen.json').write_text(json.dumps(readiness_screen,indent=2)+'\n')
+                        if not readiness_screen['passed']:
+                            break  # Preserve the complete executed prefix below.
+                        prep = AcquisitionTeacher(args.robot,motors,proposal,reach_seconds=args.prepare_seconds,
+                                                  grip_force=0.,palm_integral=0.)
+                        prep_started = t
+                        R = d.xmat[sim.pelvis].reshape(3,3)
+                        actual_yaw = float(np.arctan2(R[1,0],R[0,0]))
+                        handoffs['lowered'] = dict(time_s=t,root=d.qpos[sim.root_qadr:sim.root_qadr+7].tolist(),
+                                                  original_heading_error_deg=abs(float(np.rad2deg(wrap_angle(actual_yaw-yaw_goal)))))
+            else:
+                force = np.zeros(len(aids))
             loads = {n:np.zeros(3) for n in hand_names.values()}
             for i,c in enumerate(d.contact[:d.ncon]):
                 wrench = np.zeros(6)
@@ -164,20 +182,34 @@ def main():
             q,dq = dict(zip(teacher.names,d.qpos[qa])),dict(zip(teacher.names,d.qvel[va]))
             handle_pose,leaf_pose = np.r_[d.xpos[hb],d.xquat[hb]],np.r_[d.xpos[lb],d.xquat[lb]]
             info = dict(phase=body.stage)
-            if prep is not None and acquisition_started is None:
-                upper,info = prep.force(t-prep_started,root,q,dq,handle_pose,loads)
-                force[:] = upper
-                force[leg_local] = walk_control[sim.adapter.actuators]
-                info['phase'] = 'arm preparation'
-                if info.get('path_fraction',0)>=.999 and t-prep_started>=args.prepare_seconds+2 and info['tracking_error_m']<.005 and physics[-1]['hand_contact_count']==0:
-                    acquisition_started = t
-                    handoffs['acquisition'] = dict(time_s=t,root=root[:7].tolist(),
-                                                  palm_error_m=info['tracking_error_m'],hand_contact_count=physics[-1]['hand_contact_count'])
-            if acquisition_started is not None:
-                force,info = operation.force(t-acquisition_started,root,q,dq,handle_pose,leaf_pose,
+            if sequence is not None:
+                force,info = sequence.force(t,root,q,dq,foot_loads,handle_pose,leaf_pose,
                     dict(operator=d.qpos[m.jnt_qposadr[hj]],leaf=d.qpos[m.jnt_qposadr[lj]],latch=d.qpos[m.jnt_qposadr[bj]]),
-                    loads,grasp_qualified=physics[-1]['pad_grasp']['valid_pad_grasp'])
-                force[leg_local] = walk_control[sim.adapter.actuators]
+                    loads,grasp_qualified=physics[-1]['pad_grasp']['valid_pad_grasp'],hand_contact_count=physics[-1]['hand_contact_count'])
+                body = sequence.body.controller
+                prep,prep_started,acquisition_started = sequence.prep,sequence.prep_started,sequence.acquisition_started
+                handoffs = sequence.handoffs
+                if readiness_screen is None and sequence.readiness_screen is not None:
+                    readiness_screen = sequence.readiness_screen
+                    (args.output/'actual-preparation-screen.json').write_text(json.dumps(readiness_screen,indent=2)+'\n')
+                    (args.output/'actual-preparation-reference.json').write_text(json.dumps(sequence.actual_preparation)+'\n')
+                if sequence.blocked_reason:
+                    break
+            else:
+                if prep is not None and acquisition_started is None:
+                    upper,info = prep.force(t-prep_started,root,q,dq,handle_pose,loads)
+                    force[:] = upper
+                    force[leg_local] = walk_control[sim.adapter.actuators]
+                    info['phase'] = 'arm preparation'
+                    if info.get('path_fraction',0)>=.999 and t-prep_started>=args.prepare_seconds+2 and info['tracking_error_m']<.005 and physics[-1]['hand_contact_count']==0:
+                        acquisition_started = t
+                        handoffs['acquisition'] = dict(time_s=t,root=root[:7].tolist(),
+                                                      palm_error_m=info['tracking_error_m'],hand_contact_count=physics[-1]['hand_contact_count'])
+                if acquisition_started is not None:
+                    force,info = operation.force(t-acquisition_started,root,q,dq,handle_pose,leaf_pose,
+                        dict(operator=d.qpos[m.jnt_qposadr[hj]],leaf=d.qpos[m.jnt_qposadr[lj]],latch=d.qpos[m.jnt_qposadr[bj]]),
+                        loads,grasp_qualified=physics[-1]['pad_grasp']['valid_pad_grasp'])
+                    force[leg_local] = walk_control[sim.adapter.actuators]
             d.ctrl[aids] = np.clip(force,teacher.caps[:,0],teacher.caps[:,1])
             row = audited_native_step(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')
             row.update(phase=info['phase'],bolt_slide_m=float(d.qpos[m.jnt_qposadr[bj]]))
