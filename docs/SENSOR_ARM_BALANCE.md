@@ -1,5 +1,31 @@
 # Sensor balance with explicit arm goals
 
+## Actual Isaac result — September 8, 2026
+
+The first actual six-second test, launched at **17:52:12 UTC**, passes
+**16/16 arm/balance checks and 14/14 original mechanical checks** across all
+3,000 physics steps. Peak torso tilt is **0.3577 degrees**, maximum arm tracking
+error is **0.0027724 rad**, and every commanded movement reaches approximately
+its requested excursion. Both feet support the final quiet stance; neither
+hand contacts the environment. This is a scripted arm command experiment with
+sensor-feedback balance, not a learned policy or door-opening result.
+
+[Full scoped report](../results/dexterous/2026-09-08/sensor-arm-balance-isaac-001.json).
+Frozen source `bda2aec11`, 95 output files and 528 source/input files are
+hash-verified off-pod under
+`DoorBench-runs/2026-09-08-shadow-loopback/sensor-arm-balance-isaac-001`.
+Root personally inspected the actual maximum-excursion wide view and hand
+close-ups during movement and after return. The diagnostic camera now includes
+both the raised hand and lever. Robot cameras retain their fixed calibration.
+
+Reproduce with the shared `scripts/dexterous/isaac_opening.py` runner and the
+same bound reset, robot, door, motors and reference as [stationary balance](SENSOR_BALANCE.md).
+Add `--sensor-arm-schedule configs/dexterous/sensor-arm-balance-v1.json` and
+`--seconds 6` to its balance arguments. Preserve the resulting
+`balance-arm-reset.json`, `balance-arm-schedule.json`, per-step records, raw
+contacts, dependency versions and QP diagnostics. No checkpoint or privileged
+teacher option is permitted in this mode.
+
 ## Portable runtime and independent evaluation
 
 `SensorArmBalanceRuntime(robot_xml, motors, layout, calibration_json,

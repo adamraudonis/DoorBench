@@ -234,3 +234,13 @@ local and original-runtime replay failures are retained. Package versions alone
 do not explain it; solver numerical behavior remains a hypothesis. Subsequent
 runs record dependency versions and numerical QP fingerprints, iterations and
 residuals without changing the control objective or motor limits.
+
+A [post-hoc cold-QP diagnostic](evidence/sensor-balance-cold-qp-diagnostic-001.json)
+holds the numerical problem fixed and varies only its detached solver settings.
+Four default repeats stop after 50 iterations with no rho update and reproduce
+the 0.125525 Nm difference. An explicit 25-iteration adaptive-rho interval takes
+75 iterations with one update and matches the actual first command within
+4.4e-13 Nm. This supports the solver's time-dependent update choice as the cold
+replay explanation; it does not establish exact replay of the remaining
+episode. The original failed strict replays remain failed. No physical run or
+qualification threshold was changed by this numerical diagnostic.

@@ -224,3 +224,21 @@ passes 19/19 checks with every state, motor command and sensor packet exactly
 matching the earlier nominal native005. Modest arm movement has a separate
 native component result; its actual Isaac test is next. Full opening, safe
 release and uninterrupted traversal remain unresolved.
+
+### Scripted-arm balance in Isaac — September 8, 18:02 UTC
+
+[Actual arm001](../results/dexterous/2026-09-08/sensor-arm-balance-isaac-001.json)
+passes16/16 grouped and14/14 original physical checks across3,000 steps.
+Peak tilt is0.3577degrees; arm tracking error stays below0.002773rad.
+This is the same sensor-only balance architecture with a declared numeric
+arm schedule; vision is unused and no door contact is attempted. All95 outputs
+and528 source/input files are hash-verified off-pod. Actual wide and hand views
+show the supported robot and clear hand at maximum excursion and after return.
+
+The native shortened release still fails three LF/FF contacts under the original
+pad gate. Fixing post-release target ownership produces exactly the same143 raw
+chunks and physical commands as its failed predecessor, so that cleanup does
+not explain the panel collapse. The next controlled comparison projects the
+normal contact acceleration across all eight actuated waist/left-arm joints.
+The older projection covers only seven arm joints while the waist servo remains
+active. This is a hypothesis being physically tested, not a successful result.
