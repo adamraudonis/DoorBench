@@ -9,7 +9,7 @@ portability requirement.
 | Component | Current admission | Remaining portable work |
 |---|---|---|
 | `WholeBodyLeverReturn.begin` | Exact screened root and body joints within1e−5 | Generate and independently screen a new return from the current supported grasp. |
-| `WholeBodyMeasuredUngrip._begin_ungrip` | Exact newly attained root,69 joints, leaf and operator | Plan again after the physical lever reaches rest; do not assume the predicted return endpoint occurred. |
+| `WholeBodyMeasuredUngrip._begin_ungrip` | Exact newly attained root,47 joints in legacy plans, leaf and operator | Bind all69 joints in new destination plans; plan again after the physical lever reaches rest. |
 | `ScreenedWholeBodyPanel.begin` | Exact attained complete released state and aperture | Generate the flat-palm/body path from the new released state and validate actual imported collision geometry. |
 | `PostOpeningTeacher.force` | Current measurements and independent actual prefix audit | Its runtime stow screen already exists; compose after qualified full opening without resetting the episode. |
 
@@ -83,3 +83,34 @@ Legacy ungrip target plans compare 25 body joints and 22 right finger joints at
 admission, while `observe_state` receives all 69. New destination-state receipts
 must bind all 69 initial joints; historical plans/results are retained unchanged.
 The panel planner and complete runtime state adapters remain to be extracted.
+
+## Complete destination-state binding
+
+`destination_state_binding.freeze_destination_state` and
+`admit_destination_state` provide a standalone additive admission check for new
+plans. They bind all69 robot positions and velocities, the original complete
+motor contract, root13, the explicitly declared complete door joint inventory,
+door q/dq, source identities and coherent measurement time. They receive copied
+numeric values only. Position/velocity checks retain a1e−5 bound and epochs must
+agree within1e−8 seconds; existing runtime guards are unchanged.
+
+The root convention must be named explicitly: actor-origin XYZ/WXYZ pose and
+world actor-origin linear/angular velocity. Isaac `root_link_state_w` provides
+this convention; legacy `root_state_w` mixes actor pose and COM velocity and
+cannot be silently substituted. A native adapter must rotate free-joint angular
+velocity into world axes. Changing a left finger omitted by the old47-joint
+withdrawal check now rejects admission, as do changed motor caps, door velocity,
+root velocity, missing coordinates and a stale epoch.
+
+The [recorded-state check](evidence/destination-state-binding-001.json) confirms
+coherent epochs across9,500 Isaac intervals and admits three actual snapshots at
+0.002,9.502 and19 seconds. Its deliberate2mrad left-finger perturbations all
+reject;15 focused tests pass. This is state-identity evidence, not imported FK,
+collision, force or task qualification. The utility must still be composed into
+the new destination planners and independently verified live.
+
+```bash
+python scripts/dexterous/check_destination_state_capture.py \
+  --run /path/to/recorded-isaac-sensor-trial \
+  --output out/destination-state-check.json
+```
