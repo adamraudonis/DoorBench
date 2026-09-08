@@ -203,3 +203,25 @@ all 16 grouped checks and retained all 22 original native checks, including
 maximum arm tracking error **0.002760 rad**. This reuses the original physical
 run; it is not a new simulator rollout. The compact receipt is
 [`sensor-arm-balance-runtime-001.json`](evidence/sensor-arm-balance-runtime-001.json).
+
+## Actual Isaac check, 2026-09-08
+
+The frozen six-second Isaac arm run also passed all **16 component checks and
+14 original physical checks**, with 3,000 measured intervals. Maximum torso
+tilt was **0.35773°** and maximum joint tracking error **0.0027724 rad**. The
+smallest delivered movement was **99.976%** of its requested excursion. During
+the final second, maximum horizontal speed was 0.000399 m/s and angular speed
+0.000965 rad/s; each foot retained at least 242.3 N and 279.2 N of actual floor
+support respectively. No hand contact, failed QP, mechanical-limit violation or
+force-cap violation was admitted.
+
+The independent raw-contact audit reconstructed every floor load and hand-contact
+count with zero difference. All 526 frozen manifest entries and 29 prelaunch
+source/input hashes matched; the actual reset and offline proposal bindings
+matched too. Wide and close hand frames were personally inspected. The hand
+remains open and clear of the closed door throughout this support experiment.
+The [independent receipt](evidence/sensor-arm-balance-isaac-001-independent.json)
+records the actual checks, provenance and separate scope. This is a moving-arm
+sensor-feedback component, not grasping, a learned high-level policy or door
+opening. No full command-replay claim is made for this Isaac run; its numerical
+QP branch metadata is retained alongside the earlier strict replay discrepancy.
