@@ -148,6 +148,7 @@ p.add_argument('--sensor-reset-preflight',help='Required frozen native reset rec
 p.add_argument('--reset-from-acquisition-path',action='store_true',help='Use the frozen contact-free first configuration at reset only')
 p.add_argument('--grasp-profile',choices=['distal-pad-v1','volar-phalange-v1'],default='distal-pad-v1')
 p.add_argument('--grasp-profile-definition',help='Frozen declaration required for an opt-in grasp profile')
+p.add_argument('--joint-passive-profile',choices=['legacy-tanh-v1','backend-dry-v2'],default='legacy-tanh-v1',help='Versioned robot passive-joint adapter; backend dry friction requires separate qualification')
 p.add_argument('--full-sequence-reset',help='Start from the frozen walking reset and run continuous walk/lower/prepare/acquire/operate')
 p.add_argument('--preparation-reference',help='Contact-free readiness path; screened again at the actual stopped pose')
 p.add_argument('--locomotion-checkpoint',help='Frozen original H1 locomotion checkpoint')
@@ -455,6 +456,14 @@ def main():
     force_ranges=np.array([m['force_range'] for m in motors['actuators']])
     damp=np.array([motors['passive'][n]['damping'] for n in rnames])
     friction=np.array([motors['passive'][n]['friction'] for n in rnames])
+    from doorbench.dexterous.isaac_joint_passive import passive_profile,configure_backend
+    passive_declaration=passive_profile(motors,rnames,a.joint_passive_profile)
+    if a.joint_passive_profile=='backend-dry-v2':
+        passive_receipt=configure_backend(robot.root_physx_view,passive_declaration)
+        damp=passive_declaration['explicit_damping'];friction=passive_declaration['explicit_friction']
+    else:
+        passive_receipt=dict(profile=a.joint_passive_profile,scope='Historical explicit damping and tanh(v/.001) friction; retained for replay')
+    (out/'joint-passive-profile.json').write_text(json.dumps(passive_receipt,indent=2)+'\n')
     target=torch.zeros((1,len(dnames)),device=a.device)
     for i,n in enumerate(dnames):
         prim=stage.GetPrimAtPath('/World/Door/Articulation/Joints/'+n)
@@ -1375,6 +1384,7 @@ def main():
                 balance_report=evaluate_sensor_balance(balance_steps,balance_checks,
                     physics_dt_s=dt,expected_duration_s=a.seconds)
             balance_report.update(calibration_sha256=hashlib.sha256(Path(a.sensor_balance_calibration).read_bytes()).hexdigest(),
+                joint_passive_profile=a.joint_passive_profile,
                 runtime_robot_pose_writes=0,direct_door_commands=False,teacher_fallback=False,
                 runtime_controller_inputs='Encoders, local IMU, foot tactile and previous command; fixed robot/posture calibration; RGB captured but unused'+('; separate frozen joint-only torso, arm and finger route' if a.sensor_reach_protocol or a.sensor_acquisition_protocol else '; separate frozen scripted arm/wrist joint schedule' if a.sensor_arm_schedule else ''),
                 force_readback='Submitted backend actuation input, not an independent joint torque sensor')
