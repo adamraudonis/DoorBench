@@ -8,7 +8,7 @@ posture while an analytic lever-clearance term keeps it away from the handle.
 This changes only analytic reference targets. It never steps an analytic model,
 sets a plant pose, commands the door or emits a helper force. Exact contact
 loads and scene frames are privileged teacher inputs, never actor observations.
-The qualified route begins in the recorded deep stance; another attained root
+The screened route begins in the recorded deep stance; another attained root
 or robot requires a new workspace and physical qualification.
 """
 import mujoco
@@ -136,6 +136,14 @@ class CoordinatedPanelPush:
             l.filtered_palm_load=previous_load+(0. if elapsed<=0 else elapsed/(.02+elapsed))*(palm_load-previous_load)
             l.normal=current_R[:,1]
             l.hybrid_normal_target=self.target_palm_load
+            blend_t=float(np.clip((t-self.started)/1.,0.,1.))
+            l.hybrid_blend=blend_t**3*(10+blend_t*(-15+6*blend_t))
+            # Use the actual palm collision surface, rather than the displaced
+            # touch-site origin, for the normal-acceleration direction.
+            if self.flatten_palm:
+                site_R=d.site_xmat[l.palm].reshape(3,3)
+                support=self.palm_surface@(site_R.T@l.normal)
+                l.normal_contact_point_local=np.mean(self.palm_surface[support>=support.max()-.001],axis=0)
             self.measured_leaf_time=float(t)
             self.measured_leaf_position=np.asarray(leaf_pose[:3]).copy()
             self.measured_leaf_rotation=current_R.copy()

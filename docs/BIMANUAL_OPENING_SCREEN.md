@@ -487,3 +487,20 @@ filter is controller-only; gates use every raw physical load sample. Its flat
 palm target includes actual collision-mesh support-plane compensation and a
 30 mrad extra wrist margin. This is an unqualified controller revision until a
 complete actual-transition run passes; it must not inherit legacy trial scores.
+
+The controlled comparison is explicit: `panel_profile="plain-v1"` selects the
+original 3 N target, 12 mm offset bound, 2 s left cup and original left-arm
+damping, without the later hybrid/flat-palm controller or LFJ5 impedance change.
+`palm_load_target=8` changes only its desired physical load (accepted range above
+2 N through 10 N); the qualification floor remains 2 N at every physics tick.
+CLI options are `--panel-profile plain-v1 --palm-load-target 8`. The development
+`hybrid-surface-v2` profile adds a one-second control-mode blend and the actual
+palm collision support point in its normal Jacobian. Neither profile is qualified.
+
+The plain actual007 comparison passes all mechanical/anatomical gates and reaches
+1.200269 rad with 6.23 N final palm force, but 92/251 final hold samples unload
+below 2 N. Increasing only the desired load to 8 N in actual008 reduces that count
+to 18/251 (final force 13.67 N), while original joint/collision/motor/anatomy gates
+remain clean. These are recorded failures, not completed opening references.
+`scripts/dexterous/summarize_native_opening.py RUN` computes these summaries from
+the preserved every-step evidence without modifying the original pass/fail report.

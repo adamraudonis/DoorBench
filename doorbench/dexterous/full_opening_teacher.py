@@ -49,7 +49,11 @@ class FullOpeningTeacher:
                  min_release_seconds=30., press_seconds=5., opening_seconds=3.,
                  qualification_seconds=.5, physics_dt=.002, target_aperture=1.2,
                  open_on_latch_clear=False, operator_compliance_gain=0.,
-                 operator_compliance_limit=.15, freeze_compliance_on_release=True):
+                 operator_compliance_limit=.15, freeze_compliance_on_release=True,
+                 panel_profile="hybrid-surface-v2", palm_load_target=None):
+        if panel_profile not in ("plain-v1","hybrid-surface-v2"):
+            raise ValueError("Unknown declared panel controller profile")
+        self.panel_profile=panel_profile
         times = [min_acquisition_seconds, min_left_seconds, min_release_seconds,
                  press_seconds, opening_seconds, qualification_seconds, physics_dt,
                  target_aperture]
@@ -77,7 +81,7 @@ class FullOpeningTeacher:
         self.names = self.acquisition.names
         self.caps = self.acquisition.caps
         if self.caps.shape != (61, 2):
-            raise ValueError('This qualified teacher requires the 61 original H1/Shadow motors')
+            raise ValueError('This teacher requires the 61 original H1/Shadow motors')
         self.left_cup_joint=self.names.index('lh_LFJ5')
         cup_motors=np.flatnonzero(self.acquisition.matrix[:,self.left_cup_joint])
         if len(cup_motors)!=1 or np.count_nonzero(self.acquisition.matrix[cup_motors[0]])!=1 or self.acquisition.matrix[cup_motors[0],self.left_cup_joint]!=1:
@@ -87,10 +91,13 @@ class FullOpeningTeacher:
                                       runtime_screen=runtime_screen)
         self.left = LeftPalmContact(self.acquisition, motors, targets, fixed_waist=True)
         self.release = AxialRightRelease(self.acquisition, Path(release_screen))
-        self.push = CoordinatedPanelPush(self.left, target_palm_load=5.0,
-                                        maximum_normal_offset=.025,left_cup_seconds=.25,
-                                        flatten_palm=True,track_target_velocity=False,
-                                        hybrid_normal=True)
+        if panel_profile=="plain-v1":
+            self.push=CoordinatedPanelPush(self.left,target_palm_load=3. if palm_load_target is None else palm_load_target)
+        else:
+            self.push = CoordinatedPanelPush(self.left, target_palm_load=5. if palm_load_target is None else palm_load_target,
+                                            maximum_normal_offset=.025,left_cup_seconds=.25,
+                                            flatten_palm=True,track_target_velocity=False,
+                                            hybrid_normal=True)
         self.min_acquisition_seconds = float(min_acquisition_seconds)
         self.min_left_seconds = float(min_left_seconds)
         self.min_release_seconds = float(min_release_seconds)
@@ -240,7 +247,7 @@ class FullOpeningTeacher:
         if self.release.frozen is not None:
             if self.push.started is None:
                 self.push.begin(float(t), root, joints, leaf_pose, angles['leaf'])
-                left.damping_scale=2.0
+                left.damping_scale=1.0 if self.panel_profile=="plain-v1" else 2.0
                 self.handoffs['panel_continuation'] = float(t)
             if self.push.started is not None:
                 self.push.update(float(t), root, joints, leaf_pose,
@@ -250,7 +257,7 @@ class FullOpeningTeacher:
                                 evidence['left_panel_load_N'], handle_pose)
         force, base_info = teacher.force(float(t), root, joints, velocities, handle_pose, hand_forces)
         force = left.apply_forces(force, joints, velocities)
-        if self.release.frozen is not None:
+        if self.release.frozen is not None and self.panel_profile!="plain-v1":
             # The little-finger metacarpal forms part of the palm's loaded edge.
             # Its original 1 Nm motor can oppose that load, but the nominal
             # 1 Nm/rad position servo otherwise lets it press into the low stop.
@@ -279,6 +286,6 @@ class FullOpeningTeacher:
                          'handoffs':self.handoffs.copy(), 'aperture_crossing':self.crossing,
                          'native_mirror_steps':0, 'privileged_teacher':True, 'pose_time_s':float(pose_time_s),
                          'measured_evidence':dict(evidence),'evidence_time_s':float(t),
-                         'contact_interval_s':interval.tolist(),
+                         'contact_interval_s':interval.tolist(),'panel_profile':self.panel_profile,
                          'left_control_measurement_time_s':self.push.last_update if self.push.started is not None else left.last_update}
         return force.copy(), self.info.copy()

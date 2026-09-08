@@ -207,14 +207,20 @@ class LeftPalmContact:
         push=self.contact_force*np.clip((self.progress-.94)/.06,0.,1.)
         left_force+=self.jp[:,self.va].T@(self.normal*push)
         if hasattr(self,'hybrid_normal_target'):
-            normal_jacobian=self.normal@self.jp[:,self.va]
+            contact_jacobian=self.jp.copy()
+            if hasattr(self,'normal_contact_point_local'):
+                point=d.site_xpos[self.palm]+d.site_xmat[self.palm].reshape(3,3)@self.normal_contact_point_local
+                mujoco.mj_jac(m,d,contact_jacobian,None,point,m.site_bodyid[self.palm])
+            normal_jacobian=self.normal@contact_jacobian[:,self.va]
             mass=np.zeros((m.nv,m.nv));mujoco.mj_fullM(m,d,mass)
             arm_mass=mass[np.ix_(self.va,self.va)]
             gravity=d.qfrc_bias[self.va]
             servo=left_force-gravity
-            velocity_error=float(self.normal@(self.surface_velocity_world-self.jp@d.qvel))
+            velocity_error=float(self.normal@(self.surface_velocity_world-contact_jacobian@d.qvel))
             requested=float(np.clip(self.hybrid_normal_target+.3*(self.hybrid_normal_target-self.filtered_palm_load)+50.*velocity_error,0.,12.))
-            left_force=replace_normal_acceleration(servo,arm_mass,normal_jacobian,requested,gravity=gravity)
+            projected=replace_normal_acceleration(servo,arm_mass,normal_jacobian,requested,gravity=gravity)
+            blend=getattr(self,'hybrid_blend',1.)
+            left_force=left_force+blend*(projected-left_force)
             self.info.update(requested_normal_force_N=requested,normal_velocity_error_m_s=velocity_error,filtered_palm_load_N=self.filtered_palm_load)
         result=forces.copy();result[self.act]=np.clip(left_force,teacher.caps[self.act,0],teacher.caps[self.act,1])
         if self.fixed_waist or not self.track_fixed_pads:return result

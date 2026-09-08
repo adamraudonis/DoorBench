@@ -60,6 +60,8 @@ def main():
     p.add_argument('--target-aperture', type=float, default=1.2)
     p.add_argument('--open-on-latch-clear',action='store_true')
     p.add_argument('--operator-compliance-gain',type=float,default=0.)
+    p.add_argument('--panel-profile',choices=('plain-v1','hybrid-surface-v2'),default='hybrid-surface-v2')
+    p.add_argument('--palm-load-target',type=float)
     a = p.parse_args()
     if a.output.exists(): raise SystemExit('Use a new output directory')
     ref=json.loads(a.reference.read_text());motors=json.loads(a.motors.read_text())
@@ -77,7 +79,7 @@ def main():
     m,d=sim.m,sim.d;sim.reset(randomize=False,images=False)
     hj=m.joint('leaf_handle_hinge').id;lj=m.joint('leaf_hinge').id;bj=m.joint('leaf_latch_bolt_slide').id
     hb=m.body('leaf_handle').id;leaf=m.body('leaf').id
-    opening=FullOpeningTeacher(a.robot,motors,ref,dict(operator_origin=m.jnt_pos[hj],operator_axis=m.jnt_axis[hj],leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),door_xml=a.door,left_targets=a.plan,release_screen=a.release_path,runtime_screen=a.runtime_screen,target_aperture=a.target_aperture,open_on_latch_clear=a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain)
+    opening=FullOpeningTeacher(a.robot,motors,ref,dict(operator_origin=m.jnt_pos[hj],operator_axis=m.jnt_axis[hj],leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),door_xml=a.door,left_targets=a.plan,release_screen=a.release_path,runtime_screen=a.runtime_screen,target_aperture=a.target_aperture,open_on_latch_clear=a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,panel_profile=a.panel_profile,palm_load_target=a.palm_load_target)
     teacher=opening.acquisition
     d.qpos[sim.root_qadr:sim.root_qadr+7]=teacher.initial_root
     ids=np.array([m.joint('robot/'+n).id for n in teacher.names]);qa=m.jnt_qposadr[ids];va=m.jnt_dofadr[ids]
