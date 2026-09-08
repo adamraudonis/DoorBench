@@ -607,6 +607,7 @@ def main():
             initial_interval_s=[0.,0.],initial_motor_input=last_actual_motor_forces.tolist(),
             t0_note='Unstepped reset input and empty contact interval; not force evidence from an executed physics step',
             root_controller_field='root_link_state_w',legacy_diagnostic_field='legacy_root_state_w',
+            root_body_name=robot.body_names[0],root_com_offset_in_actor_m=robot.data.body_com_pos_b[0,0].cpu().tolist(),
             angular_velocity_frame='world; converted to body-local only inside native free-joint calculators'),indent=2)+'\n')
     pad_evaluator=None;pad_steps=[]
     if physics_audit_enabled:
