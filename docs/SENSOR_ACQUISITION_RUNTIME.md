@@ -1,0 +1,25 @@
+# Scripted handle acquisition runtime
+
+This separately declared nineteen-second component follows the full frozen joint route over sixteen seconds, with a one-second initial hold and two-second final hold. Its pelvis/leg feedback uses encoders, local IMU, foot touch and its own previous command. The upper-body route is scripted; RGB is unused. A successful result establishes this canonical handle acquisition only, not vision control, learned grasping, opening or traversal.
+
+`SensorAcquisitionBalanceRuntime(robot_xml, motors, layout, calibration_json, acquisition_protocol_json, joint_route_json)` exposes `reset_episode()`, `force(packet, now_s)`, normalized `previous_action`, `last_info`, `goal_names` (30), `goal_motor_names` (26), `duration_s` (19), `grasp_profile`, and both input SHA256s. It retains the qualified reach controller, gains, original motor force limits and sensor causality checks. Runtime accepts no world/root/door values. Every validation failure is terminal until an explicit episode reset.
+
+Prepare the static inputs outside runtime with `prepare_sensor_acquisition_runtime.py --reference ... --schedule configs/dexterous/sensor-acquisition-balance-v1.json --motors ... --output ...`. The joint-only route bytes are identical to the eleven-second input; a different protocol hash declares the full-route timing and original distal-pad contract. Neither the eleven-second reach schema nor its no-contact checks are generalized or relaxed.
+
+## Physical evidence
+
+`evaluate_sensor_acquisition_balance` requires all 9,500 actual 2 ms records, actual named reset joints/root and initial closed leaf/resting operator/contact evidence. Each row contains actual robot measurements, the preceding joint/motor goals, complete-hand contact counts and synchronized raw pad evidence. These privileged values never enter the runtime. Separate robot-only FK evaluates palm endpoint and named transmission tracking.
+
+`PhysXShadowPadAudit.read(include_evidence=True)` reuses the single already-copied contact/transform/pair-force read. Its opt-in `raw_evidence` contains world contact points, normals on the hand, normal forces, body transforms and measured lever geometry. `evaluate_pad_evidence` reconstructs the original distal-volar surface, cylindrical-side margin, inward normal, all five minimum loads and four-finger/thumb opposition. It independently compares patch sums with PhysX body-pair forces. It accepts no precomputed pad label. The native archive explicitly uses interval-start geometry, while PhysX uses synchronized interval-end geometry; mixed clocks fail.
+
+The original final 0.5-second opposed five-pad gate remains mandatory. Any loaded unqualified patch anywhere in the route fails separately, as does unintended hand contact or a non-digit load on the handle. Actual joint stops, `J1 <= J2`, collisions, original motor limits/delivery and unchanged plant checks remain hard gates. Coupled motor sums are tracked below 0.04 rad and passive joint-split deviations are disclosed. The actual final palm must be within 20 mm of its static initial-body target. Both feet must support a quiet upright body at the end.
+
+The original static native reset/path screen is still required before launch. Isaac's reset-time empty contact buffer alone is not proof of geometric clearance; the frozen initial configuration and screen are bound separately.
+
+## Native transfer check
+
+All 9,500 native acquisition001 packets reproduce the original 61 motor commands to **9.21e-10 Nm**, with no physics steps. Independent actual-state and raw-contact evaluation passes **23/23 grouped checks**, retaining the source's **25/25 checks**. Maximum motor-coordinate error is **0.0164498 rad**, nominal per-joint error **0.0922671 rad**, and palm endpoint error **3.26655 mm**. The longest valid opposed hold is **2.628 s**. Minimum loads in the final half-second are FF 0.365, MF 0.491, RF 0.561, LF 0.606 and thumb 1.371 N. No loaded patch violates the original distal contract.
+
+Reproduce with `check_sensor_acquisition_runtime.py` (packet replay only) and `evaluate_native_sensor_acquisition.py` (actual-state/raw-contact evaluation only). Both accept `--run`, `--robot`, `--calibration`, `--protocol`, `--joint-route`, and a fresh `--output`. The evaluator reconstructs native pre-step geometry from recorded state and checks it against the archived contact-body frames; no active simulator is stepped. Compact receipts bind input, source and trajectory hashes.
+
+64 focused tests pass, covering the new runtime/evaluator/raw evidence plus the preserved reach protocol. Negative controls reject missing thumb load, an earlier dorsal contact despite a valid final hold, shifted geometry clocks, wrong force sums, unknown observation fields, illegal finger splits with unchanged motor sums, moved root endpoints and an already-open reset. Native success does not imply Isaac contact success: the preceding Isaac reach showed materially different passive finger splits and requires a fresh physical contact trial.
