@@ -44,6 +44,9 @@ try:
             collision.CreateContactOffsetAttr(.001);collision.CreateRestOffsetAttr(0.)
         if prim.GetName()=='worldBody' and prim.HasAPI(UsdPhysics.ArticulationRootAPI) and not any(p.HasAPI(UsdPhysics.RigidBodyAPI) for p in Usd.PrimRange(prim)):
             prim.RemoveAPI(UsdPhysics.ArticulationRootAPI)
+    from doorbench.dexterous.isaac_tendons import author_passive_tendons
+    tendon_audit=author_passive_tendons(stage,'/H1',contract.get('passive_tendons',[]))
+    (out/'passive-tendon-audit.json').write_text(json.dumps(tendon_audit,indent=2)+'\n')
     rows=[]
     for prim in stage.Traverse():
         row={'path':str(prim.GetPath()),'type':prim.GetTypeName(),'schemas':prim.GetAppliedSchemas()}

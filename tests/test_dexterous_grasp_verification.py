@@ -50,6 +50,7 @@ def test_all_five_distal_pad_loads_pass_and_missing_evidence_fails():
 def timeline():
     return [dict(sim_time_s=i*.002,door_q=0.,handle_angle_rad=0.,
                  root_height_m=1.,torso_tilt_deg=0.,max_joint_limit_violation_rad=0.,
+                 max_shadow_loopback_violation_rad=0.,
                  max_nonfoot_penetration_m=0.,external_wrench_max=0.,
                  applied_generalized_force_max=0.,hand_contact_count=int(i>2),
                  finite=True,numerical_warnings=0,native_motor_limits=True,
@@ -69,6 +70,7 @@ def test_every_physics_tick_required_even_when_sparse_frames_all_pass():
 
 @pytest.mark.parametrize('field,bad,check',[
     ('max_joint_limit_violation_rad',.021,'physical_joint_limits'),
+    ('max_shadow_loopback_violation_rad',.021,'documented_loopback_limits'),
     ('max_nonfoot_penetration_m',.0031,'nonfoot_penetration'),
     ('native_motor_limits',False,'native_motor_limits'),
     ('external_wrench_max',.01,'no_external_assistance'),
@@ -97,6 +99,8 @@ def test_empty_partial_nonfinite_or_missing_records_never_pass():
     rows=timeline();rows[20]['torso_tilt_deg']=float('nan')
     assert not audit(rows)['passed']
     rows=timeline();del rows[20]['native_motor_limits']
+    assert not audit(rows)['passed']
+    rows=timeline();del rows[20]['max_shadow_loopback_violation_rad']
     assert not audit(rows)['passed']
 
 

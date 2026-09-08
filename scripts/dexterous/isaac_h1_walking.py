@@ -76,6 +76,9 @@ def main():
                 rb.CreateDisableGravityAttr(False);rb.CreateMaxDepenetrationVelocityAttr(.5);rb.CreateMaxAngularVelocityAttr(5729.58)
                 PhysxSchema.PhysxContactReportAPI.Apply(prim).CreateThresholdAttr(0.)
                 body_paths.append(str(prim.GetPath()))
+        from doorbench.dexterous.isaac_tendons import author_passive_tendons
+        tendon_audit=author_passive_tendons(stage,'/World/H1',motors.get('passive_tendons',[]))
+        (out/'passive-tendon-audit.json').write_text(json.dumps(tendon_audit,indent=2)+'\n')
         assert len(roots)==1
         api=PhysxSchema.PhysxArticulationAPI.Apply(stage.GetPrimAtPath(roots[0]))
         api.CreateEnabledSelfCollisionsAttr(True);api.CreateSolverPositionIterationCountAttr(32);api.CreateSolverVelocityIterationCountAttr(8)

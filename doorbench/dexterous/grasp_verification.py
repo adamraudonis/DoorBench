@@ -140,7 +140,13 @@ def native_grasp_sample(sim,lever_geom,*,handle_joint,side='rh',pre_step_externa
             penetration=max(penetration,-float(contact.dist))
     caps=m.actuator_forcerange[sim.actuators];forces=d.actuator_force[sim.actuators]
     force_ok=bool(np.isfinite(forces).all() and np.all(forces>=caps[:,0]-1e-5) and np.all(forces<=caps[:,1]+1e-5))
-    return dict(**diagnostics,max_joint_limit_violation_rad=joint_violation,
+    loopback_differences={}
+    for side_name in ('rh','lh'):
+        for digit in ('FF','MF','RF','LF'):
+            names=[f'robot/{side_name}_{digit}J{i}' for i in (1,2)]
+            ids=[mujoco.mj_name2id(m,mujoco.mjtObj.mjOBJ_JOINT,name) for name in names]
+            if min(ids)>=0:loopback_differences[f'{side_name}_{digit}']=float(d.qpos[m.jnt_qposadr[ids[0]]]-d.qpos[m.jnt_qposadr[ids[1]]])
+    return dict(**diagnostics,max_shadow_loopback_violation_rad=max([0.,*loopback_differences.values()]),shadow_loopback_differences_rad=loopback_differences,max_joint_limit_violation_rad=joint_violation,
         max_nonfoot_penetration_m=penetration,native_motor_limits=force_ok,
         hand_contact_count=hand_contacts,
         handle_angle_rad=float(d.qpos[m.jnt_qposadr[m.joint(handle_joint).id]]),
@@ -194,6 +200,7 @@ or a claim that these tolerances suffice for hardware.
         nonfoot_penetration=all(0<=r['max_nonfoot_penetration_m']<=.003 for r in rows),
         native_motor_limits=all(r['native_motor_limits'] for r in rows),
         no_external_assistance=all(r['external_wrench_max']==0 and r['applied_generalized_force_max']==0 for r in rows),
+        documented_loopback_limits=all(0<=r.get('max_shadow_loopback_violation_rad',float('inf'))<=.02 for r in rows),
         sustained_pad_grasp=bool(complete and len(tail)>=round(required_hold/physics_dt)+1 and all(r['pad_grasp']['valid_pad_grasp'] for r in tail)))
     return dict(passed=all(checks.values()),checks=checks,physics_dt_s=physics_dt,
                 expected_duration_s=expected_duration,required_hold_s=required_hold)

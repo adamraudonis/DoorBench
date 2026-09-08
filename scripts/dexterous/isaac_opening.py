@@ -134,6 +134,9 @@ def main():
             PhysxSchema.PhysxContactReportAPI.Apply(prim).CreateThresholdAttr(0.)
         if prim.HasAPI(UsdPhysics.CollisionAPI):
             c=PhysxSchema.PhysxCollisionAPI.Apply(prim);c.CreateContactOffsetAttr(.001);c.CreateRestOffsetAttr(0.)
+    from doorbench.dexterous.isaac_tendons import author_passive_tendons
+    tendon_audit=author_passive_tendons(stage,'/World/H1',motors.get('passive_tendons',[]))
+    (out/'passive-tendon-audit.json').write_text(json.dumps(tendon_audit,indent=2)+'\n')
     assert len(roots)==1,roots
     art_api=PhysxSchema.PhysxArticulationAPI.Apply(stage.GetPrimAtPath(roots[0]))
     art_api.CreateEnabledSelfCollisionsAttr(True)

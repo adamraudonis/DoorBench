@@ -6,6 +6,7 @@ for the PhysX contact adapter; this file alone does not implement tactile sensin
 Actuator forces are implemented explicitly from the compiled native motor contract.
 """
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -14,6 +15,7 @@ import xml.etree.ElementTree as ET
 import mujoco
 import numpy as np
 from doorbench.dexterous.isaac_materials import native_contact_contract
+from doorbench.dexterous.isaac_tendons import native_passive_tendons
 
 
 def main():
@@ -25,12 +27,13 @@ def main():
     for tag in ('sensor','extension','keyframe','visual','actuator'):
         node=root.find(tag)
         if node is not None:root.remove(node)
-    if np.any(m.tendon_stiffness) or np.any(m.tendon_damping) or np.any(m.tendon_limited):
-        raise ValueError('This motor-transmission adapter does not drop passive tendon mechanics')
+    passive_tendons=native_passive_tendons(m)
     tendon=root.find('tendon')
     if tendon is not None:root.remove(tendon)
     # Shadow's unbounded zero-stiffness tendons are actuator transmissions, not
-    # springs. The motor matrix below preserves their shared distal forces;
+    # springs. Supported passive loopbacks are authored separately in USD from
+    # the exported passive_tendons contract; unknown passive mechanisms fail.
+    # The motor matrix below preserves their shared distal forces;
     # importing them would make Isaac invent a stiffness of 1 for each tendon.
     for node in root.findall('./worldbody//joint'):
         j=m.joint(node.attrib['name']).id;v=m.jnt_dofadr[j]
@@ -84,7 +87,8 @@ def main():
         shutil.copy2(source,destination)
         node.set('file','meshes/'+name)
     ET.indent(tree);tree.write(a.output,encoding='unicode')
-    data={'mass_kg':float(m.body_mass.sum()),'free_root':True,'contact_material':native_contact_contract(m),
+    data={'source_xml_sha256':hashlib.sha256(a.robot.read_bytes()).hexdigest(),
+          'passive_tendons':passive_tendons,'hand_mechanics_profile':'shadow-loopback-v2' if passive_tendons else 'upstream-v1','mass_kg':float(m.body_mass.sum()),'free_root':True,'contact_material':native_contact_contract(m),
           'sensor_status':'native touch-grid removed; PhysX contact adapter required',
           'joint_names':[m.joint(j).name for j in range(m.njnt) if int(m.jnt_type[j])!=int(mujoco.mjtJoint.mjJNT_FREE)],
           'actuators':[]}
@@ -92,7 +96,7 @@ def main():
         trn=int(m.actuator_trntype[i]);tid=int(m.actuator_trnid[i,0])
         if trn==int(mujoco.mjtTrn.mjTRN_JOINT):terms={m.joint(tid).name:float(m.actuator_gear[i,0])}
         elif trn==int(mujoco.mjtTrn.mjTRN_TENDON):
-            terms={m.joint(int(m.wrap_objid[k])).name:float(m.wrap_prm[k]) for k in range(m.tendon_adr[tid],m.tendon_adr[tid]+m.tendon_num[tid])}
+            terms={m.joint(int(m.wrap_objid[k])).name:float(m.actuator_gear[i,0]*m.wrap_prm[k]) for k in range(m.tendon_adr[tid],m.tendon_adr[tid]+m.tendon_num[tid])}
         else:raise ValueError('Unsupported actuator transmission')
         data['actuators'].append(dict(name=m.actuator(i).name,terms=terms,
              kp=float(m.actuator_gainprm[i,0]),bias=m.actuator_biasprm[i,:3].tolist(),
