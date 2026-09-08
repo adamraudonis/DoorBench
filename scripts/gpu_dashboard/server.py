@@ -3,6 +3,7 @@
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import shlex
 import subprocess
@@ -14,6 +15,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+preview_spec = importlib.util.spec_from_file_location("gpu_previews", HERE / "previews.py")
+previews = importlib.util.module_from_spec(preview_spec)
+preview_spec.loader.exec_module(previews)
 
 
 class RunMonitor:
@@ -164,6 +168,7 @@ def main():
     cache = {}
     lock = threading.Lock()
     monitor = RunMonitor(cache, lock)
+    preview_cache = previews.PreviewCache()
 
     def refresh():
         while True:
@@ -193,6 +198,14 @@ def main():
                          "registry_id": hashlib.sha256(str(a.config).encode()).hexdigest()},
                         allow_nan=False,
                     ).encode()
+                kind = "application/json"
+            elif path == "/api/previews":
+                try:
+                    run = previews.registered_run(a.config, urllib.parse.urlparse(self.path).query)
+                    body = json.dumps(preview_cache.get(run), allow_nan=False).encode()
+                except (OSError, ValueError, TypeError, KeyError):
+                    self.send_error(404, "Registered preview unavailable")
+                    return
                 kind = "application/json"
             elif path in ("/", "/index.html"):
                 body = (HERE / "index.html").read_bytes()
