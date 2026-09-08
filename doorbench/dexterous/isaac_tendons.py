@@ -91,3 +91,17 @@ def author_passive_tendons(stage,root_path,tendons):
             range_rad=t['range_rad'],limit_stiffness=t['physx_limit_stiffness'],
             gearing_units='radians per USD degree',force_coefficients=t['terms']))
     return dict(profile=CONTRACT,count=len(records),tendons=records,qualification='Authored contract only; live unilateral dynamics fixture required')
+
+
+def verify_passive_backend(view,tendons):
+    """Read back the solver properties, not merely authored USD attributes."""
+    validate_contract(tendons);count=len(tendons)
+    names=('get_fixed_tendon_stiffnesses','get_fixed_tendon_dampings','get_fixed_tendon_limit_stiffnesses','get_fixed_tendon_limits','get_fixed_tendon_rest_lengths','get_fixed_tendon_offsets')
+    values={name:getattr(view,name)().cpu().numpy().copy() for name in names}
+    for name in (names[0],names[1],names[4],names[5]):
+        if values[name].size!=count or not np.all(values[name]==0):raise ValueError('Unexpected tendon count or bilateral force: '+name)
+    stiffness=sorted(values[names[2]].reshape(-1).tolist())
+    limits=sorted(map(tuple,values[names[3]].reshape(-1,2).tolist()))
+    if len(stiffness)!=count or not np.allclose(stiffness,sorted(t['physx_limit_stiffness'] for t in tendons),rtol=0,atol=1e-5):raise ValueError('Solver tendon stiffness differs from contract')
+    if len(limits)!=count or not np.allclose(limits,sorted(tuple(t['range_rad']) for t in tendons),rtol=0,atol=1e-6):raise ValueError('Solver tendon limits differ from contract')
+    return {name:value.tolist() for name,value in values.items()}

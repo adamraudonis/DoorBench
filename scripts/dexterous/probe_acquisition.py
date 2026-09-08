@@ -40,6 +40,7 @@ def main():
     p.add_argument('--grip-reaction',action='store_true')
     p.add_argument('--palm-integral',type=float,default=0.,help='Bounded hold-phase Cartesian integral gain, per second')
     p.add_argument('--follow-operator',action='store_true',help='Reproject measured-release palm targets into the actual moving lever frame')
+    p.add_argument('--operator-follow-start',type=float,default=.99,help='Path fraction at which to blend in measured lever-frame following')
     p.add_argument('--recorded-finger-forces',action='store_true',help='Use measured release forces as finger feedforward instead of nearest-point preload')
     p.add_argument('--hold-leaf-while-grasping',action='store_true',help='Keep the hand goal in the starting leaf frame while following the lever; motor control only')
     p.add_argument('--torso-impedance', type=float, default=1.)
@@ -55,6 +56,7 @@ def main():
     if not np.isfinite([args.finger_grip_scale,args.palm_integral]).all() or args.finger_grip_scale<0 or args.palm_integral<0:
         p.error('Grip scale and integral gain must be finite and nonnegative')
     if args.hold_leaf_while_grasping and not args.follow_operator:p.error('--hold-leaf-while-grasping requires --follow-operator')
+    if not np.isfinite(args.operator_follow_start) or not 0<=args.operator_follow_start<=1:p.error('Operator following start must be in [0,1]')
     if not all(np.isfinite(x) for x in (args.reach_seconds,args.hold_seconds,args.grip_force,args.torso_impedance)) or args.reach_seconds<=0 or args.hold_seconds<0 or args.grip_force<0 or args.torso_impedance<1:
         p.error("Use finite positive reach duration, nonnegative hold/force, and impedance >= 1")
     if args.output.exists():
@@ -211,7 +213,7 @@ def main():
                     # First seat along the measured free-space approach. Early
                     # rigid following can turn an incidental touch into a pull
                     # on the entire leaf before a grasp exists.
-                    if operator_follow_time is None and u>=.99:operator_follow_time=d.time
+                    if operator_follow_time is None and u>=args.operator_follow_start:operator_follow_time=d.time
                     blend=0. if operator_follow_time is None else float(np.clip(d.time-operator_follow_time,0.,1.))
                     blend=blend*blend*(3-2*blend)
                     target_position=target_position*(1-blend)+attached_position*blend
