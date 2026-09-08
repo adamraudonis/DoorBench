@@ -134,16 +134,19 @@ class PhysXTaxelAdapter:
         return np.concatenate(arrays)
 
 
-def enqueue_robot_sensors(builder, articulation_data, imu_data, tactile, *, joint_indices, environment_index=0, capture_s):
+def enqueue_robot_sensors(builder, articulation_data, imu_data, tactile, *, joint_indices, environment_index=0, capture_s, gyro_override=None):
     """Read only declared joint sensors and local IMU channels from Lab 2.3.2.
 
     Intentionally does not read root pose/velocity, projected_gravity_b, door
     state, goal or contact labels. No raw orientation oracle is called an IMU.
     """
     i = environment_index
+    gyro = imu_data.ang_vel_b[i] if gyro_override is None else np.asarray(gyro_override)
+    if gyro_override is not None and (gyro.shape != (3,) or not np.isfinite(gyro).all()):
+        raise ValueError('Gyroscope override must contain exactly three finite local angular rates')
     values = {"joint_position": articulation_data.joint_pos[i][joint_indices],
               "joint_velocity": articulation_data.joint_vel[i][joint_indices],
-              "imu_gyro": imu_data.ang_vel_b[i], "imu_accelerometer": imu_data.lin_acc_b[i],
+              "imu_gyro": gyro, "imu_accelerometer": imu_data.lin_acc_b[i],
               "tactile": tactile}
     for key, value in values.items():
         builder.push(key, _host_copy(value), capture_s=capture_s)

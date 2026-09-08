@@ -125,6 +125,7 @@ p.add_argument('--output',required=True)
 p.add_argument('--seconds',type=float,default=12.)
 p.add_argument('--record',action='store_true')
 p.add_argument('--sensor-layout',help='Record finite robot-mounted sensors; teacher remains privileged')
+p.add_argument('--sensor-gyro-profile',choices=['backend-angular-velocity-v1','pose-delta-angle-v1'],default='backend-angular-velocity-v1',help='Explicit ideal own-body delta-angle sensor alternative; accelerometer and estimator remain unchanged')
 p.add_argument('--time-scale',type=float,default=1.,help='Slower motor-reference clock; physics dt is unchanged')
 p.add_argument('--view',choices=['wide','hand'],default='wide')
 p.add_argument('--upright-gain',type=float,default=0.,help='Post-opening IMU ankle feedback; bounded robot motors only')
@@ -180,6 +181,8 @@ p.add_argument('--mechanism-test',action='store_true',help='Non-robot calibratio
 from isaaclab.app import AppLauncher
 AppLauncher.add_app_launcher_args(p)
 a=p.parse_args()
+if a.sensor_gyro_profile!='backend-angular-velocity-v1' and not a.sensor_layout:
+    p.error('Alternate gyroscope profile requires --sensor-layout')
 for name in ('arm_impedance','time_scale','seconds'):
     value=getattr(a,name)
     if not math.isfinite(value) or value<=0:p.error(f'--{name.replace("_","-")} must be finite and positive')
@@ -373,7 +376,7 @@ def main():
     sensor_recorder=None
     if a.sensor_layout:
         from doorbench.dexterous.isaac_sensor_recording import IsaacSensorRecorder
-        sensor_recorder=IsaacSensorRecorder(stage,a.sensor_layout,out/'sensors',control_source='sensor_actor' if sensor_control else 'privileged_teacher')
+        sensor_recorder=IsaacSensorRecorder(stage,a.sensor_layout,out/'sensors',control_source='sensor_actor' if sensor_control else 'privileged_teacher',gyro_profile=a.sensor_gyro_profile)
     contacts=[]
     all_contacts=[]
     report_counts=[0,0]
@@ -661,7 +664,7 @@ def main():
     if a.sensor_layout:
         inputs.append(Path(a.sensor_layout))
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name
-            for name in ('sensor_contract.py','isaac_sensors.py','isaac_sensor_recording.py')]
+            for name in ('sensor_contract.py','isaac_sensors.py','isaac_sensor_recording.py','pose_gyro.py')]
     (out/'provenance.json').write_text(json.dumps(dict(captured_before_steps_unix=time.time(),
         files={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources+inputs if p.exists()},
         camera_note='Native materials and fixed robot sensor cameras' if a.sensor_layout else 'Diagnostic gold handle material; physical properties unchanged'),indent=2)+'\n')
@@ -1297,7 +1300,7 @@ def main():
                 runtime_robot_pose_writes=0,direct_door_commands=False)
             for name in ('traversal-report.json','report.json'):
                 (out/name).write_text(json.dumps(failure_report,indent=2)+'\n')
-        if sensor_recorder and sensor_recorder.times:sensor_recorder.finish(complete=False)
+        if sensor_recorder:sensor_recorder.finish(complete=False)
         if teacher_queries:teacher_queries.finish(complete=False,executed_steps=len(acquisition_states['time_s']))
         if writer:writer.close()
         if hand_writer:hand_writer.close()

@@ -9,6 +9,7 @@ from doorbench.dexterous.sensor_contract import ActorObservationBuilder, SENSOR_
 def recorder(tmp_path):
     rec=IsaacSensorRecorder.__new__(IsaacSensorRecorder)
     rec.output=tmp_path;rec.control_source='sensor_actor'
+    rec.gyro_profile='backend-angular-velocity-v1';rec.pose_gyro=None
     rec.layout={'sensors':[{'name':'pad','dimension':3}],'tactile_dimension':3}
     rec.cameras={'rgb_left':None,'rgb_right':None};rec.frames={k:[] for k in rec.cameras}
     rec.frame_times=[];rec.times=[.002]

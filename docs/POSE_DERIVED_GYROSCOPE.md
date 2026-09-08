@@ -66,6 +66,22 @@ separate experiment.
 
 ## Detached recorded-state results
 
+The Isaac recorder exposes this experiment through
+`--sensor-gyro-profile pose-delta-angle-v1` alongside the existing sensor-layout
+and controller arguments. It resets the producer after the physical robot reset,
+then reads exactly one completed interval before enqueuing each sensor packet.
+The original layout file hash and effective emitted layout hash are both saved;
+the latter includes `imu.gyro_profile`. A conflicting explicit profile in an
+input layout is rejected. Historical layouts without that field retain their
+original default checkpoint fingerprint, while their report explicitly identifies
+`backend-angular-velocity-v1`.
+
+The separate `gyro-producer.json` receipt is checkpointed during recording.
+`gyro-producer-evidence.npz` contains the reset and subsequent own-body quaternion
+reads for an independent numerical audit. This evaluator evidence is not exposed
+to the actor. An unchanged pose-estimator or a passed producer unit test does not
+qualify the resulting closed-loop physical controller.
+
 The assessment replays only the estimator over frozen native and corrected-passive
 Isaac acquisition records. Actual root/body poses are used on the sensor-producer
 and evaluator sides. Joint encoders, foot touch, accelerometer and calibration

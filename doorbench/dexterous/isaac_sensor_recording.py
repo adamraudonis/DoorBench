@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 
 from .sensor_contract import ActorObservationBuilder, SENSOR_KEYS
+from .pose_gyro import OwnImuPoseGyroscope, PROFILE as POSE_GYRO_PROFILE, DEFAULT_PROFILE as DEFAULT_GYRO_PROFILE
 from .isaac_sensors import (PhysXTaxelAdapter, mounts_from_layout, enable_tactile_reporting,
                            enqueue_robot_sensors, enqueue_camera)
 
@@ -30,8 +31,25 @@ def _atomic_json(path, value):
     os.replace(temporary,path)
 
 
+def bind_gyro_profile(layout, profile):
+    """Bind changed sensor semantics without rewriting historical default layouts."""
+    if profile not in (DEFAULT_GYRO_PROFILE, POSE_GYRO_PROFILE):
+        raise ValueError('Unknown explicit gyroscope profile')
+    result=json.loads(json.dumps(layout))
+    if not isinstance(result.get('imu'),dict):
+        raise ValueError('A calibrated physical robot IMU is required')
+    declared=result['imu'].get('gyro_profile')
+    if declared is not None and declared != profile:
+        raise ValueError('Requested gyroscope differs from the declared sensor layout')
+    # Absent means the historical backend profile. Preserve those checkpoint
+    # fingerprints; every new alternative is explicitly part of its layout.
+    if profile != DEFAULT_GYRO_PROFILE:
+        result['imu']['gyro_profile']=profile
+    return result
+
+
 class IsaacSensorRecorder:
-    def __init__(self, stage, layout_path, output, *, robot_root='/World/H1', control_source='privileged_teacher'):
+    def __init__(self, stage, layout_path, output, *, robot_root='/World/H1', control_source='privileged_teacher', gyro_profile=DEFAULT_GYRO_PROFILE):
         from pxr import Usd, UsdPhysics
         import isaaclab.sim as sim_utils
         from isaaclab.sensors import Camera, CameraCfg, Imu, ImuCfg
@@ -39,7 +57,12 @@ class IsaacSensorRecorder:
         self.control_source=control_source
         self.output = Path(output)
         self.output.mkdir(parents=True, exist_ok=False)
-        self.layout = json.loads(Path(layout_path).read_text())
+        layout_bytes=Path(layout_path).read_bytes()
+        self.layout = bind_gyro_profile(json.loads(layout_bytes),gyro_profile)
+        self.gyro_profile=gyro_profile
+        self.pose_gyro=None
+        self.robot_root=robot_root
+        self.input_layout_sha256=hashlib.sha256(layout_bytes).hexdigest()
         by_name = {}
         for prim in Usd.PrimRange(stage.GetPrimAtPath(robot_root)):
             if prim.HasAPI(UsdPhysics.RigidBodyAPI):
@@ -52,6 +75,8 @@ class IsaacSensorRecorder:
         imu = self.layout['imu']
         if imu is None:
             raise ValueError('Export a physical native IMU site')
+        self.robot_body_paths=tuple(by_name.values())
+        self.imu_body_path=by_name[imu['body_name']]
         self.imu = Imu(ImuCfg(prim_path=by_name[imu['body_name']], update_period=0., debug_vis=False,
             gravity_bias=(0., 0., 9.81), offset=ImuCfg.OffsetCfg(pos=tuple(imu['position_body_m']),
                                                               rot=tuple(imu['quaternion_wxyz_body']))))
@@ -84,6 +109,9 @@ class IsaacSensorRecorder:
             scope='Physical robot sensors for closed-loop sensor-only actor' if self.control_source=='sensor_actor' else 'Physical sensor recording beside privileged teacher; NOT sensor-only control',
             previous_action='Actual bounded motor force normalized by the native motor force range',
             calibration='Fixed native robot eye cameras and IMU; no task-targeted camera routing',
+            gyro_profile=self.gyro_profile,
+            input_layout_sha256=self.input_layout_sha256,
+            effective_layout_sha256=hashlib.sha256((self.output/'layout.json').read_bytes()).hexdigest(),
             body_paths_by_name=by_name), indent=2)+'\n')
 
     def initialize(self, physics_view, robot_joint_names):
@@ -91,6 +119,28 @@ class IsaacSensorRecorder:
         self.joint_indices = [robot_joint_names.index(name) for name in self.layout['joint_order']]
         self.builder.reset(seed=0)
         self.imu.reset()
+        if self.gyro_profile==POSE_GYRO_PROFILE:
+            self.pose_gyro=OwnImuPoseGyroscope(self.imu._view,
+                expected_body_path=self.imu_body_path,robot_body_paths=self.robot_body_paths,
+                robot_root_path=self.robot_root,
+                imu_quaternion_wxyz_body=self.layout['imu']['quaternion_wxyz_body'])
+            self.pose_gyro.reset_episode(now_s=0.)
+        self._write_gyro_receipt()
+
+    def _write_gyro_receipt(self):
+        receipt=self.pose_gyro.receipt() if self.pose_gyro is not None else dict(
+            schema='doorbench.imu-gyro-producer.v1',profile=self.gyro_profile,
+            source='Isaac Lab calibrated own-body angular velocity',
+            actor_fields=['imu_gyro'],actor_receives_orientation=False,
+            accelerometer='Unchanged Isaac Lab backend velocity-derived specific force')
+        if self.pose_gyro is not None:
+            path=self.output/'gyro-producer-evidence.npz'
+            _atomic_npz(path,**self.pose_gyro.evidence())
+            receipt['evaluator_evidence_sha256']=hashlib.sha256(path.read_bytes()).hexdigest()
+            receipt['recorded_actor_packets']=len(self.times)
+            receipt['interval_count_matches_packets']=self.pose_gyro.samples==len(self.times)
+        _atomic_json(self.output/'gyro-producer.json',receipt)
+        return receipt
 
     @staticmethod
     def _stage():
@@ -99,9 +149,12 @@ class IsaacSensorRecorder:
 
     def update(self, *, robot_data, dt, time_s, previous_action, rendered):
         self.imu.update(dt)
+        if self.pose_gyro is not None and dt != self.pose_gyro.dt:
+            raise ValueError('Recorded delta-angle gyroscope requires its declared 2ms interval')
+        gyro=None if self.pose_gyro is None else self.pose_gyro.observe(now_s=time_s)
         tactile = self.adapter.read(physics_dt=dt)
         enqueue_robot_sensors(self.builder, robot_data, self.imu.data, tactile,
-                              joint_indices=self.joint_indices, capture_s=time_s)
+                              joint_indices=self.joint_indices, capture_s=time_s,gyro_override=gyro)
         if rendered:
             for key, camera in self.cameras.items():
                 camera.update(dt*20)
@@ -113,6 +166,7 @@ class IsaacSensorRecorder:
             self.samples[key].append(packet[key])
         self.times.append(time_s)
         if len(self.times) % 250 == 0:
+            self._write_gyro_receipt()
             (self.output/'progress.json').write_text(json.dumps(dict(samples=len(self.times),
                 time_s=time_s, frames=len(self.frame_times), finite=True))+'\n')
 
@@ -124,6 +178,9 @@ class IsaacSensorRecorder:
 
     def finish(self, *, complete=True):
         from PIL import Image
+        producer_receipt=self._write_gyro_receipt()
+        complete=bool(complete and self.times and producer_receipt.get('failed_reason') is None
+                      and producer_receipt.get('interval_count_matches_packets',True))
         arrays = {key:np.asarray(values) for key, values in self.samples.items()}
         arrays['time_s'] = np.asarray(self.times)
         _atomic_npz(self.output/'actor-sensors.npz', **arrays)
@@ -136,17 +193,21 @@ class IsaacSensorRecorder:
         offsets = np.cumsum([0]+[row['dimension'] for row in self.layout['sensors']])
         peaks = {}
         for i, row in enumerate(self.layout['sensors']):
-            values = arrays['tactile'][:, offsets[i]:offsets[i+1]]
+            values = arrays['tactile'][:, offsets[i]:offsets[i+1]] if self.times else np.empty((0,row['dimension']))
             peaks[row['name']] = float(np.max(np.abs(values))) if values.size else 0.
         camera_age = []
         for key in self.cameras:
             index = SENSOR_KEYS.index(key)
-            valid = arrays['sensor_valid'][:, index]
-            camera_age.extend((arrays['time_s'][valid]-arrays['sensor_time_s'][valid,index]).tolist())
+            if self.times:
+                valid = arrays['sensor_valid'][:, index]
+                camera_age.extend((arrays['time_s'][valid]-arrays['sensor_time_s'][valid,index]).tolist())
         report = dict(scope='Sensor-interface capture; see separate actor/teacher task report',control_source=self.control_source, capture_complete=bool(complete), samples=len(self.times),
+            gyro_profile=self.gyro_profile,gyro_producer=producer_receipt,
+            input_layout_sha256=getattr(self,'input_layout_sha256',None),
+            effective_layout_sha256=hashlib.sha256((self.output/'layout.json').read_bytes()).hexdigest() if (self.output/'layout.json').is_file() else None,
             frames_per_eye=len(self.frame_times), tactile_dimension=self.layout['tactile_dimension'],
             finite=bool(all(np.isfinite(x).all() for x in arrays.values())),
-            all_sensor_streams_present=bool(arrays['sensor_valid'].all()),
+            all_sensor_streams_present=bool(self.times and arrays['sensor_valid'].all()),
             camera_age_range_s=[min(camera_age),max(camera_age)] if camera_age else None,
             tactile_peak_abs_force_by_mount_N=peaks,
             rgb_mean_pixel_change={key:float(np.abs(frames[-1].astype(float)-frames[0]).mean()) if frames else None for key,frames in self.frames.items()},
