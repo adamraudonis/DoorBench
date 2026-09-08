@@ -1,0 +1,32 @@
+{
+  "schema": "doorbench.sensor-convergence-experiment.v1",
+  "scope": "One longer fit of exactly the frozen model005 data. All previous physical failures remain failed. No new data, model architecture, actor input, plant or physical gate changes.",
+  "baseline_run": "sensor-imitation-acquisition-005",
+  "teacher_run": "isaac-operation-v2-002",
+  "teacher_receipt": "teacher-curriculum-002/provenance.json",
+  "cold_reset_run": "sensor-actor-acquisition-v2-001",
+  "corrections": [
+    {"name": "actor002", "labels": "teacher-corrections-actor002-002", "run": "sensor-actor-acquisition-v2-002", "examples": 157},
+    {"name": "actor003", "labels": "teacher-corrections-actor003-004-iterations-only", "run": "sensor-actor-acquisition-v2-003", "examples": 151},
+    {"name": "actor004", "labels": "teacher-corrections-actor004-001", "run": "sensor-actor-acquisition-v2-004", "examples": 206}
+  ],
+  "training_settings": {
+    "iterations": 5000, "sequence_length": 32, "burn_in": 64, "batch_size": 2,
+    "learning_rate": 0.0001, "seed": 0, "episode_start_probability": 0.5
+  },
+  "readiness_limits": {
+    "interpretation": "All six strict improvements required before independent runtime checks and consideration of a physical trial. Best prior per-scope thresholds; no closed-loop success claim.",
+    "dataset_mse": {
+      "nominal": 0.00035511197961990236,
+      "actor002": 0.0007812929628934,
+      "actor003": 0.003792306970671566,
+      "actor004": 0.0025980952587610867
+    },
+    "startup": {
+      "body_force_rmse_Nm_first100ms": 0.9706391312176573,
+      "body_force_rmse_Nm_first500ms": 2.1266685053171086
+    }
+  },
+  "execution": {"device": "cuda", "checkpoint_every": 500, "evaluate_every": 500, "max_wall_seconds": 2700},
+  "selection": "Preserve every 500-step checkpoint and every fit report; report the entire sequence, select only a checkpoint satisfying all six predeclared criteria. Runtime integration checks remain independently required. Stop at 5000 steps or 2700 seconds."
+}

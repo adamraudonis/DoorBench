@@ -23,6 +23,8 @@ def main():
         raise ValueError('History audit requires the exact checkpoint that executed the recorded actor trial')
     if len(e)<96:raise ValueError('History audit requires at least96 consecutive eligible decisions')
     body=np.array([i for i,n in enumerate(actor.action_order) if not n.startswith(('rh_','lh_'))])
+    legs=np.array([i for i,n in enumerate(actor.action_order) if any(part in n for part in ('hip','knee','ankle'))])
+    torso=actor.action_order.index('torso')
     actor.reset_episode();full=np.array([actor.force(e.packet(i),float(e.times[i])) for i in range(len(e))])
     with np.load(e.path/'acquisition-physics.npz',allow_pickle=False) as z:actual=z['motor_forces'][:len(e)].copy()
     rows=[]
@@ -37,6 +39,8 @@ def main():
         differences=np.asarray(differences)
         rows.append(dict(burn_in_steps=burn,burn_in_s=burn*.002,windows=len(starts),supervised_steps_per_window=32,
             label_start_indices=starts,body_force_rmse_vs_full_history_Nm=float(np.sqrt(np.mean(differences[:,body]**2))),
+            leg_force_rmse_vs_full_history_Nm=float(np.sqrt(np.mean(differences[:,legs]**2))),
+            torso_force_rmse_vs_full_history_Nm=float(np.sqrt(np.mean(differences[:,torso]**2))),
             maximum_absolute_force_difference_Nm=float(abs(differences).max())))
     r=dict(scope=__doc__,source=e.metadata,checkpoint_sha256=sha(args.checkpoint),script_sha256=sha(__file__),
         actual_run_checkpoint_sha256=task['checkpoint_sha256'],

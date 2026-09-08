@@ -245,3 +245,66 @@ python scripts/dexterous/audit_sensor_recurrent_history.py \
   --corrections "$ACTOR004_CORRECTIONS" --checkpoint "$MODEL004/actor.pt" \
   --output "$HISTORY_AUDIT"
 ```
+
+The [model005 result](evidence/sensor-imitation-acquisition-005.json) is a
+regression on the nominal trajectory despite fitting two new correction
+prefixes more closely. Its actual Isaac actor falls at **0.482 s**, with no
+qualified grip or handle operation. The
+[physical failure receipt](evidence/sensor-actor-initial-failure-005.json)
+preserves that outcome; the original motor, coupling, collision and delivery
+checks pass. Model004's physical failure and recurrent-history diagnostic are
+also [retained](evidence/sensor-actor-initial-failure-004.json).
+
+| Full-history prediction source | Model004 MSE | Model005 MSE |
+|---|---:|---:|
+| Nominal acquisition prefix | 0.0003551 | 0.0026507 |
+| Actor002 correction prefix | 0.0007813 | 0.0023188 |
+| Actor003 correction prefix | 0.0795481 | 0.0037923 |
+| Actor004 correction prefix | 0.0821776 | 0.0025981 |
+
+These are normalized-force prediction errors on recorded observations, not
+success metrics. With the actor's own previous-command history on nominal
+recorded sensor states, its first-100-ms body force RMSE worsens from 0.971 to
+2.999 Nm, and first-500-ms RMSE from 2.127 to 5.924 Nm. The physical regression
+is consistent with this lost nominal fit. More data alone has not solved it.
+
+## Frozen longer fit on another machine
+
+Freeze the [5000-step convergence experiment](../configs/dexterous/sensor-imitation-convergence-006.json)
+before execution. It uses exactly model005's four admitted datasets, architecture,
+sampling, burn-in and seed. Only training length and compute device change.
+Do not add actor005 states to this experiment. Every 500 steps, preserve atomic
+actor weights, latest optimizer/RNG state, full-history four-source errors and
+actual-start command errors. Stop at 5000 steps or 45 minutes. The command
+does not resume an optimizer state automatically.
+
+All six predeclared thresholds must improve on the best previous value for
+that source or startup interval before independent runtime checks and any new
+physical attempt. Report every checkpoint's scores, including regressions;
+none of these fitting checks is a closed-loop success claim. A single fitting
+run cannot establish generalization.
+
+Build the portable training bundle from the immutable evidence directory:
+
+```sh
+python scripts/dexterous/build_sensor_training_bundle.py \
+  --base "$RUN_ARCHIVE" \
+  --experiment configs/dexterous/sensor-imitation-convergence-006.json \
+  --output "$NEW_BUNDLE"
+```
+
+The bundle contains source, frozen experiment settings, motor/sensor calibration,
+original evidence and receipts, plus explicit relative paths. The loader checks
+every file hash, repeats teacher/correction admission, and verifies that all
+four dataset identities match model005. Original report paths and bytes remain
+unchanged. The launch file provides an argument array and environment for an
+existing CUDA PyTorch environment; it neither provisions a GPU nor launches
+Isaac. Simulator meshes are unnecessary for this fitting-only bundle.
+
+After extraction, run `launch.json`'s argument array from the bundle root with
+`PYTHONPATH=source`, `OMP_NUM_THREADS=1`, and `OPENBLAS_NUM_THREADS=1`. The trainer
+captures actual dependencies and source hashes before training. `progress.json`
+shows optimizer progress; `latest-fit.json` shows all six comparison checks;
+`fit-step-*.json` and `actor-step-*.pt` preserve the complete checkpoint series.
+If the wall limit interrupts the requested optimization count, the report
+explicitly marks `completed: false` and retains the last measured checkpoint.
