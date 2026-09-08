@@ -29,6 +29,11 @@ p.add_argument('--acquisition',action='store_true',help='Execute the shared cont
 p.add_argument('--acquisition-middle-finger-force',type=float,help='Explicit acquisition middle-finger preload in N; original motor caps unchanged')
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
+p.add_argument('--operator-compliance-gain',type=float,default=0.,help='Bounded palm-reference integral compensation for actual operator-angle error; motor and mechanism limits unchanged')
+p.add_argument('--full-sequence-reset',help='Start from the frozen walking reset and run continuous walk/lower/prepare/acquire/operate')
+p.add_argument('--preparation-reference',help='Contact-free readiness path; screened again at the actual stopped pose')
+p.add_argument('--locomotion-checkpoint',help='Frozen original H1 locomotion checkpoint')
+p.add_argument('--native-door',help='Matching unstepped native door geometry for readiness collision checks')
 p.add_argument('--grip-rotation-fraction',type=float,default=1.,help='Fraction of operator rotation tracked by palm orientation; physical contacts remain unconstrained')
 p.add_argument('--arm-impedance',type=float,default=1.,help='Software arm position-gain multiplier at the 500 Hz motor loop; native force caps remain unchanged')
 p.add_argument('--grip-impedance',type=float,default=1.,help='Finger position-gain multiplier; native force caps remain unchanged')
@@ -53,6 +58,10 @@ if not math.isfinite(a.torso_damping) or a.torso_damping<0:p.error('--torso-damp
 if a.acquisition and (not a.native_robot or a.panel_push or a.mechanism_test):p.error('Acquisition requires --native-robot and a separate acquisition-only trial')
 if a.operate_after_acquisition and not a.acquisition:p.error('--operate-after-acquisition requires --acquisition')
 if a.open_on_latch_clear and not a.operate_after_acquisition:p.error('--open-on-latch-clear requires --operate-after-acquisition')
+if a.full_sequence_reset and (not a.operate_after_acquisition or not all((a.preparation_reference,a.locomotion_checkpoint,a.native_door))):
+    p.error('Full sequence requires acquisition, operation, preparation, locomotion checkpoint and native door geometry')
+if a.full_sequence_reset and a.acquisition_middle_finger_force is not None:
+    p.error('Full sequence currently uses the frozen original five-digit preload')
 if a.record or a.sensor_layout:a.enable_cameras=True
 launcher=AppLauncher(a);app=launcher.app
 import numpy as np
@@ -96,6 +105,7 @@ def main():
     out=Path(a.output);out.mkdir(parents=True,exist_ok=False)
     ref=json.loads(Path(a.reference).read_text());motors=json.loads(Path(a.motors).read_text())
     (out/'motor-contract.json').write_bytes(Path(a.motors).read_bytes())
+    sequence_reset=json.loads(Path(a.full_sequence_reset).read_text()) if a.full_sequence_reset else None
     if a.acquisition:
         ref['initial_joints']=dict(zip(ref['acquisition']['joint_names'],ref['acquisition']['path_qpos'][0]))
     dt=.002
@@ -164,11 +174,14 @@ def main():
     door=Articulation(ArticulationCfg(prim_path='/World/Door',spawn=None,
         articulation_root_prim_path='/Articulation',
         actuators={'passive':ImplicitActuatorCfg(joint_names_expr=['.*'],stiffness=None,damping=None)}))
-    camera=None;writer=None
+    camera=None;writer=None;hand_camera=None;hand_writer=None
     if a.record:
         from isaaclab.sensors import Camera,CameraCfg
         camera=Camera(CameraCfg(prim_path='/World/Camera',update_period=0.,height=720,width=960,
             data_types=['rgb'],spawn=sim_utils.PinholeCameraCfg(focal_length=48. if a.view=='hand' else 24.,clipping_range=(.02,100.))))
+        if sequence_reset:
+            hand_camera=Camera(CameraCfg(prim_path='/World/HandReviewCamera',update_period=0.,height=720,width=720,
+                data_types=['rgb'],spawn=sim_utils.PinholeCameraCfg(focal_length=48.,clipping_range=(.02,100.))))
     sensor_recorder=None
     if a.sensor_layout:
         from doorbench.dexterous.isaac_sensor_recording import IsaacSensorRecorder
@@ -222,14 +235,18 @@ def main():
                                          targets=torch.tensor([target],device=a.device))
         import imageio.v2 as imageio
         writer=imageio.get_writer(out/'live-isaac.mp4',fps=25,codec='libx264',quality=8)
+        if hand_camera:hand_writer=imageio.get_writer(out/'live-isaac-hand.mp4',fps=25,codec='libx264',quality=8)
+    initial_leaf_pose=door.data.body_state_w[0,door.body_names.index('leaf'),:7].cpu().numpy()
+    initial_leaf_rotation=Rotation.from_quat([*initial_leaf_pose[4:7],initial_leaf_pose[3]]).as_matrix()
     rnames=list(robot.joint_names);dnames=list(door.joint_names)
     assert set(rnames)==set(motors['joint_names']),(set(rnames)^set(motors['joint_names']))
     index={n:i for i,n in enumerate(rnames)}
-    q=torch.tensor([[ref['initial_joints'][n] for n in rnames]],device=a.device)
+    reset_joints=sequence_reset['joints'] if sequence_reset else ref['initial_joints']
+    q=torch.tensor([[reset_joints[n] for n in rnames]],device=a.device)
     limits=robot.root_physx_view.get_dof_limits()[0].cpu().numpy()
     check_joint_reset(rnames,q[0].cpu().numpy(),limits)
     robot.write_joint_state_to_sim(q,torch.zeros_like(q))
-    initial_root=list(ref['initial_root'])
+    initial_root=list(sequence_reset['initial_root'] if sequence_reset else ref['initial_root'])
     if a.mechanism_test:initial_root[1]-=2.
     robot.write_root_pose_to_sim(torch.tensor([initial_root],device=a.device))
     robot.write_root_velocity_to_sim(torch.zeros((1,6),device=a.device))
@@ -256,7 +273,7 @@ def main():
         prim=stage.GetPrimAtPath('/World/Door/Articulation/Joints/'+n)
         target[0,i]=prim.GetAttribute('doorbench:target_si').Get() or 0.
     controls=np.array(ref['controls']);rows=[]
-    teacher=None;teacher_info={};teacher_control=None
+    teacher=None;teacher_info={};teacher_control=None;sequence=None
     if a.acquisition:
         from doorbench.dexterous.acquisition_teacher import AcquisitionTeacher
         teacher=AcquisitionTeacher(a.native_robot,motors,ref,middle_finger_force=a.acquisition_middle_finger_force)
@@ -271,13 +288,23 @@ def main():
                 basis=np.eye(3)['XYZ'.index(joint.GetAxisAttr().Get())]
                 joint_geometry[role+'_origin']=np.array(joint.GetLocalPos1Attr().Get())
                 joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*map(float,basis))))
-            operation=DoorOperationTeacher(teacher,joint_geometry,wait_for_press_completion=not a.open_on_latch_clear)
+            operation=DoorOperationTeacher(teacher,joint_geometry,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain)
+            if sequence_reset:
+                from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
+                sequence=FullSequenceTeacher(a.native_robot,motors,ref,
+                    json.loads(Path(a.preparation_reference).read_text()),sequence_reset,a.locomotion_checkpoint,
+                    joint_geometry,door_xml=a.native_door,operation_options=dict(
+                        wait_for_press_completion=not a.open_on_latch_clear,
+                        operator_compliance_gain=a.operator_compliance_gain))
+                teacher=sequence.acquisition;operation=sequence.operation
             (out/'operation-protocol.json').write_text(json.dumps(dict(
                 joint_geometry={k:v.tolist() for k,v in joint_geometry.items()},
                 qualification='Path fraction >= 0.999 and uninterrupted 0.5 s of measured valid five-pad grasp',
                 operator_target_rad=.87,leaf_target_rad=.08,press_duration_s=5.,opening_duration_s=3.,
                 wait_for_press_completion=not a.open_on_latch_clear,
-                scope='Contact-free acquisition to lever, latch and partial opening; no approach or traversal',
+                operator_compliance_gain=a.operator_compliance_gain,operator_compliance_limit_rad=.15,
+                freeze_compliance_on_release=True,
+                scope='Continuous walking, lowering, readiness, acquisition and partial opening; no traversal' if sequence else 'Contact-free acquisition to lever, latch and partial opening; no approach or traversal',
                 final_hold='The final 0.5 s must pass the unchanged strict five-pad check and hold leaf angle in [0.075, 0.10] rad; report intermediate digit unloads separately'),indent=2)+'\n')
     elif a.native_robot:
         from physx_teacher import HandleTeacher
@@ -291,13 +318,19 @@ def main():
         dt=dt,robot_mass_kg=float(robot.root_physx_view.get_masses().sum()),latch_scale=scale,
         simulator_effort_limits=robot.root_physx_view.get_dof_max_forces()[0].cpu().tolist(),
         runtime_pose_writes=0,direct_door_commands=bool(a.mechanism_test),contact_material_audit=contact_material_audit,
-        scope='Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
+        scope='Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
     sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py')]
     if a.panel_push:sources.append(Path(__file__).with_name('panel_push_teacher.py'))
-    if a.acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('acquisition_teacher.py','isaac_tendons.py','grasp_verification.py')]
+    if a.acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('acquisition_teacher.py','isaac_tendons.py','grasp_verification.py','isaac_pad_audit.py')]
     if a.operate_after_acquisition:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/operation_teacher.py')
+    if sequence:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
+        ('full_sequence_teacher.py','approach_teacher.py','approach_lowering.py','locomotion.py','locomotion_approach.py','locomotion_manipulation.py','locomotion_posture.py','isaac_sensors.py')]
     inputs=[Path(a.robot_usd),Path(a.door_usd),Path(a.motors),Path(a.reference)]
     if a.native_robot:inputs.append(Path(a.native_robot))
+    if sequence:
+        inputs += [Path(v) for v in (a.full_sequence_reset,a.preparation_reference,a.locomotion_checkpoint,a.native_door)]
+        for name,value in [('body-reset',a.full_sequence_reset),('preparation-reference',a.preparation_reference)]:
+            (out/(name+'.json')).write_bytes(Path(value).read_bytes())
     if a.sensor_layout:
         inputs.append(Path(a.sensor_layout))
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name
@@ -340,153 +373,211 @@ def main():
         acquisition_reset=dict(root=robot.data.root_state_w[0].cpu().tolist(),joints=robot.data.joint_pos[0].cpu().tolist(),door=dict(zip(dnames,door.data.joint_pos[0].cpu().tolist())),
             contact_evidence_note='t=0 contact buffers before the first explicit step; full static native path/initial clearances are recorded separately with the reference')
         (out/'acquisition-reset.json').write_text(json.dumps(acquisition_reset,indent=2)+'\n')
+    foot_loads=np.zeros(2);right_hand_contact_count=0
+    sequence_steps=[];max_motor_delivery_error=0.
+    if sequence:
+        feet=['left_ankle_link','right_ankle_link']
+        foot_rows=[next(i for i,path in enumerate(audit_paths) if path.rsplit('/',1)[-1]==name) for name in feet]
+        foot_bodies=[robot.body_names.index(name) for name in feet]
+        foot_initial=None
+        hand_audit_rows=[i for i,path in enumerate(audit_paths) if path.rsplit('/',1)[-1].startswith(('rh_','lh_'))]
     time_origin=float(sim.current_time)
-    for step in range(round(a.seconds/dt)):
-        pos=robot.data.joint_pos[0].cpu().numpy();vel=robot.data.joint_vel[0].cpu().numpy()
-        ctrl=controls[min(int(step*dt*50/a.time_scale),len(controls)-1)].copy()
-        if teacher and not a.acquisition:
-            if step%10==0:
+    try:
+        for step in range(round(a.seconds/dt)):
+            pos=robot.data.joint_pos[0].cpu().numpy();vel=robot.data.joint_vel[0].cpu().numpy()
+            ctrl=controls[min(int(step*dt*50/a.time_scale),len(controls)-1)].copy()
+            if teacher and not a.acquisition:
+                if step%10==0:
+                    body=door.data.body_state_w[0,:,:7].cpu().numpy()
+                    teacher_control,teacher_info=teacher.command(step*dt,robot.data.root_state_w[0].cpu().numpy(),dict(zip(rnames,pos)),
+                        body[door.body_names.index('leaf')],body[door.body_names.index('leaf_handle')],
+                        float(door.data.joint_pos[0,dnames.index('leaf_handle_hinge')]),float(door.data.joint_pos[0,dnames.index('leaf_hinge')]),
+                        velocities=dict(zip(rnames,vel)),hand_forces=dict(zip(hand_paths,hand_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().sum(axis=1))),grasp=rows[-1]['grasp_opposition'] if rows else None)
+                ctrl=teacher_control.copy()
+            if teacher_info.get('phase') not in ('release','withdraw'):
+                if a.grip_reset_targets:ctrl[right_fingers]=reset_lengths[right_fingers]
+                ctrl[curl_motors]+=a.finger_curl
+            if a.upright_gain:
+                gravity=robot.data.projected_gravity_b[0].cpu().numpy()
+                pitch=float(np.arctan2(gravity[0],-gravity[2]))
+                rate=float(robot.data.root_ang_vel_b[0,1])
+                blend=np.clip(step*dt/1.5,0.,1.)
+                ctrl[ankle_motors]+=blend*np.clip(a.upright_gain*pitch+.1*rate,-.3,.3)
+            ctrl=np.clip(ctrl,[m['control_range'][0] for m in motors['actuators']],[m['control_range'][1] for m in motors['actuators']])
+            lengths=matrix@pos;speeds=matrix@vel
+            feedforward=teacher.feedforward if teacher and not a.acquisition and a.press_feedforward else np.zeros(len(kp))
+            impedance=kp*arm_gain*(ctrl-lengths)-extra_damping*speeds
+            forces=np.clip(kp*ctrl+bias[:,0]+bias[:,1]*lengths+bias[:,2]*speeds+feedforward+impedance,force_ranges[:,0],force_ranges[:,1])
+            if a.acquisition:
                 body=door.data.body_state_w[0,:,:7].cpu().numpy()
-                teacher_control,teacher_info=teacher.command(step*dt,robot.data.root_state_w[0].cpu().numpy(),dict(zip(rnames,pos)),
-                    body[door.body_names.index('leaf')],body[door.body_names.index('leaf_handle')],
-                    float(door.data.joint_pos[0,dnames.index('leaf_handle_hinge')]),float(door.data.joint_pos[0,dnames.index('leaf_hinge')]),
-                    velocities=dict(zip(rnames,vel)),hand_forces=dict(zip(hand_paths,hand_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().sum(axis=1))),grasp=rows[-1]['grasp_opposition'] if rows else None)
-            ctrl=teacher_control.copy()
-        if teacher_info.get('phase') not in ('release','withdraw'):
-            if a.grip_reset_targets:ctrl[right_fingers]=reset_lengths[right_fingers]
-            ctrl[curl_motors]+=a.finger_curl
-        if a.upright_gain:
-            gravity=robot.data.projected_gravity_b[0].cpu().numpy()
-            pitch=float(np.arctan2(gravity[0],-gravity[2]))
-            rate=float(robot.data.root_ang_vel_b[0,1])
-            blend=np.clip(step*dt/1.5,0.,1.)
-            ctrl[ankle_motors]+=blend*np.clip(a.upright_gain*pitch+.1*rate,-.3,.3)
-        ctrl=np.clip(ctrl,[m['control_range'][0] for m in motors['actuators']],[m['control_range'][1] for m in motors['actuators']])
-        lengths=matrix@pos;speeds=matrix@vel
-        feedforward=teacher.feedforward if teacher and not a.acquisition and a.press_feedforward else np.zeros(len(kp))
-        impedance=kp*arm_gain*(ctrl-lengths)-extra_damping*speeds
-        forces=np.clip(kp*ctrl+bias[:,0]+bias[:,1]*lengths+bias[:,2]*speeds+feedforward+impedance,force_ranges[:,0],force_ranges[:,1])
-        if a.acquisition:
-            body=door.data.body_state_w[0,:,:7].cpu().numpy()
-            measured_args=(step*dt,robot.data.root_state_w[0].cpu().numpy(),dict(zip(rnames,pos)),dict(zip(rnames,vel)),body[door.body_names.index('leaf_handle')])
-            loads=dict(zip(hand_paths,hand_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().sum(axis=1)))
-            if operation:
-                angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
-                forces,teacher_info=operation.force(*measured_args,body[door.body_names.index('leaf')],angles,loads,grasp_qualified=pad_steps[-1]['valid_pad_grasp'])
-            else:forces,teacher_info=teacher.force(*measured_args,loads)
-            ctrl=teacher.target.copy();feedforward=np.zeros_like(forces)
-        torque=matrix.T@forces-damp*vel-friction*np.tanh(vel/.001)
-        robot.set_joint_effort_target(torch.tensor(torque[None],device=a.device,dtype=torch.float32))
-        door.set_joint_position_target(target);door.set_joint_velocity_target(torch.zeros_like(target))
-        if a.mechanism_test:
-            effort=torch.zeros_like(target)
-            effort[0,dnames.index('leaf_handle_hinge')]=1.5 if step*dt>.3 else 0.
-            effort[0,dnames.index('leaf_hinge')]=3. if step*dt>1.5 else 0.
-            door.set_joint_effort_target(effort)
-        robot.write_data_to_sim();door.write_data_to_sim()
-        contacts.clear();sim.step(render=False)
-        if (camera or sensor_recorder) and step%20==0:
-            if camera and a.view=='hand':
-                # Move only the diagnostic camera; never the robot or door.
+                measured_args=(step*dt,robot.data.root_state_w[0].cpu().numpy(),dict(zip(rnames,pos)),dict(zip(rnames,vel)),body[door.body_names.index('leaf_handle')])
+                loads=dict(zip(hand_paths,hand_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().sum(axis=1)))
+                if operation:
+                    angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
+                    if sequence:
+                        all_loads=audit_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().copy().sum(axis=1)
+                        # PhysX exposes tangential patch forces separately from its
+                        # normal-force matrix. Native hand-load compensation uses both.
+                        from doorbench.dexterous.isaac_sensors import _collapse_pairs
+                        patch_friction,patch_points,patch_counts,patch_starts=[v.cpu().numpy().copy() for v in audit_contacts.get_friction_data(dt)]
+                        patches=_collapse_pairs(patch_friction.reshape(16384,3),patch_points.reshape(16384,3),patch_counts,patch_starts,capacity=16384)
+                        for i,(_,vectors) in enumerate(patches):all_loads[i]+=vectors.sum(axis=0)
+                        loads={audit_paths[i]:all_loads[i] for i in hand_audit_rows}
+                        forces,teacher_info=sequence.force(*measured_args[:4],foot_loads,measured_args[4],
+                            body[door.body_names.index('leaf')],angles,loads,
+                            grasp_qualified=pad_steps[-1]['valid_pad_grasp'],hand_contact_count=right_hand_contact_count)
+                        if sequence.readiness_screen is not None and not (out/'actual-preparation-screen.json').exists():
+                            (out/'actual-preparation-screen.json').write_text(json.dumps(sequence.readiness_screen,indent=2)+'\n')
+                            (out/'actual-preparation-reference.json').write_text(json.dumps(sequence.actual_preparation)+'\n')
+                    else:
+                        forces,teacher_info=operation.force(*measured_args,body[door.body_names.index('leaf')],angles,loads,grasp_qualified=pad_steps[-1]['valid_pad_grasp'])
+                else:forces,teacher_info=teacher.force(*measured_args,loads)
+                ctrl=teacher.target.copy();feedforward=np.zeros_like(forces)
+            torque=matrix.T@forces-damp*vel-friction*np.tanh(vel/.001)
+            robot.set_joint_effort_target(torch.tensor(torque[None],device=a.device,dtype=torch.float32))
+            door.set_joint_position_target(target);door.set_joint_velocity_target(torch.zeros_like(target))
+            if a.mechanism_test:
+                effort=torch.zeros_like(target)
+                effort[0,dnames.index('leaf_handle_hinge')]=1.5 if step*dt>.3 else 0.
+                effort[0,dnames.index('leaf_hinge')]=3. if step*dt>1.5 else 0.
+                door.set_joint_effort_target(effort)
+            robot.write_data_to_sim();door.write_data_to_sim()
+            contacts.clear();sim.step(render=False)
+            if (camera or sensor_recorder) and step%20==0:
+                review_camera=hand_camera if hand_camera else camera if a.view=='hand' else None
+                if review_camera:
+                    # Diagnostic camera only: stay on the approach side as the door
+                    # opens. A fixed world offset became occluded by the leaf.
+                    pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
+                    leaf_pose=door.data.body_state_w[0,door.body_names.index('leaf'),:7].cpu().numpy()
+                    hrot=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
+                    lrot=Rotation.from_quat([*leaf_pose[4:7],leaf_pose[3]]).as_matrix()
+                    center=pose[:3]+hrot@grip_center
+                    eye=center+lrot@initial_leaf_rotation.T@np.array([.25,-.40,.20])
+                    review_camera.set_world_poses_from_view(eyes=torch.tensor(np.array([eye]),device=a.device,dtype=torch.float32),
+                        targets=torch.tensor(np.array([center]),device=a.device,dtype=torch.float32))
+                sim.render()
+            if abs(float(sim.current_time)-time_origin-(step+1)*dt)>.0001:
+                raise RuntimeError('Physics clock changed outside the explicit motor timestep')
+            robot.update(dt);door.update(dt)
+            if sequence:
+                if foot_initial is None:foot_initial=robot.data.body_state_w[0,foot_bodies,2].cpu().numpy().copy()
+                delivered=robot.root_physx_view.get_dof_actuation_forces()[0].cpu().numpy()
+                max_motor_delivery_error=max(max_motor_delivery_error,float(np.max(np.abs(delivered-torque))))
+            if mechanical_audit is not None:
+                qnew=robot.data.joint_pos[0].cpu().numpy()
+                mechanical_audit['max_joint_stop_penetration_rad']=max(mechanical_audit['max_joint_stop_penetration_rad'],
+                    float(np.maximum(limits[:,0]-qnew,qnew-limits[:,1]).max()))
+                mechanical_audit['max_loopback_violation_rad']=max(mechanical_audit['max_loopback_violation_rad'],max(float(qnew[j1]-qnew[j2]) for j1,j2 in loop_pairs))
+                if a.acquisition or step%10==0:
+                    af,ap,an,ad,ac,ast=[v.cpu().numpy().copy() for v in audit_contacts.get_contact_data(dt)]
+                    if ac.sum()>=16384:raise RuntimeError('Mechanical contact audit buffer exhausted')
+                    mechanical_audit['contact_samples']+=1
+                    if sequence:
+                        foot_loads[:]=0.
+                        right_hand_contact_count=sum(int(ac[i].sum()) for i,path in enumerate(audit_paths) if path.rsplit('/',1)[-1].startswith('rh_'))
+                    for i,path in enumerate(audit_paths):
+                        for j in range(ac.shape[1]):
+                            for k in range(int(ast[i,j]),int(ast[i,j]+ac[i,j])):
+                                depth=max(0.,-float(ad[k,0]));other=audit_filters[i,j]
+                                if sequence and i in foot_rows and other.rsplit('/',1)[-1]=='floor':
+                                    foot_loads[foot_rows.index(i)]+=float(af[k,0]*an[k,2])
+                                if other.startswith('/World/H1/'):
+                                    key='max_self_penetration_m'
+                                elif path.rsplit('/',1)[-1].startswith('rh_') and other.startswith('/World/Door/Articulation/'):
+                                    key='max_hand_door_penetration_m'
+                                elif path.rsplit('/',1)[-1] in ('left_ankle_link','right_ankle_link') and other.rsplit('/',1)[-1]=='floor':
+                                    continue
+                                else:key='max_nonfoot_environment_penetration_m'
+                                mechanical_audit[key]=max(mechanical_audit[key],depth)
+            if sequence:
+                sequence_steps.append(dict(time_s=(step+1)*dt,phase=teacher_info['phase'],
+                    foot_loads_N=foot_loads.tolist(),foot_height_m=robot.data.body_state_w[0,foot_bodies,2].cpu().tolist(),
+                    right_hand_contact_count=right_hand_contact_count))
+            if a.acquisition:
+                acquisition_states['time_s'].append((step+1)*dt)
+                acquisition_states['root'].append(robot.data.root_state_w[0].cpu().numpy().copy())
+                acquisition_states['joints'].append(robot.data.joint_pos[0].cpu().numpy().copy())
+                acquisition_states['motor_forces'].append(forces.copy())
+                acquisition_states['door'].append(door.data.joint_pos[0].cpu().numpy().copy())
+                acquisition_states['door_velocity'].append(door.data.joint_vel[0].cpu().numpy().copy())
+                acquisition_states['torso_tilt_deg'].append(float(np.degrees(np.arccos(np.clip(-robot.data.projected_gravity_b[0,2].item(),-1,1)))))
                 pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
-                hrot=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
-                center=pose[:3]+hrot@grip_center
-                # A shallow side view exposes the opposed pads; the former
-                # overhead view hid them behind the back of the hand.
-                camera.set_world_poses_from_view(eyes=torch.tensor(np.array([center+np.array([.275,-.159,.148])]),device=a.device,dtype=torch.float32),
-                                                targets=torch.tensor(np.array([center]),device=a.device,dtype=torch.float32))
-            sim.render()
-        if abs(float(sim.current_time)-time_origin-(step+1)*dt)>.0001:
-            raise RuntimeError('Physics clock changed outside the explicit motor timestep')
-        robot.update(dt);door.update(dt)
-        if mechanical_audit is not None:
-            qnew=robot.data.joint_pos[0].cpu().numpy()
-            mechanical_audit['max_joint_stop_penetration_rad']=max(mechanical_audit['max_joint_stop_penetration_rad'],
-                float(np.maximum(limits[:,0]-qnew,qnew-limits[:,1]).max()))
-            mechanical_audit['max_loopback_violation_rad']=max(mechanical_audit['max_loopback_violation_rad'],max(float(qnew[j1]-qnew[j2]) for j1,j2 in loop_pairs))
-            if a.acquisition or step%10==0:
-                af,ap,an,ad,ac,ast=[v.cpu().numpy().copy() for v in audit_contacts.get_contact_data(dt)]
-                if ac.sum()>=16384:raise RuntimeError('Mechanical contact audit buffer exhausted')
-                mechanical_audit['contact_samples']+=1
-                for i,path in enumerate(audit_paths):
-                    for j in range(ac.shape[1]):
-                        for k in range(int(ast[i,j]),int(ast[i,j]+ac[i,j])):
-                            depth=max(0.,-float(ad[k,0]));other=audit_filters[i,j]
-                            if other.startswith('/World/H1/'):
-                                key='max_self_penetration_m'
-                            elif path.rsplit('/',1)[-1].startswith('rh_') and other.startswith('/World/Door/Articulation/'):
-                                key='max_hand_door_penetration_m'
-                            elif path.rsplit('/',1)[-1] in ('left_ankle_link','right_ankle_link') and other.rsplit('/',1)[-1]=='floor':
-                                continue
-                            else:key='max_nonfoot_environment_penetration_m'
-                            mechanical_audit[key]=max(mechanical_audit[key],depth)
+                rotation=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
+                pad_steps.append(pad_evaluator.read(physics_dt=dt,time_s=(step+1)*dt,center=pose[:3]+rotation@grip_center,axis=rotation@grip_axis,half_length=grip_half,radius=grip_radius))
+                if step%500==0:
+                    (out/'latest-pad-audit.json').write_text(json.dumps(pad_steps[-1],indent=2)+'\n')
+            if sensor_recorder:
+                previous_action=2*(forces-force_ranges[:,0])/(force_ranges[:,1]-force_ranges[:,0])-1
+                sensor_recorder.update(robot_data=robot.data,dt=dt,time_s=(step+1)*dt,
+                    previous_action=previous_action,rendered=step%20==0)
+            all_contacts.extend(dict(time_s=(step+1)*dt,**c) for c in contacts)
+            if step==0:
+                (out/'initial-body-poses.json').write_text(json.dumps(dict(
+                    robot=dict(zip(robot.body_names,robot.data.body_state_w[0,:,:7].cpu().tolist())),
+                    door=dict(zip(door.body_names,door.data.body_state_w[0,:,:7].cpu().tolist()))),indent=2)+'\n')
+            if step%10==0:
+                state=robot.data.root_state_w[0].cpu().numpy()
+                up=robot.data.projected_gravity_b[0].cpu().numpy()
+                row=dict(time_s=(step+1)*dt,sim_time_s=float(sim.current_time)-time_origin,root=state.tolist(),torso_tilt_deg=float(np.degrees(np.arccos(np.clip(-up[2],-1,1)))),
+                         joints=robot.data.joint_pos[0].cpu().tolist(),door=dict(zip(dnames,door.data.joint_pos[0].cpu().tolist())),
+                         contacts=list(contacts),max_motor_force=float(abs(forces).max()))
+                measured=hand_contacts.get_contact_force_matrix(dt=dt).cpu().numpy()
+                row['hand_forces_N']=dict(zip(hand_paths,measured.sum(axis=1).tolist()))
+                row['hand_forces_handle_N']=dict(zip(hand_paths,measured[:,0,:].tolist()))
+                row['hand_forces_panel_N']=dict(zip(hand_paths,measured[:,1,:].tolist()))
+                force,point,normal,distance,count,start=[x.cpu().numpy() for x in hand_contacts.get_contact_data(dt)]
+                pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
+                rot=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix();center=pose[:3]+rot@grip_center;axis=rot@grip_axis
+                detailed=[]
+                for i,path in enumerate(hand_paths):
+                    for k in range(int(start[i,0]),int(start[i,0]+count[i,0])):
+                        delta=point[k]-center;axial=float(delta@axis);radial=float(np.linalg.norm(delta-axial*axis))
+                        digit=path.rsplit('/',1)[-1][3:5]
+                        on_grip=abs(axial)<=grip_half and abs(radial-grip_radius)<.004
+                        detailed.append(dict(body=path,digit=digit,position=point[k].tolist(),normal=normal[k].tolist(),
+                            normal_force_N=float(force[k,0]),separation_m=float(distance[k,0]),on_grip_surface=on_grip))
+                row['hand_contacts']=detailed
+                row['grasp_opposition']=opposition([c for c in detailed if c['on_grip_surface']],center,axis)
+                row['teacher']=teacher_info
+                row['motor_targets']=ctrl.tolist()
+                row['motor_feedforward']=feedforward.tolist()
+                row['motor_forces']=forces.tolist()
+                row['joint_torque_command']=torque.tolist()
+                row['joint_torque_sent']=robot._joint_effort_target_sim[0].cpu().tolist()
+                rows.append(row)
+                if step%250==0:
+                    progress={k:row[k] for k in ('time_s','door','torso_tilt_deg','teacher')}
+                    progress['hand_force_N']=float(np.linalg.norm(measured,axis=-1).sum())
+                    progress['grasp_opposition']=row['grasp_opposition']
+                    (out/'latest.json').write_text(json.dumps(row)+'\n')
+                    (out/'progress.json').write_text(json.dumps(progress)+'\n')
+                    print('PHYSX_PROGRESS '+json.dumps(progress),flush=True)
+            if camera and step%20==0:
+                camera.update(dt*20);frame=camera.data.output['rgb'][0].cpu().numpy()[...,:3]
+                writer.append_data(frame)
+                if step%500==0:imageio.imwrite(out/f'frame-{step:05d}.png',frame)
+            if hand_camera and step%20==0:
+                hand_camera.update(dt*20);hand_frame=hand_camera.data.output['rgb'][0].cpu().numpy()[...,:3]
+                hand_writer.append_data(hand_frame)
+                if step%500==0:imageio.imwrite(out/f'hand-frame-{step:05d}.png',hand_frame)
+            if not torch.isfinite(robot.data.joint_pos).all():raise RuntimeError('Nonfinite robot state')
+            if rows and (rows[-1]['root'][2]<.45 or rows[-1]['torso_tilt_deg']>45):
+                (out/'early-stop.json').write_text(json.dumps(dict(reason='Robot fell',time_s=(step+1)*dt))+'\n')
+                break
+    except BaseException:
+        # Preserve the actual executed prefix even when a controller or backend
+        # error prevents normal qualification. These files never imply a pass.
+        (out/'trace.json').write_text(json.dumps(rows)+'\n')
         if a.acquisition:
-            acquisition_states['time_s'].append((step+1)*dt)
-            acquisition_states['root'].append(robot.data.root_state_w[0].cpu().numpy().copy())
-            acquisition_states['joints'].append(robot.data.joint_pos[0].cpu().numpy().copy())
-            acquisition_states['motor_forces'].append(forces.copy())
-            acquisition_states['door'].append(door.data.joint_pos[0].cpu().numpy().copy())
-            acquisition_states['door_velocity'].append(door.data.joint_vel[0].cpu().numpy().copy())
-            acquisition_states['torso_tilt_deg'].append(float(np.degrees(np.arccos(np.clip(-robot.data.projected_gravity_b[0,2].item(),-1,1)))))
-            pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
-            rotation=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
-            pad_steps.append(pad_evaluator.read(physics_dt=dt,time_s=(step+1)*dt,center=pose[:3]+rotation@grip_center,axis=rotation@grip_axis,half_length=grip_half,radius=grip_radius))
-            if step%500==0:
-                (out/'latest-pad-audit.json').write_text(json.dumps(pad_steps[-1],indent=2)+'\n')
-        if sensor_recorder:
-            previous_action=2*(forces-force_ranges[:,0])/(force_ranges[:,1]-force_ranges[:,0])-1
-            sensor_recorder.update(robot_data=robot.data,dt=dt,time_s=(step+1)*dt,
-                previous_action=previous_action,rendered=step%20==0)
-        all_contacts.extend(dict(time_s=(step+1)*dt,**c) for c in contacts)
-        if step==0:
-            (out/'initial-body-poses.json').write_text(json.dumps(dict(
-                robot=dict(zip(robot.body_names,robot.data.body_state_w[0,:,:7].cpu().tolist())),
-                door=dict(zip(door.body_names,door.data.body_state_w[0,:,:7].cpu().tolist()))),indent=2)+'\n')
-        if step%10==0:
-            state=robot.data.root_state_w[0].cpu().numpy()
-            up=robot.data.projected_gravity_b[0].cpu().numpy()
-            row=dict(time_s=(step+1)*dt,sim_time_s=float(sim.current_time)-time_origin,root=state.tolist(),torso_tilt_deg=float(np.degrees(np.arccos(np.clip(-up[2],-1,1)))),
-                     joints=robot.data.joint_pos[0].cpu().tolist(),door=dict(zip(dnames,door.data.joint_pos[0].cpu().tolist())),
-                     contacts=list(contacts),max_motor_force=float(abs(forces).max()))
-            measured=hand_contacts.get_contact_force_matrix(dt=dt).cpu().numpy()
-            row['hand_forces_N']=dict(zip(hand_paths,measured.sum(axis=1).tolist()))
-            row['hand_forces_handle_N']=dict(zip(hand_paths,measured[:,0,:].tolist()))
-            row['hand_forces_panel_N']=dict(zip(hand_paths,measured[:,1,:].tolist()))
-            force,point,normal,distance,count,start=[x.cpu().numpy() for x in hand_contacts.get_contact_data(dt)]
-            pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
-            rot=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix();center=pose[:3]+rot@grip_center;axis=rot@grip_axis
-            detailed=[]
-            for i,path in enumerate(hand_paths):
-                for k in range(int(start[i,0]),int(start[i,0]+count[i,0])):
-                    delta=point[k]-center;axial=float(delta@axis);radial=float(np.linalg.norm(delta-axial*axis))
-                    digit=path.rsplit('/',1)[-1][3:5]
-                    on_grip=abs(axial)<=grip_half and abs(radial-grip_radius)<.004
-                    detailed.append(dict(body=path,digit=digit,position=point[k].tolist(),normal=normal[k].tolist(),
-                        normal_force_N=float(force[k,0]),separation_m=float(distance[k,0]),on_grip_surface=on_grip))
-            row['hand_contacts']=detailed
-            row['grasp_opposition']=opposition([c for c in detailed if c['on_grip_surface']],center,axis)
-            row['teacher']=teacher_info
-            row['motor_targets']=ctrl.tolist()
-            row['motor_feedforward']=feedforward.tolist()
-            row['motor_forces']=forces.tolist()
-            row['joint_torque_command']=torque.tolist()
-            row['joint_torque_sent']=robot._joint_effort_target_sim[0].cpu().tolist()
-            rows.append(row)
-            if step%250==0:
-                progress={k:row[k] for k in ('time_s','door','torso_tilt_deg','teacher')}
-                progress['hand_force_N']=float(np.linalg.norm(measured,axis=-1).sum())
-                progress['grasp_opposition']=row['grasp_opposition']
-                (out/'latest.json').write_text(json.dumps(row)+'\n')
-                (out/'progress.json').write_text(json.dumps(progress)+'\n')
-                print('PHYSX_PROGRESS '+json.dumps(progress),flush=True)
-        if camera and step%20==0:
-            camera.update(dt*20);frame=camera.data.output['rgb'][0].cpu().numpy()[...,:3]
-            writer.append_data(frame)
-            if step%500==0:imageio.imwrite(out/f'frame-{step:05d}.png',frame)
-        if not torch.isfinite(robot.data.joint_pos).all():raise RuntimeError('Nonfinite robot state')
-        if rows and (rows[-1]['root'][2]<.45 or rows[-1]['torso_tilt_deg']>45):
-            (out/'early-stop.json').write_text(json.dumps(dict(reason='Robot fell',time_s=(step+1)*dt))+'\n')
-            break
+            np.savez_compressed(out/'acquisition-physics.npz',**acquisition_states)
+            with gzip.open(out/'acquisition-pad-steps.json.gz','wt') as stream:json.dump(pad_steps,stream)
+        if sequence:
+            with gzip.open(out/'full-sequence-steps.json.gz','wt') as stream:json.dump(sequence_steps,stream)
+        if sensor_recorder and sensor_recorder.times:sensor_recorder.finish()
+        if writer:writer.close()
+        if hand_writer:hand_writer.close()
+        raise
     (out/'trace.json').write_text(json.dumps(rows)+'\n')
     if a.acquisition:np.savez_compressed(out/'acquisition-physics.npz',**acquisition_states)
     if a.acquisition:
@@ -530,8 +621,10 @@ def main():
                 operator_driven_to_release=bool(handle.max()>=.80 and bolt.max()>=.011),
                 partial_leaf_opening_held=bool(np.all((leaf[times>=a.seconds-.5]>=.075)&(leaf[times>=a.seconds-.5]<=.10))),
                 opening_bounded_for_transfer=bool(leaf.max()<=.12))
-            operation_rows=[r for r in pad_steps if operation.started is not None and r['sim_time_s']>=operation.started]
-            operation_report=dict(report,scope='Live PhysX contact-free acquisition to lever, latch and partial opening; no approach/traversal or sensor-only claim',
+            offset=sequence.acquisition_started if sequence and sequence.acquisition_started is not None else 0.
+            absolute_operation_start=operation.started+offset if operation.started is not None else None
+            operation_rows=[r for r in pad_steps if absolute_operation_start is not None and r['sim_time_s']>=absolute_operation_start]
+            operation_report=dict(report,scope='Continuous live PhysX walk/lower/prepare/acquire/partial opening; no traversal or sensor-only claim' if sequence else 'Live PhysX contact-free acquisition to lever, latch and partial opening; no approach/traversal or sensor-only claim',
                 checks=operation_checks,passed=all(operation_checks.values()),
                 maximum_handle_rad=float(handle.max()),maximum_leaf_rad=float(leaf.max()),
                 final_leaf_rad=float(leaf[-1]),maximum_bolt_retraction_m=float(bolt.max()),
@@ -540,11 +633,34 @@ def main():
                 operation_reference=dict(operation_start_s=operation.started,opening_start_s=operation.open_started,final_goals=operation.info))
             if operation.started is not None:
                 operation_report['operation_reference'].update(palm_position_in_handle_m=operation.p_relative.tolist(),palm_rotation_in_handle=operation.r_relative.tolist())
+            if sequence:
+                operation_report['operation_reference']['clock_offset_s']=offset
+                operation_report['operation_reference']['absolute_operation_start_s']=absolute_operation_start
+                operation_checks.update(
+                    separated_start=bool(np.linalg.norm(np.array(initial_root[:2])-sequence_reset['goal_xy'])>=.5-1e-9),
+                    walked_from_separate_start=bool(np.linalg.norm(root_states[-1,:2]-np.array(initial_root[:2]))>.5),
+                    both_feet_swung=bool(all(any(r['foot_loads_N'][i]<10 and r['foot_height_m'][i]>foot_initial[i]+.015 for r in sequence_steps) for i in (0,1))),
+                    readiness_screen_passed=bool(sequence.readiness_screen and sequence.readiness_screen['passed']),
+                    actual_contact_free_preparation=bool(sequence.prep_started is not None and sequence.acquisition_started is not None and
+                        all(r['right_hand_contact_count']==0 for r in sequence_steps if sequence.prep_started<=r['time_s']<=sequence.acquisition_started)),
+                    body_solver_succeeded=sequence.body.controller.solver_failures==0,
+                    operating_pad_patches_valid=operation_report['operation_invalid_pad_patch_samples']==0,
+                    all_pad_patches_valid=all(c['pad_qualified'] for row in pad_steps for c in row['contacts']),
+                    motor_delivery_matches_command=max_motor_delivery_error<1e-4)
+                operation_report.update(passed=all(operation_checks.values()),checks=operation_checks,
+                    all_episode_invalid_pad_patch_samples=sum(any(not c['pad_qualified'] for c in row['contacts']) for row in pad_steps),
+                    initial_goal_distance_m=float(np.linalg.norm(np.array(initial_root[:2])-sequence_reset['goal_xy'])),
+                    max_motor_delivery_error_Nm=max_motor_delivery_error,
+                    handoffs=sequence.handoffs,readiness_screen=sequence.readiness_screen,
+                    blocked_reason=sequence.blocked_reason)
+                with gzip.open(out/'full-sequence-steps.json.gz','wt') as stream:json.dump(sequence_steps,stream)
+                (out/'full-sequence-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             (out/'operation-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             (out/'report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             print('OPERATION_RESULT '+json.dumps({k:v for k,v in operation_report.items() if k!='final_pad_grasp'}),flush=True)
     if sensor_recorder:sensor_recorder.finish()
     if writer:writer.close()
+    if hand_writer:hand_writer.close()
     print('PHYSX_RUN_COMPLETE',flush=True)
 
 failed=False

@@ -119,3 +119,21 @@ def test_measured_interface_rejects_invalid_state():
     tick(wrapper, 1.)
     with pytest.raises(ValueError):
         tick(wrapper, .9)
+
+
+def test_compliance_is_bounded_freezes_on_release_and_preserves_actual_target():
+    wrapper=DoorOperationTeacher(Acquisition(),GEOMETRY,press_seconds=.1,
+        wait_for_press_completion=False,operator_compliance_gain=10.,operator_compliance_limit=.06)
+    for t in np.arange(0.,.81,.01):tick(wrapper,t)
+    assert wrapper.operator_compliance==pytest.approx(.06)
+    assert wrapper.info['goal_handle_rad']==pytest.approx(.87)
+    tick(wrapper,.81,operator=.82,latch=.012)
+    frozen=wrapper.operator_compliance
+    for t in np.arange(.82,1.5,.01):tick(wrapper,t,operator=.75,latch=.012)
+    assert wrapper.operator_compliance==frozen
+    assert wrapper.info['goal_handle_rad']==pytest.approx(.87)
+    original=DoorOperationTeacher(Acquisition(),GEOMETRY)
+    for t in np.arange(0.,1.,.01):tick(original,t)
+    assert original.operator_compliance==0.
+    with pytest.raises(ValueError):
+        DoorOperationTeacher(Acquisition(),GEOMETRY,operator_compliance_gain=float('nan'))

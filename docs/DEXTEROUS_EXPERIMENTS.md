@@ -131,14 +131,20 @@ historical diagnostics and are not being reused as mechanically valid targets.
 |---|---|---|
 | Frozen native acquisition plus seeds 17/29/43 | 4/4 tested initializations pass | One-door acquisition; no catalogue score |
 | [Native walk, lower, prepare, acquire and operate](DOOR55_CONTINUOUS_WALK_GRASP.md) | 55 uninterrupted seconds; all physical/task-stage checks pass; final leaf 0.0846 rad | Partial opening only; old intermediate heading target remains failed |
-| [Native left-palm contact](BIMANUAL_OPENING_SCREEN.md) | 18/18 checks; left palm minimum final load 3.788 N; right pads preserved | Stops before right release and full opening |
+| [Native left-hand contact](BIMANUAL_OPENING_SCREEN.md) | 18/18 checks; left hand minimum final load 3.788 N; palm-only load verification pending; right pads preserved | Stops before right release and full opening |
 | Isaac acquisition 001 / 002 | Both fail the strict final hold; all other checks pass | Four / three isolated middle-finger unload steps in the final 251 samples |
 | [Isaac operation 001](../results/dexterous/2026-09-08/isaac-operation-v2-001.json) | Final hold and partial-opening hold fail | Lever crossed release before the press timer ended; transition never started |
 | [Native measured-release transition](../results/dexterous/2026-09-08/native-operation-clear-v2.json) | 16/16 checks; final leaf 0.0872 rad | Opens on actual clearance; ten intermediate digit-unload ticks, no invalid pads |
 | [v2 one-click readiness](ISAAC_V2_READY.md) | Live regeneration, import and solver verification pass | Environment readiness, not task performance |
 
-The next Isaac run records fixed robot cameras and tactile packets alongside the
-privileged teacher. The [sensor learner](DEXTEROUS_SENSOR_IMITATION.md) has passed
+Two completed Isaac operation runs now include fixed robot cameras and tactile packets alongside the
+privileged teacher; both failed their declared task checks. See the [independent archive review](ISAAC_OPERATION_SENSOR_REVIEW.md). The [sensor learner](DEXTEROUS_SENSOR_IMITATION.md) has passed
 synthetic boundary/optimizer tests; no closed-loop learned result exists. Release,
 complete opening, traversal, repeated task evaluation and broad coverage remain
 work in progress. Every failed physical run remains archived.
+
+### Bounded wrist compensation and continuous Isaac integration — September 8, 11:35 UTC
+
+The native release-frozen compensation trial passes all 16 checks, with final leaf angle 0.08785 rad, zero invalid loaded pad patches and 17 transient digit-unload ticks. [Complete receipt](../results/dexterous/2026-09-08/native-operation-compliance-freeze-001.json). The preceding continuously integrating variant is also retained as a native pass; its corresponding Isaac attempt failed fingertip contact after opening. The compensation changes a bounded controller reference, never the physical operator limits or motor caps.
+
+The shared continuous teacher is wired into `isaac_opening.py` through `--full-sequence-reset`, `--preparation-reference`, `--locomotion-checkpoint` and `--native-door`. Readiness uses actual landed state in an unstepped collision model. A normal-plus-tangential hand-load adapter, actual torque-delivery checks, full-episode contact checks and explicit phase-clock offsets were reviewed before execution. Source and input packages are frozen before each GPU run. The original near-handle path and failed experiments remain available. No full Isaac traversal or learned task success has been established.

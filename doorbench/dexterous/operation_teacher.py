@@ -39,7 +39,9 @@ class DoorOperationTeacher:
     def __init__(self, acquisition_teacher, joint_geometry, *, qualified_hold_seconds=.5,
                  min_acquisition_seconds=0., press_seconds=5., opening_seconds=3.,
                  operator_target=.87, release_operator_threshold=.80,
-                 release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True):
+                 release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True,
+                 operator_compliance_gain=0., operator_compliance_limit=.15,
+                 freeze_compliance_on_release=True):
         self.acquisition = acquisition_teacher
         self.geometry = {k:np.asarray(joint_geometry[k], float) for k in
                          ('operator_origin','operator_axis','leaf_origin','leaf_axis')}
@@ -49,7 +51,8 @@ class DoorOperationTeacher:
             if key.endswith('axis') and not np.isclose(np.linalg.norm(value),1.,atol=1e-6):
                 raise ValueError('Joint axes must be normalized')
         values = [qualified_hold_seconds,min_acquisition_seconds,press_seconds,opening_seconds,
-                  operator_target,release_operator_threshold,release_bolt_threshold,leaf_target]
+                  operator_target,release_operator_threshold,release_bolt_threshold,leaf_target,
+                  operator_compliance_gain,operator_compliance_limit]
         if not np.isfinite(values).all() or min(values) < 0 or min(qualified_hold_seconds,press_seconds,opening_seconds) <= 0:
             raise ValueError('Invalid operation timing or travel')
         self.qualified_hold_seconds = qualified_hold_seconds
@@ -61,6 +64,12 @@ class DoorOperationTeacher:
         if type(wait_for_press_completion) is not bool:
             raise ValueError('Explicit press-completion policy is required')
         self.wait_for_press_completion = wait_for_press_completion
+        if type(freeze_compliance_on_release) is not bool:
+            raise ValueError('Explicit compliance release policy is required')
+        self.freeze_compliance_on_release=freeze_compliance_on_release
+        self.operator_compliance_gain=operator_compliance_gain
+        self.operator_compliance_limit=operator_compliance_limit
+        self.operator_compliance=0.
         self.qualified_since = self.last_time = self.started = self.open_started = None
         self.info = dict(phase='acquisition')
 
@@ -92,6 +101,7 @@ class DoorOperationTeacher:
         if self.last_time is not None and t < self.last_time-1e-9:
             raise ValueError('Operation clock went backwards')
         stale = self.last_time is not None and t-self.last_time > .05+1e-9
+        elapsed=0. if self.last_time is None else min(.05,t-self.last_time)
         self.last_time = t
         teacher = self.acquisition
         if self.started is None:
@@ -104,12 +114,19 @@ class DoorOperationTeacher:
                 self._bind(t,handle_pose,angles)
             return force, {**info,**self.info}
         goal_h = self.initial_handle+(self.operator_target-self.initial_handle)*smooth_phase((t-self.started)/self.press_seconds)
+        # Compensate compliant finger deflection with a bounded palm-reference
+        # rotation. The actual operator target and joint limits do not change;
+        # this is controller memory, never a door pose/force command.
+        if self.open_started is None or not self.freeze_compliance_on_release:
+            self.operator_compliance=float(np.clip(self.operator_compliance+
+                self.operator_compliance_gain*elapsed*(goal_h-angles['operator']),
+                0.,self.operator_compliance_limit))
         press_ready = not self.wait_for_press_completion or t >= self.started+self.press_seconds
         if self.open_started is None and press_ready and angles['operator'] >= self.release_operator_threshold and angles['latch'] >= self.release_bolt_threshold:
             self.open_started = t
             self.initial_leaf_goal = self.info.get('goal_leaf_rad',0.)
         goal_l = 0. if self.open_started is None else self.initial_leaf_goal+(self.leaf_target-self.initial_leaf_goal)*smooth_phase((t-self.open_started)/self.opening_seconds)
-        pos, rot = reproject_grasp(handle_pose,leaf_pose,angles,dict(operator=goal_h,leaf=goal_l),
+        pos, rot = reproject_grasp(handle_pose,leaf_pose,angles,dict(operator=goal_h+self.operator_compliance,leaf=goal_l),
                                   self.p_relative,self.r_relative,self.geometry)
         teacher.positions[-1] = pos
         teacher.rotations[-1] = rot
@@ -117,6 +134,7 @@ class DoorOperationTeacher:
         self.info = dict(phase='lever_operation' if self.open_started is None else 'partial_opening',
                          operation_start_s=self.started,opening_start_s=self.open_started,
                          goal_handle_rad=float(goal_h),goal_leaf_rad=float(goal_l),
+                         palm_compliance_rotation_rad=self.operator_compliance,
                          actual_handle_rad=angles['operator'],actual_leaf_rad=angles['leaf'],
                          actual_bolt_m=angles['latch'])
         return force, {**info,**self.info}
