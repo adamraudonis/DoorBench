@@ -364,19 +364,47 @@ retains a three-step CPU smoke that exercises differing real-history lengths,
 supervises previously unreachable labels, and passes the four runtime loading
 checks. Its original frozen bundle is separate from006.
 
-Frozen006 completed **5000 CUDA steps in444.61 seconds** on the owned L40S.
+Frozen006 completed **5000 CUDA steps in 444.61 seconds** on the owned L40S.
 None of its ten checkpoints passed all six predeclared fitting criteria, so
 it was not admitted to another physical trial. Its
 [complete convergence receipt](evidence/sensor-imitation-acquisition-006.json)
-preserves every checkpoint and score,287 source hashes and28 verified remote
+preserves every checkpoint and score, 287 source hashes and 28 verified remote
 output files. The final checkpoint improves all three correction fits and
-first100-ms startup error, but nominal MSE0.0005391 remains above0.0003551 and
-actor-history first500-ms error6.6779Nm remains above2.1267Nm.
+first 100-ms startup error, but nominal MSE 0.0005391 remains above 0.0003551 and
+actor-history first 500-ms error 6.6779 Nm remains above 2.1267 Nm.
 
 An independent CPU check of those final weights distinguishes the remaining
-history issue. On the same nominal recorded sensor states, first500-ms error
-is1.7682Nm with recorded teacher previous commands and6.6779Nm with the actor's
+history issue. On the same nominal recorded sensor states, first 500-ms error
+is 1.7682 Nm with recorded teacher previous commands and 6.6779 Nm with the actor's
 own previous commands. This is measurable offline autoregressive drift, not
 a new physical failure or a successful policy. It motivates a separately
 declared command-history training experiment if the sampler-only correction
 does not satisfy the fitting checks.
+
+## Separate offline actor-command history option
+
+The [declared008 protocol](../configs/dexterous/sensor-imitation-autoregressive-008.json)
+adds `--previous-action-training actor_detached_v1` to the corrected sampler.
+It preserves the four datasets, model, optimizer, sampling and comparison
+thresholds. The default remains `recorded`; the frozen007 package is unchanged.
+
+At a real episode reset, the previous command must be zero. At a truncated
+window boundary, the first previous command is anchored once to the recorded
+preceding command. From that point onward—including warm-up and every scored
+step—the model's previous prediction is used. Teacher forces remain targets
+outside the autoregressive input function. There is no teacher-command
+substitution inside the scored window.
+
+Warm-up uses actual sensor observations without gradients. Its final hidden
+state is detached; the GRU retains backpropagation through the 32 scored steps.
+Previous-command feedback is detached at every step, so gradients pass through
+recurrent memory but not through the predicted-command input loop. Static
+image and touch features are computed in batches; a stepwise-equivalence test
+checks that this optimization preserves actor outputs. Tests also poison all
+later recorded command fields, verify unchanged predictions, check reset
+rejection and confirm the intended gradient boundaries.
+
+All sensor states remain recorded and cannot react to these predicted forces.
+This is **offline autoregressive input rollout**, not a simulator rollout,
+an executed recovery or a task success. Any fitting improvement still needs
+the same independent runtime checks and fresh physical evaluation.

@@ -23,6 +23,7 @@ from doorbench.dexterous.motor_contract_identity import SENSOR_ACTOR_CHECKPOINT_
 from doorbench.dexterous.sensor_training_bundle import load_bundle, digest
 from doorbench.dexterous.sensor_fit_evaluation import evaluate_frozen_fit
 from doorbench.dexterous.recurrent_sampling import sample_windows
+from doorbench.dexterous.autoregressive_training import actor_history_prediction
 
 
 def atomic_json(path, value):
@@ -54,6 +55,7 @@ def main():
     parser.add_argument('--learning-rate',type=float,default=1e-4)
     parser.add_argument('--seed',type=int,default=0)
     parser.add_argument('--window-sampling',choices=['legacy_fixed_burn','prefix_complete_v1'],default='legacy_fixed_burn')
+    parser.add_argument('--previous-action-training',choices=['recorded','actor_detached_v1'],default='recorded')
     parser.add_argument('--checkpoint-every',type=int,default=0,help='Atomically preserve periodic weights and latest optimizer/RNG state')
     parser.add_argument('--evaluate-every',type=int,default=0,help='Full-history four-source and actual-start fit audit; requires frozen bundle')
     parser.add_argument('--max-wall-seconds',type=float,default=0.,help='Bound training wall time; zero disables the bound')
@@ -94,6 +96,8 @@ def main():
             raise ValueError('Freeze one embodiment, calibration, action order and control timestep per checkpoint')
         if len(episode)<args.sequence_length+(args.burn_in if args.window_sampling=='legacy_fixed_burn' else 0):
             raise ValueError('Episode is too short for the declared recurrent window')
+        if args.previous_action_training=='actor_detached_v1' and (episode.times[0]!=0 or np.any(episode.numeric['previous_action'][0]!=0)):
+            raise ValueError('Actor-history training requires an audited actual cold episode reset')
     capture(Path(__file__).resolve().parents[2],args.output,{k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()})
     random.seed(args.seed);np.random.seed(args.seed);torch.manual_seed(args.seed)
     rng=np.random.default_rng(args.seed);device=torch.device(args.device)
@@ -135,14 +139,16 @@ def main():
             if pool is episodes:
                 supervised_counts[window.episode][window.label_start:window.label_start+window.supervised_length]+=1
             values,target=pool[window.episode].sequence(window.observation_start,window.total_length)
-            grouped.setdefault(window.burn_in,[]).append((values,target))
+            grouped.setdefault(window.burn_in,[]).append((values,target,window.observation_start==0))
         result=[]
         for burn,rows in grouped.items():
-            inputs={key:torch.as_tensor(np.stack([w[key] for w,_ in rows]),device=device) for key in rows[0][0]}
-            result.append((inputs,torch.as_tensor(np.stack([target for _,target in rows]),device=device),burn))
+            inputs={key:torch.as_tensor(np.stack([w[key] for w,_,_ in rows]),device=device) for key in rows[0][0]}
+            result.append((inputs,torch.as_tensor(np.stack([target for _,target,_ in rows]),device=device),burn,[start for _,_,start in rows]))
         return result
 
-    def prediction(inputs,burn):
+    def prediction(inputs,burn,episode_start):
+        if args.previous_action_training=='actor_detached_v1':
+            return actor_history_prediction(model,inputs,burn,episode_start=episode_start)
         hidden=None
         if burn:
             with torch.no_grad():
@@ -152,8 +158,8 @@ def main():
     completed=0;last_evaluation=None
     for iteration in range(args.iterations):
         model.train();groups=batch(episodes);optimizer.zero_grad(set_to_none=True)
-        loss=sum(torch.mean((prediction(inputs,burn)-labels[:,burn:])**2)*(len(labels)/args.batch_size)
-                 for inputs,labels,burn in groups)
+        loss=sum(torch.mean((prediction(inputs,burn,episode_start)-labels[:,burn:])**2)*(len(labels)/args.batch_size)
+                 for inputs,labels,burn,episode_start in groups)
         if not torch.isfinite(loss):raise ValueError('Nonfinite imitation objective')
         loss.backward();torch.nn.utils.clip_grad_norm_(model.parameters(),1.);optimizer.step()
         completed=iteration+1
@@ -162,8 +168,8 @@ def main():
             if validation:
                 model.eval()
                 with torch.inference_mode():
-                    row['separate_episode_prediction_mse']=float(sum(torch.mean((prediction(vi,vburn)-vl[:,vburn:])**2)*(len(vl)/args.batch_size)
-                        for vi,vl,vburn in batch(validation)))
+                    row['separate_episode_prediction_mse']=float(sum(torch.mean((prediction(vi,vburn,vstart)-vl[:,vburn:])**2)*(len(vl)/args.batch_size)
+                        for vi,vl,vburn,vstart in batch(validation)))
             history.append(row);atomic_json(args.output/'progress.json',row);print(json.dumps(row),flush=True)
         bounded_stop=bool(args.max_wall_seconds and time.time()-started>=args.max_wall_seconds)
         evaluate_now=bool(args.evaluate_every and (completed%args.evaluate_every==0 or completed==args.iterations or bounded_stop))
@@ -185,6 +191,9 @@ def main():
         recurrent_training='Truncated windows with sensor-only burn-in; optional explicitly weighted true-start windows have zero hidden state and no masked prefix',
         episode_start_probability=args.episode_start_probability,
         window_sampling=args.window_sampling,
+        previous_action_training=args.previous_action_training,
+        command_history_semantics=('Offline actor-owned previous commands on fixed recorded sensor states; reset command zero, truncated-window first command anchored to its actual recorded predecessor. Warm-up and action feedback detached; GRU BPTT retained across scored steps. No teacher command substitution within scored rollout.'
+            if args.previous_action_training=='actor_detached_v1' else 'Actual recorded previous commands are replayed throughout training windows.'),
         history_semantics=('Uniform supervised-start indices; warm up from max(0,label_start-burn_in). Early prefixes use all available real history. Equal-history groups are batched; no padded observations.'
             if args.window_sampling=='prefix_complete_v1' else 'Original fixed-burn random windows plus explicit true-start windows; if burn_in exceeds sequence_length, intermediate early labels are unreachable.'),
         dataset_sampling='Uniform per dataset; qualified teacher episodes and counterfactual correction prefixes remain separately identified',
