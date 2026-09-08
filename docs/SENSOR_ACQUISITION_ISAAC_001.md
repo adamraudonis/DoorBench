@@ -79,3 +79,58 @@ Recompute all contacts and the scoped qualification with
 Its report-comparison flag intentionally differs when using the corrected
 evaluator against the unchanged original report. The receipt in
 `docs/evidence/sensor-acquisition-isaac-001.json` binds the separate analyses.
+
+## Saved-pose comparison: drift begins before contact
+
+The native trajectory is a **full scene** qpos array: its three door coordinates
+precede the robot free root. The comparison resolves every joint name against
+that model and requires exact agreement with the native named reset. It does
+not index that array with robot-only qpos addresses. The Isaac reset agrees to
+its original float32 storage precision.
+
+At ten sampled epochs, detached robot-only FK reproduces the recorded Isaac
+right-hand body positions within 0.669 micrometers and orientations within
+2.18 microradians. This excludes a gross name/order or rigid-frame mismatch for
+those samples. It does not qualify collision-mesh or friction parity.
+
+| Time | Finger | Native J1 / J2 | Isaac J1 / J2 | Motor-sum difference | Split difference |
+|---|---|---:|---:|---:|---:|
+| 1 s, hands clear | Index | 0.12360 / 0.12352 | 0.09382 / 0.15420 | 0.00090 rad | −0.06046 rad |
+| 1 s, hands clear | Middle | 0.12262 / 0.12257 | 0.09305 / 0.15299 | 0.00085 rad | −0.05999 rad |
+| 1 s, hands clear | Ring | 0.07267 / 0.07266 | 0.03729 / 0.10913 | 0.00108 rad | −0.07184 rad |
+| 8 s, hands clear | Index | 0.23330 / 0.29200 | 0.09201 / 0.43618 | 0.00290 rad | −0.28547 rad |
+| 19 s | Index | 0.36091 / 0.49022 | 0.39133 / 0.46629 | 0.00650 rad | +0.05436 rad |
+| 19 s | Middle | 0.47021 / 0.58462 | 0.51463 / 0.54831 | 0.00812 rad | +0.08072 rad |
+| 19 s | Ring | 0.52758 / 0.66232 | 0.58209 / 0.61723 | 0.00942 rad | +0.09960 rad |
+
+Differences are Isaac minus native; split means J1−J2. The one-sided J1≤J2
+mechanism and individual joint limits pass in both runs. That limit does not
+select the same state along the motor's J1+J2 coordinate in both engines.
+
+The final native verified contact patches define fixed, force-weighted material
+points on the distal links. Mapping those same material points through the
+actual Isaac poses places the index, middle and ring points respectively
+0.291, 0.431 and 0.298 mm outside the actual lever cylinder. The little finger
+and thumb points are touching. The measured native-versus-Isaac world positions
+of all five material points differ by 2.6–3.9 mm.
+
+An explicitly detached FK counterfactual preserves the actual Isaac body, every
+other joint, and each finger's actual motor sum while substituting only the
+native J1−J2 split. Those three point gaps become −0.382, −0.568 and −0.907 mm.
+This supports a split-dependent loss of contact. It is not an executed motion,
+contact-force result or permission to enforce equality between the joints.
+These are distances of identified material points, not a surface-distance
+optimization or collision resolution.
+
+The early free-space drift makes actuator/friction parity a priority before
+retuning contact control. The root investigation independently identified the
+adapter's smooth `frictionloss*tanh(velocity/.001)` law as a candidate difference
+from native static friction; a separate measured fixture is needed to establish
+that cause. This pose audit neither changes that law nor modifies any plant.
+
+Both final-hand close-ups were inspected: the native
+`scripted-acquisition-hand-az150-0475.png` and Isaac `hand-frame-09000.png`.
+Their viewpoints differ, so the numeric body-frame comparison provides the
+alignment evidence. Source hashes and the full sampled comparison are bound in
+`docs/evidence/sensor-acquisition-isaac-001-poses.json`. Reproduce with
+`scripts/dexterous/compare_recorded_acquisition_poses.py --native NATIVE_ARCHIVE --isaac ISAAC_ARCHIVE --robot ROBOT_XML --door DOOR_DIRECTORY --output NEW_RECEIPT`.
