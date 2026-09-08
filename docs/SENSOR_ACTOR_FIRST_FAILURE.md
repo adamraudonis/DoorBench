@@ -57,3 +57,40 @@ pose7 and body-resolved world hand forces at t=0 and every 2 ms. Those privilege
 values and returned counterfactual teacher forces belong in evaluator/training
 label files, never the actor's numeric sensor packet. Missing impulses must not
 be filled by interpolating the sparse contact trace.
+
+## Second training result
+
+The frozen experiment ran at **2026-09-08 12:44:18 UTC** and completed 200 CPU
+steps in 72.22 seconds. Its initial knee commands now have the correct sign:
+left -48.83 Nm and right -42.50 Nm, versus teacher -51.42/-53.53 Nm. Under
+recorded teacher states with the actor's own command history, body-force RMSE
+falls from 5.057 to 1.269 Nm over the first 100 ms, and from 2.737 to 1.605 Nm
+over the first 500 ms. This is an offline prediction improvement, not evidence
+that the robot remains standing.
+
+The tradeoff is visible: full-prefix normalized MSE increases to 0.000234584,
+versus persistence 0.0000335349. No physical student trial is included in this
+training receipt. The checkpoint passed all four runtime integration checks,
+including 64 consecutive commands from the actual cold-start observation. Its
+SHA-256 is `1314a277d81b2a93eeaccaff6416fd54272d15c227434398106270ef78e4cf01`.
+The [result receipt](evidence/sensor-imitation-acquisition-002.json) retains
+source commit, exact episode provenance, inference checks and both early-time
+and full-prefix comparisons.
+
+Reproduce the training change by adding these options to the first-run command:
+
+```sh
+--reset-observation-run "$ACTOR001" --episode-start-probability .5
+```
+
+Use a new output directory. Add `--reset-observation-run "$ACTOR001"` when
+running the prediction and runtime checkers on that augmented prefix. To compare
+both checkpoints' early commands:
+
+```sh
+python scripts/dexterous/evaluate_sensor_start.py \
+  --episode "$RUN002" --legacy-teacher-receipt "$CURRICULUM/provenance.json" \
+  --reset-observation-run "$ACTOR001" \
+  --checkpoint "$TRAINING001/actor.pt" --checkpoint "$TRAINING002/actor.pt" \
+  --output "$TRAINING002/early-force-comparison.json"
+```

@@ -1,0 +1,640 @@
+{
+  "scope": "Bounded second CPU imitation: explicit cold-start observation and start-window supervision; not physically evaluated",
+  "started_utc": "2026-09-08T12:44:18.848354+00:00",
+  "source_commit": "89c1163a74a04ea1f8f5f8f4798917087ea3342f",
+  "archive": "/Users/adamraudonis/Desktop/Projects/DoorBench-runs/2026-09-08-shadow-loopback/sensor-imitation-acquisition-002",
+  "manifest_sha256": "0d9175dd742f9eae3af7a156aa12e07684bff8f79af0dbbd89ea63c3798c103e",
+  "source_archive_sha256": "b57f4a81474f409952eb82dc57764975bb029d421e64d8622caa9f6069cf93aa",
+  "training": {
+    "scope": "Train a sensor-only recurrent force actor from qualified robot episodes.\n\nThis reports supervised prediction loss only. A checkpoint is not a door-opening\nresult until independently executed in the simulator without teacher assistance.\n",
+    "closed_loop_evaluated": false,
+    "task_success_rate": null,
+    "iterations": 200,
+    "parameters": 557949,
+    "history": [
+      {
+        "iteration": 1,
+        "training_normalized_force_mse": 0.029088295996189117,
+        "elapsed_s": 0.4940171241760254
+      },
+      {
+        "iteration": 26,
+        "training_normalized_force_mse": 0.001717102131806314,
+        "elapsed_s": 9.503095149993896
+      },
+      {
+        "iteration": 51,
+        "training_normalized_force_mse": 0.0007799157756380737,
+        "elapsed_s": 18.014184951782227
+      },
+      {
+        "iteration": 76,
+        "training_normalized_force_mse": 0.0007739872671663761,
+        "elapsed_s": 27.782506942749023
+      },
+      {
+        "iteration": 101,
+        "training_normalized_force_mse": 0.0003403996815904975,
+        "elapsed_s": 36.49499297142029
+      },
+      {
+        "iteration": 126,
+        "training_normalized_force_mse": 0.00022672531486023217,
+        "elapsed_s": 45.58710193634033
+      },
+      {
+        "iteration": 151,
+        "training_normalized_force_mse": 0.00028159836074337363,
+        "elapsed_s": 54.80697798728943
+      },
+      {
+        "iteration": 176,
+        "training_normalized_force_mse": 0.00027878466062247753,
+        "elapsed_s": 63.72233700752258
+      },
+      {
+        "iteration": 200,
+        "training_normalized_force_mse": 8.536694076610729e-05,
+        "elapsed_s": 72.21599793434143
+      }
+    ],
+    "recurrent_training": "Truncated windows with sensor-only burn-in; optional explicitly weighted true-start windows have zero hidden state and no masked prefix",
+    "episode_start_probability": 0.5,
+    "observations": "Stereo RGB, local tactile bins, encoders, IMU, previous action, sensor age/validity; no absolute clock or task state"
+  },
+  "prediction": {
+    "scope": "Evaluate causal next-force prediction on a recorded qualified episode.\n\nTeacher physical states and previous actions are replayed as observations; this\nis teacher-forced prediction, never a student rollout or task success metric.\nReport the strong 2 ms previous-command persistence baseline explicitly.\n",
+    "closed_loop_evaluated": false,
+    "task_success_rate": null,
+    "episode": {
+      "source": "/Users/adamraudonis/Desktop/Projects/DoorBench-runs/2026-09-08-shadow-loopback/isaac-operation-v2-002",
+      "qualification": "acquisition-report.json",
+      "control_source": "privileged_teacher",
+      "grasp_profile": "distal-pad-v1",
+      "physics_dt_s": 0.002,
+      "examples": 6457,
+      "files": {
+        "layout.json": "d82d8a329ee9d161af6573e299f751d9c5266e483b7313cb0293897630709344",
+        "actor-sensors.npz": "88872d708a65dc40daaa86c7b29e5fb9c9fb5a7b47f84d2a2ec3f91020b8ba00",
+        "actor-rgb.npz": "1c3938ea8732dee4be4e1008c56957f9f3c78e342ea1030e17f551211ee6dd7a"
+      },
+      "robot_xml_sha256": "3148cbbefa04e65ae813080275008619a3d4ef94f1ca0887c8f51e79630c3c21",
+      "motor_contract_sha256": "6d120ad5be10e1f22a5aa7625b2101ce9fb9aadb90c7fddc8c710678f6ccd8ef",
+      "qualification_files": {
+        "acquisition-report.json": "6cc7fccc59c64b7f5ae9a83884a9d551f3d268fbf81ed8bbfa5b1b492ea3e809",
+        "mechanical-audit.json": "be8907d120e679e49a9b6b9c8b9392d9aea678093c475c82f2fc5e2802d37e6b",
+        "passive-tendon-audit.json": "c9c1567991ae4ce0ef34734f319c74500514e6f974402604c29f0b873e1d8a5d",
+        "motor-contract.json": "4303d14541c7981b6b166822315c5c8fe19a1965d44f34800e1d111e6e8521c9",
+        "sensors/report.json": "99f497a0ba4b7de3df1040085e33e206151cda2cfe260038cb6525a79c606465"
+      },
+      "limitation": "Teacher imitation data; no student rollout or generalization result",
+      "reset_observation": {
+        "scope": "Only recorded cold-start observation; label is the qualified teacher first action, never the failed actor action",
+        "source": "/Users/adamraudonis/Desktop/Projects/DoorBench-runs/2026-09-08-shadow-loopback/sensor-actor-acquisition-v2-001",
+        "observation_files_sha256": {
+          "acquisition-reset.json": "7928fa3ee6f05cfe416d5ae72daf77d43ad7f786b96d4bb385fc7389d2d28968",
+          "configuration.json": "b94faf14c917a921832ed7c9b42bb4c49e644f53caa5b0bad562bb561ee58ab4",
+          "motor-contract.json": "4303d14541c7981b6b166822315c5c8fe19a1965d44f34800e1d111e6e8521c9",
+          "sensors/layout.json": "d82d8a329ee9d161af6573e299f751d9c5266e483b7313cb0293897630709344",
+          "sensors/report.json": "9d3024cff11fe482219e8afcd9293a3c10587c580c9aafc9569308157d92d27f",
+          "sensors/actor-initial-decision.npz": "09ab78cdbb603fa73a4ade26b9f3e03a552c4c70e4616e695e81cebfa96f1e62"
+        },
+        "teacher_reset_sha256": "7928fa3ee6f05cfe416d5ae72daf77d43ad7f786b96d4bb385fc7389d2d28968",
+        "exact_robot_and_door_reset_match": true,
+        "failed_actor_motor_label_used": false
+      },
+      "legacy_teacher_receipt_sha256": "32190f4464356ac905815e38dbd2ecc478506ebd1700667f3354b69a9d287df1",
+      "admitted_sample_end_time_s": 12.914,
+      "source_scope": "Acquisition-only immutable prefix; no opening/traversal or student-control claim"
+    },
+    "split": "training_episode",
+    "examples": 6457,
+    "hidden_state": "Reset once; recurrent state carried through every recorded sensor sample",
+    "prediction_mse_normalized_force": {
+      "learned": {
+        "all": 0.0002345842163223464,
+        "body": 0.00028994337200463995,
+        "left_hand": 0.00012125841819207453,
+        "right_hand": 0.00028978290098621
+      },
+      "persistence": {
+        "all": 3.353486314818782e-05,
+        "body": 6.923966406066139e-05,
+        "left_hand": 7.4341531982023825e-09,
+        "right_hand": 2.9572251185080173e-05
+      },
+      "zero": {
+        "all": 0.008658320176478272,
+        "body": 0.020582989897950446,
+        "left_hand": 0.00018223714550986487,
+        "right_hand": 0.0046134999999008965
+      }
+    },
+    "learned_to_persistence_mse_ratio": {
+      "all": 6.9952340430237605,
+      "body": 4.187532911058297,
+      "left_hand": 16310.992652316534,
+      "right_hand": 9.799149181189547
+    },
+    "elapsed_s": 16.873277500038967,
+    "device": "cpu",
+    "threads": 1,
+    "checkpoint_sha256": "1314a277d81b2a93eeaccaff6416fd54272d15c227434398106270ef78e4cf01",
+    "qualification_file_sha256": {
+      "acquisition-report.json": "6cc7fccc59c64b7f5ae9a83884a9d551f3d268fbf81ed8bbfa5b1b492ea3e809",
+      "mechanical-audit.json": "be8907d120e679e49a9b6b9c8b9392d9aea678093c475c82f2fc5e2802d37e6b",
+      "passive-tendon-audit.json": "c9c1567991ae4ce0ef34734f319c74500514e6f974402604c29f0b873e1d8a5d",
+      "motor-contract.json": "4303d14541c7981b6b166822315c5c8fe19a1965d44f34800e1d111e6e8521c9"
+    },
+    "limitations": [
+      "A single training episode cannot establish generalization.",
+      "Teacher-forced previous actions are not the student's own command history.",
+      "No physical state was advanced and no opening attempt was made by the student."
+    ]
+  },
+  "early_force_comparison": {
+    "scope": "Offline early-command diagnosis on qualified teacher sensor states with actual recorded cold-start observation; no simulator or student success",
+    "rows": [
+      {
+        "checkpoint": "/Users/adamraudonis/Desktop/Projects/DoorBench-runs/2026-09-08-shadow-loopback/sensor-imitation-acquisition-001/actor.pt",
+        "checkpoint_sha256": "4f375743040995e355a7bd47d7330346fa210bfc4bc5b9fd8215dfa46bf2c028",
+        "previous_action_history": "teacher",
+        "body_force_rmse_Nm_first100ms": 4.747107840685804,
+        "body_force_rmse_Nm_80to100ms": 2.2964766264075744,
+        "body_force_rmse_Nm_first500ms": 2.6352214490006505,
+        "samples": [
+          {
+            "time_s": 0.0,
+            "commands": {
+              "left_knee": 13.469389826059341,
+              "right_knee": 13.77105563879013,
+              "left_hip_pitch": -25.82772672176361,
+              "right_hip_pitch": -4.2155493050813675
+            },
+            "teacher": {
+              "left_knee": -51.424138247966766,
+              "right_knee": -53.53320837020874,
+              "left_hip_pitch": -2.380162850022316,
+              "right_hip_pitch": -1.4069992117583752
+            }
+          },
+          {
+            "time_s": 0.002,
+            "commands": {
+              "left_knee": -8.15311186015606,
+              "right_knee": -12.927641719579697,
+              "left_hip_pitch": -19.62384581565857,
+              "right_hip_pitch": 3.713364526629448
+            },
+            "teacher": {
+              "left_knee": -52.520254254341125,
+              "right_knee": -54.63464856147766,
+              "left_hip_pitch": -2.0928824320435524,
+              "right_hip_pitch": -1.0919427499175072
+            }
+          },
+          {
+            "time_s": 0.01,
+            "commands": {
+              "left_knee": -46.0618257522583,
+              "right_knee": -50.274597108364105,
+              "left_hip_pitch": -7.696156948804855,
+              "right_hip_pitch": 0.7684985641390085
+            },
+            "teacher": {
+              "left_knee": -51.332321763038635,
+              "right_knee": -53.52340042591095,
+              "left_hip_pitch": -2.523573487997055,
+              "right_hip_pitch": -1.5101566910743713
+            }
+          },
+          {
+            "time_s": 0.05,
+            "commands": {
+              "left_knee": -57.13450312614441,
+              "right_knee": -61.056965589523315,
+              "left_hip_pitch": 0.6594935897737741,
+              "right_hip_pitch": -1.4110395684838295
+            },
+            "teacher": {
+              "left_knee": -50.08702576160431,
+              "right_knee": -54.42562848329544,
+              "left_hip_pitch": -3.0037030577659607,
+              "right_hip_pitch": -1.2435104697942734
+            }
+          },
+          {
+            "time_s": 0.1,
+            "commands": {
+              "left_knee": -56.04116767644882,
+              "right_knee": -61.487603187561035,
+              "left_hip_pitch": 0.638785632327199,
+              "right_hip_pitch": -1.8060524016618729
+            },
+            "teacher": {
+              "left_knee": -49.52225983142853,
+              "right_knee": -55.131617188453674,
+              "left_hip_pitch": -3.276803344488144,
+              "right_hip_pitch": -0.9640860371291637
+            }
+          },
+          {
+            "time_s": 0.2,
+            "commands": {
+              "left_knee": -55.455999076366425,
+              "right_knee": -56.558096408843994,
+              "left_hip_pitch": -1.9406793639063835,
+              "right_hip_pitch": -4.443509876728058
+            },
+            "teacher": {
+              "left_knee": -50.45982152223587,
+              "right_knee": -55.771198868751526,
+              "left_hip_pitch": -3.351687639951706,
+              "right_hip_pitch": -1.013223733752966
+            }
+          },
+          {
+            "time_s": 0.5,
+            "commands": {
+              "left_knee": -50.89137554168701,
+              "right_knee": -56.07094466686249,
+              "left_hip_pitch": -1.467812154442072,
+              "right_hip_pitch": -3.756662830710411
+            },
+            "teacher": {
+              "left_knee": -50.963062047958374,
+              "right_knee": -54.8318937420845,
+              "left_hip_pitch": -3.055935353040695,
+              "right_hip_pitch": -1.1405344121158123
+            }
+          }
+        ]
+      },
+      {
+        "checkpoint": "/Users/adamraudonis/Desktop/Projects/DoorBench-runs/2026-09-08-shadow-loopback/sensor-imitation-acquisition-001/actor.pt",
+        "checkpoint_sha256": "4f375743040995e355a7bd47d7330346fa210bfc4bc5b9fd8215dfa46bf2c028",
+        "previous_action_history": "actor",
+        "body_force_rmse_Nm_first100ms": 5.057094744827133,
+        "body_force_rmse_Nm_80to100ms": 2.1769816404639846,
+        "body_force_rmse_Nm_first500ms": 2.737185300523309,
+        "samples": [
+          {
+            "time_s": 0.0,
+            "commands": {
+              "left_knee": 13.469389826059341,
+              "right_knee": 13.77105563879013,
+              "left_hip_pitch": -25.82772672176361,
+              "right_hip_pitch": -4.2155493050813675
+            },
+            "teacher": {
+              "left_knee": -51.424138247966766,
+              "right_knee": -53.53320837020874,
+              "left_hip_pitch": -2.380162850022316,
+              "right_hip_pitch": -1.4069992117583752
+            }
+          },
+          {
+            "time_s": 0.002,
+            "commands": {
+              "left_knee": 2.9092932119965553,
+              "right_knee": -20.218386501073837,
+              "left_hip_pitch": -24.30424392223358,
+              "right_hip_pitch": -0.5385666154325008
+            },
+            "teacher": {
+              "left_knee": -52.520254254341125,
+              "right_knee": -54.63464856147766,
+              "left_hip_pitch": -2.0928824320435524,
+              "right_hip_pitch": -1.0919427499175072
+            }
+          },
+          {
+            "time_s": 0.01,
+            "commands": {
+              "left_knee": -39.23187553882599,
+              "right_knee": -51.9254207611084,
+              "left_hip_pitch": -11.244486272335052,
+              "right_hip_pitch": -3.540356084704399
+            },
+            "teacher": {
+              "left_knee": -51.332321763038635,
+              "right_knee": -53.52340042591095,
+              "left_hip_pitch": -2.523573487997055,
+              "right_hip_pitch": -1.5101566910743713
+            }
+          },
+          {
+            "time_s": 0.05,
+            "commands": {
+              "left_knee": -57.74839371442795,
+              "right_knee": -57.94930458068848,
+              "left_hip_pitch": 0.6961559876799583,
+              "right_hip_pitch": -2.770617976784706
+            },
+            "teacher": {
+              "left_knee": -50.08702576160431,
+              "right_knee": -54.42562848329544,
+              "left_hip_pitch": -3.0037030577659607,
+              "right_hip_pitch": -1.2435104697942734
+            }
+          },
+          {
+            "time_s": 0.1,
+            "commands": {
+              "left_knee": -56.227000057697296,
+              "right_knee": -59.44793522357941,
+              "left_hip_pitch": -0.14167835470288992,
+              "right_hip_pitch": -2.7191948145627975
+            },
+            "teacher": {
+              "left_knee": -49.52225983142853,
+              "right_knee": -55.131617188453674,
+              "left_hip_pitch": -3.276803344488144,
+              "right_hip_pitch": -0.9640860371291637
+            }
+          },
+          {
+            "time_s": 0.2,
+            "commands": {
+              "left_knee": -55.753639340400696,
+              "right_knee": -58.14858376979828,
+              "left_hip_pitch": -3.118513710796833,
+              "right_hip_pitch": -4.994085803627968
+            },
+            "teacher": {
+              "left_knee": -50.45982152223587,
+              "right_knee": -55.771198868751526,
+              "left_hip_pitch": -3.351687639951706,
+              "right_hip_pitch": -1.013223733752966
+            }
+          },
+          {
+            "time_s": 0.5,
+            "commands": {
+              "left_knee": -53.30280214548111,
+              "right_knee": -55.981023609638214,
+              "left_hip_pitch": -3.760382905602455,
+              "right_hip_pitch": -3.9219144731760025
+            },
+            "teacher": {
+              "left_knee": -50.963062047958374,
+              "right_knee": -54.8318937420845,
+              "left_hip_pitch": -3.055935353040695,
+              "right_hip_pitch": -1.1405344121158123
+            }
+          }
+        ]
+      },
+      {
+        "checkpoint": "/Users/adamraudonis/Desktop/Projects/DoorBench-runs/2026-09-08-shadow-loopback/sensor-imitation-acquisition-002/actor.pt",
+        "checkpoint_sha256": "1314a277d81b2a93eeaccaff6416fd54272d15c227434398106270ef78e4cf01",
+        "previous_action_history": "teacher",
+        "body_force_rmse_Nm_first100ms": 1.214672732818132,
+        "body_force_rmse_Nm_80to100ms": 1.1575569348806365,
+        "body_force_rmse_Nm_first500ms": 1.6385879409374835,
+        "samples": [
+          {
+            "time_s": 0.0,
+            "commands": {
+              "left_knee": -48.828864097595215,
+              "right_knee": -42.4983412027359,
+              "left_hip_pitch": -4.215387254953384,
+              "right_hip_pitch": -6.646113097667694
+            },
+            "teacher": {
+              "left_knee": -51.424138247966766,
+              "right_knee": -53.53320837020874,
+              "left_hip_pitch": -2.380162850022316,
+              "right_hip_pitch": -1.4069992117583752
+            }
+          },
+          {
+            "time_s": 0.002,
+            "commands": {
+              "left_knee": -51.77850276231766,
+              "right_knee": -53.65534722805023,
+              "left_hip_pitch": -0.2962274244055152,
+              "right_hip_pitch": -3.6223851144313812
+            },
+            "teacher": {
+              "left_knee": -52.520254254341125,
+              "right_knee": -54.63464856147766,
+              "left_hip_pitch": -2.0928824320435524,
+              "right_hip_pitch": -1.0919427499175072
+            }
+          },
+          {
+            "time_s": 0.01,
+            "commands": {
+              "left_knee": -49.91067051887512,
+              "right_knee": -55.89960962533951,
+              "left_hip_pitch": -2.713610604405403,
+              "right_hip_pitch": -0.39022553246468306
+            },
+            "teacher": {
+              "left_knee": -51.332321763038635,
+              "right_knee": -53.52340042591095,
+              "left_hip_pitch": -2.523573487997055,
+              "right_hip_pitch": -1.5101566910743713
+            }
+          },
+          {
+            "time_s": 0.05,
+            "commands": {
+              "left_knee": -51.19234174489975,
+              "right_knee": -56.057994067668915,
+              "left_hip_pitch": -2.742377854883671,
+              "right_hip_pitch": 0.8295544423162937
+            },
+            "teacher": {
+              "left_knee": -50.08702576160431,
+              "right_knee": -54.42562848329544,
+              "left_hip_pitch": -3.0037030577659607,
+              "right_hip_pitch": -1.2435104697942734
+            }
+          },
+          {
+            "time_s": 0.1,
+            "commands": {
+              "left_knee": -51.34768187999725,
+              "right_knee": -56.8902924656868,
+              "left_hip_pitch": -2.2956615313887596,
+              "right_hip_pitch": 0.24653698783367872
+            },
+            "teacher": {
+              "left_knee": -49.52225983142853,
+              "right_knee": -55.131617188453674,
+              "left_hip_pitch": -3.276803344488144,
+              "right_hip_pitch": -0.9640860371291637
+            }
+          },
+          {
+            "time_s": 0.2,
+            "commands": {
+              "left_knee": -54.4433131814003,
+              "right_knee": -53.71633172035217,
+              "left_hip_pitch": -2.763339877128601,
+              "right_hip_pitch": -2.5872504338622093
+            },
+            "teacher": {
+              "left_knee": -50.45982152223587,
+              "right_knee": -55.771198868751526,
+              "left_hip_pitch": -3.351687639951706,
+              "right_hip_pitch": -1.013223733752966
+            }
+          },
+          {
+            "time_s": 0.5,
+            "commands": {
+              "left_knee": -49.84428137540817,
+              "right_knee": -52.65902280807495,
+              "left_hip_pitch": -3.565496951341629,
+              "right_hip_pitch": -1.5780869871377945
+            },
+            "teacher": {
+              "left_knee": -50.963062047958374,
+              "right_knee": -54.8318937420845,
+              "left_hip_pitch": -3.055935353040695,
+              "right_hip_pitch": -1.1405344121158123
+            }
+          }
+        ]
+      },
+      {
+        "checkpoint": "/Users/adamraudonis/Desktop/Projects/DoorBench-runs/2026-09-08-shadow-loopback/sensor-imitation-acquisition-002/actor.pt",
+        "checkpoint_sha256": "1314a277d81b2a93eeaccaff6416fd54272d15c227434398106270ef78e4cf01",
+        "previous_action_history": "actor",
+        "body_force_rmse_Nm_first100ms": 1.2687957974108566,
+        "body_force_rmse_Nm_80to100ms": 1.2378341734531757,
+        "body_force_rmse_Nm_first500ms": 1.604609304783422,
+        "samples": [
+          {
+            "time_s": 0.0,
+            "commands": {
+              "left_knee": -48.828864097595215,
+              "right_knee": -42.4983412027359,
+              "left_hip_pitch": -4.215387254953384,
+              "right_hip_pitch": -6.646113097667694
+            },
+            "teacher": {
+              "left_knee": -51.424138247966766,
+              "right_knee": -53.53320837020874,
+              "left_hip_pitch": -2.380162850022316,
+              "right_hip_pitch": -1.4069992117583752
+            }
+          },
+          {
+            "time_s": 0.002,
+            "commands": {
+              "left_knee": -51.11263543367386,
+              "right_knee": -55.97527474164963,
+              "left_hip_pitch": -1.193702220916748,
+              "right_hip_pitch": -4.440018907189369
+            },
+            "teacher": {
+              "left_knee": -52.520254254341125,
+              "right_knee": -54.63464856147766,
+              "left_hip_pitch": -2.0928824320435524,
+              "right_hip_pitch": -1.0919427499175072
+            }
+          },
+          {
+            "time_s": 0.01,
+            "commands": {
+              "left_knee": -51.28357708454132,
+              "right_knee": -56.57741725444794,
+              "left_hip_pitch": -2.8703998774290085,
+              "right_hip_pitch": -0.8618204854428768
+            },
+            "teacher": {
+              "left_knee": -51.332321763038635,
+              "right_knee": -53.52340042591095,
+              "left_hip_pitch": -2.523573487997055,
+              "right_hip_pitch": -1.5101566910743713
+            }
+          },
+          {
+            "time_s": 0.05,
+            "commands": {
+              "left_knee": -52.04012989997864,
+              "right_knee": -56.03194981813431,
+              "left_hip_pitch": -2.8056345880031586,
+              "right_hip_pitch": 0.7261016871780157
+            },
+            "teacher": {
+              "left_knee": -50.08702576160431,
+              "right_knee": -54.42562848329544,
+              "left_hip_pitch": -3.0037030577659607,
+              "right_hip_pitch": -1.2435104697942734
+            }
+          },
+          {
+            "time_s": 0.1,
+            "commands": {
+              "left_knee": -51.50498002767563,
+              "right_knee": -57.31399655342102,
+              "left_hip_pitch": -2.8532641008496284,
+              "right_hip_pitch": 0.34443142358213663
+            },
+            "teacher": {
+              "left_knee": -49.52225983142853,
+              "right_knee": -55.131617188453674,
+              "left_hip_pitch": -3.276803344488144,
+              "right_hip_pitch": -0.9640860371291637
+            }
+          },
+          {
+            "time_s": 0.2,
+            "commands": {
+              "left_knee": -53.967708349227905,
+              "right_knee": -56.384798884391785,
+              "left_hip_pitch": -2.6772255077958107,
+              "right_hip_pitch": -2.6625024154782295
+            },
+            "teacher": {
+              "left_knee": -50.45982152223587,
+              "right_knee": -55.771198868751526,
+              "left_hip_pitch": -3.351687639951706,
+              "right_hip_pitch": -1.013223733752966
+            }
+          },
+          {
+            "time_s": 0.5,
+            "commands": {
+              "left_knee": -51.33807063102722,
+              "right_knee": -53.265707194805145,
+              "left_hip_pitch": -4.562182351946831,
+              "right_hip_pitch": -1.327663566917181
+            },
+            "teacher": {
+              "left_knee": -50.963062047958374,
+              "right_knee": -54.8318937420845,
+              "left_hip_pitch": -3.055935353040695,
+              "right_hip_pitch": -1.1405344121158123
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "runtime_inference": {
+    "scope": "Actual trained checkpoint loaded by runtime actor; recorded physical observations and actor-owned command history. No simulator was stepped.",
+    "closed_loop_evaluated": false,
+    "task_success_rate": null,
+    "teacher_fallback": false,
+    "checks": {
+      "finite_consecutive_inferences": true,
+      "original_caps": true,
+      "explicit_reset_reproduces_first_action": true,
+      "changed_valid_motor_caps_rejected": true
+    },
+    "passed": true,
+    "checkpoint_sha256": "1314a277d81b2a93eeaccaff6416fd54272d15c227434398106270ef78e4cf01",
+    "motor_contract_sha256": "6d120ad5be10e1f22a5aa7625b2101ce9fb9aadb90c7fddc8c710678f6ccd8ef",
+    "robot_xml_sha256": "3148cbbefa04e65ae813080275008619a3d4ef94f1ca0887c8f51e79630c3c21",
+    "consecutive_inferences": 64,
+    "physics_dt_s": 0.002,
+    "maximum_absolute_motor_command": 60.66388785839081,
+    "limitation": "Inference integration check only; recorded sensor states do not respond to this actor's forces."
+  }
+}
