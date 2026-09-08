@@ -5,11 +5,8 @@ It never writes body poses, controls a door, or applies forces directly.
 """
 import hashlib,json
 from pathlib import Path
-import mujoco
 import numpy as np
-from doorbench.dexterous.environment import DexterousDoorEnv
 from doorbench.dexterous.locomotion import NativeH1MotorAdapter, DEFAULT_ANGLES
-from doorbench.dexterous.reset import check_joint_reset
 
 
 def wrap_angle(angle):
@@ -17,6 +14,9 @@ def wrap_angle(angle):
 
 
 def make_door_approach(door,robot,reference,*,distance=.7,lateral=0.,yaw_offset=0.,seed=0,joint_noise=0.):
+    import mujoco
+    from doorbench.dexterous.environment import DexterousDoorEnv
+    from doorbench.dexterous.reset import check_joint_reset
     robot=Path(robot);ref=json.loads(Path(reference).read_text());goal=np.asarray(ref['initial_root'],float)
     audit=json.loads(robot.with_suffix('.audit.json').read_text())
     if hashlib.sha256(robot.read_bytes()).hexdigest()!=audit['robot_xml_sha256']:raise ValueError('Robot differs from pinned audit')

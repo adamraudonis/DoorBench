@@ -2,7 +2,25 @@
 
 The full H1 with two Shadow hands can walk from a separated start to Door55's standing-grasp body waypoint and stop quietly. **9/9 nearby-start development trials passed** in the complete native MuJoCo door scene. No handle acquisition, door opening or traversal is performed by this primitive.
 
-## Measured result
+## Corrected hand requalification
+
+The versioned `shadow-loopback-v2` robot adds the eight documented passive
+J1 <= J2 finger constraints. The same frozen nine-start native protocol passed
+**9/9 again**, with all original masses, joints and motor caps preserved.
+[Versioned results](../results/dexterous/2026-09-08/h1-door55-approach-v2.json)
+retain the exact XML/audit/source hashes and every trial. Worst passive tendon
+limit excursion was **0.306 mrad**, checked after every 2 ms step against a
+20 mrad gate. Worst final position/heading errors were 20.331 mm / 0.932°;
+maximum final-second speed was 0.004517 m/s and minimum per-foot support was
+187.43 N. There were no door/wall/self/non-foot contacts or robot external forces.
+
+The versioned native probe also preserves the exact final solved state and
+checks the tendon ranges and solver settings remain unchanged. The original
+v1 results below remain historical evidence, not a validation of its missing
+hand mechanics. The [Isaac adapter and current qualification status](DEXTEROUS_ISAAC_DOOR_APPROACH.md)
+are separate; a full Isaac approach has not completed yet.
+
+## Original v1 measured result
 
 [Protocol](../configs/dexterous/h1-door55-approach-development.json) and [all results/failures](../results/dexterous/2026-09-08/h1-door55-approach.json), run September 8, 2026 UTC. Each 25 s trial varies initial leg angles uniformly within ±0.005 rad.
 
