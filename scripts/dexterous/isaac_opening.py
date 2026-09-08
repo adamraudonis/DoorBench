@@ -193,7 +193,7 @@ def main():
     grip_axis=np.array(gq.Transform(Gf.Vec3f(0,0,1)))
     grip_radius=float(grip.GetRadiusAttr().Get());grip_half=float(grip.GetHeightAttr().Get())/2
     if camera:
-        eye,target=([-1.6,-3.5,1.65],[.05,0.,.95]) if a.view=='wide' else ([.02,-.38,1.09],[.26,-.08,.914])
+        eye,target=([.9,-3.5,1.65],[.05,0.,.95]) if a.view=='wide' else ([.02,-.38,1.09],[.26,-.08,.914])
         camera.set_world_poses_from_view(eyes=torch.tensor([eye],device=a.device),
                                          targets=torch.tensor([target],device=a.device))
         import imageio.v2 as imageio
