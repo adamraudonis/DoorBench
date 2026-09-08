@@ -48,6 +48,8 @@ def main():
     p.add_argument("--panel-profile", choices=("plain-v1", "hybrid-surface-v2"),
                    help="Explicit existing profile comparison; omitted inherits frozen baseline")
     p.add_argument("--handoff-posture-targets", action="store_true")
+    p.add_argument("--hybrid-include-waist", action="store_true")
+    p.add_argument("--record-panel-targets", action="store_true")
     a = p.parse_args()
     if (a.release_mode in ('whole-body-return', 'whole-body-ungrip')) != (a.whole_body_path is not None):
         raise ValueError('Whole-body return requires the exact screened path')
@@ -55,6 +57,8 @@ def main():
         raise ValueError('Whole-body ungrip requires its screened actual-state path')
     if a.handoff_posture_targets and a.release_mode != 'whole-body-ungrip':
         raise ValueError('Posture handoff requires the measured whole-body ungrip helper')
+    if a.hybrid_include_waist and a.panel_profile!='hybrid-surface-v2':
+        raise ValueError('Waist projection requires the explicit hybrid profile')
     if a.release_mode == 'controlled-return' and a.retain_grip_until_clear:
         raise ValueError('Controlled return already retains grip; do not combine release options')
     source = a.source_run.resolve()
@@ -82,6 +86,8 @@ def main():
                            ("native-transition-archive-source.py", "native_transition_archive.py")):
         shutil.copy2(source / stored, stage / "doorbench/dexterous" / module)
     own = Path(__file__).resolve().parents[2]
+    if a.hybrid_include_waist or a.record_panel_targets:
+        shutil.copy2(own/'doorbench/dexterous/panel_chain_projection.py',stage/'doorbench/dexterous/panel_chain_projection.py')
     shutil.copy2(own / "doorbench/dexterous/right_hand_release.py",
                  stage / "doorbench/dexterous/right_hand_release.py")
     if a.release_mode in ("controlled-return", "whole-body-return", "whole-body-ungrip"):
@@ -146,9 +152,11 @@ def main():
     releases.AxialRightRelease = selected_release
     import doorbench.dexterous.full_opening_teacher as full
     original_force = full.FullOpeningTeacher.force
+    panel_trace=None
 
     def measured_force(self, t, root, joints, velocities, handle_pose, leaf_pose,
                        angles, hand_forces, **kwargs):
+        nonlocal panel_trace
         if a.release_mode in ("controlled-return", "whole-body-return", "whole-body-ungrip"):
             self.release.observe_operation(t, handle_pose, leaf_pose, angles, self.geometry)
             if a.release_mode == 'whole-body-ungrip':
@@ -158,8 +166,32 @@ def main():
                     bind_attained_palm_orientation(self.left,t,root,joints,leaf_pose)
         else:
             self.release.observe_leaf(t, leaf_pose)
-        return original_force(self, t, root, joints, velocities, handle_pose,
+        force,info=original_force(self, t, root, joints, velocities, handle_pose,
                               leaf_pose, angles, hand_forces, **kwargs)
+        projection=None
+        if a.hybrid_include_waist:
+            from doorbench.dexterous.panel_chain_projection import apply_waist_arm_projection
+            force,projection=apply_waist_arm_projection(self,force)
+            if projection is not None:
+                self._last_projected_chain=(projection['chain_motor_indices'],force[projection['chain_motor_indices']].copy())
+                info['eight_joint_projection']=projection
+        if (a.record_panel_targets or a.hybrid_include_waist) and self.push.started is not None:
+            import gzip
+            from doorbench.dexterous.panel_chain_projection import measured_panel_chain
+            chain=measured_panel_chain(self);teacher=self.acquisition
+            if panel_trace is None:panel_trace=gzip.open(output/'panel-targets.jsonl.gz','wt')
+            row=dict(time_s=float(t),pose_time_s=float(kwargs['pose_time_s']),
+                     panel_update_time_s=self.push.last_update,motor_target_update_time_s=teacher.last_update,
+                     nominal_ik_targets=self.push.previous.tolist(),nominal_joint_names=self.push.names,
+                     consumed_motor_targets=teacher.target.tolist(),left_arm_targets=self.left.target.tolist(),
+                     measured_chain_joint_positions=[joints[n] for n in self.left.names],
+                     measured_chain_joint_velocities=[velocities[n] for n in self.left.names],
+                     chain_motor_indices=chain['indices'].tolist(),chain_mass=chain['mass'].tolist(),
+                     chain_normal_jacobian=chain['normal_jacobian'].tolist(),
+                     weighted_task_jacobian_singular_values=chain['weighted_task_jacobian_singular_values'].tolist(),
+                     assembled_motor_forces=force.tolist(),left_info=self.left.info,projection=projection)
+            panel_trace.write(json.dumps(row)+'\n');panel_trace.flush()
+        return force,info
 
     full.FullOpeningTeacher.force = measured_force
     if a.release_mode in ('whole-body-return', 'whole-body-ungrip'):
@@ -170,7 +202,13 @@ def main():
             if release.started is not None:
                 goal=release.body_goal(t-self.acquisition_started)
                 apply_stance_goal(self.body.controller,goal)
-            return original_walking_force(self,t,*args,**kwargs)
+            result=original_walking_force(self,t,*args,**kwargs)
+            if a.hybrid_include_waist and hasattr(self.opening,'_last_projected_chain'):
+                import numpy as np
+                indices,expected=self.opening._last_projected_chain
+                if not np.array_equal(result[0][indices],expected):
+                    raise AssertionError('The walking force assembly overwrote the projected chain')
+            return result
         WalkingOpeningTeacher.force=moving_stance_force
     runner = load("_frozen_walking_release_probe", driver)
     base_archive = runner.NativeTransitionArchive
@@ -259,6 +297,8 @@ def main():
             release_mode=a.release_mode,
             hold_full_left_orientation=a.hold_full_left_orientation,
             handoff_posture_targets=a.handoff_posture_targets,
+            hybrid_include_waist=a.hybrid_include_waist,
+            record_panel_targets=a.record_panel_targets or a.hybrid_include_waist,
             panel_profile=config.get('panel_profile'),
             panel_profile_changed_from_baseline=config.get('panel_profile')!=baseline['configuration'].get('panel_profile'),
             ungrip_goal_frame=a.ungrip_goal_frame if a.release_mode=="whole-body-ungrip" else None,
@@ -272,7 +312,10 @@ def main():
         return result
 
     runner.capture = experiment_capture
-    return runner.main()
+    try:
+        return runner.main()
+    finally:
+        if panel_trace is not None:panel_trace.close()
 
 
 if __name__ == "__main__":

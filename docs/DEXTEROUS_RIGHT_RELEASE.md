@@ -330,3 +330,24 @@ interleaved 500/100 Hz updates and verifies the target persists between panel
 updates. Omission retains the failed historical behavior for reproduction.
 This source correction requires a new physical comparison and does not promote
 trial 005 or change any original motor, joint, anatomy, or contact gate.
+
+**Controlled null result:** trial 006 with that ownership option is bit-identical
+to 005 across all 143 raw chunks through 71.410 s. `AcquisitionTeacher` caches its
+consumed motor targets at the same 100 Hz phase as panel IK, so the intermediate
+500 Hz path writes did not change this fixture's forces. The ownership cleanup
+is not an explanation or physical fix for the observed spikes.
+
+The next explicit comparison, `--hybrid-include-waist`, projects the actual
+eight-motor waist + left-arm command after ordinary force assembly. Panel IK
+changes all eight joints, whereas the previous normal projection included only
+the seven arm motors. The new projection uses the complete 8×8 analytic mass
+block and eight-entry support-point Jacobian. The original 200 Nm waist cap and
+all seven arm caps remain active. A runtime assertion verifies that the later
+walking leg-force override leaves these eight commands exactly unchanged.
+
+`--record-panel-targets` records the consumed motor targets, nominal IK steps,
+actual joint positions/velocities, task-Jacobian singular values and assembled
+forces at every 2 ms interval. The eight-joint option enables this record
+automatically. These are privileged diagnostic records, never actor inputs.
+The experiment must still distinguish infeasible/sudden targets from contact
+control effects and retain the independent LF/FF release failure.
