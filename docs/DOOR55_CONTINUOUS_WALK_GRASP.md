@@ -172,3 +172,18 @@ driver was also rerun with the frozen readiness configuration as
 `walk-grasp-002`; all nineteen gates pass with the same final state as run 001.
 Readiness unit tests reject a 0.5 mm accidental precontact, which would fit
 under the older generic 3 mm penetration limit, and a mismatched asset frame.
+
+An independent review reproduced all 92 named geometry frames at four physical
+states and the contact sets, then checked all 501 readiness samples with full
+forward dynamics. The actual preparation's 5002 physics samples have zero hand
+contact, non-foot penetration and external force; maximum joint excursion is
+3.336 mrad and loopback excursion 0.122 mrad. No frame correction was needed.
+
+The subsequent read-only preflight also checks unintended contacts involving
+the rest of the robot, self-penetration and joint/loopback bounds. It retains the
+strict no-right-hand-contact rule and the physical protocol's 20 mrad numerical
+joint/loopback tolerance for actual landed states. The same recorded portable
+readiness proposal passes this expanded screen: maximum planned joint excursion
+3.167 mrad, loopback 0.027 mrad, zero self-penetration. Tests explicitly reject
+a forearm contact even when the hand is clear, and an illegal joint target.
+These screen additions change no motor law or reference values.

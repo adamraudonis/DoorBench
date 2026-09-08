@@ -7,7 +7,7 @@ from doorbench.dexterous.full_sequence_teacher import ReadinessCollisionScreen
 def test_readiness_rejects_shallow_precontact_and_wrong_asset_frame(tmp_path):
     door = tmp_path/'door.xml'
     robot = tmp_path/'robot.xml'
-    door.write_text('''<mujoco><worldbody>
+    door.write_text('''<mujoco><compiler angle="radian"/><worldbody>
       <body name="leaf" pos="0 0 .5"><joint name="leaf_hinge" axis="0 0 1"/>
         <geom type="box" size=".1 .1 .2"/>
         <body name="leaf_handle" pos=".2 .1 .2"><joint name="leaf_handle_hinge" axis="0 1 0"/>
@@ -15,7 +15,7 @@ def test_readiness_rejects_shallow_precontact_and_wrong_asset_frame(tmp_path):
         <body name="bolt" pos=".2 0 0"><joint name="leaf_latch_bolt_slide" type="slide" axis="1 0 0"/>
           <geom type="sphere" size=".01"/></body>
       </body></worldbody></mujoco>''')
-    robot.write_text('''<mujoco><worldbody><body name="pelvis">
+    robot.write_text('''<mujoco><compiler angle="radian"/><worldbody><body name="pelvis">
       <freejoint name="free_base"/><inertial pos="0 0 0" mass="1" diaginertia="1 1 1"/>
       <body name="rh_ffdistal" pos=".1195 0 .5"><joint name="finger" axis="0 1 0"/>
         <geom type="sphere" size=".02"/></body>
@@ -39,3 +39,17 @@ def test_readiness_rejects_shallow_precontact_and_wrong_asset_frame(tmp_path):
     mismatch = screen.check(proposal,wrong_pose,poses[1],angles)
     assert not mismatch['passed']
     assert mismatch['reason'] == 'Actual asset pose differs from readiness screen'
+    # A clear hand must not hide an elbow/forearm collision or illegal target.
+    robot.write_text(robot.read_text().replace('rh_ffdistal','right_forearm').replace(
+        '<joint name="finger" axis="0 1 0"/>',
+        '<joint name="finger" axis="0 1 0" limited="true" range="-.5 .5"/>'))
+    whole_arm = ReadinessCollisionScreen(door,robot)
+    proposal['initial_root'][0] = 0.
+    collision = whole_arm.check(proposal,*poses,angles)
+    assert not collision['passed']
+    assert collision['bad_samples'][0]['contacts'][0]['reason'] == 'Unintended scene contact'
+    proposal['initial_root'][0] = 1.
+    proposal['acquisition']['path_qpos'] = [[.9],[.9]]
+    illegal = whole_arm.check(proposal,*poses,angles)
+    assert not illegal['passed']
+    assert illegal['maximum_joint_violation_rad'] > .02

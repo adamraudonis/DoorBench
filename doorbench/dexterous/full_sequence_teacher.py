@@ -46,19 +46,51 @@ class ReadinessCollisionScreen:
         if any(v['position_m']>.003 or v['rotation_matrix_error']>.02 for v in frame_errors.values()):
             return dict(passed=False,reason='Actual asset pose differs from readiness screen',frame_errors=frame_errors)
         bad = []
+        limited = ids[m.jnt_limited[ids].astype(bool)]
+        passive = [i for i in range(m.ntendon) if m.tendon_limited[i] and m.tendon(i).name.startswith('robot/')]
+        maximum_joint = maximum_loopback = maximum_self = 0.
+        feet = ('robot/left_ankle_link','robot/right_ankle_link')
         for index,q in enumerate(proposal['acquisition']['path_qpos']):
+            if not np.isfinite(q).all():
+                bad.append(dict(sample=index,reason='Nonfinite readiness target'))
+                continue
             d.qpos[qa] = q
             mujoco.mj_kinematics(m,d)
             mujoco.mj_collision(m,d)
             contacts = []
             for contact in d.contact[:d.ncon]:
                 bodies = [m.body(m.geom_bodyid[g]).name for g in contact.geom]
+                geoms = [m.geom(g).name for g in contact.geom]
+                robot = [name.startswith('robot/') for name in bodies]
+                depth = max(0.,-float(contact.dist))
+                if all(robot):
+                    maximum_self = max(maximum_self,depth)
                 if any(name.startswith('robot/rh_') for name in bodies):
                     contacts.append(dict(bodies=bodies,distance_m=float(contact.dist)))
-            if contacts:
-                bad.append(dict(sample=index,contacts=contacts))
+                elif all(robot) and depth>.003:
+                    contacts.append(dict(bodies=bodies,distance_m=float(contact.dist),reason='Self penetration'))
+                elif any(robot) and not all(robot) and depth>0.:
+                    robot_body = bodies[robot.index(True)]
+                    if 'floor' not in geoms or robot_body not in feet:
+                        contacts.append(dict(bodies=bodies,distance_m=float(contact.dist),reason='Unintended scene contact'))
+            joint = max(0.,float(np.maximum(m.jnt_range[limited,0]-d.qpos[m.jnt_qposadr[limited]],
+                                           d.qpos[m.jnt_qposadr[limited]]-m.jnt_range[limited,1]).max())) if len(limited) else 0.
+            loopback = 0.
+            for tendon in passive:
+                length = 0.
+                for k in range(m.tendon_adr[tendon],m.tendon_adr[tendon]+m.tendon_num[tendon]):
+                    if m.wrap_type[k]!=mujoco.mjtWrap.mjWRAP_JOINT:
+                        raise ValueError('Audit non-fixed passive robot tendon before readiness screening')
+                    length += m.wrap_prm[k]*d.qpos[m.jnt_qposadr[int(m.wrap_objid[k])]]
+                loopback = max(loopback,float(m.tendon_range[tendon,0]-length),float(length-m.tendon_range[tendon,1]))
+            maximum_joint = max(maximum_joint,joint)
+            maximum_loopback = max(maximum_loopback,loopback)
+            if contacts or joint>.02 or loopback>.02:
+                bad.append(dict(sample=index,contacts=contacts,joint_violation_rad=joint,loopback_violation_rad=loopback))
         return dict(passed=not bad,samples=len(proposal['acquisition']['path_qpos']),
-                    bad_samples=bad,frame_errors=frame_errors,native_mirror_steps=0)
+                    bad_samples=bad,frame_errors=frame_errors,native_mirror_steps=0,
+                    maximum_joint_violation_rad=maximum_joint,maximum_loopback_violation_rad=maximum_loopback,
+                    maximum_self_penetration_m=maximum_self)
 
 
 class FullSequenceTeacher:
