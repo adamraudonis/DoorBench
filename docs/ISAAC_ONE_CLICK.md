@@ -18,7 +18,7 @@ First-time requirements: Python 3, Git, SSH, and a RunPod API key in `RUNPOD_API
 2. Copy a source bundle with hashes. Generated assets, policy checkpoints, credentials and local outputs are excluded.
 3. Install **Isaac Sim 5.1.0, Isaac Lab v2.3.2 and PyTorch 2.7.0/cu128**. Asset generation uses a separate Python environment with MuJoCo 3.12.0 and USD 26.8, avoiding conflicting USD libraries inside Kit.
 4. Generate `db0055_swing_single` and require its signed-off mechanical QA. Fetch the pinned, licensed robot source and preserve its 69 articulated joints, 61 motor transmissions and free base.
-5. Import the robot, run live PhysX on CUDA with rendering, compare all robot link poses and mass with independent native kinematics, and check standing stability, commanded wrist motion, delivered motor targets and the simulation clock.
+5. Import the robot, verify native sliding-friction coefficients and 1 mm collision margins directly in PhysX, run CUDA physics with rendering, compare all robot link poses and mass with independent native kinematics, and check standing stability, commanded wrist motion, delivered motor targets and the simulation clock. Instanced finger colliders are included in these checks.
 6. Save a timestamped readiness receipt, exact installed packages, import audit, trace and video. Any failed check leaves the environment unready and appears in Run Center.
 
 The configuration is [configs/isaac/runtime.json](../configs/isaac/runtime.json). This is a tested-version installation recipe; it does not claim an immutable, prebuilt container image exists. Record a container digest when your cluster supplies one.

@@ -36,7 +36,7 @@ IP="$W/venv/bin/python"
 mkdir -p "$DB/isaaclab/cloud"
 {
   printf 'source %q\n' "$W/venv/bin/activate"
-  printf 'export ISAACLAB_DIR=%q DOORBENCH_DIR=%q DOORBENCH_ASSETS=%q PYTHONPATH=%q\n' "$W/IsaacLab" "$DB" "$DB/assets" "$DB"
+  printf 'export ISAACLAB_DIR=%q DOORBENCH_DIR=%q DOORBENCH_ASSETS=%q PYTHONPATH=%q DOORBENCH_WORK=%q\n' "$W/IsaacLab" "$DB" "$DB/assets" "$DB" "$W"
   echo 'export OMNI_KIT_ACCEPT_EULA=YES ACCEPT_EULA=Y PRIVACY_CONSENT=Y TERM=xterm-256color'
 } > "$DB/isaaclab/cloud/env.sh"
 export PYTHONPATH="$DB${PYTHONPATH:+:$PYTHONPATH}"
