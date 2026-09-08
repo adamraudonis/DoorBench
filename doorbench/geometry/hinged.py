@@ -944,6 +944,9 @@ def build_ship(spec, phys, model: Model):
     if spec['kinematics'].get('wheel_dogging'):
         from .marine_linkage import add_marine_wheel_linkage
         add_marine_wheel_linkage(model, spec)
+    else:
+        model.meta['operator_joints'] = list(dog_joints)
+        model.meta['operator_coupling'] = 'individual'
     if spec['kinematics'].get('stop') == 'hook_holdback':
         from .ship_holdback import add_ship_holdback
         add_ship_holdback(model, spec)
