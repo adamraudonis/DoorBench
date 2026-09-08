@@ -615,3 +615,39 @@ their original bounds or interpolation failures; no tolerance was enlarged.
 The candidate is ready for a fresh physical comparison with the same original
 force profile. The close-up tool and original actual-contact reports do not
 synthesize forces from an unstepped geometric calculation.
+
+The fresh physical comparison `walked-whole-body-panel-002` completed 95 s
+and passed 27/29 frozen checks. Its sole geometric change was the screened
+flattened-palm route; all force profiles and limits were held constant. It
+maintained the required palm-specific support, stayed upright and passed every
+mechanics check, but stopped at 0.542711 rad. The three inherited RH wrong-pad
+contacts still disqualify the release. Independent reconstruction checked all
+47,500 transitions and 20,750 post-return frames with zero disagreement and
+zero motor-cap excess. Actual final palm load was 3.776147 N; the palm normal
+was 2.981 degrees from the panel normal, and only the palm carried panel load.
+This qualifies the support correction as a component result, not a full opening.
+
+The hinge-moment audit uses the archived physical contact wrenches, their
+recorded body side and contact frames, and the actual hinge axis. At 94.998 s,
+normal palm load contributes +0.474277 Nm opening moment; tangential contact
+reduces the net moment to +0.447349 Nm. The unchanged hinge frictionloss limit
+is 0.457638 Nm, and leaf speed is approximately 1.13e-8 rad/s. The reference
+has also settled exactly 5 mrad ahead of the door with zero reference speed.
+These measurements support an insufficient-torque/tracking equilibrium; they
+do not establish that reference phase alone caused the stall. The frictionloss
+value is the original model limit, not a measured friction-constraint multiplier.
+`audit_leaf_contact_moment.py` makes the wrench-side convention explicit and
+has tests for tangential moments, side reversal, and global-frame invariance.
+
+The next declared geometric comparison reduces the planned inward radial
+slide of the palm from 40 mm to 20 mm. It keeps the same palm orientation,
+force profile, target-rate bounds and all physical gates. This should increase
+the opening moment arm without more force; the physical outcome remains
+unqualified. Keeping the entire original radius was rejected by screens010–012
+because their final RH orientation errors exceeded the unchanged 1 mrad screen.
+Their failures are retained. No target path is admitted to a physical run until
+the complete dense collision, joint, body and derivative audit passes.
+
+Flat-palm002 and its actual contact close-ups, torque audit, and screens006–009
+are preserved in `native-flat-palm-development-001`: 644 files, manifest SHA256
+`c94d1068b510cc872242df3aab721ab77dad5ba4c55ff42520fdd3397394a5ca`.

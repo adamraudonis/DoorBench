@@ -83,7 +83,7 @@ def main():
         mujoco.mj_kinematics(m,d);mujoco.mj_comPos(m,d);mujoco.mj_collision(m,d)
         leafr=d.xmat[leafbody].reshape(3,3);leafp=d.xpos[leafbody]
         u=np.clip((d.qpos[leafq]-angles[0])/.35,0,1);blend=u**3*(10+u*(-15+6*u))
-        local=lhp.copy();local[0]-=.04*blend;local[2]-=report['configuration']['height_drop_m']*blend
+        local=lhp.copy();local[0]+=report['configuration'].get('radius_shift_m',-.04)*blend;local[2]-=report['configuration']['height_drop_m']*blend
         localr=lhr
         if palm_vertices is not None:
             fu=float(np.clip((d.qpos[leafq]-angles[0])/report['configuration'].get('flatten_over_rad',.2),0,1));fb=fu**3*(10+fu*(-15+6*fu))

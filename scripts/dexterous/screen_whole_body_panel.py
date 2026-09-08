@@ -18,16 +18,19 @@ def main():
     p.add_argument('--at',type=float,default=69.8)
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--height-drop-m',type=float,default=0.)
+    p.add_argument('--radius-shift-m',type=float,default=-.04)
     p.add_argument('--root-extent-m',type=float,default=.05)
     p.add_argument('--root-rotation-rad',type=float,default=.15)
+    p.add_argument('--root-rotation-norm-rad',type=float)
     p.add_argument('--target-aperture-rad',type=float,default=1.2)
     p.add_argument('--nodes',type=int,default=61)
     p.add_argument('--flatten-over-rad',type=float,default=.2)
     p.add_argument('--flatten-palm',action='store_true',help='Rotate the actual palm face toward the panel over0.2rad while preserving its collision support plane')
     p.add_argument('--admit-exact-soft-limit-start',action='store_true',help='Retain only the measured initial solver-limit excursion, then smoothly regain the 1mm/rad numeric joint margin within 0.1rad aperture')
     a=p.parse_args()
-    if not .1<=a.flatten_over_rad<=.6 or not 0<=a.height_drop_m<=.15 or not 0<=a.root_extent_m<=.08 or not 0<=a.root_rotation_rad<=.2 or a.nodes<21:
+    if not -.04<=a.radius_shift_m<=.04 or not .1<=a.flatten_over_rad<=.6 or not 0<=a.height_drop_m<=.15 or not 0<=a.root_extent_m<=.08 or not 0<=a.root_rotation_rad<=.2 or a.nodes<21:
         raise ValueError('Require bounded declared geometry settings')
+    if a.root_rotation_norm_rad is not None and not .01<=a.root_rotation_norm_rad<=.05:raise ValueError('Rotation norm must remain inside the original0.05rad screen')
     run=a.source_run.resolve();config=json.loads((run/'manifest.json').read_text())['configuration']
     sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
     from doorbench.dexterous.environment import DexterousDoorEnv
@@ -76,7 +79,7 @@ def main():
         state=base.copy();state[leafq]=angle;d.qpos[:]=state;mujoco.mj_kinematics(m,d)
         lr=d.xmat[leaf].reshape(3,3).copy();lp=d.xpos[leaf].copy()
         u=float(np.clip((angle-base[leafq])/.35,0,1));blend=u**3*(10+u*(-15+6*u))
-        local=local_p.copy();local[0]-=.04*blend;local[2]-=a.height_drop_m*blend
+        local=local_p.copy();local[0]+=a.radius_shift_m*blend;local[2]-=a.height_drop_m*blend
         goal_rotation=local_r
         if a.flatten_palm:
             fu=float(np.clip((angle-base[leafq])/a.flatten_over_rad,0,1));fb=fu**3*(10+fu*(-15+6*fu))
@@ -89,7 +92,7 @@ def main():
             hands=np.r_[100*(d.site_xpos[lh]-goal_p),10*Rotation.from_matrix(goal_r@d.site_xmat[lh].reshape(3,3).T).as_rotvec(),
                         100*(d.site_xpos[rh]-right_p),10*Rotation.from_matrix(right_r@d.site_xmat[rh].reshape(3,3).T).as_rotvec()]
             foot=np.concatenate([np.r_[100*(d.xpos[b]-feet_p[j]),10*Rotation.from_matrix(feet_r[j]@d.xmat[b].reshape(3,3).T).as_rotvec()] for j,b in enumerate(feet)])
-            return np.r_[hands,foot,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6]]
+            return np.r_[hands,foot,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6],0. if a.root_rotation_norm_rad is None else 1000.*max(0.,np.linalg.norm(x[3:6])-a.root_rotation_norm_rad)]
         fit=least_squares(evaluate,np.clip(previous,low,high),bounds=(low,high),max_nfev=800,ftol=1e-11,xtol=1e-11,gtol=1e-11)
         previous=fit.x.copy();res=evaluate(previous);mujoco.mj_collision(m,d)
         collisions=[]
