@@ -7,6 +7,7 @@ vision/touch/door observations. This does not demonstrate doorway traversal.
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import time
 import traceback
@@ -23,6 +24,15 @@ def main():
     a=p.parse_args()
     a.enable_cameras=a.record
     out=a.output.resolve();out.mkdir(parents=True,exist_ok=False)
+    pipeline={'stage':'Initializing live Isaac H1 walking fixture',
+        'completion_marker':'ISAAC_H1_WALKING_FINISHED','started_at_unix':time.time()}
+    (out/'run.pid').write_text(str(os.getpid()))
+    (out/'pipeline.json').write_text(json.dumps(pipeline)+'\n')
+    def emit(value):
+        line=value if isinstance(value,str) else json.dumps(value)
+        print(line,flush=True)
+        with (out/'run.log').open('a') as log:log.write(line+'\n')
+    emit(pipeline)
     launcher=AppLauncher(a);app=launcher.app
     failed=False
     try:
@@ -135,6 +145,7 @@ def main():
             dt=dt,policy_dt=.02,mass_kg=mass,checkpoint_sha256=POLICY_SHA256,material_audit=material_audit,
             runtime_pose_writes=0,external_wrenches=False),indent=2)+'\n')
         for path in source_paths[:2]:(out/('source-'+path.name)).write_bytes(path.read_bytes())
+        pipeline['stage']='Live H1 walking and phase braking';(out/'pipeline.json').write_text(json.dumps(pipeline)+'\n')
         rows=[];max_limit=0.;max_force_excess=0.;max_motor_delivery_error=0.;max_self=0.;max_nonfoot=0.
         clock_origin=float(sim.current_time);begin=time.time();feet_initial=None
         for step in range(round(a.seconds/dt)):
@@ -190,7 +201,7 @@ def main():
                 rows.append(row)
                 if step%250==0:
                     (out/'progress.json').write_text(json.dumps({key:row[key] for key in ('time_s','root','tilt_deg','foot_loads_N','command')})+'\n')
-                    print(json.dumps({key:row[key] for key in ('time_s','tilt_deg','foot_loads_N','command')}),flush=True)
+                    emit({key:row[key] for key in ('time_s','tilt_deg','foot_loads_N','command')})
                 if row['tilt_deg']>35 or state[2]<.55 or not row['finite']:break
             if camera and step%20==0:
                 camera.update(dt*20);pixels=camera.data.output['rgb'][0].cpu().numpy()[...,:3];writer.append_data(pixels)
@@ -217,11 +228,14 @@ def main():
             max_self_penetration_m=max_self,max_nonfoot_penetration_m=max_nonfoot,max_motor_delivery_error_Nm=max_motor_delivery_error,
             runtime_root_pose_writes=0,external_wrenches=False,wall_seconds=time.time()-begin,
             limitation='Single plane development trial; contact penetration audited at 50 Hz, joint/motor limits at 500 Hz. Perfect attitude input; no vision/touch or door task.')
-        (out/'report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report),flush=True)
+        (out/'report.json').write_text(json.dumps(report,indent=2)+'\n');emit(report)
         failed=not report['passed']
     except BaseException:
         failed=True;(out/'error.txt').write_text(traceback.format_exc());traceback.print_exc()
     finally:app.close()
+    pipeline.update(stage='Walking failed; inspect report/error' if failed else 'Walking checks passed',result_passed=not failed)
+    (out/'pipeline.json').write_text(json.dumps(pipeline)+'\n')
+    emit('ISAAC_H1_WALKING_FINISHED')
     if failed:raise SystemExit(1)
 
 
