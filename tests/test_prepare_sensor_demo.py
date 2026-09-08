@@ -61,6 +61,18 @@ def test_path_rebinding_cannot_skip_native_qualification(tmp_path,monkeypatch):
     assert not plan['native_preparation_passed']
 
 
+def test_virtualenv_python_symlink_is_preserved_in_every_command(tmp_path,monkeypatch):
+    setup_plan(tmp_path,monkeypatch)
+    base=tmp_path/'system-python';base.write_text('interpreter')
+    native=tmp_path/'native-venv/bin/python';native.parent.mkdir(parents=True);native.symlink_to(base)
+    isaac=tmp_path/'isaac-venv/bin/python';isaac.parent.mkdir(parents=True);isaac.symlink_to(base)
+    plan=m.build_plan(tmp_path/'ready/ready.json',tmp_path/'new-output',root=tmp_path/'repo',
+        native_python=str(native),isaac_python=str(isaac))
+    assert all(p['argv'][0]==str(native) for p in plan['phases'])
+    assert plan['isaac_argv'][0]==str(isaac)
+    assert plan['isaac_audit_argv'][0]==str(native)
+
+
 def test_exit_zero_with_failed_native_report_stops_and_preserves_failure(tmp_path,monkeypatch):
     plan=setup_plan(tmp_path,monkeypatch,rebound=True);calls=[]
     def run(argv,**kwargs):

@@ -56,6 +56,22 @@ for t in (0.,.002,1.,8.,11.,15.,15.246,16.,17.,19.):
   entry['actual_isaac_anchor_gaps']={k:gap(v,raw['lever']) for k,v in ipad.items()}
   entry['detached_native_split_only_same_motor_sums_anchor_gaps']={k:gap(v,raw['lever']) for k,v in altered.items()}
   entry['counterfactual_is_physical_execution']=False
+ # A rigid-palm decomposition distinguishes body placement from finger split.
+ # Each substitution is detached FK at the same recorded epoch, not a replay.
+ p_native,R_native=native_fk['rh_palm'];p_isaac,R_isaac=isaac_fk['rh_palm']
+ arm_scope=[j for j,n in enumerate(names) if n=='torso' or
+            (n.startswith('right_') and not any(k in n for k in ('hip','knee','ankle'))) or n in ('rh_WRJ1','rh_WRJ2')]
+ arm_q=isaac_q.copy();arm_q[arm_scope]=native_q[arm_scope]
+ component={}
+ for label,root_,q_ in [('native_root_only',native_pose,isaac_q),('native_arm_torso_only',isaac_pose,arm_q)]:
+  pp,RR=fk(root_,q_)['rh_palm']
+  component[label]=dict(palm_change_from_actual_isaac_m=(pp-p_isaac).tolist(),
+      palm_difference_from_native_m=(pp-p_native).tolist(),
+      rotation_difference_from_native_rad=float(Rotation.from_matrix(R_native.T@RR).magnitude()))
+ entry['palm_decomposition']=dict(isaac_minus_native_position_m=(p_isaac-p_native).tolist(),
+      orientation_difference_rad=float(Rotation.from_matrix(R_native.T@R_isaac).magnitude()),
+      detached_substitutions=component,physical_execution=False)
  samples.append(entry)
 result=dict(schema='doorbench.recorded-acquisition-pose-comparison.v1',scope='Read-only actual named-joint and robot-only FK comparison; split substitution is a detached geometric diagnostic, never an executed grasp',source_sha256={str(p):sha(p) for p in [a.native/'trajectory.npz',a.native/'reset.json',a.native/'physics.jsonl.gz',a.isaac/'balance-steps.json.gz',a.isaac/'balance-acquisition-reset.json',a.robot,a.door/'door.xml']},native_model_resolved_root_qpos_address=native_root,native_named_reset_mapping_exact=True,maximum_isaac_fk_vs_recorded_body_position_error_m=fk_error_m,maximum_isaac_fk_vs_recorded_body_rotation_error_rad=fk_error_angle,material_anchors_native_verified_final_patch_force_weighted_local_m={k:v.tolist() for k,v in anchors.items()},samples=samples,physics_steps=0,plant_parameters_modified=False,limitation='Ten sampled FK frames; radial distances are fixed native material-point probes, not minimum surface distances or a contact simulation. Geometry cannot prove contact-force causality.')
+result['audit_source_sha256']=sha(__file__)
 a.output.write_text(json.dumps(result,indent=2)+'\n');print(json.dumps({k:v for k,v in result.items() if k not in ('samples','source_sha256','material_anchors_native_verified_final_patch_force_weighted_local_m')}));print(json.dumps(samples[-1]))

@@ -4,7 +4,7 @@ On an **existing ready `shadow-loopback-v2` Isaac host**, this single command
 prepares the nineteen-second grasp experiment:
 
 ```bash
-/workspace/asset-venv/bin/python scripts/isaac/prepare_sensor_demo.py \
+/workspace/venv/bin/python scripts/isaac/prepare_sensor_demo.py \
   --receipt out/isaac-ready/shadow-loopback-v2/ready.json \
   --task grasp --joint-passive-profile backend-dry-v2 \
   --isaac-python /workspace/venv/bin/python \
@@ -19,6 +19,10 @@ ready-receipt path supports a checkout/cache outside the default directory.
 or alter its teardown timer. See [v2 environment setup](ISAAC_V2_READY.md) first.
 
 The command runs five CPU phases, keeping each log and failure:
+
+Use the full Isaac preparation environment, which includes MuJoCo, SciPy and
+OSQP. The lighter asset-generation environment may lack controller dependencies.
+Interpreter paths retain their virtual-environment symlinks.
 
 1. Project the frozen reference into the strictly joint-only runtime route.
 2. Run the existing native component, including its geometric screen and all

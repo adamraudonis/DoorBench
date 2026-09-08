@@ -85,7 +85,10 @@ def build_plan(receipt_path, output, *, task='reach', passive_profile='legacy-ta
     calibration_path=inputs/'calibration.json';preflight=output/'reset-preflight.json'
     trial=output/'isaac-trial';kind='reach' if task=='reach' else 'acquisition'
     seconds=11 if task=='reach' else 19
-    python=str(Path(native_python).resolve());isaac=str(Path(isaac_python or Path(os.environ.get('DOORBENCH_WORK','/workspace'))/'venv/bin/python').resolve())
+    # Executable symlinks inside a venv must keep their venv path. Resolving
+    # them to /usr/bin/python loses pyvenv.cfg and the installed dependencies.
+    python=os.path.abspath(os.path.expanduser(os.fspath(native_python)))
+    isaac=os.path.abspath(os.path.expanduser(os.fspath(isaac_python or Path(os.environ.get('DOORBENCH_WORK','/workspace'))/'venv/bin/python')))
     def command(script, *args):return [python,str(root/'scripts/dexterous'/script),*map(str,args)]
     common=['--robot',robot,'--door',door.parent,'--motors',motors_path,'--reference',ref,
             '--calibration',calibration_path,'--schedule',schedule,'--seconds',seconds,'--output',native]
