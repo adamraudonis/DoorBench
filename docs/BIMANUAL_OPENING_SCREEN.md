@@ -211,3 +211,55 @@ A regression test exposed that two edits to one mesh path within the filesystem
 timestamp granularity could otherwise reuse cached geometry. Clearing the cache
 changes no existing model or simulation state, and the test now rejects a mesh
 change while the XML bytes remain identical.
+
+## Axial release and rejected opening trials (2026-09-08)
+
+The new native `axial-release-001` completes the right-hand release without
+invalid distal pad contact patches, joint-limit violations, extra forces or
+collision violations. It relaxes the active grip preload over 0.4 seconds,
+retains the attained legal finger targets, and slides 140 mm toward the lever's
+free end over six seconds. The palm follows the measured handle frame as its
+spring returns. A measured 20 mm all-right-hand collision-geometry clearance
+freezes the retreat goal. This avoids the elbow limit encountered by the
+previous straight-back withdrawal. These are privileged teacher measurements.
+
+The full 42-second episode still **fails** loaded substantial opening: the
+left palm unloads after about 0.178 rad. Its final 0.882 rad angle includes
+coasting and is not an opening success. The receipt is
+[`native-bimanual-axial-release-v2.json`](../results/dexterous/2026-09-08/native-bimanual-axial-release-v2.json).
+It points to the complete byte-verified local archive and records the unchanged
+full-episode failure alongside the useful physical release primitive.
+
+`doorbench.dexterous.right_hand_release.AxialRightRelease` exposes the isolated
+release controller. Call `begin(t, named_joints, root13, handle_pose7)` only after
+qualifying another loaded physical contact. Set its measured `handle_pose`
+each tick, then call `update(t)` before the acquisition/operation teacher's
+`force(...)`. The initializer and updates touch only the teacher's analytic
+model and target arrays; they never step it or write the plant. Its caller owns
+the actual clearance check and may set `frozen=(world_palm_position,
+world_palm_rotation)` once every right-hand collider clears the lever by 20 mm.
+The compact screen in `configs/dexterous/bimanual-axial-release-v2.json` is for
+the qualified Mac runtime only; it does not waive a different runtime's
+geometry check. The native run used the same numerical release formula; the
+extracted module adds finite-input and rotation validation. Six focused tests
+check rotated handle frames, smooth endpoints and invalid inputs. The extracted
+module itself still needs an uninterrupted integration repeat before an Isaac
+transfer claim.
+
+`native_hand_surface_loads` separately records actual **palm-only** force and
+other hand link forces. Two physical tests check both geometry orders. The old
+`left_panel_load_N` sum cannot establish a palm contact on its own.
+
+The first coordinated full-palm continuation reached 0.7 rad with 12.5 N of
+actual palm load, but its full 500 Hz trace exposes earlier joint-limit
+violations and intermittent unloading. It remains rejected. The follow-on
+trial retains the independently successful release behavior until measured
+clearance before beginning the torso turn; this is development, not a claimed
+complete opening, traversal, natural human reference or sensor-only policy.
+
+Cross-OS identity verification also caught a real portability limit: the same
+v2 assets and MuJoCo 3.12 compiled to Mac identity `18191db3…` and Linux
+`98c0fdc7…`. Mesh topology/BVH and related derived arrays differ. Exact compiled
+identity rejection remains enabled. A path-independent source-design identity
+and runtime-specific geometry rescreen are being added separately; changing a
+hash without those checks is not a valid port.
