@@ -79,7 +79,7 @@ def collect(directory, telemetry=False):
             status='failed' if failed else 'completed' if complete else 'running' if running else 'stopped',
             stage=next((line for line in reversed(lines) if line.startswith('== [')),config.get('stage')),
             heartbeat=time.time(), gpu=gpu, log=lines,
-            result=result,
+            result=result, progress=read(root/'progress.json', {}),
             log_updated=(root/'run.log').stat().st_mtime if (root/'run.log').exists() else None)
     if (root / 'config.json').exists() and (root / 'progress.json').exists():
         progress = read(root / 'progress.json', {})
