@@ -56,6 +56,8 @@ def main():
         from doorbench.dexterous.isaac_readback import host_snapshot
         from doorbench.dexterous.isaac_tendons import author_passive_tendons
         motors=json.loads(a.motors.read_text());reset=json.loads(a.reset.read_text())
+        if motors.get('source_xml_sha256') and motors['source_xml_sha256']!=reset['robot_xml_sha256']:
+            raise ValueError('Native reset and imported robot XML hashes differ')
         actual_passive=[{k:t[k] for k in ('name','terms','range_rad')} for t in motors.get('passive_tendons',[])]
         if sorted(actual_passive,key=lambda t:t['name'])!=sorted(reset.get('passive_tendons',[]),key=lambda t:t['name']):
             raise ValueError('Native reset and imported plant passive tendons differ; export fresh matching resets')
@@ -113,6 +115,21 @@ def main():
         robot.root_physx_view.set_contact_offsets(torch.full_like(offsets,.001),torch.tensor([0],dtype=torch.int32))
         material_audit.update(check_solver_offsets(robot.root_physx_view.get_contact_offsets().cpu().numpy(),robot.root_physx_view.get_rest_offsets().cpu().numpy()))
         material_audit.update(check_solver_materials(robot.root_physx_view.get_material_properties()[0].cpu().numpy(),motors['contact_material']))
+        passive_backend={}
+        if actual_passive:
+            getter_names=('get_fixed_tendon_stiffnesses','get_fixed_tendon_dampings','get_fixed_tendon_limit_stiffnesses','get_fixed_tendon_limits','get_fixed_tendon_rest_lengths','get_fixed_tendon_offsets')
+            passive_backend={name:getattr(robot.root_physx_view,name)().detach().cpu().numpy().copy() for name in getter_names}
+            count=len(actual_passive)
+            for name in ('get_fixed_tendon_stiffnesses','get_fixed_tendon_dampings','get_fixed_tendon_rest_lengths','get_fixed_tendon_offsets'):
+                value=passive_backend[name]
+                if value.size!=count or not np.all(value==0):raise ValueError('Passive tendon backend added spring/damping/rest/offset: '+name)
+            expected_stiffness=sorted(t['physx_limit_stiffness'] for t in motors['passive_tendons'])
+            actual_stiffness=sorted(passive_backend['get_fixed_tendon_limit_stiffnesses'].reshape(-1).tolist())
+            expected_limits=sorted(tuple(t['range_rad']) for t in actual_passive)
+            actual_limits=sorted(map(tuple,passive_backend['get_fixed_tendon_limits'].reshape(-1,2).tolist()))
+            if not np.allclose(actual_stiffness,expected_stiffness,rtol=0,atol=1e-5) or not np.allclose(actual_limits,expected_limits,rtol=0,atol=1e-6):raise ValueError('Passive tendon backend stiffness/range differs')
+            passive_tendon_audit['backend_readback']={name:value.tolist() for name,value in passive_backend.items()}
+            passive_tendon_audit['all_tendons_backend_verified']=True
         names=list(robot.joint_names);index={name:i for i,name in enumerate(names)}
         q0=np.array([reset['joints'][name] for name in names])
         limits=robot.root_physx_view.get_dof_limits()[0].cpu().numpy()
@@ -155,6 +172,7 @@ def main():
             'materials':robot.root_physx_view.get_material_properties,
             'contact_offsets':robot.root_physx_view.get_contact_offsets,
             'rest_offsets':robot.root_physx_view.get_rest_offsets}
+        invariant_getters.update({'tendon_'+name:getattr(robot.root_physx_view,name) for name in passive_backend})
         invariant_before={name:getter().cpu().numpy().copy() for name,getter in invariant_getters.items()}
         mass=float(robot.root_physx_view.get_masses().sum())
         if abs(mass-reset['mass_kg'])>1e-4:raise ValueError('Imported mass differs from native plant')

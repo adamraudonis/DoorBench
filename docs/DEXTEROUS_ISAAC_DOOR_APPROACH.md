@@ -2,9 +2,11 @@
 
 The native H1 waypoint teacher passed nine nearby-start trials on both the
 original and the corrected versioned hand plant. Its Isaac port is
-still under qualification. The only completed live port run is a **two-second
-neutral-hand performance smoke**, which correctly fails the approach/quiet-stop
-criteria. There is no completed Isaac door-approach result yet.
+still under qualification. Two-second physics smokes completed on both the
+original hand and the corrected versioned hand. The v2 smoke verifies all eight
+passive constraints in the live solver. Both runs correctly fail the full
+approach/quiet-stop criteria because of their short duration. There is no
+completed Isaac door-approach result yet.
 
 This uses the official **H1** actor, the full free-base H1/dual-Shadow robot, and
 the complete Door55 scene. The waypoint controller reads privileged world pose
@@ -71,12 +73,18 @@ last solved step is also retained. Passing needs target position <3 cm, heading
 <2 degrees, horizontal speed <2 cm/s, excursion <1 cm, and both feet supporting
 >30 N, alongside the physical checks.
 
-The port imports `doorbench.dexterous.isaac_tendons.author_passive_tendons`
+The port verifies that native reset and motor-contract XML hashes match,
+and rejects differences in passive tendon names, joint coefficients or ranges.
+It then imports `doorbench.dexterous.isaac_tendons.author_passive_tendons`
 after stripping obsolete imported tendon schemas and before constructing the
 articulation. The versioned hand contract records passive tendons and checks
 their joint-difference limits every step, with a 20 mrad numerical tolerance.
-An empty contract is labeled **upstream-v1**, never silently presented as a
-corrected hand. The v2 authoring and whole-body rollout still need live tests.
+Every v2 tendon is read back from PhysX: count, unilateral stiffness and
+limits must match, and bilateral spring stiffness, damping, rest lengths and
+offsets must be zero. These backend settings are compared again after the
+rollout. An empty contract is labeled **upstream-v1**, never silently presented
+as a corrected hand. A short v2 whole-body physics smoke has now verified all eight backend
+constraints; full approach qualification remains pending.
 
 `trace.jsonl` survives interrupted runs. `report.json`, `manifest.json`,
 `landed-state.json` and `pipeline.json` record the result, source hashes, exact
@@ -97,6 +105,7 @@ records the original v1 USD, motor-map, checkpoint and source hashes.
 | Isaac approach-002 | Partial rendered run interrupted; report serialization bug retained |
 | Isaac approach-003 | Partial numerical run interrupted to return GPU; no completed score |
 | Isaac profile-v1-005 | 2 s physics smoke; approach checks false, as expected |
+| Isaac profile-v2-006 | 2 s corrected-hand physics smoke; every physical check passed |
 
 The smoke stayed upright (2.424 degrees maximum tilt), with zero observed
 self/non-foot/scene penetration and 3.76e-6 Nm maximum motor-delivery error.
@@ -107,9 +116,14 @@ indices exactly, returns independent arrays, and rejects unsafe integer
 rounding; six CPU tests cover its buffer/value contract. Its GPU path ran in
 the smoke. This does not isolate a particular PhysX kernel as the bottleneck.
 
-The smoke predates three current adapter changes: explicit v2 tendon authoring,
-exact-final-step trace capture, and pre-shutdown pipeline finalization. Those
-changes compile but are not claimed as live-tested by this report.
+The [v2 smoke report](../results/dexterous/2026-09-08/isaac-door-approach-v2-smoke.json)
+adds the explicit tendon backend verification, exact final-step capture and
+pre-shutdown terminal marker. It completed exactly 2.0 s with all physical
+checks passing, maximum joint-difference excursion 2.36e-5 rad, and maximum
+torso tilt 2.445°. All eight live unilateral constraints had the expected
+limits and 10000 numerical limit stiffness, with zero bilateral spring,
+damping, rest length and offset. It took 41.59 wall seconds. The full nine-start
+approach matrix is a separate longer run.
 
 The original imported Shadow hand omitted its documented J1 <= J2 passive
 loopback constraint. Existing v1 locomotion evidence is preserved under its
