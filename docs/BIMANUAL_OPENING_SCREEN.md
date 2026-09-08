@@ -877,3 +877,8 @@ Panel007 and all independent evidence are preserved in
 The admittance replay screens001/002 retain their invalid-method labels;
 corrected003 passes12,598 target steps and2,521 actual-base collision checks,
 with0.087709rad maximum correction from the original planned joint targets.
+
+The remaining destination-state return/ungrip planner extraction is tracked in
+[Actual-state release port](ACTUAL_STATE_RELEASE_PORT.md). Exact attained-state
+admission guards remain intact; native component evidence does not authorize
+copying those paths into an Isaac state that differs.
