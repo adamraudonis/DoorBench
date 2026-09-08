@@ -102,6 +102,13 @@ reset preflight passes. All 508 preparation files were verified off-pod. Earlier
 setup failures remain recorded. [Executed preparation evidence](evidence/sensor-demo-preparation-executed-003.json).
 
 The exact emitted command started an actual Isaac test on September 8, 2026 at
-20:59:07 UTC. Preparation success does not establish that test's grasp result.
+20:59:07 UTC. It completed all 9,500 steps with 21/23 task and 14/14 physical checks. The
+grasp **failed**: 1,987 invalid loaded little-finger patches and only a 6 ms
+qualified hold against the unchanged 0.5 s requirement. An independent audit
+reproduces every check and all raw contact reductions exactly. All 145 outputs,
+490 source files and 32 external inputs/receipts were verified off-pod; both
+hand and wide images were personally inspected. This verifies the preparation
+and execution workflow, while preserving the failed grasp.
+[Actual prepared-run result](../results/dexterous/2026-09-08/sensor-prepared-isaac-grasp-003.json).
 The earlier [corrected-friction Isaac grasp failed](SENSOR_ACQUISITION_DRY_ISAAC_001.md).
 The earlier [dry-run receipt](evidence/sensor-demo-preparation-smoke.json) remains unchanged.
