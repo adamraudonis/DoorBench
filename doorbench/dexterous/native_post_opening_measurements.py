@@ -15,7 +15,7 @@ def measured_contacts(m,raw,*,physics_qualified):
         frame=np.asarray(c['frame_world']);force=frame.T@np.asarray(c['wrench_contact_frame'][:3]);full_names=[m.body(b).name for b in c['body']];names=[n.removeprefix('robot/') for n in full_names]
         for name,sign in zip(names,(-1,1)):
             if name in forces:forces[name]+=sign*force
-            if name in ('left_ankle_link','right_ankle_link'):feet[('left_ankle_link','right_ankle_link').index(name)]+=sign*force[2]
+            if name in ('left_ankle_link','right_ankle_link') and any(m.geom(g).name=='floor' for g in c.get('geom',())):feet[('left_ankle_link','right_ankle_link').index(name)]+=sign*force[2]
         if any(n.startswith('lh_') for n in names):
             left_count+=int(c['distance_m']<=0 or c['wrench_contact_frame'][0]>1e-8);left_load+=max(0.,float(c['wrench_contact_frame'][0]))
         if any(n.startswith('robot/rh_') for n in full_names) and not all(n.startswith('robot/') for n in full_names):

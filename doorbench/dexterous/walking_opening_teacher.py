@@ -43,6 +43,12 @@ class WalkingOpeningTeacher(FullSequenceTeacher):
             right_palm_pose=right_palm_pose,pose_time_s=pose_time_s,
             contact_interval_s=interval.copy())
         try:
+            if self.opening.whole_body_return_path is not None and self.opening.release.started is not None:
+                from .whole_body_return import apply_stance_goal
+                # Preserve the same ordering as the independently checked native
+                # intervention: attained-foot targets before this tick's leg QP.
+                goal=self.opening.release.body_goal(t-self.acquisition_started)
+                apply_stance_goal(self.body.controller,goal)
             force,info=super().force(t,root,joints,velocities,foot_loads,handle_pose,
                 leaf_pose,angles,hand_forces,grasp_qualified=evidence['grasp_qualified'],
                 hand_contact_count=evidence['hand_contact_count'])

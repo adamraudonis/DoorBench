@@ -24,6 +24,13 @@ def test_actual_contacts_keep_feet_panel_and_clear_right_hand_distinct():
     np.testing.assert_array_equal(result['release_normal_world'], [0, -1, 0])
 
 
+@pytest.mark.parametrize('other', ['/World/H1/right_ankle_link', '/World/Door/Articulation/leaf'])
+def test_robot_and_door_loads_do_not_count_as_foot_ground_support(other):
+    args = fixture()
+    args['filter_paths'][0] = [other]
+    np.testing.assert_array_equal(continuation_contact_summary(**args)['foot_loads'], [0, 201])
+
+
 def test_positive_gap_loaded_contact_still_blocks_release():
     args = fixture()
     args['normal_forces'][3] = .001

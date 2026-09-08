@@ -51,7 +51,7 @@ def continuation_contact_summary(sensor_paths, filter_paths, normal_forces,
             if (not np.isfinite([load, gap, *normal]).all() or load < 0 or
                     not np.isclose(np.linalg.norm(normal), 1., atol=1e-5, rtol=0)):
                 raise ValueError('Invalid measured normal contact')
-            if name in feet_names:
+            if name in feet_names and other.rsplit('/', 1)[-1] == 'floor':
                 feet[feet_names.index(name)] += load * normal[2]
             if name.startswith('lh_'):
                 # Both sensors observe a self-contact. Count/load it only once,

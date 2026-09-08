@@ -50,6 +50,21 @@ def test_current_state_reader_preserves_every_active_state_and_force_array():
     for name,value in before.items():np.testing.assert_array_equal(getattr(d,name),value)
 
 
+def test_only_authored_floor_load_counts_as_ground_support():
+    m=mujoco.MjModel.from_xml_string('''<mujoco><worldbody>
+    <geom name="floor" type="plane" size="1 1 .1"/>
+    <geom name="door_frame" type="sphere" size=".1"/>
+    <body name="robot/left_ankle_link"><geom name="foot" type="sphere" size=".1"/></body>
+    </worldbody></mujoco>''')
+    c=dict(body=[0,m.body('robot/left_ankle_link').id],
+        geom=[m.geom('floor').id,m.geom('foot').id],
+        frame_world=[[0,0,1],[1,0,0],[0,1,0]],
+        wrench_contact_frame=[100,0,0,0,0,0],distance_m=-.0001)
+    np.testing.assert_array_equal(measured_contacts(m,dict(contacts=[c]),physics_qualified=True)[0],[100,0])
+    c['geom'][0]=m.geom('door_frame').id
+    np.testing.assert_array_equal(measured_contacts(m,dict(contacts=[c]),physics_qualified=True)[0],[0,0])
+
+
 def test_missing_release_contact_and_missing_actual_physics_result_fail():
     s=fixture()
     with pytest.raises(ValueError):outward_release_normal(s.m,dict(contacts=[]))
