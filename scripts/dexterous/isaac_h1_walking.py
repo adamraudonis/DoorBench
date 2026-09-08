@@ -120,6 +120,13 @@ def main():
             camera.set_world_poses_from_view(eyes=torch.tensor([[3.,-5.,2.8]],device=a.device),targets=torch.tensor([[1.5,0.,1.]],device=a.device))
             writer=imageio.get_writer(out/'live-isaac.mp4',fps=25,codec='libx264',quality=8)
         policy=H1WalkingPolicy(a.checkpoint);target=DEFAULT_ANGLES.copy();ever_moved=False;zero_since=None
+        invariant_getters={'mass':robot.root_physx_view.get_masses,
+            'joint_limits':robot.root_physx_view.get_dof_limits,
+            'effort_caps':robot.root_physx_view.get_dof_max_forces,
+            'materials':robot.root_physx_view.get_material_properties,
+            'contact_offsets':robot.root_physx_view.get_contact_offsets,
+            'rest_offsets':robot.root_physx_view.get_rest_offsets}
+        invariant_before={name:getter().cpu().numpy().copy() for name,getter in invariant_getters.items()}
         mass=float(robot.root_physx_view.get_masses().sum())
         if abs(mass-reset['mass_kg'])>1e-4:raise ValueError('Imported mass differs from native plant')
         source_paths=[Path(__file__),Path(__file__).resolve().parents[2]/'doorbench/dexterous/locomotion.py',a.motors,a.reset,a.robot_usd,a.checkpoint]
@@ -201,7 +208,9 @@ def main():
             no_self_penetration=max_self<.003,no_nonfoot_ground_penetration=max_nonfoot<.003,
             finite=all(r['finite'] for r in rows),moves_forward=distance>1.6,both_feet_swing=all(feet_swing),
             quiet_speed=tail_speed<.02,quiet_excursion=excursion<.01,both_feet_support=foot_load>30,
-            physics_clock=max(abs(r['sim_time_s']-r['time_s']) for r in rows)<1e-4)
+            physics_clock=max(abs(r['sim_time_s']-r['time_s']) for r in rows)<1e-4,
+            plant_parameters_unchanged=all(np.array_equal(invariant_before[name],getter().cpu().numpy())
+                for name,getter in invariant_getters.items()))
         report=dict(scope=__doc__,passed=all(checks.values()),checks=checks,duration_s=rows[-1]['time_s'],
             net_distance_m=distance,max_torso_tilt_deg=max(r['tilt_deg'] for r in rows),final_second_speed_m_s=tail_speed,
             final_second_excursion_m=excursion,final_second_min_foot_load_N=foot_load,max_joint_violation_rad=max_limit,
