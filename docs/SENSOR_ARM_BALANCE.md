@@ -1,5 +1,31 @@
 # Sensor balance with explicit arm goals
 
+## Portable runtime and independent evaluation
+
+`SensorArmBalanceRuntime(robot_xml, motors, layout, calibration_json,
+schedule_json)` accepts the same bound robot calibration as the five-second
+stationary runtime. After `reset_episode()`, `force(packet, now_s)` returns the
+61 original motor forces. `previous_action`, `last_info`, `goal_names` and
+`schedule_sha256` expose the recorded command contract. The schedule generates
+only twelve arm/wrist joint targets; it supplies no robot world pose or door
+state. Input failures require an explicit reset.
+
+`evaluate_sensor_arm_balance(rows, physics_checks,
+initial_arm_joint_position=actual_reset_angles, schedule=frozen_schedule)` is
+the separate six-second evaluator. Every one of its 3,000 actual post-step
+records contains the actor-origin root state, tilt, floor-only foot loads,
+all hand contacts, twelve actual arm angles, and the preceding controller
+diagnostics. It reconstructs the applied schedule at the interval start,
+requires less than .04 rad tracking error and more than 70% of every requested
+excursion from the actual reset angles. It also retains all original physical
+checks and the final-second quiet support requirement. Missing, shifted,
+incomplete or inconsistent records fail qualification. Evaluator measurements
+never enter the runtime. The five-second stationary protocol is unchanged.
+
+`scripts/dexterous/check_sensor_arm_balance_runtime.py` replays a saved native
+capture and separately scores its recorded physical states. Replay does not
+execute another physical trial.
+
 `SensorArmBalanceController` adds opt-in numeric arm and wrist goals to the
 [qualified stationary controller](SENSOR_BALANCE.md). The stationary source and
 its default behavior are unchanged. Native trial004 passed all 22 checks over
@@ -144,3 +170,10 @@ Its six-second physical trajectory exactly matches004; it independently repeats
 all22 gates with the reusable module. The video of004 was personally inspected
 at beginning, maximum arm excursion and end: the torso remains upright and both
 hands stay clear during this modest out-and-back motion.
+
+Independent adapter replay of all 3,000 actual native005 packets reproduced every
+motor command within **4.91e-11 Nm**. The separate portable evaluator passed
+all 16 grouped checks and retained all 22 original native checks, including
+maximum arm tracking error **0.002760 rad**. This reuses the original physical
+run; it is not a new simulator rollout. The compact receipt is
+[`sensor-arm-balance-runtime-001.json`](evidence/sensor-arm-balance-runtime-001.json).
