@@ -350,7 +350,7 @@ def main():
                                 key='max_self_penetration_m'
                             elif path.rsplit('/',1)[-1].startswith('rh_') and other.startswith('/World/Door/Articulation/'):
                                 key='max_hand_door_penetration_m'
-                            elif path.rsplit('/',1)[-1] in ('left_ankle_link','right_ankle_link'):
+                            elif path.rsplit('/',1)[-1] in ('left_ankle_link','right_ankle_link') and other.rsplit('/',1)[-1]=='floor':
                                 continue
                             else:key='max_nonfoot_environment_penetration_m'
                             mechanical_audit[key]=max(mechanical_audit[key],depth)
