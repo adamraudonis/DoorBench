@@ -4,6 +4,7 @@ This teacher reads world pose/velocity and returns bounded body-frame commands.
 It never writes body poses, controls a door, or applies forces directly.
 """
 import hashlib,json
+from collections import deque
 from pathlib import Path
 import numpy as np
 from doorbench.dexterous.locomotion import NativeH1MotorAdapter, DEFAULT_ANGLES
@@ -46,16 +47,27 @@ def make_door_approach(door,robot,reference,*,distance=.7,lateral=0.,yaw_offset=
 
 
 class WaypointApproach:
-    def __init__(self,position,yaw,*,gain=4.,brake_prediction=.4,brake_radius=.05,max_speed=.3):
+    def __init__(self,position,yaw,*,gain=4.,brake_prediction=.4,brake_radius=.05,max_speed=.3,brake_velocity_window=0.):
         self.position=np.asarray(position,float);self.yaw=float(yaw)
         self.gain=gain;self.brake_prediction=brake_prediction;self.brake_radius=brake_radius;self.max_speed=max_speed
+        if not np.isfinite(brake_velocity_window) or brake_velocity_window<0:raise ValueError('Nonnegative finite brake averaging window required')
+        self.brake_velocity_window=float(brake_velocity_window);self.position_history=deque();self.brake_velocity=np.zeros(2)
         self.velocity=np.zeros(2);self.aim_offset=np.zeros(2);self.stop_time=None;self.stops=0;self.previous_time=None
     def step(self,position,yaw,world_velocity,time_s):
         dt=.02 if self.previous_time is None else time_s-self.previous_time;self.previous_time=time_s
         self.velocity+=(1.-np.exp(-dt/.25))*(np.asarray(world_velocity)-self.velocity)
+        self.brake_velocity=self.velocity.copy()
+        if self.brake_velocity_window:
+            self.position_history.append((float(time_s),np.array(position,copy=True)))
+            cutoff=time_s-self.brake_velocity_window
+            while len(self.position_history)>1 and self.position_history[1][0]<=cutoff:self.position_history.popleft()
+            if self.position_history[0][0]<=cutoff and len(self.position_history)>1:
+                t0,p0=self.position_history[0];t1,p1=self.position_history[1]
+                past=p0+(p1-p0)*((cutoff-t0)/(t1-t0))
+                self.brake_velocity=(np.asarray(position)-past)/self.brake_velocity_window
         true_error=self.position-np.asarray(position);error=true_error+self.aim_offset;angle=wrap_angle(self.yaw-yaw)
         if time_s<1:return np.zeros(3),1.,'initial'
-        predicted=error-self.brake_prediction*self.velocity
+        predicted=error-self.brake_prediction*self.brake_velocity
         if self.stop_time is None and abs((time_s%.8)-.2)<.011 and np.linalg.norm(predicted)<self.brake_radius and abs(angle)<np.deg2rad(2.):
             self.stop_time=time_s;self.stops+=1
         if self.stop_time is not None:

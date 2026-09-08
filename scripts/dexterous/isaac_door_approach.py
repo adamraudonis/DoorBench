@@ -23,6 +23,7 @@ def main():
     p.add_argument('--gain',type=float,default=4.)
     p.add_argument('--brake-prediction',type=float,default=.4)
     p.add_argument('--brake-radius',type=float,default=.05)
+    p.add_argument('--brake-velocity-window',type=float,default=0.)
     p.add_argument('--max-speed',type=float,default=.3)
     AppLauncher.add_app_launcher_args(p)
     a=p.parse_args()
@@ -165,7 +166,7 @@ def main():
             camera.set_world_poses_from_view(eyes=torch.tensor([[1.7,-3.7,2.2]],device=a.device),targets=torch.tensor([[-.1,-.55,1.]],device=a.device))
             writer=imageio.get_writer(out/'live-isaac.mp4',fps=25,codec='libx264',quality=8)
         policy=H1WalkingPolicy(a.checkpoint);target=DEFAULT_ANGLES.copy()
-        teacher=WaypointApproach(reset['goal_xy'],reset['goal_yaw_rad'],gain=a.gain,brake_prediction=a.brake_prediction,brake_radius=a.brake_radius,max_speed=a.max_speed)
+        teacher=WaypointApproach(reset['goal_xy'],reset['goal_yaw_rad'],gain=a.gain,brake_prediction=a.brake_prediction,brake_radius=a.brake_radius,max_speed=a.max_speed,brake_velocity_window=a.brake_velocity_window)
         invariant_getters={'mass':robot.root_physx_view.get_masses,
             'joint_limits':robot.root_physx_view.get_dof_limits,
             'effort_caps':robot.root_physx_view.get_dof_max_forces,
@@ -177,7 +178,7 @@ def main():
         mass=float(robot.root_physx_view.get_masses().sum())
         if abs(mass-reset['mass_kg'])>1e-4:raise ValueError('Imported mass differs from native plant')
         source_paths=[Path(__file__),Path(__file__).resolve().parents[2]/'doorbench/dexterous/locomotion.py',a.motors,a.reset,a.robot_usd,a.door_usd,a.checkpoint,Path(__file__).resolve().parents[2]/'doorbench/dexterous/locomotion_approach.py',Path(__file__).resolve().parents[2]/'doorbench/dexterous/isaac_passive_door.py',Path(__file__).resolve().parents[2]/'doorbench/dexterous/isaac_readback.py',Path(__file__).resolve().parents[2]/'doorbench/dexterous/isaac_tendons.py']
-        (out/'manifest.json').write_text(json.dumps(dict(scope=__doc__,started_unix=time.time(),device=a.device,
+        (out/'manifest.json').write_text(json.dumps(dict(scope=__doc__,started_unix=time.time(),device=a.device,arguments={key:str(value) if isinstance(value,Path) else value for key,value in vars(a).items()},
             source_hashes={str(path):hashlib.sha256(path.read_bytes()).hexdigest() for path in source_paths},
             dt=dt,policy_dt=.02,mass_kg=mass,checkpoint_sha256=POLICY_SHA256,material_audit=material_audit,passive_tendon_audit=passive_tendon_audit,
             runtime_pose_writes=0,external_wrenches=False,direct_door_commands=False,door_passive_latch_scale=latch_scale,goal_xy=reset['goal_xy'],goal_yaw_rad=reset['goal_yaw_rad'],reset_case=reset.get('case'),reset_seed=reset.get('seed')),indent=2)+'\n')

@@ -16,7 +16,7 @@ def main():
             command=[sys.executable,str(Path(__file__).with_name('probe_locomotion_approach.py'))]
             for name in ('robot','door','reference','checkpoint'):command+=['--'+name,str(getattr(args,name))]
             command+=['--output',str(trial),'--seed',str(seed)]
-            values={'seconds':config['seconds'],'joint-noise':config['joint_noise_rad'],'gain':config['gain'],'brake-prediction':config['brake_prediction_s'],'brake-radius':config['brake_radius_m'],'max-speed':config['max_forward_speed_m_s'],'distance':case['distance_m'],'lateral':case['lateral_m'],'yaw-offset':case['yaw_offset_rad']}
+            values={'seconds':config['seconds'],'joint-noise':config['joint_noise_rad'],'gain':config['gain'],'brake-prediction':config['brake_prediction_s'],'brake-radius':config['brake_radius_m'],'max-speed':config['max_forward_speed_m_s'],'brake-velocity-window':config.get('brake_velocity_window_s',0.),'distance':case['distance_m'],'lateral':case['lateral_m'],'yaw-offset':case['yaw_offset_rad']}
             for name,value in values.items():command+=['--'+name,str(value)]
             process=subprocess.run(command,capture_output=True,text=True,timeout=180);(args.output/f'{trial.name}.process.log').write_text(process.stdout+process.stderr)
             if (trial/'report.json').exists():

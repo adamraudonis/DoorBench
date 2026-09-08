@@ -11,7 +11,7 @@ from doorbench.dexterous.provenance import capture
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('robot','door','reference','checkpoint','output'):p.add_argument('--'+name,type=Path,required=True)
-    for name,default in [('distance',.7),('lateral',0.),('yaw-offset',0.),('joint-noise',0.),('seconds',25.),('gain',4.),('brake-prediction',.4),('brake-radius',.05),('max-speed',.3)]:p.add_argument('--'+name,type=float,default=default)
+    for name,default in [('distance',.7),('lateral',0.),('yaw-offset',0.),('joint-noise',0.),('seconds',25.),('gain',4.),('brake-prediction',.4),('brake-radius',.05),('max-speed',.3),('brake-velocity-window',0.)]:p.add_argument('--'+name,type=float,default=default)
     p.add_argument('--seed',type=int,default=0);args=p.parse_args()
     if args.output.exists():raise SystemExit('Use a fresh output directory')
     if not np.isfinite([args.distance,args.lateral,args.yaw_offset,args.joint_noise,args.seconds,args.gain,args.brake_prediction,args.brake_radius,args.max_speed]).all() or args.distance<.5 or args.seconds<=1 or args.joint_noise<0:raise SystemExit('Invalid finite separated-start configuration')
@@ -19,7 +19,7 @@ def main():
     (args.output/'reference.json').write_bytes(args.reference.read_bytes())
     sim,goal,yaw_goal=make_door_approach(args.door,args.robot,args.reference,distance=args.distance,lateral=args.lateral,yaw_offset=args.yaw_offset,seed=args.seed,joint_noise=args.joint_noise)
     m,d=sim.m,sim.d;a=sim.adapter;q=sim.root_qadr;v=sim.root_vadr;policy=H1WalkingPolicy(args.checkpoint)
-    teacher=WaypointApproach(goal,yaw_goal,gain=args.gain,brake_prediction=args.brake_prediction,brake_radius=args.brake_radius,max_speed=args.max_speed)
+    teacher=WaypointApproach(goal,yaw_goal,gain=args.gain,brake_prediction=args.brake_prediction,brake_radius=args.brake_radius,max_speed=args.max_speed,brake_velocity_window=args.brake_velocity_window)
     if not np.isclose(m.opt.timestep,.002):raise ValueError('Require the native 2 ms timestep')
     fixed=d.ctrl.copy();target=DEFAULT_ANGLES.copy();start=d.qpos[q:q+3].copy();rows=[];poses=[];vel=[];ctrl=[];began=time.time()
     robot_bodies={b for b in range(m.nbody) if m.body(b).name.startswith('robot/')};robot_v=np.r_[np.arange(v,v+6),sim.vadr];door_act=np.array([i for i in range(m.nu) if i not in sim.actuators],int)

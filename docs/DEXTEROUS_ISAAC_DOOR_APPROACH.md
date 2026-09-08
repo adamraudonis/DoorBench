@@ -5,8 +5,8 @@ original and the corrected versioned hand plant. Its Isaac port is
 still under qualification. Two-second physics smokes completed on both the
 original hand and the corrected versioned hand. The v2 smoke verifies all eight
 passive constraints in the live solver. Both runs correctly fail the full
-approach/quiet-stop criteria because of their short duration. There is no
-completed Isaac door-approach result yet.
+approach/quiet-stop criteria because of their short duration. One full frozen-protocol Isaac approach has completed and failed stopping;
+the corrected controller is under test.
 
 This uses the official **H1** actor, the full free-base H1/dual-Shadow robot, and
 the complete Door55 scene. The waypoint controller reads privileged world pose
@@ -106,6 +106,7 @@ records the original v1 USD, motor-map, checkpoint and source hashes.
 | Isaac approach-003 | Partial numerical run interrupted to return GPU; no completed score |
 | Isaac profile-v1-005 | 2 s physics smoke; approach checks false, as expected |
 | Isaac profile-v2-006 | 2 s corrected-hand physics smoke; every physical check passed |
+| Original v2 long case0/seed0 | Full 25s; physical checks passed, target/quiet-stop failed |
 
 The smoke stayed upright (2.424 degrees maximum tilt), with zero observed
 self/non-foot/scene penetration and 3.76e-6 Nm maximum motor-delivery error.
@@ -133,3 +134,27 @@ standalone unilateral-tendon fixture passes. Do not retune physics to make the
 walking policy pass. See [native approach](DEXTEROUS_DOOR_APPROACH.md) and
 [actor provenance](DEXTEROUS_LOCOMOTION.md) for the existing development
 protocol and model differences.
+
+
+## Stopping-controller development
+
+The [first full original v2 Isaac trial](../results/dexterous/2026-09-08/isaac-door-approach-v2-original-failure.json)
+completed all 25 simulated seconds and passed its physical gates, but failed
+quiet stopping. After its first brake settled about 40 mm away, the teacher
+restarted. Its short velocity filter retained the side-to-side motion of an
+in-place gait and prevented a second predicted-position brake. Final-second
+speed reached0.2224 m/s. This is a teacher failure; Door55 should not be excluded
+from evaluation because of it. One complete failed case and the following
+interrupted initialization remain archived; the other eight starts were not
+scored on that controller.
+
+The optional `--brake-velocity-window .8` uses pelvis displacement over one full
+0.8 s gait cycle for brake prediction. Steering retains its original short
+velocity filter, actor weights and motor/plant settings. The original behavior
+remains the default. A [separate frozen development protocol](../configs/dexterous/h1-door55-approach-cycle-development.json)
+passed [9/9 native v2 starts](../results/dexterous/2026-09-08/h1-door55-approach-v2-cycle.json):
+worst final XY 20.612 mm and heading 0.708°. Two focused tests verify that the
+estimator removes periodic sway, preserves net linear travel, handles uneven
+sampling, and does not alias reused simulator state buffers. Its first live
+Isaac retry is pending. The matrix runner accepts `--stop-on-failure` so a
+systematic failure can stop further spending while retaining the complete case.
