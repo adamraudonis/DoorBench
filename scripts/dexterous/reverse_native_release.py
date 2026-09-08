@@ -33,6 +33,7 @@ def main():
     if args.output.exists():
         raise SystemExit('Use a new output directory to preserve earlier candidates')
     release_audit = json.loads((args.release / 'release-audit.json').read_text())
+    release_manifest=json.loads((args.release/'manifest.json').read_text())
     if not release_audit.get('passed'):
         raise SystemExit('Source initialized release did not pass its physical audit')
     ref = json.loads((args.release / 'reference.json').read_text())
@@ -58,6 +59,11 @@ def main():
         if raw.shape[1] != m.nq or not np.isfinite(raw).all():
             raise ValueError('Recorded state is nonfinite or incompatible with this plant')
         recorded = raw.copy()
+        if not release_manifest['configuration'].get('explicit_motors'):
+            raise ValueError('Recorded force replay requires explicit bounded motor-force command units')
+        motor_forces=trajectory['ctrl'][indices][:,sim.actuators].copy()
+        if motor_forces.shape!=(len(indices),len(sim.actuators)) or not np.isfinite(motor_forces).all():raise ValueError('Invalid recorded motor forces')
+        if np.any(motor_forces<m.actuator_forcerange[sim.actuators,0]-1e-6) or np.any(motor_forces>m.actuator_forcerange[sim.actuators,1]+1e-6):raise ValueError('Recorded forces exceed original motor caps')
         path = np.clip(raw[:, qa], m.jnt_range[ids, 0], m.jnt_range[ids, 1])
         clipping = float(np.max(np.abs(path - raw[:, qa])))
         if clipping > .02:
@@ -116,6 +122,9 @@ def main():
             initial_plant_qpos=recorded[0].tolist(), source_release=str(args.release),
             recorded_lever_position_m=lever_positions.tolist(), recorded_lever_rotation=lever_rotations.tolist(),
             recorded_lever_frame=lever_frame,
+            recorded_motor_force=motor_forces.tolist(),
+            recorded_motor_force_names=[m.actuator(aid).name.removeprefix('robot/') for aid in sim.actuators],
+            recorded_motor_force_units='Native bounded motor force; explicit force commands, not servo position targets',
             source_frames=indices, command_target_clipping_max_rad=clipping)
         (args.output / 'geometry-audit.json').write_text(json.dumps(report, indent=2) + '\n')
         (args.output / 'reference.json').write_text(json.dumps(result, indent=2) + '\n')

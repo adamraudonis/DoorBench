@@ -8,6 +8,22 @@ import numpy as np
 import mujoco
 
 
+def reproject_attached_pose(position, rotation, reference_position, reference_rotation,
+                            actual_position, actual_rotation):
+    """Preserve a proposed hand pose relative to a moving physical operator.
+
+    All transforms are privileged teacher reference/state, never sensor actor
+    inputs. This only returns a target; the robot must execute it with motors.
+    """
+    positions=[np.asarray(x,dtype=float) for x in (position,reference_position,actual_position)]
+    rotations=[np.asarray(x,dtype=float) for x in (rotation,reference_rotation,actual_rotation)]
+    if any(x.shape!=(3,) or not np.isfinite(x).all() for x in positions):raise ValueError('Invalid position')
+    if any(x.shape!=(3,3) or not np.isfinite(x).all() or not np.allclose(x.T@x,np.eye(3),atol=1e-6) or not np.isclose(np.linalg.det(x),1,atol=1e-6) for x in rotations):raise ValueError('Invalid rotation')
+    target,origin,current=positions;target_rotation,source_rotation,current_rotation=rotations
+    correction=current_rotation@source_rotation.T
+    return current+correction@(target-origin),correction@target_rotation
+
+
 def approach_clearance_requirement(reverse_fraction, maximum, terminal_gap=0., *, taper_fraction=.2):
     """Taper from measured terminal overlap at 0 to approach clearance at 1."""
     values = (reverse_fraction, maximum, terminal_gap, taper_fraction)
