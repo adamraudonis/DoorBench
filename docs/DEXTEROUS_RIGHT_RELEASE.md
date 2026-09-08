@@ -351,3 +351,28 @@ forces at every 2 ms interval. The eight-joint option enables this record
 automatically. These are privileged diagnostic records, never actor inputs.
 The experiment must still distinguish infeasible/sudden targets from contact
 control effects and retain the independent LF/FF release failure.
+
+The paired physical experiment is complete and **both trials remain failed**.
+Instrumented seven-joint trial 007 reproduces 005/006 exactly; eight-joint 008
+preserves the physical prefix until panel intervention but also loses balance.
+Independent alignment verifies all 803/808 recorded panel intervals against
+actual archived motor forces with exactly zero force or clock disagreement.
+
+The consumed seven-joint targets reach 0.120 rad waist and 0.242 rad shoulder-yaw
+changes in one 10 ms update: about 12 and 24 rad/s, with shoulder target
+acceleration above 1,500 rad/s². The eight-joint version still demands up to
+20.5 rad/s. At the onset the weighted task Jacobian condition is only about
+12–16; very large condition numbers appear later as the robot falls. Therefore
+the large late condition number alone does not explain the first impulses.
+The old angle-driven 15 cm palm-lowering path reaches a rapidly changing IK
+region in the attained stance. A new destination-state whole-body path with
+explicit target velocity/acceleration bounds is needed before another physical
+opening claim. Neither projection nor filtering can establish that feasibility.
+
+```sh
+python scripts/dexterous/summarize_panel_targets.py \
+  --run /path/to/walked-whole-body-ungrip-008 \
+  --output out/panel-target-audit.json
+```
+
+[Controlled results, exact command audit and verified archive](../results/dexterous/2026-09-08/panel-chain-comparison.json)
