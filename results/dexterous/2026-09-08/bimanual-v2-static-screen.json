@@ -1,0 +1,170 @@
+{
+  "scope": "FK and static load planning only; failed collision screen, no physical opening or policy result",
+  "passed": false,
+  "checks": {
+    "complete_static_sequence": true,
+    "positions": true,
+    "left_palm_normal": true,
+    "collisions": false,
+    "arm_strength": true,
+    "loopback": true,
+    "left_panel_proximity": true,
+    "finite_support_plan": true,
+    "continuous_arm_waypoints": true,
+    "target_aperture": true
+  },
+  "projection": [],
+  "robot_sha256": "3148cbbefa04e65ae813080275008619a3d4ef94f1ca0887c8f51e79630c3c21",
+  "reference_sha256": "d7003676bfae80893857c323548084fa062585dbc8e98d19f4af70b028cafa73",
+  "planner_sha256": "49ecf748abf1aedc984a1da4a009f2302ef576624ac7debce32dc6cc7285d7bf",
+  "parameters": {
+    "robot": "/tmp/doorbench-shadow-loopback/final/h1-shadow-loopback-v2.xml",
+    "door": "/tmp/doorbench-isaac-integration/assets/doors/db0055_swing_single",
+    "reference": "/tmp/doorbench-shadow-loopback/acquisition-v2-review/canonical-grasp.json",
+    "output": "out/bimanual-screen/screen-011",
+    "radius": 0.18,
+    "height": 0.85,
+    "push_force": 15.0,
+    "offset": -0.048,
+    "transfer_angle": 0.08,
+    "reach_path": "joint",
+    "reach_roll_bump": 0.15,
+    "reach_pitch_bump": 0.6,
+    "release_slide": 0.0,
+    "endpoint_only": false
+  },
+  "max_arm_waypoint_step_rad": 0.0833272245616945,
+  "limitations": [
+    "FK and static arm-load screen only; no right-grasp force qualification, dynamic stance or contact-transfer proof.",
+    "Use the recorded versioned v2 robot and qualified grasp; no physical controller has executed these candidates."
+  ],
+  "run": "bimanual-screen-011",
+  "generated_utc": "2026-09-08T09:50:00Z",
+  "phase_summary": [
+    {
+      "phase": "left_reach",
+      "frames": 41,
+      "collision_frames": 0,
+      "max_penetration_m": 0,
+      "maximum_left_error_m": 2.698625508385026e-07,
+      "maximum_right_error_m": 3.6763454645769456e-07,
+      "maximum_arm_motor_fraction": 0.4053361415637277,
+      "collision_pairs": []
+    },
+    {
+      "phase": "operator",
+      "frames": 9,
+      "collision_frames": 0,
+      "max_penetration_m": 0,
+      "maximum_left_error_m": 2.8648482803973085e-08,
+      "maximum_right_error_m": 3.001479527367285e-08,
+      "maximum_arm_motor_fraction": 0.40711871682221795,
+      "collision_pairs": []
+    },
+    {
+      "phase": "both_push",
+      "frames": 9,
+      "collision_frames": 0,
+      "max_penetration_m": 0,
+      "maximum_left_error_m": 5.3464258249813724e-08,
+      "maximum_right_error_m": 4.5742504895766e-08,
+      "maximum_arm_motor_fraction": 0.4075682770039918,
+      "collision_pairs": []
+    },
+    {
+      "phase": "right_release",
+      "frames": 41,
+      "collision_frames": 4,
+      "max_penetration_m": 0.011968898265941996,
+      "maximum_left_error_m": 2.775586017162713e-08,
+      "maximum_right_error_m": 3.814740814369321e-08,
+      "maximum_arm_motor_fraction": 0.4075682597404132,
+      "collision_pairs": [
+        {
+          "bodies": [
+            "leaf_handle",
+            "robot/rh_lfdistal"
+          ],
+          "patches": 41
+        },
+        {
+          "bodies": [
+            "leaf_handle",
+            "robot/rh_mfmiddle"
+          ],
+          "patches": 39
+        },
+        {
+          "bodies": [
+            "leaf_handle",
+            "robot/rh_rfmiddle"
+          ],
+          "patches": 37
+        },
+        {
+          "bodies": [
+            "leaf_handle",
+            "robot/rh_ffdistal"
+          ],
+          "patches": 22
+        },
+        {
+          "bodies": [
+            "leaf_handle",
+            "robot/rh_rfdistal"
+          ],
+          "patches": 21
+        },
+        {
+          "bodies": [
+            "leaf_handle",
+            "robot/rh_lfmiddle"
+          ],
+          "patches": 18
+        },
+        {
+          "bodies": [
+            "leaf_handle",
+            "robot/rh_mfdistal"
+          ],
+          "patches": 17
+        },
+        {
+          "bodies": [
+            "leaf_handle",
+            "robot/rh_ffmiddle"
+          ],
+          "patches": 16
+        },
+        {
+          "bodies": [
+            "leaf_handle",
+            "robot/rh_thdistal"
+          ],
+          "patches": 8
+        }
+      ]
+    },
+    {
+      "phase": "left_push",
+      "frames": 56,
+      "collision_frames": 0,
+      "max_penetration_m": 0,
+      "maximum_left_error_m": 4.033551856529024e-08,
+      "maximum_right_error_m": 0.31234166340080627,
+      "maximum_arm_motor_fraction": 0.4050103248187519,
+      "collision_pairs": []
+    }
+  ],
+  "render_review": {
+    "views": "Body and close views of both hands at grasp, release, final opening",
+    "finding": "Left contact route is plausible in sampled FK. Close release views show the fingers crossing the lever; this agrees with rejected collision patches."
+  },
+  "invalid_earlier_initialization": "Screens 001\u2013006 used the acquisition-container initial_joints rather than its qualified grasp endpoint; they do not establish preservation of a corrected-v2 grasp. The planner now rejects this container.",
+  "remaining": [
+    "Plan a collision-free physical right-hand release. Four sampled release frames penetrate the lever by up to 11.97 mm.",
+    "Rebase the candidate on the actual realized successful acquisition state.",
+    "Run unchanged-motor native dynamics with actual loaded left-palm transfer, every-step limits/contacts/loopbacks, and strict right-pad anatomy while held.",
+    "Only after native qualification, port to Isaac and verify actual contact-driven aperture without post-release coasting."
+  ]
+}
