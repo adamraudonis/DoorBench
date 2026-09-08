@@ -91,6 +91,12 @@ The native layout export now includes the two fixed eye-camera calibrations and 
 
 This is instrumentation beside a privileged teacher, not a sensor-only controller. It needs an actual H1 run, the existing independent opening audit, camera close-up inspection and a source check before being accepted. The serialized sensor packet contains no task geometry, while the independent teacher/evaluator trace intentionally still does. Keep these archives separate during training.
 
+### Fixed camera revision under validation
+
+Native eye images from the completed H1 capture largely miss the working hand and handle. The explicit `configs/dexterous/h1-manipulation-cameras.json` profile keeps both physical eye positions and tilts their fixed optical axes down 45 degrees with a 100-degree field of view. It never receives a task target or moves independently of the robot body. Native replay inspection shows the approaching hand and lever before contact and the hand during contact, including natural occlusion. This camera revision still needs live Isaac verification; it is not silently substituted in historical results.
+
+Export with `export_sensor_layout.py --camera-profile configs/dexterous/h1-manipulation-cameras.json`, or pass `run_handle_demo.py --sensors --sensor-camera-profile configs/dexterous/h1-manipulation-cameras.json` on the ready environment. The generated layout retains original native calibration, the explicit profile and its hash. `preview_sensor_cameras.py` renders fixed camera views from recorded native states for review; it is a replay, not a new task rollout. Its calibration tests verify that forward/down direction, body mount and tactile channels remain correct.
+
 The ready-environment wrapper now exposes the same capture with one flag:
 
 ```bash

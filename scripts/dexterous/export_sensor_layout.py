@@ -63,8 +63,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--robot', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--camera-profile',type=Path,help='Explicit fixed robot camera calibration overrides')
     args = parser.parse_args()
     result = export_layout(args.robot)
+    if args.camera_profile:
+        from doorbench.dexterous.camera_profile import apply_camera_profile
+        result=apply_camera_profile(result,json.loads(args.camera_profile.read_text()))
+        result['camera_profile_sha256']=hashlib.sha256(args.camera_profile.read_bytes()).hexdigest()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2)+'\n')
     print(json.dumps({'tactile_dimension': result['tactile_dimension'], 'sensors': len(result['sensors']), 'output': str(args.output)}))

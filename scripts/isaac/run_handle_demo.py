@@ -16,7 +16,9 @@ def main():
     parser.add_argument('--view',choices=['wide','hand'],default='wide')
     parser.add_argument('--output',type=Path)
     parser.add_argument('--sensors',action='store_true',help='Also capture finite tactile, proprioception and native eye-camera streams')
+    parser.add_argument('--sensor-camera-profile',type=Path,help='Explicit fixed robot camera profile for --sensors')
     args=parser.parse_args()
+    if args.sensor_camera_profile and not args.sensors:parser.error('--sensor-camera-profile requires --sensors')
     ready=ROOT/'out/isaac-ready'
     receipt=json.loads((ready/'ready.json').read_text())
     if not receipt.get('ready'):
@@ -39,7 +41,8 @@ def main():
     if args.sensors:
         sensor_layout=output.with_suffix('.sensor-layout.json')
         subprocess.run([str(asset_python),'scripts/dexterous/export_sensor_layout.py',
-            '--robot',str(ready/'h1-shadow.xml'),'--output',str(sensor_layout)],cwd=ROOT,env=env,check=True)
+            '--robot',str(ready/'h1-shadow.xml'),'--output',str(sensor_layout),
+            *(['--camera-profile',str(args.sensor_camera_profile.resolve())] if args.sensor_camera_profile else [])],cwd=ROOT,env=env,check=True)
         sensor_args=['--sensor-layout',str(sensor_layout)]
     subprocess.run([sys.executable,'scripts/dexterous/isaac_opening.py',
         '--robot-usd',str(robot_usd),'--door-usd',str(ROOT/'assets/doors/db0055_swing_single/door.usda'),
