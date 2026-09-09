@@ -48,9 +48,11 @@ def load_return_route(path,motors):
 
 
 class StandingReturnTeacher:
-    def __init__(self,transfer,motors,path,*,hold_finger_posture=False):
+    def __init__(self,transfer,motors,path,*,hold_finger_posture=False,support_load_target=None):
         if not transfer.attained_arm_tracking:raise ValueError('Return requires the qualified attained-arm transfer mode')
         if type(hold_finger_posture) is not bool:raise ValueError('Explicit attained hand posture option required')
+        if support_load_target is not None and (not np.isfinite(support_load_target) or not 2<support_load_target<=4):raise ValueError('Return support target must remain above the original 2 N gate and at most 4 N')
+        self.support_load_target=support_load_target;self.initial_support_target=transfer.left.support_load_target
         self.hold_finger_posture=hold_finger_posture;self.hand=None
         self.transfer=transfer;self.operation=transfer.operation;self.acquisition=transfer.acquisition
         self.config,self.plan,self.audit=load_return_route(path,motors)
@@ -81,6 +83,7 @@ class StandingReturnTeacher:
         position=(1-f)*self.roots[i,:3]+f*self.roots[i+1,:3];q=(1-f)*self.joints[i]+f*self.joints[i+1];targets=dict(zip(self.names,q))
         teacher.stance.target_root[:]=position;teacher.stance.target_rotation=self.rotations(u).as_matrix()
         teacher.stance.joint_target[:]=[targets[teacher.m.joint(int(j)).name] for j in teacher.stance.joints]
+        if self.support_load_target is not None:self.transfer.left.support_load_target=self.initial_support_target+float(smooth_phase(elapsed))*(self.support_load_target-self.initial_support_target)
         self.transfer.left.update_targets(t,root,joints,leaf_pose,left_panel_load,handle_pose)
         forces,info=self.operation.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified)
         forces=self.transfer.left.apply_forces(forces,joints,velocities)
