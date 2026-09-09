@@ -23,9 +23,17 @@ class SensorWalkStopController:
         c=json.loads(__import__('pathlib').Path(calibration).read_text())
         return cls(robot,motors,layout,c['motor_posture'],checkpoint,c['body_command'],stop_after_s)
 
-    def __init__(self,robot,motors,layout,posture,checkpoint,command,stop_after_s):
+    def __init__(self,robot,motors,layout,posture,checkpoint,command,stop_after_s,lower_to_m=None,stance_yaw_weight=2.,hip_spread=0.,leg_path=False):
         if not np.isfinite(stop_after_s) or stop_after_s<1:raise ValueError('Explicit stop request after at least one second required')
+        if lower_to_m is not None and (not np.isfinite(lower_to_m) or not .8<=lower_to_m<=1.05):raise ValueError('Bounded robot stance height required')
+        if not np.isfinite(stance_yaw_weight) or not 2<=stance_yaw_weight<=300:raise ValueError('Bounded stance yaw objective required')
+        if leg_path and lower_to_m is None:raise ValueError('Leg path requires a lowering task')
+        self.leg_path=bool(leg_path);self.lowering_nodes=None
+        self.stance_yaw_weight=float(stance_yaw_weight)
+        self.lower_to_m=lower_to_m
         self.walk=SensorLocomotionController(robot,motors,layout,posture,checkpoint,command)
+        if not np.isfinite(hip_spread) or not 0<=hip_spread<=.12:raise ValueError('Bounded hip-spread calibration required')
+        self.walk.hip_spread=float(hip_spread)
         self.initial_command=np.asarray(command,float).copy();self.inputs=(robot,motors,layout);self.stop_after=float(stop_after_s)
         offset=0;self.foot_slices=[]
         for row in layout['sensors']:
@@ -37,7 +45,7 @@ class SensorWalkStopController:
         self.reset_episode()
 
     def reset_episode(self):
-        self.walk.reset_episode();self.walk.command_motion(self.initial_command);self.brake_started=None;self.balance=None;self.support_since=None;self.handoff=None;self.last_info={}
+        self.walk.reset_episode();self.walk.command_motion(self.initial_command);self.brake_started=None;self.balance=None;self.lowering_nodes=None;self.support_since=None;self.handoff=None;self.last_info={}
 
     @property
     def previous_action(self):
@@ -48,8 +56,15 @@ class SensorWalkStopController:
     def force(self,packet,now_s):
         t=float(now_s)
         if self.balance is not None:
+            if self.lower_to_m is not None:
+                u=float(np.clip((t-self.handoff['time_s']-1.)/4.,0.,1.));blend=u*u*u*(10.+u*(-15.+6.*u))
+                if self.lowering_nodes is not None:
+                    index=min(int(blend*40),39);weight=blend*40-index;node=(1-weight)*self.lowering_nodes[index]+weight*self.lowering_nodes[index+1]
+                    self.balance.stance.joint_target=node[:10].copy();self.balance.stance.target_root=node[10:13].copy()
+                    self.balance.stance.target_rotation=Rotation.from_euler('xyz',[*node[13:15],self.handoff['stance_heading_rad']]).as_matrix()
+                else:self.balance.stance.target_root[2]=self.handoff['estimated_height_m']+blend*(self.lower_to_m-self.handoff['estimated_height_m'])
             force,info=self.balance.force(packet,now_s=t)
-            self.last_info=dict(stage='stance',handoff=self.handoff,**info);return force
+            self.last_info=dict(stage='stance',handoff=self.handoff,lower_to_m=self.lower_to_m,target_height_m=float(self.balance.stance.target_root[2]),**info);return force
         if self.brake_started is None and t>=self.stop_after and abs((t%.8)-.2)<.0011:self.brake_started=t
         if self.brake_started is not None:self.walk.command_motion([0.,0.,0.],phase_amplitude=max(0.,1.-(t-self.brake_started)))
         previous_force=self.walk.last_force.copy()
@@ -86,11 +101,16 @@ class SensorWalkStopController:
             b.d.qpos[3:7]=Rotation.from_matrix(w.orientation).as_quat()[[3,0,1,2]]
             mujoco.mj_forward(b.m,b.d)
             b.imu_rotation=b.d.site_xmat[b.imu].reshape(3,3).copy()
+            b.sim.stance_weights=np.r_[[200,200,1000,300,300,self.stance_yaw_weight],np.full(10,.01)]
             b.stance=LandedFootStanceController(b.sim)
             b.last_gyro_time=float(packet['sensor_time_s'][2]);b.last_time=t-.002
             b.last_force=previous_force;b.last_sensor_times=packet['sensor_time_s'].copy()
             self.handoff=dict(time_s=t,foot_touch_norms_N=loads,supported_for_s=t-self.support_since,estimated_speed_m_s=speed,
-                desired_joint_projection_max_rad=float(np.max(abs(q-original))),source='own encoders, mounted IMU estimate and foot tactile grids',plant_pose_writes=0)
+                estimated_height_m=float(b.stance.target_root[2]),stance_heading_rad=float(Rotation.from_matrix(b.stance.target_rotation).as_euler('xyz')[2]),desired_joint_projection_max_rad=float(np.max(abs(q-original))),source='own encoders, mounted IMU estimate and foot tactile grids',plant_pose_writes=0)
+            if self.leg_path:
+                from .sensor_stance_path import plan_lowering
+                self.lowering_nodes,path_info=plan_lowering(b,self.lower_to_m);self.handoff['leg_path']=path_info
+                b.sim.stance_weights[6:]=100.
             self.balance=b
             force,info=b.force(packet,now_s=t)
             self.last_info=dict(stage='stance',handoff=self.handoff,**info)

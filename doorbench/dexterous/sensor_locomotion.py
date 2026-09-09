@@ -72,7 +72,7 @@ class SensorLocomotionController:
         if self.command.shape!=(3,) or not np.isfinite(self.command).all() or np.any(abs(self.command)>[.3,.12,.4]):
             raise ValueError('Require a bounded constant body velocity command')
         self.legs=np.array([self.names.index(n) for n in JOINT_NAMES]);self.joints=np.array([self.motor.names.index(n) for n in JOINT_NAMES])
-        self.phase_amplitude=1.
+        self.phase_amplitude=1.;self.hip_spread=0.
         self.walk=H1WalkingPolicy(checkpoint);self.shapes=ActorDimensions(tactile=layout['tactile_dimension']).shapes
         self.jp=np.zeros((3,m.nv));self.jr=self.jp.copy()
         self.action_semantics='pinned_h1_sensor_locomotion_constant_command_v1'
@@ -138,8 +138,13 @@ class SensorLocomotionController:
                 self.orientation=self.orientation@Rotation.from_rotvec(self.gyro*.002).as_matrix()
             del self.history[step-1]
         if step%10==0:
-            self.target=self.walk.step(q[self.joints],dq[self.joints],self.gyro,
-                self.orientation.T@np.array([0.,0.,-1.]),self.command,t,phase_amplitude=self.phase_amplitude)
+            from .locomotion_posture import minimum_jerk
+            if not np.isfinite(self.hip_spread) or not 0<=self.hip_spread<=.12:raise ValueError('Bounded hip-spread calibration required')
+            blend,rate=minimum_jerk(t,1.,3.)
+            lateral=np.array([0.,1.,0.,0.,0.,0.,-1.,0.,0.,0.])*self.hip_spread
+            offset=lateral*blend
+            self.target=self.walk.step(q[self.joints]-offset,dq[self.joints]-lateral*rate,self.gyro,
+                self.orientation.T@np.array([0.,0.,-1.]),self.command,t,phase_amplitude=self.phase_amplitude)+offset
         desired=H1WalkingPolicy.torques(self.target,q[self.joints],dq[self.joints])
         desired=np.clip(desired,self.motor.caps[self.legs,0],self.motor.caps[self.legs,1])
         bias=self.motor.state_bias(q,dq);u=self.posture.copy()

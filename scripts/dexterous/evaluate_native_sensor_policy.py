@@ -67,6 +67,10 @@ def main():
     policy=p.add_mutually_exclusive_group(required=True)
     policy.add_argument('--checkpoint',type=Path)
     policy.add_argument('--locomotion-checkpoint',type=Path,help='Explicit pinned sensor-locomotion baseline; not a learned door policy')
+    p.add_argument('--stance-leg-path',action='store_true',help='Explicit foot-preserving robot-only IK posture objective')
+    p.add_argument('--hip-spread',type=float,default=0.,help='Explicit bounded gait stance-width calibration')
+    p.add_argument('--stance-yaw-weight',type=float,default=2.,help='Disclosed stance yaw objective; original is 2')
+    p.add_argument('--lower-to-m',type=float,help='Separate sensor-supported lowering target after walking stop')
     p.add_argument('--stop-after-s',type=float,help='Explicit experimental sensor walking-to-stance transition')
     p.add_argument('--body-command',type=float,nargs=3,default=[0.,0.,0.])
     p.add_argument('--camera-profile', type=Path, default=Path('configs/dexterous/h1-manipulation-cameras.json'))
@@ -75,6 +79,8 @@ def main():
     a = p.parse_args()
     if not np.isfinite([a.seconds, a.max_wall_seconds]).all() or min(a.seconds, a.max_wall_seconds) <= 0:
         p.error('Finite positive rollout bounds required')
+    if a.stop_after_s is None and (a.stance_leg_path or a.stance_yaw_weight!=2. or a.hip_spread!=0.):p.error('Stance and gait calibration options require the explicit stopping component')
+    if a.lower_to_m is not None and a.stop_after_s is None:p.error('--lower-to-m requires a supported stopping transition')
     if a.stop_after_s is not None and not a.locomotion_checkpoint:p.error('--stop-after-s requires the explicit locomotion component')
     if a.output.exists():
         raise FileExistsError('Preserve earlier physical rollouts')
@@ -87,7 +93,7 @@ def main():
         posture=json.loads((a.teacher_run/'body_reset.json').read_text())['motor_targets']
         if a.stop_after_s is not None:
             from doorbench.dexterous.sensor_walk_stop import SensorWalkStopController
-            actor=SensorWalkStopController(robot,motors,layout,posture,a.locomotion_checkpoint,a.body_command,a.stop_after_s)
+            actor=SensorWalkStopController(robot,motors,layout,posture,a.locomotion_checkpoint,a.body_command,a.stop_after_s,a.lower_to_m,a.stance_yaw_weight,a.hip_spread,a.stance_leg_path)
         else:actor=SensorLocomotionController(robot,motors,layout,posture,a.locomotion_checkpoint,a.body_command)
     else:
         actor = SensorPolicyController(a.checkpoint, motor_contract=motors, sensor_layout=layout, physics_dt_s=.002)

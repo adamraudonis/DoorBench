@@ -124,3 +124,41 @@ heading. A stricter heading objective held orientation but failed to descend.
 A wider-stance attempt lost support and accumulated QP failures. Robot-only IK
 posture guidance is under development with original joint bounds and explicit
 foot-frame residual checks. None of these results qualify handle interaction.
+
+The optional native lowering flags (`--lower-to-m`, `--stance-yaw-weight`,
+`--hip-spread`, `--stance-leg-path`) are explicit development experiments.
+Seven attempts have not established a qualified lowering transition. The
+robot-only leg planner tests original joint bounds and foot-pose residuals;
+optimizer convergence is disclosed separately from geometric feasibility.
+A geometrically valid wider-stance path still lost support during actual
+execution. These options do not change the default qualified stopping protocol.
+
+A standing grasp alternative is now promising: the original 401-pose hand route
+can be fitted at the measured standing height by using the existing torso-yaw
+joint. It passes a separate 1,001-pose full-scene collision screen. A native
+physical trial using preserved actual foot frames passed 12 grasp checks, and
+a fresh trial with full transition recording passed 14, including every-interval
+stance solves and warning checks. Peak torso tilt was 0.4673° and final palm
+tracking error below 0.577 mm. Body and close-up hand views were inspected.
+This is privileged acquisition from a pregrasp reset, not continuous walking,
+opening, independent replay qualification or a sensor-only hand policy.
+
+Reproduce candidate generation from a qualified standing capture:
+
+```bash
+python scripts/dexterous/prepare_standing_acquisition.py \
+  --stance-run "$STANDING_RUN" \
+  --reference configs/dexterous/door55-precurl-v2/reference.json \
+  --output out/standing-candidate
+python scripts/dexterous/rescreen_acquisition_reference.py \
+  --robot "$ROBOT_XML" --door "$DOOR_DIR" \
+  --reference out/standing-candidate/reference.json --output out/standing-screen
+python scripts/dexterous/probe_acquisition_teacher.py \
+  --robot "$ROBOT_XML" --door "$DOOR_DIR" --motors "$MOTORS" \
+  --reference out/standing-screen/reference.json --stance-profile landed-foot-v1 \
+  --record-transitions --seconds 10.6 --output out/standing-physical
+```
+
+Use the pinned environment interpreter on the GPU; its system Python does not
+provide the same hashing/runtime APIs. Rescreen and physically test against the
+exact destination robot bytes before claiming cross-engine results.

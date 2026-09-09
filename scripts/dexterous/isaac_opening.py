@@ -134,6 +134,7 @@ p.add_argument('--view',choices=['wide','hand'],default='wide')
 p.add_argument('--upright-gain',type=float,default=0.,help='Post-opening IMU ankle feedback; bounded robot motors only')
 p.add_argument('--native-robot',help='Enable closed-loop kinematic teacher using this native robot XML for FK only')
 p.add_argument('--acquisition',action='store_true',help='Execute the shared contact-free acquisition teacher from reference.path_qpos; privileged development only')
+p.add_argument('--acquisition-stance-profile',choices=['landed-foot-v1'],help='Explicit body-origin feedback and actual-foot-frame acquisition stance')
 p.add_argument('--acquisition-middle-finger-force',type=float,help='Explicit acquisition middle-finger preload in N; original motor caps unchanged')
 p.add_argument('--acquisition-index-finger-force',type=float,help='Explicit acquisition index-finger preload in N; original motor caps unchanged')
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
@@ -200,6 +201,7 @@ if not math.isfinite(a.grip_impedance) or a.grip_impedance<0:p.error('--grip-imp
 if not math.isfinite(a.finger_curl):p.error('--finger-curl must be finite')
 if not math.isfinite(a.torso_damping) or a.torso_damping<0:p.error('--torso-damping must be finite and nonnegative')
 if a.acquisition and (not a.native_robot or a.panel_push or a.mechanism_test):p.error('Acquisition requires --native-robot and a separate acquisition-only trial')
+if a.acquisition_stance_profile and (not a.acquisition or a.full_sequence_reset):p.error('Landed-foot acquisition is a separate explicit acquisition trial')
 if a.operate_after_acquisition and not a.acquisition:p.error('--operate-after-acquisition requires --acquisition')
 if a.open_on_latch_clear and not a.operate_after_acquisition:p.error('--open-on-latch-clear requires --operate-after-acquisition')
 from doorbench.dexterous.control_mode import validate_sensor_actor_mode,validate_sensor_balance_protocol
@@ -486,7 +488,7 @@ def main():
     teacher=None;teacher_info={};teacher_control=None;sequence=None;operation=None;sensor_actor=None;full_opening=None;opening_geometry=None;continuous=None
     if a.acquisition:
         from doorbench.dexterous.acquisition_teacher import AcquisitionTeacher
-        teacher=AcquisitionTeacher(a.native_robot,motors,ref,middle_finger_force=a.acquisition_middle_finger_force,index_finger_force=a.acquisition_index_finger_force)
+        teacher=AcquisitionTeacher(a.native_robot,motors,ref,middle_finger_force=a.acquisition_middle_finger_force,index_finger_force=a.acquisition_index_finger_force,stance_profile=a.acquisition_stance_profile)
         operation=None
         if a.operate_after_acquisition:
             from doorbench.dexterous.operation_teacher import DoorOperationTeacher
@@ -746,7 +748,7 @@ def main():
         pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
         rotation=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
         pad_steps.append(pad_evaluator.read(physics_dt=dt,time_s=0.,center=pose[:3]+rotation@grip_center,axis=rotation@grip_axis,half_length=grip_half,radius=grip_radius))
-        acquisition_reset=dict(root=controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration))[0].cpu().tolist(),joints=robot.data.joint_pos[0].cpu().tolist(),door=dict(zip(dnames,door.data.joint_pos[0].cpu().tolist())),
+        acquisition_reset=dict(root=controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration or a.acquisition_stance_profile))[0].cpu().tolist(),joints=robot.data.joint_pos[0].cpu().tolist(),door=dict(zip(dnames,door.data.joint_pos[0].cpu().tolist())),
             contact_evidence_note='t=0 contact buffers before the first explicit step; full static native path/initial clearances are recorded separately with the reference')
         (out/'acquisition-reset.json').write_text(json.dumps(acquisition_reset,indent=2)+'\n')
     foot_loads=np.zeros(2);right_hand_contact_count=0;right_hand_buffered_contact_count=0
@@ -806,7 +808,7 @@ def main():
         hp=measured_body[door.body_names.index('leaf_handle')];lp=measured_body[door.body_names.index('leaf')]
         angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in
                 [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
-        geometry=opening_geometry.read(time_s=t,pose_time_s=t,root=controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration))[0].cpu().numpy(),
+        geometry=opening_geometry.read(time_s=t,pose_time_s=t,root=controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration or a.acquisition_stance_profile))[0].cpu().numpy(),
             joints=dict(zip(rnames,robot.data.joint_pos[0].cpu().numpy())),angles=angles,
             body_poses=dict(zip(robot.body_names,robot.data.body_state_w[0,:,:7].cpu().numpy())),
             handle_pose=hp,leaf_pose=lp)
@@ -971,7 +973,7 @@ def main():
             forces=np.clip(kp*ctrl+bias[:,0]+bias[:,1]*lengths+bias[:,2]*speeds+feedforward+impedance,force_ranges[:,0],force_ranges[:,1])
             if a.acquisition:
                 body=door.data.body_state_w[0,:,:7].cpu().numpy()
-                measured_args=(step*dt,controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration))[0].cpu().numpy(),dict(zip(rnames,pos)),dict(zip(rnames,vel)),body[door.body_names.index('leaf_handle')])
+                measured_args=(step*dt,controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration or a.acquisition_stance_profile))[0].cpu().numpy(),dict(zip(rnames,pos)),dict(zip(rnames,vel)),body[door.body_names.index('leaf_handle')])
                 loads=dict(zip(hand_paths,hand_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().sum(axis=1)))
                 if full_opening:
                     state=full_measurement
@@ -1201,7 +1203,7 @@ def main():
                     right_hand_contact_count=right_hand_contact_count,buffered_hand_contact_count=right_hand_buffered_contact_count))
             if physics_audit_enabled:
                 acquisition_states['time_s'].append((step+1)*dt)
-                acquisition_states['root'].append(controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration))[0].cpu().numpy().copy())
+                acquisition_states['root'].append(controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration or a.acquisition_stance_profile))[0].cpu().numpy().copy())
                 acquisition_states['joints'].append(robot.data.joint_pos[0].cpu().numpy().copy())
                 acquisition_states['motor_forces'].append(forces.copy())
                 acquisition_states['door'].append(door.data.joint_pos[0].cpu().numpy().copy())
@@ -1243,7 +1245,7 @@ def main():
                     robot=dict(zip(robot.body_names,robot.data.body_state_w[0,:,:7].cpu().tolist())),
                     door=dict(zip(door.body_names,door.data.body_state_w[0,:,:7].cpu().tolist()))),indent=2)+'\n')
             if step%10==0:
-                state=controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration))[0].cpu().numpy()
+                state=controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration or a.acquisition_stance_profile))[0].cpu().numpy()
                 up=robot.data.projected_gravity_b[0].cpu().numpy()
                 row=dict(time_s=(step+1)*dt,sim_time_s=float(sim.current_time)-time_origin,root=state.tolist(),torso_tilt_deg=float(np.degrees(np.arccos(np.clip(-up[2],-1,1)))),
                          joints=robot.data.joint_pos[0].cpu().tolist(),door=dict(zip(dnames,door.data.joint_pos[0].cpu().tolist())),

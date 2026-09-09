@@ -21,8 +21,11 @@ class AcquisitionTeacher:
     def __init__(self, robot_xml, motors, reference, *, reach_seconds=6.6,
                  grip_force=6., finger_grip_scale=1/3, grip_start=.995,
                  palm_integral=1., torso_impedance=10., middle_finger_force=None,
-                 index_finger_force=None, stance_solver_settings=None):
+                 index_finger_force=None, stance_solver_settings=None, stance_profile=None):
+        if stance_profile not in (None,'landed-foot-v1'):raise ValueError('Unknown declared stance profile')
+        self.stance_profile=stance_profile
         self.stance_solver_settings=validate_stance_solver_settings(stance_solver_settings)
+        if stance_profile is not None and self.stance_solver_settings:raise ValueError('Landed-foot profile already fixes its solver settings')
         if motors.get('source_xml_sha256')!=hashlib.sha256(Path(robot_xml).read_bytes()).hexdigest():
             raise ValueError('Acquisition model does not match imported motor contract')
         if motors.get('hand_mechanics_profile')!='shadow-loopback-v2':
@@ -127,11 +130,17 @@ class AcquisitionTeacher:
                 body=m.body(name.rsplit('/',1)[-1]).id;mujoco.mj_jacBody(m,d,self.jp,self.jr,body)
                 external+=self.jp.T@np.asarray(load)
             if self.stance is None:
-                self.stance=StanceController(SimpleNamespace(m=m,d=d,joint_prefix='',actuators=self.act,root_qadr=0,root_vadr=0,pelvis=m.body('pelvis').id,external_generalized_force=external),solver_settings=self.stance_solver_settings)
+                stance_sim=SimpleNamespace(m=m,d=d,joint_prefix='',actuators=self.act,root_qadr=0,root_vadr=0,pelvis=m.body('pelvis').id,external_generalized_force=external)
+                if self.stance_profile=='landed-foot-v1':
+                    from .locomotion_manipulation import LandedFootStanceController
+                    stance_sim.stance_solver_settings={'max_iter':50000,'rho':.001,'adaptive_rho_interval':25}
+                    self.stance=LandedFootStanceController(stance_sim)
+                else:self.stance=StanceController(stance_sim,solver_settings=self.stance_solver_settings)
             self.stance.sim.external_generalized_force=external
             self.stance_targets,status=self.stance.command()
             self.info=dict(phase='acquisition',path_fraction=float(u),tracking_error_m=self.tracking_error,stance_status=status)
-            if self.stance_solver_settings:self.info['stance_solver']=dict(self.stance.last_solver_metadata)
+            if self.stance_solver_settings or self.stance_profile:self.info['stance_solver']=dict(self.stance.last_solver_metadata)
+            self.info['stance_profile']=self.stance_profile
         length=self.matrix@q;speed=self.matrix@v
         force=self.kp*self.target+self.bias[:,0]+self.bias[:,1]*length+self.bias[:,2]*speed+self.kp*self.gain*(self.target-length)-self.damping*speed
         for local in self.arm_motors:

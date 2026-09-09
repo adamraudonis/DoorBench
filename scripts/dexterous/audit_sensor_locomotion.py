@@ -29,7 +29,7 @@ def main():
     args=(cfg['robot'],motors,layout,cfg['upper_motor_posture'],cfg['locomotion_checkpoint'],cfg['body_command'])
     if stopping:
         from doorbench.dexterous.sensor_walk_stop import SensorWalkStopController
-        c=SensorWalkStopController(*args,cfg['stop_after_s'])
+        c=SensorWalkStopController(*args,cfg['stop_after_s'],cfg.get('lower_to_m'),cfg.get('stance_yaw_weight',2.),cfg.get('hip_spread',0.),cfg.get('stance_leg_path',False))
     else:c=SensorLocomotionController(*args)
     c.reset_episode()
     with np.load(sensor/'actor-initial-decision.npz',allow_pickle=False) as z:packet={k:z[k].copy() for k in z.files if k!='time_s'}
@@ -88,12 +88,16 @@ def main():
     checks=dict(completed_duration=report['stop_reason']=='duration',complete_sensor_join=count==capture['samples'],
         exact_motor_replay=force_error<1e-5,estimated_gravity_close=gravity_error<.01,
         independently_reconstructed_gyro=gyro_error<1e-5,no_loaded_unintended_scene_contact=bad_contacts==0,
-        no_warning_intervals=warnings==0,root_stable=max_root_tilt<10 and min_height>.9,
+        no_warning_intervals=warnings==0,root_stable=max_root_tilt<10 and min_height>(cfg['lower_to_m']-.1 if cfg.get('lower_to_m') is not None else .9),
         no_runtime_pose_writes=report['runtime_pose_writes']==0,no_teacher_actions=report['teacher_actions']==0,
         original_force_delivery=report['maximum_motor_delivery_error_Nm']==0,
         no_external_assistance=report['final']['external_wrench_max']==0 and report['final']['applied_generalized_force_max']==0)
     if stopping:
         checks.update(support_handoff_occurred=c.balance is not None,stance_solver_clean=c.balance is not None and c.balance.qp_failures==0,quiet_final_second=quiet_speed<.03 and np.max(np.ptp(quiet_positions,axis=0))<.03,final_two_foot_support=quiet_min_support>10.,original_joint_stops=joint_limit<.02,passive_loopback_bounds=loopback<.02)
+    heading=float(np.rad2deg(np.arctan2(final_R[1,0]*initial_direction[0]-final_R[0,0]*initial_direction[1],final_R[0,0]*initial_direction[0]+final_R[1,0]*initial_direction[1])))
+    if cfg.get('lower_to_m') is not None:
+        checks['attained_lowered_height']=abs(last[2]-cfg['lower_to_m'])<.02
+        checks['heading_retained_during_lowering']=abs(heading)<5.
     checks={key:bool(value) for key,value in checks.items()}
     result=dict(passed=all(checks.values()),checks=checks,steps=count,duration_s=report['time_s'],
         displacement_world_m=displacement.tolist(),forward_displacement_m=float(displacement@initial_direction),
@@ -101,7 +105,7 @@ def main():
         maximum_gyro_reconstruction_error_rad_s=gyro_error,maximum_root_tilt_deg=max_root_tilt,minimum_root_height_m=min_height,
         loaded_unintended_scene_contacts=bad_contacts,physics_steps=0,scope=__doc__,
         inputs={name:digest(run/name) for name in ('manifest.json','report.json','raw-transitions/manifest.json','own-sensors/report.json')},
-        auditor_sha256=digest(__file__),maximum_joint_limit_violation_rad=joint_limit,maximum_loopback_violation_rad=loopback,final_second_maximum_speed_m_s=quiet_speed,final_second_minimum_foot_support_N=quiet_min_support,transition=getattr(c,'handoff',None))
+        auditor_sha256=digest(__file__),maximum_joint_limit_violation_rad=joint_limit,maximum_loopback_violation_rad=loopback,final_second_maximum_speed_m_s=quiet_speed,final_second_minimum_foot_support_N=quiet_min_support,transition=getattr(c,'handoff',None),final_heading_change_deg=heading)
     output.write_text(json.dumps(result,indent=2)+'\n');sim.close();print(json.dumps(result))
     return 0 if result['passed'] else 1
 
