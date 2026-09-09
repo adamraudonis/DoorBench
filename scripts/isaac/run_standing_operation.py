@@ -126,6 +126,9 @@ def main():
         run([asset,a.source/'scripts/dexterous/probe_acquisition_operation.py','--robot',robot,'--door',door,'--reference',reference,'--motors',motors,'--stance-profile','landed-foot-v1','--record-transitions','--index-finger-force','3','--portable-wrapper','--operator-compliance-gain','.2','--pressure-segment','distal','--grasp-offset-in-handle-m',*grasp_offset,'--seconds','36','--output',native,*hold_options,*native_pad_options],'native-prerequisite',1200,allowed_codes=(0,1))
         result['native_runtime_passed']=json.loads((native/'report.json').read_text()).get('passed') is True
         run([asset,a.source/'scripts/dexterous/audit_sensor_acquisition_contacts.py','--trial',native,'--output',a.output/'native-independent-audit.json'],'native-contact-audit',600)
+        run([asset,a.source/'scripts/dexterous/audit_native_handle_assembly.py','--trial',native,'--output',a.output/'native-whole-handle-audit.json'],'native-whole-handle-audit',600,allowed_codes=(0,1))
+        result['native_whole_handle_passed']=json.loads((a.output/'native-whole-handle-audit.json').read_text())['passed']
+        if not result['native_whole_handle_passed']:raise ValueError('Native hand contacts outside the grasped lever; Isaac launch blocked')
         if not result['native_runtime_passed']:raise ValueError('Destination-native sustained hold failed')
         if a.operation_operator_follow_after_leaf_rad is not None:
             last=json.loads((native/'trace.json').read_text())[-1]

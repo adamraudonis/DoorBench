@@ -34,6 +34,8 @@ The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock
 
 **Dexterous humanoid development — one lever door:**
 
+**Audit correction:** earlier native grasp counts checked the lever collider, not the whole handle assembly. A whole-handle re-audit invalidated the upright opening qualification. Historical counts below retain their original scope; full-hand qualification is pending. [Correction and next steps](docs/DEXTEROUS_NEXT_STEPS.md).
+
 | Engine / controller | Recorded result | UTC date |
 |---|---|---|
 | MuJoCo, privileged H1/Shadow teacher (deep stance) | Uninterrupted approach, grasp, handle operation, opening, release and traversal; **47/47 task + 16/16 independent archive checks**; exact same-start repeat | September 9, 2026, 02:34 |
@@ -43,8 +45,8 @@ The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock
 | MuJoCo, upright privileged handle return | **23/23 runtime + 6/6 independent checks** over 64 s; opposed grip, latch operation, partial opening, left-palm support and lever return; maximum torso tilt 2.89° ([audit](docs/evidence/native-standing-return-004.json)) | September 9, 2026, 11:02–11:05 |
 | Isaac, standing handle operation (`backend-dry-v2`) | **Failed: 18/19 checks**; physical latch release and 4.44° opening, but three fingers leave their distal pads ([audit](docs/evidence/isaac-standing-operation-002.json)) | September 9, 2026, 08:59 |
 | Isaac, extended standing operation | **Incomplete:** timeout before final export; snapshots through 35.5 s show opening followed by grip loss ([record](docs/evidence/isaac-standing-operation-003-incomplete.json)) | September 9, 2026, 13:12–14:01 |
-| MuJoCo, upright handle release | **29/29 runtime + 8/8 independent checks** over 80.6 s; zero invalid loaded finger contacts, right hand clears by 46.3 mm, left palm supports door ([audit](docs/evidence/native-standing-withdrawal-017.json)) | September 9, 2026, 15:07 verification |
-| MuJoCo, upright release and panel opening | **33/33 runtime + 12/12 independent checks** over 120 s; door held at 42.5°, hand clear and palm supported; no traversal ([audit](docs/evidence/native-standing-panel-006.json)) | September 9, 2026, 16:55 verification |
+| MuJoCo, upright handle release | **29/29 runtime + 8/8 independent checks** over 80.6 s; zero invalid loaded contacts on the audited lever collider, right hand clears by 46.3 mm, left palm supports door ([audit](docs/evidence/native-standing-withdrawal-017.json)) | September 9, 2026, 15:07 verification |
+| MuJoCo, upright release and panel opening | **Not fully qualified:** 42.5° opening passed the earlier lever-only checks, but the whole-handle audit found little-finger hub contact ([correction](docs/evidence/native-standing-panel-006-whole-handle.json)) | September 9, 2026, whole-handle re-audit |
 | Isaac, held-grasp comparison | **Failed: 17/19 runtime checks**; lever/latch operated, grip and opening hold lost; intended hold never activated ([audit](docs/evidence/isaac-standing-hold-005.json)) | September 9, 2026, 15:05 completion |
 | Isaac, measured-pressure opening | **Failed: 17/19 runtime checks** over 27.4 s; door opens, but fingers slip and thumb contacts the wrong surface; stopped early and independently audited ([audit](docs/evidence/isaac-standing-pressure-014.json)) | September 9, 2026, 17:27 completion |
 | MuJoCo, latest learned motor-target sensor actor | **0/1 complete tasks**; fell after 1.306 s | September 9, 2026, 06:42 |

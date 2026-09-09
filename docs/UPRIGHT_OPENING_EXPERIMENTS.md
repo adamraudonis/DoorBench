@@ -9,13 +9,13 @@ See the [current execution ledger](DEXTEROUS_NEXT_STEPS.md) for live status.
 
 | Experiment | Evidence | Limit |
 |---|---|---|
-| Native panel006 | 33 runtime and 12 independent checks; continuous 120 s from closed door, upright grasp, lever operation, intentional release, supported 42.5° opening | Fixed feet during opening; no traversal |
+| Native panel006 — superseded qualification | Whole-handle re-audit failed despite33 runtime and12 earlier checks; continuous 120 s from closed door, upright grasp, lever operation, intentional release, supported 42.5° opening | Fixed feet during opening; no traversal |
 | Native panel007 | Supported segment handoff and contact accounting reproduced | Failed to reach the wider target; stalled at 43.8° |
 | Native panel008 | Contact accounting reproduced; recorded hinge-torque analysis explains the stall | Failed to reach the wider target; stopped at 63.0° |
 | Isaac pressure014 | Independent audit and off-pod archive verified | Failed grasp; recorded thumb contact on an excluded surface; stopped at 27.4 s |
 | Isaac lead015 | Its entire 20 s physical prefix exactly matches pressure014 | The lead limit never intervened; the identical failure is not a correction |
 
-[Qualified native opening](evidence/native-standing-panel-006.json) ·
+[Original lever-only opening report](evidence/native-standing-panel-006.json) ·
 [Wider-opening force diagnosis](evidence/native-standing-panel-008.json) ·
 [Isaac contact failure](evidence/isaac-standing-pressure-014.json) ·
 [Controlled comparison](evidence/isaac-standing-lead-015.json).
@@ -162,3 +162,13 @@ XML and chunk hashes, reconstructs only kinematics at the contact epoch and
 checks them against recorded body transforms. It decomposes actual leaf-subtree
 contact torque into normal, tangent and couple contributions. It does not
 recompute dynamics, assert complete torque balance or qualify the task.
+
+
+## Whole-handle correction
+
+The additional native gate rejects loaded RH contacts against any handle
+collider other than the declared grasped lever. Panel006 fails it with45,352
+hub patches, maximum7.7866N, from24.234 through69.244s. The earlier45 checks
+remain historical evidence of their limited scope, not a qualified whole-hand
+episode. The coordinator now requires `native-whole-handle-audit.json` before
+any new Isaac dispatch. Full sequence qualification is pending a hub-safe grasp.

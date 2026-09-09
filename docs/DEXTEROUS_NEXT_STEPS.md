@@ -4,20 +4,25 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 
 ## Starting point
 
-September 9, 2026: the corrected H1/Shadow model has a qualified upright native
-sequence through grasp, lever operation, release and supported opening to42.5°
-([33 runtime and12 independent checks](evidence/native-standing-panel-006.json)).
-It uses privileged state and fixed feet during opening. It does not qualify
-upright traversal or learned sensor control. The wider69° geometry passed its
-2,001-pose audit, but physical trials007 and008 missed the target (43.8° and63°).
-Trial008 stalled with net opening torque0.4557Nm against0.4576Nm hinge friction.
-A prospective bounded7N palm-target experiment retains the qualified geometry,
-original motor caps, contact checks and target. It is not yet qualified.
-Actual Isaac pressure014 and lead015 failed; follow016 also failed the original
-contact protocol and has been requested to export its measured prefix. Its
-retrospective volar diagnostic still rejects lateral little-finger contact;
-changing the grasp profile is not a remedy. Live trials are listed in
-[local Run Center](http://127.0.0.1:5193/).
+September 9, 2026 correction: the upright42.5° native episode passed its
+original lever-only checks, but **is not fully qualified**. A new whole-handle
+audit found45,352 loaded little-finger hub patches across14,573 intervals
+([recorded evidence](evidence/native-standing-panel-006-whole-handle.json)).
+The native prerequisite had omitted these colliders while Isaac's raw contact
+view included them. The full assembly gate is now mandatory before future Isaac
+dispatch. Historical reports remain unchanged; they cannot establish whole-hand
+qualification. The same source sequence underlies the current wider-opening
+experiment, so greater aperture cannot repair this earlier contact defect.
+
+Native panel009 has reached68.8° upright under its declared7N continuation
+profile; final legacy checks and the new full assembly check are pending.
+Isaac follow016 remains failed. Clearance017 and018 failed native prerequisites;
+clearance019's coordinator was stopped to prevent dispatch under the incomplete
+audit. Its native process is allowed to finish for diagnosis. The immediate
+priority is hub-safe grasp acquisition and operation, then re-running the whole
+sequence under the complete contact contract.
+
+Live trials are listed in [local Run Center](http://127.0.0.1:5193/).
 
 The earlier complete native traversal used a deep stance. Keep that result
 separate from this upright sequence. The sensor actor still fails unassisted
