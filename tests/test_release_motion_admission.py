@@ -30,3 +30,10 @@ def test_detects_modified_audit(tmp_path):
     source,screen,audit,d,cfg=fixture(tmp_path)
     audit.write_text('{}')
     with pytest.raises(ValueError,match='bytes changed'):validate_motion_screen(cfg,screen,source)
+
+
+def test_rejects_unmet_reserve_despite_pass_flag(tmp_path):
+    source,screen,audit,d,cfg=fixture(tmp_path)
+    d.update(clearance_reserve_m=.002,minimum_clearance_margin_m=-.0001)
+    audit.write_text(json.dumps(d));cfg['leaf_motion_audit_sha256']=digest(audit)
+    with pytest.raises(ValueError,match='Passing explicit'):validate_motion_screen(cfg,screen,source)

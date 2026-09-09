@@ -29,7 +29,10 @@ def main():
     p.add_argument('--source-run',type=Path,required=True)
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--leaf-envelope-rad',type=float,required=True)
+    p.add_argument('--clearance-reserve-m',type=float,default=0.)
     a=p.parse_args()
+    if not np.isfinite(a.clearance_reserve_m) or not 0<=a.clearance_reserve_m<=.005:
+        raise ValueError('Planning clearance reserve must be 0–5 mm')
     if not np.isfinite(a.leaf_envelope_rad) or not 0<a.leaf_envelope_rad<=.03:
         raise ValueError('Explicit positive envelope up to 0.03 rad required')
     if a.output.exists():raise ValueError('Fresh evidence path required')
@@ -52,7 +55,7 @@ def main():
         # Distal lever contact is allowed here, but still must pass the original
         # anatomy audit. Other hand surfaces and every hub contact need clearance.
         pairs=[(g,h) for g in hand for h in handle if h!=lever or not m.body(m.geom_bodyid[g]).name.endswith('distal')]
-        failures=[];minimum=.1;total=0
+        failures=[];minimum=.1;minimum_margin=.1;total=0
         for t in np.linspace(times[0],times[-1],1001):
             i=min(len(times)-2,max(0,int(np.searchsorted(times,t,side='right')-1)));f=(t-times[i])/(times[i+1]-times[i]);q=(1-f)*qs[i]+f*qs[i+1]
             quat=rotation(t).as_quat();q[root+3:root+7]=quat[[3,0,1,2]]
@@ -62,9 +65,11 @@ def main():
                 d.qpos[:]=q;d.qpos[leaf]+=offset;mujoco.mj_kinematics(m,d);total+=1
                 nearest=min((float(mujoco.mj_geomDistance(m,d,g,h,.1,None)),g,h) for g,h in pairs)
                 gap,g,h=nearest;minimum=min(minimum,gap)
-                if gap<0:failures.append(dict(route_time_s=float(t),leaf_offset_rad=float(offset),clearance_m=gap,hand_body=m.body(m.geom_bodyid[g]).name,handle_geom=m.geom(h).name))
+                required=a.clearance_reserve_m*float(smooth_phase((t-times[0])/3.))
+                minimum_margin=min(minimum_margin,gap-required)
+                if gap<required:failures.append(dict(route_time_s=float(t),leaf_offset_rad=float(offset),clearance_m=gap,required_clearance_m=required,hand_body=m.body(m.geom_bodyid[g]).name,handle_geom=m.geom(h).name))
         inputs=[a.screen,source/'trajectory.npz',source/'manifest.json',robot,door/'door.xml',Path(__file__)]
-        result=dict(schema='doorbench.release-leaf-motion-screen.v1',passed=not failures,scope=__doc__,physics_steps=0,leaf_envelope_rad=a.leaf_envelope_rad,envelope_ramp='quintic 0–3 route seconds',sampled_configurations=total,minimum_clearance_m=minimum,failed_configurations=len(failures),failures=failures,input_sha256={str(p):sha(p) for p in inputs})
+        result=dict(schema='doorbench.release-leaf-motion-screen.v1',passed=not failures,scope=__doc__,physics_steps=0,leaf_envelope_rad=a.leaf_envelope_rad,envelope_ramp='quintic 0–3 route seconds',sampled_configurations=total,minimum_clearance_m=minimum,clearance_reserve_m=a.clearance_reserve_m,minimum_clearance_margin_m=minimum_margin,failed_configurations=len(failures),failures=failures,input_sha256={str(p):sha(p) for p in inputs})
         a.output.parent.mkdir(parents=True,exist_ok=True);a.output.write_text(json.dumps(result,indent=2)+'\n')
         print(json.dumps({k:v for k,v in result.items() if k not in ('failures','input_sha256','scope')}))
         return 0 if result['passed'] else 1

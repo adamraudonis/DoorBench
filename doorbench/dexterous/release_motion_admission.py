@@ -20,7 +20,9 @@ def validate_motion_screen(config, screen, source):
             audit.get('passed') is not True or audit.get('physics_steps')!=0 or
             audit.get('sampled_configurations')!=3003 or audit.get('failed_configurations')!=0 or
             not 0<audit.get('leaf_envelope_rad',0)<=.03 or
-            not audit.get('minimum_clearance_m',-1)>=0):
+            not audit.get('minimum_clearance_m',-1)>=0 or
+            not 0<=audit.get('clearance_reserve_m',0)<=.005 or
+            not audit.get('minimum_clearance_margin_m',audit.get('minimum_clearance_m',-1))>=0):
         raise ValueError('Passing explicit moving-leaf clearance screen required')
     inputs=audit.get('input_sha256',{})
     for required in (Path(screen),Path(source)/'trajectory.npz'):

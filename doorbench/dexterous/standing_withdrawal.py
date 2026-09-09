@@ -41,6 +41,12 @@ class StandingWithdrawalTeacher:
         self.final_hub_avoidance=config.get('final_hub_avoidance',False)
         if type(self.final_hub_avoidance) is not bool:raise ValueError('Explicit final hub avoidance option required')
         if self.final_hub_avoidance and self.operation.hub_avoidance is None:raise ValueError('Final hub avoidance requires the original hub geometry/controller')
+        whole_lf=config.get('withdrawal_whole_little_finger_hub_avoidance',False)
+        if type(whole_lf) is not bool or (whole_lf and not self.final_hub_avoidance):raise ValueError('Whole little-finger avoidance requires final hub feedback')
+        self.withdrawal_hub_avoidance=self.operation.hub_avoidance
+        if whole_lf:
+            from .handle_hub_avoidance import HandleHubAvoidance
+            self.withdrawal_hub_avoidance=HandleHubAvoidance(self.acquisition,include_distal=True)
         self.left_arm_only=config.get('left_arm_only',False)
         if type(self.left_arm_only) is not bool:raise ValueError('Explicit left-arm solve option required')
         self.left_full_orientation=config.get('left_full_orientation',False)
@@ -243,7 +249,7 @@ class StandingWithdrawalTeacher:
             force,thumb_info=self.thumb_feedback.force(force,t,goal,t-self.release_started)
             hand_info={**hand_info,**thumb_info}
         if self.final_hub_avoidance:
-            force,hub_info=self.operation.hub_avoidance.force(force,float(smooth_phase(elapsed)))
+            force,hub_info=self.withdrawal_hub_avoidance.force(force,float(smooth_phase(elapsed)))
             hand_info={**hand_info,**hub_info,'withdrawal_hub_avoidance_applied_after_finger_tracking':True}
         if self.handoff is None:self.handoff=MotorHandoff(self.previous_force,force,teacher.caps,1.)
         force=self.handoff.force(force,elapsed);teacher.last_force=force.copy()

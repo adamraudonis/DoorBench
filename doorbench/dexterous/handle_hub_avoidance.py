@@ -16,10 +16,12 @@ def avoidance_force(gap,direction,velocity):
 
 
 class HandleHubAvoidance:
-    def __init__(self,teacher):
+    def __init__(self,teacher,*,include_distal=False):
+        if type(include_distal) is not bool:raise ValueError('Explicit distal avoidance selection required')
+        self.include_distal=include_distal
         self.teacher=teacher;m=teacher.m
         self.hub=m.geom('analytic_handle_hub').id
-        self.geoms=[g for g in range(m.ngeom) if m.geom_contype[g] and m.body(m.geom_bodyid[g]).name in ('rh_lfmiddle','rh_lfproximal')]
+        self.geoms=[g for g in range(m.ngeom) if m.geom_contype[g] and m.body(m.geom_bodyid[g]).name in (('rh_lfmiddle','rh_lfproximal','rh_lfdistal') if include_distal else ('rh_lfmiddle','rh_lfproximal'))]
         if not self.geoms:raise ValueError('Original little-finger collision geometry required')
         self.jp=np.zeros((3,m.nv))
 
@@ -39,4 +41,4 @@ class HandleHubAvoidance:
         result=np.clip(result,t.caps[:,0],t.caps[:,1])
         if not np.isfinite(result).all():raise ValueError('Nonfinite bounded hub-avoidance command')
         t.last_force=result.copy()
-        return result,dict(hub_avoidance_profile='little-finger-3N-v1',hub_gap_m=float(gap),hub_avoidance_force_N=float(np.linalg.norm(force)),hub_avoidance_blend=float(blend))
+        return result,dict(hub_avoidance_profile='whole-little-finger-3N-v1' if self.include_distal else 'little-finger-3N-v1',hub_gap_m=float(gap),hub_avoidance_force_N=float(np.linalg.norm(force)),hub_avoidance_blend=float(blend))

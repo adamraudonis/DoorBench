@@ -37,8 +37,8 @@ def main():
     parser.add_argument('--early-palm-clearance-m',type=float,default=0.,help='Move palm away from leaf during finger separation')
     parser.add_argument('--early-palm-direction',choices=('away','up'),default='away')
     a=parser.parse_args()
-    if not np.isfinite(a.early_palm_clearance_m) or not 0<=a.early_palm_clearance_m<=.03:
-        raise ValueError('Early palm clearance must be within 0–30 mm')
+    if not np.isfinite(a.early_palm_clearance_m) or not 0<=a.early_palm_clearance_m<=.05:
+        raise ValueError('Early palm clearance must be within 0–50 mm')
     if not np.isfinite(a.radial_clearance_m) or not .01<=a.radial_clearance_m<=.03:
         raise ValueError('Explicit radial separation must be 10–30 mm')
     if not np.isfinite(a.thumb_j3_margin_rad) or not .001<=a.thumb_j3_margin_rad<=.08:
