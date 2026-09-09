@@ -759,3 +759,10 @@ a7.6-second supported hold at119 s. A brief wall-clock SIGSTOP/SIGCONT avoided
 disk exhaustion; no physical state changed. Closed failed Isaac005/008 raw
 trials were uploaded, independently downloaded and hash-verified before eviction.
 Lead015 passes its native prerequisite and is now running actual Isaac physics.
+
+Panel008 is a new180-second closed-start trial enabling stiction assistance
+only on the second segment. The first segment and its handoff remain unchanged.
+Panel007's exact-input179.502 s body view was inspected and preserved.
+Pressure014's collector independently verifies all220 exported files. Future
+recorded Isaac operation trials now include the dedicated moving hand camera
+as well as the wide camera; the already-running frozen lead015 trial is unchanged.

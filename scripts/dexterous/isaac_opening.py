@@ -400,7 +400,7 @@ def main():
         from isaaclab.sensors import Camera,CameraCfg
         camera=Camera(CameraCfg(prim_path='/World/Camera',update_period=0.,height=720,width=960,
             data_types=['rgb'],spawn=sim_utils.PinholeCameraCfg(focal_length=48. if a.view=='hand' else 24.,clipping_range=(.02,100.))))
-        if sequence_reset or a.full_opening or sensor_control:
+        if sequence_reset or a.full_opening or sensor_control or a.operate_after_acquisition:
             hand_camera=Camera(CameraCfg(prim_path='/World/HandReviewCamera',update_period=0.,height=720,width=720,
                 data_types=['rgb'],spawn=sim_utils.PinholeCameraCfg(focal_length=48.,clipping_range=(.02,100.))))
     sensor_recorder=None
