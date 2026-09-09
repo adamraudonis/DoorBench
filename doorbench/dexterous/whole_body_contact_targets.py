@@ -92,7 +92,8 @@ class WholeBodyContactTargets:
         # norms. Position vector norms are independently checked after solving.
         for start,end,speed,acceleration in ((0,3,.02/np.sqrt(3),.1),(3,6,.03/np.sqrt(3),.1),(6,31,1.2,3.)):
             a,b = bounded_next_velocity(self.target[start:end],self.velocity[start:end],
-                                       self.lower[start:end],self.upper[start:end],dt,speed,acceleration)
+                                       self.lower[start:end],self.upper[start:end],dt,
+                                       speed*(1.-1e-9),acceleration*(1.-1e-9))
             low.extend(a);high.extend(b)
         return np.array(low),np.array(high)
 

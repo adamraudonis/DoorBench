@@ -64,9 +64,13 @@ def main():
     p.add_argument("--screened-panel-include-waist",action="store_true")
     p.add_argument("--screened-palm-recontact",action="store_true")
     p.add_argument("--moving-body-recontact",action="store_true")
+    p.add_argument("--wait-for-loaded-aperture",action="store_true",
+                   help="Keep the original half-second load requirement before early aperture termination")
     a = p.parse_args()
     if a.moving_body_recontact and not a.screened_palm_recontact:
         raise ValueError('Moving-body targets require the declared timed recontact experiment')
+    if a.wait_for_loaded_aperture and not a.moving_body_recontact:
+        raise ValueError('Loaded-aperture termination is declared only for this moving-body continuation')
     if a.screened_palm_recontact and not (a.whole_body_panel_plan and a.screened_panel_actual_base_correction
             and a.screened_panel_normal_admittance and a.screened_panel_include_waist and a.screened_panel_lead_rad==0
             and a.screened_panel_lead_start_rad is None):
@@ -180,6 +184,12 @@ def main():
         left_path.write_text(left_source)
     driver = stage / "scripts/dexterous/frozen_walking_opening_driver.py"
     shutil.copy2(source / "diagnostic-source.py", driver)
+    if a.wait_for_loaded_aperture:
+        text=driver.read_text()
+        old="row['door_q']>=a.target_aperture or not row['finite']"
+        new="(row['door_q']>=a.target_aperture and len(physics)>=251 and all(r.get('left_surface_audit',{}).get('palm_normal_load_N',0)>=2. for r in physics[-251:])) or not row['finite']"
+        if text.count(old)!=1:raise ValueError('Frozen aperture stop condition changed')
+        driver.write_text(text.replace(old,new))
     shutil.copy2(Path(__file__), stage / "scripts/dexterous/probe_walking_release.py")
     sys.path.insert(0, str(stage))
 
@@ -415,6 +425,7 @@ def main():
             screened_panel_include_waist=a.screened_panel_include_waist,
             screened_palm_recontact=a.screened_palm_recontact,
             moving_body_recontact=a.moving_body_recontact,
+            wait_for_loaded_aperture=a.wait_for_loaded_aperture,
             screened_panel_lead_audit_sha256=digest(stage/"panel-lead-audit.json") if a.screened_panel_lead_audit else None,
             screened_panel_lead_start_rad=a.screened_panel_lead_start_rad,screened_panel_lead_ramp_rad=a.screened_panel_lead_ramp_rad,
             record_panel_targets=a.record_panel_targets or a.hybrid_include_waist,
