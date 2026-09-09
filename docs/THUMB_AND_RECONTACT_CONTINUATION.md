@@ -77,6 +77,7 @@ the controller and waits for the existing loaded hold before early stopping.
 
 [Full report, independent audits and hashes](evidence/continuous-native-opening-003.json).
 This is one privileged native run, not Isaac parity, repeatability, a learned
-vision/tactile policy or traversal. A fresh 909-sample static stow route from
-its endpoint passes; an initialized physical continuation is running before
-integration into the uninterrupted sequence.
+vision/tactile policy or traversal by itself. The subsequent initialized
+continuation and [uninterrupted native sequence](CONTINUOUS_NATIVE_TRAVERSAL.md)
+now pass their respective checks, including a same-start repeat with complete
+warning-counter evidence. Isaac and sensor-only qualification remain open.

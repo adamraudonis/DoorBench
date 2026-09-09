@@ -1,8 +1,8 @@
 # Uninterrupted native opening and traversal
 
-The September 9 development trial `continuous-opening-traversal-001` completes approach, opposed grasp, lever operation, door opening, release, arm stow, walking through and a quiet finish in **127.990 simulated seconds**. It passes **47/47 recorded task checks** on `db0055_swing_single`. This is a slow, privileged MuJoCo teacher for the H1 with Shadow Hands, not an Isaac success or a learned vision/tactile policy.
+The September 9 development trials `continuous-opening-traversal-001` and `002` complete approach, opposed grasp, lever operation, door opening, release, arm stow, walking through and a quiet finish in **127.990 simulated seconds**. The repeat passes **47/47 recorded task checks and 16/16 independent archive checks** on `db0055_swing_single`, with byte-identical dynamics throughout. This is a slow, privileged MuJoCo teacher for the H1 with Shadow Hands, not an Isaac success or a learned vision/tactile policy.
 
-The stronger independent aggregate remains **failed**: the inherited recorder did not save the complete MuJoCo warning counters. A fresh run with that logging is required. This limitation is retained in the [machine-readable evidence](evidence/continuous-native-traversal-001.json).
+The first run's stronger independent aggregate remains **failed** because its inherited recorder did not save complete MuJoCo warning counters. The repeat at **02:34 UTC** adds that logging and passes. Both the [first-run limitation](evidence/continuous-native-traversal-001.json) and [complete repeat evidence](evidence/continuous-native-traversal-002.json) are retained.
 
 | Measurement | Actual result |
 |---|---:|
@@ -24,7 +24,7 @@ An earlier initialized diagnostic from the same opening endpoint separately pass
 
 ## Reproduce and inspect
 
-The exact executable arguments are in `out/continuous-opening-traversal-001-launch.json`. The run manifest captures source commit `b169b5768`, the frozen source bundle, robot, door, motor contract, reference and checkpoint. Complete local archives and SHA-256 manifests live under `~/Desktop/Projects/DoorBench-runs/2026-09-09/`, including the matching `-source` directory. Generated evidence is kept out of Git.
+The exact executable arguments are in `out/continuous-opening-traversal-001-launch.json` and `out/continuous-opening-traversal-002-launch.json`. The run manifests capture source commits `b169b5768` and `9222e04d9`, respectively, with frozen source, robot, door, motor contract, reference and checkpoint. Complete local archives and SHA-256 manifests live under `~/Desktop/Projects/DoorBench-runs/2026-09-09/`, including matching `-source` directories. `continuous-native-inputs-001` preserves all 749 model-asset/input mappings and their original bytes; its manifest maps original paths to content-addressed files. Rebinding on another host still requires source-design, compiled-geometry and physical checks. Generated evidence is kept out of Git.
 
 Run these from the recorded environment:
 
@@ -38,4 +38,4 @@ python scripts/dexterous/render_continuous_opening.py --run "$RUN" \
 
 The cutaway hides only wall visuals in a recorded-state replay so the robot remains visible after crossing. It changes no physics and is labeled in the video. Hand close-ups are available with `--view right-hand` or `--view left-hand`.
 
-`continuous-opening-traversal-002` is the fresh repeat, with full warning-counter capture stored separately to preserve exact raw-prefix comparison. It requires byte-identical original dynamics through 127.5 seconds. Its result is pending. This is a same-start reproducibility check; varied-start repeatability, Isaac parity, speed/naturalness improvements, sensor-only learning and catalogue expansion remain in [the active plan](DEXTEROUS_NEXT_STEPS.md).
+`continuous-opening-traversal-002` stores full warning-counter capture separately to preserve exact raw-prefix comparison. All 256 raw chunks match through the terminal state at 127.990 seconds, beyond the required 127.5-second comparison. Independent contact reconstruction finds no invalid distal patches, and all 2,682 selected panel-control intervals pass the target/force audit. This is a same-start reproducibility check; varied-start repeatability, Isaac parity, speed/naturalness improvements, sensor-only learning and catalogue expansion remain in [the active plan](DEXTEROUS_NEXT_STEPS.md).

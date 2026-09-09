@@ -32,7 +32,15 @@ Actual L40S recording on September 6, 2026: **16 / 16 selected demonstration cas
 
 The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock manipulation. This closed-start diagnostic is separate from the core benchmark. All 18 horizontal hatches were attempted but are not upright doorway tasks; errors remain in the denominator. [Per-door results and limitations](docs/review/isaac-g1-catalogue/README.md) · [Reproduce the run](docs/ISAAC_G1_CATALOGUE.md) · [Test your policy](docs/ISAAC_G1_DEMO.md).
 
-**Dexterous humanoid development:** the complete opening/traversal task remains unfinished. With corrected passive-joint friction, Isaac reach passes 20/20 reach and 14/14 physics checks (**September 8, 2026, 20:04 UTC**). The subsequent **20:14 UTC grasp test fails** sustained fingertip loading and little-finger contact anatomy, while balance and all mechanics checks pass. Native acquisition succeeds; lever operation remains incomplete. These use scripted goals, encoders, IMU and touch; vision and learned task control remain unfinished. [Measured progress](docs/DEXTEROUS_NEXT_STEPS.md) · [Audited Isaac grasp failure](docs/SENSOR_ACQUISITION_DRY_ISAAC_001.md) · [Prepare a sensor demo](docs/ISAAC_SENSOR_DEMO_PREPARATION.md).
+**Dexterous humanoid development — one lever door:**
+
+| Engine / controller | Recorded result | UTC date |
+|---|---|---|
+| MuJoCo, privileged H1/Shadow teacher | Uninterrupted approach, grasp, handle operation, opening, release and traversal; **47/47 task + 16/16 independent archive checks**; exact same-start repeat | September 9, 2026, 02:34 |
+| Isaac, scripted sensor-feedback reach | **20/20 reach + 14/14 physics checks** | September 8, 2026, 20:04 |
+| Isaac, scripted sensor-feedback grasp | **Failed** sustained loading/contact anatomy; mechanics checks pass | September 8, 2026, 20:14 |
+
+The native sequence takes **127.99 seconds** and uses privileged state; it is not a natural-speed motion or learned vision/tactile policy. Complete Isaac traversal, varied-start repeatability and catalogue coverage remain unfinished. [Native evidence and replay instructions](docs/CONTINUOUS_NATIVE_TRAVERSAL.md) · [Current progress](docs/DEXTEROUS_NEXT_STEPS.md) · [Isaac grasp evidence](docs/SENSOR_ACQUISITION_DRY_ISAAC_001.md) · [Prepare a sensor demo](docs/ISAAC_SENSOR_DEMO_PREPARATION.md).
 
 [Current plan and measured progress](docs/DEXTEROUS_NEXT_STEPS.md) · [Historical recordings, run times and discovered limitations](docs/ISAAC_HANDLE_DEMO.md).
 
