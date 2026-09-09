@@ -257,3 +257,11 @@ starts from the original closed-door reset; this candidate is not yet a return
 success. The held-finger controller replaces the inner operation finger command,
 so inherited hub-profile metadata alone does not establish delivered avoidance
 through this phase. Final raw contact audits remain mandatory.
+
+
+Hub-return001 passed24 runtime checks,6 independent pad checks and the whole
+handle audit over64s. The lever and bolt returned to rest with left support
+and final aperture0.08855423rad; no extra handle contact or invalid lever patch
+was recorded. A63s exact-model hand close-up was personally inspected. This
+qualifies the native return component only. The next unstepped withdrawal
+candidate is being regenerated from this attained state.
