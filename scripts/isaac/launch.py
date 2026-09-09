@@ -40,7 +40,7 @@ def run(args,**kw):
 def source_bundle(output):
     # Explicit source allowlist; never package assets, credentials or outputs.
     allow=('doorbench/','scripts/','isaaclab/','configs/')
-    names=subprocess.check_output(['git','ls-files','--cached','--others','--exclude-standard'],cwd=ROOT,text=True).splitlines()
+    names=subprocess.check_output(['git','ls-files','--cached'],cwd=ROOT,text=True).splitlines()
     files=sorted(set(n for n in names if n.startswith(allow) or n in ('pyproject.toml','README.md','LICENSE')))
     files=[n for n in files if (ROOT/n).is_file() and not (ROOT/n).is_symlink() and '/__pycache__/' not in n and not n.endswith('.pyc')]
     hashes={n:hashlib.sha256((ROOT/n).read_bytes()).hexdigest() for n in files}
@@ -127,7 +127,7 @@ def prepare(a,cfg):
     active=subprocess.run(ssh+[f'test -f {shlex.quote(remote_status+"/run.pid")} && kill -0 "$(cat {shlex.quote(remote_status+"/run.pid")})" 2>/dev/null'],stdout=subprocess.DEVNULL).returncode==0
     if not active:
         with (session/'source.tar.gz').open('rb') as source:
-            run(ssh+[shlex.join(['tar','xzf','-','-C',remote])],stdin=source)
+            run(ssh+[shlex.join(['tar','--no-same-owner','xzf','-','-C',remote])],stdin=source)
         pipeline.update(stage='Preparing pinned runtime and checking live physics',deadline_unix=deadline,
                         pod_id=pod_id,source_sha256=digest,cache_identity=identity,mechanics_profile=profile,started_at_unix=time.time(),hourly_cost_usd=record.get('costPerHr') if pod else None)
         run(ssh+[shlex.join(['tee',remote+'/source-manifest.json'])],input=(session/'source-manifest.json').read_text(),text=True,stdout=subprocess.DEVNULL)
