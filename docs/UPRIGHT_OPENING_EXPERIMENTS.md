@@ -140,3 +140,12 @@ raw-contact reconstruction under the existing volar profile still rejects
 lateral little-finger middle-link contact, and at17.368s thumb loading is absent.
 The historical trial remains failed; no prospective profile change is justified
 by these observations. A graceful failed-prefix export was requested.
+
+
+The prospective clearance017 comparison uses handle-frame palm offset
+`(-.002,-.003,.0025)m`, versus follow016's `(.004,-.003,.0025)m`.
+The lever extends along negative local X from its hub, so this moves the palm
+reference6mm away from the hub. It retains measured-pressure-v1, the .082rad
+leaf target and .02rad handle-follow threshold. The coordinator now records
+and passes this bounded offset identically to both backends. This is a
+hypothesis tested by a fresh native prerequisite; it is not an acquired result.

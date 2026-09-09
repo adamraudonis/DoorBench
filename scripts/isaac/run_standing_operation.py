@@ -7,6 +7,7 @@ privileged partial opening is tested; this is not a learned policy benchmark.
 import argparse
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -34,7 +35,9 @@ def main():
     p.add_argument('--operation-leaf-target-rad',type=float,default=.08)
     p.add_argument('--operation-leaf-lead-limit-rad',type=float)
     p.add_argument('--operation-operator-follow-after-leaf-rad',type=float)
+    p.add_argument('--operation-grasp-offset-in-handle-m',nargs=3,type=float,default=(.004,-.003,.0025),help='Explicit bounded handle-frame palm recentering, shared by native and Isaac')
     a=p.parse_args()
+    if not all(math.isfinite(v) for v in a.operation_grasp_offset_in_handle_m) or math.sqrt(sum(v*v for v in a.operation_grasp_offset_in_handle_m))>.01:raise ValueError('Finite palm recentering must remain within1cm')
     if a.operation_operator_follow_after_leaf_rad is not None and (not .015<=a.operation_operator_follow_after_leaf_rad<=.05 or a.hold_attained_grasp):raise ValueError('Operator follow requires .015..0.05 rad and no fixed hold')
     if a.operation_leaf_lead_limit_rad is not None and not .002<=a.operation_leaf_lead_limit_rad<=.03:raise ValueError('Leaf lead bound must be .002..0.03 rad')
     if not .075<=a.operation_leaf_target_rad<=.10:raise ValueError('Partial opening command must be .075..0.10 rad')
@@ -43,6 +46,8 @@ def main():
     a.output.mkdir(parents=True,exist_ok=False)
     (a.output/'run.pid').write_text(str(os.getpid()))
     result={'passed':False,'scope':'Privileged standing acquisition and held partial opening; no full opening, traversal or learned actor'}
+    result['operation_grasp_offset_in_handle_m']=a.operation_grasp_offset_in_handle_m
+    grasp_offset=list(map(str,a.operation_grasp_offset_in_handle_m))
     result['hold_attained_grasp']=a.hold_attained_grasp
     if a.actual_material_pads and a.hold_attained_grasp:raise ValueError('Choose one explicit hand controller')
     result['actual_material_pads']=a.actual_material_pads
@@ -118,7 +123,7 @@ def main():
         run([asset,a.source/'scripts/dexterous/rescreen_acquisition_reference.py','--robot',robot,'--door',door,'--reference',a.reference,'--output',screen],'geometry-screen',900)
         if json.loads((screen/'geometry-audit.json').read_text()).get('passed') is not True:raise ValueError('Destination geometry screen failed')
         reference=screen/'reference.json'
-        run([asset,a.source/'scripts/dexterous/probe_acquisition_operation.py','--robot',robot,'--door',door,'--reference',reference,'--motors',motors,'--stance-profile','landed-foot-v1','--record-transitions','--index-finger-force','3','--portable-wrapper','--operator-compliance-gain','.2','--pressure-segment','distal','--grasp-offset-in-handle-m','.004','-.003','.0025','--seconds','36','--output',native,*hold_options,*native_pad_options],'native-prerequisite',1200,allowed_codes=(0,1))
+        run([asset,a.source/'scripts/dexterous/probe_acquisition_operation.py','--robot',robot,'--door',door,'--reference',reference,'--motors',motors,'--stance-profile','landed-foot-v1','--record-transitions','--index-finger-force','3','--portable-wrapper','--operator-compliance-gain','.2','--pressure-segment','distal','--grasp-offset-in-handle-m',*grasp_offset,'--seconds','36','--output',native,*hold_options,*native_pad_options],'native-prerequisite',1200,allowed_codes=(0,1))
         result['native_runtime_passed']=json.loads((native/'report.json').read_text()).get('passed') is True
         run([asset,a.source/'scripts/dexterous/audit_sensor_acquisition_contacts.py','--trial',native,'--output',a.output/'native-independent-audit.json'],'native-contact-audit',600)
         if not result['native_runtime_passed']:raise ValueError('Destination-native sustained hold failed')
@@ -141,7 +146,7 @@ def main():
         (a.output/'provenance.json').write_text(json.dumps(dict(source=frozen,coordinator_sha256=sha(__file__),input_sha256={str(path):sha(path) for path in inputs},scope=result['scope']),indent=2))
         trial=a.output/'trial'
         if a.deadline_unix-time.time()<a.isaac_timeout_seconds+300:raise TimeoutError('Insufficient guarded time for Isaac run and evidence export')
-        run([isaac,a.source/'scripts/dexterous/isaac_opening.py','--robot-usd',ready['robot_usd'],'--door-usd',ready['door_usd'],'--motors',motors,'--reference',reference,'--sensor-layout',layout,'--reset-from-acquisition-path','--grasp-profile','distal-pad-v1','--joint-passive-profile','backend-dry-v2','--seconds','36','--output',trial,'--headless','--device','cuda:0','--record','--enable_cameras','--sensor-gyro-profile','pose-delta-angle-v1','--acquisition','--native-robot',robot,'--acquisition-stance-profile','landed-foot-v1','--acquisition-pressure-segment','distal','--acquisition-index-finger-force','3','--operate-after-acquisition','--operator-compliance-gain','.2','--operation-min-acquisition-seconds','10.6','--operation-grasp-offset-in-handle-m','.004','-.003','.0025',*hold_options,*isaac_pad_options],'isaac-operation',a.isaac_timeout_seconds,allowed_codes=(0,1))
+        run([isaac,a.source/'scripts/dexterous/isaac_opening.py','--robot-usd',ready['robot_usd'],'--door-usd',ready['door_usd'],'--motors',motors,'--reference',reference,'--sensor-layout',layout,'--reset-from-acquisition-path','--grasp-profile','distal-pad-v1','--joint-passive-profile','backend-dry-v2','--seconds','36','--output',trial,'--headless','--device','cuda:0','--record','--enable_cameras','--sensor-gyro-profile','pose-delta-angle-v1','--acquisition','--native-robot',robot,'--acquisition-stance-profile','landed-foot-v1','--acquisition-pressure-segment','distal','--acquisition-index-finger-force','3','--operate-after-acquisition','--operator-compliance-gain','.2','--operation-min-acquisition-seconds','10.6','--operation-grasp-offset-in-handle-m',*grasp_offset,*hold_options,*isaac_pad_options],'isaac-operation',a.isaac_timeout_seconds,allowed_codes=(0,1))
         # Preserve and independently audit failures as well as successful runs.
         result['isaac_runtime_passed']=json.loads((trial/'operation-report.json').read_text())['passed']
         run([asset,a.source/'scripts/dexterous/audit_isaac_acquisition_contacts.py','--trial',trial,'--output',a.output/'isaac-independent-audit.json'],'isaac-contact-audit',600)
