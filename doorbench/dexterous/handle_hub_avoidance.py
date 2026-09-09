@@ -18,8 +18,8 @@ def avoidance_force(gap,direction,velocity):
 class HandleHubAvoidance:
     def __init__(self,teacher):
         self.teacher=teacher;m=teacher.m
-        self.hub=m.geom('leaf_handle_hub_col_n').id
-        self.geoms=[g for g in teacher.digit_geoms['lf'] if m.body(m.geom_bodyid[g]).name.endswith(('lfmiddle','lfproximal'))]
+        self.hub=m.geom('analytic_handle_hub').id
+        self.geoms=[g for g in range(m.ngeom) if m.geom_contype[g] and m.body(m.geom_bodyid[g]).name in ('rh_lfmiddle','rh_lfproximal')]
         if not self.geoms:raise ValueError('Original little-finger collision geometry required')
         self.jp=np.zeros((3,m.nv))
 

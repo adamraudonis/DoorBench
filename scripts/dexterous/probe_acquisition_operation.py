@@ -155,7 +155,13 @@ def main():
     shutil.copy2(args.reference, args.output/'reference.json')
     sim = DexterousDoorEnv(args.door, args.robot, json.loads(args.robot.with_suffix('.audit.json').read_text()))
     m, d = sim.m, sim.d
-    teacher = AcquisitionTeacher(args.robot, motors, ref,stance_profile=args.stance_profile,pressure_segment=args.pressure_segment,middle_finger_force=args.middle_finger_force,index_finger_force=args.index_finger_force)
+    hub_geometry=None
+    if args.operation_handle_hub_avoidance:
+        g=m.geom('leaf_handle_hub_col_n').id
+        if m.geom_type[g]!=mujoco.mjtGeom.mjGEOM_CYLINDER or m.body(m.geom_bodyid[g]).name!='leaf_handle':raise ValueError('Expected original handle-body cylinder hub')
+        hub_geometry=dict(size=m.geom_size[g].tolist(),position=m.geom_pos[g].tolist(),quaternion_wxyz=m.geom_quat[g].tolist())
+        (args.output/'hub-geometry.json').write_text(json.dumps(hub_geometry,indent=2)+'\n')
+    teacher = AcquisitionTeacher(args.robot, motors, ref,handle_hub_geometry=hub_geometry,stance_profile=args.stance_profile,pressure_segment=args.pressure_segment,middle_finger_force=args.middle_finger_force,index_finger_force=args.index_finger_force)
     sim.reset(randomize=False, images=False)
     d.qpos[sim.root_qadr:sim.root_qadr+7] = teacher.initial_root
     ids = np.array([m.joint('robot/'+n).id for n in teacher.names])

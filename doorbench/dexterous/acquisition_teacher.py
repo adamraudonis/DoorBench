@@ -22,7 +22,7 @@ class AcquisitionTeacher:
                  grip_force=6., finger_grip_scale=1/3, grip_start=.995,
                  palm_integral=1., torso_impedance=10., middle_finger_force=None,
                  index_finger_force=None, stance_solver_settings=None, stance_profile=None,
-                 pressure_segment='nearest'):
+                 pressure_segment='nearest', handle_hub_geometry=None):
         if pressure_segment not in ('nearest','distal'):raise ValueError('Unknown pressure segment')
         self.pressure_segment=pressure_segment
         if stance_profile not in (None,'landed-foot-v1'):raise ValueError('Unknown declared stance profile')
@@ -42,6 +42,10 @@ class AcquisitionTeacher:
         spec.worldbody.add_body(name='analytic_lever').add_geom(name='analytic_lever_capsule',
             type=mujoco.mjtGeom.mjGEOM_CAPSULE,size=[.007,.053,0],
             quat=[2**-.5,0,2**-.5,0],contype=0,conaffinity=0)
+        if handle_hub_geometry is not None:
+            size=np.asarray(handle_hub_geometry['size'],float);position=np.asarray(handle_hub_geometry['position'],float);quaternion=np.asarray(handle_hub_geometry['quaternion_wxyz'],float)
+            if size.shape!=(3,) or position.shape!=(3,) or quaternion.shape!=(4,) or not np.isfinite(np.r_[size,position,quaternion]).all() or min(size[:2])<=0 or abs(np.linalg.norm(quaternion)-1)>1e-6:raise ValueError('Explicit original cylinder hub geometry required')
+            spec.body('analytic_lever').add_geom(name='analytic_handle_hub',type=mujoco.mjtGeom.mjGEOM_CYLINDER,size=size,pos=position-np.array([-.06,-.077,0.]),quat=quaternion,contype=0,conaffinity=0,density=0)
         self.m=spec.compile();self.d=mujoco.MjData(self.m);self.work=mujoco.MjData(self.m)
         m=self.m;self.names=motors['joint_names'];self.joints=np.array([m.joint(n).id for n in self.names])
         self.qa=m.jnt_qposadr[self.joints];self.va=m.jnt_dofadr[self.joints]
