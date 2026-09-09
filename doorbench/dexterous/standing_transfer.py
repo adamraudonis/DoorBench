@@ -54,7 +54,7 @@ class StandingTransferTeacher:
         leftnames=c['left_joint_names'];rows=[]
         for row in c['left_targets']:
             rows.append({**row,**{k:np.asarray(row[k],float) for k in ('position','normal','nominal')}})
-        self.left=LeftPalmContact(self.acquisition,motors,(leftnames,rows),fixed_waist=False,track_fixed_pads=True,reach_seconds=8.,contact_force=8.,maximum_normal_offset=.008,pad_tracking_stiffness=2400.,pad_tracking_maximum_force=12.)
+        self.left=LeftPalmContact(self.acquisition,motors,(leftnames,rows),fixed_waist=False,track_fixed_pads=True,reach_seconds=8.,contact_force=8.,maximum_normal_offset=.008)
         self.start_seconds=start_seconds;self.started=None;self.info={}
         self.rotations=Slerp(np.linspace(0,1,101),Rotation.from_quat(self.roots[:,[4,5,6,3]]))
 
@@ -68,7 +68,16 @@ class StandingTransferTeacher:
             if self.operation.open_started is None or not .075<=angles['leaf']<=.10:
                 raise ValueError('Qualified partial opening required before standing transfer')
             self.left.begin(t,root,joints,leaf_pose,handle_pose);self.started=t
+            # The latch is already clear. Bind the attained grasp, then follow
+            # the spring-returning operator instead of commanding further press
+            # while the material-point tracker asks the pads to follow it back.
+            hr=Rotation.from_quat(np.asarray(handle_pose)[[4,5,6,3]]).as_matrix()
+            self.operation.p_relative=hr.T@(self.left.d.site_xpos[self.left.right_palm]-np.asarray(handle_pose)[:3])-self.operation.grasp_offset
+            self.operation.r_relative=hr.T@self.left.d.site_xmat[self.left.right_palm].reshape(3,3)
+            self.operation.operator_compliance=0.
+            self.operation.operator_compliance_gain=0.
         if self.started is not None:
+            self.operation.operator_target=float(angles['operator'])
             self.left.update_targets(t,root,joints,leaf_pose,left_panel_load,handle_pose)
             u=float(smooth_phase(self.left.progress));coordinate=u*100;i=min(int(coordinate),99);f=coordinate-i
             root_goal=(1-f)*self.roots[i,:3]+f*self.roots[i+1,:3]
@@ -79,6 +88,6 @@ class StandingTransferTeacher:
         forces,info=self.operation.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified)
         if self.started is not None:
             forces=self.left.apply_forces(forces,joints,velocities)
-            info={**info,**self.left.info, 'standing_transfer_started_s':self.started}
+            info={**info,**self.left.info, 'standing_transfer_started_s':self.started,'operator_mode':'follow-measured-after-release'}
         self.info=info
         return forces,info
