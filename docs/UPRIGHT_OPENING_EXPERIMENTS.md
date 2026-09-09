@@ -346,7 +346,7 @@ retains all existing gates; it is running, not qualified.
 
 
 Withdrawal004 again shows a transient receiving-palm unload around69s despite
-a4N target. Its80.6s rollout completed; final contact audits are pending. The
+a4N target. Its 80.6 s rollout completed but failed joint range, final left-palm support and both contact audits. The whole-handle audit records 306 extra patches across 84 intervals (69.070–69.316 s). A hand close-up at 69.202 s was personally inspected; see [the failure receipt](evidence/native-standing-hub-withdrawal-004.json). The
 attained finger controller damps absolute joint motion while the arm controller
 already tracks reference velocity. The optional `finger_velocity_feedforward`
 comparison adds the derivative of screened finger positions to that damping
@@ -359,3 +359,13 @@ GPU pressure024 removes lever-following from023 while retaining measured pad
 pressure and hub avoidance. Its source is the same frozen archive; native and
 whole-handle gates still precede Isaac. Both owned shutdown guards were verified
 for21:57:21UTC, within the12h allocation ceiling, with collection time reserved.
+
+
+Pressure024 completed the native rollout with only the held-aperture runtime
+check failing: final aperture 0.07421235 rad against the unchanged 0.075 rad
+threshold. Its original distal-pad and whole-handle runtime checks passed;
+independent reconstruction remains mandatory. Pressure025 commands 0.085 rad
+instead of 0.08 rad, with the same success threshold, original motor limits,
+controller and frozen source. It waits for024 to close before its own complete
+native prerequisite and any Isaac dispatch. Its Isaac budget is3300 wall seconds
+with the existing guard/export reserve; no outcome is claimed.
