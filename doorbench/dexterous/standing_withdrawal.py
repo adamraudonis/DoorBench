@@ -104,6 +104,18 @@ class StandingWithdrawalTeacher:
             if profile in ('bounded-pi-stop-v1','bounded-pi-stop-v2'):self.panel_force=PanelApertureForce(terminal_aperture=self.panel.plan['final_leaf_angle_rad'],terminal_support_margin_N=.5 if profile=='bounded-pi-stop-v2' else 0.)
             if self.panel.plan['robot_xml_sha256']!=motors['source_xml_sha256']:raise ValueError('Panel plan uses another robot contract')
             if self.panel.start_time<self.start_time:raise ValueError('Panel continuation cannot precede withdrawal')
+        self.panel_schedule=None
+        if config.get('panel_continuations') and self.panel is None:raise ValueError('Panel continuations require an initial screened segment')
+        if self.panel is not None:
+            panels=[self.panel]
+            for entry in config.get('panel_continuations',[]):
+                if sha(entry['path'])!=entry['sha256']:raise ValueError('Continuation plan bytes changed')
+                candidate=StandingPanelReference(scene,entry['path'],self.left)
+                if candidate.plan['robot_xml_sha256']!=motors['source_xml_sha256']:raise ValueError('Continuation uses another robot contract')
+                panels.append(candidate)
+            from .panel_sequence import AttainedPanelSchedule
+            self.panel_schedule=AttainedPanelSchedule(panels)
+        self.panel_force_profile=profile
         self.initial_angles={name:float(actual[m.joint(joint).qposadr[0]]) for name,joint in [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
 
     @property
@@ -146,6 +158,12 @@ class StandingWithdrawalTeacher:
         teacher.stance.target_root[:]=(1-f)*self.roots[i,:3]+f*self.roots[i+1,:3]+self.stance_root_bias
         teacher.stance.target_rotation=self.stance_rotation_bias@self.root_rotations(clock).as_matrix()
         teacher.stance.joint_target[:]=np.array([targets[n] for n in self.stance_names])+self.stance_joint_bias
+        if self.panel_schedule is not None and self.panel_schedule.advance(t,angles['leaf'],left_panel_load):
+            self.panel=self.panel_schedule.active;self.panel_handoff=None
+            if self.panel_force is not None:
+                from .panel_aperture_force import PanelApertureForce
+                terminal=self.panel.plan['final_leaf_angle_rad'] if self.panel_force_profile in ('bounded-pi-stop-v1','bounded-pi-stop-v2') else None
+                self.panel_force=PanelApertureForce(terminal_aperture=terminal,terminal_support_margin_N=.5 if self.panel_force_profile=='bounded-pi-stop-v2' else 0.)
         panel_goal=None;panel_info={}
         if self.panel is not None and t>=self.panel.start_time-1e-8:
             if self.panel.started is None:
@@ -198,5 +216,8 @@ class StandingWithdrawalTeacher:
         if panel_goal is not None:
             if self.panel_handoff is None:self.panel_handoff=MotorHandoff(self.panel_previous_force,force,teacher.caps,1.)
             force=self.panel_handoff.force(force,t-self.panel.started);teacher.last_force=force.copy()
+        if panel_goal is not None:
+            self.panel_schedule.observe(t,panel_info['panel_progress'],angles['leaf'],left_panel_load)
+            panel_info['panel_segment_index']=self.panel_schedule.index
         self.info={**panel_info,**info,**self.left.info,**arm_info,**hand_info,**palm_info,'phase':'standing_panel_continuation' if panel_goal is not None else 'standing_withdrawal','withdrawal_started_s':self.started_withdrawal,'release_started_s':self.release_started,'withdrawal_progress':float(smooth_phase(elapsed/self.duration)),'withdrawal_clock_s':clock,'grip_preload_scale':scale,'goal_frame':'attained-resting-world','stance_reference_preserved':True,'stance_reference_root_offset_m':self.stance_root_bias.tolist(),'stance_reference_joint_offset_rad':dict(zip(self.stance_names,self.stance_joint_bias.tolist())),'controller_scope':'Privileged screened upright withdrawal; only original capped motors'}
         return force,self.info

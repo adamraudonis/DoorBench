@@ -283,9 +283,10 @@ def main():
                 report['checks']['standing_panel_started']=transfer.panel.started is not None
                 report['checks']['standing_panel_reference_completed']=transfer.info.get('panel_progress',0)>=.999
                 report['checks']['standing_panel_aperture_held']=bool(tail) and all(target-.02<=r['door_q']<=target+.05 for r in tail)
-                panel_rows=[r for r in physics if r['sim_time_s']>=transfer.panel.start_time]
+                panel_rows=[r for r in physics if r['sim_time_s']>=transfer.panel_schedule.panels[0].start_time]
                 report['checks']['standing_panel_upright']=bool(panel_rows) and all(r['torso_tilt_deg']<=5. for r in panel_rows)
-                report['standing_panel']=dict(scope='Privileged upright continuation to screened partial aperture, not traversal',started_s=transfer.panel.started,target_aperture_rad=target,final=transfer.info)
+                report['standing_panel']=dict(scope='Privileged upright continuation to screened partial aperture, not traversal',started_s=transfer.panel_schedule.panels[0].started,target_aperture_rad=target,final=transfer.info,completed_segments=transfer.panel_schedule.completed)
+                if len(transfer.panel_schedule.panels)>1:report['checks']['all_panel_segments_executed']=len(transfer.panel_schedule.completed)==len(transfer.panel_schedule.panels)-1
         report.update(passed=all(report['checks'].values()),scope=__doc__,
             runtime_robot_pose_writes=0,direct_door_commands=False,
             maximum_handle_rad=max(r['handle_angle_rad'] for r in physics),
