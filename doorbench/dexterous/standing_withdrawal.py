@@ -92,6 +92,8 @@ class StandingWithdrawalTeacher:
             if sha(config['panel_plan_path'])!=config.get('panel_plan_sha256'):raise ValueError('Panel plan bytes changed')
             from .standing_panel_reference import StandingPanelReference
             self.panel=StandingPanelReference(scene,config['panel_plan_path'],self.left)
+            if self.panel.plan['robot_xml_sha256']!=motors['source_xml_sha256']:raise ValueError('Panel plan uses another robot contract')
+            if self.panel.start_time<self.start_time:raise ValueError('Panel continuation cannot precede withdrawal')
         self.initial_angles={name:float(actual[m.joint(joint).qposadr[0]]) for name,joint in [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
 
     @property
