@@ -68,7 +68,7 @@ cd $W/IsaacLab && git fetch -q --depth 1 origin "$ISAACLAB_TAG" && git checkout 
 # (what pip's isolated build env picks) no longer ships -> build it once without isolation against setuptools < 81.
 FLATDICT_PIN=$(grep -o "flatdict[=<>~!]*[0-9.]*" $W/IsaacLab/source/isaaclab/setup.py | head -1)   # e.g. flatdict==4.0.1
 pip install -q "setuptools<81" wheel && pip install -q --no-build-isolation "${FLATDICT_PIN:-flatdict}" 2>&1 | tail -1
-pip install -e $W/IsaacLab/source/isaaclab
+uv pip install --no-build-isolation -e "$W/IsaacLab/source/isaaclab"
 # NOTE: `import isaaclab` only works inside a running Kit app (it needs pxr), so check the packages resolve instead.
 python -c "import importlib.util as u; assert all(u.find_spec(m) for m in ('isaaclab', 'isaaclab_tasks', 'rsl_rl')); print('ISAACLAB_IMPORT_OK')" || { echo "ISAACLAB_IMPORT_FAILED"; exit 1; }
 
