@@ -382,3 +382,19 @@ The chosen candidate passes a fresh 2,001-sample full geometry/anatomy audit.
 Coarse-search candidates and the exact postprocessor are preserved in the permanent
 `standing-thumb-release-development` archive. No passing physical result is inferred
 from this screen. GPU setup has reached DoorBench asset-environment preparation.
+
+Trial006 retains the same three failed checks (2,428 independently invalid loaded
+patches; final hand clearance 43.57 mm). Its thumb-only modification is insufficient.
+Inspection of the route found right wrist yaw and WRJ2 targets just 1 mrad from
+their authored stops, restricting measured-palm corrections. Planning now exposes
+a bounded wrist reserve and a separate right-palm orientation objective; defaults
+retain the old behavior. Eighteen focused tests pass.
+
+The 40 mrad reserve candidate initially failed the fixed-foot audit. A subsequent
+solve prioritizes foot/left-hand placement over approximately three degrees of
+right-palm orientation. The feasible solved right-palm poses become explicit new
+waypoints; original requested poses and fit errors are retained. Candidate011,
+including the earlier thumb-base release, passes all 2,001 dense samples: maximum
+position error 0.500 mm, rotation error 0.003965 rad, torso tilt 3.977 degrees and
+final hand clearance 46.45 mm. Trial007 tests this new route physically. Neither
+pose projection nor geometric admission is a physical success claim.
