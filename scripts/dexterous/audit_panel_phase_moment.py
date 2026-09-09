@@ -112,6 +112,10 @@ def main():
     for raw in NativeTransitionArchive.read(run/'raw-transitions'):
         time=float(raw['interval_start_s'])
         if time<times[0]-1e-9:continue
+        if time>times[-1]+1e-9:
+            # A continuous episode may release the panel and traverse later.
+            # The complete selected panel interval remains audited below.
+            continue
         if index>=len(phase) or abs(time-times[index])>1e-9:
             raise ValueError('Actual intervals and panel targets do not align')
         row=phase[index];index+=1

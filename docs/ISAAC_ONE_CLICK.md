@@ -6,7 +6,7 @@ Double-click **[Start Isaac Sim.command](../Start%20Isaac%20Sim.command)** on ma
 python3 scripts/isaac/launch.py
 ```
 
-The launcher opens a local Run Center, provisions or reuses its own RunPod allocation, installs the pinned runtime, prepares the H1 robot with Shadow Hands and one development door, and runs live physics checks. The first installation downloads several gigabytes and takes approximately 30 minutes; an installed runtime is reused. **Environment ready** means the checks passed, not that a door-opening policy has succeeded.
+The launcher opens a local Run Center, provisions or reuses its own RunPod allocation, installs the pinned runtime, prepares the H1 robot with Shadow Hands and one development door, and runs live physics checks. A fresh installation downloads several gigabytes and can take over 90 minutes on network storage; an installed runtime is reused. **Environment ready** means the checks passed, not that a door-opening policy has succeeded.
 
 On the development Mac, the installed shortcut is **Start DoorBench Isaac.command** on the desktop. Its source lives under `~/Library/Application Support/DoorBench/Isaac Launcher`, independently of temporary development worktrees. The desktop launch and a cached restart passed on an L40S; the latest verification was **September 8, 2026 at 04:14:26 UTC** ([receipt summary](../results/dexterous/2026-09-08/isaac-desktop-readiness.json)).
 
@@ -32,15 +32,17 @@ Run Center selects a free localhost port starting at 5190. It shows the current 
 Point the same launcher at an SSH-accessible Linux node:
 
 ```bash
-python3 scripts/isaac/launch.py --host user@gpu-node --port 22 --key ~/.ssh/cluster --work /shared/doorbench
+python3 scripts/isaac/launch.py --host user@gpu-node --port 22 --key ~/.ssh/cluster --work /local-ssd/doorbench
 ```
 
 This mode makes no RunPod calls and sets no teardown timer; use the cluster scheduler's wall-time limit. The node must provide a compatible NVIDIA driver, an RTX-capable GPU for Isaac rendering, writable storage and root or passwordless sudo for package installation. A site-managed node can have an administrator preinstall the runtime before running the checks.
 
+Choose a sufficiently large local SSD for the runtime, caches and generated assets, then archive evidence to durable storage. On September 9, a fresh L40S setup spent more than 80 minutes installing dependencies on a FUSE network mount, including thousands of small Boost header files. Low CPU utilization during this stage did not mean the installer had stopped: process I/O counters and open destination files showed progress. Avoid relocating an active installation or deleting its caches mid-run. See [evidence collection](GPU_EVIDENCE_COLLECTION.md) for the independent off-pod collector.
+
 The remote entry point is also usable directly by a scheduler:
 
 ```bash
-DOORBENCH_WORK=/shared/doorbench bash scripts/isaac/prepare.sh
+DOORBENCH_WORK=/local-ssd/doorbench bash scripts/isaac/prepare.sh
 ```
 
 A different robot needs an embodiment adapter, new motor/sensor mappings and fresh physical validation. Changing the robot name in the configuration does not retarget a checkpoint. See [the reproduction contract](DEXTEROUS_REPRODUCTION.md) for the larger training and migration protocol.

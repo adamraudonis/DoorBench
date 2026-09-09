@@ -70,7 +70,7 @@ def main():
                 renderer.update_scene(d,camera=camera,scene_option=option);sim.hide_sensor_overlays(renderer.scene)
                 picture=Image.fromarray(renderer.render());draw=ImageDraw.Draw(picture);draw.rectangle((0,0,960,49),fill='black')
                 draw.text((12,7),'RECORDED NATIVE PHYSICS | '+('RUN CHECKS PASSED' if report['passed'] else 'FAILED RUN CHECKS'),fill='white')
-                draw.text((12,28),f'{times[i]:.3f}s | {phases[i]} | privileged teacher; no traversal or sensor-policy claim',fill='white')
+                draw.text((12,28),f'{times[i]:.3f}s | {phases[i]} | privileged native teacher; no Isaac or sensor-policy claim',fill='white')
                 if writer is not None:writer.append_data(np.asarray(picture))
                 if frame in (0,len(indices)//2,len(indices)-1):picture.save(a.output/f'frame-{frame:04d}.png')
     sim.close()

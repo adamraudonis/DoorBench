@@ -219,6 +219,17 @@ def main():
             "                (a.output/'error.txt').write_text(str(error)+'\\n')\n                break")
         replace_once('            row,raw=recorder.after_step()',
             '            row,raw=recorder.after_step()\n            previous_raw=raw\n            bridge.annotate(sim,row,body_bounds)')
+        replace_once('    completed=False', '    warning_rows=[]\n    completed=False')
+        replace_once('            recorder.before_step()',
+            '            warning_before=[w.number for w in d.warning]\n            recorder.before_step()')
+        replace_once('            raw_stream.write(raw)',
+            "            warning_rows.append((raw['interval_start_s'],raw['interval_end_s'],warning_before,[w.number for w in d.warning]))\n            raw_stream.write(raw)")
+        replace_once('        raw_stream.close(complete=completed)',
+            "        raw_stream.close(complete=completed)\n"
+            "        np.savez_compressed(a.output/'actual-warning-intervals.npz',"
+            "times=np.array([[r[0],r[1]] for r in warning_rows]),"
+            "before=np.array([r[2] for r in warning_rows],dtype=np.int64),"
+            "after=np.array([r[3] for r in warning_rows],dtype=np.int64))")
         stop=next(line for line in text.splitlines() if line.strip().startswith('if sequence.blocked_reason or'))
         replace_once(stop,"            if sequence.blocked_reason or sequence.continuous.done or not row['finite'] or row['torso_tilt_deg']>35:break")
         marker="        (a.output/'report.json').write_text"
