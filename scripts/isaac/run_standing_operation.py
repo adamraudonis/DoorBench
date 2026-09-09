@@ -27,7 +27,9 @@ def main():
     p.add_argument('--deadline-unix',type=float,required=True)
     p.add_argument('--hold-attained-grasp',action='store_true',help='Test qualified attained finger hold in both physics backends')
     p.add_argument('--wait-for-run',type=Path,help='Wait for this earlier coordinator to finish before using the prepared node')
+    p.add_argument('--isaac-timeout-seconds',type=float,default=4200.,help='Wall-clock budget including periodic evidence export')
     a=p.parse_args()
+    if not 300<=a.isaac_timeout_seconds<=7200:raise ValueError('Isaac wall-clock budget must be 300..7200 seconds')
     if a.deadline_unix-time.time()<300:raise ValueError('At least five minutes of guarded runtime required')
     a.output.mkdir(parents=True,exist_ok=False)
     (a.output/'run.pid').write_text(str(os.getpid()))
@@ -40,7 +42,7 @@ def main():
         (a.output/'pipeline.json').write_text(json.dumps(dict(stage=name,report_file='coordinator-result.json',scope=result['scope'],deadline_unix=a.deadline_unix)))
         print(name,flush=True)
     def run(argv,name,maximum,allowed_codes=(0,)):
-        remaining=a.deadline_unix-time.time()-90
+        remaining=a.deadline_unix-time.time()-300
         if remaining<30:raise TimeoutError('Guarded run budget exhausted')
         argv=list(map(str,argv));commands.append(dict(name=name,argv=argv,started_unix=time.time()))
         (a.output/'commands.json').write_text(json.dumps(commands,indent=2))
@@ -49,6 +51,18 @@ def main():
             process=subprocess.Popen(argv,cwd=a.source,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
             try:code=process.wait(timeout=min(maximum,remaining))
             except subprocess.TimeoutExpired:
+                # Let the simulator close streams and export its measured prefix
+                # before any process signal. An early stop remains a failed run.
+                if name=='isaac-operation':
+                    (Path(argv[argv.index('--output')+1])/'stop.request').write_text('Coordinator wall-clock budget exhausted\n')
+                    commands[-1]['graceful_stop_requested']=True
+                    try:code=process.wait(timeout=max(1.,min(240.,a.deadline_unix-time.time()-30.)))
+                    except subprocess.TimeoutExpired:pass
+                    else:
+                        commands[-1].update(returncode=code,finished_unix=time.time())
+                        (a.output/'commands.json').write_text(json.dumps(commands,indent=2))
+                        if code not in allowed_codes:raise RuntimeError(name+' exited '+str(code))
+                        return
                 import signal
                 os.killpg(process.pid,signal.SIGTERM)
                 try:process.wait(timeout=20)
@@ -88,7 +102,8 @@ def main():
         inputs=[a.ready,a.reference,robot,motors,reference,screen/'geometry-audit.json',native/'report.json',layout,Path(ready['robot_usd']),Path(ready['door_usd'])]
         (a.output/'provenance.json').write_text(json.dumps(dict(source=frozen,coordinator_sha256=sha(__file__),input_sha256={str(path):sha(path) for path in inputs},scope=result['scope']),indent=2))
         trial=a.output/'trial'
-        run([isaac,a.source/'scripts/dexterous/isaac_opening.py','--robot-usd',ready['robot_usd'],'--door-usd',ready['door_usd'],'--motors',motors,'--reference',reference,'--sensor-layout',layout,'--reset-from-acquisition-path','--grasp-profile','distal-pad-v1','--joint-passive-profile','backend-dry-v2','--seconds','36','--output',trial,'--headless','--device','cuda:0','--record','--enable_cameras','--sensor-gyro-profile','pose-delta-angle-v1','--acquisition','--native-robot',robot,'--acquisition-stance-profile','landed-foot-v1','--acquisition-pressure-segment','distal','--acquisition-index-finger-force','3','--operate-after-acquisition','--operator-compliance-gain','.2','--operation-min-acquisition-seconds','10.6','--operation-grasp-offset-in-handle-m','.004','-.003','.0025',*hold_options],'isaac-operation',3000,allowed_codes=(0,1))
+        if a.deadline_unix-time.time()<a.isaac_timeout_seconds+300:raise TimeoutError('Insufficient guarded time for Isaac run and evidence export')
+        run([isaac,a.source/'scripts/dexterous/isaac_opening.py','--robot-usd',ready['robot_usd'],'--door-usd',ready['door_usd'],'--motors',motors,'--reference',reference,'--sensor-layout',layout,'--reset-from-acquisition-path','--grasp-profile','distal-pad-v1','--joint-passive-profile','backend-dry-v2','--seconds','36','--output',trial,'--headless','--device','cuda:0','--record','--enable_cameras','--sensor-gyro-profile','pose-delta-angle-v1','--acquisition','--native-robot',robot,'--acquisition-stance-profile','landed-foot-v1','--acquisition-pressure-segment','distal','--acquisition-index-finger-force','3','--operate-after-acquisition','--operator-compliance-gain','.2','--operation-min-acquisition-seconds','10.6','--operation-grasp-offset-in-handle-m','.004','-.003','.0025',*hold_options],'isaac-operation',a.isaac_timeout_seconds,allowed_codes=(0,1))
         # Preserve and independently audit failures as well as successful runs.
         result['isaac_runtime_passed']=json.loads((trial/'operation-report.json').read_text())['passed']
         run([asset,a.source/'scripts/dexterous/audit_isaac_acquisition_contacts.py','--trial',trial,'--output',a.output/'isaac-independent-audit.json'],'isaac-contact-audit',600)
