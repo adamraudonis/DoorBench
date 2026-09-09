@@ -78,7 +78,7 @@ def main():
             exact_no_physics_clock_advance=all(r['clock_before']==r['clock_after'] for r in records),
             updated_pose_matches_closed_form=all(r['rotation_error_rad']<1e-6 and r['position_error_m']<1e-6 for r in records),
             positive_stale_read_control=all(r['stale_before_error_rad']>.1 for r in records),
-            reset_state_retained=all(abs(r['actual_joint_position'][0][0]-r['joint_bend_rad'])<1e-7 and np.max(abs(r['actual_joint_velocity']))==0 for r in records),
+            reset_state_retained=all(abs(r['actual_joint_position'][0][0]-r['joint_bend_rad'])<1e-7 and np.max(np.abs(r['actual_joint_velocity']))==0 for r in records),
             producer_reads_synchronized_tensor=all(r['producer_reset_exact_raw'] for r in records),zero_physics_steps_after_setup=physics_steps==0)
         stage.GetRootLayer().Export(str(a.output/'fixture.usda'))
         report=dict(schema='doorbench.actual-reset-kinematic-fixture.v1',scope=__doc__,passed=all(checks.values()),checks=checks,

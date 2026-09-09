@@ -107,7 +107,8 @@ def main():
         'doorbench/dexterous/stance.py','doorbench/dexterous/grasp_verification.py','doorbench/dexterous/native_transition_audit.py',
         'doorbench/dexterous/native_warning_audit.py','doorbench/dexterous/environment.py','scripts/dexterous/probe_sensor_reach_balance.py','scripts/dexterous/export_sensor_layout.py']
     root=Path(__file__).resolve().parents[2]
-    provenance['source_git_revision']=subprocess.run(['git','rev-parse','HEAD'],cwd=root,check=True,text=True,capture_output=True).stdout.strip()
+    from doorbench.dexterous.source_provenance import source_provenance
+    provenance.update(source_provenance(root))
     provenance['runtime_versions']=dict(python=sys.version,mujoco=mujoco.__version__,numpy=np.__version__)
     # Freeze the imported project dependency closure, including DoorEnv and the
     # actual force/contact auditor, rather than only the outer controller file.

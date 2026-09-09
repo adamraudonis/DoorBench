@@ -47,7 +47,8 @@ def source_bundle(output):
     identity=hashlib.sha256(json.dumps(hashes,sort_keys=True).encode()).hexdigest()
     with tarfile.open(output,'w:gz') as archive:
         for n in files:archive.add(ROOT/n,arcname=n,recursive=False)
-    (output.parent/'source-manifest.json').write_text(json.dumps(dict(sha256=identity,files=hashes),indent=2)+'\n')
+    revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+    (output.parent/'source-manifest.json').write_text(json.dumps(dict(sha256=identity,files=hashes,source_git_revision=revision),indent=2)+'\n')
     return identity
 
 
