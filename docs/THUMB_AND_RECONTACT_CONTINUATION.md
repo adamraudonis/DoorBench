@@ -1,6 +1,7 @@
 # Thumb relief and moving-door recontact
 
-September 9, 2026 UTC. Neither experiment below qualifies a complete opening.
+September 9, 2026 UTC. The thumb experiments failed. The later privileged
+whole-body trial below passed its native opening checks; traversal is pending.
 
 ## Thumb relief
 
@@ -51,5 +52,31 @@ rotation and retains 40 mm right-hand clearance. The extra six seconds are
 synthetic kinematics, not additional observed physical motion.
 [Full prediction receipt](evidence/recontact-whole-body-prediction-003.json).
 
-The next step is to bind the preceding motor targets at the transition,
-integrate the planner, and independently audit a new physical continuation.
+## Actual continuous opening
+
+`walked-moving-body-recontact-003` passes **30/30 recorded native checks**.
+From a separated, contact-free start it approaches, grasps, depresses the lever,
+opens partially, transfers support, releases the right hand and pushes the leaf
+to **1.2299 rad (70.47 degrees)**. It finishes at **75.168 s**, with the original
+half-second palm-load requirement met and 3.530 N of final palm load. The timed
+recontact controller's physical push sufficed to reach the opening threshold;
+no door coordinate or external support force was commanded.
+
+An independent audit verifies continuity across all **37,584 actual intervals**,
+zero motor-cap excess, exact archived body-frame agreement and no invalid right
+distal-pad contacts after transfer starts. Another audit checks all **2,682**
+new panel-control intervals, including bounded targets and exact delivery of
+the corrected torso effort. The first 69.5 seconds match the previous verified
+walking prefix byte for byte. Raw data and frozen source are retained locally.
+
+Two preceding attempts remain failures: attempt 001 stopped on an archived
+teacher compatibility error; attempt 002 reached the aperture but lacked the
+final loaded hold and exposed roundoff above a strict planned-acceleration
+check. Attempt 003 retains the same audit bounds, adds numerical headroom in
+the controller and waits for the existing loaded hold before early stopping.
+
+[Full report, independent audits and hashes](evidence/continuous-native-opening-003.json).
+This is one privileged native run, not Isaac parity, repeatability, a learned
+vision/tactile policy or traversal. A fresh 909-sample static stow route from
+its endpoint passes; an initialized physical continuation is running before
+integration into the uninterrupted sequence.
