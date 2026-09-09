@@ -116,7 +116,7 @@ def main():
             if distance<nearest:nearest=distance;pair=[m.geom(g).name,m.geom(h).name]
         minimum_clearance=min(minimum_clearance,nearest)
         for key,value in vals.items():maxima[key]=max(maxima.get(key,0.),value)
-        limits=dict(left_position_m=.0001,left_rotation_rad=.001,right_position_m=.0001,right_rotation_rad=.001,foot_position_m=.0001,foot_rotation_rad=.001,joint_violation_increase_rad=.000001,torso_tilt_deg=12.,root_translation_m=.03,root_rotation_rad=.05,com_xy_displacement_m=.015,joint_velocity_rad_s=1.2,joint_acceleration_rad_s2=3.,root_velocity_m_s=.02,root_rotvec_velocity_rad_s=.03)
+        limits=dict(left_position_m=.0001,left_rotation_rad=.001,right_position_m=.0001,right_rotation_rad=.001,foot_position_m=.0001,foot_rotation_rad=.001,joint_violation_increase_rad=.000001,torso_tilt_deg=min(12.,float(report['configuration'].get('maximum_torso_tilt_deg') or 12.)),root_translation_m=.03,root_rotation_rad=.05,com_xy_displacement_m=.015,joint_velocity_rad_s=1.2,joint_acceleration_rad_s2=3.,root_velocity_m_s=.02,root_rotvec_velocity_rad_s=.03)
         bad={key:vals[key] for key,limit in limits.items() if vals[key]>limit}
         if bad or collisions or nearest<.04:failures.append(dict(time_s=float(t),violations=bad,collisions=collisions,right_clearance_m=nearest,closest_pair=pair))
         traces.append(np.r_[t,sample['progress'],sample['position'],sample['velocity'],sample['acceleration']])

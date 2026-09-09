@@ -26,6 +26,7 @@ def main():
     p.add_argument('--target-aperture-rad',type=float,default=1.2)
     p.add_argument('--nodes',type=int,default=61)
     p.add_argument('--flatten-over-rad',type=float,default=.2)
+    p.add_argument('--keep-elbow-in-front',action='store_true',help='Conservative original elbow-mesh clearance from the moving panel plane')
     p.add_argument('--flatten-palm',action='store_true',help='Rotate the actual palm face toward the panel over0.2rad while preserving its collision support plane')
     p.add_argument('--admit-exact-soft-limit-start',action='store_true',help='Retain only the measured initial solver-limit excursion, then smoothly regain the 1mm/rad numeric joint margin within 0.1rad aperture')
     a=p.parse_args()
@@ -60,6 +61,25 @@ def main():
     leaf_p=d.xpos[leaf].copy();leaf_r=d.xmat[leaf].reshape(3,3).copy()
     local_p=leaf_r.T@(d.site_xpos[lh]-leaf_p);local_r=leaf_r.T@d.site_xmat[lh].reshape(3,3)
     palm_vertices=original_palm_vertices(m,d,lh) if a.flatten_palm else None
+    elbow=m.body('robot/left_elbow_link').id;elbow_vertices=[];slab_vertices=[]
+    if a.keep_elbow_in_front:
+        for g in range(m.ngeom):
+            if not m.geom_contype[g]:continue
+            if m.geom_bodyid[g]==elbow:
+                if m.geom_type[g]!=mujoco.mjtGeom.mjGEOM_MESH:raise ValueError('Original elbow mesh required')
+                mesh=m.geom_dataid[g];start=m.mesh_vertadr[mesh];count=m.mesh_vertnum[mesh]
+                world=m.mesh_vert[start:start+count]@d.geom_xmat[g].reshape(3,3).T+d.geom_xpos[g]
+                elbow_vertices.extend((world-d.xpos[elbow])@d.xmat[elbow].reshape(3,3))
+            elif m.geom(g).name.startswith('leaf_slab'):
+                if m.geom_type[g]!=mujoco.mjtGeom.mjGEOM_BOX:raise ValueError('Original slab box required')
+                import itertools
+                corners=np.asarray(list(itertools.product((-1.,1.),repeat=3)))*m.geom_size[g]
+                world=corners@d.geom_xmat[g].reshape(3,3).T+d.geom_xpos[g]
+                slab_vertices.extend((world-leaf_p)@leaf_r)
+        elbow_vertices=np.asarray(elbow_vertices);slab_vertices=np.asarray(slab_vertices)
+        if not len(elbow_vertices) or not len(slab_vertices):raise ValueError('Missing collision surfaces')
+        elbow_side=float(np.sign((d.xpos[elbow]-leaf_p)@leaf_r[:,1]))
+        slab_front=float(np.max(slab_vertices[:,1]*elbow_side))
     right_p=d.site_xpos[rh].copy();right_r=d.site_xmat[rh].reshape(3,3).copy()
     feet=[m.body('robot/'+side+'_ankle_link').id for side in ('left','right')]
     feet_p=d.xpos[feet].copy();feet_r=d.xmat[feet].reshape(2,3,3).copy()
@@ -96,7 +116,12 @@ def main():
             foot=np.concatenate([np.r_[100*(d.xpos[b]-feet_p[j]),10*Rotation.from_matrix(feet_r[j]@d.xmat[b].reshape(3,3).T).as_rotvec()] for j,b in enumerate(feet)])
             up=d.xmat[m.body('robot/torso_link').id].reshape(3,3)[:,2]
             upright=0. if a.maximum_torso_tilt_deg is None else 1000.*max(0.,np.arccos(np.clip(up[2],-1,1))-np.radians(a.maximum_torso_tilt_deg))
-            return np.r_[hands,foot,upright,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6],0. if a.root_rotation_norm_rad is None else 1000.*max(0.,np.linalg.norm(x[3:6])-a.root_rotation_norm_rad)]
+            elbow_barrier=0.
+            if a.keep_elbow_in_front:
+                vertices=elbow_vertices@d.xmat[elbow].reshape(3,3).T+d.xpos[elbow]
+                gap=float(np.min((vertices-lp)@lr[:,1]*elbow_side))-slab_front
+                elbow_barrier=1000.*max(0.,.003-gap)
+            return np.r_[hands,foot,upright,elbow_barrier,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6],0. if a.root_rotation_norm_rad is None else 1000.*max(0.,np.linalg.norm(x[3:6])-a.root_rotation_norm_rad)]
         fit=least_squares(evaluate,np.clip(previous,low,high),bounds=(low,high),max_nfev=800,ftol=1e-11,xtol=1e-11,gtol=1e-11)
         previous=fit.x.copy();res=evaluate(previous);mujoco.mj_collision(m,d)
         collisions=[]
