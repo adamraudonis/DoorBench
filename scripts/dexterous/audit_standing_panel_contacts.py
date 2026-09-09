@@ -35,7 +35,8 @@ def main():
             if chunk['interval_end_s']<start:continue
             path=b/'raw-transitions'/chunk['file']
             if sha(path)!=chunk['sha256']:raise ValueError('Actual contact archive changed')
-            with np.load(path) as z:
+            with np.load(path) as packed:
+                z={k:packed[k] for k in ('interval_start_s','contact_offsets','contact_wrench_contact_frame','contact_body','contact_geom')}
                 for i,t in enumerate(z['interval_start_s']):
                     if t<start-1e-8:continue
                     intervals+=1;s,e=z['contact_offsets'][i:i+2]

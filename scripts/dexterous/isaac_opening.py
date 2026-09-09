@@ -141,6 +141,7 @@ p.add_argument('--acquisition-pressure-segment',choices=['distal'],help='Apply t
 p.add_argument('--operation-grasp-offset-in-handle-m',nargs=3,type=float,help='Optional handle-frame reference recenter, at most 10 mm; one-second smooth ramp')
 p.add_argument('--operation-min-acquisition-seconds',type=float,default=0.,help='Earliest qualified grasp-to-operation handoff')
 p.add_argument('--hold-attained-grasp',action='store_true',help='Capture original coupled finger targets after a qualified partial opening')
+p.add_argument('--operation-actual-pad-control',action='store_true')
 p.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
@@ -210,6 +211,7 @@ if a.acquisition_stance_profile and (not a.acquisition or a.full_sequence_reset)
 if a.operate_after_acquisition and not a.acquisition:p.error('--operate-after-acquisition requires --acquisition')
 if a.acquisition_pressure_segment and (not a.acquisition or a.full_sequence_reset or a.full_opening):p.error('Pressure segment requires a separate acquisition trial')
 if not math.isfinite(a.operation_min_acquisition_seconds) or a.operation_min_acquisition_seconds<0:p.error('Finite nonnegative operation handoff time required')
+if a.operation_actual_pad_control and (not a.operate_after_acquisition or a.full_sequence_reset or a.full_opening or a.hold_attained_grasp):p.error('Actual material pads require a separate standalone operation trial')
 if a.hold_attained_grasp and (not a.operate_after_acquisition or a.full_sequence_reset or a.full_opening):p.error('Attained grasp hold requires a standalone operation trial')
 if a.operation_grasp_offset_in_handle_m is not None:
     if not all(math.isfinite(v) for v in a.operation_grasp_offset_in_handle_m) or sum(v*v for v in a.operation_grasp_offset_in_handle_m)>.01**2:p.error('Finite grasp offset within 10 mm required')
@@ -511,7 +513,7 @@ def main():
                 basis=np.eye(3)['XYZ'.index(joint.GetAxisAttr().Get())]
                 joint_geometry[role+'_origin']=np.array(joint.GetLocalPos1Attr().Get())
                 joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*map(float,basis))))
-            operation=DoorOperationTeacher(teacher,joint_geometry,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
+            operation=DoorOperationTeacher(teacher,joint_geometry,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile="actual-material-v1" if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
             if sequence_reset and not a.full_opening:
                 from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
                 sequence=FullSequenceTeacher(a.native_robot,motors,ref,
@@ -559,7 +561,7 @@ def main():
                 operator_target_rad=.87,leaf_target_rad=.08,press_duration_s=5.,opening_duration_s=3.,
                 wait_for_press_completion=not a.open_on_latch_clear,
                 operator_compliance_gain=a.operator_compliance_gain,operator_compliance_limit_rad=.15,
-                freeze_compliance_on_release=True,hold_attained_grasp=a.hold_attained_grasp,
+                freeze_compliance_on_release=True,fixed_pad_control=a.operation_actual_pad_control,pad_control_profile="actual-material-v1" if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,
                 scope='Continuous walking, lowering, readiness, acquisition and partial opening; no traversal' if sequence else 'Contact-free acquisition to lever, latch and partial opening; no approach or traversal',
                 final_hold='The final 0.5 s must pass the unchanged strict five-pad check and hold leaf angle in [0.075, 0.10] rad; report intermediate digit unloads separately'),indent=2)+'\n')
             if full_opening:

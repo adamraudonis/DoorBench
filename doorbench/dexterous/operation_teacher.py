@@ -41,8 +41,10 @@ class DoorOperationTeacher:
                  operator_target=.87, release_operator_threshold=.80,
                  release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True,
                  operator_compliance_gain=0., operator_compliance_limit=.15,
-                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening'):
+                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening', pad_control_profile='commanded-material-v1'):
         if type(fixed_pad_control) is not bool:raise ValueError('Explicit contact-controller flag required')
+        if pad_control_profile not in ('commanded-material-v1','actual-material-v1'):raise ValueError('Unknown pad control profile')
+        self.pad_control_profile=pad_control_profile
         self.fixed_pad_control=fixed_pad_control;self.pad_control=None
         if type(hold_attained_grasp) is not bool or (hold_attained_grasp and fixed_pad_control):raise ValueError('Attained hold is a separate explicit hand controller')
         self.attained_hold=None
@@ -107,7 +109,7 @@ class DoorOperationTeacher:
         self.r_relative = hr.T@teacher.d.site_xmat[teacher.palm].reshape(3,3)
         if self.fixed_pad_control:
             from .operation_pad_control import OperationPadControl
-            self.pad_control=OperationPadControl(teacher,handle_pose)
+            self.pad_control=OperationPadControl(teacher,handle_pose,profile=self.pad_control_profile)
         self.initial_handle = angles['operator']
         self.started = t
         teacher.position_integral[:] = 0.

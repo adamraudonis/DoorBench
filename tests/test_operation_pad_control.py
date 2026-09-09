@@ -36,3 +36,11 @@ def test_feedback_has_no_initial_torque_step():
         leaf_origin=np.zeros(3),leaf_axis=np.array([0.,0.,1.]))
     motors,_=c.force(np.array([1.,.5]),0.,pose,pose,dict(operator=0.,leaf=0.),dict(operator=0.,leaf=0.),geometry)
     np.testing.assert_array_equal(motors,[1.,.5])
+
+
+def test_actual_material_targets_follow_measured_handle_without_arm_counterforce():
+    c=fixture();c.profile='actual-material-v1';pose=np.array([.2,.3,.4,1.,0.,0.,0.]);geometry=dict(operator_origin=np.zeros(3),operator_axis=np.array([0.,1.,0.]),leaf_origin=np.zeros(3),leaf_axis=np.array([0.,0.,1.]))
+    motors,info=c.force(np.array([1.,.5]),1.,pose,pose,dict(operator=0.,leaf=0.),dict(operator=.8,leaf=.1),geometry)
+    np.testing.assert_allclose(c.targets['ff'],[.2,.307,.4])
+    np.testing.assert_allclose(c.targets['th'],[.2,.293,.4])
+    assert motors[1]==.5 and info['operation_pad_control']=='actual-material-v1'
