@@ -140,9 +140,23 @@ nohup bash scripts/isaac/prepare.sh > {shlex.quote(remote_status+'/run.log')} 2>
 echo $! > {shlex.quote(remote_status+'/run.pid')}
 '''
         run(ssh+['bash -s'],input=script,text=True)
+    # A process independent of this launcher/assistant preserves partial output
+    # and verifies final bytes. Existing-cluster mode only bounds collection;
+    # it does not grant permission to tear down that cluster.
+    collector_deadline=(deadline-60 if deadline is not None else
+                        time.time()+3600*(a.hours or cfg['hours']))
+    collector_argv=[sys.executable,str(ROOT/'scripts/isaac/collect_run.py'),
+        '--host',host,'--port',str(port),'--key',str(key),
+        '--remote',remote+'/out','--destination',str(session/'remote-evidence'),
+        '--deadline',str(collector_deadline),'--pid-file','launch/run.pid',
+        '--terminal','isaac-ready/'+profile+'/ready.json','--detach']
+    collection=subprocess.run(collector_argv,text=True,capture_output=True,check=True)
+    collector=json.loads(collection.stdout)
     register(host,port,key,remote_status)
     receipt=dict(host=host,port=port,key=str(key),source_sha256=digest,remote=remote,status=remote_status,pod_id=pod_id,deadline_unix=deadline,
                  connect_command=shlex.join(ssh),mechanics_profile=profile,cache_identity=identity,ready_receipt=str(ready_directory(remote,profile)/'ready.json'),native_robot=str(ready_directory(remote,profile)/robot_filename(profile)))
+    receipt['evidence_collector']=collector
+    receipt['evidence_directory']=str(session/'remote-evidence')
     (session/'connection.json').write_text(json.dumps(receipt,indent=2)+'\n')
     print('Preparation running. Run Center shows all stages and errors.',flush=True)
     print('Connection details: '+str(session/'connection.json'),flush=True)

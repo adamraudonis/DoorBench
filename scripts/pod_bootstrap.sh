@@ -54,7 +54,9 @@ phase "== [4/6] Isaac Lab $ISAACLAB_TAG (installs torch cu128 + rsl_rl)"
 if [ ! -d $W/IsaacLab ]; then git clone -q --depth 1 --branch "$ISAACLAB_TAG" https://github.com/isaac-sim/IsaacLab.git $W/IsaacLab; fi
 # pre-fetch torch cu128 with uv (fast, concurrent) so isaaclab.sh's pip step finds it installed
 uv pip install "torch==2.7.0" "torchvision==0.22.0" --index-url https://download.pytorch.org/whl/cu128 2>&1 | tail -1
-cd $W/IsaacLab && git fetch -q --depth 1 origin "$ISAACLAB_TAG" && git checkout -q FETCH_HEAD && ./isaaclab.sh --install rsl_rl 2>&1 | tail -3
+# Stream installation progress into the launch log. A trailing `tail` buffered
+# every package message until completion and made a slow FUSE install look hung.
+cd $W/IsaacLab && git fetch -q --depth 1 origin "$ISAACLAB_TAG" && git checkout -q FETCH_HEAD && ./isaaclab.sh --install rsl_rl
 # isaaclab.sh can skip the core package and still exit 0 (seen on 2026-09-04: every sub-package installed, `isaaclab` missing);
 # install it explicitly and fail loudly if the import does not work.
 # isaaclab's dependency `flatdict` builds from source with a setup.py that imports pkg_resources, which setuptools >= 81
