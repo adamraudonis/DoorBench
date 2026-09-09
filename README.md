@@ -44,6 +44,7 @@ The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock
 | Isaac, standing handle operation (`backend-dry-v2`) | **Failed: 18/19 checks**; physical latch release and 4.44° opening, but three fingers leave their distal pads ([audit](docs/evidence/isaac-standing-operation-002.json)) | September 9, 2026, 08:59 |
 | Isaac, extended standing operation | **Incomplete:** timeout before final export; snapshots through 35.5 s show opening followed by grip loss ([record](docs/evidence/isaac-standing-operation-003-incomplete.json)) | September 9, 2026, 13:12–14:01 |
 | MuJoCo, upright handle release | **29/29 runtime + 8/8 independent checks** over 80.6 s; zero invalid loaded finger contacts, right hand clears by 46.3 mm, left palm supports door ([audit](docs/evidence/native-standing-withdrawal-017.json)) | September 9, 2026, 15:07 verification |
+| MuJoCo, upright release and panel opening | **33/33 runtime + 12/12 independent checks** over 120 s; door held at 42.5°, hand clear and palm supported; no traversal ([audit](docs/evidence/native-standing-panel-006.json)) | September 9, 2026, 16:55 verification |
 | Isaac, held-grasp comparison | **Failed: 17/19 runtime checks**; lever/latch operated, grip and opening hold lost; intended hold never activated ([audit](docs/evidence/isaac-standing-hold-005.json)) | September 9, 2026, 15:05 completion |
 | MuJoCo, latest learned motor-target sensor actor | **0/1 complete tasks**; fell after 1.306 s | September 9, 2026, 06:42 |
 

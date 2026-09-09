@@ -672,3 +672,31 @@ controller calibration on a development door, not a robustness or generalization
 score. The repository also retains a separately declared `volar-phalange-v1`
 contact protocol from earlier research; none of these distal trials has been
 retroactively promoted under it.
+
+At16:55 UTC, native panel006 passed33/33 runtime checks,8/8 independent
+grasp/release checks and4/4 independent external-support checks. It holds the
+door at0.742428 rad after a continuous120-second closed-start trial. There are
+zero invalid loaded RH patches across60,000 intervals, no unexpected external
+support contacts across20,201 panel intervals, and at least44.766 mm RH clearance
+throughout that phase. Exact-input body imagery was inspected. Complete raw
+evidence is retained in both the worktree and the permanent run archive. This
+qualifies the upright partial-opening continuation, not approach or traversal.
+Screen007 is exploring1.2 rad from its actual119-second pose with fixed feet.
+
+Pressure013 passed18/18 native runtime and6/6 independent contact checks at
+the0.082 rad command (actual final leaf0.076116 rad). Its coordinator stopped
+before Isaac because the old guard left less than the required run/export
+reserve. The node's local and remote guards were renewed with acknowledged
+deadline18:47:58 UTC and an explicit10-hour total ceiling. Pressure014 repeats
+the same frozen source and command; its native prerequisite passed and actual
+Isaac physics is running. No Isaac result is claimed yet.
+
+Preview verification was tightened: the renderer now rejects robot or door XML
+that differs from the recorded manifest even if the model/version name matches.
+Three local reconstructions of GPU-native trials were marked unverified-inputs.
+The differing robot files share all731 asset hashes but have different paths
+and redundant OBJ type declarations; the door files differ in an inertial-frame
+representation. No numerical audit was changed. Pressure013's new close-up was
+rendered on the original node using its exact robot/door files and inspected at
+35.502 s from120-degree azimuth. The imageio2.37.4 diagnostic package was added
+without dependencies to the asset environment; simulation packages were retained.

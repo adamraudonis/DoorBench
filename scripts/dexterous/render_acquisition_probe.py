@@ -13,6 +13,22 @@ from PIL import Image, ImageDraw
 from doorbench.dexterous.environment import DexterousDoorEnv
 
 
+def verify_recorded_xml(trial,robot,door):
+    """Version labels alone cannot authorize a cross-machine reconstruction."""
+    manifest=trial/'manifest.json'
+    if manifest.exists():
+        inputs=json.loads(manifest.read_text())['inputs']
+        expected=((robot,inputs['robot']['sha256']),(door/'door.xml',inputs['door']['door.xml']))
+    else:
+        records=(trial/'robot-input.xml',trial/'door-input.xml')
+        if not all(p.exists() for p in records):raise ValueError('Recorded robot and door XML identities are required')
+        expected=tuple((actual,hashlib.sha256(record.read_bytes()).hexdigest()) for record,actual in zip(records,(robot,door/'door.xml')))
+    for path,digest in expected:
+        if hashlib.sha256(path.read_bytes()).hexdigest()!=digest:
+            raise ValueError('Render on the original host with the exact recorded input XML: '+str(path))
+    return {str(path):digest for path,digest in expected}
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('robot','door','trial'):
@@ -24,6 +40,7 @@ def main():
     p.add_argument('--distance',type=float)
     p.add_argument('--snapshots-only',action='store_true',help='Render beginning, middle and end from recorded physics without encoding a video')
     args=p.parse_args()
+    verified_inputs=verify_recorded_xml(args.trial,args.robot,args.door)
     report=json.loads((args.trial/'report.json').read_text())
     trace=json.loads((args.trial/'trace.json').read_text())
     trajectory=np.load(args.trial/'trajectory.npz')
@@ -76,7 +93,10 @@ def main():
                         snapshot=args.trial/f'{args.view}{suffix}-{frame:04d}.png'
                         image.save(snapshot);outputs.append(str(snapshot))
         if not args.snapshots_only and not args.at:outputs.insert(0,str(out))
-        print(json.dumps(dict(artifacts=outputs,source='recorded physical states; no physics advancement')))
+        receipt=dict(artifacts=outputs,source='recorded physical states; no physics advancement',verified_xml_sha256=verified_inputs,
+            trajectory_sha256=hashlib.sha256((args.trial/'trajectory.npz').read_bytes()).hexdigest())
+        (args.trial/f'{args.view}-render-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+        print(json.dumps(receipt))
     finally:
         sim.close()
 
