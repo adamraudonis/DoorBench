@@ -250,5 +250,5 @@ fails. These are failed transfers, not full-opening evidence. Trial003's stronge
 Trial004 followed the measured spring-returning operator, but the door closed and
 the robot destabilized early. Both failed archives are retained. Trial005 restores
 the more stable controller and blends fixed-pad targets toward the same commanded
-handle transform as the palm over one second. It is an experiment, not a result. No joint,
+handle transform as the palm over one second. Trial005 completed 36 seconds with 19/20 runtime checks, including left-palm support and balance, but failed right-hand grasp. Close-up recorded-state renders show the lever moving from distal pads toward middle segments. Consistent targets alone did not fix the grasp. No joint,
 contact, opposition, penetration or motor limit is relaxed.
