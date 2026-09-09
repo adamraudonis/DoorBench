@@ -48,12 +48,13 @@ def load_return_route(path,motors):
 
 
 class StandingReturnTeacher:
-    def __init__(self,transfer,motors,path,*,hold_finger_posture=False,support_load_target=None):
+    def __init__(self,transfer,motors,path,*,hold_finger_posture=False,support_load_target=None,palm_feedback=False):
         if not transfer.attained_arm_tracking:raise ValueError('Return requires the qualified attained-arm transfer mode')
         if type(hold_finger_posture) is not bool:raise ValueError('Explicit attained hand posture option required')
         if support_load_target is not None and (not np.isfinite(support_load_target) or not 2<support_load_target<=4):raise ValueError('Return support target must remain above the original 2 N gate and at most 4 N')
         self.support_load_target=support_load_target;self.initial_support_target=transfer.left.support_load_target
         self.hold_finger_posture=hold_finger_posture;self.hand=None
+        self.palm_feedback=bool(palm_feedback);self.palm=None
         self.transfer=transfer;self.operation=transfer.operation;self.acquisition=transfer.acquisition
         self.config,self.plan,self.audit=load_return_route(path,motors)
         self.rows=self.plan['rows'];self.names=list(self.rows[0]['joints'])
@@ -73,6 +74,9 @@ class StandingReturnTeacher:
             if not grasp_qualified or left_panel_load<2 or self.transfer.left.progress<.999:raise ValueError('Loaded opposed grasp and left support required before return')
             if not np.allclose(root[:7],self.roots[0],atol=1e-5,rtol=0) or not np.allclose([joints[n] for n in self.names],self.joints[0],atol=1e-5,rtol=0):raise ValueError('Return requires its exact attained start; no pose replacement')
             self.previous_force=teacher.last_force.copy();self.arm=AttainedArmTracking(teacher,joints,self.previous_force);self.return_started=t
+            if self.palm_feedback:
+                from .return_palm_feedback import ReturnPalmFeedback
+                self.palm=ReturnPalmFeedback(teacher,root,joints,handle_pose,self.operation.geometry)
             if self.hold_finger_posture:
                 from .attained_hand_tracking import AttainedHandTracking
                 self.hand=AttainedHandTracking(teacher,joints,self.previous_force)
@@ -87,10 +91,12 @@ class StandingReturnTeacher:
         self.transfer.left.update_targets(t,root,joints,leaf_pose,left_panel_load,handle_pose)
         forces,info=self.operation.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified)
         forces=self.transfer.left.apply_forces(forces,joints,velocities)
+        palm_info={}
+        if self.palm:targets,palm_info=self.palm.targets(t,targets,root,joints,handle_pose,leaf_pose,angles,self.rows[0]['goal_operator_rad']*(1-u))
         forces,arm_info=self.arm.force(forces,t,targets,joints,velocities)
         hand_info={}
         if self.hand:forces,hand_info=self.hand.force(forces,joints,velocities)
         if self.handoff is None:self.handoff=MotorHandoff(self.previous_force,forces,teacher.caps,1.)
         forces=self.handoff.force(forces,elapsed);teacher.last_force=forces.copy()
-        info={**info,**self.transfer.left.info,**arm_info,**hand_info,'phase':'standing_lever_return','standing_transfer_started_s':self.transfer.started,'return_started_s':self.return_started,'return_progress':u,'return_goal_operator_rad':self.rows[0]['goal_operator_rad']*(1-u),'return_route_duration_s':self.duration,'controller_scope':'Privileged screened torso/right-arm targets; actual left support and original motors'}
+        info={**info,**self.transfer.left.info,**arm_info,**hand_info,**palm_info,'phase':'standing_lever_return','standing_transfer_started_s':self.transfer.started,'return_started_s':self.return_started,'return_progress':u,'return_goal_operator_rad':self.rows[0]['goal_operator_rad']*(1-u),'return_route_duration_s':self.duration,'controller_scope':'Privileged screened torso/right-arm targets; actual left support and original motors'}
         self.info=info;return forces,info
