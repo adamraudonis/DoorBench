@@ -100,6 +100,7 @@ def main():
     parser.add_argument('--index-tendon-offset-rad',type=float,default=0.)
     parser.add_argument('--index-proximal-offset-rad',type=float,default=0.)
     parser.add_argument('--pressure-segment',choices=['nearest','distal'],default='nearest')
+    parser.add_argument('--standing-return-path',type=Path,help='Source-bound measured-state lever return after the qualified transfer')
     parser.add_argument('--standing-transfer-attained-arm',action='store_true',help='Experimental: track screened attained arm joints with measured initial motor preload')
     parser.add_argument('--standing-transfer-no-fixed-pads',action='store_true',help='Ablation: preserve operation digit controller without extra transfer pad tracking')
     parser.add_argument('--standing-transfer-start-seconds',type=float,default=22.)
@@ -116,7 +117,7 @@ def main():
     args = parser.parse_args()
     if not args.portable_wrapper and (args.operation_fixed_pad_control or args.index_proximal_offset_rad or args.index_tendon_offset_rad):
         parser.error('Contact-control options require the portable operation wrapper')
-    if not args.standing_transfer_path and (args.standing_transfer_attained_arm or args.standing_transfer_no_fixed_pads or args.standing_transfer_start_seconds!=22. or args.standing_transfer_hold_route or args.standing_transfer_handoff_seconds or args.standing_transfer_preload_profile!='maintain' or any(args.standing_transfer_grasp_shift)):
+    if not args.standing_transfer_path and (args.standing_return_path or args.standing_transfer_attained_arm or args.standing_transfer_no_fixed_pads or args.standing_transfer_start_seconds!=22. or args.standing_transfer_hold_route or args.standing_transfer_handoff_seconds or args.standing_transfer_preload_profile!='maintain' or any(args.standing_transfer_grasp_shift)):
         parser.error('Transfer options require an explicit transfer route')
     if not np.isfinite([args.seconds,args.press_seconds,args.min_acquisition_seconds]).all() or min(args.seconds,args.press_seconds) <= 0 or args.min_acquisition_seconds < 0:
         parser.error('Use finite positive operation durations')
@@ -169,6 +170,9 @@ def main():
                   if m.body(b).name.startswith(('robot/rh_', 'robot/lh_'))}
     physics = [native_grasp_sample(sim, 'leaf_handle_lever_col_n', handle_joint='leaf_handle_hinge')]
     states = {key:[] for key in ('qpos', 'qvel', 'ctrl')}
+    if args.standing_return_path:
+        from doorbench.dexterous.standing_return import StandingReturnTeacher
+        transfer=StandingReturnTeacher(transfer,motors,args.standing_return_path)
     traces = [];recorder=archive=None;controller_steps=[]
     if args.record_transitions:
         from doorbench.dexterous.native_transition_audit import NativeTransitionRecorder
@@ -245,6 +249,11 @@ def main():
             report['checks']['standing_transfer_started']=transfer.started is not None
             report['checks']['final_left_palm_support']=bool(tail) and all(r.get('left_surface',{}).get('palm_normal_load_N',0)>=2 for r in tail)
             report['standing_transfer']=dict(scope='Privileged physical partial opening and left-palm transfer only; no release/traversal',route=str(args.standing_transfer_path),started_s=transfer.started,final=transfer.info)
+        if args.standing_return_path:
+            report['checks']['standing_return_started']=transfer.return_started is not None
+            report['checks']['operator_returned_to_rest']=bool(tail) and all(abs(r['handle_angle_rad'])<=.05 for r in tail)
+            report['checks']['bolt_returned_to_rest']=bool(tail) and all(abs(r.get('bolt_slide_m',1.))<=.001 for r in tail)
+            report['standing_return']=dict(route=str(args.standing_return_path),started_s=transfer.return_started,final=transfer.info)
         report.update(passed=all(report['checks'].values()),scope=__doc__,
             runtime_robot_pose_writes=0,direct_door_commands=False,
             maximum_handle_rad=max(r['handle_angle_rad'] for r in physics),
