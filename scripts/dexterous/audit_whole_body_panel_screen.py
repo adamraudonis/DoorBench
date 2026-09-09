@@ -31,6 +31,8 @@ def main():
     if not (0<args.aperture_speed_limit_rad_s<=.149 and 0<args.aperture_acceleration_limit_rad_s2<=.08):raise ValueError('Require finite positive rates within original panel limits')
     if args.samples<2001:raise ValueError('Require >=2001 dense samples')
     report=json.loads(args.screen.read_text())
+    relaxed=report['configuration'].get('right_hand_relaxed_orientation',False)
+    if type(relaxed) is not bool or (relaxed and report['configuration'].get('right_hand_frame')!='root'):raise ValueError('Explicit released root-following orientation mode required')
     yaw=report['configuration'].get('root_yaw_extent_rad')
     if yaw is not None and (not .05<=yaw<=.3 or report['configuration'].get('root_rotation_norm_rad') is not None):raise ValueError('Invalid explicit upright-yaw planning profile')
     run=Path(report['configuration']['source_run']).resolve()
@@ -59,6 +61,8 @@ def main():
     rhp=d.site_xpos[rh].copy();rhr=d.site_xmat[rh].reshape(3,3).copy()
     lr=d.xmat[leafbody].reshape(3,3).copy();lp=d.xpos[leafbody].copy()
     lhp=lr.T@(d.site_xpos[lh]-lp);lhr=lr.T@d.site_xmat[lh].reshape(3,3)
+    from doorbench.dexterous.released_hand_goal import released_hand_goal
+    right_outward=np.sign((rhp-lp)@lr[:,1])*lr[:,1]
     palm_vertices=original_palm_vertices(m,d,lh) if report['configuration'].get('flatten_palm') else None
     robot_body=m.jnt_bodyid[m.joint('robot/free_base').id];com=d.subtree_com[robot_body].copy()
     torso=m.body('robot/torso_link').id;floor=m.geom('floor').id
@@ -104,9 +108,11 @@ def main():
             fu=float(np.clip((reference_angle-angles[0])/report['configuration'].get('flatten_over_rad',.2),0,1));fb=fu**3*(10+fu*(-15+6*fu))
             local,localr,_=flatten_palm_goal(local,lhr,palm_vertices,fb)
         targetp=leafp+leafr@local;targetr=leafr@localr
+        progress=float(sample['progress']);retreat_phase=progress**3*(10+progress*(-15+6*progress))
+        right_target_p,right_target_r=released_hand_goal(rhp,rhr,initial[rq:rq+3],x[:6],right_outward,retreat_phase,frame=report['configuration'].get('right_hand_frame','world'),retreat_m=report['configuration'].get('right_hand_retreat_m',0.))
         rotation_error=lambda target,actual:float(np.linalg.norm(Rotation.from_matrix(target@actual.T).as_rotvec()))
         max_joint_increase=float(np.max(np.maximum(m.jnt_range[scalar,0]-d.qpos[sq],d.qpos[sq]-m.jnt_range[scalar,1])-np.maximum(initial_violation,0)))
-        vals=dict(left_position_m=float(np.linalg.norm(d.site_xpos[lh]-targetp)),left_rotation_rad=rotation_error(targetr,d.site_xmat[lh].reshape(3,3)),right_position_m=float(np.linalg.norm(d.site_xpos[rh]-rhp)),right_rotation_rad=rotation_error(rhr,d.site_xmat[rh].reshape(3,3)),foot_position_m=max(float(np.linalg.norm(d.xpos[b]-feetp[k])) for k,b in enumerate(feet)),foot_rotation_rad=max(rotation_error(feetr[k],d.xmat[b].reshape(3,3)) for k,b in enumerate(feet)),joint_violation_increase_rad=max(0.,max_joint_increase),torso_tilt_deg=float(np.degrees(np.arccos(np.clip(d.xmat[torso].reshape(3,3)[2,2],-1,1)))),root_translation_m=float(np.linalg.norm(x[:3])),root_rotation_rad=float(np.linalg.norm(x[3:6])),com_xy_displacement_m=float(np.linalg.norm(d.subtree_com[robot_body,:2]-com[:2])),joint_velocity_rad_s=float(np.max(abs(sample['velocity'][6:]))),joint_acceleration_rad_s2=float(np.max(abs(sample['acceleration'][6:]))),root_velocity_m_s=float(np.linalg.norm(sample['velocity'][:3])),root_rotvec_velocity_rad_s=float(np.linalg.norm(sample['velocity'][3:6])))
+        vals=dict(left_position_m=float(np.linalg.norm(d.site_xpos[lh]-targetp)),left_rotation_rad=rotation_error(targetr,d.site_xmat[lh].reshape(3,3)),right_position_m=float(np.linalg.norm(d.site_xpos[rh]-right_target_p)),right_rotation_rad=rotation_error(right_target_r,d.site_xmat[rh].reshape(3,3)),foot_position_m=max(float(np.linalg.norm(d.xpos[b]-feetp[k])) for k,b in enumerate(feet)),foot_rotation_rad=max(rotation_error(feetr[k],d.xmat[b].reshape(3,3)) for k,b in enumerate(feet)),joint_violation_increase_rad=max(0.,max_joint_increase),torso_tilt_deg=float(np.degrees(np.arccos(np.clip(d.xmat[torso].reshape(3,3)[2,2],-1,1)))),root_translation_m=float(np.linalg.norm(x[:3])),root_rotation_rad=float(np.linalg.norm(x[3:6])),com_xy_displacement_m=float(np.linalg.norm(d.subtree_com[robot_body,:2]-com[:2])),joint_velocity_rad_s=float(np.max(abs(sample['velocity'][6:]))),joint_acceleration_rad_s2=float(np.max(abs(sample['acceleration'][6:]))),root_velocity_m_s=float(np.linalg.norm(sample['velocity'][:3])),root_rotvec_velocity_rad_s=float(np.linalg.norm(sample['velocity'][3:6])))
         collisions=[]
         for contact in d.contact[:d.ncon]:
             bodies=[m.body(m.geom_bodyid[g]).name for g in contact.geom]
@@ -122,6 +128,7 @@ def main():
         minimum_clearance=min(minimum_clearance,nearest)
         for key,value in vals.items():maxima[key]=max(maxima.get(key,0.),value)
         limits=dict(left_position_m=.0001,left_rotation_rad=.001,right_position_m=.0001,right_rotation_rad=.001,foot_position_m=.0001,foot_rotation_rad=.001,joint_violation_increase_rad=.000001,torso_tilt_deg=min(12.,float(report['configuration'].get('maximum_torso_tilt_deg') or 12.)),root_translation_m=.03,root_rotation_rad=.05,com_xy_displacement_m=.015,joint_velocity_rad_s=1.2,joint_acceleration_rad_s2=3.,root_velocity_m_s=.02,root_rotvec_velocity_rad_s=.03)
+        if relaxed:limits['right_rotation_rad']=.35
         if yaw is not None:
             vals.update(root_tilt_delta_rad=float(np.linalg.norm(x[3:5])),root_yaw_delta_rad=float(abs(x[5])))
             limits.update(root_rotation_rad=float(np.hypot(.05,yaw)),root_tilt_delta_rad=.05,root_yaw_delta_rad=yaw)

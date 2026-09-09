@@ -117,3 +117,26 @@ batches with matching physics and sensor clocks. Report environment throughput,
 peak memory, and success checks together. Complete traversal, repeatability,
 sensor-only learning and unseen-door coverage remain separate milestones in the
 [approved plan](DEXTEROUS_NEXT_STEPS.md).
+
+
+## September9 continuation: measured torque and released hand
+
+Panel008's final measured contact moment was0.4557117Nm, below the declared
+0.457638Nm hinge friction. The prospective `bounded-7N-v1` continuation load
+profile raises the palm target cap from6 to7N and the integral cap from3 to4.5N.
+It must explicitly enable terminal stiction assistance. The initial qualified
+segment retains the original6N profile. The same motor caps, contact checks,
+geometry, terminal braking and69° acceptance remain in effect. This changes
+the controller command range, not the success criteria or a physics parameter.
+
+Released-hand planner options can explicitly follow the root, retreat up to12cm,
+and permit up to0.35rad orientation deviation after release. These define a
+new free-hand motion; they do not alter grasp qualification. Screen021 using
+these options failed foot-pose checks and is not eligible for physical replay.
+Default world-fixed hand behavior remains unchanged.
+
+Follow016's actual hand camera at24s was inspected at close range. Independent
+raw-contact reconstruction under the existing volar profile still rejects
+lateral little-finger middle-link contact, and at17.368s thumb loading is absent.
+The historical trial remains failed; no prospective profile change is justified
+by these observations. A graceful failed-prefix export was requested.

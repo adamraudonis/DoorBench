@@ -8,10 +8,15 @@ September 9, 2026: the corrected H1/Shadow model has a qualified upright native
 sequence through grasp, lever operation, release and supported opening to42.5°
 ([33 runtime and12 independent checks](evidence/native-standing-panel-006.json)).
 It uses privileged state and fixed feet during opening. It does not qualify
-upright traversal or learned sensor control. A wider69° candidate passed its
-2,001-pose geometry audit and is now undergoing a fresh180-second physical trial
-(`native-standing-panel-007`). Actual Isaac pressure014 is running separately;
-its final contact and opening audits remain pending. Live trials are listed in
+upright traversal or learned sensor control. The wider69° geometry passed its
+2,001-pose audit, but physical trials007 and008 missed the target (43.8° and63°).
+Trial008 stalled with net opening torque0.4557Nm against0.4576Nm hinge friction.
+A prospective bounded7N palm-target experiment retains the qualified geometry,
+original motor caps, contact checks and target. It is not yet qualified.
+Actual Isaac pressure014 and lead015 failed; follow016 also failed the original
+contact protocol and has been requested to export its measured prefix. Its
+retrospective volar diagnostic still rejects lateral little-finger contact;
+changing the grasp profile is not a remedy. Live trials are listed in
 [local Run Center](http://127.0.0.1:5193/).
 
 The earlier complete native traversal used a deep stance. Keep that result

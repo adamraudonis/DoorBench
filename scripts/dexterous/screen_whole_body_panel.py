@@ -34,6 +34,9 @@ def main():
     p.add_argument('--root-extent-m',type=float,default=.05)
     p.add_argument('--root-rotation-rad',type=float,default=.15)
     p.add_argument('--root-rotation-norm-rad',type=float)
+    p.add_argument('--right-hand-relaxed-orientation',action='store_true',help='Released root-following hand may rotate within0.35rad; contact and joint gates remain unchanged')
+    p.add_argument('--right-hand-frame',choices=('world','root'),default='world')
+    p.add_argument('--right-hand-retreat-m',type=float,default=0.)
     p.add_argument('--warm-start-screen',type=Path,help='Numerical guesses only from the same exact source state and aperture grid')
     p.add_argument('--pose-tolerance-barrier',action='store_true',help='Prioritize interior hand/foot pose feasibility over posture regularization')
     p.add_argument('--foot-orientation-weight',type=float,default=10.,help='Declared geometric objective weight; dense foot tolerances stay unchanged')
@@ -54,6 +57,8 @@ def main():
     if a.root_yaw_extent_rad is not None and (not .05<=a.root_yaw_extent_rad<=.3 or a.root_rotation_norm_rad is not None):raise ValueError('Upright yaw profile requires .05..0.3rad yaw and no isotropic rotation-norm override')
     if a.root_yaw_target_rad is not None and (a.root_yaw_extent_rad is None or not abs(a.root_yaw_target_rad)<a.root_yaw_extent_rad):raise ValueError('Yaw target must lie inside its declared extent')
     if not 10<=a.foot_orientation_weight<=100:raise ValueError('Foot orientation weight must be10..100')
+    if not 0<=a.right_hand_retreat_m<=.12 or (a.right_hand_frame=='world' and a.right_hand_retreat_m):raise ValueError('Right-hand retreat requires a root-relative goal within12cm')
+    if a.right_hand_relaxed_orientation and a.right_hand_frame!='root':raise ValueError('Released orientation freedom requires root-following hand goal')
     run=a.source_run.resolve();config=json.loads((run/'manifest.json').read_text())['configuration']
     sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
     from doorbench.dexterous.environment import DexterousDoorEnv
@@ -101,6 +106,8 @@ def main():
         elbow_side=float(np.sign((d.xpos[elbow]-leaf_p)@leaf_r[:,1]))
         slab_front=float(np.max(slab_vertices[:,1]*elbow_side))
     right_p=d.site_xpos[rh].copy();right_r=d.site_xmat[rh].reshape(3,3).copy()
+    from doorbench.dexterous.released_hand_goal import released_hand_goal
+    outward=np.sign((right_p-leaf_p)@leaf_r[:,1])*leaf_r[:,1]
     feet=[m.body('robot/'+side+'_ankle_link').id for side in ('left','right')]
     feet_p=d.xpos[feet].copy();feet_r=d.xmat[feet].reshape(2,3,3).copy()
     names=[side+'_'+n for side in ('left','right') for n in ('hip_yaw','hip_roll','hip_pitch','knee','ankle')]+['torso']
@@ -144,8 +151,9 @@ def main():
             d.qpos[:]=state;d.qpos[rq:rq+3]=rp+x[:3]
             quat=(Rotation.from_rotvec(x[3:6])*rr).as_quat();d.qpos[rq+3:rq+7]=np.r_[quat[3],quat[:3]]
             d.qpos[qa]=x[6:];mujoco.mj_kinematics(m,d);mujoco.mj_comPos(m,d)
+            right_goal_p,right_goal_r=released_hand_goal(right_p,right_r,rp,x[:6],outward,phase,frame=a.right_hand_frame,retreat_m=a.right_hand_retreat_m)
             hands=np.r_[100*(d.site_xpos[lh]-goal_p),10*Rotation.from_matrix(goal_r@d.site_xmat[lh].reshape(3,3).T).as_rotvec(),
-                        100*(d.site_xpos[rh]-right_p),10*Rotation.from_matrix(right_r@d.site_xmat[rh].reshape(3,3).T).as_rotvec()]
+                        100*(d.site_xpos[rh]-right_goal_p),(.1 if a.right_hand_relaxed_orientation else 10)*Rotation.from_matrix(right_goal_r@d.site_xmat[rh].reshape(3,3).T).as_rotvec()]
             foot=np.concatenate([np.r_[100*(d.xpos[b]-feet_p[j]),a.foot_orientation_weight*Rotation.from_matrix(feet_r[j]@d.xmat[b].reshape(3,3).T).as_rotvec()] for j,b in enumerate(feet)])
             up=d.xmat[m.body('robot/torso_link').id].reshape(3,3)[:,2]
             upright=0. if a.maximum_torso_tilt_deg is None else 1000.*max(0.,np.arccos(np.clip(up[2],-1,1))-np.radians(max(0.,a.maximum_torso_tilt_deg-.01)))
@@ -157,6 +165,9 @@ def main():
             yaw_tilt_barrier=0. if a.root_yaw_extent_rad is None else 1000.*max(0.,np.linalg.norm(x[3:5])-.0499)
             pivot=[] if a.root_yaw_target_rad is None else np.r_[5.*(x[5]-a.root_yaw_target_rad*phase),1000.*max(0.,np.linalg.norm(x[:3])-.0299),.2*(x-anchor)]
             pose_barrier=pose_constraint_barrier(hands,foot,a.foot_orientation_weight) if a.pose_tolerance_barrier else []
+            if a.right_hand_relaxed_orientation:
+                if a.pose_tolerance_barrier:pose_barrier[3]=0.
+                pose_barrier=np.r_[pose_barrier,1000.*max(0.,np.linalg.norm(hands[9:12])/.1-.30)]
             return np.r_[hands,foot,pose_barrier,upright,elbow_barrier,yaw_tilt_barrier,pivot,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6],0. if a.root_rotation_norm_rad is None else 1000.*max(0.,np.linalg.norm(x[3:6])-(a.root_rotation_norm_rad-.0001))]
         fit=least_squares(evaluate,np.clip(previous if warm is None else warm[len(rows)],low,high),bounds=(low,high),max_nfev=800,ftol=1e-11,xtol=1e-11,gtol=1e-11)
         previous=fit.x.copy();res=evaluate(previous);mujoco.mj_collision(m,d)
@@ -169,7 +180,7 @@ def main():
         up=d.xmat[m.body('robot/torso_link').id].reshape(3,3)[:,2]
         row=dict(leaf_angle_rad=float(angle),qpos=d.qpos.tolist(),root_delta=fit.x[:6].tolist(),joint_targets=dict(zip(names,fit.x[6:].tolist())),
             left_position_error_m=float(np.linalg.norm(res[:3])/100),left_rotation_error_rad=float(np.linalg.norm(res[3:6])/10),
-            right_position_error_m=float(np.linalg.norm(res[6:9])/100),right_rotation_error_rad=float(np.linalg.norm(res[9:12])/10),
+            right_position_error_m=float(np.linalg.norm(res[6:9])/100),right_rotation_error_rad=float(np.linalg.norm(res[9:12])/(.1 if a.right_hand_relaxed_orientation else 10)),
             maximum_foot_position_error_m=max(float(np.linalg.norm(res[12+6*j:15+6*j])/100) for j in range(2)),
             maximum_foot_rotation_error_rad=max(float(np.linalg.norm(res[15+6*j:18+6*j])/a.foot_orientation_weight) for j in range(2)),
             torso_tilt_deg=float(np.degrees(np.arccos(np.clip(up[2],-1,1)))),com_displacement_xy_m=(d.subtree_com[robot_body,:2]-com[:2]).tolist(),

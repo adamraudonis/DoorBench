@@ -66,3 +66,14 @@ def test_stiction_assistance_does_not_boost_moving_or_completed_reference():
     controller=PanelApertureForce(terminal_aperture=1.2,stiction_assist=True)
     _,info=controller.update(0.,.75,.75,2.25)
     assert not info['panel_stiction_active']
+
+
+def test_explicit_seven_newton_profile_overcomes_integral_cap_and_still_brakes():
+    c=PanelApertureForce(terminal_aperture=1.2,terminal_support_margin_N=.5,stiction_assist=True,load_profile='bounded-7N-v1')
+    for i in range(30001):target,info=c.update(i*.002,1.12,1.10,2.25)
+    assert 6<target<=7 and 3<info['panel_force_integral_N']<=4.5
+    assert info['panel_load_profile']=='bounded-7N-v1'
+    for i in range(30001,30201):target,info=c.update(i*.002,1.2,1.195,2.25)
+    assert target==2.75
+    with pytest.raises(ValueError):PanelApertureForce(load_profile='bounded-7N-v1')
+    with pytest.raises(ValueError):PanelApertureForce(load_profile='unbounded')

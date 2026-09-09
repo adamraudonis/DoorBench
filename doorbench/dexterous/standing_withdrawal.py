@@ -109,13 +109,17 @@ class StandingWithdrawalTeacher:
         if self.panel is not None:
             panels=[self.panel]
             self.panel_stiction_assistance=[False]
+            self.panel_load_profiles=["standard-6N-v1"]
             for entry in config.get('panel_continuations',[]):
                 if sha(entry['path'])!=entry['sha256']:raise ValueError('Continuation plan bytes changed')
                 candidate=StandingPanelReference(scene,entry['path'],self.left)
                 if candidate.plan['robot_xml_sha256']!=motors['source_xml_sha256']:raise ValueError('Continuation uses another robot contract')
                 assist=entry.get('stiction_assist',False)
                 if type(assist) is not bool or (assist and profile!='bounded-pi-stop-v2'):raise ValueError('Explicit stiction assistance requires terminal support profile v2')
-                panels.append(candidate);self.panel_stiction_assistance.append(assist)
+                from .panel_aperture_force import PanelApertureForce
+                load_profile=entry.get("load_profile","standard-6N-v1")
+                PanelApertureForce(terminal_aperture=candidate.plan["final_leaf_angle_rad"],stiction_assist=assist,load_profile=load_profile)
+                panels.append(candidate);self.panel_stiction_assistance.append(assist);self.panel_load_profiles.append(load_profile)
             from .panel_sequence import AttainedPanelSchedule
             self.panel_schedule=AttainedPanelSchedule(panels)
         self.panel_force_profile=profile
@@ -166,7 +170,8 @@ class StandingWithdrawalTeacher:
             if self.panel_force is not None:
                 from .panel_aperture_force import PanelApertureForce
                 terminal=self.panel.plan['final_leaf_angle_rad'] if self.panel_force_profile in ('bounded-pi-stop-v1','bounded-pi-stop-v2') else None
-                self.panel_force=PanelApertureForce(terminal_aperture=terminal,terminal_support_margin_N=.5 if self.panel_force_profile=='bounded-pi-stop-v2' else 0.,stiction_assist=self.panel_stiction_assistance[self.panel_schedule.index])
+                self.panel_force=PanelApertureForce(terminal_aperture=terminal,terminal_support_margin_N=.5 if self.panel_force_profile=='bounded-pi-stop-v2' else 0.,stiction_assist=self.panel_stiction_assistance[self.panel_schedule.index],load_profile=self.panel_load_profiles[self.panel_schedule.index])
+                if self.support_feedback is not None:self.support_feedback.maximum_target_N=self.panel_force.maximum_target_N
         panel_goal=None;panel_info={}
         if self.panel is not None and t>=self.panel.start_time-1e-8:
             if self.panel.started is None:
