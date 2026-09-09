@@ -41,12 +41,19 @@ class DoorOperationTeacher:
                  operator_target=.87, release_operator_threshold=.80,
                  release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True,
                  operator_compliance_gain=0., operator_compliance_limit=.15,
-                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0.):
+                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0.):
         self.grasp_offset=np.asarray(grasp_offset_in_handle_m,dtype=float)
         if self.grasp_offset.shape!=(3,) or not np.isfinite(self.grasp_offset).all() or np.linalg.norm(self.grasp_offset)>.01:
             raise ValueError('Grasp offset must be a finite handle-frame vector within 10 mm')
         if not np.isfinite(index_proximal_offset_rad) or abs(index_proximal_offset_rad)>.1:
             raise ValueError('Index proximal reference offset must be within 0.1 rad')
+        if not np.isfinite(index_tendon_offset_rad) or abs(index_tendon_offset_rad)>.12:
+            raise ValueError('Index tendon reference offset must be within 0.12 rad')
+        self.index_tendon_offset=float(index_tendon_offset_rad)
+        self.index_tendon_reference=None
+        if self.index_tendon_offset:
+            self.index_tendon_columns=[acquisition_teacher.names.index('rh_FFJ'+str(i)) for i in (1,2)]
+            self.index_tendon_reference=acquisition_teacher.path[-1,self.index_tendon_columns].copy()
         self.index_proximal_offset=float(index_proximal_offset_rad)
         self.index_reference=None
         if self.index_proximal_offset:
@@ -143,6 +150,8 @@ class DoorOperationTeacher:
                                   self.p_relative+offset,self.r_relative,self.geometry)
         if self.index_reference is not None:
             teacher.path[-1,self.index_column]=self.index_reference+smooth_phase(t-self.started)*self.index_proximal_offset
+        if self.index_tendon_reference is not None:
+            teacher.path[-1,self.index_tendon_columns]=self.index_tendon_reference+smooth_phase(t-self.started)*self.index_tendon_offset/2
         teacher.positions[-1] = pos
         teacher.rotations[-1] = rot
         force, info = teacher.force(t,root,joints,velocities,handle_pose,hand_loads)
@@ -152,6 +161,7 @@ class DoorOperationTeacher:
                          palm_compliance_rotation_rad=self.operator_compliance,
                          grasp_offset_in_handle_m=offset.tolist(),
                          index_proximal_offset_rad=float(smooth_phase(t-self.started)*self.index_proximal_offset),
+                         index_tendon_offset_rad=float(smooth_phase(t-self.started)*self.index_tendon_offset),
                          actual_handle_rad=angles['operator'],actual_leaf_rad=angles['leaf'],
                          actual_bolt_m=angles['latch'])
         return force, {**info,**self.info}

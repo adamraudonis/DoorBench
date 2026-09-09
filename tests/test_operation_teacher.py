@@ -167,3 +167,15 @@ def test_index_reference_offset_is_bounded_ramped_and_does_not_change_acquisitio
     assert acq.path[0,0]==pytest.approx(1.075)
     for invalid in (float('nan'),.1001,-.1001):
         with pytest.raises(ValueError):DoorOperationTeacher(acq,GEOMETRY,index_proximal_offset_rad=invalid)
+
+
+def test_index_tendon_reference_preserves_joint_difference_and_changes_sum():
+    acq=Acquisition();acq.names=['rh_FFJ1','rh_FFJ2'];acq.path=np.array([[.43,.431]])
+    wrapper=DoorOperationTeacher(acq,GEOMETRY,index_tendon_offset_rad=.09)
+    for t in np.arange(0.,.51,.01):tick(wrapper,t)
+    np.testing.assert_array_equal(acq.path,[[.43,.431]])
+    tick(wrapper,1.5)
+    assert acq.path[0].sum()==pytest.approx(.951)
+    assert acq.path[0,1]-acq.path[0,0]==pytest.approx(.001)
+    for invalid in (float('nan'),.1201,-.1201):
+        with pytest.raises(ValueError):DoorOperationTeacher(acq,GEOMETRY,index_tendon_offset_rad=invalid)
