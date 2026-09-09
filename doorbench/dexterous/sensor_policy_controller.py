@@ -20,6 +20,8 @@ import torch
 from .sensor_actor import ActorDimensions, SensorActor, native_motor_forces
 from .sensor_contract import INTERFACE_VERSION, validate_actor_packet
 from .motor_contract_identity import motor_contract_fingerprint, SENSOR_ACTOR_CHECKPOINT_SCHEMA
+from .motor_target_control import MOTOR_TARGET_SCHEMA, MotorTargetControl
+from .sensor_contract import SENSOR_KEYS
 
 
 def _finite_positive(value, name):
@@ -102,8 +104,10 @@ class SensorPolicyController:
         checkpoint_bytes = Path(checkpoint).read_bytes()
         self.checkpoint_sha256 = hashlib.sha256(checkpoint_bytes).hexdigest()
         payload = torch.load(io.BytesIO(checkpoint_bytes), map_location="cpu", weights_only=True)
-        if type(payload) is not dict or payload.get("schema") != SENSOR_ACTOR_CHECKPOINT_SCHEMA:
+        if type(payload) is not dict or payload.get("schema") not in (SENSOR_ACTOR_CHECKPOINT_SCHEMA,MOTOR_TARGET_SCHEMA):
             raise ValueError("Unsupported sensor actor checkpoint schema")
+        self._motor_targets = MotorTargetControl(motor_contract) if payload['schema']==MOTOR_TARGET_SCHEMA else None
+        self.action_semantics = 'original_motor_target_v1' if self._motor_targets is not None else 'native_motor_force_v1'
         if payload.get('motor_contract_sha256') != self.motor_contract_sha256:
             raise ValueError('Checkpoint motor mechanics contract differs from the actual runtime')
         if _layout_json(payload.get("sensor_layout")) != layout_json:
@@ -175,11 +179,18 @@ class SensorPolicyController:
         # Own the bytes passed to inference; caller mutation cannot alter the
         # recurrent state or retained previous command afterward.
         numeric_packet = {key: value.copy() for key, value in packet.items()}
+        if self._motor_targets is not None:
+            for key in ('joint_position','joint_velocity'):
+                i=SENSOR_KEYS.index(key)
+                if not packet['sensor_valid'][i] or abs(float(times[i])-now_s)>1e-8:
+                    raise ValueError('Original motor feedback requires current valid joint encoders')
         action, hidden = self._actor.act(numeric_packet, now_s, self._hidden)
         if hidden is None or not torch.isfinite(hidden).all():
             raise ValueError("Nonfinite recurrent actor state")
-        forces = native_motor_forces(action, self._force_ranges)
+        forces = (native_motor_forces(action, self._force_ranges) if self._motor_targets is None else
+            self._motor_targets.forces(action,numeric_packet['joint_position'],numeric_packet['joint_velocity']))
         self._hidden = hidden.detach()
-        self._previous_action = action.astype(np.float32, copy=True)
+        self._previous_action = (action.astype(np.float32,copy=True) if self._motor_targets is None else
+            (2*(forces-self._force_ranges[:,0])/np.diff(self._force_ranges,axis=1)[:,0]-1).astype(np.float32))
         self._last_time_s = now_s
         return forces

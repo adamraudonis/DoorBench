@@ -21,7 +21,7 @@ class AccumulationInterrupted(RuntimeError):
 
 
 def accumulate_full_sources(model,episodes,*,chunk_length=32,cold_prefix_length=32,
-                            cold_weight=.5,deadline=None,progress=None):
+                            cold_weight=.5,deadline=None,progress=None,actor_owned_history=True):
     if type(chunk_length) is not int or chunk_length<1 or type(cold_prefix_length) is not int or cold_prefix_length<1:
         raise ValueError('Positive integer chunk and cold-prefix lengths are required')
     if isinstance(cold_weight,bool) or not math.isfinite(cold_weight) or not 0<=cold_weight<=1:
@@ -47,7 +47,12 @@ def accumulate_full_sources(model,episodes,*,chunk_length=32,cold_prefix_length=
             if start==0 and torch.any(x['proprio'][:,0,previous_action_slice(model.dimensions)]!=0):
                 raise ValueError('Prepared source reset contains a nonzero previous command')
             recorded,recorded_hidden=model(**x,hidden=recorded_hidden)
-            owned,owned_hidden,previous,_=actor_history_chunk(model,x,previous=previous,hidden=owned_hidden)
+            if actor_owned_history:
+                owned,owned_hidden,previous,_=actor_history_chunk(model,x,previous=previous,hidden=owned_hidden)
+            else:
+                # Target actions are not forces. Never insert predicted motor
+                # targets into the actual previous-force observation channel.
+                owned,owned_hidden=recorded,recorded_hidden
             if y.shape!=recorded.shape or owned.shape!=recorded.shape:
                 raise ValueError('Both history views must supervise the same actual labels')
             weights=torch.full((length,), (1-cold_weight)/len(e),device=device,dtype=y.dtype)
@@ -65,8 +70,9 @@ def accumulate_full_sources(model,episodes,*,chunk_length=32,cold_prefix_length=
             processed+=length
             if progress:progress(dict(source=source,next_sample=start+length,examples=len(e),logical_samples=processed))
         row=dict(source=source,examples=len(e),cold_prefix_examples=prefix,
-                 mixed_loss=float(source_totals[0]),recorded_loss=float(source_totals[1]),actor_loss=float(source_totals[2]))
+                 mixed_loss=float(source_totals[0]),recorded_loss=float(source_totals[1]),actor_loss=float(source_totals[2]) if actor_owned_history else None)
         rows.append(row);totals+=source_totals/len(episodes)
     if [p._version for p in model.parameters()]!=versions:raise RuntimeError('Weights changed before accumulation completed')
-    return dict(mixed_loss=float(totals[0]),recorded_loss=float(totals[1]),actor_loss=float(totals[2]),
+    return dict(mixed_loss=float(totals[0]),recorded_loss=float(totals[1]),actor_loss=float(totals[2]) if actor_owned_history else None,
+                actor_owned_force_history=actor_owned_history,
                 sources=rows,logical_samples=processed,source_pass_complete=True)

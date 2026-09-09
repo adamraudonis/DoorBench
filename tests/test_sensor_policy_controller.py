@@ -18,6 +18,25 @@ class UnsupportedPayload:
     pass
 
 
+def test_target_checkpoint_uses_encoder_feedback_and_retains_force_history(fixture):
+    from doorbench.dexterous.motor_target_control import MOTOR_TARGET_SCHEMA
+    f=copy.deepcopy(fixture)
+    for i,a in enumerate(f['motor_contract']['actuators']):
+        a.update(terms={f'joint_{i}':1.},kp=10.,bias=[0.,-10.,-2.],control_range=[-1.,1.])
+    f['weights']['schema']=MOTOR_TARGET_SCHEMA
+    f['weights']['motor_contract_sha256']=motor_contract_fingerprint(f['motor_contract'])
+    for k,v in f['weights']['model_state'].items():
+        if k.startswith('action.'):v.zero_()
+    torch.save(f['weights'],f['checkpoint']);c=controller(f);c.reset_episode()
+    obs=packet(f['dimensions']);obs['joint_position'][0]=.02
+    force=c.force(obs,0.)
+    assert force[0]==pytest.approx(-.2)
+    assert c.previous_action[0]==pytest.approx(2*(-.2+1)/3-1)
+    assert c.action_semantics=='original_motor_target_v1'
+    obs['sensor_time_s'][:]=.002;obs['sensor_valid'][SENSOR_KEYS.index('joint_position')]=False
+    with pytest.raises(ValueError,match='current valid joint encoders'):c.force(obs,.002)
+
+
 @pytest.fixture
 def fixture(tmp_path):
     torch.manual_seed(18)

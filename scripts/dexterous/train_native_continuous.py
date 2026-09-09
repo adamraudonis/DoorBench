@@ -72,9 +72,11 @@ def main():
     p.add_argument('--seed', type=int, default=0)
     p.add_argument('--correction-run', type=Path, action='append', default=[], help='Separately audited bounded native recovery source')
     p.add_argument('--correction-only', action='store_true', help='Explicit approach curriculum; does not retain complete-task imitation coverage')
+    p.add_argument('--motor-targets', action='store_true', help='New checkpoint action space using original motor target feedback, recorded force history only')
     initial = p.add_mutually_exclusive_group()
     initial.add_argument('--resume-state', type=Path, help='Completed-update checkpoint; output must be a new directory')
     initial.add_argument('--initialize-actor', type=Path, help='Fine-tune existing sensor weights with fresh Adam; new experiment, not exact optimizer recovery')
+    initial.add_argument('--initialize-feature-actor', type=Path, help='Motor-target experiment only: copy sensor features, reset target head')
     a = p.parse_args()
     if (min(a.iterations, a.chunk_length) < 1 or not np.isfinite([a.learning_rate, a.max_wall_seconds]).all()
             or min(a.learning_rate, a.max_wall_seconds) <= 0):
@@ -91,6 +93,14 @@ def main():
                 or correction.motor_contract_sha256 != episode.motor_contract_sha256):
             raise ValueError('Native correction contract differs from complete teacher source')
     episodes = ([] if a.correction_only else [episode]) + corrections
+    from doorbench.dexterous.motor_target_control import MotorTargetDemonstration, MOTOR_TARGET_SCHEMA
+    if a.motor_targets:
+        if a.resume_state or a.initialize_actor:
+            p.error('Motor-target experiment requires fresh initialization or explicit --initialize-feature-actor')
+        motors=json.loads((a.run/'motors-input.json').read_text())
+        episodes=[MotorTargetDemonstration(e,motors) for e in episodes]
+    elif a.initialize_feature_actor:
+        p.error('--initialize-feature-actor requires --motor-targets')
     random.seed(a.seed); np.random.seed(a.seed); torch.manual_seed(a.seed)
     model = SensorActor(episode.dimensions).to(a.device).train()
     optimizer = torch.optim.AdamW(model.parameters(), lr=a.learning_rate)
@@ -98,6 +108,20 @@ def main():
     configuration.update(initialization='fresh', dataset=[e.metadata for e in episodes] if corrections else episode.metadata,
         cold_prefix_length=32, cold_weight=.5, protocol='continuous_history_v1',
         limitation=__doc__)
+    if a.motor_targets:
+        configuration['protocol']='recorded_force_history_motor_target_v1'
+        configuration['dataset']=[e.metadata for e in episodes]
+        if a.initialize_feature_actor:
+            actor=torch.load(a.initialize_feature_actor,map_location=a.device,weights_only=True)
+            initialize_actor_weights(actor,model,episode)
+            configuration.update(initialization='pretrained_features_new_motor_target_head',
+                initial_actor_sha256=hashlib.sha256(a.initialize_feature_actor.read_bytes()).hexdigest(),
+                previous_optimizer_restored=False)
+        _,first_target=episodes[0].sequence(0,1)
+        with torch.no_grad():
+            model.action[0].weight.zero_()
+            model.action[0].bias.copy_(torch.as_tensor(np.arctanh(np.clip(first_target[0],-.999999,.999999)),device=a.device))
+        configuration['initial_head']='Zero weights, inverse-tanh bias of first admitted teacher motor target; static training initialization, not a runtime teacher'
     if a.initialize_actor is not None:
         actor = torch.load(a.initialize_actor, map_location=a.device, weights_only=False)
         initialize_actor_weights(actor, model, episode)
@@ -132,7 +156,8 @@ def main():
                 print(json.dumps(value), flush=True); last_progress = now
         try:
             result = accumulate_full_sources(model, episodes, chunk_length=a.chunk_length,
-                cold_prefix_length=32, cold_weight=.5, deadline=deadline, progress=progress)
+                cold_prefix_length=32, cold_weight=.5, deadline=deadline, progress=progress,
+                actor_owned_history=not a.motor_targets)
         except AccumulationInterrupted as error:
             optimizer.zero_grad(set_to_none=True)
             interrupted = dict(logical_samples=error.logical_samples, gradients_discarded=True,
@@ -145,10 +170,10 @@ def main():
         completed = iteration+1
         history.append(dict(update=iteration+1, elapsed_s=time.monotonic()-started,
             pre_update_loss=result, gradient_norm_before_clip=float(norm)))
-        payload = dict(schema=SENSOR_ACTOR_CHECKPOINT_SCHEMA, dimensions=asdict(episode.dimensions),
+        payload = dict(schema=MOTOR_TARGET_SCHEMA if a.motor_targets else SENSOR_ACTOR_CHECKPOINT_SCHEMA, dimensions=asdict(episode.dimensions),
             model_state=model.state_dict(), motor_contract_sha256=episode.motor_contract_sha256,
             sensor_layout=episode.layout, physics_dt_s=episode.metadata['physics_dt_s'],
-            seed=a.seed, completed_optimizer_steps=completed, training_protocol='continuous_history_v1',
+            seed=a.seed, completed_optimizer_steps=completed, training_protocol=configuration['protocol'],
             training_episodes=[e.metadata for e in episodes], validation_episodes=[])
         atomic_torch(a.output/'actor.pt', payload)
         atomic_torch(a.output/'training-state.pt', dict(actor=payload, optimizer=optimizer.state_dict(),

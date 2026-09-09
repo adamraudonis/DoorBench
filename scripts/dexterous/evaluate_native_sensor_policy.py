@@ -79,6 +79,7 @@ def main():
     actor = SensorPolicyController(a.checkpoint, motor_contract=motors, sensor_layout=layout, physics_dt_s=.002)
     configuration={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()}
     configuration.update(robot=str(robot),door=str(door),control_source='sensor_actor',reset_chunk_sha256=chunk['sha256'],runtime_pose_writes=0)
+    configuration['action_semantics']=actor.action_semantics
     capture(Path(__file__).resolve().parents[2],a.output,configuration)
     sensors=NativeSensorCapture(sim,motors,layout,a.output/'own-sensors',control_source='sensor_actor')
     packet=sensors.initial_packet();actor.reset_episode()
@@ -101,6 +102,7 @@ def main():
     archive.close(complete=True);sensors.finish(complete=True)
     atomic_json(a.output/'physics-steps.json',rows)
     report=dict(control_source='sensor_actor',physical_rollout_evaluated=True,full_task_qualified=False,
+        action_semantics=actor.action_semantics,
         stop_reason=reason,time_s=float(d.time),runtime_pose_writes=0,teacher_actions=0,
         maximum_motor_delivery_error_Nm=maximum_delivery_error,final=sim.diagnostics(),scope=__doc__)
     atomic_json(a.output/'report.json',report);sim.close();print(json.dumps(report))
