@@ -54,6 +54,7 @@ def main():
     frame_times=np.asarray(args.at) if args.at else np.arange(times[0],times[-1]+1e-8,.04)
     indices=np.minimum(np.searchsorted(times,frame_times),len(times)-1)
     out=args.trial/f'{args.view}.mp4'
+    outputs=[]
     from contextlib import nullcontext
     try:
         with mujoco.Renderer(sim.m,height=720,width=960) as renderer:
@@ -72,8 +73,10 @@ def main():
                     if writer:writer.append_data(np.asarray(image))
                     if args.at or frame in (0,len(indices)//2,len(indices)-1):
                         suffix=f'-t{times[i]:.3f}-az{args.azimuth:g}-el{camera.elevation:g}' if args.at else f'-az{args.azimuth:g}-el{camera.elevation:g}' if args.snapshots_only else ''
-                        image.save(args.trial/f'{args.view}{suffix}-{frame:04d}.png')
-        print(out)
+                        snapshot=args.trial/f'{args.view}{suffix}-{frame:04d}.png'
+                        image.save(snapshot);outputs.append(str(snapshot))
+        if not args.snapshots_only and not args.at:outputs.insert(0,str(out))
+        print(json.dumps(dict(artifacts=outputs,source='recorded physical states; no physics advancement')))
     finally:
         sim.close()
 

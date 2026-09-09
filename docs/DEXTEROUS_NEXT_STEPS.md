@@ -618,3 +618,26 @@ raw eviction. The adapter now accepts the explicit6 N profile limit, covered by
 a test passing controller output through the actual adapter. Panel004 is a new
 120-second continuous trial using that fix; it is still running. Original motor
 caps, joint limits and contact acceptance checks are unchanged.
+
+Native panel004 completed120 s with32/33 runtime checks. It overcame stiction
+but overshot to0.834731 rad, failing the unchanged target interval0.73–0.80 rad.
+The independent60,000-interval grasp audit found zero invalid RH patches and
+matched every qualification label/load. A separate20,201-interval panel audit
+found only declared external support and at least44.766 mm RH clearance. Both
+audits retain overall failure because the physical target failed. Wide and
+left-palm close-ups at119.002 s were personally inspected. Panel005 uses the
+separate `bounded-pi-stop-v1` profile: after actual aperture reaches10 mrad below
+the screened terminal target, a250 ms smooth ramp removes accumulated excess
+pushing force while retaining palm support. No success is claimed before its
+new120-second run and independent audits.
+
+The next hand comparison011 uses `measured-pressure-v1`: measured distal-body
+contact reaction is projected onto the current inward pad normal, with a
+0.25 proportional correction bounded to±1 N per digit. It retains the original
+finger posture controller and arm commands, and introduces no tangential
+material-point spring. Analytic tests check contact-force sign, tangential
+invariance, original motor caps and absence of physical state/force writes.
+It is queued on the same guarded node with a mandatory native prerequisite;
+neither pressure feedback nor this implementation establishes a sensor-only
+policy. Source identity2fab4d108b6395b80a58cf8cd6d15801e33b6beebf7d609bbca292d3cd21d685
+is frozen remotely.
