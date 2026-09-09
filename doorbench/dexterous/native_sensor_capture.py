@@ -16,8 +16,8 @@ from .sensor_contract import ActorObservationBuilder, SENSOR_KEYS
 
 class NativeSensorCapture:
     def __init__(self, sim, motors, layout, output, *, control_source='privileged_teacher'):
-        if control_source not in ('privileged_teacher', 'sensor_actor'):
-            raise ValueError('Declare teacher or sensor actor explicitly')
+        if control_source not in ('privileged_teacher', 'sensor_actor', 'privileged_recovery'):
+            raise ValueError('Declare teacher, sensor actor or privileged recovery explicitly')
         self.control_source = control_source
         self.initial_recorded = False
         self.sim = sim

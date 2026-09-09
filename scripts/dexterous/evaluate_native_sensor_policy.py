@@ -24,27 +24,15 @@ from scripts.dexterous.export_sensor_layout import export_layout
 from scripts.dexterous.train_sensor_imitation import atomic_json
 
 
-def main():
-    p = argparse.ArgumentParser(description=__doc__)
-    for name in ('teacher-run', 'checkpoint', 'output'):
-        p.add_argument('--'+name, type=Path, required=True)
-    p.add_argument('--camera-profile', type=Path, default=Path('configs/dexterous/h1-manipulation-cameras.json'))
-    p.add_argument('--seconds', type=float, default=130.)
-    p.add_argument('--max-wall-seconds', type=float, default=900.)
-    a = p.parse_args()
-    if not np.isfinite([a.seconds, a.max_wall_seconds]).all() or min(a.seconds, a.max_wall_seconds) <= 0:
-        p.error('Finite positive rollout bounds required')
-    if a.output.exists():
-        raise FileExistsError('Preserve earlier physical rollouts')
-    run = a.teacher_run
+def prepare_trial(run, camera_profile):
+    """Reconstruct the verified reset and original capped native force interface."""
     config = json.loads((run/'manifest.json').read_text())['configuration']
     robot = Path(config['robot']); door = Path(config['door'])
     if digest(robot) != digest(run/'robot-input.xml') or digest(door/'door.xml') != digest(run/'door-input.xml'):
         raise ValueError('Actual native source models differ from the admitted teacher')
     motors = json.loads((run/'motors-input.json').read_text())
-    layout = apply_camera_profile(export_layout(robot), json.loads(a.camera_profile.read_text()))
+    layout = apply_camera_profile(export_layout(robot), json.loads(camera_profile.read_text()))
     layout['capture_clock_profile'] = 'native-preintegration-inertial-tactile-v1'
-    actor = SensorPolicyController(a.checkpoint, motor_contract=motors, sensor_layout=layout, physics_dt_s=.002)
     sim = DexterousDoorEnv(door, robot, json.loads(robot.with_suffix('.audit.json').read_text()))
     sim.reset(randomize=False, images=False)
     m,d = sim.m,sim.d
@@ -69,6 +57,26 @@ def main():
         if m.body(m.cam_bodyid[i]).name!='robot/'+cam['body_name']:
             raise ValueError('Camera body differs')
         m.cam_pos[i]=cam['position_body_m'];m.cam_quat[i]=cam['quaternion_wxyz_body'];m.cam_fovy[i]=cam['fovy_degrees']
+    return sim, motors, layout, chunk
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    for name in ('teacher-run', 'checkpoint', 'output'):
+        p.add_argument('--'+name, type=Path, required=True)
+    p.add_argument('--camera-profile', type=Path, default=Path('configs/dexterous/h1-manipulation-cameras.json'))
+    p.add_argument('--seconds', type=float, default=130.)
+    p.add_argument('--max-wall-seconds', type=float, default=900.)
+    a = p.parse_args()
+    if not np.isfinite([a.seconds, a.max_wall_seconds]).all() or min(a.seconds, a.max_wall_seconds) <= 0:
+        p.error('Finite positive rollout bounds required')
+    if a.output.exists():
+        raise FileExistsError('Preserve earlier physical rollouts')
+    sim, motors, layout, chunk = prepare_trial(a.teacher_run, a.camera_profile)
+    m,d = sim.m,sim.d
+    config = json.loads((a.teacher_run/'manifest.json').read_text())['configuration']
+    robot, door = Path(config['robot']), Path(config['door'])
+    actor = SensorPolicyController(a.checkpoint, motor_contract=motors, sensor_layout=layout, physics_dt_s=.002)
     configuration={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()}
     configuration.update(robot=str(robot),door=str(door),control_source='sensor_actor',reset_chunk_sha256=chunk['sha256'],runtime_pose_writes=0)
     capture(Path(__file__).resolve().parents[2],a.output,configuration)

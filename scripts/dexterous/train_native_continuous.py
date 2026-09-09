@@ -70,6 +70,8 @@ def main():
     p.add_argument('--learning-rate', type=float, default=1e-4)
     p.add_argument('--max-wall-seconds', type=float, default=1800.)
     p.add_argument('--seed', type=int, default=0)
+    p.add_argument('--correction-run', type=Path, action='append', default=[], help='Separately audited bounded native recovery source')
+    p.add_argument('--correction-only', action='store_true', help='Explicit approach curriculum; does not retain complete-task imitation coverage')
     initial = p.add_mutually_exclusive_group()
     initial.add_argument('--resume-state', type=Path, help='Completed-update checkpoint; output must be a new directory')
     initial.add_argument('--initialize-actor', type=Path, help='Fine-tune existing sensor weights with fresh Adam; new experiment, not exact optimizer recovery')
@@ -79,12 +81,21 @@ def main():
         p.error('Positive finite settings required')
     if a.output.exists():
         raise FileExistsError('Preserve previous training attempts')
+    if a.correction_only and not a.correction_run:
+        p.error('--correction-only requires at least one --correction-run')
     episode = NativeSensorDemonstration(a.run, a.camera_variant)
+    from doorbench.dexterous.native_correction_demonstrations import NativeCorrectionDemonstration
+    corrections = [NativeCorrectionDemonstration(path) for path in a.correction_run]
+    for correction in corrections:
+        if (correction.layout != episode.layout or correction.dimensions != episode.dimensions
+                or correction.motor_contract_sha256 != episode.motor_contract_sha256):
+            raise ValueError('Native correction contract differs from complete teacher source')
+    episodes = ([] if a.correction_only else [episode]) + corrections
     random.seed(a.seed); np.random.seed(a.seed); torch.manual_seed(a.seed)
     model = SensorActor(episode.dimensions).to(a.device).train()
     optimizer = torch.optim.AdamW(model.parameters(), lr=a.learning_rate)
-    configuration = {k:str(v) if isinstance(v, Path) else v for k,v in vars(a).items()}
-    configuration.update(initialization='fresh', dataset=episode.metadata,
+    configuration = json.loads(json.dumps(vars(a), default=str))
+    configuration.update(initialization='fresh', dataset=[e.metadata for e in episodes] if corrections else episode.metadata,
         cold_prefix_length=32, cold_weight=.5, protocol='continuous_history_v1',
         limitation=__doc__)
     if a.initialize_actor is not None:
@@ -120,7 +131,7 @@ def main():
                 atomic_json(a.output/'progress.json', value)
                 print(json.dumps(value), flush=True); last_progress = now
         try:
-            result = accumulate_full_sources(model, [episode], chunk_length=a.chunk_length,
+            result = accumulate_full_sources(model, episodes, chunk_length=a.chunk_length,
                 cold_prefix_length=32, cold_weight=.5, deadline=deadline, progress=progress)
         except AccumulationInterrupted as error:
             optimizer.zero_grad(set_to_none=True)
@@ -138,18 +149,20 @@ def main():
             model_state=model.state_dict(), motor_contract_sha256=episode.motor_contract_sha256,
             sensor_layout=episode.layout, physics_dt_s=episode.metadata['physics_dt_s'],
             seed=a.seed, completed_optimizer_steps=completed, training_protocol='continuous_history_v1',
-            training_episodes=[episode.metadata], validation_episodes=[])
+            training_episodes=[e.metadata for e in episodes], validation_episodes=[])
         atomic_torch(a.output/'actor.pt', payload)
         atomic_torch(a.output/'training-state.pt', dict(actor=payload, optimizer=optimizer.state_dict(),
             torch_rng_state=torch.get_rng_state(), configuration=configuration, history=history))
         atomic_json(a.output/'progress.json', dict(completed_optimizer_steps=completed,
-            logical_examples_per_update=len(episode), history=history, physical_rollout_evaluated=False))
+            logical_examples_per_update=sum(len(e) for e in episodes), history=history, physical_rollout_evaluated=False))
         if time.monotonic() >= deadline:
             break
     report = dict(completed_optimizer_steps=completed, requested_optimizer_steps=a.iterations,
         complete=completed==a.iterations, history=history, interrupted=interrupted,
         resumed_optimizer_steps=initial_completed, missing_historical_updates=initial_completed-len(inherited_history),
-        source_examples=len(episode), physical_rollout_evaluated=False, scope=__doc__)
+        source_examples=sum(len(e) for e in episodes), correction_only=a.correction_only,
+        complete_task_examples_in_update=0 if a.correction_only else len(episode),
+        physical_rollout_evaluated=False, scope=__doc__)
     atomic_json(a.output/'report.json', report)
     print(json.dumps(report), flush=True)
     return 0 if report['complete'] else 2
