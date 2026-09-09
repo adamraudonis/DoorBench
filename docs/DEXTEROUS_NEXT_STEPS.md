@@ -468,3 +468,26 @@ release archives now include failed older walking trials, preserving their raw
 evidence before local eviction. Trial014 combines full palm orientation, bounded
 IK-clock velocity feedforward and candidate015's axial thumb reserve. Candidate015
 passes all2001 geometric samples; physical success remains unqualified.
+
+At 13:58 UTC, withdrawal014 has only one invalid physical interval / three
+independently classified thumb patches, at69.524 s with about0.10 mm axial
+clearance (the original minimum remains1 mm). Full palm orientation plus velocity
+tracking eliminates zero-load samples from the final half-second: minimum/mean/
+maximum palm load1.834/2.454/3.141 N;15/250 samples remain below2 N. The trial still
+fails. Candidate016 adds2 mm of axial thumb reserve; the next physical test also
+uses a predeclared2.6 N palm target. No acceptance threshold changes.
+
+The streaming contact auditor exactly reproduces every numerical and acceptance
+field of qualified native return004 (source/dependency hashes naturally differ).
+Both full audits completed sequentially; recorded child peak RSS was1,688,797,184
+bytes. The parser and focused tests pass36 checks. See the validation receipt.
+
+Isaac operation003 loses all digit loads after its initial successful lever/latch
+and partial opening; its36-second result is not yet final. Our owned L40S deadline
+has been safely renewed to15:46:32 UTC with independently acknowledged local and
+remote guards. A source-frozen attained-grasp hold comparison004 is queued behind
+003. After a continuous half-second of actual qualified partial opening, it
+retains coupled finger posture using original capped motors and a one-second
+command handoff;32 related tests pass. A fresh native prerequisite and independent
+audit precede its Isaac run. Whether this capture actually activates will be
+verified from recorded controller epochs; enabling the flag is not proof.
