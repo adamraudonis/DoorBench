@@ -347,3 +347,13 @@ intact. A future bootstrap change explicitly installs the CUDA Torch build befor
 Isaac Sim to avoid downloading both the PyPI and CUDA builds; this optimization
 has not yet been timed on a fresh node. Full standing traversal, Isaac operation
 qualification, and learned vision/tactile control remain open.
+
+Withdrawal003 also fails: all five distal pads remain correctly loaded through
+71 seconds, but grip adjustment builds ring/little finger loads to about 19 N;
+an invalid loaded patch first occurs at 71.36 seconds, followed by complete loss
+of grip. Original arm motor saturation appears during this adjustment. Trial004
+explicitly begins intentional unloading at the start of the screened adjustment,
+rather than retaining the old squeeze preload until its end. This is a new control
+experiment, not a reinterpretation of trial003. It still requires the preceding
+half-second opposed grasp and left support, original loaded-surface checks, and
+final clearance. The same screened route, motor limits and support target apply.

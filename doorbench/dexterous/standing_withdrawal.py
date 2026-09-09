@@ -60,7 +60,9 @@ class StandingWithdrawalTeacher:
         self.joints=qs[:,[m.joint('robot/'+n).qposadr[0] for n in self.all_names]]
         self.roots=qs[:,rq:rq+7];self.root_rotations=Slerp(self.times,Rotation.from_quat(self.roots[:,[4,5,6,3]]))
         self.positions=np.asarray([r['palm_position'] for r in rows]);self.rotations=Slerp(self.times,Rotation.from_matrix(np.asarray([r['palm_rotation'] for r in rows])))
-        self.release_clock=min(r['time_s'] for r in rows[1:] if r['phase']=='measured_release')
+        self.release_phase=config.get('release_phase','measured_release')
+        if self.release_phase not in ('measured_release','grasp_adjustment'):raise ValueError('Explicit screened release phase required')
+        self.release_clock=min(r['time_s'] for r in rows[1:] if r['phase']==self.release_phase)
         self.initial_angles={name:float(actual[m.joint(joint).qposadr[0]]) for name,joint in [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
 
     @property
