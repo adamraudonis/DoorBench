@@ -8,11 +8,11 @@ python3 scripts/isaac/launch.py
 
 The launcher opens a local Run Center, provisions or reuses its own RunPod allocation, installs the pinned runtime, prepares the H1 robot with Shadow Hands and one development door, and runs live physics checks. A fresh installation downloads several gigabytes and can take over 90 minutes on network storage; an installed runtime is reused. **Environment ready** means the checks passed, not that a door-opening policy has succeeded.
 
-On the development Mac, the installed shortcut is **Start DoorBench Isaac.command** on the desktop. Its source lives under `~/Library/Application Support/DoorBench/Isaac Launcher`, independently of temporary development worktrees. The desktop launch and a cached restart passed on an L40S; the latest verification was **September 8, 2026 at 04:14:26 UTC** ([receipt summary](../results/dexterous/2026-09-08/isaac-desktop-readiness.json)).
+On the development Mac, the installed shortcut is **Start DoorBench Isaac.command** on the desktop. Its source lives under `~/Library/Application Support/DoorBench/Isaac Launcher`, independently of temporary development worktrees. The desktop launch and a cached restart passed on an L40S; the historical v1 verification was **September 8, 2026 at 04:14:26 UTC** ([receipt summary](../results/dexterous/2026-09-08/isaac-desktop-readiness.json)).
 
 First-time requirements: Python 3, Git, SSH, and a RunPod API key in `RUNPOD_API_KEY` or `~/.runpod/config.toml`. The key stays outside the repository. The Mac launcher requires executable permission; `chmod +x 'Start Isaac Sim.command'` fixes a checkout that loses that bit. Linux uses the same Python command.
 
-For the corrected Shadow finger mechanics, use the opt-in [v2 environment and acquisition demo](ISAAC_V2_READY.md). The default above preserves the original v1 model for reproduction.
+The default now uses the corrected Shadow finger mechanics, including all eight passive loopbacks. See the [v2 environment and acquisition demo](ISAAC_V2_READY.md). Reproduce historical v1 experiments explicitly with `--config configs/isaac/runtime-v1.json`; their hand mechanics do not qualify new manipulation results.
 
 ## What happens automatically
 
@@ -22,6 +22,8 @@ For the corrected Shadow finger mechanics, use the opt-in [v2 environment and ac
 4. Generate `db0055_swing_single` and require its signed-off mechanical QA. Fetch the pinned, licensed robot source and preserve its 69 articulated joints, 61 motor transmissions and free base.
 5. Import the robot, verify native sliding-friction coefficients and 1 mm collision margins directly in PhysX, run CUDA physics with rendering, compare all robot link poses and mass with independent native kinematics, and check standing stability, commanded wrist motion, delivered motor targets and the simulation clock. Instanced finger colliders are included in these checks.
 6. Save a timestamped readiness receipt, exact installed packages, import audit, trace and video. Any failed check leaves the environment unready and appears in Run Center.
+
+The corrected environment passed live readiness on September 9 at13:07:57 UTC ([receipt](evidence/isaac-environment-standing-sustain-003.json)). A fresh install that day took about three hours on network storage; a one-click launch is not an instant installation.
 
 The configuration is [configs/isaac/runtime.json](../configs/isaac/runtime.json). This is a tested-version installation recipe; it does not claim an immutable, prebuilt container image exists. Record a container digest when your cluster supplies one.
 

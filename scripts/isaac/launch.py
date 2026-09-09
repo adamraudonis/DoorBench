@@ -82,7 +82,7 @@ def dashboard(config,port,show=True):
 
 
 def prepare(a,cfg):
-    profile=mechanics_profile(cfg.get('mechanics_profile','upstream-v1'))
+    profile=mechanics_profile(cfg.get('mechanics_profile','shadow-loopback-v2'))
     if a.standing_operation and (profile!='shadow-loopback-v2' or cfg.get('door')!='db0055_swing_single'):
         raise ValueError('Standing operation requires corrected Shadow hands and the explicitly qualified Door55 configuration')
     session=LOCAL/a.session;session.mkdir(parents=True,exist_ok=True)
@@ -205,7 +205,7 @@ def main():
     p.add_argument('--no-browser',action='store_true');p.add_argument('--foreground',action='store_true')
     p.add_argument('--standing-operation',action='store_true',help='After preparation, rescreen the versioned Door55 seed, qualify native contact, and test actual Isaac operation')
     p.add_argument('--session',default=time.strftime('%Y%m%dT%H%M%SZ',time.gmtime()))
-    a=p.parse_args();cfg=json.loads(a.config.read_text());mechanics_profile(cfg.get('mechanics_profile','upstream-v1'));LOCAL.mkdir(parents=True,exist_ok=True)
+    a=p.parse_args();cfg=json.loads(a.config.read_text());mechanics_profile(cfg.get('mechanics_profile','shadow-loopback-v2'));LOCAL.mkdir(parents=True,exist_ok=True)
     a.dashboard_port=dashboard(LOCAL/'runs.json',a.dashboard_port or cfg['dashboard_port'],not a.no_browser)
     if a.foreground:
         lock=(LOCAL/'launch.lock').open('w')

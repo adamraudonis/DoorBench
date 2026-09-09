@@ -1,6 +1,6 @@
 # Corrected-hand Isaac environment
 
-Use this opt-in profile for new H1/Shadow acquisition experiments:
+This is the default profile for new H1/Shadow acquisition experiments:
 
 ```bash
 python3 scripts/isaac/launch.py --config configs/isaac/runtime-v2.json
@@ -9,7 +9,8 @@ python3 scripts/isaac/launch.py --config configs/isaac/runtime-v2.json
 It uses the same pinned Isaac runtime, Run Center and allocation guards as the
 [standard launcher](ISAAC_ONE_CLICK.md). A separate remote source/cache identity,
 versioned native XML and ready directory prevent reuse of a v1 receipt. The
-default `runtime.json` remains explicitly `upstream-v1` for reproduction.
+default `runtime.json` selects v2. Historical v1 reproduction is available through
+`runtime-v1.json`.
 
 The corrected profile adds the eight passive `J1 <= J2` Shadow finger loopbacks.
 It retains the original 69 joints, 61 motor transmissions, mass, joint limits,
@@ -50,7 +51,7 @@ full opening/traversal demonstration. A different robot requires a new retargete
 
 The launcher wiring has local regression tests. The current GPU repeat was dispatched
 with the same bounded coordinator while preparation was already in progress; its
-result is pending. This new convenience flag itself has not provisioned another pod.
+completed36-second standing hold005 failed17/19 checks; readiness is not sustained opening success. See the [execution ledger](DEXTEROUS_NEXT_STEPS.md). This new convenience flag itself has not provisioned another pod.
 
 ## Acquire the lever from a contact-free start
 

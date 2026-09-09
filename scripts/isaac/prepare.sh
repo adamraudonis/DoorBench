@@ -7,7 +7,7 @@ cd "$DB"
 export OMNI_KIT_ACCEPT_EULA=YES ACCEPT_EULA=Y PRIVACY_CONSENT=Y TERM=xterm-256color
 export DOORBENCH_GENERATE_IDS="${DOORBENCH_GENERATE_IDS:-db0055_swing_single}"
 export PATH="$HOME/.local/bin:$PATH"
-PROFILE="${DOORBENCH_MECHANICS_PROFILE:-upstream-v1}"
+PROFILE="${DOORBENCH_MECHANICS_PROFILE:-shadow-loopback-v2}"
 case "$PROFILE" in
   upstream-v1) R="$DB/out/isaac-ready"; ROBOT_NAME=h1-shadow.xml ;;
   shadow-loopback-v2) R="$DB/out/isaac-ready/shadow-loopback-v2"; ROBOT_NAME=h1-shadow-loopback-v2.xml ;;
