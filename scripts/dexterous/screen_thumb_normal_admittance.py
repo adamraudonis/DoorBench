@@ -10,7 +10,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 import mujoco,numpy as np
 from doorbench.dexterous.environment import DexterousDoorEnv
 from doorbench.dexterous.grasp_verification import scalar_transmission_matrix
-from doorbench.dexterous.thumb_normal_admittance import RobotThumbNormalAdmittance,PROFILE,NAMES
+from doorbench.dexterous.thumb_normal_admittance import RobotThumbNormalAdmittance,PROFILE,PROFILE_V3,NAMES
 from scripts.dexterous.probe_sensor_touch_operation import intended_contact_geometry
 
 
@@ -82,7 +82,10 @@ def main():
         for step in range(1001):
             if step:
                 try:
-                    target,meta=c.update(goals,current,vector*(requested_load/load),requested_load,now_s=23.+step*.002)
+                    denominator=float(np.linalg.norm(vector)) if profile['schema']==PROFILE_V3['schema'] else load
+                    synthetic=vector*(requested_load/denominator)
+                    palmar=float(synthetic[2]) if profile['schema']==PROFILE_V3['schema'] else requested_load
+                    target,meta=c.update(goals,current,synthetic,palmar,now_s=23.+step*.002)
                     current[c.columns]+=np.array(meta['thumb_admittance_goal_velocity_rad_s'])*.002
                 except Exception as exc:error=type(exc).__name__+': '+str(exc);break
             screen=geometry(current[c.columns])

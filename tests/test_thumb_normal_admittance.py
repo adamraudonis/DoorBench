@@ -13,7 +13,7 @@ from doorbench.dexterous.sensor_hierarchical_digit_force import HIERARCHICAL_PRO
 from doorbench.dexterous.sensor_thumb_flexion_force import THUMB_PROTOCOL
 from doorbench.dexterous.tactile_contact_mode import THUMB_MODE_PROTOCOL
 from doorbench.dexterous.thumb_normal_admittance import RobotThumbNormalAdmittance,PROFILE,NAMES,intersect_scalar_bounds,validate_profile
-from doorbench.dexterous.thumb_normal_admittance import PROFILE_V2,soft_interior_coefficient
+from doorbench.dexterous.thumb_normal_admittance import PROFILE_V2,PROFILE_V3,soft_interior_coefficient
 from doorbench.dexterous.sensor_thumb_admittance import SensorThumbAdmittanceController
 
 
@@ -56,6 +56,15 @@ def test_actual_conflicting_soft_desires_keep_original_slew_bounds():
 
 def test_soft_desires_never_widen_infeasible_hard_bounds():
     with pytest.raises(ValueError):soft_interior_coefficient([1,-1],[0,0],[1,1],.2,.1)
+
+
+def test_resultant_profile_observes_shear_while_retaining_the_palmar_measurement(authored):
+    c,q,goals=setup(authored);c.profile=validate_profile(PROFILE_V3)
+    c.update(goals,q,[0,6.,3.],3.,now_s=23.)
+    _,info=c.update(goals,q,[0,6.,3.],3.,now_s=23.002)
+    assert info['thumb_admittance_measured_palmar_load_N']==3.
+    assert info['thumb_admittance_feedback_load_N']==pytest.approx(np.sqrt(45.))
+    assert np.linalg.norm(info['thumb_admittance_reference_offset_m'])>0
 
 
 def test_normalized_calculator_and_original_xml_share_actual_policy_gain(authored):

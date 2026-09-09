@@ -32,10 +32,14 @@ PROFILE = {
 }
 PROFILE_V2=dict(PROFILE,schema='doorbench.thumb-normal-admittance.v2',
     interior_policy='Least-squares soft interior velocity desires when incompatible; original hard motion bounds and actual stop guard retained')
+PROFILE_V3=dict(PROFILE_V2,schema='doorbench.thumb-normal-admittance.v3',
+    feedback_quantity='Magnitude of summed central own-taxel force including measured shear')
+PROFILE_V3.pop('local_palmar_target_N')
+PROFILE_V3['local_resultant_target_N']=3.
 
 
 def validate_profile(value):
-    expected=PROFILE_V2 if type(value) is dict and value.get('schema')==PROFILE_V2['schema'] else PROFILE
+    expected={v['schema']:v for v in (PROFILE,PROFILE_V2,PROFILE_V3)}.get(value.get('schema'),PROFILE) if type(value) is dict else PROFILE
     if type(value) is not dict or set(value) != set(expected):
         raise ValueError('Exact versioned thumb admittance profile required')
     for key, wanted in expected.items():
@@ -159,6 +163,9 @@ class RobotThumbNormalAdmittance:
         vector = np.asarray(force_sensor_xyz, float)
         if vector.shape != (3,) or not np.isfinite(vector).all() or isinstance(load, (bool,np.bool_)) or not np.isscalar(load) or not np.isfinite(load) or load < 0:
             raise ValueError('Finite own taxel resultant and nonnegative palmar projection required')
+        palmar_load=float(load)
+        if self.profile['schema']==PROFILE_V3['schema']:
+            load=float(np.linalg.norm(vector))
         if type(goals) is not dict or not set(NAMES) <= set(goals):
             raise ValueError('Named original thumb goals required')
         nominal = np.array([goals[n] for n in NAMES], float)
@@ -224,7 +231,7 @@ class RobotThumbNormalAdmittance:
             required_a,required_b = intersect_scalar_bounds(basis[3:,3], need_lo[3:], need_hi[3:])
             a,b = max(a,min(required_a,b)),min(b,max(required_b,a))
         except ValueError:
-            if self.profile['schema']!=PROFILE_V2['schema']:raise
+            if self.profile['schema'] not in (PROFILE_V2['schema'],PROFILE_V3['schema']):raise
             # Desired inward velocities are soft objectives, not joint limits.
             # They can conflict in the single actuated flexion tangent. Admit
             # only the best compromise within every original hard bound.
@@ -250,6 +257,8 @@ class RobotThumbNormalAdmittance:
         result = dict(goals); result.update(dict(zip(NAMES,self.target.tolist())))
         pressure_tangent_error = float(abs(pressure @ (self.gain*velocity[3:])))
         return result, dict(thumb_admittance_started=True, thumb_admittance_reference_offset_m=self.reference_offset.tolist(),
+            thumb_admittance_measured_palmar_load_N=palmar_load,
+            thumb_admittance_feedback_load_N=float(load),
             thumb_admittance_soft_interior_conflict=soft_conflict,
             thumb_admittance_reference_velocity_m_s=reference_velocity.tolist(), thumb_admittance_goal_velocity_rad_s=velocity.tolist(),
             thumb_admittance_filtered_local_load_N=self.filtered_force, thumb_admittance_resultant_sensor_N=self.filtered_vector.tolist(),
