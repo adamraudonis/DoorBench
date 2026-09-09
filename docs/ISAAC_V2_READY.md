@@ -119,3 +119,21 @@ Run Center and the current owned-allocation journal before launching a long
 trial. Readiness does not extend a guard. Sustained authorized work can use
 [explicit bounded guard renewal](ISAAC_ONE_CLICK.md); preserve evidence off-pod
 and retain the exact source, robot, door and checkpoint identities.
+
+### Fresh L40S verification — September 9, 2026
+
+A fresh guarded launch passed the runtime, generated-door, imported-robot and
+live PhysX readiness checks at **13:07:57 UTC**. The independent import comparison
+measured 0.912 micrometres maximum body-position difference and 0.0000213 degrees
+maximum rotation difference. All copied trial artifacts match their recorded
+checksums. [Readiness receipt](evidence/isaac-environment-standing-sustain-003.json).
+This qualifies the environment; acquisition/opening scores are separate. The
+subsequently dispatched 36-second native prerequisite passes 18/18 runtime checks;
+its independent contact audit and actual Isaac operation remain separate stages.
+
+Cold setup on this node took about three hours, primarily package downloads.
+The next bootstrap explicitly installs the CUDA Torch build before Isaac Sim and
+uses the shared uv cache for the core Isaac Lab install. Those changes passed local
+checks but have not been timed on a second fresh node. The combined
+`--standing-operation` convenience flag has dispatch tests; this launch exercised
+preparation and the separately dispatched coordinator, not that combined flag.
