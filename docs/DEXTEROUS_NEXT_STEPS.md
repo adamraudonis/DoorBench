@@ -530,3 +530,17 @@ before Isaac runs. Each source bundle and collector has its own receipt. Both
 local and remote teardown guards were acknowledged for the owned L40S through
 2026-09-09T16:59:23.513286+00:00. This remains a privileged controller experiment, not a learned
 vision/tactile policy or a completed standing traversal.
+
+At 15:07 UTC, withdrawal017 passed all29 runtime and8 independent checks across
+40,300 actual intervals (80.6 s). No invalid loaded RH patches occurred; final
+hand clearance was46.332 mm, with supported left palm. The right-hand release
+close-up was personally inspected. Raw successful evidence is retained locally
+and hardlinked into the permanent run archive. The thumb's transient tracking
+error did not cause an invalid loaded contact; original force caps were unchanged.
+The next stage must begin from this actual attained state, screen upright panel
+continuation, and qualify another continuous physical rollout.
+
+Isaac005 completed17/19 runtime checks. Its independent recorded-contact audit
+passed its scoped checks, but runtime grasp/opening hold failed and the intended
+hold never activated. This is explicitly a failed comparison. Isaac006 is now
+running its fresh native prerequisite before the earlier-capture GPU test.
