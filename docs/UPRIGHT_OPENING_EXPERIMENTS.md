@@ -277,3 +277,24 @@ reference speed and47.8mm final hand clearance. `refine_thumb_withdrawal.py`
 records the correction and frozen source hashes. The separate80.6s physical
 withdrawal run retains original force/geometry gates and starts at the original
 closed-door reset. It is not yet qualified.
+
+
+Withdrawal001 was interrupted during evidence recording near77s by renewed
+local storage exhaustion. Its partial observations include transient loss of
+left support; no release is qualified. The native runner retained every rich
+physics/controller dictionary in memory. `BoundedEvidence` now serializes these
+observations into lossless chunks, permitting repeated audit passes without
+retaining entire episodes. It atomically exports the existing gzip JSON-array
+format. All72 chunks through36s in withdrawal002 match the qualified reference
+exactly, including physics states, contacts and forces.37 storage/acquisition/
+withdrawal tests passed; runtime qualification remains separate.
+
+Isaac hub021 retains its original distal-pad protocol. A23.002s raw snapshot
+shows loaded middle phalanges on the lever. The pre-existing volar-phalange
+anatomy formula accepts that one snapshot, including all loaded patches; this
+is diagnosis only, never a retrospective upgrade. The coordinator now supports
+an explicitly predeclared Isaac grasp profile for a future run, retaining the
+stricter distal/whole-handle native prerequisite. Independent auditing rejects
+a profile that differs from the recorded launch, and future coordinator success
+also requires zero invalid loaded patches over the entire episode, beyond the
+existing final sustained-grasp window. No new protocol has yet run.

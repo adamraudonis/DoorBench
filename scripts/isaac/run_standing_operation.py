@@ -28,6 +28,7 @@ def main():
     p.add_argument('--deadline-unix',type=float,required=True)
     p.add_argument('--hold-attained-grasp',action='store_true',help='Test qualified attained finger hold in both physics backends')
     p.add_argument('--operation-handle-hub-avoidance',action='store_true')
+    p.add_argument('--isaac-grasp-profile',choices=('distal-pad-v1','volar-phalange-v1'),default='distal-pad-v1',help='Prospectively declared Isaac anatomy contract; the native prerequisite retains stricter distal and whole-handle checks')
     p.add_argument('--actual-material-pads',action='store_true')
     p.add_argument('--material-pad-profile',choices=('actual-material-v1','actual-material-v2','measured-pressure-v1'),default='actual-material-v1')
     p.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
@@ -47,6 +48,8 @@ def main():
     a.output.mkdir(parents=True,exist_ok=False)
     (a.output/'run.pid').write_text(str(os.getpid()))
     result={'passed':False,'scope':'Privileged standing acquisition and held partial opening; no full opening, traversal or learned actor'}
+    result['isaac_grasp_profile']=a.isaac_grasp_profile
+    result['native_prerequisite_grasp_profile']='distal-pad-v1'
     result['operation_grasp_offset_in_handle_m']=a.operation_grasp_offset_in_handle_m
     grasp_offset=list(map(str,a.operation_grasp_offset_in_handle_m))
     result['hold_attained_grasp']=a.hold_attained_grasp
@@ -159,15 +162,19 @@ def main():
         (a.output/'provenance.json').write_text(json.dumps(dict(source=frozen,coordinator_sha256=sha(__file__),input_sha256={str(path):sha(path) for path in inputs},scope=result['scope']),indent=2))
         trial=a.output/'trial'
         if a.deadline_unix-time.time()<a.isaac_timeout_seconds+300:raise TimeoutError('Insufficient guarded time for Isaac run and evidence export')
-        run([isaac,a.source/'scripts/dexterous/isaac_opening.py','--robot-usd',ready['robot_usd'],'--door-usd',ready['door_usd'],'--motors',motors,'--reference',reference,'--sensor-layout',layout,'--reset-from-acquisition-path','--grasp-profile','distal-pad-v1','--joint-passive-profile','backend-dry-v2','--seconds','36','--output',trial,'--headless','--device','cuda:0','--record','--enable_cameras','--sensor-gyro-profile','pose-delta-angle-v1','--acquisition','--native-robot',robot,'--acquisition-stance-profile','landed-foot-v1','--acquisition-pressure-segment','distal','--acquisition-index-finger-force','3','--operate-after-acquisition','--operator-compliance-gain','.2','--operation-min-acquisition-seconds','10.6','--operation-grasp-offset-in-handle-m',*grasp_offset,*hold_options,*isaac_pad_options],'isaac-operation',a.isaac_timeout_seconds,allowed_codes=(0,1))
+        run([isaac,a.source/'scripts/dexterous/isaac_opening.py','--robot-usd',ready['robot_usd'],'--door-usd',ready['door_usd'],'--motors',motors,'--reference',reference,'--sensor-layout',layout,'--reset-from-acquisition-path','--grasp-profile',a.isaac_grasp_profile,'--joint-passive-profile','backend-dry-v2','--seconds','36','--output',trial,'--headless','--device','cuda:0','--record','--enable_cameras','--sensor-gyro-profile','pose-delta-angle-v1','--acquisition','--native-robot',robot,'--acquisition-stance-profile','landed-foot-v1','--acquisition-pressure-segment','distal','--acquisition-index-finger-force','3','--operate-after-acquisition','--operator-compliance-gain','.2','--operation-min-acquisition-seconds','10.6','--operation-grasp-offset-in-handle-m',*grasp_offset,*hold_options,*isaac_pad_options],'isaac-operation',a.isaac_timeout_seconds,allowed_codes=(0,1))
         # Preserve and independently audit failures as well as successful runs.
         result['isaac_report_emitted']=(trial/'operation-report.json').is_file()
         if not result['isaac_report_emitted']:raise RuntimeError('Isaac exited before its physical report; inspect isaac-operation.log')
-        result['isaac_runtime_passed']=json.loads((trial/'operation-report.json').read_text())['passed']
-        run([asset,a.source/'scripts/dexterous/audit_isaac_acquisition_contacts.py','--trial',trial,'--output',a.output/'isaac-independent-audit.json'],'isaac-contact-audit',600)
+        operation_report=json.loads((trial/'operation-report.json').read_text())
+        result['isaac_runtime_passed']=operation_report['passed']
+        actual_profile=json.loads((trial/'configuration.json').read_text())['args'].get('grasp_profile')
+        if actual_profile!=a.isaac_grasp_profile:raise ValueError('Recorded Isaac grasp protocol differs from prospective declaration')
+        run([asset,a.source/'scripts/dexterous/audit_isaac_acquisition_contacts.py','--trial',trial,'--output',a.output/'isaac-independent-audit.json','--grasp-profile',a.isaac_grasp_profile],'isaac-contact-audit',600)
         audit=json.loads((a.output/'isaac-independent-audit.json').read_text())
         result['independent_audit_passed']=bool(audit['accounting_passed'] and audit['independent_raw_contact_audit_complete'])
-        result['passed']=bool(result['isaac_runtime_passed'] and result['independent_audit_passed'])
+        result['all_loaded_handle_patches_qualified']=audit['invalid_loaded_patches']==0
+        result['passed']=bool(result['isaac_runtime_passed'] and result['independent_audit_passed'] and result['all_loaded_handle_patches_qualified'])
         if a.operation_handle_hub_avoidance:
             latest=json.loads((trial/'latest.json').read_text())
             result['isaac_hub_avoidance_activated']=latest['teacher'].get('hub_avoidance_profile')=='little-finger-3N-v1' and latest['teacher'].get('hub_avoidance_blend')==1.
