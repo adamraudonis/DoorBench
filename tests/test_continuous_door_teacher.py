@@ -361,3 +361,31 @@ def test_declared_time_limit_stops_incomplete_episode(controller):
     advance(controller, 1)
     with pytest.raises(module.ContinuousDoorFailure, match='declared bound'):
         advance(controller, 2)
+
+
+def test_loaded_hold_policy_preserves_failed_first_crossing_and_waits(controller):
+    controller.handoff_policy='loaded-hold-v2'
+    def change(step,info,force):
+        if step>=CROSSING:info['aperture_crossing']['final_palm_hold']=False
+    controller.walking.change=change
+    def missing_contact(step,data):
+        if step==CROSSING:data['evidence']['left_palm_load_N']=0.
+    advance(controller,CROSSING+250,missing_contact)
+    assert controller.handoff is None and not controller.post.calls
+    advance(controller,CROSSING+251)
+    audit=controller.opening_audit
+    assert audit['passed'] and audit['handoff_policy']=='loaded-hold-v2'
+    assert audit['first_aperture_crossing']['final_palm_hold'] is False
+    assert audit['first_aperture_crossing']['time_s']==CROSSING*.002-.2
+    assert audit['crossing']['final_palm_hold'] is True
+    assert audit['time_s']==(CROSSING+251)*.002
+    assert 'first_actual_aperture_crossing' not in audit['checks']
+
+
+def test_loaded_hold_policy_cannot_redeem_invalid_physics(controller):
+    controller.handoff_policy='loaded-hold-v2'
+    def unsafe(step,data):
+        if step==CROSSING:data['evidence']['physics_qualified']=False
+    with pytest.raises(module.ContinuousDoorFailure,match='physics'):
+        advance(controller,CROSSING,unsafe)
+    assert not controller.post.calls

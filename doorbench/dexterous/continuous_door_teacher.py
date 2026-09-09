@@ -49,7 +49,7 @@ class ContinuousDoorTeacher:
     def __init__(self, robot_xml, motors, reference, preparation, reset, checkpoint,
                  joint_geometry, *, door_xml, left_targets, release_screen,
                  runtime_screen=None, opening_options=None, prepare_seconds=8.,
-                 maximum_seconds=180.):
+                 maximum_seconds=180., handoff_policy='first-crossing-v1'):
         if not np.isfinite(maximum_seconds) or maximum_seconds <= 0:
             raise ValueError('A finite positive episode bound is required')
         self.walking = WalkingOpeningTeacher(robot_xml, motors, reference, preparation,
@@ -59,6 +59,24 @@ class ContinuousDoorTeacher:
         self.post = PostOpeningTeacher(robot_xml, motors, reset, checkpoint,
             door_xml=door_xml, stow_profile='sequential-v2', phase_seconds=5.,
             inward_roll=.07, passage=True)
+        self._initialize(motors,reset,maximum_seconds,handoff_policy)
+
+    @classmethod
+    def from_components(cls,walking,post,motors,reset,*,maximum_seconds=180.,
+                        handoff_policy='first-crossing-v1'):
+        """Bind already constructed, unused components with the same contract."""
+        if walking.acquisition_started is not None or post.last_time is not None:
+            raise ValueError('Composition requires unused components, not resumed controller state')
+        result=cls.__new__(cls);result.walking=walking;result.post=post
+        result._initialize(motors,reset,maximum_seconds,handoff_policy)
+        return result
+
+    def _initialize(self,motors,reset,maximum_seconds,handoff_policy):
+        if not np.isfinite(maximum_seconds) or maximum_seconds<=0:
+            raise ValueError('A finite positive episode bound is required')
+        if handoff_policy not in ('first-crossing-v1','loaded-hold-v2'):
+            raise ValueError('Unknown explicit opening handoff policy')
+        self.handoff_policy=handoff_policy
         self.names = tuple(self.post.names)
         self.motor_names = tuple(a['name'] for a in motors['actuators'])
         self.caps = np.asarray(self.post.caps).copy()
@@ -188,6 +206,21 @@ class ContinuousDoorTeacher:
         offset = self.walking.acquisition_started
         if not isinstance(crossing, dict) or offset is None:
             raise ValueError('Aperture reached without an actual qualified opening crossing')
+        first_crossing=copy.deepcopy(crossing)
+        loaded_policy=getattr(self,'handoff_policy','first-crossing-v1')=='loaded-hold-v2'
+        if loaded_policy:
+            # Retain the original crossing receipt, including a failed hold.
+            # This separately named event uses the current independent history;
+            # it does not rewrite the first crossing or forgive bad physics.
+            if float(crossing['time_s'])+offset>t+1e-7:
+                raise ValueError('The first crossing cannot come from the future')
+            crossing=dict(time_s=float(t-offset),aperture_rad=float(angles['leaf']),
+                palm_load_N=float(evidence['left_palm_load_N']),
+                final_palm_hold=self._held(lambda r:r['palm_load']>=2.),
+                all_physics_qualified=opening.all_physics_qualified,
+                all_pad_patches_qualified=opening.all_pad_patches_qualified,
+                right_release_complete=bool(info.get('release',{}).get('release_fraction',0.)>=.999
+                    and evidence['right_lever_clearance_m']>=.02))
         for key in ('final_palm_hold', 'all_physics_qualified', 'all_pad_patches_qualified', 'right_release_complete'):
             if not isinstance(crossing.get(key), (bool, np.bool_)) or not crossing[key]:
                 raise ValueError('Opening crossing failed '+key)
@@ -212,7 +245,7 @@ class ContinuousDoorTeacher:
         acquisition = self.walking.handoffs.get('acquisition', {})
         if acquisition.get('hand_contact_count') != 0:
             raise ValueError('Acquisition did not follow contact-free preparation')
-        return dict(time_s=float(t), aperture_rad=float(angles['leaf']),
+        result=dict(time_s=float(t), aperture_rad=float(angles['leaf']),
                     opening_clock_offset_s=float(offset), opening_crossing=copy.deepcopy(crossing),
                     independently_qualified_events=copy.deepcopy(self.milestones),
                     maximum_actual_foot_lift_m=self.maximum_foot_lift.tolist(),
@@ -226,6 +259,12 @@ class ContinuousDoorTeacher:
                         right_release_and_clearance=True, sustained_final_palm_support=True,
                         first_actual_aperture_crossing=True, all_prefix_physics_qualified=True,
                         all_prefix_right_pad_patches_valid=True))
+        if loaded_policy:
+            result['opening_checks'].pop('first_actual_aperture_crossing')
+            result['opening_checks']['first_qualified_loaded_aperture_handoff']=True
+            result['first_aperture_crossing']=first_crossing
+            result['handoff_policy']='loaded-hold-v2'
+        return result
 
     def _finish(self, t, root, feet, evidence, info):
         eligible = (info.get('passage_completed') is True and info['minimum_body_y_m'] > .2 and
@@ -342,7 +381,9 @@ class ContinuousDoorTeacher:
                 if count:
                     raise ValueError('Actual hand contact occurred during preparation')
             self._milestones(t, info)
-            if angles['leaf'] >= self.target_aperture:
+            ready_load=(getattr(self,'handoff_policy','first-crossing-v1')!='loaded-hold-v2'
+                        or self._held(lambda r:r['palm_load']>=2.))
+            if angles['leaf'] >= self.target_aperture and ready_load:
                 handoff = self._qualify_crossing(t,angles,evidence,continuation_evidence,info)
                 state = _detached_numeric(dict(time_s=t, pose_time_s=pose_time_s,
                     contact_interval_s=contact_interval_s, root=root, joint_positions=joints,
@@ -365,6 +406,9 @@ class ContinuousDoorTeacher:
                     measured_evidence=_detached_numeric(evidence),
                     qualification_window=_detached_numeric(list(self.history)),
                     scope='Composition checks over actual caller-audited intervals; independent physics archive audit required'))
+                if self.handoff_policy=='loaded-hold-v2':
+                    self._opening_audit.update(handoff_policy=self.handoff_policy,
+                        first_aperture_crossing=copy.deepcopy(handoff['first_aperture_crossing']))
                 if release_normal_world is None:
                     raise ValueError('An actual outward left-panel normal is required at crossing')
                 force, post_info = self.post.force(t,root,joints,velocities,feet,hand_forces,
