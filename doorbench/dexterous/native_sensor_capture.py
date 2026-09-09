@@ -1,4 +1,4 @@
-"""Finite own-sensor capture during an actual native teacher rollout.
+"""Finite own-sensor capture during an actual native robot rollout.
 
 Reads the live plant but never steps it or commands it. Encoder/camera samples
 use the refreshed post-step state. MuJoCo IMU and tactile values belong to the
@@ -15,7 +15,11 @@ from .sensor_contract import ActorObservationBuilder, SENSOR_KEYS
 
 
 class NativeSensorCapture:
-    def __init__(self, sim, motors, layout, output):
+    def __init__(self, sim, motors, layout, output, *, control_source='privileged_teacher'):
+        if control_source not in ('privileged_teacher', 'sensor_actor'):
+            raise ValueError('Declare teacher or sensor actor explicitly')
+        self.control_source = control_source
+        self.initial_recorded = False
         self.sim = sim
         self.output = Path(output)
         self.output.mkdir(parents=True,exist_ok=False)
@@ -32,6 +36,19 @@ class NativeSensorCapture:
         self.rows=[];self.chunks=[];self.frames=[];self.frame_times=[];self.count=0;self.last_time=None
         self.numeric_keys=[k for k in SENSOR_KEYS if not k.startswith('rgb_')]+['previous_action','sensor_time_s','sensor_valid']
         self._report(False)
+
+    def initial_packet(self):
+        """Observe the actual reset; do not invent initial IMU/touch history."""
+        if self.count or self.initial_recorded or self.sim.d.time != 0:
+            raise ValueError('Initial observation requires the untouched episode reset')
+        mujoco.mj_camlight(self.sim.m, self.sim.d)
+        observation = self.sim.observe(images=True)
+        for key in ('joint_position', 'joint_velocity', 'rgb_left', 'rgb_right'):
+            self.builder.push(key, observation[key], capture_s=0.)
+        packet = self.builder.observe(now_s=0., previous_action=np.zeros(61))
+        np.savez_compressed(self.output/'actor-initial-decision.npz', **packet, time_s=np.asarray(0.))
+        self.initial_recorded = True
+        return packet
 
     def capture(self, *, start_s, end_s, actual_forces):
         if self.last_time is not None and abs(start_s-self.last_time)>1e-8:
@@ -55,6 +72,7 @@ class NativeSensorCapture:
         self.rows.append(dict(time_s=end_s,**{k:packet[k] for k in self.numeric_keys}))
         self.count+=1;self.last_time=end_s
         if len(self.rows)>=250:self.flush()
+        return packet
 
     def flush(self):
         if not self.rows:return
@@ -67,14 +85,14 @@ class NativeSensorCapture:
 
     def _report(self,complete):
         result=dict(schema='doorbench.native-sensor-capture.v1',capture_complete=complete,
-            control_source='privileged_teacher',scope=__doc__,samples=self.count,last_time_s=self.last_time,
+            control_source=self.control_source,scope=__doc__,samples=self.count,last_time_s=self.last_time,
             chunks=self.chunks,camera_frames=len(self.frame_times),camera_stride_steps=20,
-            startup_observation_recorded=False,
+            startup_observation_recorded=self.initial_recorded,
             camera_pose_refresh='mj_camlight after current-state kinematics, before render',
             source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             layout_sha256=hashlib.sha256((self.output/'layout.json').read_bytes()).hexdigest(),
             rgb_sha256=hashlib.sha256((self.output/'actor-rgb.npz').read_bytes()).hexdigest() if complete and self.frames else None,
-            limitation='Post-step teacher data only; first decision and training qualification require a separate adapter/audit')
+            limitation='Recorded sensors only; task, sensor and training qualification require separate audits')
         tmp=self.output/'report.writing';tmp.write_text(json.dumps(result,indent=2)+'\n');tmp.replace(self.output/'report.json')
 
     def finish(self,*,complete):
