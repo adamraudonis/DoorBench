@@ -458,3 +458,13 @@ A separate `audit_release_leaf_motion.py` now checks non-distal lever and all hu
 
 
 Direct-release008, with 20 mm early upward palm travel, passes both geometric screens: 2,001 original samples (4.10 micrometers maximum palm error; 2.870 degrees torso tilt; 1.091 rad/s joint reference speed; 42.75 mm final clearance), and all 3,003 moving-leaf configurations (minimum tested non-distal/assembly clearance 0.124 mm). The latter is a geometric envelope, not proof of dynamic robustness. A source-bound optional admission check now rejects changed audit files, changed source/route inputs and failed moving-leaf screens; ten targeted admission, snapshot, withdrawal and hand tests pass. Native withdrawal009 will test this exact route through the original capped motors and complete contact audits.
+
+
+Launch correction: withdrawal009 executed no physics. The ad hoc monitor registration created its reserved output directory before the probe checked for a fresh directory. Its error and launch receipt are retained. Withdrawal010 uses the same audited route/configuration and waits for the probe's own PID file before attaching monitoring; it is running with both contact-audit waiters. No output-directory check was weakened.
+
+
+### Prospective Isaac opening-transition comparison
+
+Pressure026's actual Isaac close-ups at steps 8,500 and 10,500 were personally inspected. At 17.502 s the lever is 0.769656 rad and bolt retraction is 0.011088 m; opening is still withheld by the controller's 0.80 rad trigger. By 21.002 s the palm compliance correction has grown to 0.13544 rad while the lever remains 0.79478 rad; grip is then lost. This supports testing transition timing, but does not prove it is the only cause.
+
+A new explicit `--operation-opening-trigger-rad` option is forwarded identically to native and Isaac controllers. The prospective comparison uses 0.75 rad while retaining the 0.011 m measured bolt threshold, five-second pressing reference, 0.87 rad handle target, original motor limits, and final 0.80 rad operator/0.011 m bolt acceptance gates. The controller starts its continuous opening ramp; it never commands the door directly. Twenty-six operation/withdrawal tests pass, including the requirement that the lower trigger cannot bypass a blocked bolt. No historical failed result is rescored.

@@ -197,6 +197,7 @@ p.add_argument('--panel-push',action='store_true',help='Development: reacquire o
 p.add_argument('--mechanism-test',action='store_true',help='Non-robot calibration: apply known forces directly to door joints')
 from isaaclab.app import AppLauncher
 AppLauncher.add_app_launcher_args(p)
+p.add_argument('--operation-opening-trigger-rad',type=float,default=.80,help='Controller transition only; final operator and latch acceptance thresholds remain unchanged')
 p.add_argument('--operation-leaf-target-rad',type=float,default=.08,help='Commanded partial opening; physical acceptance bounds stay unchanged')
 p.add_argument('--operation-leaf-lead-limit-rad',type=float,help='Explicit measured-door lead bound for a new standalone opening trial')
 p.add_argument('--operation-hub-geometry',type=str,help='Original hub descriptor from the independently gated native prerequisite')
@@ -262,6 +263,7 @@ balance_scope=('Sensor-only analytical balance with scripted torso, arm and fing
                if a.sensor_arm_schedule else 'Sensor-only analytical stationary balance; RGB unused; no learned policy, acquisition or door task claim')
 try:validate_traversal_mode(a)
 except ValueError as error:p.error(str(error))
+if not .70<=a.operation_opening_trigger_rad<=.80:raise ValueError('Opening trigger must be .70.. .80 rad')
 if a.record or a.sensor_layout:a.enable_cameras=True
 launcher=AppLauncher(a);app=launcher.app
 import numpy as np
@@ -527,7 +529,7 @@ def main():
                 basis=np.eye(3)['XYZ'.index(joint.GetAxisAttr().Get())]
                 joint_geometry[role+'_origin']=np.array(joint.GetLocalPos1Attr().Get())
                 joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*map(float,basis))))
-            operation=DoorOperationTeacher(teacher,joint_geometry,handle_hub_avoidance=hub_geometry is not None,leaf_target=a.operation_leaf_target_rad,leaf_lead_limit_rad=a.operation_leaf_lead_limit_rad,operator_follow_after_leaf_rad=a.operation_operator_follow_after_leaf_rad,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile=a.operation_material_profile if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
+            operation=DoorOperationTeacher(teacher,joint_geometry,release_operator_threshold=a.operation_opening_trigger_rad,handle_hub_avoidance=hub_geometry is not None,leaf_target=a.operation_leaf_target_rad,leaf_lead_limit_rad=a.operation_leaf_lead_limit_rad,operator_follow_after_leaf_rad=a.operation_operator_follow_after_leaf_rad,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile=a.operation_material_profile if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
             if sequence_reset and not a.full_opening:
                 from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
                 sequence=FullSequenceTeacher(a.native_robot,motors,ref,

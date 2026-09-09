@@ -263,3 +263,17 @@ def test_operator_follow_requires_measured_clearance_and_smoothly_releases_press
 def test_operator_follow_rejects_invalid_clearance(threshold):
     with pytest.raises(ValueError,match='Operator follow'):
         DoorOperationTeacher(Acquisition(),GEOMETRY,operator_follow_after_leaf_rad=threshold)
+
+
+def test_prospective_lower_opening_trigger_still_requires_bolt_clearance():
+    wrappers=[DoorOperationTeacher(Acquisition(),GEOMETRY,press_seconds=1.,release_operator_threshold=threshold) for threshold in (.80,.75)]
+    for wrapper in wrappers:
+        for t in np.arange(0.,.51,.01):tick(wrapper,t)
+        tick(wrapper,1.51,operator=.76,latch=.010)
+        assert wrapper.open_started is None
+        tick(wrapper,1.52,operator=.76,latch=.0112)
+        assert wrapper.operator_target==.87
+        assert wrapper.release_bolt_threshold==.011
+    assert wrappers[0].open_started is None
+    assert wrappers[1].open_started==pytest.approx(1.52)
+    assert wrappers[1].info['goal_leaf_rad']==0.

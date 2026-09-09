@@ -122,6 +122,7 @@ def main():
     parser.add_argument('--grasp-offset-in-handle-m',nargs=3,type=float,default=[0.,0.,0.])
     parser.add_argument('--min-acquisition-seconds', type=float, default=10.6,
                         help='Earliest event-triggered portable transition; 10.6 retains the native comparison protocol')
+    parser.add_argument('--operation-opening-trigger-rad',type=float,default=.80,help='Controller transition only; final operator and latch acceptance thresholds remain unchanged')
     parser.add_argument('--operation-leaf-target-rad',type=float,default=.08,help='Commanded partial opening; physical acceptance bounds stay unchanged')
     parser.add_argument('--operation-leaf-lead-limit-rad',type=float,help='Explicit measured-door lead bound for a new standalone opening trial')
     parser.add_argument('--operation-operator-follow-after-leaf-rad',type=float,help='Blend toward the measured handle angle after the leaf clears the latch')
@@ -133,6 +134,7 @@ def main():
     if args.operation_leaf_lead_limit_rad is not None and (not .002<=args.operation_leaf_lead_limit_rad<=.03 or not args.portable_wrapper or args.standing_transfer_path):parser.error('Leaf lead bound requires standalone operation and .002..0.03 rad')
     if not .075<=args.operation_leaf_target_rad<=.10:parser.error('Partial opening command must be .075..0.10 rad')
     if args.operation_leaf_target_rad!=.08 and not args.portable_wrapper:parser.error('Explicit leaf target requires portable wrapper')
+    if not .70<=args.operation_opening_trigger_rad<=.80 or (not args.portable_wrapper and args.operation_opening_trigger_rad!=.80):parser.error('Opening trigger must be .70.. .80 rad in the portable controller')
     if args.hold_attained_grasp and (not args.portable_wrapper or args.standing_transfer_path):parser.error('Attained hold requires a standalone portable operation trial')
     if not args.portable_wrapper and (args.operation_fixed_pad_control or args.index_proximal_offset_rad or args.index_tendon_offset_rad):
         parser.error('Contact-control options require the portable operation wrapper')
@@ -187,7 +189,7 @@ def main():
     if args.portable_wrapper:
         from doorbench.dexterous.operation_teacher import DoorOperationTeacher
         operation = DoorOperationTeacher(teacher,dict(operator_origin=m.jnt_pos[hj],operator_axis=m.jnt_axis[hj],
-            leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),handle_hub_avoidance=args.operation_handle_hub_avoidance,leaf_target=args.operation_leaf_target_rad,leaf_lead_limit_rad=args.operation_leaf_lead_limit_rad,operator_follow_after_leaf_rad=args.operation_operator_follow_after_leaf_rad,min_acquisition_seconds=args.min_acquisition_seconds,press_seconds=args.press_seconds,wait_for_press_completion=not args.open_on_latch_clear,operator_compliance_gain=args.operator_compliance_gain,grasp_offset_in_handle_m=args.grasp_offset_in_handle_m,index_proximal_offset_rad=args.index_proximal_offset_rad,index_tendon_offset_rad=args.index_tendon_offset_rad,fixed_pad_control=args.operation_fixed_pad_control,pad_control_profile=args.operation_pad_control_profile,hold_attained_grasp=args.hold_attained_grasp,attained_hold_stage=args.attained_hold_stage)
+            leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),release_operator_threshold=args.operation_opening_trigger_rad,handle_hub_avoidance=args.operation_handle_hub_avoidance,leaf_target=args.operation_leaf_target_rad,leaf_lead_limit_rad=args.operation_leaf_lead_limit_rad,operator_follow_after_leaf_rad=args.operation_operator_follow_after_leaf_rad,min_acquisition_seconds=args.min_acquisition_seconds,press_seconds=args.press_seconds,wait_for_press_completion=not args.open_on_latch_clear,operator_compliance_gain=args.operator_compliance_gain,grasp_offset_in_handle_m=args.grasp_offset_in_handle_m,index_proximal_offset_rad=args.index_proximal_offset_rad,index_tendon_offset_rad=args.index_tendon_offset_rad,fixed_pad_control=args.operation_fixed_pad_control,pad_control_profile=args.operation_pad_control_profile,hold_attained_grasp=args.hold_attained_grasp,attained_hold_stage=args.attained_hold_stage)
         wrapper_source = Path(inspect.getfile(DoorOperationTeacher))
         shutil.copy2(wrapper_source,args.output/'operation-teacher-source.py')
         (args.output/'operation-teacher-source.json').write_text(json.dumps(dict(
