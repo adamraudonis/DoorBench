@@ -132,3 +132,38 @@ The latest desktop readiness receipt (2026-09-08 04:14:26 UTC) and source manife
 Imported mesh instances also require explicit collision-offset handling: ordinary USD prim traversal skipped their shapes. The live adapter sets 1 mm contact offsets and zero rest offsets on every robot shape through the PhysX tensor API, then reads them back. The previous automatically computed margins ranged from approximately 0.08 to 1.8 mm. These are solver settings, not changes to the physical mesh surface.
 
 The ready checkout now includes a [one-command initialized opening demonstration](ISAAC_HANDLE_DEMO.md), including its exact numerical pose and workspace. Unlike the earlier tactile PPO training probe, this motor-teacher demo does not require copying an unpublished checkpoint or seed bundle.
+
+
+### Standing release inputs and migration
+
+Native acquisition/operation runs now save `controller-inputs/manifest.json`
+before controller initialization. It maps the supplied reference, motor contract,
+geometry audit and standing route documents to immutable copies and SHA-256
+hashes. Referenced plan/screen/audit documents are copied too. Large source
+episode trajectories and raw contact archives remain separate: retain the full
+run store and every external file named by the plan/audit hash maps. This
+snapshot is not a complete asset or episode dependency bundle. Missing historical
+episode references are explicitly marked unavailable, rather than invented.
+
+For a new release candidate on the same verified native embodiment:
+
+```bash
+python scripts/dexterous/plan_direct_standing_release.py \
+  --source-run out/native-standing-hub-return-001 \
+  --output out/my-direct-release \
+  --retreat-profile slide-lift --whole-body
+python scripts/dexterous/audit_standing_ungrip.py \
+  --source-run out/native-standing-hub-return-001 \
+  --screen out/my-direct-release/report.json
+```
+
+Use a fresh output directory. The source must pass its runtime, independent pad
+and whole-handle audits against the exact original model. The new planner's
+source is frozen beside its report and included in the dense audit's input
+hashes. A geometric pass only admits a subsequent motor test from the original
+closed-door reset; it does not certify contact forces or natural motion.
+
+For a different robot or an Isaac destination, repeat preparation, native and
+imported mechanics checks, and planning from that destination's attained state.
+Do not relabel a MuJoCo geometric pass as an Isaac result or rewrite historical
+audit hashes to accommodate changed inputs.

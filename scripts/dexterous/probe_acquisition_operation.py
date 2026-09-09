@@ -151,6 +151,10 @@ def main():
     # in an isolated worktree, and retain the executed driver as an override.
     controller_root = Path(inspect.getfile(AcquisitionTeacher)).resolve().parents[2]
     capture(controller_root, args.output, {k:str(v) if isinstance(v, Path) else v for k,v in vars(args).items()})
+    from doorbench.dexterous.controller_input_snapshot import snapshot_controller_inputs
+    snapshot_controller_inputs([args.reference,args.motors,args.reference.parent/'geometry-audit.json',
+        args.standing_transfer_path,args.standing_return_path,args.standing_withdrawal_path],
+        args.output/'controller-inputs')
     (args.output/'run.pid').write_text(str(os.getpid()))
     (args.output/'pipeline.json').write_text(json.dumps(dict(stage='Native physics and full handle verification',report_file='report.json',scope=__doc__)))
     shutil.copy2(__file__, args.output/'diagnostic-source.py')

@@ -32,9 +32,15 @@ def main():
     parser.add_argument('--finger-profile',choices=('radial','extend'),default='radial')
     parser.add_argument('--retreat-profile',choices=('lift','slide-lift'),default='lift')
     parser.add_argument('--whole-body',action='store_true',help='Permit bounded upright root/limb adjustment with feet and left palm fixed')
+    parser.add_argument('--coordinated-release',action='store_true',help='Begin the free-end slide during pad separation')
+    parser.add_argument('--thumb-j3-margin-rad',type=float,default=.001)
     a=parser.parse_args()
     if not np.isfinite(a.radial_clearance_m) or not .01<=a.radial_clearance_m<=.03:
         raise ValueError('Explicit radial separation must be 10–30 mm')
+    if not np.isfinite(a.thumb_j3_margin_rad) or not .001<=a.thumb_j3_margin_rad<=.08:
+        raise ValueError('Explicit thumb J3 planning margin must be 1–80 mrad')
+    if a.coordinated_release and a.retreat_profile!='slide-lift':
+        raise ValueError('Coordinated release requires the free-end slide')
     source=a.source_run
     evidence=[source/n for n in ('report.json','independent-pad-audit.json','independent-whole-handle-audit.json')]
     if not all(json.loads(p.read_text()).get('passed') is True for p in evidence):
@@ -99,6 +105,8 @@ def main():
         slide=0.
         if a.retreat_profile=='slide-lift':
             slide=float(smooth_phase((time-3)/2));lift=float(smooth_phase((time-5)/3))
+            if a.coordinated_release:
+                slide=float(smooth_phase((time-1)/3));lift=float(smooth_phase((time-4)/4))
         d.qpos[:]=base
         for digit in digits:
             qa=digit['qa'];goal=digit['point']+digit['radial']*a.radial_clearance_m*separation
@@ -117,7 +125,12 @@ def main():
                     loop=[10*(v[i]-v[j]-(1-separation)*(base[qa[i]]-base[qa[j]]))]
                 return np.r_[100*(point-goal),1000*np.asarray(gaps),loop,(.25 if extending else .01)*(v-preference),.01*(v-digit['previous'])]
             if time>0:
-                fit=least_squares(residual,np.clip(digit['previous'],digit['low']+1e-12,digit['high']-1e-12),bounds=(digit['low'],digit['high']),max_nfev=100)
+                low=digit['low'].copy();high=digit['high'].copy()
+                if 'rh_THJ3' in digit['names']:
+                    j=digit['names'].index('rh_THJ3');limits=m.jnt_range[m.joint('robot/rh_THJ3').id]
+                    low[j]+=separation*(limits[0]+a.thumb_j3_margin_rad-low[j])
+                    high[j]+=separation*(limits[1]-a.thumb_j3_margin_rad-high[j])
+                fit=least_squares(residual,np.clip(digit['previous'],low+1e-12,high-1e-12),bounds=(low,high),max_nfev=100)
                 digit['previous']=fit.x.copy();worst=max(worst,float(np.linalg.norm(fit.fun[:3]))/100)
             d.qpos[qa]=digit['previous']
         fingers=d.qpos.copy()
@@ -145,7 +158,7 @@ def main():
         else:arm_residual(previous_arm)
         q=d.qpos.copy();actual_p=d.site_xpos[palm].copy();actual_R=d.site_xmat[palm].reshape(3,3).copy()
         rows.append(dict(time_s=float(time),phase='grasp_adjustment' if time==0 else 'measured_release' if time<=3 else 'clearance_lift',qpos=q.tolist(),palm_position=actual_p.tolist(),palm_rotation=actual_R.tolist(),requested_palm_position=target.tolist(),joints={n:float(q[m.joint('robot/'+n).qposadr[0]]) for n in body_names},finger_joints={n:float(q[m.joint('robot/'+n).qposadr[0]]) for n in finger_names}))
-    report=dict(scope=__doc__,initial_time_s=start,source_trajectory_sha256=sha(source/'trajectory.npz'),robot_xml_sha256=sha(robot),planner_source_path=str(frozen),planner_source_sha256=sha(frozen),configuration=dict(source_run=str(source),radial_clearance_m=a.radial_clearance_m,finger_profile=a.finger_profile,retreat_profile=a.retreat_profile,whole_body=a.whole_body),source_evidence_sha256={str(p):sha(p) for p in evidence},maximum_pad_goal_residual_m=worst,trials=[dict(rows=rows)])
+    report=dict(scope=__doc__,initial_time_s=start,source_trajectory_sha256=sha(source/'trajectory.npz'),robot_xml_sha256=sha(robot),planner_source_path=str(frozen),planner_source_sha256=sha(frozen),configuration=dict(source_run=str(source),radial_clearance_m=a.radial_clearance_m,finger_profile=a.finger_profile,retreat_profile=a.retreat_profile,whole_body=a.whole_body,coordinated_release=a.coordinated_release,thumb_j3_margin_rad=a.thumb_j3_margin_rad),source_evidence_sha256={str(p):sha(p) for p in evidence},maximum_pad_goal_residual_m=worst,trials=[dict(rows=rows)])
     (a.output/'report.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(dict(nodes=len(rows),maximum_pad_goal_residual_m=worst,physics_steps=0)),flush=True)
     sim.close()

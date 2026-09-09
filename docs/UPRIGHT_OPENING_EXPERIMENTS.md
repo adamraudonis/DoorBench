@@ -416,3 +416,26 @@ and final hand clearance56.3mm. It keeps the original body/feet/support-palm
 constraints. Native hub-withdrawal006 will test this route with the4N support
 profile, actual measured-release phase and full unchanged contact gates from
 the original closed-door reset. Geometry is not physical qualification.
+
+
+Direct physical withdrawal006 passes the whole-handle assembly audit and
+finishes near65.7° with upright torso and17.7cm minimum final hand clearance,
+but still fails the original distal-surface, joint-range and final support
+checks. There are4,010 middle-phalange patches during69.338–72.558s. A diagnostic
+using the existing alternative volar formula accepts3,983 of them, but27 still
+miss the cylindrical-side margin; the original task remains failed and its
+protocol is unchanged. At77.89s the left wrist yaw and right thumb J3 exceed
+the0.02rad gate. Actual hand and body close-ups were personally inspected.
+
+Geometric direct-release005 begins the free-end slide during pad separation and
+ramps a35mrad thumb-J3 planning margin from the attained pose. It passes all
+2,001 dense samples under unchanged tolerances. Physical withdrawal007 will
+combine this route with2.25N left support, reducing the uncontrolled opening
+that takes the left wrist to its reach limit. The original force caps, anatomy
+checks and joint stops remain unchanged.
+
+Controller JSON snapshots now preserve direct references and their planning
+reports/audits before initialization. Twelve focused snapshot/hand/standing
+tests pass. Withdrawal006 received an explicitly labeled supplemental postlaunch
+copy; this is not a retroactive initialization attestation. Model assets and
+complete source episode archives remain separate requirements.
