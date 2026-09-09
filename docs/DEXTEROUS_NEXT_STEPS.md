@@ -4,12 +4,19 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 
 ## Starting point
 
-September 9, 06:29 UTC: additional GPU imitation still fails unassisted balance.
-Three [physically executed approach recoveries](NATIVE_RECOVERY_CURRICULUM.md)
-now pass their independent correction audits. A 30-update correction curriculum
-is running, with unassisted evaluation queued after verified evidence collection.
-The separate bound handle-press plans both still fail near 0.538 rad; they are
-not promoted by geometric planning success. All full-plan completion gates remain.
+September 9, 2026: the corrected H1/Shadow model has a qualified upright native
+sequence through grasp, lever operation, release and supported opening to42.5°
+([33 runtime and12 independent checks](evidence/native-standing-panel-006.json)).
+It uses privileged state and fixed feet during opening. It does not qualify
+upright traversal or learned sensor control. A wider69° candidate passed its
+2,001-pose geometry audit and is now undergoing a fresh180-second physical trial
+(`native-standing-panel-007`). Actual Isaac pressure014 is running separately;
+its final contact and opening audits remain pending. Live trials are listed in
+[local Run Center](http://127.0.0.1:5193/).
+
+The earlier complete native traversal used a deep stance. Keep that result
+separate from this upright sequence. The sensor actor still fails unassisted
+balance, and all repeatability and catalogue completion gates remain open.
 
 The v1 H1/dual-Shadow simulation produced opening of `db0055_swing_single` in four fixed-start Isaac repetitions, but those results are **not mechanically qualified**: the imported hand omitted the manufacturer's passive finger loopback constraints. Two fresh prepared environments reached 95 degrees. These are initialized, privileged demonstrations: the hand starts near the handle, the teacher uses simulator geometry/state, and the robot does not approach or traverse. They are not a robustness score or a vision/tactile policy. See [the evidence and reproduction commands](ISAAC_HANDLE_DEMO.md).
 
