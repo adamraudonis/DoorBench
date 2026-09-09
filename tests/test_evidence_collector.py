@@ -51,3 +51,23 @@ def test_final_sync_repairs_same_size_same_mtime_progress(tmp_path):
     with pytest.raises(ValueError):module.verify_local(destination,manifest)
     subprocess.run(['rsync','-a',*module.final_transfer_options(manifest),str(source)+'/',str(destination)+'/'],check=True)
     assert module.verify_local(destination,manifest)==1
+
+
+def test_collector_waits_without_starting_rsync_when_storage_is_low(tmp_path,monkeypatch):
+    import json
+    from types import SimpleNamespace
+    now=[1.];calls=[]
+    monkeypatch.setattr(module.time,'time',lambda:now[0])
+    monkeypatch.setattr(module.time,'sleep',lambda _:now.__setitem__(0,101.))
+    monkeypatch.setattr(module.signal,'signal',lambda *_:None)
+    monkeypatch.setattr(module.shutil,'disk_usage',lambda _:SimpleNamespace(free=64*1024**2))
+    def run(argv,**kwargs):
+        calls.append(argv[0]);assert argv[0]=='ssh'
+        return SimpleNamespace(stdout=json.dumps(dict(exists=True,pid=42,alive=True,terminal=False)))
+    monkeypatch.setattr(module.subprocess,'run',run)
+    args=SimpleNamespace(host='example.test',port=22,remote='/owned/run',deadline=100.,interval=5.,
+        destination=tmp_path/'evidence',resume=False,key=tmp_path/'key',terminal='report.json',pid_file='run.pid',minimum_free_mib=1024)
+    module.collect(args)
+    receipt=json.loads((tmp_path/'evidence-collector.json').read_text())
+    assert calls==['ssh'] and receipt['storage_waits']==1
+    assert not receipt['final_bytes_verified'] and receipt['copies']==0

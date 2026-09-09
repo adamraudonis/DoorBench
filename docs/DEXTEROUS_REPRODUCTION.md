@@ -212,3 +212,9 @@ Reserve at least 2 GiB of free local space before a long native trial alongside
 a GPU collector; archived duplicates can otherwise leave little actual capacity.
 Only evict evidence after full upload/download hash verification, and ensure a
 collector has reached its verified terminal state so it cannot recopy evicted files.
+
+The collector's `--minimum-free-mib` reserve defaults to1024. Below that reserve
+it records `waiting_for_storage` and does not start rsync; it neither stops the
+remote experiment nor extends its teardown deadline. The reserve is checked
+between copies, so retain additional headroom for large files and concurrent
+native exports. An unfinished collector can resume after capacity is restored.

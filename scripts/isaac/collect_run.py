@@ -15,6 +15,7 @@ import signal
 import subprocess
 import sys
 import time
+import shutil
 
 REMOTE_PROBE=r'''
 import hashlib,json,os
@@ -66,6 +67,8 @@ def verify_local(root,manifest):
 
 
 def collect(a):
+    minimum_free_mib=getattr(a,'minimum_free_mib',1024)
+    if type(minimum_free_mib) is not int or not 0<=minimum_free_mib<=16384:raise ValueError('Explicit storage reserve must be 0..16384 MiB')
     if not a.host or a.host.startswith('-') or any(c.isspace() for c in a.host):raise ValueError('Invalid SSH host')
     if not Path(a.remote).is_absolute() or not 1<=a.port<=65535:raise ValueError('Absolute remote path and valid port required')
     if not time.time()<a.deadline or not 5<=a.interval<=60:raise ValueError('Future bounded deadline and 5..60s interval required')
@@ -99,7 +102,12 @@ def collect(a):
     while not stopped and time.time()<a.deadline:
         try:
             before=probe(manifest=True)
-            if before['exists']:
+            free_bytes=shutil.disk_usage(target).free
+            enough_space=free_bytes>=minimum_free_mib*1024**2
+            if before['exists'] and not enough_space:
+                save(status='waiting_for_storage',free_bytes=free_bytes,minimum_free_bytes=minimum_free_mib*1024**2,
+                     storage_waits=state.get('storage_waits',0)+1,last_error='Local evidence reserve unavailable; remote experiment is not stopped')
+            if before['exists'] and enough_space:
                 with log.open('ab') as stream:
                     subprocess.run(['rsync','-az',*final_transfer_options(before.get('files')),'--timeout=30','--exclude=*.writing','--exclude=*.tmp',
                         '--exclude=*.tmp.*','--exclude=*.writing.*','--exclude=*.pending','--exclude=*.pyc','--exclude=__pycache__','-e',shlex.join(ssh[:-1]),
@@ -130,6 +138,7 @@ def main():
     p.add_argument('--destination',type=Path,required=True);p.add_argument('--deadline',type=float,required=True)
     p.add_argument('--terminal',default='balance-report.json');p.add_argument('--interval',type=float,default=30)
     p.add_argument('--pid-file',default='run.pid',help='Process receipt relative to the copied directory')
+    p.add_argument('--minimum-free-mib',type=int,default=1024,help='Pause copies below this local free-space reserve; does not stop the remote experiment')
     p.add_argument('--resume',action='store_true',help='Resume the same unfinished archive after its worker exits')
     p.add_argument('--detach',action='store_true');a=p.parse_args()
     if a.detach:
