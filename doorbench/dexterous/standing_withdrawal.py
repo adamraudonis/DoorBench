@@ -32,6 +32,8 @@ class StandingWithdrawalTeacher:
         self.hybrid_support=config.get('hybrid_support',False)
         if type(self.hybrid_support) is not bool:raise ValueError('Explicit hybrid support option required')
         self.support_feedback=None
+        self.left_arm_only=config.get('left_arm_only',False)
+        if type(self.left_arm_only) is not bool:raise ValueError('Explicit left-arm solve option required')
         audit_path=Path(config['audit_path']);screen_path=Path(config['screen_path']);source=Path(config['source_run'])
         if sha(audit_path)!=config['audit_sha256'] or sha(screen_path)!=config['screen_sha256']:raise ValueError('Withdrawal evidence changed')
         audit=json.loads(audit_path.read_text());screen=json.loads(screen_path.read_text())
@@ -95,6 +97,7 @@ class StandingWithdrawalTeacher:
             self.stance_rotation_bias=teacher.stance.target_rotation@self.root_rotations(0.).as_matrix().T
             self.stance_names=[teacher.m.joint(int(j)).name for j in teacher.stance.joints]
             self.stance_joint_bias=teacher.stance.joint_target.copy()-np.array([joints[n] for n in self.stance_names])
+            if self.left_arm_only:self.left.isolate_left_arm(root,joints)
         if self.started_withdrawal is None:
             force,self.info=self.returned.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified,left_panel_load=left_panel_load)
             return force,self.info

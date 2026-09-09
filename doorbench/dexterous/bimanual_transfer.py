@@ -126,6 +126,23 @@ class LeftPalmContact:
         self.lower=m.jnt_range[self.solve_joints,0]+.01;self.upper=m.jnt_range[self.solve_joints,1]-.01
         self.offset=0.
 
+    def isolate_left_arm(self,root,joints):
+        """Drop the old right-palm/waist IK constraint after bimanual handoff.
+
+        Only the private kinematic solve changes; measured waist and right-arm
+        coordinates stay fixed while the seven left joints follow the panel.
+        """
+        if self.started is None:raise ValueError('Begin left contact before isolating its solve')
+        self._read(root,joints)
+        self.fixed_waist=True
+        self.solve_names=self.names[1:]
+        self.solve_joints=np.array([self.m.joint(n).id for n in self.solve_names])
+        self.solve_qa=self.m.jnt_qposadr[self.solve_joints]
+        self.solve_indices=[self.teacher.names.index(n) for n in self.solve_names]
+        self.lower=self.m.jnt_range[self.solve_joints,0]+.01
+        self.upper=self.m.jnt_range[self.solve_joints,1]-.01
+        self.previous=self.d.qpos[self.solve_qa].copy()
+
     def begin(self,t,root,joints,leaf_pose,handle_pose):
         self.started=t
         self._read(root,joints)
