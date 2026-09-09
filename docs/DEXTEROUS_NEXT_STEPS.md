@@ -451,3 +451,20 @@ and a 1.4 GiB preflight reserve. Original successful evidence remains local.
 A supporting-left-hand close-up replay option is now available. Bounded optional
 left-arm target velocity uses the 100 Hz IK clock, with a 40 ms filter and 2 rad/s
 cap; 21 focused tests pass. It is not enabled in trial012.
+
+At 13:43 UTC, native withdrawal012 still fails: five invalid intervals / twelve
+independently classified thumb patches, all near the lever end at69.446–69.468 s.
+Final hand clearance is46.16 mm. In the last half-second,66/250 recorded samples
+had zero palm load, and none were finger-only support; substituting palm load for
+total hand load would therefore not fix this failure. Recorded FK shows about
+11 degrees of palm roll relative to the panel while the old IK only constrains
+the palm normal. A new opt-in full-orientation target retains its actual attained
+orientation relative to the moving door.
+
+Trial013 was interrupted by ENOSPC at1.142 s while an independent audit overlapped
+new recording; it supplies no withdrawal result. Heavy audits and physics trials
+are now serialized, and trial014 waits for at least2000 MiB free. Verified draft
+release archives now include failed older walking trials, preserving their raw
+evidence before local eviction. Trial014 combines full palm orientation, bounded
+IK-clock velocity feedforward and candidate015's axial thumb reserve. Candidate015
+passes all2001 geometric samples; physical success remains unqualified.
