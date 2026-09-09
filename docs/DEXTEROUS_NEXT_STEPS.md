@@ -159,3 +159,13 @@ Each implementation milestone must update the [execution ledger](DEXTEROUS_EXPER
   also passes 18 checks. Lowering exposed a heading defect missed by its initial
   audit; height and heading are now separate acceptance checks. The complete
   vision/tactile door policy and full Isaac opening/traversal remain unfinished.
+
+
+- September 9, 08:16 UTC: standing native acquisition passes 14 runtime checks
+  and six independent actual-contact checks. Destination Isaac trial001 fails
+  one of 15 checks: middle-finger contact is intermittent, despite a valid final
+  grasp. Trial002 tests an explicit 3 N middle-finger preload after a passing
+  destination-native run. Native partial opening physically works but rolls onto
+  finger middle segments; the original strict grasp criteria still fail. Bounded
+  palm recentering and distal pressure targeting are experimental, with failures
+  retained. No whole-task or learned hand-policy success is claimed.

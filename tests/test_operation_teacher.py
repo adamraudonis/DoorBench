@@ -121,6 +121,23 @@ def test_measured_interface_rejects_invalid_state():
         tick(wrapper, .9)
 
 
+def test_handle_frame_recenter_is_smooth_bounded_and_never_a_pose_write():
+    teacher=Acquisition()
+    wrapper=DoorOperationTeacher(teacher,GEOMETRY,grasp_offset_in_handle_m=[.004,0,0])
+    for t in np.arange(0.,.51,.01):tick(wrapper,t)
+    original=teacher.d.site_xpos.copy()
+    tick(wrapper,.501)
+    assert np.linalg.norm(wrapper.info['grasp_offset_in_handle_m'])<1e-9
+    tick(wrapper,1.)
+    np.testing.assert_allclose(wrapper.info['grasp_offset_in_handle_m'],[.002,0,0],atol=1e-12)
+    tick(wrapper,1.5)
+    np.testing.assert_allclose(wrapper.info['grasp_offset_in_handle_m'],[.004,0,0])
+    np.testing.assert_array_equal(teacher.d.site_xpos,original)
+    for bad in ([.011,0,0],[float('nan'),0,0],[0,0]):
+        with pytest.raises(ValueError,match='Grasp offset'):
+            DoorOperationTeacher(Acquisition(),GEOMETRY,grasp_offset_in_handle_m=bad)
+
+
 def test_compliance_is_bounded_freezes_on_release_and_preserves_actual_target():
     wrapper=DoorOperationTeacher(Acquisition(),GEOMETRY,press_seconds=.1,
         wait_for_press_completion=False,operator_compliance_gain=10.,operator_compliance_limit=.06)

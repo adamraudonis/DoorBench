@@ -41,7 +41,10 @@ class DoorOperationTeacher:
                  operator_target=.87, release_operator_threshold=.80,
                  release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True,
                  operator_compliance_gain=0., operator_compliance_limit=.15,
-                 freeze_compliance_on_release=True):
+                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.)):
+        self.grasp_offset=np.asarray(grasp_offset_in_handle_m,dtype=float)
+        if self.grasp_offset.shape!=(3,) or not np.isfinite(self.grasp_offset).all() or np.linalg.norm(self.grasp_offset)>.01:
+            raise ValueError('Grasp offset must be a finite handle-frame vector within 10 mm')
         self.acquisition = acquisition_teacher
         self.geometry = {k:np.asarray(joint_geometry[k], float) for k in
                          ('operator_origin','operator_axis','leaf_origin','leaf_axis')}
@@ -126,8 +129,11 @@ class DoorOperationTeacher:
             self.open_started = t
             self.initial_leaf_goal = self.info.get('goal_leaf_rad',0.)
         goal_l = 0. if self.open_started is None else self.initial_leaf_goal+(self.leaf_target-self.initial_leaf_goal)*smooth_phase((t-self.open_started)/self.opening_seconds)
+        # Ramp the optional reference recenter over one second. This moves a
+        # bounded motor controller's target, never the physical hand or handle.
+        offset=smooth_phase(t-self.started)*self.grasp_offset
         pos, rot = reproject_grasp(handle_pose,leaf_pose,angles,dict(operator=goal_h+self.operator_compliance,leaf=goal_l),
-                                  self.p_relative,self.r_relative,self.geometry)
+                                  self.p_relative+offset,self.r_relative,self.geometry)
         teacher.positions[-1] = pos
         teacher.rotations[-1] = rot
         force, info = teacher.force(t,root,joints,velocities,handle_pose,hand_loads)
@@ -135,6 +141,7 @@ class DoorOperationTeacher:
                          operation_start_s=self.started,opening_start_s=self.open_started,
                          goal_handle_rad=float(goal_h),goal_leaf_rad=float(goal_l),
                          palm_compliance_rotation_rad=self.operator_compliance,
+                         grasp_offset_in_handle_m=offset.tolist(),
                          actual_handle_rad=angles['operator'],actual_leaf_rad=angles['leaf'],
                          actual_bolt_m=angles['latch'])
         return force, {**info,**self.info}

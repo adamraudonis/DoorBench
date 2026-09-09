@@ -21,7 +21,10 @@ class AcquisitionTeacher:
     def __init__(self, robot_xml, motors, reference, *, reach_seconds=6.6,
                  grip_force=6., finger_grip_scale=1/3, grip_start=.995,
                  palm_integral=1., torso_impedance=10., middle_finger_force=None,
-                 index_finger_force=None, stance_solver_settings=None, stance_profile=None):
+                 index_finger_force=None, stance_solver_settings=None, stance_profile=None,
+                 pressure_segment='nearest'):
+        if pressure_segment not in ('nearest','distal'):raise ValueError('Unknown pressure segment')
+        self.pressure_segment=pressure_segment
         if stance_profile not in (None,'landed-foot-v1'):raise ValueError('Unknown declared stance profile')
         self.stance_profile=stance_profile
         self.stance_solver_settings=validate_stance_solver_settings(stance_solver_settings)
@@ -71,6 +74,9 @@ class AcquisitionTeacher:
         self.positions=np.asarray(self.positions);self.rotations=np.asarray(self.rotations)
         self.lever_body=m.body('analytic_lever').id;self.lever=m.geom('analytic_lever_capsule').id
         self.digit_geoms={digit:[g for g in range(m.ngeom) if m.geom_contype[g] and m.body(m.geom_bodyid[g]).name.startswith('rh_'+digit)] for digit in ('ff','mf','rf','lf','th')}
+        if pressure_segment=='distal':
+            self.digit_geoms={digit:[g for g in geoms if m.body(m.geom_bodyid[g]).name=='rh_'+digit+'distal'] for digit,geoms in self.digit_geoms.items()}
+            if any(not geoms for geoms in self.digit_geoms.values()):raise ValueError('Missing distal collision geometry')
         self.jp=np.zeros((3,m.nv));self.jr=self.jp.copy()
         self.reach_seconds=reach_seconds;self.grip_force=grip_force;self.finger_grip_scale=finger_grip_scale
         self.grip_start=grip_start;self.integral_gain=palm_integral

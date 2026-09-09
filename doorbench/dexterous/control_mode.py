@@ -51,6 +51,8 @@ def validate_sensor_actor_mode(options):
         'stance_qp':False,'press_feedforward':False,'grip_reset_targets':False,
         'arm_impedance':1.,'grip_impedance':1.,'grip_rotation_fraction':1.,
         'operator_compliance_gain':0.,'acquisition_middle_finger_force':None,
+        'acquisition_pressure_segment':None,'operation_grasp_offset_in_handle_m':None,
+        'operation_min_acquisition_seconds':0.,
         'acquisition_index_finger_force':None,'acquisition_stance_profile':None,'time_scale':1.,
         'follow_leaf_during_transfer':False,'panel_profile':None,'palm_load_target':None,
         'left_planning_profile':None,'whole_body_return_path':None,'whole_body_ungrip_path':None,

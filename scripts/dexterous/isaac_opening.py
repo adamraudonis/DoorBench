@@ -137,6 +137,9 @@ p.add_argument('--acquisition',action='store_true',help='Execute the shared cont
 p.add_argument('--acquisition-stance-profile',choices=['landed-foot-v1'],help='Explicit body-origin feedback and actual-foot-frame acquisition stance')
 p.add_argument('--acquisition-middle-finger-force',type=float,help='Explicit acquisition middle-finger preload in N; original motor caps unchanged')
 p.add_argument('--acquisition-index-finger-force',type=float,help='Explicit acquisition index-finger preload in N; original motor caps unchanged')
+p.add_argument('--acquisition-pressure-segment',choices=['distal'],help='Apply the grasp-force reference through distal geometry only')
+p.add_argument('--operation-grasp-offset-in-handle-m',nargs=3,type=float,help='Optional handle-frame reference recenter, at most 10 mm; one-second smooth ramp')
+p.add_argument('--operation-min-acquisition-seconds',type=float,default=0.,help='Earliest qualified grasp-to-operation handoff')
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
 p.add_argument('--operator-compliance-gain',type=float,default=0.,help='Bounded palm-reference integral compensation for actual operator-angle error; motor and mechanism limits unchanged')
@@ -203,6 +206,11 @@ if not math.isfinite(a.torso_damping) or a.torso_damping<0:p.error('--torso-damp
 if a.acquisition and (not a.native_robot or a.panel_push or a.mechanism_test):p.error('Acquisition requires --native-robot and a separate acquisition-only trial')
 if a.acquisition_stance_profile and (not a.acquisition or a.full_sequence_reset):p.error('Landed-foot acquisition is a separate explicit acquisition trial')
 if a.operate_after_acquisition and not a.acquisition:p.error('--operate-after-acquisition requires --acquisition')
+if a.acquisition_pressure_segment and (not a.acquisition or a.full_sequence_reset or a.full_opening):p.error('Pressure segment requires a separate acquisition trial')
+if not math.isfinite(a.operation_min_acquisition_seconds) or a.operation_min_acquisition_seconds<0:p.error('Finite nonnegative operation handoff time required')
+if a.operation_grasp_offset_in_handle_m is not None:
+    if not all(math.isfinite(v) for v in a.operation_grasp_offset_in_handle_m) or sum(v*v for v in a.operation_grasp_offset_in_handle_m)>.01**2:p.error('Finite grasp offset within 10 mm required')
+if (a.operation_grasp_offset_in_handle_m is not None or a.operation_min_acquisition_seconds) and (not a.operate_after_acquisition or a.full_sequence_reset or a.full_opening):p.error('Operation offsets/timing require a separate operation trial')
 if a.open_on_latch_clear and not a.operate_after_acquisition:p.error('--open-on-latch-clear requires --operate-after-acquisition')
 from doorbench.dexterous.control_mode import validate_sensor_actor_mode,validate_sensor_balance_protocol
 try:validate_sensor_actor_mode(a)
@@ -488,7 +496,7 @@ def main():
     teacher=None;teacher_info={};teacher_control=None;sequence=None;operation=None;sensor_actor=None;full_opening=None;opening_geometry=None;continuous=None
     if a.acquisition:
         from doorbench.dexterous.acquisition_teacher import AcquisitionTeacher
-        teacher=AcquisitionTeacher(a.native_robot,motors,ref,middle_finger_force=a.acquisition_middle_finger_force,index_finger_force=a.acquisition_index_finger_force,stance_profile=a.acquisition_stance_profile)
+        teacher=AcquisitionTeacher(a.native_robot,motors,ref,middle_finger_force=a.acquisition_middle_finger_force,index_finger_force=a.acquisition_index_finger_force,stance_profile=a.acquisition_stance_profile,pressure_segment=a.acquisition_pressure_segment or 'nearest')
         operation=None
         if a.operate_after_acquisition:
             from doorbench.dexterous.operation_teacher import DoorOperationTeacher
@@ -500,7 +508,7 @@ def main():
                 basis=np.eye(3)['XYZ'.index(joint.GetAxisAttr().Get())]
                 joint_geometry[role+'_origin']=np.array(joint.GetLocalPos1Attr().Get())
                 joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*map(float,basis))))
-            operation=DoorOperationTeacher(teacher,joint_geometry,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain)
+            operation=DoorOperationTeacher(teacher,joint_geometry,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.))
             if sequence_reset and not a.full_opening:
                 from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
                 sequence=FullSequenceTeacher(a.native_robot,motors,ref,
@@ -1217,7 +1225,7 @@ def main():
                 pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
                 rotation=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
                 actual_pad=pad_evaluator.read(physics_dt=dt,time_s=(step+1)*dt,center=pose[:3]+rotation@grip_center,axis=rotation@grip_axis,
-                    half_length=grip_half,radius=grip_radius,include_evidence=bool(a.sensor_acquisition_protocol))
+                    half_length=grip_half,radius=grip_radius,include_evidence=bool(a.sensor_acquisition_protocol or a.acquisition))
                 if a.sensor_acquisition_protocol:
                     balance_steps[-1]['pad_evidence']=actual_pad.pop('raw_evidence')
                 pad_steps.append(actual_pad)

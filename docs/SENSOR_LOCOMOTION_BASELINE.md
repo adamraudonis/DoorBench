@@ -171,3 +171,43 @@ Final-half-second minimum forces are 1.900/1.545/1.226/1.682 N on the four finge
 pads and 7.460 N on the opposed thumb. This verifies the standing grasp, not an
 opening. The first standing operation trial retracts the latch but fails its
 held partial-opening criterion; bounded compliance compensation is being tested.
+
+
+On September 9 at 08:07 UTC, the first destination Isaac standing-grasp trial
+completed 5,300 physics intervals under `backend-dry-v2`: **14/15 runtime checks,
+failed sustained grasp**. It remained upright and its endpoint had all five
+opposed pads loaded, but the middle finger unloaded at six samples in the final
+half-second. The [contact accounting receipt](evidence/isaac-standing-acquisition-001.json)
+recomputes anatomical formulae and load sums, finds no invalid loaded surfaces,
+and records a longest uninterrupted hold of 0.532 s. This older archive lacks
+raw world-to-hand contact transforms, so independent raw-contact reconstruction
+is explicitly incomplete. A separately declared 3 N middle-finger preload trial
+is running; the original motor limits and 0.5 s endpoint hold gate remain fixed.
+Future acquisition recordings retain synchronized raw contact frames.
+
+Standing operation trials remain unqualified. Trial002 physically released the
+latch and opened the leaf 0.077 rad, but failed grasp quality. Trial004 explicitly
+targeted distal finger segments for pressure and opened 0.083 rad, with fingers
+rolling onto middle segments. Trial005 also recentred the palm by +4 mm in the
+handle's X frame (the asset's lever axis is **negative** X), eliminating endcap
+contacts but still failing the original distal-only grasp gate. Trial003 used
+the opposite recenter direction and failed joint stops/release; it is retained.
+All trials use measured state through bounded motors without direct door forces
+or runtime pose writes. Neither partial opening nor a valid final photograph is
+reported as a complete door task. Close hand views and all actual transitions are
+retained for inspection.
+
+
+Trial006 subsequently passes **18/18 native runtime checks and 6/6 independent
+actual-contact checks**, using the original distal-pad contract. Its declared
+handle-frame offset `[0.004, -0.003, 0.0025]` m ramps over one second, recentring
+axially and moving the palm slightly radially outward. Distal pressure targeting
+and compliance gain 0.2 are explicit. The handle reaches release and the leaf
+holds 0.0774 rad; all 11,000 raw interval classifications and pad loads agree
+exactly, with zero invalid loaded patches. Five-pad loading is briefly
+intermittent during operation, so this is a qualified final held partial opening,
+not uninterrupted five-digit contact or full traversal. The final-half-second
+minimum pad loads are 1.069/0.949/5.299/4.422/11.664 N. See the
+[independent receipt](evidence/native-standing-operation-006.json).
+The same frozen variant is being prepared for destination-native verification
+and an actual Isaac operation trial.
