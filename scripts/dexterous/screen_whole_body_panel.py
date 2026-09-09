@@ -115,13 +115,13 @@ def main():
                         100*(d.site_xpos[rh]-right_p),10*Rotation.from_matrix(right_r@d.site_xmat[rh].reshape(3,3).T).as_rotvec()]
             foot=np.concatenate([np.r_[100*(d.xpos[b]-feet_p[j]),10*Rotation.from_matrix(feet_r[j]@d.xmat[b].reshape(3,3).T).as_rotvec()] for j,b in enumerate(feet)])
             up=d.xmat[m.body('robot/torso_link').id].reshape(3,3)[:,2]
-            upright=0. if a.maximum_torso_tilt_deg is None else 1000.*max(0.,np.arccos(np.clip(up[2],-1,1))-np.radians(a.maximum_torso_tilt_deg))
+            upright=0. if a.maximum_torso_tilt_deg is None else 1000.*max(0.,np.arccos(np.clip(up[2],-1,1))-np.radians(max(0.,a.maximum_torso_tilt_deg-.01)))
             elbow_barrier=0.
             if a.keep_elbow_in_front:
                 vertices=elbow_vertices@d.xmat[elbow].reshape(3,3).T+d.xpos[elbow]
                 gap=float(np.min((vertices-lp)@lr[:,1]*elbow_side))-slab_front
                 elbow_barrier=1000.*max(0.,.003-gap)
-            return np.r_[hands,foot,upright,elbow_barrier,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6],0. if a.root_rotation_norm_rad is None else 1000.*max(0.,np.linalg.norm(x[3:6])-a.root_rotation_norm_rad)]
+            return np.r_[hands,foot,upright,elbow_barrier,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6],0. if a.root_rotation_norm_rad is None else 1000.*max(0.,np.linalg.norm(x[3:6])-(a.root_rotation_norm_rad-.0001))]
         fit=least_squares(evaluate,np.clip(previous,low,high),bounds=(low,high),max_nfev=800,ftol=1e-11,xtol=1e-11,gtol=1e-11)
         previous=fit.x.copy();res=evaluate(previous);mujoco.mj_collision(m,d)
         collisions=[]
