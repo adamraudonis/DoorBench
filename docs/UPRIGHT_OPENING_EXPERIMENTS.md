@@ -265,3 +265,15 @@ and final aperture0.08855423rad; no extra handle contact or invalid lever patch
 was recorded. A63s exact-model hand close-up was personally inspected. This
 qualifies the native return component only. The next unstepped withdrawal
 candidate is being regenerated from this attained state.
+
+
+The first regenerated withdrawal failed25/2,001 dense samples: the little
+fingertip crossed the original hub by approximately0.25mm during retreat.
+Thumb, fixed-pose and final clearance checks otherwise passed. A declared0.04rad
+LFJ4 abduction, smoothly blended over candidate times4–5.5s and removed over8–9.5s,
+clears this collision. Candidate003 passes all2,001 samples with0.569mm maximum
+fixed-pose error,0.003982rad rotation error,3.975° torso tilt,1.144rad/s peak joint
+reference speed and47.8mm final hand clearance. `refine_thumb_withdrawal.py`
+records the correction and frozen source hashes. The separate80.6s physical
+withdrawal run retains original force/geometry gates and starts at the original
+closed-door reset. It is not yet qualified.

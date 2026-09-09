@@ -7,7 +7,9 @@ from scipy.optimize import least_squares
 from doorbench.dexterous.environment import DexterousDoorEnv
 from doorbench.dexterous.operation_teacher import smooth_phase
 parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--little-finger-clearance-rad',type=float,default=0.,help='Explicit smooth LFJ4 abduction during free withdrawal; geometry requires re-audit')
 parser.add_argument('--screen',type=Path,required=True);parser.add_argument('--source-run',type=Path,required=True);parser.add_argument('--output',type=Path,required=True);args=parser.parse_args()
+if not np.isfinite(args.little_finger_clearance_rad) or not 0<=args.little_finger_clearance_rad<=.08:raise ValueError('Bounded little-finger clearance angle required')
 source=args.screen;screen=json.loads(source.read_text());trial=args.source_run
 checks=[trial/n for n in ('report.json','independent-pad-audit.json','independent-whole-handle-audit.json')]
 if not all(json.loads(p.read_text()).get('passed') is True for p in checks):raise ValueError('Complete physical and whole-handle source qualification required')
@@ -38,8 +40,15 @@ for row in rows:
   fit=least_squares(residual,previous,bounds=(low,high),max_nfev=100);v=fit.x;worst=max(worst,float(np.linalg.norm(fit.fun[:3]))/100);held=v.copy()
  else:v=held+float(smooth_phase((t-4)/2))*(authored-held)
  if t==0:v=initial.copy()
- q[qa]=v;previous=v.copy();row['qpos']=q.tolist();row['finger_joints'].update(zip(names,v.tolist()));d.qpos[:]=q;mujoco.mj_kinematics(m,d)
+ q[qa]=v;previous=v.copy()
+ if args.little_finger_clearance_rad:
+  j=m.joint('robot/rh_LFJ4').id;address=m.jnt_qposadr[j]
+  blend=float(smooth_phase((t-4)/1.5))*(1-float(smooth_phase((t-8)/1.5)))
+  q[address]+=args.little_finger_clearance_rad*blend
+  if not m.jnt_range[j,0]<=q[address]<=m.jnt_range[j,1]:raise ValueError('Clearance candidate exceeds original finger joint range')
+  row['finger_joints']['rh_LFJ4']=float(q[address])
+ row['qpos']=q.tolist();row['finger_joints'].update(zip(names,v.tolist()));d.qpos[:]=q;mujoco.mj_kinematics(m,d)
  row['source_requested_palm_position']=row['palm_position'];row['source_requested_palm_rotation']=row['palm_rotation'];row['palm_position']=d.site_xpos[palm].tolist();row['palm_rotation']=d.site_xmat[palm].reshape(3,3).tolist()
 screen['scope']='Feasible wrist route with radial thumb material-pad withdrawal; unstepped candidate only'
-screen['postprocess']=dict(source_sha256={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in [source,frozen,*checks]},radial_direction_world=radial.tolist(),radial_goal_m=.025,axial_scope='Hold initial pad axial coordinate plus 4 mm toward shaft center before arm retreat',maximum_thumb_position_residual_m=worst)
+screen['postprocess']=dict(source_sha256={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in [source,frozen,*checks]},radial_direction_world=radial.tolist(),radial_goal_m=.025,axial_scope='Hold initial pad axial coordinate plus 4 mm toward shaft center before arm retreat',maximum_thumb_position_residual_m=worst,little_finger_clearance_rad=args.little_finger_clearance_rad,little_finger_clearance_schedule_s=[4,5.5,8,9.5])
 (out/'report.json').write_text(json.dumps(screen,indent=2)+'\n');print(screen['postprocess']);s.close()
