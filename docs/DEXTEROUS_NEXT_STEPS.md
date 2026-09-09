@@ -372,3 +372,13 @@ in over two seconds, retains the 2.25 N target and all original motor caps, and
 keeps the same screened withdrawal. This tests the large left-palm reacquisition
 load (26 N near 78 seconds in trial004). Fourteen focused tests pass; physical
 qualification is pending. No successful full traversal or learned policy is claimed.
+
+Trial005 completes with the same three failed checks; independent invalid loaded
+patches decrease to 2,383 and final hand clearance is 43.28 mm. Measured force
+feedback improves intermediate support but does not qualify the release. Trial006
+changes the thumb route: its three base joints move toward the screened open
+configuration earlier, while tip extension waits until the later release segment.
+The chosen candidate passes a fresh 2,001-sample full geometry/anatomy audit.
+Coarse-search candidates and the exact postprocessor are preserved in the permanent
+`standing-thumb-release-development` archive. No passing physical result is inferred
+from this screen. GPU setup has reached DoorBench asset-environment preparation.
