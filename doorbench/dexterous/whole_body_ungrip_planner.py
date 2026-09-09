@@ -74,9 +74,14 @@ def copy_ungrip_inputs(model, qpos, qvel, time_s, release_samples, *,
 def iter_whole_body_ungrip(model, *, qpos, qvel, time_s, release_samples,
                           finger_lead_seconds=0., early_lift_m=.002,
                           withdrawal_profile='recorded', maximum_torso_tilt_deg=None,
-                          retarget_attained_grasp=False):
+                          retarget_attained_grasp=False, right_wrist_margin_rad=.001,
+                          right_orientation_weight=10.):
     """Yield the original candidate; no physical or dense-path pass is implied."""
     m=model
+    if not np.isfinite(right_wrist_margin_rad) or not .001<=right_wrist_margin_rad<=.1:
+        raise ValueError('Right wrist planning margin must be between 1 and 100 mrad')
+    if not np.isfinite(right_orientation_weight) or not 1<=right_orientation_weight<=10:
+        raise ValueError('Bounded right-palm orientation objective required')
     d,release_samples=copy_ungrip_inputs(m,qpos,qvel,time_s,release_samples,
         finger_lead_seconds=finger_lead_seconds,early_lift_m=early_lift_m,
         withdrawal_profile=withdrawal_profile)
@@ -120,10 +125,16 @@ def iter_whole_body_ungrip(model, *, qpos, qvel, time_s, release_samples,
        a,b=[fn.index(f'rh_{digit}J{k}') for k in (1,2)]
        if f[a]>f[b]:f[[a,b]]=f[[a,b]].mean()
       target_base=base.copy();target_base[fqa]=f;lo=np.r_[[-.08,-.08,-.04],[-.12,-.12,-.12],m.jnt_range[js,0]+.001];hi=np.r_[[.08,.08,.04],[.12,.12,.12],m.jnt_range[js,1]-.001]
+      # Leave room for physical tracking correction instead of solving directly
+      # against a wrist stop. Ramp the margin from the attained initial pose.
+      blend=float(np.clip(clock/2.,0.,1.));blend=blend**3*(10+blend*(-15+6*blend))
+      margin=.001+(right_wrist_margin_rad-.001)*blend
+      for name in ('right_wrist_yaw','rh_WRJ2','rh_WRJ1'):
+       k=names.index(name);lo[6+k]=m.jnt_range[js[k],0]+margin;hi[6+k]=m.jnt_range[js[k],1]-margin
       lo[3:5]=-rotation_bound;hi[3:5]=rotation_bound
       def fun(x):
        d.qpos[:]=target_base;d.qpos[rq:rq+3]=rootP+x[:3];r=(Rotation.from_rotvec(x[3:6])*rootR).as_quat();d.qpos[rq+3:rq+7]=np.r_[r[3],r[:3]];d.qpos[qa]=x[6:];mujoco.mj_kinematics(m,d)
-       hand=np.r_[100*(d.site_xpos[rh]-PR),10*Rotation.from_matrix(RR@d.site_xmat[rh].reshape(3,3).T).as_rotvec(),100*(d.site_xpos[lh]-PL),10*Rotation.from_matrix(RL@d.site_xmat[lh].reshape(3,3).T).as_rotvec()]
+       hand=np.r_[100*(d.site_xpos[rh]-PR),right_orientation_weight*Rotation.from_matrix(RR@d.site_xmat[rh].reshape(3,3).T).as_rotvec(),100*(d.site_xpos[lh]-PL),10*Rotation.from_matrix(RL@d.site_xmat[lh].reshape(3,3).T).as_rotvec()]
        foot=np.concatenate([np.r_[100*(d.xpos[b]-FP[i]),10*Rotation.from_matrix(FR[i]@d.xmat[b].reshape(3,3).T).as_rotvec()] for i,b in enumerate(feet)])
        return np.r_[hand,foot,.01*(x[6:]-start),.02*x[:6]]
       fit=least_squares(fun,np.clip(previous,lo,hi),bounds=(lo,hi),max_nfev=600,ftol=1e-11,xtol=1e-11,gtol=1e-11);previous=fit.x.copy();res=fun(fit.x);mujoco.mj_comPos(m,d);mujoco.mj_collision(m,d);cols={};invalid={}
@@ -135,5 +146,5 @@ def iter_whole_body_ungrip(model, *, qpos, qvel, time_s, release_samples,
         if name.startswith('robot/rh_'):
          br=d.xmat[b].reshape(3,3);p=br.T@(cc.pos-d.xpos[b]);normal=br.T@((1 if cc.geom[0]==g else -1)*cc.frame[:3]);axis=d.geom_xmat[lever].reshape(3,3)[:,2];v=cc.pos-d.geom_xpos[lever];a=np.dot(v,axis);rad=v-a*axis;align=np.dot(br@normal,-rad/max(np.linalg.norm(rad),1e-9));valid=name.endswith('distal') and p[1]<-.001 and .002<=p[2]<=.040 and -normal[1]>.5 and m.geom_size[lever,1]-abs(a)>=.001 and align>.8
          if not valid:invalid[name]=max(invalid.get(name,0),-float(cc.dist))
-      up=d.xmat[m.body('robot/torso_link').id].reshape(3,3)[:,2];tilt=float(np.degrees(np.arccos(np.clip(up[2],-1,1))));rows.append(dict(phase=phase,time_s=clock,progress=float(u),fraction=fraction,palm_position=PR.tolist(),palm_rotation=RR.tolist(),right_position_error_m=float(np.linalg.norm(res[:3])/100),right_rotation_error_rad=float(np.linalg.norm(res[3:6])/10),left_position_error_m=float(np.linalg.norm(res[6:9])/100),left_rotation_error_rad=float(np.linalg.norm(res[9:12])/10),foot_position_errors_m=[float(np.linalg.norm(res[12+6*i:15+6*i])/100) for i in range(2)],foot_rotation_errors_rad=[float(np.linalg.norm(res[15+6*i:18+6*i])/10) for i in range(2)],root_delta_xyz_m=fit.x[:3].tolist(),root_delta_rotvec_rad=fit.x[3:6].tolist(),joints=dict(zip(names,fit.x[6:].tolist())),finger_joints=dict(zip(fn,f.tolist())),joint_margins_rad=dict(zip(names,np.minimum(fit.x[6:]-lo[6:],hi[6:]-fit.x[6:]).tolist())),forbidden_collisions=cols,invalid_patches=invalid,torso_tilt_deg=tilt,root_qpos_address=int(rq),qpos=d.qpos.tolist()))
+      up=d.xmat[m.body('robot/torso_link').id].reshape(3,3)[:,2];tilt=float(np.degrees(np.arccos(np.clip(up[2],-1,1))));rows.append(dict(phase=phase,time_s=clock,progress=float(u),fraction=fraction,palm_position=PR.tolist(),palm_rotation=RR.tolist(),right_position_error_m=float(np.linalg.norm(res[:3])/100),right_rotation_error_rad=float(np.linalg.norm(res[3:6])/right_orientation_weight),left_position_error_m=float(np.linalg.norm(res[6:9])/100),left_rotation_error_rad=float(np.linalg.norm(res[9:12])/10),foot_position_errors_m=[float(np.linalg.norm(res[12+6*i:15+6*i])/100) for i in range(2)],foot_rotation_errors_rad=[float(np.linalg.norm(res[15+6*i:18+6*i])/10) for i in range(2)],root_delta_xyz_m=fit.x[:3].tolist(),root_delta_rotvec_rad=fit.x[3:6].tolist(),joints=dict(zip(names,fit.x[6:].tolist())),finger_joints=dict(zip(fn,f.tolist())),joint_margins_rad=dict(zip(names,np.minimum(fit.x[6:]-lo[6:],hi[6:]-fit.x[6:]).tolist())),forbidden_collisions=cols,invalid_patches=invalid,torso_tilt_deg=tilt,root_qpos_address=int(rq),qpos=d.qpos.tolist()))
      result=dict(dx=dx,dy=dy,roll=roll,maximum_palm_error_m=max(max(x['right_position_error_m'],x['left_position_error_m']) for x in rows),maximum_palm_rotation_error_rad=max(max(x['right_rotation_error_rad'],x['left_rotation_error_rad']) for x in rows),maximum_torso_tilt_deg=max(x['torso_tilt_deg'] for x in rows),maximum_forbidden_depth_m=max([v for x in rows for v in x['forbidden_collisions'].values()]+[0]),invalid_pad_samples=sum(bool(x['invalid_patches']) for x in rows),root_delta=rows[-1]['root_delta_xyz_m'],rows=rows);yield result
