@@ -22,6 +22,7 @@ def main():
     p.add_argument('--root-extent-m',type=float,default=.05)
     p.add_argument('--root-rotation-rad',type=float,default=.15)
     p.add_argument('--root-rotation-norm-rad',type=float)
+    p.add_argument('--foot-orientation-weight',type=float,default=10.,help='Declared geometric objective weight; dense foot tolerances stay unchanged')
     p.add_argument('--root-yaw-target-rad',type=float,help='Smooth prescribed upright yaw preference with continuity regularization and3cm root bound')
     p.add_argument('--root-yaw-extent-rad',type=float,help='Explicit upright pivot: allow yaw separately while retaining a0.05rad roll/pitch increment bound')
     p.add_argument('--maximum-torso-tilt-deg',type=float,help='Optional absolute upright planning bound, independent of the initial root orientation')
@@ -38,6 +39,7 @@ def main():
     if a.maximum_torso_tilt_deg is not None and not 0<a.maximum_torso_tilt_deg<=12:raise ValueError('Require a positive torso bound within the physical safety limit')
     if a.root_yaw_extent_rad is not None and (not .05<=a.root_yaw_extent_rad<=.3 or a.root_rotation_norm_rad is not None):raise ValueError('Upright yaw profile requires .05..0.3rad yaw and no isotropic rotation-norm override')
     if a.root_yaw_target_rad is not None and (a.root_yaw_extent_rad is None or not abs(a.root_yaw_target_rad)<a.root_yaw_extent_rad):raise ValueError('Yaw target must lie inside its declared extent')
+    if not 10<=a.foot_orientation_weight<=100:raise ValueError('Foot orientation weight must be10..100')
     run=a.source_run.resolve();config=json.loads((run/'manifest.json').read_text())['configuration']
     sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
     from doorbench.dexterous.environment import DexterousDoorEnv
@@ -121,7 +123,7 @@ def main():
             d.qpos[qa]=x[6:];mujoco.mj_kinematics(m,d);mujoco.mj_comPos(m,d)
             hands=np.r_[100*(d.site_xpos[lh]-goal_p),10*Rotation.from_matrix(goal_r@d.site_xmat[lh].reshape(3,3).T).as_rotvec(),
                         100*(d.site_xpos[rh]-right_p),10*Rotation.from_matrix(right_r@d.site_xmat[rh].reshape(3,3).T).as_rotvec()]
-            foot=np.concatenate([np.r_[100*(d.xpos[b]-feet_p[j]),10*Rotation.from_matrix(feet_r[j]@d.xmat[b].reshape(3,3).T).as_rotvec()] for j,b in enumerate(feet)])
+            foot=np.concatenate([np.r_[100*(d.xpos[b]-feet_p[j]),a.foot_orientation_weight*Rotation.from_matrix(feet_r[j]@d.xmat[b].reshape(3,3).T).as_rotvec()] for j,b in enumerate(feet)])
             up=d.xmat[m.body('robot/torso_link').id].reshape(3,3)[:,2]
             upright=0. if a.maximum_torso_tilt_deg is None else 1000.*max(0.,np.arccos(np.clip(up[2],-1,1))-np.radians(max(0.,a.maximum_torso_tilt_deg-.01)))
             elbow_barrier=0.
@@ -145,6 +147,7 @@ def main():
             left_position_error_m=float(np.linalg.norm(res[:3])/100),left_rotation_error_rad=float(np.linalg.norm(res[3:6])/10),
             right_position_error_m=float(np.linalg.norm(res[6:9])/100),right_rotation_error_rad=float(np.linalg.norm(res[9:12])/10),
             maximum_foot_position_error_m=max(float(np.linalg.norm(res[12+6*j:15+6*j])/100) for j in range(2)),
+            maximum_foot_rotation_error_rad=max(float(np.linalg.norm(res[15+6*j:18+6*j])/a.foot_orientation_weight) for j in range(2)),
             torso_tilt_deg=float(np.degrees(np.arccos(np.clip(up[2],-1,1)))),com_displacement_xy_m=(d.subtree_com[robot_body,:2]-com[:2]).tolist(),
             forbidden_collisions=collisions,nfev=int(fit.nfev))
         rows.append(row);print(json.dumps({k:v for k,v in row.items() if k not in ('qpos','joint_targets')}),flush=True)

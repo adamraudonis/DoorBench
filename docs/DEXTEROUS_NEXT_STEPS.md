@@ -784,3 +784,23 @@ A fresh event-based experiment will follow measured handle rotation once actual
 leaf travel reaches0.02 rad, blending out the unnecessary continued press over
 one second. No physical pose, door force, contact threshold or motor cap changes.
 Twenty-nine controller tests pass; actual native/Isaac qualification is required.
+
+Lead015 exports20.0 s,17/19 runtime checks, with its failed contact audit
+independently reproduced and all200 files verified off-pod. Every recorded root,
+joint, door and motor value matches pressure014 across all10,000 samples. The
+lead bound did not intervene; this is not evidence of an effective correction.
+Follow016 uses a new source-bound measured-operator follow transition at0.02 rad
+leaf clearance, with native qualification before actual Isaac and both diagnostic
+cameras enabled. Owned-pod guards are acknowledged through19:32:06 UTC within
+the existing10-hour ceiling.
+
+Panel008 completes180 s at1.100228 rad; only reference completion and final
+aperture gates fail. Both independent contact audits reproduce the recording.
+The actual179 s opening contact moment is0.455712 Nm against the original
+0.457638 Nm static-friction limit; tangential palm forces cancel0.231396 Nm of
+the normal-force moment. Its raw archive was uploaded, downloaded and verified
+before eviction. Outward palm repositioning is now being screened. A4 cm shift
+misses posture tolerances;1 cm passes sampled positions but fails the dense foot
+rotation check. Increasing the declared foot orientation objective weight keeps
+the original acceptance tolerances and exposes the other constrained hand/foot
+tradeoffs. No failed geometric or physical trial is promoted.
