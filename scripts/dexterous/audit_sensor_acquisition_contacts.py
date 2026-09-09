@@ -47,7 +47,8 @@ def raw_pad_evidence(model,raw,lever):
     return pad_opposition(patches,center,axis),patches
 
 
-def audit(trial):
+def audit(trial,*,phase='grasp'):
+    if phase not in ('grasp','standing-withdrawal'):raise ValueError('Explicit supported contact-audit phase required')
     trial=Path(trial);report=json.loads((trial/'report.json').read_text());array_format=(trial/'raw-transitions/manifest.json').exists()
     if array_format:
         provenance_name='manifest.json';physics_name='physics-steps.json.gz';prov=json.loads((trial/provenance_name).read_text());cfg=prov['configuration'];robot=Path(cfg['robot']);door=Path(cfg['door'])
@@ -58,6 +59,16 @@ def audit(trial):
     if sha(robot)!=robot_hash or sha(door/'door.xml')!=door_hash:raise ValueError('Actual source asset bytes changed')
     sim=DexterousDoorEnv(door,robot,json.loads(robot.with_suffix('.audit.json').read_text()),frame_skip=1)
     m=sim.m;lever=m.geom('leaf_handle_lever_col_n').id
+    opposed_end=duration;clearance_pairs=[];clearance_count=0;minimum_clearance=float('inf');clearance_error=0.
+    if phase=='standing-withdrawal':
+        if not array_format or 'standing_withdrawal' not in report:raise ValueError('Explicit native withdrawal report required')
+        opposed_end=report['standing_withdrawal']['release_started_s']
+        if opposed_end is not None and (not np.isfinite(opposed_end) or not .5<=opposed_end<=duration):raise ValueError('Invalid declared release epoch')
+        active=[g for g in range(m.ngeom) if m.geom_contype[g] or m.geom_conaffinity[g]]
+        hand=[g for g in active if m.body(m.geom_bodyid[g]).name.startswith('robot/rh_')]
+        scene=[g for g in active if not m.body(m.geom_bodyid[g]).name.startswith('robot/')]
+        if not hand or not scene:raise ValueError('Complete hand/environment collision geometry required')
+        clearance_pairs=[(g,h) for g in hand for h in scene]
     n=valid_count=current=best=0;force_error=0.;mismatches=[];bad_patches=0;first_touch=first_valid=None;bestend=None
     min_final={k:float('inf') for k in ('ff','mf','rf','lf','th')};final_valid=True;final_count=0
     raw_name='raw-transitions/manifest.json' if array_format else 'actual-transitions/manifest.json' if (trial/'actual-transitions/manifest.json').exists() else 'actual-transitions.jsonl.gz'
@@ -94,25 +105,42 @@ def audit(trial):
                     if first_valid is None:first_valid=t
                     if current>best:best=current;bestend=end
                 else:current=0
-                if t>=duration-.502-1e-9:
+                if opposed_end is not None and opposed_end-.502-1e-9<=t<opposed_end-1e-9:
                     final_count+=1;final_valid=final_valid and result['valid_pad_grasp']
                     for k in min_final:min_final[k]=min(min_final[k],result['qualified_pad_forces_N'][k])
+                if clearance_pairs and t>=duration-.502-1e-9:
+                    # Rebuild endpoint geometry from raw coordinates; never trust
+                    # the runtime's clearance label or recompute contact forces.
+                    sim.d.qpos[:]=raw['qpos_after'];mujoco.mj_kinematics(m,sim.d)
+                    gap=min(float(mujoco.mj_geomDistance(m,sim.d,g,h,.5,None)) for g,h in clearance_pairs)
+                    minimum_clearance=min(minimum_clearance,gap);clearance_count+=1
+                    recorded=row.get('right_environment_clearance_m')
+                    clearance_error=max(clearance_error,abs(gap-recorded) if recorded is not None and np.isfinite(recorded) else float('inf'))
                 n+=1
     finally:sim.close()
     checks=dict(physical_report_passed=report['passed'],complete_actual_interval_record=n==round(duration/.002),
         exact_classification=not mismatches,matching_qualified_pad_loads=force_error<1e-8,
         all_loaded_patches_original_distal=bad_patches==0,final_original_opposed_window=final_count>=251 and final_valid and best*.002>=.5)
-    return dict(passed=all(checks.values()),checks=checks,interval_count=n,maximum_qualified_pad_force_difference_N=force_error,
+    if phase=='standing-withdrawal':
+        checks['opposed_window_before_intentional_release']=checks.pop('final_original_opposed_window')
+        checks['final_hand_clear_of_environment']=clearance_count>=251 and minimum_clearance>=.04
+        checks['matching_recorded_final_clearance']=clearance_error<1e-8
+    result=dict(passed=all(checks.values()),checks=checks,interval_count=n,maximum_qualified_pad_force_difference_N=force_error,
         classification_mismatch_steps=mismatches,invalid_loaded_patches=bad_patches,first_positive_pad_contact_s=first_touch,
         first_qualified_interval_start_s=first_valid,strongest_qualified_hold_s=best*.002,strongest_hold_end_s=bestend,
         final_half_second_minimum_pad_force_N={k:v if np.isfinite(v) else None for k,v in min_final.items()},final_window_intervals=final_count,
         scope='Independent actual-interval contact/frame reduction; no controller input, physics step or contact-force recomputation',
         input_sha256={name:sha(trial/name) for name in (provenance_name,'report.json',physics_name,raw_name)},
         auditor_source_sha256=sha(__file__))
+    if phase=='standing-withdrawal':
+        result['pre_release_half_second_minimum_pad_force_N']=result.pop('final_half_second_minimum_pad_force_N')
+        result['pre_release_window_intervals']=result.pop('final_window_intervals')
+        result.update(release_started_s=opposed_end,minimum_final_hand_clearance_m=minimum_clearance if np.isfinite(minimum_clearance) else None,maximum_clearance_label_error_m=clearance_error if np.isfinite(clearance_error) else None,final_clearance_intervals=clearance_count)
+    return result
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--trial',type=Path,required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--trial',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--phase',choices=('grasp','standing-withdrawal'),default='grasp');a=p.parse_args()
     if a.output.exists():p.error('Fresh audit output required')
-    result=audit(a.trial);a.output.write_text(json.dumps(result,indent=2,allow_nan=False)+'\n');print(json.dumps(result,indent=2))
+    result=audit(a.trial,phase=a.phase);a.output.write_text(json.dumps(result,indent=2,allow_nan=False)+'\n');print(json.dumps(result,indent=2))
 if __name__=='__main__':main()

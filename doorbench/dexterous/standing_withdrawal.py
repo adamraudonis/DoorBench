@@ -80,6 +80,13 @@ class StandingWithdrawalTeacher:
             self.hand=AttainedHandTracking(teacher,joints,self.previous_force)
             self.palm=ReturnPalmFeedback(teacher,root,joints,handle_pose,self.operation.geometry)
             self.preload=self.hand.preload.copy()
+            # Geometric routes describe attained poses. The balance controller
+            # already has small reference offsets needed to hold that pose under
+            # load; replacing those offsets with zero causes an avoidable kick.
+            self.stance_root_bias=teacher.stance.target_root.copy()-self.roots[0,:3]
+            self.stance_rotation_bias=teacher.stance.target_rotation@self.root_rotations(0.).as_matrix().T
+            self.stance_names=[teacher.m.joint(int(j)).name for j in teacher.stance.joints]
+            self.stance_joint_bias=teacher.stance.joint_target.copy()-np.array([joints[n] for n in self.stance_names])
         if self.started_withdrawal is None:
             force,self.info=self.returned.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified,left_panel_load=left_panel_load)
             return force,self.info
@@ -89,9 +96,9 @@ class StandingWithdrawalTeacher:
             self.release_started=t
         i=min(len(self.times)-2,max(0,int(np.searchsorted(self.times,clock,side='right')-1)));f=(clock-self.times[i])/(self.times[i+1]-self.times[i])
         q=(1-f)*self.joints[i]+f*self.joints[i+1];targets=dict(zip(self.all_names,q))
-        teacher.stance.target_root[:]=(1-f)*self.roots[i,:3]+f*self.roots[i+1,:3]
-        teacher.stance.target_rotation=self.root_rotations(clock).as_matrix()
-        teacher.stance.joint_target[:]=[targets[teacher.m.joint(int(j)).name] for j in teacher.stance.joints]
+        teacher.stance.target_root[:]=(1-f)*self.roots[i,:3]+f*self.roots[i+1,:3]+self.stance_root_bias
+        teacher.stance.target_rotation=self.stance_rotation_bias@self.root_rotations(clock).as_matrix()
+        teacher.stance.joint_target[:]=np.array([targets[n] for n in self.stance_names])+self.stance_joint_bias
         self.left.update_targets(t,root,joints,leaf_pose,left_panel_load,handle_pose)
         force,info=self.operation.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified)
         force=self.left.apply_forces(force,joints,velocities)
@@ -106,5 +113,5 @@ class StandingWithdrawalTeacher:
         force,hand_info=self.hand.force(force,joints,velocities)
         if self.handoff is None:self.handoff=MotorHandoff(self.previous_force,force,teacher.caps,1.)
         force=self.handoff.force(force,elapsed);teacher.last_force=force.copy()
-        self.info={**info,**self.left.info,**arm_info,**hand_info,**palm_info,'phase':'standing_withdrawal','withdrawal_started_s':self.started_withdrawal,'release_started_s':self.release_started,'withdrawal_progress':float(smooth_phase(elapsed/self.duration)),'withdrawal_clock_s':clock,'grip_preload_scale':scale,'controller_scope':'Privileged screened upright withdrawal; only original capped motors'}
+        self.info={**info,**self.left.info,**arm_info,**hand_info,**palm_info,'phase':'standing_withdrawal','withdrawal_started_s':self.started_withdrawal,'release_started_s':self.release_started,'withdrawal_progress':float(smooth_phase(elapsed/self.duration)),'withdrawal_clock_s':clock,'grip_preload_scale':scale,'stance_reference_preserved':True,'stance_reference_root_offset_m':self.stance_root_bias.tolist(),'stance_reference_joint_offset_rad':dict(zip(self.stance_names,self.stance_joint_bias.tolist())),'controller_scope':'Privileged screened upright withdrawal; only original capped motors'}
         return force,self.info
