@@ -766,3 +766,12 @@ Panel007's exact-input179.502 s body view was inspected and preserved.
 Pressure014's collector independently verifies all220 exported files. Future
 recorded Isaac operation trials now include the dedicated moving hand camera
 as well as the wide camera; the already-running frozen lead015 trial is unchanged.
+
+A measured-body diagnostic renderer now produces close-ups directly from the
+archived PhysX hand transforms and contact cylinder. It performs no IK or physics
+and labels the result as a native-mesh diagnostic rather than an Isaac camera
+image. On pressure014, six original-node views at16.0,17.36 and26.0 s reproduce
+archived world contact positions within1.1e-16 m. The qualified16 s grasp and
+later slip were personally inspected at hand scale; images and hashes are
+retained. Five pose-validation tests pass. Future operation runs also record
+the actual hand camera, avoiding dependence on diagnostic reconstruction.
