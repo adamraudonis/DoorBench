@@ -641,3 +641,14 @@ It is queued on the same guarded node with a mandatory native prerequisite;
 neither pressure feedback nor this implementation establishes a sensor-only
 policy. Source identity2fab4d108b6395b80a58cf8cd6d15801e33b6beebf7d609bbca292d3cd21d685
 is frozen remotely.
+
+The desktop shortcut's clean sparse checkout was updated to9a44e7b8a.
+Default launcher and direct preparation now select corrected v2 mechanics;
+`runtime-v1.json` preserves explicit historical reproduction. Installed CLI help
+and configuration checks pass ([receipt](evidence/isaac-desktop-v2-default.json));
+this is not a new cold bootstrap measurement. Pressure011 failed only the
+unchanged held-aperture gate at0.074172 rad, with sustained grasp and joint limits
+passing and zero invalid loaded pad patches. Pressure012 tests an explicitly
+recorded0.085 rad command against the same0.075–0.10 physical acceptance bounds.
+The source is197d9ceecc1e9ad1ecc2b5552fe11ac177c3feb6352ccf46745457b2e7d08996.
+Both active candidates appear in Run Center.
