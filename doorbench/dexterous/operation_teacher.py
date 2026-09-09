@@ -46,7 +46,7 @@ class DoorOperationTeacher:
         self.fixed_pad_control=fixed_pad_control;self.pad_control=None
         if type(hold_attained_grasp) is not bool or (hold_attained_grasp and fixed_pad_control):raise ValueError('Attained hold is a separate explicit hand controller')
         self.attained_hold=None
-        if attained_hold_stage not in ('acquisition','opening'):raise ValueError('Explicit attained hold stage required')
+        if attained_hold_stage not in ('acquisition','operator','opening'):raise ValueError('Explicit attained hold stage required')
         self.attained_hold_stage=attained_hold_stage
         if hold_attained_grasp:
             from .qualified_hand_hold import QualifiedHandHold
@@ -173,6 +173,8 @@ class DoorOperationTeacher:
             info={**info,**pad_info}
         if self.attained_hold is not None:
             eligible=bool(grasp_qualified and (self.attained_hold_stage=='acquisition' or
+                (self.attained_hold_stage=='operator' and self.open_started is not None
+                 and angles['operator']>=.75 and angles['latch']>=.0105) or
                 (self.open_started is not None and t>=self.open_started+self.opening_seconds
                 and .075<=angles['leaf']<=.10 and angles['operator']>=.75 and angles['latch']>=.0105)))
             force,hold_info=self.attained_hold.force(t,force,joints,velocities,eligible=eligible)

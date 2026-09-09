@@ -26,7 +26,7 @@ def main():
     for name in ('source','ready','reference','output','work'):p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--deadline-unix',type=float,required=True)
     p.add_argument('--hold-attained-grasp',action='store_true',help='Test qualified attained finger hold in both physics backends')
-    p.add_argument('--attained-hold-stage',choices=('acquisition','opening'),default='opening')
+    p.add_argument('--attained-hold-stage',choices=('acquisition','operator','opening'),default='opening')
     p.add_argument('--wait-for-run',type=Path,help='Wait for this earlier coordinator to finish before using the prepared node')
     p.add_argument('--isaac-timeout-seconds',type=float,default=4200.,help='Wall-clock budget including periodic evidence export')
     a=p.parse_args()

@@ -98,7 +98,7 @@ def main():
     parser.add_argument('--operator-compliance-gain',type=float,default=0.)
     parser.add_argument('--operation-fixed-pad-control',action='store_true')
     parser.add_argument('--hold-attained-grasp',action='store_true',help='Capture coupled finger posture after qualified partial opening')
-    parser.add_argument('--attained-hold-stage',choices=('acquisition','opening'),default='opening')
+    parser.add_argument('--attained-hold-stage',choices=('acquisition','operator','opening'),default='opening')
     parser.add_argument('--index-tendon-offset-rad',type=float,default=0.)
     parser.add_argument('--index-proximal-offset-rad',type=float,default=0.)
     parser.add_argument('--pressure-segment',choices=['nearest','distal'],default='nearest')
