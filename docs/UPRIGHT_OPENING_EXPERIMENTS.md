@@ -439,3 +439,12 @@ reports/audits before initialization. Twelve focused snapshot/hand/standing
 tests pass. Withdrawal006 received an explicitly labeled supplemental postlaunch
 copy; this is not a retroactive initialization attestation. Model assets and
 complete source episode archives remain separate requirements.
+
+
+### September 9, 21:32 UTC — withdrawal007 remains failed; live Isaac monitoring corrected
+
+Withdrawal007 passes 28/30 runtime checks: the thumb margin and 2.25 N receiving-palm target fix the earlier joint-limit and final support failures. Independent records still reject 703 ring-finger middle-segment patches at 69.524–70.798 s and 30 little-finger hub patches over 23 intervals at 68.976–69.024 s. Final aperture is 0.108101 rad; the hand ends 64.36 mm clear. Actual close-up at 70.002 s was personally inspected. [Scoped evidence](evidence/native-standing-hub-withdrawal-007.json). No gate was relaxed.
+
+Prospective withdrawal008 uses 30 mm rather than 18 mm radial finger separation, retaining the coordinated free-end retreat, thumb margin, and 2.25 N support. Its unstepped 2,001-sample audit passes: 3.64 micrometers maximum palm error, 2.867 degrees torso tilt, 1.091 rad/s maximum reference velocity, 42.75 mm final clearance. Full motor physics and independent audits are running; this is not yet a qualified release.
+
+The local Run Center now recognizes actual Isaac operation records, displays elapsed/target simulated seconds, and waits for independent coordinator acceptance before calling a run complete. Newly registered and live runs take polling priority over unavailable historical nodes; dead archives back off to five minutes. Eighteen focused tests pass. The live Isaac pressure026 page was verified visually, including its hand close-up. Its coordinator deadline is labelled separately from pod teardown. The browser link is http://127.0.0.1:5193/?run=standing-hub-pressure-isaac-026-trial . Pressure026 has lost grip during lever pressing; final records are still pending.
