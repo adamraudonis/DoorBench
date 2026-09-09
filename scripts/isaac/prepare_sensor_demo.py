@@ -228,7 +228,10 @@ def execute(plan):
         # POSIX quoting is only for a human-readable command; no shell execution.
         guard=[plan['phases'][0]['argv'][0],str(root/'scripts/isaac/prepare_sensor_demo.py'),
                '--verify-launch',str(output/'isaac-launch.json')]
-        (output/'isaac-command.txt').write_text(shlex.join(guard)+' && '+shlex.join(launch['isaac_argv'])+'\n')
+        runtime=['env', 'OMNI_KIT_ACCEPT_EULA=YES', 'ACCEPT_EULA=Y', 'PRIVACY_CONSENT=Y',
+                 'PYTHONUNBUFFERED=1', 'OPENBLAS_NUM_THREADS=1', 'OMP_NUM_THREADS=1',
+                 'PYTHONPATH='+str(root)]
+        (output/'isaac-command.txt').write_text(shlex.join(runtime+guard)+' && '+shlex.join(runtime+launch['isaac_argv'])+'\n')
         progress.update(passed=True,current_phase='prepared_native_only');write_json(output/'progress.json',progress)
         write_json(output/'preparation-report.json',dict(passed=True,
             checks={phase['name']:True for phase in plan['phases']},scope=plan['scope'],isaac_launched=False))
