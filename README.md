@@ -39,6 +39,7 @@ The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock
 | MuJoCo, privileged H1/Shadow teacher | Uninterrupted approach, grasp, handle operation, opening, release and traversal; **47/47 task + 16/16 independent archive checks**; exact same-start repeat | September 9, 2026, 02:34 |
 | Isaac, sensor-feedback scripted grasp (`legacy-tanh-v1`) | **23/23 grasp checks**, including final opposed five-pad hold; independent audits passed | September 9, 2026, 05:50 (audit/archive) |
 | Isaac, sensor-driven walking and stopping (`backend-dry-v2`) | **18/18 runtime + 22/22 independent checks** over 10 s; no door interaction | September 9, 2026, 07:36 |
+| Isaac, standing privileged grasp (`backend-dry-v2`) | **15/15 runtime checks**, final opposed fingertip hold; contact accounting verified | September 9, 2026, 08:20 |
 | MuJoCo, latest learned motor-target sensor actor | **0/1 complete tasks**; fell after 1.306 s | September 9, 2026, 06:42 |
 
 [Sensor locomotion evidence and limitations](docs/SENSOR_LOCOMOTION_BASELINE.md) · [Earlier failures, recovery curriculum and training commands](docs/NATIVE_RECOVERY_CURRICULUM.md).

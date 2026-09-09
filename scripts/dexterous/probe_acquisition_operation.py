@@ -97,6 +97,7 @@ def main():
     parser.add_argument('--open-on-latch-clear', action='store_true')
     parser.add_argument('--operator-compliance-gain',type=float,default=0.)
     parser.add_argument('--pressure-segment',choices=['nearest','distal'],default='nearest')
+    parser.add_argument('--middle-finger-force',type=float,help='Explicit middle-finger preload; original motor caps unchanged')
     parser.add_argument('--grasp-offset-in-handle-m',nargs=3,type=float,default=[0.,0.,0.])
     parser.add_argument('--min-acquisition-seconds', type=float, default=10.6,
                         help='Earliest event-triggered portable transition; 10.6 retains the native comparison protocol')
@@ -118,7 +119,7 @@ def main():
     shutil.copy2(args.reference, args.output/'reference.json')
     sim = DexterousDoorEnv(args.door, args.robot, json.loads(args.robot.with_suffix('.audit.json').read_text()))
     m, d = sim.m, sim.d
-    teacher = AcquisitionTeacher(args.robot, motors, ref,stance_profile=args.stance_profile,pressure_segment=args.pressure_segment)
+    teacher = AcquisitionTeacher(args.robot, motors, ref,stance_profile=args.stance_profile,pressure_segment=args.pressure_segment,middle_finger_force=args.middle_finger_force)
     sim.reset(randomize=False, images=False)
     d.qpos[sim.root_qadr:sim.root_qadr+7] = teacher.initial_root
     ids = np.array([m.joint('robot/'+n).id for n in teacher.names])

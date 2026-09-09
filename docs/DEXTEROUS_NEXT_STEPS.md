@@ -169,3 +169,14 @@ Each implementation milestone must update the [execution ledger](DEXTEROUS_EXPER
   finger middle segments; the original strict grasp criteria still fail. Bounded
   palm recentering and distal pressure targeting are experimental, with failures
   retained. No whole-task or learned hand-policy success is claimed.
+
+
+- September 9, 08:26 UTC: actual Isaac standing acquisition trial002 passes
+  15/15 with an explicit 3 N middle-finger preload; the byte-verified archive
+  and limited independent contact-accounting receipt are retained. Native
+  standing partial-opening trial006 passes 18/18 runtime and 6/6 independent
+  raw-contact checks (11,000 steps, original pad and physics limits), with a
+  declared 5.6 mm palm offset and distal pressure targeting. Destination-native
+  repeats 18/18; actual Isaac partial-opening trial001 is running from b9311e1e0.
+  Existing left-hand transfer targets fail at the standing pose; coordinated
+  bimanual geometry is being screened before any physical transfer attempt.
