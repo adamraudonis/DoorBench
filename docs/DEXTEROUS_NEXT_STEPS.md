@@ -411,3 +411,26 @@ THJ4's limit margin. It passes the unchanged 2,001-sample audit; trial008 is run
 The owned GPU has passed runtime dependency checks, Door55 generation, and a live
 Isaac Sim startup (about 20 seconds). Pinned robot checkout/import and the separate
 actual physics readiness proof precede the queued standing-operation experiment.
+
+Continuation, 2026-09-09 13:25 UTC: the fresh Isaac environment passed at
+13:07:57 UTC; its copied evidence hashes independently match. The destination-native
+36-second prerequisite passed 18/18 runtime checks and 6/6 raw-contact checks,
+with zero invalid loaded patches. The actual Isaac run is now executing on the
+owned L40S under its existing 14:04:30 UTC teardown deadline. This is not yet an
+Isaac opening result. See the timestamped receipt in `docs/evidence/`.
+
+Native withdrawal008 still failed: four invalid intervals / eleven independently
+classified thumb end-cap patches and intermittent left-palm support. Increasing
+thumb separation and support force in009 made things worse (31 intervals / 88
+patches, plus a stance-solver failure). Both remain rejected; neither contact nor
+support thresholds changed. Close-up inspection at69.502 and73.002 seconds shows
+the thumb scraping past the lever end before separating.
+
+Trial010 tests an explicit left-arm-only IK phase with the candidate012 route and
+2.25 N support target. The earlier shared solve still constrained the old right
+palm and waist while separate controllers moved them; the new option drops those
+constraints only after the actual qualified return. It preserves measured waist
+and right-arm coordinates in the private solve and still uses original capped
+motors. Twenty focused tests pass. A separate unstepped thumb candidate targets
+radial separation before arm withdrawal; it requires fresh dense admission and
+physical testing. Full standing traversal and learned control remain unqualified.
