@@ -196,3 +196,19 @@ def test_operator_hold_waits_for_actual_release_and_valid_grasp():
     assert seen[-1] is True
     tick(wrapper,1.53,valid=False,operator=.85,latch=.012,leaf=.006)
     assert seen[-1] is False
+
+
+def test_opened_leaf_capture_does_not_require_holding_a_released_latch_down():
+    observed={}
+    class Capture:
+        def __init__(self,stage):self.stage=stage
+        def force(self,t,force,joints,velocities,*,eligible):
+            observed[self.stage]=eligible
+            return force,{}
+    for stage in ('opening','aperture'):
+        wrapper=DoorOperationTeacher(Acquisition(),GEOMETRY,press_seconds=1.,attained_hold_stage=stage)
+        wrapper.attained_hold=Capture(stage)
+        for t in np.arange(0.,.51,.01):tick(wrapper,t)
+        tick(wrapper,1.52,operator=.85,latch=.012,leaf=.006)
+        tick(wrapper,4.53,operator=.7,latch=.01,leaf=.08)
+    assert observed=={'opening':False,'aperture':True}

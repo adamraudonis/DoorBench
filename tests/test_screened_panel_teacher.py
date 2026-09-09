@@ -63,3 +63,14 @@ def test_increased_lead_requires_the_matching_shifted_geometry_evidence():
         with pytest.raises(ValueError):validate_tracking_lead_receipt(plan,dict(receipt,**changes),.01,.4)
     with pytest.raises(ValueError):validate_tracking_lead_receipt(plan,receipt,.01,None)
     with pytest.raises(ValueError):validate_tracking_lead_receipt(plan,None,.01,.4)
+
+
+def test_phase_consumes_the_audited_reduced_motion_rates():
+    from doorbench.dexterous.screened_panel_teacher import ScreenedWholeBodyPanel
+    plan=dict(initial_leaf_angle_rad=.4,final_leaf_angle_rad=.75,initial_leaf_velocity_rad_s=.04,
+              screen_receipt=dict(reference_phase_envelope=dict(aperture_speed_limit_rad_s=.065,aperture_acceleration_limit_rad_s2=.01)))
+    phase=ScreenedWholeBodyPanel.make_phase(None,plan,.005,None,.1)
+    assert phase.speed==.065 and phase.acceleration==.01
+    plan['screen_receipt']['reference_phase_envelope']['aperture_speed_limit_rad_s']=.2
+    import pytest
+    with pytest.raises(ValueError,match='audited'):ScreenedWholeBodyPanel.make_phase(None,plan,.005,None,.1)
