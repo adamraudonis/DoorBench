@@ -104,8 +104,10 @@ def main():
     reset_angles=dict(zip(ref['acquisition']['joint_names'],ref['acquisition']['path_qpos'][0]))
     if desired!=reset_angles:raise ValueError('This comparison requires the same fixed posture as the frozen actor reset')
     schedule=json.loads(a.schedule.read_text())
+    from doorbench.dexterous.sensor_acquisition_runtime import validate_parameters
+    validate_parameters(schedule)
     if schedule['schema']!='doorbench.scripted-sensor-acquisition.v1' or schedule['source_reference_sha256']!=sha(a.reference) or schedule['grasp_profile']!='distal-pad-v1' or schedule['required_grasp_hold_s']!=.5 or schedule['stop_fraction']!=1.:raise ValueError('Exact frozen contact-enabled route and original distal grasp protocol required')
-    arm=SensorReachBalanceController(robot,motors,layout,desired,gravity_correction=a.gravity_correction,allow_torso_yaw=schedule['allow_torso_yaw'],maximum_goal_speed_radps=schedule['maximum_goal_speed_radps'],finger_impedance_multiplier=schedule.get('finger_impedance_multiplier',1.),finger_velocity_damping=schedule.get('finger_velocity_damping',0.),finger_target_velocity_damping=schedule.get('finger_target_velocity_damping',False))
+    arm=SensorReachBalanceController(robot,motors,layout,desired,gravity_correction=a.gravity_correction,allow_torso_yaw=schedule['allow_torso_yaw'],maximum_goal_speed_radps=schedule['maximum_goal_speed_radps'],finger_impedance_multiplier=schedule.get('finger_impedance_multiplier',1.),finger_velocity_damping=schedule.get('finger_velocity_damping',0.),finger_target_velocity_damping=schedule.get('finger_target_velocity_damping',False),tactile_reflex_profile=schedule.get('tactile_reflex_profile'))
     controller=arm.balance
     base_route=ScriptedAcquisitionSchedule(arm.goal_names,ref['acquisition']['joint_names'],ref['acquisition']['path_qpos'],start_s=schedule['start_s'],reach_seconds=schedule['reach_seconds'],settle_seconds=schedule['settle_seconds'])
     plan=json.loads(a.press_plan.read_text())
@@ -174,7 +176,7 @@ def main():
                 handoff=audit_grasp_steps([initial_physics,*rows],physics_dt=.002,expected_duration=base_route.duration_s,required_hold=.5)
                 handoff['source_prefix_steps']=len(rows)
                 write(a.output/'acquisition-handoff-audit.json',handoff)
-                if not handoff['passed'] or any(r['invalid_loaded_distal_patches'] or r['unintended_hand_contacts'] for r in rows):
+                if not handoff['passed'] or any(r['invalid_loaded_distal_patches'] or r['unintended_hand_contacts'] or r['command_coordinate_tracking_error_max_rad']>=.04 for r in rows):
                     error='Unqualified acquisition; press safety evaluation stopped execution';break
             goals=route.goals(t)
             force,info=arm.force(packet,now_s=t,joint_goals=goals)
@@ -201,10 +203,11 @@ def main():
             row['actual_floor_support_normal_N']=floor_support.tolist();row['input_force_error_Nm']=float(np.max(np.abs(d.actuator_force[aids]-force)))
             row['actual_root_horizontal_speed_mps']=float(np.linalg.norm(d.qvel[sim.root_vadr:sim.root_vadr+2]))
             requested_q=controller.desired.copy()
-            for name,goal in goals.items():requested_q[controller.names.index(name)]=goal
+            applied_goals=dict(zip(info['goal_joint_names'],info['goal_joint_position_rad']))
+            for name,goal in applied_goals.items():requested_q[controller.names.index(name)]=goal
             actual_coordinates=controller.matrix@d.qpos[qa];requested_coordinates=controller.matrix@requested_q
             row['command_coordinate_tracking_error_max_rad']=float(np.max(abs(actual_coordinates[arm.arm_motors]-requested_coordinates[arm.arm_motors])))
-            row['arm_tracking_error_max_rad']=float(max(abs(d.qpos[m.jnt_qposadr[m.joint('robot/'+name).id]]-goal) for name,goal in goals.items()))
+            row['arm_tracking_error_max_rad']=float(max(abs(d.qpos[m.jnt_qposadr[m.joint('robot/'+name).id]]-goal) for name,goal in applied_goals.items()))
             row['actual_root_angular_speed_radps']=float(np.linalg.norm(d.qvel[sim.root_vadr+3:sim.root_vadr+6]))
             rawfile.write(json.dumps(raw,separators=(',',':'))+'\n');rows.append(row)
             qposes.append(d.qpos.copy());qvels.append(d.qvel.copy());forces.append(force)
