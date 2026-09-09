@@ -49,15 +49,17 @@ class ContinuousDoorTeacher:
     def __init__(self, robot_xml, motors, reference, preparation, reset, checkpoint,
                  joint_geometry, *, door_xml, left_targets, release_screen,
                  runtime_screen=None, opening_options=None, prepare_seconds=8.,
-                 maximum_seconds=180., handoff_policy='first-crossing-v1'):
+                 maximum_seconds=180., handoff_policy='first-crossing-v1', post_phase_seconds=5.):
         if not np.isfinite(maximum_seconds) or maximum_seconds <= 0:
             raise ValueError('A finite positive episode bound is required')
+        if post_phase_seconds not in (4.,5.):
+            raise ValueError('Select the explicit four- or five-second stow phase')
         self.walking = WalkingOpeningTeacher(robot_xml, motors, reference, preparation,
             reset, checkpoint, joint_geometry, door_xml=door_xml, left_targets=left_targets,
             release_screen=release_screen, runtime_screen=runtime_screen,
             opening_options=opening_options, prepare_seconds=prepare_seconds)
         self.post = PostOpeningTeacher(robot_xml, motors, reset, checkpoint,
-            door_xml=door_xml, stow_profile='sequential-v2', phase_seconds=5.,
+            door_xml=door_xml, stow_profile='sequential-v2', phase_seconds=post_phase_seconds,
             inward_roll=.07, passage=True)
         self._initialize(motors,reset,maximum_seconds,handoff_policy)
 

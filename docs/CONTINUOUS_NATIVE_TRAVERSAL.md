@@ -39,3 +39,13 @@ python scripts/dexterous/render_continuous_opening.py --run "$RUN" \
 The cutaway hides only wall visuals in a recorded-state replay so the robot remains visible after crossing. It changes no physics and is labeled in the video. Hand close-ups are available with `--view right-hand` or `--view left-hand`.
 
 `continuous-opening-traversal-002` stores full warning-counter capture separately to preserve exact raw-prefix comparison. All 256 raw chunks match through the terminal state at 127.990 seconds, beyond the required 127.5-second comparison. Independent contact reconstruction finds no invalid distal patches, and all 2,682 selected panel-control intervals pass the target/force audit. This is a same-start reproducibility check; varied-start repeatability, Isaac parity, speed/naturalness improvements, sensor-only learning and catalogue expansion remain in [the active plan](DEXTEROUS_NEXT_STEPS.md).
+
+## Matching the continuation settings in Isaac
+
+The Isaac traversal runner now exposes the exact continuation settings used by the verified native composition:
+
+```text
+--traverse --opening-handoff-policy loaded-hold-v2 --traversal-stow-phase-seconds 4
+```
+
+These settings select the sustained loaded-aperture handoff and four-second sequential arm-stow phases. They are recorded in both the invocation and final report. Historical defaults remain available for reproducing older failed experiments. The settings alone do **not** port the complete native controller: return/ungrip plans must still be constructed for the actual Isaac-attained states, and a complete Isaac physical rollout remains required.

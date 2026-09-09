@@ -389,3 +389,13 @@ def test_loaded_hold_policy_cannot_redeem_invalid_physics(controller):
     with pytest.raises(module.ContinuousDoorFailure,match='physics'):
         advance(controller,CROSSING,unsafe)
     assert not controller.post.calls
+
+
+def test_explicit_native_stow_timing_reaches_post_controller(monkeypatch):
+    monkeypatch.setattr(module, 'WalkingOpeningTeacher', Walking)
+    monkeypatch.setattr(module, 'PostOpeningTeacher', Post)
+    c=module.ContinuousDoorTeacher('robot.xml', MOTORS, {}, {},
+        {'goal_xy':[0.,0.]}, 'motion.pt', {}, door_xml='door.xml',
+        left_targets={}, release_screen={}, post_phase_seconds=4., handoff_policy='loaded-hold-v2')
+    assert c.post.constructor_options['phase_seconds']==4.
+    assert c.handoff_policy=='loaded-hold-v2'

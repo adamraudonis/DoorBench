@@ -17,6 +17,9 @@ from pathlib import Path
 def validate_traversal_mode(args):
     """Fail unsupported combinations before starting the Isaac application."""
     if not args.traverse:
+        if (getattr(args,'traversal_stow_phase_seconds',5.)!=5. or
+                getattr(args,'opening_handoff_policy','first-crossing-v1')!='first-crossing-v1'):
+            raise ValueError('Explicit traversal settings require --traverse')
         return
     if not args.full_sequence_reset or not args.full_opening:
         raise ValueError('--traverse requires --full-sequence-reset and --full-opening')
@@ -156,6 +159,8 @@ p.add_argument('--locomotion-checkpoint',help='Frozen original H1 locomotion che
 p.add_argument('--native-door',help='Matching unstepped native door geometry for readiness collision checks')
 p.add_argument('--full-opening',action='store_true',help='Privileged acquisition, lever, bimanual transfer and loaded aperture development; no approach/traversal')
 p.add_argument('--traverse',action='store_true',help='Continue a qualified full walking/opening episode through measured release, stow, rise, passage and quiet stop without resetting')
+p.add_argument('--traversal-stow-phase-seconds',type=float,choices=(4.,5.),default=5.,help='Explicit sequential stow timing; the verified native sequence uses four seconds')
+p.add_argument('--opening-handoff-policy',choices=('first-crossing-v1','loaded-hold-v2'),default='first-crossing-v1',help='Explicit measured opening handoff; the verified native sequence requires loaded-hold-v2')
 p.add_argument('--left-palm-targets',help='Source-bound screened left-palm workspace targets')
 p.add_argument('--right-release-screen',help='Frozen axial right-hand release path')
 p.add_argument('--bimanual-runtime-screen',help='Source/design-bound runtime geometry re-screen for another platform')
@@ -518,7 +523,8 @@ def main():
                         json.loads(Path(a.preparation_reference).read_text()),sequence_reset,a.locomotion_checkpoint,
                         joint_geometry,door_xml=a.native_door,left_targets=a.left_palm_targets,
                         release_screen=a.right_release_screen,runtime_screen=a.bimanual_runtime_screen,
-                        opening_options=opening_options,**({'maximum_seconds':a.seconds} if a.traverse else {}))
+                        opening_options=opening_options,**({'maximum_seconds':a.seconds,
+                            'post_phase_seconds':a.traversal_stow_phase_seconds,'handoff_policy':a.opening_handoff_policy} if a.traverse else {}))
                     if a.traverse:
                         continuous=sequence;sequence=continuous.walking
                     full_opening=sequence.opening
@@ -554,7 +560,8 @@ def main():
                     geometry_source_hashes=opening_geometry.sources),indent=2)+'\n')
                 if continuous:
                     (out/'traversal-protocol.json').write_text(json.dumps(dict(
-                        maximum_seconds=a.seconds,physics_dt_s=dt,stow_profile='sequential-v2',phase_seconds=5.,
+                        maximum_seconds=a.seconds,physics_dt_s=dt,stow_profile='sequential-v2',phase_seconds=a.traversal_stow_phase_seconds,
+                        handoff_policy=a.opening_handoff_policy,
                         opening='Requires independently qualified opening prefix; any invalid pad or physical interval fails the whole episode',
                         handoff='Actual root/q/dq/body poses/door velocities and preceding delivered motor forces at unchanged global clock; no plant reset',
                         final_hold='Whole body y>0.2 m; horizontal root speed<0.03 m/s; both feet>=10 N; hands clear and LH normal load<0.1 N for1 s; XY excursion<0.03 m',
@@ -1513,7 +1520,7 @@ def main():
                 final_traversal_measurement=traversal_steps[-1] if traversal_steps else None,
                 maximum_actual_motor_delivery_error_Nm=continuous.maximum_motor_delivery_error,
                 maximum_transmission_residual_Nm=max_transmission_residual,
-                stow_profile='sequential-v2',phase_seconds=5.,
+                stow_profile='sequential-v2',phase_seconds=a.traversal_stow_phase_seconds,handoff_policy=a.opening_handoff_policy,
                 runtime_robot_pose_writes=0,direct_door_commands=False,native_mirror_steps=0,
                 force_readback='Submitted backend actuation input plus matching pre-step native passive terms, inverted through full-rank original61motor transmission; not an independent torque measurement',
                 body_pose_order=list(continuous.post.pose_names),grasp_profile=a.grasp_profile,

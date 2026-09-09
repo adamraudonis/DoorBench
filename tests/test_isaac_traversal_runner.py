@@ -52,6 +52,13 @@ def test_legacy_default_has_no_traversal_and_keeps_original_transfer_load(monkey
     assert not args.traverse and args.transfer_load_target==4.
 
 
+def test_native_handoff_and_stow_settings_are_explicit(monkeypatch):
+    options=['--opening-handoff-policy','loaded-hold-v2','--traversal-stow-phase-seconds','4']
+    args=run_parser(monkeypatch,[*TRAVERSE_ARGS,*options])
+    assert args.opening_handoff_policy=='loaded-hold-v2' and args.traversal_stow_phase_seconds==4.
+    with pytest.raises(SystemExit):run_parser(monkeypatch,options)
+
+
 @pytest.mark.parametrize('option,value',[
     ('--target-aperture','1.1'),('--time-scale','2'),
     ('--transfer-load-target','nan'),('--transfer-load-target','inf'),
