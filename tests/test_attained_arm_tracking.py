@@ -6,7 +6,7 @@ from doorbench.dexterous.attained_arm_tracking import AttainedArmTracking
 
 def fixture():
     model=SimpleNamespace(actuator_trnid=np.array([[0,0]]),joint=lambda i:SimpleNamespace(name='right_wrist_yaw'),jnt_dofadr=np.array([0]),jnt_qposadr=np.array([0]))
-    teacher=SimpleNamespace(arm_motors=np.array([0]),act=np.array([0]),m=model,d=SimpleNamespace(qfrc_bias=np.array([.3])),kp=np.array([10.]),damping=np.array([1.]),bias=np.array([[0.,-10.,-.2]]),caps=np.array([[-5.,5.]]))
+    teacher=SimpleNamespace(arm_motors=np.array([0]),act=np.array([0]),m=model,d=SimpleNamespace(qfrc_bias=np.array([.3])),kp=np.array([10.]),gain=np.array([9.]),damping=np.array([1.]),bias=np.array([[0.,-10.,-.2]]),caps=np.array([[-5.,5.]]))
     return teacher,AttainedArmTracking(teacher,{'right_wrist_yaw':.2},np.array([1.]))
 
 

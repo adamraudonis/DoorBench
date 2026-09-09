@@ -175,58 +175,67 @@ def main():
         from doorbench.dexterous.native_transition_archive import NativeTransitionArchive
         recorder=NativeTransitionRecorder(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge');archive=NativeTransitionArchive(args.output/'raw-transitions')
     try:
-        for step in range(round(args.seconds/m.opt.timestep)):
-            if not args.portable_wrapper and operation.started is None and d.time >= 10.6-1e-8:
-                tail = [r for r in physics if r['sim_time_s'] >= d.time-.5-1e-8]
-                if len(tail) >= 250 and all(r['pad_grasp']['valid_pad_grasp'] for r in tail) and teacher.info.get('path_fraction',0) >= .999:
-                    operation.begin()
-            goal_info = operation.info if args.portable_wrapper else operation.update()
-            loads = {name:np.zeros(3) for name in hand_names.values()}
-            for index, contact in enumerate(d.contact[:d.ncon]):
-                wrench = np.zeros(6)
-                mujoco.mj_contactForce(m, d, index, wrench)
-                force = contact.frame.reshape(3, 3).T@wrench[:3]
-                for sign, geom in zip((-1,1),contact.geom):
-                    body = int(m.geom_bodyid[geom])
-                    if body in hand_names:
-                        loads[hand_names[body]] += sign*force
-            rot = d.xmat[sim.pelvis].reshape(3, 3)
-            root = np.r_[d.qpos[sim.root_qadr:sim.root_qadr+7],d.qvel[sim.root_vadr:sim.root_vadr+3],
-                         rot@d.qvel[sim.root_vadr+3:sim.root_vadr+6]]
-            measured_joints, measured_velocities = dict(zip(teacher.names,d.qpos[qa])),dict(zip(teacher.names,d.qvel[va]))
-            if args.portable_wrapper:
-                force,info = (transfer or operation).force(float(d.time),root,measured_joints,measured_velocities,
-                    np.r_[d.xpos[hb],d.xquat[hb]],np.r_[d.xpos[lb],d.xquat[lb]],
-                    dict(operator=d.qpos[m.jnt_qposadr[hj]],leaf=d.qpos[m.jnt_qposadr[lj]],latch=d.qpos[m.jnt_qposadr[bj]]),
-                    loads,grasp_qualified=physics[-1]['pad_grasp']['valid_pad_grasp'],**({'left_panel_load':recorder.left_surface['total_normal_load_N']} if transfer else {}))
-                goal_info = transfer.info if transfer else operation.info
-            else:
-                force, info = teacher.force(float(d.time),root,measured_joints,measured_velocities,np.r_[d.xpos[hb],d.xquat[hb]],loads)
-            d.ctrl[aids] = force
-            if recorder:
-                recorder.before_step();sim.plant.step();row,raw=recorder.after_step();archive.write(raw);controller_steps.append(dict(time_s=float(d.time)-m.opt.timestep,**info))
-            else:row = audited_native_step(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')
-            if transfer:row['left_surface']=recorder.left_surface.copy()
-            row['bolt_slide_m'] = float(d.qpos[m.jnt_qposadr[bj]])
-            row['operation'] = goal_info
-            physics.append(row)
-            if step % 10 == 0:
-                trace = dict(**sim.diagnostics(),teacher={**info,'phase':goal_info['phase']},operation=goal_info,
-                             palm_error_m=float(np.linalg.norm(d.site_xpos[palm]-teacher.positions[-1])))
-                traces.append(trace)
-                for key in states:
-                    states[key].append(getattr(d,key).copy())
-                (args.output/'latest.json').write_text(json.dumps(trace)+'\n')
-                if step % 500 == 0:
-                    print(json.dumps(trace),flush=True)
-            if not row['finite'] or row['torso_tilt_deg'] > 35:
-                break
+        controller_error=None
+        try:
+            for step in range(round(args.seconds/m.opt.timestep)):
+                if not args.portable_wrapper and operation.started is None and d.time >= 10.6-1e-8:
+                    tail = [r for r in physics if r['sim_time_s'] >= d.time-.5-1e-8]
+                    if len(tail) >= 250 and all(r['pad_grasp']['valid_pad_grasp'] for r in tail) and teacher.info.get('path_fraction',0) >= .999:
+                        operation.begin()
+                goal_info = operation.info if args.portable_wrapper else operation.update()
+                loads = {name:np.zeros(3) for name in hand_names.values()}
+                for index, contact in enumerate(d.contact[:d.ncon]):
+                    wrench = np.zeros(6)
+                    mujoco.mj_contactForce(m, d, index, wrench)
+                    force = contact.frame.reshape(3, 3).T@wrench[:3]
+                    for sign, geom in zip((-1,1),contact.geom):
+                        body = int(m.geom_bodyid[geom])
+                        if body in hand_names:
+                            loads[hand_names[body]] += sign*force
+                rot = d.xmat[sim.pelvis].reshape(3, 3)
+                root = np.r_[d.qpos[sim.root_qadr:sim.root_qadr+7],d.qvel[sim.root_vadr:sim.root_vadr+3],
+                             rot@d.qvel[sim.root_vadr+3:sim.root_vadr+6]]
+                measured_joints, measured_velocities = dict(zip(teacher.names,d.qpos[qa])),dict(zip(teacher.names,d.qvel[va]))
+                if args.portable_wrapper:
+                    force,info = (transfer or operation).force(float(d.time),root,measured_joints,measured_velocities,
+                        np.r_[d.xpos[hb],d.xquat[hb]],np.r_[d.xpos[lb],d.xquat[lb]],
+                        dict(operator=d.qpos[m.jnt_qposadr[hj]],leaf=d.qpos[m.jnt_qposadr[lj]],latch=d.qpos[m.jnt_qposadr[bj]]),
+                        loads,grasp_qualified=physics[-1]['pad_grasp']['valid_pad_grasp'],**({'left_panel_load':recorder.left_surface['total_normal_load_N']} if transfer else {}))
+                    goal_info = transfer.info if transfer else operation.info
+                else:
+                    force, info = teacher.force(float(d.time),root,measured_joints,measured_velocities,np.r_[d.xpos[hb],d.xquat[hb]],loads)
+                d.ctrl[aids] = force
+                if recorder:
+                    recorder.before_step();sim.plant.step();row,raw=recorder.after_step();archive.write(raw);controller_steps.append(dict(time_s=float(d.time)-m.opt.timestep,**info))
+                else:row = audited_native_step(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')
+                if transfer:row['left_surface']=recorder.left_surface.copy()
+                row['bolt_slide_m'] = float(d.qpos[m.jnt_qposadr[bj]])
+                row['operation'] = goal_info
+                physics.append(row)
+                if step % 10 == 0:
+                    trace = dict(**sim.diagnostics(),teacher={**info,'phase':goal_info['phase']},operation=goal_info,
+                                 palm_error_m=float(np.linalg.norm(d.site_xpos[palm]-teacher.positions[-1])))
+                    traces.append(trace)
+                    for key in states:
+                        states[key].append(getattr(d,key).copy())
+                    (args.output/'latest.json').write_text(json.dumps(trace)+'\n')
+                    if step % 500 == 0:
+                        print(json.dumps(trace),flush=True)
+                if not row['finite'] or row['torso_tilt_deg'] > 35:
+                    break
+        except Exception as exc:
+            import traceback
+            controller_error=type(exc).__name__+': '+str(exc)
+            (args.output/'error.txt').write_text(traceback.format_exc())
         report = audit_grasp_steps(physics,physics_dt=m.opt.timestep,expected_duration=args.seconds)
         if archive:
-            archive.close(complete=True)
+            archive.close(complete=controller_error is None)
             with gzip.open(args.output/'controller-steps.json.gz','wt') as f:json.dump(controller_steps,f)
             report['checks']['stance_solves_every_interval']=all(row['stance_status'] in ('solved','solved inaccurate') for row in controller_steps)
             report['checks']['no_warning_intervals']=all(row.get('mujoco_warning_interval',{}).get('passed',False) for row in physics[1:])
+        if controller_error is not None:
+            report['checks']['controller_completed']=False
+            report['controller_error']=controller_error
         report['checks']['acquisition_precedes_operation'] = operation.started is not None
         report['checks']['operator_driven_to_release'] = max(r['handle_angle_rad'] for r in physics) >= .80 and max(r.get('bolt_slide_m',0) for r in physics) >= .011
         tail = [r for r in physics if r['sim_time_s'] >= args.seconds-.5-1e-8]
@@ -259,6 +268,7 @@ def main():
                             terminal_ctrl=d.ctrl.copy(),terminal_time_s=float(d.time))
         print(json.dumps({k:v for k,v in report.items() if k!='final_contacts'}),flush=True)
     finally:
+        if archive and not archive.closed:archive.close(complete=False)
         sim.close()
     raise SystemExit(0 if report['passed'] else 1)
 

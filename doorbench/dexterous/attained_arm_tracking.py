@@ -10,7 +10,8 @@ import numpy as np
 class AttainedArmTracking:
     def __init__(self, teacher, joints, previous_forces):
         self.teacher=teacher
-        self.act=teacher.arm_motors.copy()
+        torso=[i for i,act in enumerate(teacher.act) if teacher.m.joint(int(teacher.m.actuator_trnid[act,0])).name=='torso']
+        self.act=np.unique(np.r_[teacher.arm_motors,np.asarray(torso,dtype=int)])
         self.names=[];self.va=[];self.qa=[]
         for i in self.act:
             actuator=teacher.act[i]
@@ -21,16 +22,16 @@ class AttainedArmTracking:
         self.va=np.asarray(self.va);self.qa=np.asarray(self.qa)
         self.initial=np.asarray([joints[n] for n in self.names],float)
         self.preload=np.asarray(previous_forces,float)[self.act].copy()-teacher.d.qfrc_bias[self.va]
-        self.kp=teacher.kp[self.act]*10.
+        self.kp=teacher.kp[self.act]*(1.+teacher.gain[self.act])
         self.kd=teacher.damping[self.act]-teacher.bias[self.act,2]
         if not np.isfinite(np.r_[self.initial,self.preload,self.kp,self.kd]).all():raise ValueError('Finite attained-arm motor contract required')
-        self.previous_target=None;self.previous_time=None;self.reference_velocity=np.zeros_like(self.initial)
+        self.previous_target=None;self.previous_time=None;self.last_call_time=None;self.reference_velocity=np.zeros_like(self.initial)
 
     def force(self, forces, t, target, joints, velocities):
         target=np.asarray([target[n] for n in self.names],float)
         q=np.asarray([joints[n] for n in self.names]);v=np.asarray([velocities[n] for n in self.names])
         if not np.isfinite(np.r_[target,q,v,t]).all():raise ValueError('Finite arm target/state required')
-        if self.previous_time is not None and t<self.previous_time:raise ValueError('Monotonic arm clock required')
+        if self.last_call_time is not None and t<self.last_call_time:raise ValueError('Monotonic arm clock required')
         changed=self.previous_target is None or not np.array_equal(target,self.previous_target)
         velocity=self.reference_velocity.copy()
         if changed:
@@ -43,5 +44,5 @@ class AttainedArmTracking:
         requested=self.preload+self.teacher.d.qfrc_bias[self.va]+self.kp*(target-q)+self.kd*(velocity-v)
         result[self.act]=np.clip(requested,self.teacher.caps[self.act,0],self.teacher.caps[self.act,1])
         if changed:self.previous_target=target.copy();self.previous_time=t
-        self.reference_velocity=velocity.copy()
+        self.reference_velocity=velocity.copy();self.last_call_time=t
         return result,dict(attained_arm_tracking=True,arm_reference_velocity_rad_s=velocity.tolist(),maximum_arm_target_error_rad=float(np.max(abs(target-q))),arm_clipped_motors=int(np.count_nonzero(result[self.act]!=requested)))
