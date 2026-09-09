@@ -13,6 +13,27 @@ from .bimanual_transfer import LeftPalmContact
 from .operation_teacher import smooth_phase
 
 
+def validate_route_geometry(config):
+    """Bind the consumed numeric targets to the separately audited scene path."""
+    import mujoco
+    from .landed_left_planner import LandedLeftScene,JOINT_NAMES
+    c=config;robot=Path(c['robot_path']);door=Path(c['door_path']);source=Path(c['scene_path_source']);proof=Path(c['dense_audit_path'])
+    for path,key in ((robot,'robot_xml_sha256'),(door,'door_xml_sha256'),(source,'scene_path_sha256'),(proof,'dense_audit_sha256')):
+        if hashlib.sha256(path.read_bytes()).hexdigest()!=c[key]:raise ValueError('Standing route input bytes changed: '+str(path))
+    audit=json.loads(proof.read_text())
+    if audit.get('passed') is not True or audit.get('samples')!=1001 or audit.get('physics_steps')!=0:raise ValueError('Complete independent geometry audit required')
+    for p in (robot,door,source):
+        if audit['input_sha256'].get(str(p))!=hashlib.sha256(p.read_bytes()).hexdigest():raise ValueError('Route and audit inputs differ')
+    scene=LandedLeftScene(robot,door);m,d=scene.m,scene.d;path=np.asarray(json.loads(source.read_text())['path_qpos'],float)
+    qa=[m.joint('robot/'+n).qposadr[0] for n in c['joint_names']]
+    if not np.array_equal(path[:,qa],c['joint_path']) or not np.array_equal(path[:,scene.root:scene.root+7],c['root_path']):raise ValueError('Consumed root/joint targets differ from audited path')
+    if c['left_joint_names']!=JOINT_NAMES or len(c['left_targets'])!=len(path):raise ValueError('Left target contract changed')
+    for q,row in zip(path,c['left_targets']):
+        d.qpos[:]=q;mujoco.mj_kinematics(m,d);r=d.xmat[scene.leaf].reshape(3,3)
+        expected=dict(position=r.T@(d.site_xpos[scene.palm]-d.xpos[scene.leaf]),normal=r.T@d.site_xmat[scene.palm].reshape(3,3)[:,2],nominal=[q[m.joint('robot/'+n).qposadr[0]] for n in JOINT_NAMES])
+        if row['phase']!='left_reach' or abs(row['leaf_rad']-q[m.joint('leaf_hinge').qposadr[0]])>1e-12 or any(not np.allclose(row[k],v,atol=1e-12,rtol=0) for k,v in expected.items()):raise ValueError('Left Cartesian targets differ from independently screened FK')
+
+
 class StandingTransferTeacher:
     def __init__(self,operation,motors,path,*,start_seconds=22.):
         self.operation=operation;self.acquisition=operation.acquisition
@@ -22,6 +43,7 @@ class StandingTransferTeacher:
             raise ValueError('Explicit screened standing-transfer route required')
         if c['robot_xml_sha256']!=motors['source_xml_sha256']:
             raise ValueError('Standing route robot differs from controller')
+        validate_route_geometry(c)
         self.names=self.acquisition.names
         if c['joint_names']!=self.names:raise ValueError('Standing route joint order changed')
         self.roots=np.asarray(c['root_path'],float);self.joints=np.asarray(c['joint_path'],float)
@@ -32,7 +54,7 @@ class StandingTransferTeacher:
         leftnames=c['left_joint_names'];rows=[]
         for row in c['left_targets']:
             rows.append({**row,**{k:np.asarray(row[k],float) for k in ('position','normal','nominal')}})
-        self.left=LeftPalmContact(self.acquisition,motors,(leftnames,rows),fixed_waist=False,reach_seconds=8.,contact_force=8.)
+        self.left=LeftPalmContact(self.acquisition,motors,(leftnames,rows),fixed_waist=False,track_fixed_pads=True,reach_seconds=8.,contact_force=8.,maximum_normal_offset=.008)
         self.start_seconds=start_seconds;self.started=None;self.info={}
         self.rotations=Slerp(np.linspace(0,1,101),Rotation.from_quat(self.roots[:,[4,5,6,3]]))
 

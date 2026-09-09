@@ -91,7 +91,9 @@ def replace_normal_acceleration(servo, arm_mass, normal_jacobian, normal_force, 
 
 
 class LeftPalmContact:
-    def __init__(self, teacher, motors, targets, *, reach_seconds=5., contact_force=8., fixed_waist=False, track_fixed_pads=False, support_load_target=4.):
+    def __init__(self, teacher, motors, targets, *, reach_seconds=5., contact_force=8., fixed_waist=False, track_fixed_pads=False, support_load_target=4., maximum_normal_offset=.004):
+        if not np.isfinite(maximum_normal_offset) or not 0<maximum_normal_offset<=.025:raise ValueError('Explicit normal offset must be within 25 mm')
+        self.maximum_normal_offset=float(maximum_normal_offset)
         if not np.isfinite(support_load_target) or not 2 < support_load_target <= 10:
             raise ValueError('Declared support load target must be above 2 N and at most 10 N')
         self.support_load_target=float(support_load_target)
@@ -171,7 +173,7 @@ class LeftPalmContact:
             local=local+(1-min(1.,u/.4))*self.initial_position_delta
             desired_z=(1-f)*self.path[i]['normal']+f*self.path[i+1]['normal'];desired_z=rotation@(desired_z/np.linalg.norm(desired_z))
             nominal=(1-f)*self.path[i]['nominal']+f*self.path[i+1]['nominal']
-            if u>.98:self.offset=float(np.clip(self.offset+dt*.002*np.clip((self.support_load_target-left_panel_load)/self.support_load_target,-1.,1.),0.,.004))
+            if u>.98:self.offset=float(np.clip(self.offset+dt*.002*np.clip((self.support_load_target-left_panel_load)/self.support_load_target,-1.,1.),0.,self.maximum_normal_offset))
             goal=np.asarray(leaf_pose[:3])+rotation@local+normal*self.offset
             self.tracking=float(np.linalg.norm(goal-d.site_xpos[self.palm]))
             desired_waist=nominal[0]+self.waist_delta
