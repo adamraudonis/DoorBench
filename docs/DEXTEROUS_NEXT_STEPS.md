@@ -588,3 +588,33 @@ downloaded and hash-verified before local raw copies were evicted. Qualified
 withdrawal017 remains intact. Panel002 adds an explicit10 N/rad aperture tracking
 correction to the palm-load target, bounded to2.05–3.5 N with original motor caps.
 It is a new continuous100-second physical trial; all acceptance gates remain.
+
+At 16:22 UTC on September 9, material-contact comparisons009 and010 both
+failed the destination-native prerequisite, so neither launched Isaac. Profile
+`actual-material-v1` follows measured handle material points through finger
+motors while relaxing posture control; it failed joint limits, sustained grasp,
+lever release and held opening. Profile `actual-material-v2` retained posture
+control and restored the lever-release check, but still failed joint limits,
+sustained grasp and held opening (maximum leaf0.03477 rad; final0.01108 rad).
+These are failed hypotheses, not benchmark improvements. Immutable source010
+was staged by copying725 hash-verified unchanged source files and transferring
+ten files into a new directory; the earlier source remains unchanged.
+
+Isaac hold008 was deliberately stopped and exported24 seconds of actual
+physics. The capture condition never activated. Inspection of hold005's strict
+raw pad qualification found no half-second valid window after16.658 seconds,
+although the weaker opposition summary continued later. Opposition alone must
+not be used to claim an eligible grasp. The24-second trial fails completion and
+sustained grasp. Own pod4jqu6fih3f0cc0 retains acknowledged local and remote
+teardown guards for17:56:07 UTC; no other agent's node was changed.
+
+Native panel002 again failed the aperture target. A separate audit of all10,201
+panel intervals found zero unexpected external support contacts and at least
+44.377 mm RH clearance. Recorded late contact wrenches produced0.3241 Nm opening
+moment against0.457638 Nm hinge friction. Panel003 tested bounded integral palm
+feedback but aborted at93.424 seconds when a legacy adapter rejected a target
+above4 N. Its failed partial result was preserved and remotely verified before
+raw eviction. The adapter now accepts the explicit6 N profile limit, covered by
+a test passing controller output through the actual adapter. Panel004 is a new
+120-second continuous trial using that fix; it is still running. Original motor
+caps, joint limits and contact acceptance checks are unchanged.
