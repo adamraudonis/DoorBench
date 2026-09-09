@@ -41,6 +41,9 @@ class StandingWithdrawalTeacher:
         self.finger_pad_feedback=config.get('finger_pad_feedback',False)
         if type(self.finger_pad_feedback) is not bool:raise ValueError('Explicit finger material feedback option required')
         self.finger_feedback={};self.finger_points={}
+        self.middle_feedback_enabled=config.get('release_middle_segment_feedback',False)
+        if type(self.middle_feedback_enabled) is not bool:raise ValueError('Explicit middle segment tracking option required')
+        self.middle_feedback={};self.middle_points={}
         segment_avoidance=config.get('release_ring_segment_avoidance',False)
         if type(segment_avoidance) is not bool:raise ValueError('Explicit release segment avoidance option required')
         self.release_segment_avoidance=None
@@ -117,6 +120,23 @@ class StandingWithdrawalTeacher:
                     points.append(d.xpos[body]+d.xmat[body].reshape(3,3)@local)
                 self.finger_points[digit]=(local,np.asarray(points))
                 self.finger_feedback[digit]=FingerWithdrawalFeedback(self.acquisition,local,digit=digit)
+        if self.middle_feedback_enabled:
+            from .finger_withdrawal_feedback import FingerWithdrawalFeedback
+            for digit,obstacle in [('rf','leaf_handle_lever_col_n'),('lf','leaf_handle_hub_col_n')]:
+                d.qpos[:]=actual;mujoco.mj_kinematics(m,d)
+                body=m.body('robot/rh_'+digit+'middle').id;nearest=[]
+                for g in range(m.ngeom):
+                    if m.geom_bodyid[g]!=body or not m.geom_contype[g]:continue
+                    pair=np.zeros(6);distance=mujoco.mj_geomDistance(m,d,g,m.geom(obstacle).id,.1,pair)
+                    nearest.append((distance,pair.copy()))
+                distance,pair=min(nearest,key=lambda v:v[0])
+                if abs(distance)>.05:raise ValueError('Source middle segment must be near the original handle')
+                local=d.xmat[body].reshape(3,3).T@(pair[:3]-d.xpos[body]);points=[]
+                for q in qs:
+                    d.qpos[:]=q;mujoco.mj_kinematics(m,d)
+                    points.append(d.xpos[body]+d.xmat[body].reshape(3,3)@local)
+                self.middle_points[digit]=(local,np.asarray(points))
+                self.middle_feedback[digit]=FingerWithdrawalFeedback(self.acquisition,local,digit=digit,segment='middle')
         self.names=list(screen['trials'][0]['rows'][0]['joints'])
         self.finger_names=list(screen['trials'][0]['rows'][0]['finger_joints'])
         for row in rows[1:]:
@@ -286,6 +306,15 @@ class StandingWithdrawalTeacher:
                     goal=self.panel.d.xpos[body]+self.panel.d.xmat[body].reshape(3,3)@local
                 force,digit_info[digit]=feedback.force(force,t,goal,t-self.release_started)
             hand_info={**hand_info,'finger_material_feedback':digit_info}
+        if self.middle_feedback_enabled and self.release_started is not None:
+            middle_info={}
+            for digit,feedback in self.middle_feedback.items():
+                local,points=self.middle_points[digit];goal=(1-f)*points[i]+f*points[i+1]
+                if panel_goal is not None:
+                    body=self.panel.m.body('robot/rh_'+digit+'middle').id
+                    goal=self.panel.d.xpos[body]+self.panel.d.xmat[body].reshape(3,3)@local
+                force,middle_info[digit]=feedback.force(force,t,goal,t-self.release_started)
+            hand_info={**hand_info,'middle_segment_tracking':middle_info}
         if self.release_segment_avoidance is not None and self.release_started is not None:
             force,segment_info=self.release_segment_avoidance.force(force,float(smooth_phase(t-self.release_started)))
             hand_info={**hand_info,**segment_info}

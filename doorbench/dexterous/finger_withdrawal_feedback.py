@@ -5,11 +5,12 @@ from .operation_teacher import smooth_phase
 
 
 class FingerWithdrawalFeedback:
-    def __init__(self,teacher,local_point,*,digit):
+    def __init__(self,teacher,local_point,*,digit,segment='distal'):
         if digit not in ('ff','mf','rf','lf','th'):raise ValueError('Original Shadow digit required')
+        if segment not in ('distal','middle') or (segment=='middle' and digit=='th'):raise ValueError('Original finger tracking segment required')
         self.teacher=teacher;self.local=np.asarray(local_point,float)
         if self.local.shape!=(3,) or not np.isfinite(self.local).all() or np.linalg.norm(self.local)>.06:raise ValueError('Original distal finger material point required')
-        self.body=teacher.m.body('rh_'+digit+'distal').id
+        self.body=teacher.m.body('rh_'+digit+segment).id
         self.jac=np.zeros((3,teacher.m.nv));self.previous=None
 
     def force(self,forces,t,goal,elapsed):
