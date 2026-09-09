@@ -490,3 +490,10 @@ A separate `py-spy` 0.4.1 installation was attempted for a 20 s nonblocking prof
 The four-finger material-point controller did not qualify the release: 29/30 runtime checks passed, but the independent pad audit found 279 invalid loaded ring-middle patches from 68.610 to 68.838 s (peak 0.8634 N). Independent whole-handle accounting passed with zero extra loaded patches. Final leaf angle was 0.09961046 rad; this is not an opening/traversal success.
 
 Trial 014 retains trial 011's screened 40 mm upward route and disables the unsuccessful four-finger point feedback. Its sole added controller is release-only ring-middle/proximal clearance from the measured analytic lever. It uses the existing 4 mm activation distance, 3 N bounded repulsion law, and original capped finger motors; it writes no physical poses or external forces. Both runtime and independent contact gates remain unchanged. This is privileged geometry feedback, not a vision/tactile policy. The source-bound configuration is `out/standing-direct-release-010/withdrawal-segment-avoidance.json`.
+
+
+### Release 014: clean lever pads, residual hub contact
+
+The ring-segment controller removed all invalid loaded lever patches. However, the whole-handle audit found 24 little-finger middle-segment hub patches over seven intervals between 68.324 and 68.370 s, peaking at 1.5406 N. The episode therefore failed, and the source-qualified panel planner refused dispatch. Replay at 68.322 s found the middle segment only 0.0276 mm from the hub, versus 1.1588 mm for the distal segment. The controller correctly selected the middle segment and was already at its 3 N cap: this was insufficient advance clearance, not selection of the wrong segment.
+
+Trial 015 keeps the same screened route, ring feedback, original motors and 3 N hub-force cap. It moves the withdrawal-only hub activation distance from 4 to 6 mm so repulsion begins earlier. The physical audit tolerances are unchanged. The experimental configuration is `out/standing-direct-release-010/withdrawal-segment-hub6mm.json`. No wider-opening qualification is claimed.

@@ -51,11 +51,13 @@ class StandingWithdrawalTeacher:
         if type(self.final_hub_avoidance) is not bool:raise ValueError('Explicit final hub avoidance option required')
         if self.final_hub_avoidance and self.operation.hub_avoidance is None:raise ValueError('Final hub avoidance requires the original hub geometry/controller')
         whole_lf=config.get('withdrawal_whole_little_finger_hub_avoidance',False)
+        hub_clearance=float(config.get('withdrawal_hub_clearance_m',.004))
+        if not np.isfinite(hub_clearance) or not .004<=hub_clearance<=.008 or (hub_clearance!=.004 and not whole_lf):raise ValueError('Extended hub clearance requires whole little-finger feedback')
         if type(whole_lf) is not bool or (whole_lf and not self.final_hub_avoidance):raise ValueError('Whole little-finger avoidance requires final hub feedback')
         self.withdrawal_hub_avoidance=self.operation.hub_avoidance
         if whole_lf:
             from .handle_hub_avoidance import HandleHubAvoidance
-            self.withdrawal_hub_avoidance=HandleHubAvoidance(self.acquisition,include_distal=True)
+            self.withdrawal_hub_avoidance=HandleHubAvoidance(self.acquisition,include_distal=True,clearance_m=hub_clearance)
         self.left_arm_only=config.get('left_arm_only',False)
         if type(self.left_arm_only) is not bool:raise ValueError('Explicit left-arm solve option required')
         self.left_full_orientation=config.get('left_full_orientation',False)

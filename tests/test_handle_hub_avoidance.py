@@ -9,6 +9,9 @@ def test_avoidance_is_outward_bounded_and_vanishes_with_clearance():
     np.testing.assert_allclose(avoidance_force(-.001,[1,0,0],[-1,0,0]),[3,0,0])
     np.testing.assert_allclose(avoidance_force(.003,[1,0,0],[1,0,0]),0)
     with pytest.raises(ValueError):avoidance_force(0,[2,0,0],[0,0,0])
+    np.testing.assert_allclose(avoidance_force(.005,[1,0,0],[0,0,0],clearance_m=.006),[.8,0,0])
+    np.testing.assert_allclose(avoidance_force(0,[1,0,0],[-1,0,0],clearance_m=.006),[3,0,0])
+    with pytest.raises(ValueError):avoidance_force(0,[1,0,0],[0,0,0],clearance_m=.009)
 
 
 def test_distal_segment_cannot_hide_behind_clear_middle_segment():
