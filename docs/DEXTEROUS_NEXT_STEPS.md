@@ -19,10 +19,10 @@ profile. Its original34+12 checks pass, but its whole-handle check fails.
 The corrected native hub002 test now passes18 original runtime checks,6 pad
 audits and the new assembly audit over36s, with zero invalid lever patches and
 zero extra handle contacts ([evidence](evidence/native-standing-hub-002.json)).
-It opens4.34°; it does not traverse. The fresh Isaac port is pending.
+It opens4.34°; it does not traverse. Native hub-transfer003 now also passes21 runtime checks and both independent contact audits over50s, reaching4.72° with left-palm support ([evidence](evidence/native-standing-hub-transfer-003.json)). Lever return and the fresh Isaac port are pending.
 Isaac follow016 remains failed. Clearance017 and018 failed native prerequisites;
 clearance019's coordinator was stopped to prevent dispatch under the incomplete
-audit. Its native process is allowed to finish for diagnosis. The immediate
+audit. Its native process finished with failed runtime and whole-handle audits. The immediate
 priority is hub-safe grasp acquisition and operation, then re-running the whole
 sequence under the complete contact contract.
 

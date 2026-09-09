@@ -244,3 +244,16 @@ state and model hashes, screens41 candidate nodes, then independently audits401
 interpolated poses including hub clearance. It emits a reusable configuration
 only after both geometric screens pass. A configuration still requires a fresh
 physical run and the same full contact audits; planning is not execution.
+
+
+Transfer003 completed50s and passed21 runtime checks,6 independent pad checks
+and the independent full-handle audit: final aperture0.08240294rad, original
+motor/contact limits, zero extra handle contacts. The100k solver budget resolved
+the prior convergence failure without changing tolerances. Its attained state
+produced a41-node lever-return route passing401 dense samples: maximum fixed
+pose error0.293mm, rotation0.000786rad, torso2.311°, reference speed0.399rad/s.
+Runtime source/target admission also passed. A fresh64s physical return episode
+starts from the original closed-door reset; this candidate is not yet a return
+success. The held-finger controller replaces the inner operation finger command,
+so inherited hub-profile metadata alone does not establish delivered avoidance
+through this phase. Final raw contact audits remain mandatory.
