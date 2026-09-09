@@ -652,3 +652,23 @@ passing and zero invalid loaded pad patches. Pressure012 tests an explicitly
 recorded0.085 rad command against the same0.075–0.10 physical acceptance bounds.
 The source is197d9ceecc1e9ad1ecc2b5552fe11ac177c3feb6352ccf46745457b2e7d08996.
 Both active candidates appear in Run Center.
+
+Panel005 completed120 s and held the leaf at0.741834 rad, passing the aperture
+gate. It failed only final left-palm support:74 of250 final intervals were below
+2 N (minimum1.738 N, maximum2.749 N), although the119.822 s close-up still shows
+palm contact. Independent60,000-interval grasp and20,201-interval external-support
+audits match their recordings, with zero invalid RH patches and no unexpected
+external support; their overall result remains false. Raw evidence was remotely
+uploaded, downloaded and hash-verified before eviction. Panel006 starts from the
+closed door again and tests the separate `bounded-pi-stop-v2` profile, retaining
+a0.5 N terminal support margin (2.75 N target) inside existing motor limits.
+
+Pressure012 passed physical joint limits, actuation and the held-aperture range
+(final0.082539 rad), but failed sustained distal grasp with6,522 intervals
+containing invalid distal-profile patches. The index and middle fingers shifted
+to middle-segment contacts. Pressure013 reuses exactly the same frozen source
+with a0.082 rad command; all existing acceptance gates are unchanged. This is
+controller calibration on a development door, not a robustness or generalization
+score. The repository also retains a separately declared `volar-phalange-v1`
+contact protocol from earlier research; none of these distal trials has been
+retroactively promoted under it.
