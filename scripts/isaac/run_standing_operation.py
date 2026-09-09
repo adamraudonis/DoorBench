@@ -35,7 +35,7 @@ def main():
     def stage(name):
         (a.output/'pipeline.json').write_text(json.dumps(dict(stage=name,report_file='coordinator-result.json',scope=result['scope'],deadline_unix=a.deadline_unix)))
         print(name,flush=True)
-    def run(argv,name,maximum):
+    def run(argv,name,maximum,allowed_codes=(0,)):
         remaining=a.deadline_unix-time.time()-90
         if remaining<30:raise TimeoutError('Guarded run budget exhausted')
         argv=list(map(str,argv));commands.append(dict(name=name,argv=argv,started_unix=time.time()))
@@ -52,7 +52,7 @@ def main():
                 raise
         commands[-1].update(returncode=code,finished_unix=time.time())
         (a.output/'commands.json').write_text(json.dumps(commands,indent=2))
-        if code:raise RuntimeError(name+' exited '+str(code))
+        if code not in allowed_codes:raise RuntimeError(name+' exited '+str(code))
     try:
         stage('Waiting for pinned Isaac environment and live physics proof')
         while not a.ready.exists():
@@ -70,9 +70,10 @@ def main():
         run([asset,a.source/'scripts/dexterous/rescreen_acquisition_reference.py','--robot',robot,'--door',door,'--reference',a.reference,'--output',screen],'geometry-screen',900)
         if json.loads((screen/'geometry-audit.json').read_text()).get('passed') is not True:raise ValueError('Destination geometry screen failed')
         reference=screen/'reference.json'
-        run([asset,a.source/'scripts/dexterous/probe_acquisition_operation.py','--robot',robot,'--door',door,'--reference',reference,'--motors',motors,'--stance-profile','landed-foot-v1','--record-transitions','--index-finger-force','3','--portable-wrapper','--operator-compliance-gain','.2','--pressure-segment','distal','--grasp-offset-in-handle-m','.004','-.003','.0025','--seconds','36','--output',native],'native-prerequisite',1200)
-        if json.loads((native/'report.json').read_text()).get('passed') is not True:raise ValueError('Destination-native sustained hold failed')
+        run([asset,a.source/'scripts/dexterous/probe_acquisition_operation.py','--robot',robot,'--door',door,'--reference',reference,'--motors',motors,'--stance-profile','landed-foot-v1','--record-transitions','--index-finger-force','3','--portable-wrapper','--operator-compliance-gain','.2','--pressure-segment','distal','--grasp-offset-in-handle-m','.004','-.003','.0025','--seconds','36','--output',native],'native-prerequisite',1200,allowed_codes=(0,1))
+        result['native_runtime_passed']=json.loads((native/'report.json').read_text()).get('passed') is True
         run([asset,a.source/'scripts/dexterous/audit_sensor_acquisition_contacts.py','--trial',native,'--output',a.output/'native-independent-audit.json'],'native-contact-audit',600)
+        if not result['native_runtime_passed']:raise ValueError('Destination-native sustained hold failed')
         if json.loads((a.output/'native-independent-audit.json').read_text()).get('passed') is not True:raise ValueError('Native independent raw-contact audit failed')
         run([asset,a.source/'scripts/dexterous/export_sensor_layout.py','--robot',robot,'--output',layout],'robot-sensor-layout',120)
         inputs=[a.ready,a.reference,robot,motors,reference,screen/'geometry-audit.json',native/'report.json',layout,Path(ready['robot_usd']),Path(ready['door_usd'])]

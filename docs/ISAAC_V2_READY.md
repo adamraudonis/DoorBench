@@ -25,6 +25,33 @@ checks zero bilateral spring/damping, the intended unilateral limits and
 stiffness, unchanged motor caps, physical standing, rendering and native FK.
 Readiness establishes the environment; it is not an acquisition success rate.
 
+## Run the standing opening qualification
+
+```bash
+python3 scripts/isaac/launch.py --config configs/isaac/runtime-v2.json --standing-operation
+```
+
+This opt-in command prepares the environment, independently rescreens the versioned
+[Door55 standing seed](../configs/dexterous/door55-standing-acquisition-v1.json), runs
+a 36-second native contact prerequisite, and then runs and audits the same operation
+in actual Isaac. Run Center tracks preparation and the physical test separately.
+A detached collector retains results under the session's `standing-operation-evidence`;
+`connection.json` contains the exact remote paths and deadline. Failed or active
+outputs are attached and preserved; a new source identity creates a new experiment.
+
+The seed has identical numeric values to the native operation012/transfer016 seed;
+only JSON whitespace was compacted. Its new byte hash is
+`40809e860ffe03b011957db102c50b4478604044e88e1d7a0c3faa11f9e4b0bc`.
+A fresh local 1,001-sample geometric rescreen passed. Every destination must rescreen
+again and pass its native physical prerequisite. Historical provenance paths inside
+the seed describe its origin and are not required input files on the new cluster.
+This is a privileged H1/Shadow partial-opening teacher, not a learned policy or a
+full opening/traversal demonstration. A different robot requires a new retargeted seed.
+
+The launcher wiring has local regression tests. The current GPU repeat was dispatched
+with the same bounded coordinator while preparation was already in progress; its
+result is pending. This new convenience flag itself has not provisioned another pod.
+
 ## Acquire the lever from a contact-free start
 
 After Run Center shows ready, connect using `connection.json`, enter its remote

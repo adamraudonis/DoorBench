@@ -375,3 +375,34 @@ L40S. All failed trials remain labeled and archived.
 Controller exceptions now retain an incomplete raw archive, the actual completed
 physics intervals, terminal state, and a failing report. A deliberately injected
 failure at 0.008 seconds retained all four completed intervals and correctly failed.
+
+### September 9 continuation: standing lever return qualified
+
+Native return004 passes **23/23 runtime checks and 6/6 independent raw-contact
+checks** over 64 seconds / 32,000 physical intervals. The final **45.968 seconds**
+retain continuous opposed distal-pad contact; zero loaded patches violate the
+original anatomy gate. The operator and bolt return to rest while the left palm
+supports the partially open leaf. Final hand close-up, intermediate hand view and
+whole-body frame were personally inspected. [Receipt](evidence/native-standing-return-004.json).
+
+Return001–003 each failed the same grip check (22/23): the ring finger loaded its
+middle segment. Finger-posture stiffness and lower left support pressure did not
+fix it. Measured palm drift was approximately 2 mm / 1.5 degrees. Return004 adds
+bounded measured-palm error integration to the original arm motor references;
+its independent FK model never steps or writes the physical plant. Finger contact,
+motor caps, upright posture and joint limits remain unchanged acceptance gates.
+
+The next stage is physical withdrawal. A first unstepped retargeted release cleared
+its sampled contact checks but tilted the torso 6.69 degrees; it is rejected for
+this standing route. A second candidate explicitly bounds rotation within the
+original 4-degree torso gate before independent dense screening. Neither candidate
+is a physical release result. Full opening, traversal and the learned sensor-only
+policy remain unfinished.
+
+The owned L40S is still preparing the frozen Isaac repeat with local and remote
+teardown guards. Its current bottleneck is downloading/extracting PyTorch's CUDA
+library; process I/O is advancing. The separate evidence-volume attachment attempt
+never started a container and was terminated; its persistent volume is retained.
+No new off-pod transfer is claimed. Closed return001–003 are SHA-verified in the
+permanent local run directory. An inactive, unopened downloaded application-update
+cache was removed to recover disk space; no unique experiment evidence was deleted.

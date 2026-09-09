@@ -83,6 +83,8 @@ def dashboard(config,port,show=True):
 
 def prepare(a,cfg):
     profile=mechanics_profile(cfg.get('mechanics_profile','upstream-v1'))
+    if a.standing_operation and (profile!='shadow-loopback-v2' or cfg.get('door')!='db0055_swing_single'):
+        raise ValueError('Standing operation requires corrected Shadow hands and the explicitly qualified Door55 configuration')
     session=LOCAL/a.session;session.mkdir(parents=True,exist_ok=True)
     (session/'run.pid').write_text(str(os.getpid()))
     pipeline=dict(stage='Connecting to GPU',scope='Isaac environment preparation, not a policy score',completion_marker='ISAAC_ENVIRONMENT_READY')
@@ -159,8 +161,39 @@ echo $! > {shlex.quote(remote_status+'/run.pid')}
     receipt['evidence_collector']=collector
     receipt['evidence_directory']=str(session/'remote-evidence')
     (session/'connection.json').write_text(json.dumps(receipt,indent=2)+'\n')
+    if a.standing_operation:
+        receipt['standing_operation']=dispatch_standing_operation(receipt,session,registry,a.session,work,collector_deadline)
+        (session/'connection.json').write_text(json.dumps(receipt,indent=2)+'\n')
     print('Preparation running. Run Center shows all stages and errors.',flush=True)
     print('Connection details: '+str(session/'connection.json'),flush=True)
+
+
+def dispatch_standing_operation(receipt,session,registry,session_name,work,deadline):
+    """Attach one bounded physical test to this exact frozen preparation."""
+    if receipt['mechanics_profile']!='shadow-loopback-v2':raise ValueError('Corrected hand mechanics required')
+    if deadline-time.time()<2400:raise ValueError('At least 40 minutes required for the standing operation pipeline')
+    remote=receipt['remote'];output=remote+'/out/standing-operation'
+    ssh=ssh_args(receipt['host'],receipt['port'],receipt['key'])
+    argv=['python3',remote+'/scripts/isaac/run_standing_operation.py','--source',remote,
+        '--ready',receipt['ready_receipt'],'--reference',remote+'/configs/dexterous/door55-standing-acquisition-v1.json',
+        '--output',output,'--work',work,'--deadline-unix',str(deadline-60)]
+    # A complete/failed/in-progress output is retained, never silently replaced.
+    # Background within a script so SSH closes without retaining its stdout pipe.
+    script=f'''if test ! -e {shlex.quote(output)}; then
+nohup {shlex.join(argv)} > {shlex.quote(remote+'/out/standing-operation-coordinator.log')} 2>&1 < /dev/null &
+fi
+'''
+    run(ssh+['bash -s'],input=script,text=True)
+    collector_argv=[sys.executable,str(ROOT/'scripts/isaac/collect_run.py'),'--host',receipt['host'],
+        '--port',str(receipt['port']),'--key',receipt['key'],'--remote',output,
+        '--destination',str(session/'standing-operation-evidence'),'--deadline',str(deadline),
+        '--pid-file','run.pid','--terminal','coordinator-result.json','--detach']
+    collector=json.loads(subprocess.run(collector_argv,text=True,capture_output=True,check=True).stdout)
+    run([sys.executable,ROOT/'scripts/gpu_dashboard/server.py','--config',registry,'--register-only',
+        '--id','standing-operation-'+session_name,'--name','Door55: native prerequisite and actual Isaac standing operation',
+        '--results',output,'--ssh-host',receipt['host'],'--ssh-port',receipt['port'],'--ssh-key',receipt['key']])
+    return dict(remote=output,deadline_unix=deadline-60,evidence_collector=collector,
+        local_evidence=str(session/'standing-operation-evidence'),scope='Privileged partial opening qualification; not traversal or a learned policy')
 
 
 def main():
@@ -170,6 +203,7 @@ def main():
     p.add_argument('--port',type=int,default=22);p.add_argument('--key',default='~/.ssh/runpod_doorbench')
     p.add_argument('--work');p.add_argument('--hours',type=float);p.add_argument('--dashboard-port',type=int)
     p.add_argument('--no-browser',action='store_true');p.add_argument('--foreground',action='store_true')
+    p.add_argument('--standing-operation',action='store_true',help='After preparation, rescreen the versioned Door55 seed, qualify native contact, and test actual Isaac operation')
     p.add_argument('--session',default=time.strftime('%Y%m%dT%H%M%SZ',time.gmtime()))
     a=p.parse_args();cfg=json.loads(a.config.read_text());mechanics_profile(cfg.get('mechanics_profile','upstream-v1'));LOCAL.mkdir(parents=True,exist_ok=True)
     a.dashboard_port=dashboard(LOCAL/'runs.json',a.dashboard_port or cfg['dashboard_port'],not a.no_browser)
