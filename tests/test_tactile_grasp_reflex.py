@@ -53,3 +53,12 @@ def test_higher_force_target_keeps_the_original_motion_bounds(profile,target):
     assert all(0<v<=.08 for v in c.info['coupled_motor_preload_rad'].values())
     assert c.info['maximum_coupled_slew_radps']==.08
     assert not c.info['thumb_target_changed']
+
+
+@pytest.mark.parametrize('version',[1,2,3])
+def test_checked_in_pressure_schedule_passes_runtime_admission(version):
+    import json
+    from pathlib import Path
+    from doorbench.dexterous.sensor_acquisition_runtime import validate_parameters
+    path=Path(__file__).resolve().parents[1]/f'configs/dexterous/sensor-acquisition-pressure-v{version}.json'
+    validate_parameters(json.loads(path.read_text()))
