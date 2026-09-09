@@ -282,3 +282,19 @@ sources are retained under DoorBench-runs/2026-09-09. Local free space fell to
 approximately 280 MB despite clearing 1.2 GB of old regenerable browser HTTP
 cache; more persistent storage is required before another fully recorded run.
 No new GPU allocation or Hugging Face upload is running.
+
+The raw motor audit found a 24.9578 N·m command jump at the transfer boundary.
+Diagnostic010's explicit one-second bumpless switch reduces the boundary jump
+to 1.8e-15 N·m, but the contact gate still fails. [Measured comparison](evidence/standing-transfer-motor-handoff.json).
+A longer **operation-only** baseline008 also loses index qualification at
+22.620 s, without any transfer controller, and fails its 36-second hold. This
+supersedes the hypothesis that transfer initiation alone causes the grip loss.
+The previous 22-second result remains a short-duration qualification, not proof
+of a stable longer hold. Stabilize the long hold before attempting transfer again.
+Trial009 tests a bounded -0.025 rad index proximal reference adjustment during
+operation; original motor and collision limits remain enforced.
+
+Storage recovery is now available: [persistent run archives](PERSISTENT_RUN_ARCHIVES.md).
+Two large historical archives were hash-verified on the new network volume before
+local eviction, recovering roughly 1.2 GB. A guarded CPU pod handles transfers;
+the GPU remains off. No extra local drive is required for the immediate next runs.
