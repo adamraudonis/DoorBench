@@ -2,8 +2,9 @@
 """Join finite own-sensor packets to actual native transitions, without stepping.
 
 Checks every encoder/action/time row and samples the independent preintegration
-IMU angular-rate calculation. Accelerometer and tactile source reconstruction
-are separate requirements; this does not qualify a learned policy or dataset.
+IMU angular-rate and tactile-force calculations. Accelerometer reconstruction
+and initial-decision coverage remain separate requirements; this does not
+qualify a learned policy or dataset.
 """
 import argparse
 import hashlib
@@ -13,7 +14,7 @@ import mujoco
 import numpy as np
 from doorbench.dexterous.environment import DexterousDoorEnv
 from doorbench.dexterous.native_transition_archive import NativeTransitionArchive
-from doorbench.dexterous.sensor_contract import SENSOR_KEYS
+from doorbench.dexterous.sensor_contract import SENSOR_KEYS, AngularTaxelGrid
 
 
 def main():
@@ -30,7 +31,11 @@ def main():
     for key in ('rgb_left','rgb_right'):
         checks[key+'_shape']=rgb[key].dtype==np.uint8 and rgb[key].shape==(len(rgb['time_s']),128,128,3)
     raw=iter(NativeTransitionArchive.read(a.run/'raw-transitions'))
-    count=0;gyro_error=0.;gyro_samples=0
+    count=0;gyro_error=0.;gyro_samples=0;tactile_error=0.
+    mounts=[]
+    for cfg in layout['sensors']:
+        sid=m.sensor('robot/'+cfg['name']).id;site=int(m.sensor_objid[sid])
+        mounts.append((site,int(m.site_bodyid[site]),AngularTaxelGrid(cfg['width'],cfg['height'],tuple(cfg['fov_degrees']))))
     caps=m.actuator_forcerange[sim.actuators]
     expected=set(SENSOR_KEYS)-{'rgb_left','rgb_right'}|{'time_s','previous_action','sensor_time_s','sensor_valid'}
     for chunk in report['chunks']:
@@ -58,11 +63,23 @@ def main():
                     mujoco.mj_kinematics(m,d);mujoco.mj_comPos(m,d);mujoco.mj_comVel(m,d);mujoco.mj_sensorVel(m,d)
                     gyro=np.clip(d.sensor('robot/imu_gyro').data.astype(np.float32),-100,100)
                     gyro_error=max(gyro_error,float(np.max(abs(gyro-z['imu_gyro'][i]))));gyro_samples+=1
+                    body_contacts={}
+                    for contact in row['contacts']:
+                        world=np.asarray(contact['frame_world']).T@np.asarray(contact['wrench_contact_frame'][:3])
+                        for side,body in enumerate(contact['body']):
+                            points,forces=body_contacts.setdefault(body,([],[]))
+                            points.append(contact['position_world_m']);forces.append((1 if side==1 else -1)*world)
+                    tactile=[]
+                    for site,body,grid in mounts:
+                        points,forces=body_contacts.get(body,([],[]))
+                        tactile.append(grid.bin_forces(np.asarray(points).reshape(-1,3),np.asarray(forces).reshape(-1,3),d.site_xpos[site],d.site_xmat[site].reshape(3,3)))
+                    tactile_error=max(tactile_error,float(np.max(abs(np.clip(np.concatenate(tactile),-100,100)-z['tactile'][i]))))
                 count+=1
     checks['complete_raw_join']=next(raw,None) is None and count==report['samples']
     checks['independent_sampled_gyro']=gyro_samples>0 and gyro_error<1e-6
+    checks['independent_sampled_tactile']=gyro_samples>0 and tactile_error<1e-5
     out=dict(passed=all(checks.values()),checks=checks,samples=count,gyro_samples=gyro_samples,
-        maximum_gyro_error_rad_s=gyro_error,scope=__doc__,source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        maximum_gyro_error_rad_s=gyro_error,maximum_tactile_error_N=tactile_error,scope=__doc__,source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         sensor_report_sha256=hashlib.sha256((sensor/'report.json').read_bytes()).hexdigest(),
         raw_manifest_sha256=hashlib.sha256((a.run/'raw-transitions/manifest.json').read_bytes()).hexdigest())
     (sensor/'independent-join-audit.json').write_text(json.dumps(out,indent=2)+'\n');sim.close();print(json.dumps(out))
