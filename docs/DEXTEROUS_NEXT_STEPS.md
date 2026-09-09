@@ -750,3 +750,12 @@ profile adds a bounded integral increment only with positive requested progress,
 measured velocity below0.001 rad/s and remaining travel above0.02 rad. Existing
 6 N target cap, motor limits, terminal braking and all physical gates stay fixed.
 Fourteen focused force/schedule/contact tests pass; no physical success follows.
+
+Panel007 finishes180 s at0.7645404 rad,32/34 runtime gates. Only reference
+completion and final aperture fail. Its independent grasp/release and external
+support audits match all90,000 physical intervals and50,201 panel intervals;
+their overall reports correctly remain failed. The first segment hands off after
+a7.6-second supported hold at119 s. A brief wall-clock SIGSTOP/SIGCONT avoided
+disk exhaustion; no physical state changed. Closed failed Isaac005/008 raw
+trials were uploaded, independently downloaded and hash-verified before eviction.
+Lead015 passes its native prerequisite and is now running actual Isaac physics.
