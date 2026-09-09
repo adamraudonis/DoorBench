@@ -25,10 +25,10 @@ def withdrawal_checks(original,rows,*,dt,duration,started,release_started,comple
     # Once the right hand lets go, left-palm pushing can physically open the
     # leaf farther. Retain the original joint/contact/motor safety checks.
     checks.pop('partial_leaf_opening_held',None);checks.pop('opening_bounded_for_transfer',None)
-    before=[r for r in rows if release_started is None or r['sim_time_s']<=release_started+1e-8]
+    before=lambda:(r for r in rows if release_started is None or r['sim_time_s']<=release_started+1e-8)
     checks.update(
         partial_opening_held_before_intentional_release=held(release_started,lambda r:.075<=r['door_q']<=.10),
-        opening_bounded_before_intentional_release=bool(before) and all(r['door_q']<=.12 for r in before),
+        opening_bounded_before_intentional_release=any(True for _ in before()) and all(r['door_q']<=.12 for r in before()),
         leaf_remains_open_after_withdrawal=held(duration,lambda r:r['door_q']>=.075),
         resting_grip_before_withdrawal=held(started,lambda r:r['pad_grasp']['valid_pad_grasp'] and abs(r['handle_angle_rad'])<=.05 and abs(r.get('bolt_slide_m',1.))<=.001),
         opposed_grip_before_intentional_release=held(release_started,lambda r:r['pad_grasp']['valid_pad_grasp']),

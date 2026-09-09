@@ -197,7 +197,10 @@ def main():
         transfer=StandingTransferTeacher(operation,motors,args.standing_transfer_path,start_seconds=args.standing_transfer_start_seconds,fixed_pad_tracking=not args.standing_transfer_no_fixed_pads,attained_arm_tracking=args.standing_transfer_attained_arm,preload_profile=args.standing_transfer_preload_profile,grasp_shift=args.standing_transfer_grasp_shift,hold_route=args.standing_transfer_hold_route,handoff_seconds=args.standing_transfer_handoff_seconds)
     hand_names = {b:m.body(b).name.removeprefix('robot/') for b in range(m.nbody)
                   if m.body(b).name.startswith(('robot/rh_', 'robot/lh_'))}
-    physics = [native_grasp_sample(sim, 'leaf_handle_lever_col_n', handle_joint='leaf_handle_hinge')]
+    from doorbench.dexterous.bounded_evidence import BoundedEvidence
+    from itertools import islice
+    physics = BoundedEvidence(args.output/'physics-chunks')
+    physics.append(native_grasp_sample(sim, 'leaf_handle_lever_col_n', handle_joint='leaf_handle_hinge'))
     states = {key:[] for key in ('qpos', 'qvel', 'ctrl')}
     if args.standing_return_path:
         from doorbench.dexterous.standing_return import StandingReturnTeacher
@@ -208,7 +211,7 @@ def main():
         from doorbench.dexterous.standing_withdrawal_audit import clearance_pairs,environment_clearance,withdrawal_checks
         transfer=StandingWithdrawalTeacher(transfer,motors,args.standing_withdrawal_path)
         withdrawal_pairs=clearance_pairs(m)
-    traces = [];recorder=archive=None;controller_steps=[]
+    traces = [];recorder=archive=None;controller_steps=BoundedEvidence(args.output/'controller-chunks')
     if args.record_transitions:
         from doorbench.dexterous.native_transition_audit import NativeTransitionRecorder
         from doorbench.dexterous.native_transition_archive import NativeTransitionArchive
@@ -272,9 +275,9 @@ def main():
         report = audit_grasp_steps(physics,physics_dt=m.opt.timestep,expected_duration=args.seconds)
         if archive:
             archive.close(complete=controller_error is None)
-            with gzip.open(args.output/'controller-steps.json.gz','wt') as f:json.dump(controller_steps,f)
+            controller_steps.export(args.output/'controller-steps.json.gz')
             report['checks']['stance_solves_every_interval']=all(row['stance_status'] in ('solved','solved inaccurate') for row in controller_steps)
-            report['checks']['no_warning_intervals']=all(row.get('mujoco_warning_interval',{}).get('passed',False) for row in physics[1:])
+            report['checks']['no_warning_intervals']=all(row.get('mujoco_warning_interval',{}).get('passed',False) for row in islice(physics,1,None))
         if controller_error is not None:
             report['checks']['controller_completed']=False
             report['controller_error']=controller_error
@@ -300,8 +303,8 @@ def main():
                 report['checks']['standing_panel_started']=transfer.panel.started is not None
                 report['checks']['standing_panel_reference_completed']=transfer.info.get('panel_progress',0)>=.999
                 report['checks']['standing_panel_aperture_held']=bool(tail) and all(target-.02<=r['door_q']<=target+.05 for r in tail)
-                panel_rows=[r for r in physics if r['sim_time_s']>=transfer.panel_schedule.panels[0].start_time]
-                report['checks']['standing_panel_upright']=bool(panel_rows) and all(r['torso_tilt_deg']<=5. for r in panel_rows)
+                panel_rows=lambda:(r for r in physics if r['sim_time_s']>=transfer.panel_schedule.panels[0].start_time)
+                report['checks']['standing_panel_upright']=any(True for _ in panel_rows()) and all(r['torso_tilt_deg']<=5. for r in panel_rows())
                 report['standing_panel']=dict(scope='Privileged upright continuation to screened partial aperture, not traversal',started_s=transfer.panel_schedule.panels[0].started,target_aperture_rad=target,final=transfer.info,completed_segments=transfer.panel_schedule.completed)
                 if len(transfer.panel_schedule.panels)>1:report['checks']['all_panel_segments_executed']=len(transfer.panel_schedule.completed)==len(transfer.panel_schedule.panels)-1
         report.update(passed=all(report['checks'].values()),scope=__doc__,
@@ -310,17 +313,16 @@ def main():
             maximum_leaf_rad=max(r['door_q'] for r in physics),final_leaf_rad=physics[-1]['door_q'],
             maximum_bolt_retraction_m=max(r.get('bolt_slide_m',0) for r in physics),
             final_contacts=physics[-1]['pad_grasp'])
-        operation_rows = [r for r in physics if operation.started is not None and r['sim_time_s'] >= operation.started]
-        report['operation_digit_unload_samples'] = sum(not r['pad_grasp']['valid_pad_grasp'] for r in operation_rows)
-        report['operation_invalid_pad_patch_samples'] = sum(any(not c['pad_qualified'] for c in r['pad_grasp']['contacts']) for r in operation_rows)
+        operation_rows = lambda:(r for r in physics if operation.started is not None and r['sim_time_s'] >= operation.started)
+        report['operation_digit_unload_samples'] = sum(not r['pad_grasp']['valid_pad_grasp'] for r in operation_rows())
+        report['operation_invalid_pad_patch_samples'] = sum(any(not c['pad_qualified'] for c in r['pad_grasp']['contacts']) for r in operation_rows())
         if operation.started is not None:
             report['operation_reference'] = dict(palm_position_in_handle_m=operation.p_relative.tolist(),
                 palm_rotation_in_handle=operation.r_relative.tolist(),operation_start_s=operation.started,
                 opening_start_s=operation.open_started,press_seconds=operation.press_seconds,
                 opening_seconds=operation.opening_seconds,final_goals=operation.info)
         (args.output/'trace.json').write_text(json.dumps(traces)+'\n')
-        with gzip.open(args.output/'physics-steps.json.gz','wt') as stream:
-            json.dump(physics,stream)
+        physics.export(args.output/'physics-steps.json.gz')
         np.savez_compressed(args.output/'trajectory.npz',**states,
                             terminal_qpos=d.qpos.copy(),terminal_qvel=d.qvel.copy(),
                             terminal_ctrl=d.ctrl.copy(),terminal_time_s=float(d.time))
