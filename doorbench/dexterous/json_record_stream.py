@@ -1,4 +1,4 @@
-"""Read a JSON array of record objects without retaining the whole recording."""
+"""Stream JSON record arrays without retaining a second whole recording."""
 import json
 
 
@@ -40,3 +40,19 @@ def iter_json_object_array(stream, *, chunk_size=65536, max_record_chars=1677721
         buffer=buffer[1:];space()
     buffer=buffer[1:];space()
     if buffer:raise ValueError('Unexpected data after JSON record array')
+
+
+def write_json_record_array(stream, records):
+    """Match default json.dump(list(records)) bytes with one encode per record.
+
+    Encoding a nested record at once avoids one stream write per scalar/token.
+    Only the current encoded record is retained; callers own atomic publication.
+    """
+    stream.write('[')
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            raise TypeError('Expected record objects')
+        if index:
+            stream.write(', ')
+        stream.write(json.dumps(record))
+    stream.write(']')

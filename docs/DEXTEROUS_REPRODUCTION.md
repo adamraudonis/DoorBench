@@ -218,3 +218,6 @@ it records `waiting_for_storage` and does not start rsync; it neither stops the
 remote experiment nor extends its teardown deadline. The reserve is checked
 between copies, so retain additional headroom for large files and concurrent
 native exports. An unfinished collector can resume after capacity is restored.
+
+
+Isaac evidence serialization now encodes one record per write instead of issuing a write for each nested JSON token. The decoded JSON bytes match the previous default `json.dump` format exactly, including floating-point values; tests cover nested records, escaping and single-pass streaming. A 200-record actual Isaac checkpoint sample took 0.076 s versus 0.054 s locally with identical 1,342,166 decoded bytes. This is a serialization sample, not an end-to-end GPU speedup or batch-capacity measurement. Checkpoint frequency, full physical records and acceptance checks are unchanged. The already-running immutable hold030 source is unchanged; this improvement applies only to future source bundles.

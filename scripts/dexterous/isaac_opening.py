@@ -12,6 +12,7 @@ import math
 import time
 import os
 from pathlib import Path
+from doorbench.dexterous.json_record_stream import write_json_record_array
 
 
 def validate_traversal_mode(args):
@@ -927,13 +928,13 @@ def main():
         (out/'opening-qualification.json').write_text(json.dumps(continuous.opening_audit,indent=2)+'\n')
         if continuous.handoff is not None:
             (out/'continuation-handoff.json').write_text(json.dumps(continuous.handoff,indent=2)+'\n')
-        with gzip.open(out/'full-opening-steps.json.gz','wt') as stream:json.dump(full_opening_steps,stream)
+        with gzip.open(out/'full-opening-steps.json.gz','wt') as stream:write_json_record_array(stream,full_opening_steps)
         if not frozen_opening_report['passed']:
             raise ValueError('Independent opening prefix audit failed; traversal cannot continue')
 
     def save_traversal_evidence():
         if not continuous:return
-        with gzip.open(out/'traversal-steps.json.gz','wt') as stream:json.dump(traversal_steps,stream)
+        with gzip.open(out/'traversal-steps.json.gz','wt') as stream:write_json_record_array(stream,traversal_steps)
         (out/'continuous-controller.json').write_text(json.dumps(dict(info=continuous.info,
             failure=continuous.failure,handoffs=continuous.handoffs,opening_audit=continuous.opening_audit,
             handoff=continuous.handoff),indent=2)+'\n')
@@ -945,7 +946,7 @@ def main():
     def checkpoint_prefix():
         save_attained_left_plan()
         if a.sensor_balance_calibration:
-            with gzip.open(out/'balance-steps.partial.json.gz','wt') as stream:json.dump(balance_steps,stream)
+            with gzip.open(out/'balance-steps.partial.json.gz','wt') as stream:write_json_record_array(stream,balance_steps)
             balance_contact_stream.flush()
         # Periodic atomic checkpoints survive a native shutdown that bypasses
         # Python exceptions. They are explicitly incomplete, never scored passes.
@@ -954,16 +955,16 @@ def main():
         if physics_audit_enabled:
             np.savez_compressed(out/'acquisition-physics.partial.tmp.npz',**acquisition_states)
             os.replace(out/'acquisition-physics.partial.tmp.npz',out/'acquisition-physics.partial.npz')
-            with gzip.open(out/'acquisition-pad-steps.partial.tmp.gz','wt') as stream:json.dump(pad_steps,stream)
+            with gzip.open(out/'acquisition-pad-steps.partial.tmp.gz','wt') as stream:write_json_record_array(stream,pad_steps)
             os.replace(out/'acquisition-pad-steps.partial.tmp.gz',out/'acquisition-pad-steps.partial.json.gz')
         if full_opening:
-            with gzip.open(out/'full-opening-steps.partial.tmp.gz','wt') as stream:json.dump(full_opening_steps,stream)
+            with gzip.open(out/'full-opening-steps.partial.tmp.gz','wt') as stream:write_json_record_array(stream,full_opening_steps)
             os.replace(out/'full-opening-steps.partial.tmp.gz',out/'full-opening-steps.partial.json.gz')
         if sequence:
-            with gzip.open(out/'full-sequence-steps.partial.tmp.gz','wt') as stream:json.dump(sequence_steps,stream)
+            with gzip.open(out/'full-sequence-steps.partial.tmp.gz','wt') as stream:write_json_record_array(stream,sequence_steps)
             os.replace(out/'full-sequence-steps.partial.tmp.gz',out/'full-sequence-steps.partial.json.gz')
         if continuous:
-            with gzip.open(out/'traversal-steps.partial.tmp.gz','wt') as stream:json.dump(traversal_steps,stream)
+            with gzip.open(out/'traversal-steps.partial.tmp.gz','wt') as stream:write_json_record_array(stream,traversal_steps)
             os.replace(out/'traversal-steps.partial.tmp.gz',out/'traversal-steps.partial.json.gz')
             traversal_contact_stream.flush()
         (out/'partial-evidence.json').write_text(json.dumps(dict(status='incomplete',passed=False,
@@ -1349,7 +1350,7 @@ def main():
         save_attained_left_plan()
         if balance_contact_stream:
             balance_contact_stream.close()
-            with gzip.open(out/'balance-steps.json.gz','wt') as stream:json.dump(balance_steps,stream)
+            with gzip.open(out/'balance-steps.json.gz','wt') as stream:write_json_record_array(stream,balance_steps)
             failed_balance=dict(passed=False,scope=balance_scope,
                 error=str(run_error),duration_s=balance_steps[-1]['time_s'] if balance_steps else 0.,
                 physical_evidence_complete=False,teacher_fallback=False)
@@ -1360,11 +1361,11 @@ def main():
         (out/'trace.json').write_text(json.dumps(rows)+'\n')
         if physics_audit_enabled:
             np.savez_compressed(out/'acquisition-physics.npz',**acquisition_states)
-            with gzip.open(out/'acquisition-pad-steps.json.gz','wt') as stream:json.dump(pad_steps,stream)
+            with gzip.open(out/'acquisition-pad-steps.json.gz','wt') as stream:write_json_record_array(stream,pad_steps)
         if full_opening:
-            with gzip.open(out/'full-opening-steps.json.gz','wt') as stream:json.dump(full_opening_steps,stream)
+            with gzip.open(out/'full-opening-steps.json.gz','wt') as stream:write_json_record_array(stream,full_opening_steps)
         if sequence:
-            with gzip.open(out/'full-sequence-steps.json.gz','wt') as stream:json.dump(sequence_steps,stream)
+            with gzip.open(out/'full-sequence-steps.json.gz','wt') as stream:write_json_record_array(stream,sequence_steps)
         if continuous:
             traversal_contact_stream.close()
             try:freeze_opening_prefix()
@@ -1388,13 +1389,13 @@ def main():
     save_attained_left_plan()
     if balance_contact_stream:
         balance_contact_stream.close()
-        with gzip.open(out/'balance-steps.json.gz','wt') as stream:json.dump(balance_steps,stream)
+        with gzip.open(out/'balance-steps.json.gz','wt') as stream:write_json_record_array(stream,balance_steps)
     (out/'trace.json').write_text(json.dumps(rows)+'\n')
     if physics_audit_enabled:np.savez_compressed(out/'acquisition-physics.npz',**acquisition_states)
     if physics_audit_enabled:
-        with gzip.open(out/'acquisition-pad-steps.json.gz','wt') as stream:json.dump(pad_steps,stream)
+        with gzip.open(out/'acquisition-pad-steps.json.gz','wt') as stream:write_json_record_array(stream,pad_steps)
     if full_opening:
-        with gzip.open(out/'full-opening-steps.json.gz','wt') as stream:json.dump(full_opening_steps,stream)
+        with gzip.open(out/'full-opening-steps.json.gz','wt') as stream:write_json_record_array(stream,full_opening_steps)
     save_traversal_evidence()
     if traversal_contact_stream:traversal_contact_stream.close()
     (out/'contacts.json').write_text(json.dumps(all_contacts)+'\n')
@@ -1534,7 +1535,7 @@ def main():
                     max_motor_delivery_error_Nm=max_motor_delivery_error,
                     handoffs=sequence.handoffs,readiness_screen=sequence.readiness_screen,
                     blocked_reason=sequence.blocked_reason)
-                with gzip.open(out/'full-sequence-steps.json.gz','wt') as stream:json.dump(sequence_steps,stream)
+                with gzip.open(out/'full-sequence-steps.json.gz','wt') as stream:write_json_record_array(stream,sequence_steps)
                 (out/'full-sequence-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             (out/'operation-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             (out/'report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
@@ -1554,7 +1555,7 @@ def main():
                         all(r['right_hand_contact_count']==0 for r in sequence_steps if sequence.prep_started<=r['time_s']<=sequence.acquisition_started)),
                     body_solver_succeeded=sequence.body.controller.solver_failures==0,
                     continuous_walk_to_opening=sequence.acquisition_started is not None)
-                with gzip.open(out/'full-sequence-steps.json.gz','wt') as stream:json.dump(sequence_steps,stream)
+                with gzip.open(out/'full-sequence-steps.json.gz','wt') as stream:write_json_record_array(stream,sequence_steps)
             end=acquisition_states['time_s'][-1]
             full_report=dict(scope='Continuous live PhysX approach, acquisition and bimanual loaded aperture; no traversal or sensor-only claim' if sequence else 'Live PhysX contact-free acquisition, lever/latch operation and bimanual loaded aperture; no approach/traversal or sensor-only claim',
                 passed=all(full_checks.values()),checks=full_checks,physics_dt_s=dt,duration_s=end,

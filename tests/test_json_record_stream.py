@@ -24,3 +24,28 @@ def test_first_record_does_not_require_whole_recording_and_record_bound_applies(
     assert stream.tell()<=32
     with pytest.raises(ValueError,match='memory bound'):
         list(iter_json_object_array(io.StringIO('[{"x":"'+'x'*100+'"}]'),chunk_size=8,max_record_chars=32))
+
+
+@pytest.mark.parametrize('rows', [[], [{}], [
+    {'float': 1.2345678901234567, 'negative_zero': -0.0,
+     'nested': [True, False, None, {'unicode': '手', 'escape': '\\n'}]},
+    {'large': 10**30, 'tiny': 1e-250}]])
+def test_record_writer_matches_original_json_dump_bytes(rows):
+    from doorbench.dexterous.json_record_stream import write_json_record_array
+    expected = io.StringIO(); json.dump(rows, expected)
+    actual = io.StringIO(); write_json_record_array(actual, iter(rows))
+    assert actual.getvalue() == expected.getvalue()
+    assert list(iter_json_object_array(io.StringIO(actual.getvalue()))) == rows
+
+
+def test_record_writer_consumes_once_and_bounds_individual_writes():
+    from doorbench.dexterous.json_record_stream import write_json_record_array
+    class Sink:
+        def __init__(self): self.parts = []
+        def write(self, value): self.parts.append(value)
+    sink = Sink()
+    write_json_record_array(sink, ({'sample': n} for n in range(1000)))
+    assert max(map(len, sink.parts)) < 20
+    assert json.loads(''.join(sink.parts))[-1] == {'sample': 999}
+    with pytest.raises(TypeError, match='record objects'):
+        write_json_record_array(io.StringIO(), [1])
