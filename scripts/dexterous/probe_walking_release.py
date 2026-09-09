@@ -292,7 +292,7 @@ def main():
             self.opening._diagnostic_episode_offset=self.acquisition_started
             if a.whole_body_panel_plan and self.opening.push.started is not None:
                 if a.moving_body_recontact:
-                    if self.opening.whole_body_return_path is not None:
+                    if getattr(self.opening,'whole_body_return_path',None) is not None:
                         raise ValueError('Do not let a second legacy stance owner overwrite the moving-body target')
                     self.opening.push.update(t-self.acquisition_started,args[0],args[1],args[5],
                         kwargs['evidence']['left_palm_load_N'],args[6]['leaf'],True)
