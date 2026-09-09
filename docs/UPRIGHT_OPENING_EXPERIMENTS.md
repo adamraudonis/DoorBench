@@ -369,3 +369,50 @@ instead of 0.08 rad, with the same success threshold, original motor limits,
 controller and frozen source. It waits for024 to close before its own complete
 native prerequisite and any Isaac dispatch. Its Isaac budget is3300 wall seconds
 with the existing guard/export reserve; no outcome is claimed.
+
+
+The finger-velocity hypothesis was disproved for this embodiment: all18 right
+finger actuators have zero velocity bias, and the acquisition controller adds
+zero finger damping. The optional feedforward therefore adds exactly zero
+torque. Withdrawal005 reaches the identical terminal physical state as004;
+its independent audit is still running. The optional API is tested, but it is
+not an effective correction for this motor contract.
+
+A separate direct-release planner now starts from the verified resting grasp,
+without adapting an old canonical regrasp. Candidate001 separates material pads
+radially, holds body/feet/support pose, then lifts the arm. Its dense audit fails
+67/2001 samples because a curled middle fingertip catches the lever during the
+lift. Pose errors, upright posture, speed and final clearance otherwise meet
+the unchanged checks. Candidate002 instead extends the four fingers first;
+it remains an unstepped candidate. Planner source bytes are frozen beside each
+report and bound into the independent audit, alongside all prior source checks.
+
+
+Withdrawal005's162 raw transition chunks are byte-identical to004's verified
+archive; the velocity-gain explanation is therefore confirmed rather than
+inferred from a matching endpoint. [Failure and equivalence receipt](evidence/native-standing-hub-withdrawal-005.json).
+
+The direct extension candidate002 failed geometry; neutral finger extension
+is not clear of the door in this attained wrist orientation. Candidate003
+slides the radially separated hand toward the lever's free end before lifting.
+It has no invalid contact samples, but fails5 interpolated pose samples, the
+2rad/s speed limit and final4cm clearance. Candidate004 adds bounded upright
+whole-body IK with fixed feet and left palm; it is awaiting the dense audit.
+
+Pressure025 held the required aperture but lost valid index/middle fingertip
+surfaces in its native prerequisite. No Isaac rollout was dispatched.
+Pressure026 commands0.0815rad, between the two tested commands, under unchanged
+acceptance thresholds. To allow the native gate, Isaac run and export to finish
+on the already prepared node, the owned allocation's administrative lifetime
+ceiling was explicitly raised from12h to13h; both replacement shutdown guards
+were verified. This avoids another bootstrap and adds only a bounded interval.
+The current deadline is recorded in the guard-renewal receipt, not an open-ended
+allocation. No other agent's node was changed.
+
+
+Direct-release004 passes all2,001 independent dense samples: maximum fixed-pose
+error8.15µm, rotation error0.000024rad, torso tilt2.868°, joint speed0.602rad/s
+and final hand clearance56.3mm. It keeps the original body/feet/support-palm
+constraints. Native hub-withdrawal006 will test this route with the4N support
+profile, actual measured-release phase and full unchanged contact gates from
+the original closed-door reset. Geometry is not physical qualification.

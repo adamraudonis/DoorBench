@@ -47,7 +47,8 @@ def main():
     if sha(robot)!=manifest['inputs']['robot']['sha256'] or sha(door/'door.xml')!=manifest['inputs']['door']['door.xml']:raise ValueError('Physical model bytes changed')
     screen=json.loads(a.screen.read_text())
     if screen['source_trajectory_sha256']!=sha(source/'trajectory.npz'):raise ValueError('Candidate belongs to another attained state')
-    if screen['planner_source_sha256']!=sha(Path(__file__).resolve().parents[2]/'doorbench/dexterous/whole_body_ungrip_planner.py'):raise ValueError('Planner changed since candidate generation')
+    planner=Path(screen.get('planner_source_path',Path(__file__).resolve().parents[2]/'doorbench/dexterous/whole_body_ungrip_planner.py'))
+    if screen['planner_source_sha256']!=sha(planner):raise ValueError('Planner changed since candidate generation')
     with np.load(source/'trajectory.npz') as z:actual=z['terminal_qpos'].copy();start_time=float(z['terminal_time_s'])
     sim=DexterousDoorEnv(door,robot,json.loads(robot.with_suffix('.audit.json').read_text()))
     sim.reset(randomize=False,images=False);m,d=sim.m,sim.d;rq=sim.root_qadr
@@ -93,7 +94,7 @@ def main():
     clearance=min(float(mujoco.mj_geomDistance(m,d,g,h,.5,None)) for g in hand for h in scene)
     scalar=[m.jnt_qposadr[j] for j in range(m.njnt) if m.jnt_type[j]==mujoco.mjtJoint.mjJNT_HINGE and m.joint(j).name.startswith('robot/')]
     speed=float(np.max(abs(np.diff(np.array(sampled)[:,scalar],axis=0)/(a.duration/2000))))
-    inputs=[robot,door/'door.xml',source/'trajectory.npz',source/'report.json',source/'independent-pad-audit.json',whole_path,a.screen,Path(__file__)]
+    inputs=[robot,door/'door.xml',source/'trajectory.npz',source/'report.json',source/'independent-pad-audit.json',whole_path,a.screen,planner,Path(__file__)]
     result=dict(passed=not failures and clearance>=.04 and speed<=2.,samples=2001,physics_steps=0,duration_s=a.duration,initial_episode_time_s=start_time,maximum_position_error_m=peakp,maximum_rotation_error_rad=peakr,maximum_torso_tilt_deg=peakt,maximum_joint_reference_velocity_rad_s=speed,final_rh_environment_clearance_m=clearance,failures=failures,input_sha256={str(p):sha(p) for p in inputs},scope='Unstepped independent geometry and anatomy screen only; physical release remains unqualified')
     (a.screen.parent/'standing-audit.json').write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps({k:v for k,v in result.items() if k not in ('failures','input_sha256')}),flush=True)
