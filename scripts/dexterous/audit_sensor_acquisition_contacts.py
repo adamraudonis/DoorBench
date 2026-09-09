@@ -48,25 +48,37 @@ def raw_pad_evidence(model,raw,lever):
 
 
 def audit(trial):
-    trial=Path(trial);prov=json.loads((trial/'provenance.json').read_text());report=json.loads((trial/'report.json').read_text())
-    robot=Path(prov['parameters']['robot']);door=Path(prov['parameters']['door']);door=door if door.is_dir() else door.parent
-    if sha(robot)!=prov['robot_xml_sha256'] or sha(door/'door.xml')!=prov['door_xml_sha256']:raise ValueError('Actual source asset bytes changed')
+    trial=Path(trial);report=json.loads((trial/'report.json').read_text());array_format=(trial/'raw-transitions/manifest.json').exists()
+    if array_format:
+        provenance_name='manifest.json';physics_name='physics-steps.json.gz';prov=json.loads((trial/provenance_name).read_text());cfg=prov['configuration'];robot=Path(cfg['robot']);door=Path(cfg['door'])
+        robot_hash=prov['inputs']['robot']['sha256'];door_hash=prov['inputs']['door']['door.xml'];duration=report['expected_duration_s']
+    else:
+        provenance_name='provenance.json';physics_name='physics.jsonl.gz';prov=json.loads((trial/provenance_name).read_text());robot=Path(prov['parameters']['robot']);door=Path(prov['parameters']['door']);door=door if door.is_dir() else door.parent
+        robot_hash=prov['robot_xml_sha256'];door_hash=prov['door_xml_sha256'];duration=report['requested_duration_s']
+    if sha(robot)!=robot_hash or sha(door/'door.xml')!=door_hash:raise ValueError('Actual source asset bytes changed')
     sim=DexterousDoorEnv(door,robot,json.loads(robot.with_suffix('.audit.json').read_text()),frame_skip=1)
     m=sim.m;lever=m.geom('leaf_handle_lever_col_n').id
     n=valid_count=current=best=0;force_error=0.;mismatches=[];bad_patches=0;first_touch=first_valid=None;bestend=None
     min_final={k:float('inf') for k in ('ff','mf','rf','lf','th')};final_valid=True;final_count=0
-    raw_name='actual-transitions/manifest.json' if (trial/'actual-transitions/manifest.json').exists() else 'actual-transitions.jsonl.gz'
+    raw_name='raw-transitions/manifest.json' if array_format else 'actual-transitions/manifest.json' if (trial/'actual-transitions/manifest.json').exists() else 'actual-transitions.jsonl.gz'
     def actual_rows():
         if raw_name.endswith('manifest.json'):
-            yield from NativeTransitionArchive.read(trial/'actual-transitions',allow_incomplete=True)
+            yield from NativeTransitionArchive.read(trial/Path(raw_name).parent,allow_incomplete=not array_format)
         else:
             with gzip.open(trial/raw_name,'rt') as stream:
                 for text in stream:yield json.loads(text)
+    def physical_rows():
+        with gzip.open(trial/physics_name,'rt') as f:
+            if array_format:
+                rows=json.load(f)
+                if rows[0]['sim_time_s']!=0:raise ValueError('Missing actual t=0 reset')
+                yield from rows[1:]
+            else:
+                for line in f:yield json.loads(line)
     try:
-        with gzip.open(trial/'physics.jsonl.gz','rt') as f:
-            for line,rawline in itertools.zip_longest(f,actual_rows()):
+        for line,rawline in itertools.zip_longest(physical_rows(),actual_rows()):
                 if line is None or rawline is None:raise ValueError('Endpoint and actual-interval arrays have different lengths')
-                row=json.loads(line);raw=rawline
+                row=line;raw=rawline
                 t=n*.002;end=t+.002
                 for value,wanted in ((raw['interval_start_s'],t),(raw['geometry_time_s'],t),(raw['interval_end_s'],end),
                                      (row['contact_geometry_time_s'],t),(row['measurement_pose_time_s'],end)):
@@ -82,12 +94,12 @@ def audit(trial):
                     if first_valid is None:first_valid=t
                     if current>best:best=current;bestend=end
                 else:current=0
-                if t>=report['requested_duration_s']-.502-1e-9:
+                if t>=duration-.502-1e-9:
                     final_count+=1;final_valid=final_valid and result['valid_pad_grasp']
                     for k in min_final:min_final[k]=min(min_final[k],result['qualified_pad_forces_N'][k])
                 n+=1
     finally:sim.close()
-    checks=dict(physical_report_passed=report['passed'],complete_actual_interval_record=n==round(report['requested_duration_s']/.002),
+    checks=dict(physical_report_passed=report['passed'],complete_actual_interval_record=n==round(duration/.002),
         exact_classification=not mismatches,matching_qualified_pad_loads=force_error<1e-8,
         all_loaded_patches_original_distal=bad_patches==0,final_original_opposed_window=final_count>=251 and final_valid and best*.002>=.5)
     return dict(passed=all(checks.values()),checks=checks,interval_count=n,maximum_qualified_pad_force_difference_N=force_error,
@@ -95,7 +107,7 @@ def audit(trial):
         first_qualified_interval_start_s=first_valid,strongest_qualified_hold_s=best*.002,strongest_hold_end_s=bestend,
         final_half_second_minimum_pad_force_N={k:v if np.isfinite(v) else None for k,v in min_final.items()},final_window_intervals=final_count,
         scope='Independent actual-interval contact/frame reduction; no controller input, physics step or contact-force recomputation',
-        input_sha256={name:sha(trial/name) for name in ('provenance.json','report.json','physics.jsonl.gz',raw_name)},
+        input_sha256={name:sha(trial/name) for name in (provenance_name,'report.json',physics_name,raw_name)},
         auditor_source_sha256=sha(__file__))
 
 

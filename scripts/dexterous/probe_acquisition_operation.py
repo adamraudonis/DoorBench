@@ -91,6 +91,8 @@ def main():
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--seconds', type=float, default=22.)
     parser.add_argument('--press-seconds', type=float, default=5.)
+    parser.add_argument('--stance-profile',choices=['landed-foot-v1'])
+    parser.add_argument('--record-transitions',action='store_true')
     parser.add_argument('--portable-wrapper', action='store_true')
     parser.add_argument('--open-on-latch-clear', action='store_true')
     parser.add_argument('--operator-compliance-gain',type=float,default=0.)
@@ -114,7 +116,7 @@ def main():
     shutil.copy2(args.reference, args.output/'reference.json')
     sim = DexterousDoorEnv(args.door, args.robot, json.loads(args.robot.with_suffix('.audit.json').read_text()))
     m, d = sim.m, sim.d
-    teacher = AcquisitionTeacher(args.robot, motors, ref)
+    teacher = AcquisitionTeacher(args.robot, motors, ref,stance_profile=args.stance_profile)
     sim.reset(randomize=False, images=False)
     d.qpos[sim.root_qadr:sim.root_qadr+7] = teacher.initial_root
     ids = np.array([m.joint('robot/'+n).id for n in teacher.names])
@@ -143,7 +145,11 @@ def main():
                   if m.body(b).name.startswith(('robot/rh_', 'robot/lh_'))}
     physics = [native_grasp_sample(sim, 'leaf_handle_lever_col_n', handle_joint='leaf_handle_hinge')]
     states = {key:[] for key in ('qpos', 'qvel', 'ctrl')}
-    traces = []
+    traces = [];recorder=archive=None;controller_steps=[]
+    if args.record_transitions:
+        from doorbench.dexterous.native_transition_audit import NativeTransitionRecorder
+        from doorbench.dexterous.native_transition_archive import NativeTransitionArchive
+        recorder=NativeTransitionRecorder(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge');archive=NativeTransitionArchive(args.output/'raw-transitions')
     try:
         for step in range(round(args.seconds/m.opt.timestep)):
             if not args.portable_wrapper and operation.started is None and d.time >= 10.6-1e-8:
@@ -173,7 +179,9 @@ def main():
             else:
                 force, info = teacher.force(float(d.time),root,measured_joints,measured_velocities,np.r_[d.xpos[hb],d.xquat[hb]],loads)
             d.ctrl[aids] = force
-            row = audited_native_step(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')
+            if recorder:
+                recorder.before_step();sim.plant.step();row,raw=recorder.after_step();archive.write(raw);controller_steps.append(dict(time_s=float(d.time)-m.opt.timestep,**info))
+            else:row = audited_native_step(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')
             row['bolt_slide_m'] = float(d.qpos[m.jnt_qposadr[bj]])
             row['operation'] = goal_info
             physics.append(row)
@@ -189,6 +197,11 @@ def main():
             if not row['finite'] or row['torso_tilt_deg'] > 35:
                 break
         report = audit_grasp_steps(physics,physics_dt=m.opt.timestep,expected_duration=args.seconds)
+        if archive:
+            archive.close(complete=True)
+            with gzip.open(args.output/'controller-steps.json.gz','wt') as f:json.dump(controller_steps,f)
+            report['checks']['stance_solves_every_interval']=all(row['stance_status'] in ('solved','solved inaccurate') for row in controller_steps)
+            report['checks']['no_warning_intervals']=all(row.get('mujoco_warning_interval',{}).get('passed',False) for row in physics[1:])
         report['checks']['acquisition_precedes_operation'] = operation.started is not None
         report['checks']['operator_driven_to_release'] = max(r['handle_angle_rad'] for r in physics) >= .80 and max(r.get('bolt_slide_m',0) for r in physics) >= .011
         tail = [r for r in physics if r['sim_time_s'] >= args.seconds-.5-1e-8]

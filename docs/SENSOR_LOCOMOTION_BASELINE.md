@@ -162,3 +162,12 @@ python scripts/dexterous/probe_acquisition_teacher.py \
 Use the pinned environment interpreter on the GPU; its system Python does not
 provide the same hashing/runtime APIs. Rescreen and physically test against the
 exact destination robot bytes before claiming cross-engine results.
+
+The complete recorded native standing grasp also passes the
+[independent contact audit](evidence/native-standing-grasp-004.json): all 5,300
+intervals agree with recomputed pad classifications and forces, no loaded patch
+uses the wrong surface, and the opposed hold lasts 3.522 s through the endpoint.
+Final-half-second minimum forces are 1.900/1.545/1.226/1.682 N on the four finger
+pads and 7.460 N on the opposed thumb. This verifies the standing grasp, not an
+opening. The first standing operation trial retracts the latch but fails its
+held partial-opening criterion; bounded compliance compensation is being tested.
