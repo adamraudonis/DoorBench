@@ -30,12 +30,15 @@ PROFILE = {
     'position_subspace': 'THJ5/4/3 plus K_inverse times the THJ2/1 effort-tangent vector',
     'scope': 'instance-specific sensor-balanced motor route plus local tactile thumb relief; no learned or vision claim',
 }
+PROFILE_V2=dict(PROFILE,schema='doorbench.thumb-normal-admittance.v2',
+    interior_policy='Least-squares soft interior velocity desires when incompatible; original hard motion bounds and actual stop guard retained')
 
 
 def validate_profile(value):
-    if type(value) is not dict or set(value) != set(PROFILE):
+    expected=PROFILE_V2 if type(value) is dict and value.get('schema')==PROFILE_V2['schema'] else PROFILE
+    if type(value) is not dict or set(value) != set(expected):
         raise ValueError('Exact versioned thumb admittance profile required')
-    for key, wanted in PROFILE.items():
+    for key, wanted in expected.items():
         actual = value[key]
         if type(actual) is not type(wanted) or actual != wanted:
             raise ValueError('Unsupported thumb admittance setting: ' + key)
@@ -55,6 +58,26 @@ def intersect_scalar_bounds(column, low, high):
     if lower > upper + 1e-12:
         raise ValueError('Retained thumb posture span has incompatible bounds')
     return lower, upper
+
+
+def soft_interior_coefficient(column,low,high,hard_lower,hard_upper):
+    """Exact scalar convex hinge least squares inside unchanged hard bounds."""
+    c=np.asarray(column,float);lo=np.asarray(low,float);hi=np.asarray(high,float)
+    if (c.shape!=(2,) or lo.shape!=(2,) or hi.shape!=(2,) or
+            not np.isfinite(np.r_[c,lo,hi,hard_lower,hard_upper]).all() or
+            hard_lower>hard_upper or np.any(lo>hi)):
+        raise ValueError('Finite feasible hard bounds and two soft desires required')
+    knots=[hard_lower,hard_upper]
+    for scale,l,h in zip(c,lo,hi):
+        if abs(scale)>1e-12:knots.extend(np.clip([l/scale,h/scale],hard_lower,hard_upper))
+    knots=np.unique(knots);candidates=list(knots)
+    for a,b in zip(knots[:-1],knots[1:]):
+        mid=(a+b)/2;v=c*mid;active=(v<lo)|(v>hi);target=np.clip(v,lo,hi)
+        norm=float(c[active]@c[active])
+        if norm>0:candidates.append(float(np.clip(c[active]@target[active]/norm,a,b)))
+    def cost(x):
+        v=c*x;return float(np.sum((v-np.clip(v,lo,hi))**2))
+    return float(min(candidates,key=cost))
 
 
 class RobotThumbNormalAdmittance:
@@ -196,8 +219,17 @@ class RobotThumbNormalAdmittance:
         high[:3] = np.minimum(high[:3], np.maximum(need_hi[:3], low[:3]))
         lower = list(low[:3]); upper = list(high[:3])
         a,b = intersect_scalar_bounds(basis[3:,3], low[3:], high[3:])
-        required_a,required_b = intersect_scalar_bounds(basis[3:,3], need_lo[3:], need_hi[3:])
-        a,b = max(a,min(required_a,b)),min(b,max(required_b,a))
+        soft_conflict=False
+        try:
+            required_a,required_b = intersect_scalar_bounds(basis[3:,3], need_lo[3:], need_hi[3:])
+            a,b = max(a,min(required_a,b)),min(b,max(required_b,a))
+        except ValueError:
+            if self.profile['schema']!=PROFILE_V2['schema']:raise
+            # Desired inward velocities are soft objectives, not joint limits.
+            # They can conflict in the single actuated flexion tangent. Admit
+            # only the best compromise within every original hard bound.
+            a=b=soft_interior_coefficient(basis[3:,3],need_lo[3:],need_hi[3:],a,b)
+            soft_conflict=True
         lower.append(a); upper.append(b)
         lower,upper = np.asarray(lower),np.asarray(upper)
         if np.any(lower > upper+1e-12): raise ValueError('Infeasible bounded thumb velocity')
@@ -218,6 +250,7 @@ class RobotThumbNormalAdmittance:
         result = dict(goals); result.update(dict(zip(NAMES,self.target.tolist())))
         pressure_tangent_error = float(abs(pressure @ (self.gain*velocity[3:])))
         return result, dict(thumb_admittance_started=True, thumb_admittance_reference_offset_m=self.reference_offset.tolist(),
+            thumb_admittance_soft_interior_conflict=soft_conflict,
             thumb_admittance_reference_velocity_m_s=reference_velocity.tolist(), thumb_admittance_goal_velocity_rad_s=velocity.tolist(),
             thumb_admittance_filtered_local_load_N=self.filtered_force, thumb_admittance_resultant_sensor_N=self.filtered_vector.tolist(),
             thumb_admittance_direction_palm=direction.tolist(), thumb_admittance_position_error_m=(self.anchor_position+self.reference_offset-position).tolist(),

@@ -5,6 +5,7 @@ Run as a detached local process before launching the trial. A copied partial
 snapshot is explicitly unverified; task success is never inferred by this tool.
 """
 import argparse
+import fcntl
 import hashlib
 import json
 import os
@@ -19,8 +20,13 @@ REMOTE_PROBE=r'''
 import hashlib,json,os
 from pathlib import Path
 p=Path(INPUT['remote']);pid=None;alive=False
+def digest(path):
+ h=hashlib.sha256()
+ with path.open('rb') as stream:
+  for chunk in iter(lambda:stream.read(1024*1024),b''):h.update(chunk)
+ return h.hexdigest()
 try:
- pid=int((p/'run.pid').read_text().strip())
+ pid=int((p/INPUT['pid_file']).read_text().strip())
  stat=Path('/proc/'+str(pid)+'/stat').read_text().rsplit(')',1)[1].split()
  alive=stat[0]!='Z'
 except (OSError,ValueError):pass
@@ -30,7 +36,7 @@ if INPUT['manifest'] and result['terminal'] and pid and not alive:
  for f in sorted(p.rglob('*')):
   if f.is_symlink():raise ValueError('Archive may not silently follow remote symlinks')
   if f.is_file() and '__pycache__' not in f.parts and not f.name.endswith(('.writing','.tmp','.pyc')):
-   result['files'][str(f.relative_to(p))]=dict(bytes=f.stat().st_size,sha256=hashlib.file_digest(f.open('rb'),'sha256').hexdigest())
+   result['files'][str(f.relative_to(p))]=dict(bytes=f.stat().st_size,sha256=digest(f))
 print(json.dumps(result))
 '''
 
@@ -57,8 +63,17 @@ def collect(a):
     if not a.host or a.host.startswith('-') or any(c.isspace() for c in a.host):raise ValueError('Invalid SSH host')
     if not Path(a.remote).is_absolute() or not 1<=a.port<=65535:raise ValueError('Absolute remote path and valid port required')
     if not time.time()<a.deadline or not 5<=a.interval<=60:raise ValueError('Future bounded deadline and 5..60s interval required')
-    target=a.destination.resolve();target.mkdir(parents=True,exist_ok=False)
+    target=a.destination.resolve()
     receipt=target.with_name(target.name+'-collector.json');log=target.with_name(target.name+'-collector.log')
+    target.parent.mkdir(parents=True,exist_ok=True)
+    lock=target.with_name(target.name+'-collector.lock').open('a')
+    fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    if a.resume:
+        old=json.loads(receipt.read_text())
+        if old['remote']!=a.remote or old['destination']!=str(target) or old.get('final_bytes_verified'):
+            raise ValueError('Resume requires the same unfinished evidence archive')
+        target.mkdir(exist_ok=True)
+    else:target.mkdir(parents=True,exist_ok=False)
     ssh=['ssh','-o','BatchMode=yes','-o','ConnectTimeout=10','-i',str(a.key.expanduser()),'-p',str(a.port),a.host]
     stopped=False
     def stop(*_):
@@ -71,7 +86,7 @@ def collect(a):
     def save(**changes):
         state.update(changes,heartbeat_unix=time.time());atomic_json(receipt,state)
     def probe(manifest=False):
-        code='INPUT='+repr(dict(remote=a.remote,terminal=a.terminal,manifest=manifest))+'\n'+REMOTE_PROBE
+        code='INPUT='+repr(dict(remote=a.remote,terminal=a.terminal,pid_file=a.pid_file,manifest=manifest))+'\n'+REMOTE_PROBE
         r=subprocess.run(ssh+['python3','-'],input=code,text=True,capture_output=True,timeout=90,check=True)
         return json.loads(r.stdout)
     save(status='waiting_for_run')
@@ -108,6 +123,8 @@ def main():
     p.add_argument('--key',type=Path,required=True);p.add_argument('--remote',required=True)
     p.add_argument('--destination',type=Path,required=True);p.add_argument('--deadline',type=float,required=True)
     p.add_argument('--terminal',default='balance-report.json');p.add_argument('--interval',type=float,default=30)
+    p.add_argument('--pid-file',default='run.pid',help='Process receipt relative to the copied directory')
+    p.add_argument('--resume',action='store_true',help='Resume the same unfinished archive after its worker exits')
     p.add_argument('--detach',action='store_true');a=p.parse_args()
     if a.detach:
         argv=[arg for arg in sys.argv[1:] if arg!='--detach']

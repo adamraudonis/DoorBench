@@ -13,6 +13,7 @@ from doorbench.dexterous.sensor_hierarchical_digit_force import HIERARCHICAL_PRO
 from doorbench.dexterous.sensor_thumb_flexion_force import THUMB_PROTOCOL
 from doorbench.dexterous.tactile_contact_mode import THUMB_MODE_PROTOCOL
 from doorbench.dexterous.thumb_normal_admittance import RobotThumbNormalAdmittance,PROFILE,NAMES,intersect_scalar_bounds,validate_profile
+from doorbench.dexterous.thumb_normal_admittance import PROFILE_V2,soft_interior_coefficient
 from doorbench.dexterous.sensor_thumb_admittance import SensorThumbAdmittanceController
 
 
@@ -34,6 +35,27 @@ def test_original_effort_tangent_and_robot_local_jacobian(authored):
         plus=c.geometry(q+delta)[0];minus=c.geometry(q-delta)[0]
         np.testing.assert_allclose((plus-minus)/2e-6,jp[:,i],atol=1e-8,rtol=0)
     assert np.linalg.matrix_rank(jp@B)==3 and c.d.time==0. and c.mapper.d.time==0.
+
+
+def test_actual_conflicting_soft_desires_keep_original_slew_bounds():
+    column=np.array([.25959080439030596,-1.])
+    lo=np.array([.006774682591264847,-.025959070536406448])
+    hi=np.array([.6699066825912647,.8803404294635935])
+    a,b=.0255692299974759,.0263692299974759
+    with pytest.raises(ValueError):intersect_scalar_bounds(column,lo,hi)
+    u=soft_interior_coefficient(column,lo,hi,a,b)
+    assert a<=u<=b
+    samples=np.linspace(a,b,10001)
+    def cost(x):return np.sum((column*x-np.clip(column*x,lo,hi))**2)
+    assert cost(u)<=min(map(cost,samples))+1e-16
+    assert cost(u)>0  # Report the unavoidable soft deficit; do not call it satisfied.
+    previous=np.array([.006741291269302396,-.0259692299974759])
+    assert max(abs(column*u-previous))<=.0004
+    assert validate_profile(PROFILE_V2)==PROFILE_V2
+
+
+def test_soft_desires_never_widen_infeasible_hard_bounds():
+    with pytest.raises(ValueError):soft_interior_coefficient([1,-1],[0,0],[1,1],.2,.1)
 
 
 def test_normalized_calculator_and_original_xml_share_actual_policy_gain(authored):
