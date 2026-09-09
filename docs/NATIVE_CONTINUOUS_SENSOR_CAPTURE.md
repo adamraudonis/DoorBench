@@ -35,3 +35,23 @@ inputs, next_actions = episode.sequence(0, 32)
 ```
 
 This is teacher imitation data from **one slow native episode**, not a trained sensor policy, varied-start result, Isaac success or generalization score. Full sensor-only rollouts remain required. See [the native teacher milestone](CONTINUOUS_NATIVE_TRAVERSAL.md) and [the remaining plan](DEXTEROUS_NEXT_STEPS.md).
+
+## First continuous training experiment
+
+`train_native_continuous.py` starts fresh weights and accumulates both recorded and actor-owned previous-action histories over the entire source before each optimizer step. Numeric recurrent state spans all 63,995 examples; gradients are truncated into 32-step chunks. It preserves checkpoints, input/source identities, coverage, losses and interruptions. An interrupted partial source pass never updates weights.
+
+```bash
+PYTHONPATH=. OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python scripts/dexterous/train_native_continuous.py \
+  --run out/continuous-opening-traversal-003-sensors \
+  --camera-variant out/continuous-opening-traversal-003-camera-v1 \
+  --output out/native-continuous-student-001 --iterations 1 --max-wall-seconds 1800
+```
+
+The first complete CPU pass finished in 512.43 seconds. Its single optimizer update processed all 63,995 examples, with pre-update mixed normalized-force MSE 0.02809. The subsequent live actor **fell after 0.296 seconds**, without touching or opening the door; force delivery was exact and no teacher assistance was used. A single pass does not establish learned balance. Its subsequent live-physics check uses `evaluate_native_sensor_policy.py`, which loads the actual plant and exporter calibration independently of the checkpoint, starts at the archived reset, and passes only current sensor packets to the actor. A two-step fixture matches every initial sensor field and both images exactly; original motor forces are delivered without error. The first fixture exposed an omitted scenario-tracker initialization before stepping, corrected in the second fixture. Neither is a task success.
+
+```bash
+PYTHONPATH=. python scripts/dexterous/evaluate_native_sensor_policy.py \
+  --teacher-run out/continuous-opening-traversal-003-sensors \
+  --checkpoint out/native-continuous-student-001/actor.pt \
+  --output out/native-continuous-student-001-rollout
+```

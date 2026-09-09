@@ -22,9 +22,14 @@ PARAMETER_VALUES=dict(schema='doorbench.scripted-sensor-acquisition.v1',allow_to
 
 
 def validate_parameters(parameters):
-    if type(parameters) is not dict or set(parameters)!=set(PARAMETER_VALUES)|{'scope','source_reference_sha256'}:
+    if type(parameters) is not dict:raise ValueError('Require acquisition parameters')
+    expected=dict(PARAMETER_VALUES)
+    if 'tactile_reflex_profile' in parameters:
+        from .tactile_grasp_reflex import PROFILE
+        expected.update(tactile_reflex_profile=PROFILE,feedback_profile='finger-distal-pressure-v1')
+    if set(parameters)!=set(expected)|{'scope','source_reference_sha256'}:
         raise ValueError('Require the exact qualified acquisition parameter schema')
-    for key,wanted in PARAMETER_VALUES.items():
+    for key,wanted in expected.items():
         value=parameters[key]
         if isinstance(wanted,bool):valid=type(value) is bool and value==wanted
         elif isinstance(wanted,(int,float)):valid=_number(value) and value==wanted
@@ -91,7 +96,8 @@ class SensorAcquisitionBalanceRuntime(SensorBalanceRuntime):
         self._controller=SensorReachBalanceController(robot_xml,copy.deepcopy(motors),copy.deepcopy(layout),calibration['desired_posture'],
             physics_dt_s=.002,gravity_correction=calibration['gravity_correction'],allow_torso_yaw=True,
             maximum_goal_speed_radps=parameters['maximum_goal_speed_radps'],finger_impedance_multiplier=parameters['finger_impedance_multiplier'],
-            finger_velocity_damping=parameters['finger_velocity_damping'],finger_target_velocity_damping=True)
+            finger_velocity_damping=parameters['finger_velocity_damping'],finger_target_velocity_damping=True,
+            tactile_reflex_profile=parameters.get('tactile_reflex_profile'))
         self.goal_names=tuple(self._controller.goal_names)
         self.goal_motor_names=tuple(self._controller.balance.actions[i] for i in self._controller.arm_motors)
         if self.goal_names!=self._route.names or len(self.goal_motor_names)!=26:raise ValueError('Changed reach motor/joint scope')

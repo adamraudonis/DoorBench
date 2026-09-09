@@ -23,7 +23,8 @@ from doorbench.dexterous.isaac_readiness import load_ready_receipt, ready_direct
 REFERENCE = 'configs/dexterous/door55-precurl-v2/reference.json'
 CALIBRATION = 'configs/dexterous/sensor-balance-v1.json'
 SCHEDULES = {'reach':'configs/dexterous/sensor-reach-balance-feedforward-v3.json',
-             'grasp':'configs/dexterous/sensor-acquisition-balance-v1.json'}
+             'grasp':'configs/dexterous/sensor-acquisition-balance-v1.json',
+             'grasp-pressure':'configs/dexterous/sensor-acquisition-pressure-v1.json'}
 
 
 def usd_dependencies(paths):
@@ -249,7 +250,7 @@ def execute(plan):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--receipt',type=Path);p.add_argument('--output',type=Path)
-    p.add_argument('--task',choices=('reach','grasp'),default='reach')
+    p.add_argument('--task',choices=tuple(SCHEDULES),default='reach')
     p.add_argument('--joint-passive-profile',choices=('legacy-tanh-v1','backend-dry-v2'),default='legacy-tanh-v1')
     p.add_argument('--sensor-gyro-profile',choices=('backend-angular-velocity-v1','pose-delta-angle-v1'),default='backend-angular-velocity-v1',
                    help='Explicit future Isaac sensor semantics; native preparation does not qualify this backend producer')

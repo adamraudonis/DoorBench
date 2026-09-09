@@ -75,8 +75,9 @@ def main():
             actual_joint_position={n:float(trajectory['qpos'][i+1,k]) for n,k in addresses.items()}))
     if next(raw_stream,None) is not None:raise ValueError('Additional unmatched raw contact intervals')
     raw_stream.close();scene.close()
+    from doorbench.dexterous.tactile_grasp_reflex import archived_reflex_inputs
     scored=evaluate_sensor_acquisition_balance(rows,original['checks'],robot_xml=a.robot,motors=motors,initial_root13_actororigin=initial_root,
-        initial_joint_position=initial,initial_hand_contact_count=int(initial_hand_count),initial_door_position=initial_door,calibration=a.calibration,protocol=a.protocol,joint_route=a.joint_route)
+        initial_joint_position=initial,initial_hand_contact_count=int(initial_hand_count),initial_door_position=initial_door,calibration=a.calibration,protocol=a.protocol,joint_route=a.joint_route,reflex_inputs=archived_reflex_inputs(run,engine='native'))
     report=dict(scope=__doc__,source_run=str(run),independent_evaluation=scored,physics_steps_in_evaluator=0,
         robot_sha256=sha(a.robot),calibration_sha256=sha(a.calibration),protocol_sha256=sha(a.protocol),joint_route_sha256=sha(a.joint_route),script_sha256=sha(__file__),
         evaluator_sha256=sha(Path(__file__).parents[2]/'doorbench/dexterous/sensor_acquisition_evaluation.py'),

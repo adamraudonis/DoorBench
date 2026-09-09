@@ -89,11 +89,15 @@ def main():
             if a.robot is None:raise ValueError('Acquisition audit requires the original robot-only XML for FK')
             names+=['balance-acquisition-reset.json','balance-acquisition-protocol.json','balance-acquisition-route.json']
             reset=json.loads((run/'balance-acquisition-reset.json').read_text())
+            from doorbench.dexterous.tactile_grasp_reflex import archived_reflex_inputs
+            pressure=json.loads((run/'balance-acquisition-protocol.json').read_text())['parameters'].get('tactile_reflex_profile')
+            reflex_inputs=archived_reflex_inputs(run,engine='isaac') if pressure else None
+            if pressure:names+=['sensors/layout.json','sensors/actor-sensors.npz','sensors/actor-initial-decision.npz']
             scored=evaluate_sensor_acquisition_balance(steps,declared.get('original_physics_checks'),
                 robot_xml=a.robot,motors=json.loads((run/'motor-contract.json').read_text()),
                 initial_root13_actororigin=reset['root13_actororigin'],initial_joint_position=reset['joint_position'],
                 initial_hand_contact_count=reset['hand_contact_count'],initial_door_position=reset['initial_door_position'],
-                calibration=run/'sensor-balance-calibration.json',protocol=run/'balance-acquisition-protocol.json',joint_route=run/'balance-acquisition-route.json')
+                calibration=run/'sensor-balance-calibration.json',protocol=run/'balance-acquisition-protocol.json',joint_route=run/'balance-acquisition-route.json',reflex_inputs=reflex_inputs)
         else:
             # An exception-prefix report has no completed qualification schema.
             # Preserve that failure instead of crashing or inventing a pass.

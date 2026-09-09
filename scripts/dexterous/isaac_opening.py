@@ -1027,6 +1027,9 @@ def main():
                     door_position=door.data.joint_pos[0,[dnames.index(n) for n in ('leaf_handle_hinge','leaf_hinge','leaf_latch_bolt_slide')]].cpu().numpy(),
                     right_hand_forces_world=hand_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().sum(axis=1))
                 packet=sensor_recorder.builder.observe(now_s=step*dt,previous_action=sensor_actor.previous_action)
+                if a.sensor_acquisition_protocol and getattr(sensor_actor._controller,'reflex',None) is not None:
+                    if step==0:pressure_inputs={k:[] for k in ('tactile','sensor_time_s','sensor_valid')}
+                    for k in pressure_inputs:pressure_inputs[k].append(packet[k].copy())
                 forces=sensor_actor.force(packet,now_s=step*dt)
                 if step==0:sensor_recorder.record_initial_decision(packet,forces)
                 teacher_info=dict(phase='sensor_policy',runtime_inputs='numeric robot sensor packet and local acquisition clock',teacher_fallback=False) if not a.sensor_balance_calibration else dict(
@@ -1379,7 +1382,8 @@ def main():
                     initial_hand_contact_count=balance_reach_initial['hand_contact_count'],
                     initial_door_position=balance_reach_initial['initial_door_position'],
                     calibration=a.sensor_balance_calibration,protocol=a.sensor_acquisition_protocol,
-                    joint_route=a.sensor_acquisition_route,physics_dt_s=dt,expected_duration_s=a.seconds)
+                    joint_route=a.sensor_acquisition_route,physics_dt_s=dt,expected_duration_s=a.seconds,
+                    reflex_inputs=(sensor_recorder.layout,pressure_inputs) if getattr(sensor_actor._controller,'reflex',None) is not None else None)
             elif a.sensor_reach_protocol:
                 from doorbench.dexterous.sensor_reach_evaluation import evaluate_sensor_reach_balance
                 balance_report=evaluate_sensor_reach_balance(balance_steps,balance_checks,

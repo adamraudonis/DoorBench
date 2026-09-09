@@ -78,7 +78,7 @@ class AcquisitionEvaluationRobot:
 
 
 def evaluate_sensor_acquisition_balance(rows,physics_checks,*,robot_xml,motors,initial_root13_actororigin,
-        initial_joint_position,initial_hand_contact_count,initial_door_position,calibration,protocol,joint_route,physics_dt_s=.002,expected_duration_s=19.):
+        initial_joint_position,initial_hand_contact_count,initial_door_position,calibration,protocol,joint_route,physics_dt_s=.002,expected_duration_s=19.,reflex_inputs=None):
     """Preserve physical gates; score coupled fingers in commanded motor space.
 
 Every row contains the previous applied30joint/26motor goals plus the actual
@@ -89,7 +89,7 @@ robot-only FK. Neither target nor actual body pose is a runtime observation.
     """
     if not _number(physics_dt_s) or physics_dt_s!=.002 or not _number(expected_duration_s) or expected_duration_s!=19.:
         raise ValueError('Frozen reach qualification requires nineteen seconds at2ms')
-    errors=[];model=None;initial_root=None;initial_q=None
+    errors=[];model=None;initial_root=None;initial_q=None;reflex=None
     initial_valid=(type(initial_hand_contact_count) is int and initial_hand_contact_count>=0 and type(initial_door_position) is dict and
         set(initial_door_position)=={'leaf_hinge','leaf_handle_hinge'} and all(_number(v) for v in initial_door_position.values()))
     if not initial_valid:errors.append('Missing actual initial door/contact evidence')
@@ -97,6 +97,13 @@ robot-only FK. Neither target nor actual body pose is a runtime observation.
         model=AcquisitionEvaluationRobot(robot_xml,motors,calibration,protocol,joint_route)
         initial_root=_pose(initial_root13_actororigin);initial_q=_named(initial_joint_position,model.names)
         if np.max(abs(initial_q-model.desired))>1e-6:raise ValueError('Actual initial joints differ from frozen calibration')
+        reflex=None
+        if model.parameters.get('tactile_reflex_profile'):
+            from .tactile_grasp_reflex import TactileGraspReflex
+            if reflex_inputs is None:raise ValueError('Require actual causal tactile inputs for feedback-goal reconstruction')
+            layout,packets=reflex_inputs
+            if len(packets['tactile'])!=len(rows):raise ValueError('Incomplete tactile feedback inputs')
+            reflex=TactileGraspReflex(layout,dict(zip(model.names,model.joint_limits)))
     except (ValueError,KeyError,TypeError,OverflowError) as exc:errors.append('Static evaluator/reset: '+str(exc))
     physics_valid=type(physics_checks) is dict and bool(physics_checks) and all(type(k) is str and type(v) is bool for k,v in physics_checks.items())
     families_valid=physics_valid and all(any(k in physics_checks for k in family) for family in PHYSICS_FAMILIES)
@@ -125,6 +132,11 @@ robot-only FK. Neither target nor actual body pose is a runtime observation.
                 if type(bad) is not int or not 0<=bad<=count:raise ValueError('Invalid unintended hand-contact count')
                 pad=evaluate_pad_evidence(row['pad_evidence'],time_s=float(t))
                 target,coordinates=model.target(i*.002)
+                if reflex is not None:
+                    packet={key:np.asarray(values[i]) for key,values in packets.items()}
+                    goals=reflex.apply(packet,i*.002,dict(zip(model.goal_names,target[model.indices])))
+                    target[model.indices]=[goals[n] for n in model.goal_names]
+                    coordinates=(model.matrix@target)[model.goal_motors]
                 goals_match=goals_match and bool(np.max(abs(np.array(values)-target[model.indices]))<1e-9)
                 motor_goals_match=motor_goals_match and bool(np.max(abs(np.array(motor_values)-coordinates))<1e-9)
                 actual_coordinates=(model.matrix@q)[model.goal_motors];actual_motor_values.append(actual_coordinates)

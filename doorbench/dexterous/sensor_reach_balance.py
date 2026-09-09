@@ -13,7 +13,7 @@ class SensorReachBalanceController:
                  *, physics_dt_s=.002, image_shape=(128,128,3), gravity_correction=.2,
                  maximum_goal_speed_radps=1.5, allow_torso_yaw=False,
                  finger_impedance_multiplier=1., finger_velocity_damping=0.,
-                 finger_target_velocity_damping=False):
+                 finger_target_velocity_damping=False, tactile_reflex_profile=None):
         self.balance=SensorBalanceController(robot_xml,motor_contract,sensor_layout,desired_posture,
             physics_dt_s=physics_dt_s,image_shape=image_shape,gravity_correction=gravity_correction)
         if type(allow_torso_yaw) is not bool:raise ValueError('Declare torso yaw scope explicitly')
@@ -42,6 +42,12 @@ class SensorReachBalanceController:
         self.balance.kp[finger]*=self.finger_impedance_multiplier
         self.balance.bias[finger,1]*=self.finger_impedance_multiplier
         self.balance.bias[finger,2]-=self.finger_velocity_damping
+        self.reflex=None
+        if tactile_reflex_profile is not None:
+            from .tactile_grasp_reflex import TactileGraspReflex, PROFILE
+            if tactile_reflex_profile!=PROFILE:raise ValueError('Unknown tactile reflex profile')
+            limits={n:self.balance.m.jnt_range[j].copy() for n,j in zip(self.goal_names,self.joint_ids)}
+            self.reflex=TactileGraspReflex(sensor_layout,limits,physics_dt_s=physics_dt_s)
         self.reset_episode()
 
     @property
@@ -63,6 +69,7 @@ class SensorReachBalanceController:
         self.balance.bias[:,0]=self.original_constant_bias
         self.last_goals=self.balance.desired[self.indices].copy()
         self.failed_reason=None;self.info={}
+        if self.reflex is not None:self.reflex.reset()
 
     def force(self, packet, *, now_s, joint_goals=None):
         """Return61 capped forces from sensors and explicitly scoped joint targets.
@@ -74,6 +81,9 @@ class SensorReachBalanceController:
         if self.failed_reason is not None:raise RuntimeError('Arm inference requires reset_episode: '+self.failed_reason)
         try:
             b=self.balance
+            if self.reflex is not None:
+                if joint_goals is None:raise ValueError('Tactile reflex requires explicit nominal targets every tick')
+                joint_goals=self.reflex.apply(packet,now_s,joint_goals)
             if joint_goals is None:goals=self.last_goals.copy()
             else:
                 if type(joint_goals) is not dict or set(joint_goals)!=set(self.goal_names):
@@ -108,6 +118,7 @@ class SensorReachBalanceController:
                 finger_target_velocity_damping=self.finger_target_velocity_damping,
                 goal_motor_velocity_radps=target_velocity[self.arm_motors].tolist(),
                 unchanged_balance_targets='calibrated pelvis/legs and left upper body; body estimate from encoders/IMU/touch only')
+            if self.reflex is not None:self.info['tactile_grasp_reflex']=dict(self.reflex.info)
             return force,dict(self.info)
         except Exception as exc:
             self.failed_reason=type(exc).__name__+': '+str(exc)

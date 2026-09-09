@@ -38,9 +38,9 @@ The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock
 |---|---|---|
 | MuJoCo, privileged H1/Shadow teacher | Uninterrupted approach, grasp, handle operation, opening, release and traversal; **47/47 task + 16/16 independent archive checks**; exact same-start repeat | September 9, 2026, 02:34 |
 | Isaac, scripted sensor-feedback reach | **20/20 reach + 14/14 physics checks** | September 8, 2026, 20:04 |
-| Isaac, scripted sensor-feedback grasp | **Failed** sustained loading/contact anatomy; mechanics checks pass | September 8, 2026, 20:14 |
+| Isaac, scripted sensor-feedback grasp | **22/23 checks; failed sustained opposed hold**; zero invalid loaded patches | September 9, 2026, 03:33 |
 
-The native sequence takes **127.99 seconds** and uses privileged state; it is not a natural-speed motion or learned vision/tactile policy. Complete Isaac traversal, varied-start repeatability and catalogue coverage remain unfinished. [Native evidence and replay instructions](docs/CONTINUOUS_NATIVE_TRAVERSAL.md) · [Current progress](docs/DEXTEROUS_NEXT_STEPS.md) · [Isaac grasp evidence](docs/SENSOR_ACQUISITION_DRY_ISAAC_001.md) · [Prepare a sensor demo](docs/ISAAC_SENSOR_DEMO_PREPARATION.md).
+The native sequence takes **127.99 seconds** and uses privileged state; it is not a natural-speed motion or learned vision/tactile policy. Complete Isaac traversal, varied-start repeatability and catalogue coverage remain unfinished. [Native evidence and replay instructions](docs/CONTINUOUS_NATIVE_TRAVERSAL.md) · [Current progress](docs/DEXTEROUS_NEXT_STEPS.md) · [Isaac grasp evidence](docs/ISAAC_TACTILE_GRASP.md) · [Prepare a sensor demo](docs/ISAAC_SENSOR_DEMO_PREPARATION.md).
 
 [Current plan and measured progress](docs/DEXTEROUS_NEXT_STEPS.md) · [Historical recordings, run times and discovered limitations](docs/ISAAC_HANDLE_DEMO.md).
 
