@@ -41,7 +41,9 @@ class DoorOperationTeacher:
                  operator_target=.87, release_operator_threshold=.80,
                  release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True,
                  operator_compliance_gain=0., operator_compliance_limit=.15,
-                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0.):
+                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False):
+        if type(fixed_pad_control) is not bool:raise ValueError('Explicit contact-controller flag required')
+        self.fixed_pad_control=fixed_pad_control;self.pad_control=None
         self.grasp_offset=np.asarray(grasp_offset_in_handle_m,dtype=float)
         if self.grasp_offset.shape!=(3,) or not np.isfinite(self.grasp_offset).all() or np.linalg.norm(self.grasp_offset)>.01:
             raise ValueError('Grasp offset must be a finite handle-frame vector within 10 mm')
@@ -96,6 +98,9 @@ class DoorOperationTeacher:
         # FK is from the current measured robot state just consumed by force().
         self.p_relative = hr.T@(teacher.d.site_xpos[teacher.palm]-hp)
         self.r_relative = hr.T@teacher.d.site_xmat[teacher.palm].reshape(3,3)
+        if self.fixed_pad_control:
+            from .operation_pad_control import OperationPadControl
+            self.pad_control=OperationPadControl(teacher,handle_pose)
         self.initial_handle = angles['operator']
         self.started = t
         teacher.position_integral[:] = 0.
@@ -155,6 +160,10 @@ class DoorOperationTeacher:
         teacher.positions[-1] = pos
         teacher.rotations[-1] = rot
         force, info = teacher.force(t,root,joints,velocities,handle_pose,hand_loads)
+        if self.pad_control is not None:
+            force,pad_info=self.pad_control.force(force,t-self.started,handle_pose,leaf_pose,angles,
+                dict(operator=goal_h+self.operator_compliance,leaf=goal_l),offset,self.geometry)
+            info={**info,**pad_info}
         self.info = dict(phase='lever_operation' if self.open_started is None else 'partial_opening',
                          operation_start_s=self.started,opening_start_s=self.open_started,
                          goal_handle_rad=float(goal_h),goal_leaf_rad=float(goal_l),
