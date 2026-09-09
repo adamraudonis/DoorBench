@@ -18,6 +18,7 @@ import numpy as np
 from doorbench.dexterous.environment import DexterousDoorEnv
 from doorbench.dexterous.native_transition_archive import NativeTransitionArchive
 from doorbench.dexterous.grasp_verification import pad_opposition, shadow_surface_qualified
+from doorbench.dexterous.json_record_stream import iter_json_object_array
 
 
 def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
@@ -81,9 +82,9 @@ def audit(trial,*,phase='grasp'):
     def physical_rows():
         with gzip.open(trial/physics_name,'rt') as f:
             if array_format:
-                rows=json.load(f)
-                if rows[0]['sim_time_s']!=0:raise ValueError('Missing actual t=0 reset')
-                yield from rows[1:]
+                rows=iter_json_object_array(f);reset=next(rows,None)
+                if reset is None or reset['sim_time_s']!=0:raise ValueError('Missing actual t=0 reset')
+                yield from rows
             else:
                 for line in f:yield json.loads(line)
     try:
@@ -132,6 +133,7 @@ def audit(trial,*,phase='grasp'):
         scope='Independent actual-interval contact/frame reduction; no controller input, physics step or contact-force recomputation',
         input_sha256={name:sha(trial/name) for name in (provenance_name,'report.json',physics_name,raw_name)},
         auditor_source_sha256=sha(__file__))
+    result['auditor_dependency_sha256']={'json_record_stream.py':sha(Path(__file__).resolve().parents[2]/'doorbench/dexterous/json_record_stream.py')}
     if phase=='standing-withdrawal':
         result['pre_release_half_second_minimum_pad_force_N']=result.pop('final_half_second_minimum_pad_force_N')
         result['pre_release_window_intervals']=result.pop('final_window_intervals')
