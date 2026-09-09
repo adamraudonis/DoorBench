@@ -22,3 +22,18 @@ def test_manifest_cannot_escape_or_follow_symlink(tmp_path):
     with pytest.raises(ValueError):module.verify_local(tmp_path,{})
     p=tmp_path/'link';p.symlink_to('/etc/hosts')
     with pytest.raises(ValueError):module.verify_local(tmp_path,{'link':dict(bytes=0,sha256='a'*64)})
+
+
+def test_final_manifest_excludes_compound_temporary_names(tmp_path, capsys):
+    from scripts.isaac.collect_run import REMOTE_PROBE
+    import json
+    (tmp_path / 'run.pid').write_text('999999999')
+    (tmp_path / 'report.json').write_text('{}')
+    for name in ('pad.partial.tmp.gz', 'trace.json.pending', 'status.writing.json', 'stable.partial.json.gz'):
+        (tmp_path / name).write_text('evidence')
+    exec(REMOTE_PROBE, {'INPUT': {'remote': str(tmp_path), 'pid_file': 'run.pid',
+                                'terminal': 'report.json', 'manifest': True}})
+    result = json.loads(capsys.readouterr().out)
+    assert 'stable.partial.json.gz' in result['files']
+    assert not any(name in result['files'] for name in
+                   ('pad.partial.tmp.gz', 'trace.json.pending', 'status.writing.json'))

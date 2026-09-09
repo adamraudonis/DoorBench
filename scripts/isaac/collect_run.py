@@ -35,7 +35,7 @@ if INPUT['manifest'] and result['terminal'] and pid and not alive:
  result['files']={}
  for f in sorted(p.rglob('*')):
   if f.is_symlink():raise ValueError('Archive may not silently follow remote symlinks')
-  if f.is_file() and '__pycache__' not in f.parts and not f.name.endswith(('.writing','.tmp','.pyc')):
+  if f.is_file() and '__pycache__' not in f.parts and not f.name.endswith(('.writing','.tmp','.pending','.pyc')) and '.tmp.' not in f.name and '.writing.' not in f.name:
    result['files'][str(f.relative_to(p))]=dict(bytes=f.stat().st_size,sha256=digest(f))
 print(json.dumps(result))
 '''
@@ -96,7 +96,7 @@ def collect(a):
             if before['exists']:
                 with log.open('ab') as stream:
                     subprocess.run(['rsync','-az','--timeout=30','--exclude=*.writing','--exclude=*.tmp',
-                        '--exclude=*.pyc','--exclude=__pycache__','-e',shlex.join(ssh[:-1]),
+                        '--exclude=*.tmp.*','--exclude=*.writing.*','--exclude=*.pending','--exclude=*.pyc','--exclude=__pycache__','-e',shlex.join(ssh[:-1]),
                         a.host+':'+shlex.quote(a.remote.rstrip('/')+'/'),str(target)+'/'],
                         stdout=stream,stderr=stream,timeout=180,check=True)
                 save(status='partial_snapshot',copies=state['copies']+1,last_copy_unix=time.time(),
