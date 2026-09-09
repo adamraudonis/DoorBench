@@ -180,3 +180,32 @@ def test_pipeline_setup_error_is_failure_without_trial_report(tmp_path):
     data=module.collect(tmp_path,telemetry=False)
     assert data['status']=='failed'
     assert data['complete'] is False
+
+
+def test_actual_isaac_trial_exposes_sim_clock_and_waits_for_independent_result(tmp_path):
+    import os
+    parent=tmp_path/'coordinator';root=parent/'trial';root.mkdir(parents=True)
+    (parent/'pipeline.json').write_text(json.dumps(dict(stage='isaac-operation',deadline_unix=1234)))
+    (parent/'run.pid').write_text(str(os.getpid()))
+    (root/'configuration.json').write_text(json.dumps(dict(args=dict(robot_usd='robot.usda',seconds=36),scope='Actual privileged PhysX; no traversal')))
+    (root/'progress.json').write_text(json.dumps(dict(time_s=12.5,teacher=dict(phase='lever_operation'))))
+    result=module.collect(root)
+    assert result['pipeline'] and result['status']=='running'
+    assert result['progress']['time_s']==12.5 and result['config']['expected_duration_s']==36
+    assert result['config']['engine'].startswith('Isaac')
+    (root/'operation-report.json').write_text(json.dumps(dict(passed=True,checks=dict(grasp=True))))
+    result=module.collect(root)
+    assert result['status']=='awaiting independent audit' and not result['complete']
+    (parent/'coordinator-result.json').write_text('{"passed": false}')
+    assert module.collect(root)['status']=='failed'
+    (parent/'coordinator-result.json').write_text('{"passed": true}')
+    assert module.collect(root)['complete']
+
+
+def test_native_pipeline_retains_native_engine_and_normalizes_clock(tmp_path):
+    (tmp_path/'pipeline.json').write_text('{"stage": "Native physics"}')
+    (tmp_path/'manifest.json').write_text('{"configuration": {"portable_wrapper": true}}')
+    (tmp_path/'progress.json').write_text('{"sim_time_s": 64.5, "expected_duration_s": 80.6, "door_angle_rad": 0.1}')
+    result=module.collect(tmp_path)
+    assert result['config']['engine'].startswith('MuJoCo')
+    assert result['progress']['time_s']==64.5 and result['progress']['door']['leaf_hinge']==.1

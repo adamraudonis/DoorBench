@@ -41,8 +41,39 @@ def collect(directory, telemetry=False):
     root = Path(directory)
     if not root.is_dir():
         raise FileNotFoundError("Results directory does not exist yet")
+    imported = read(root/'configuration.json', {})
+    if isinstance(imported,dict) and imported.get('args',{}).get('robot_usd'):
+        progress=read(root/'progress.json', {})
+        report=read(root/'operation-report.json', {})
+        parent=read(root.parent/'pipeline.json', {})
+        final=read(root.parent/'coordinator-result.json', {})
+        running=False
+        try:
+            pid=int((root.parent/'run.pid').read_text());os.kill(pid,0)
+            running=parent.get('stage')=='isaac-operation'
+        except (OSError,ValueError):pass
+        checks=report.get('checks', {})
+        runtime_passed=report.get('passed') is True and bool(checks) and all(v is True for v in checks.values())
+        failed=report.get('passed') is False or final.get('passed') is False
+        complete=runtime_passed and final.get('passed') is True
+        status='failed' if failed else 'completed' if complete else 'awaiting independent audit' if runtime_passed else 'running' if running else 'not reporting'
+        gpu=[]
+        if telemetry:
+            proc=subprocess.run(['nvidia-smi','--query-gpu=name,utilization.gpu,memory.used,memory.total','--format=csv,noheader,nounits'],capture_output=True,text=True,timeout=5)
+            if proc.returncode==0:gpu=[dict(zip(('name','utilization','memory_used','memory_total'),[v.strip() for v in row])) for row in csv.reader(proc.stdout.splitlines())]
+        log_path=root.parent/'isaac-operation.log'
+        result=dict(passed=report.get('passed'),checks=checks,scope=report.get('scope'),report_file='operation-report.json') if report else None
+        return dict(pipeline=True,config=dict(engine='Isaac Sim / PhysX · H1 + Shadow Hands',scope=imported.get('scope'),deadline_unix=parent.get('deadline_unix'),deadline_label='Experiment coordinator deadline',expected_duration_s=imported['args'].get('seconds')),
+                    status=status,complete=complete,result=result,progress=progress,
+                    stage='Runtime checks finished; '+status if report else progress.get('teacher',{}).get('phase','Starting Isaac physics'),
+                    heartbeat=time.time(),gpu=gpu,log=tail(log_path),log_updated=log_path.stat().st_mtime if log_path.exists() else None)
     if (root / 'pipeline.json').exists():
         config = read(root / 'pipeline.json', {})
+        progress=read(root/'progress.json', {})
+        manifest=read(root/'manifest.json', {})
+        if 'portable_wrapper' in manifest.get('configuration',{}):config={**config,'engine':'MuJoCo · H1 + Shadow Hands'}
+        if 'sim_time_s' in progress:
+            progress={**progress,'time_s':progress['sim_time_s'],'door':{'leaf_hinge':progress.get('door_angle_rad')}}
         lines = tail(root / 'run.log')
         running = False
         try:
@@ -79,7 +110,7 @@ def collect(directory, telemetry=False):
             status='failed' if failed else 'completed' if complete else 'running' if running else 'stopped',
             stage=next((line for line in reversed(lines) if line.startswith('== [')),config.get('stage')),
             heartbeat=time.time(), gpu=gpu, log=lines,
-            result=result, progress=read(root/'progress.json', {}),
+            result=result, progress=progress,
             log_updated=(root/'run.log').stat().st_mtime if (root/'run.log').exists() else None)
     if (root / 'config.json').exists() and (root / 'progress.json').exists():
         progress = read(root / 'progress.json', {})

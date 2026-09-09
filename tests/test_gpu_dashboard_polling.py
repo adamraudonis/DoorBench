@@ -65,3 +65,33 @@ def test_registry_order_updates_without_waiting_for_archives_to_refresh():
         monitor.poll([run('old'),run('new')])
         assert cache['old']['registry_index']==0 and cache['new']['registry_index']==1
     finally: monitor.pool.shutdown()
+
+
+def test_duplicate_registry_ids_are_rejected_before_polling():
+    import pytest
+    monitor=module.RunMonitor({},threading.Lock(),fetch=lambda r:None,workers=1)
+    try:
+        with pytest.raises(ValueError,match='unique'):
+            monitor.poll([run('same'),dict(run('same'),results='/different')])
+        assert not monitor.pending
+    finally:monitor.pool.shutdown()
+
+
+def test_newest_unknown_run_is_not_starved_by_old_archives():
+    started=[];done=threading.Event()
+    def fetch(item):
+        started.append(item['id']);done.set();return dict(complete=False,status='running')
+    monitor=module.RunMonitor({},threading.Lock(),fetch=fetch,workers=1)
+    try:
+        monitor.poll([run('old-'+str(i)) for i in range(100)]+[run('new-live')])
+        assert done.wait(1) and started==['new-live']
+    finally:monitor.pool.shutdown()
+
+
+def test_dead_archive_backoff_keeps_capacity_for_live_refresh():
+    cache={'dead':dict(id='dead',last_poll=100.,error='unavailable',consecutive_errors=5),
+           'live':dict(id='live',last_poll=100.,error='temporary',consecutive_errors=5,data=dict(status='running'))}
+    monitor=module.RunMonitor(cache,threading.Lock(),fetch=lambda r:dict(complete=False,status='running'),workers=1,clock=lambda:110.)
+    try:
+        monitor.poll([run('dead'),run('live')]);assert set(monitor.pending)=={'live'}
+    finally:monitor.pool.shutdown()

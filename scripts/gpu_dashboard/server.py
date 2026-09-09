@@ -32,6 +32,7 @@ class RunMonitor:
 
     def poll(self, runs):
         current = {run['id']: run for run in runs}
+        if len(current)!=len(runs):raise ValueError('Run registry IDs must be unique; refusing to mix different experiments')
         now = self.clock()
         for id, (run, future) in list(self.pending.items()):
             if not future.done():
@@ -52,9 +53,10 @@ class RunMonitor:
                 item = dict(id=id, name=run['name'], source='SSH' if run.get('ssh_host') else
                             'Local archive' if data['complete'] else 'Local files',
                             fetched_at=now, last_poll=now, error=None,
-                            terminated=terminated, data=data)
+                            terminated=terminated, data=data, consecutive_errors=0)
             except Exception as error:
-                item = dict(old, id=id, name=run.get('name', id), error=str(error), last_poll=now)
+                item = dict(old, id=id, name=run.get('name', id), error=str(error), last_poll=now,
+                            consecutive_errors=old.get('consecutive_errors',0)+1)
             with self.lock:
                 self.cache[id] = item
         with self.lock:
@@ -74,9 +76,9 @@ class RunMonitor:
             old = prior.get(id, {})
             status = old.get('data', {}).get('status')
             live = status in ('running', 'retrying', 'hero')
-            interval = 5 if live or not old else 15 if old.get('error') else 60
+            interval = 5 if live or not old else min(300,15*2**min(5,max(0,old.get('consecutive_errors',1)-1))) if old.get('error') else 60
             if now - old.get('last_poll', old.get('fetched_at', -float('inf'))) >= interval:
-                due.append((0 if live else 1 if not old else 2, index, run))
+                due.append((0 if live else 1 if not old else 2, -index, run))
         for _, _, run in sorted(due)[:max(0, self.workers-len(self.pending))]:
             self.pending[run['id']] = (dict(run), self.pool.submit(self.fetch, dict(run)))
 
