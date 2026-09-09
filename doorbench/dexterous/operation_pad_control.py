@@ -4,7 +4,6 @@ An experimental teacher controller, not sensor-only policy input. It reduces
 finger posture competition while following the palm's commanded lever motion.
 """
 import numpy as np
-from scipy.spatial.transform import Rotation
 from .pad_tracking import PadTracker
 from .operation_teacher import pose_components, reproject_grasp, smooth_phase
 
@@ -19,9 +18,12 @@ class OperationPadControl:
         hp,hr=pose_components(handle_pose)
         self.relative={digit:hr.T@(position-hp) for digit,position in self.tracker.positions(teacher.d).items()}
 
-    def force(self, forces, elapsed, handle_pose, leaf_pose, angles, goals, offset, geometry):
+    def force(self, forces, elapsed, handle_pose, leaf_pose, angles, goals, geometry):
         teacher=self.teacher;blend=float(smooth_phase(elapsed))
-        targets={digit:reproject_grasp(handle_pose,leaf_pose,angles,goals,relative+offset,np.eye(3),geometry)[0]
+        # Palm recentering changes finger posture, not the material contact
+        # targets on the lever. Translating these by the palm offset moves them
+        # off the physical cylinder and defeats contact feedback.
+        targets={digit:reproject_grasp(handle_pose,leaf_pose,angles,goals,relative,np.eye(3),geometry)[0]
                  for digit,relative in self.relative.items()}
         generalized,errors=self.tracker.generalized_force(teacher.d,targets)
         length=teacher.matrix@teacher.d.qpos[teacher.qa]

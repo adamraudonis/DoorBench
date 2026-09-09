@@ -162,7 +162,7 @@ class DoorOperationTeacher:
         force, info = teacher.force(t,root,joints,velocities,handle_pose,hand_loads)
         if self.pad_control is not None:
             force,pad_info=self.pad_control.force(force,t-self.started,handle_pose,leaf_pose,angles,
-                dict(operator=goal_h+self.operator_compliance,leaf=goal_l),offset,self.geometry)
+                dict(operator=goal_h+self.operator_compliance,leaf=goal_l),self.geometry)
             info={**info,**pad_info}
         self.info = dict(phase='lever_operation' if self.open_started is None else 'partial_opening',
                          operation_start_s=self.started,opening_start_s=self.open_started,
