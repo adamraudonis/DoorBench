@@ -52,3 +52,15 @@ def test_resume_rejects_protocol_or_data_drift(key, value):
     config = dict(config, **{key: value})
     with pytest.raises(ValueError, match=key):
         restore_training_state(state, model, optimizer, config, episode)
+
+
+def test_warm_start_contract_and_weights_without_optimizer_moments():
+    from scripts.dexterous.train_native_continuous import initialize_actor_weights
+    episode, config, model, optimizer, state = fixture()
+    initialized = torch.nn.Linear(3, 2)
+    fresh_optimizer = torch.optim.AdamW(initialized.parameters(), lr=.00001)
+    initialize_actor_weights(state['actor'], initialized, episode)
+    for a,b in zip(model.parameters(), initialized.parameters()):assert torch.equal(a,b)
+    assert not fresh_optimizer.state
+    bad=deepcopy(state['actor']);bad['sensor_layout']={'pads':6}
+    with pytest.raises(ValueError,match='actor contract'):initialize_actor_weights(bad,initialized,episode)

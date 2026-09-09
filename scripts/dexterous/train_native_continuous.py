@@ -24,6 +24,16 @@ from scripts.dexterous.train_sensor_imitation import atomic_json, atomic_torch
 
 
 
+def initialize_actor_weights(actor, model, episode):
+    if (actor['schema'] != SENSOR_ACTOR_CHECKPOINT_SCHEMA
+            or actor['dimensions'] != asdict(episode.dimensions)
+            or actor['motor_contract_sha256'] != episode.motor_contract_sha256
+            or actor['sensor_layout'] != episode.layout
+            or actor['physics_dt_s'] != episode.metadata['physics_dt_s']):
+        raise ValueError('Initial actor contract mismatch')
+    model.load_state_dict(actor['model_state'], strict=True)
+
+
 def restore_training_state(state, model, optimizer, configuration, episode):
     """Restore only completed full-source updates under the same data/protocol."""
     previous = state['configuration']; actor = state['actor']
@@ -60,7 +70,9 @@ def main():
     p.add_argument('--learning-rate', type=float, default=1e-4)
     p.add_argument('--max-wall-seconds', type=float, default=1800.)
     p.add_argument('--seed', type=int, default=0)
-    p.add_argument('--resume-state', type=Path, help='Completed-update checkpoint; output must be a new directory')
+    initial = p.add_mutually_exclusive_group()
+    initial.add_argument('--resume-state', type=Path, help='Completed-update checkpoint; output must be a new directory')
+    initial.add_argument('--initialize-actor', type=Path, help='Fine-tune existing sensor weights with fresh Adam; new experiment, not exact optimizer recovery')
     a = p.parse_args()
     if (min(a.iterations, a.chunk_length) < 1 or not np.isfinite([a.learning_rate, a.max_wall_seconds]).all()
             or min(a.learning_rate, a.max_wall_seconds) <= 0):
@@ -75,6 +87,14 @@ def main():
     configuration.update(initialization='fresh', dataset=episode.metadata,
         cold_prefix_length=32, cold_weight=.5, protocol='continuous_history_v1',
         limitation=__doc__)
+    if a.initialize_actor is not None:
+        actor = torch.load(a.initialize_actor, map_location=a.device, weights_only=False)
+        initialize_actor_weights(actor, model, episode)
+        configuration.update(initialization='pretrained_actor_fresh_adam',
+            initial_actor_sha256=hashlib.sha256(a.initialize_actor.read_bytes()).hexdigest(),
+            pretrained_optimizer_steps=actor.get('completed_optimizer_steps'),
+            pretrained_episodes=actor.get('training_episodes', []),
+            previous_optimizer_restored=False)
     completed = 0; inherited_history = []
     if a.resume_state is not None:
         state = torch.load(a.resume_state, map_location=a.device, weights_only=False)

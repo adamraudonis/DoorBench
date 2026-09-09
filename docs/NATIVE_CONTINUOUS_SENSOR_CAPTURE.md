@@ -96,3 +96,10 @@ tests passed. Neither training loss nor that fixture establishes physical skill.
 Every selected checkpoint still needs a complete, unassisted sensor rollout.
 
 The recovered five-update CPU experiment completed updates4–5 in997.56 seconds, preserving its three earlier optimizer updates. The subsequent unassisted rollout still fell at0.304 seconds with no door motion, teacher actions, external forces or motor-delivery error. This is0/1 task success; the smaller prediction loss did not produce meaningful balance improvement. A separately identified GPU short-window experiment is next.
+
+`train_native_continuous.py --initialize-actor CHECKPOINT` starts a separate
+fine-tuning experiment from matching sensor weights with fresh Adam moments.
+It validates embodiment, action order, sensor layout and timestep, and records
+the checkpoint hash. It does not pretend to resume the old optimizer. This
+allows sampled-window pretraining to be followed by complete-history updates;
+physical rollout results remain the criterion for improvement.
