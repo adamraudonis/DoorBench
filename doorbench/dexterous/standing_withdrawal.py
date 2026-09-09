@@ -89,6 +89,12 @@ class StandingWithdrawalTeacher:
         self.release_clock=min(r['time_s'] for r in rows[1:] if r['phase']==self.release_phase)
         self.panel_gain=config.get('panel_aperture_feedback_gain_N_per_rad',0.)
         if type(self.panel_gain) not in (int,float) or not np.isfinite(self.panel_gain) or not 0<=self.panel_gain<=20:raise ValueError('Require bounded explicit panel force feedback')
+        self.panel_force=None
+        profile=config.get('panel_aperture_force_profile')
+        if profile is not None:
+            if profile!='bounded-pi-v1':raise ValueError('Unknown panel aperture force profile')
+            from .panel_aperture_force import PanelApertureForce
+            self.panel_force=PanelApertureForce()
         self.panel=None;self.panel_handoff=None
         if config.get('panel_plan_path'):
             if sha(config['panel_plan_path'])!=config.get('panel_plan_sha256'):raise ValueError('Panel plan bytes changed')
@@ -147,7 +153,10 @@ class StandingWithdrawalTeacher:
             targets,position,rotation,panel_info=self.panel.update(t,root,joints,angles['leaf'],teacher.stance)
             panel_goal=(position,rotation)
         self.left.support_load_target=self.initial_support_target+float(smooth_phase(elapsed/2.))*(self.support_target-self.initial_support_target)
-        if panel_goal is not None and self.panel_gain:
+        if panel_goal is not None and self.panel_force is not None:
+            self.left.support_load_target,force_info=self.panel_force.update(t,panel_info['panel_reference_aperture_rad'],angles['leaf'],self.left.support_load_target)
+            panel_info.update(force_info)
+        elif panel_goal is not None and self.panel_gain:
             self.left.support_load_target=float(np.clip(self.left.support_load_target+self.panel_gain*(panel_info['panel_reference_aperture_rad']-angles['leaf']),2.05,3.5))
             panel_info['panel_aperture_feedback_gain_N_per_rad']=self.panel_gain
         self.left.update_targets(t,root,joints,leaf_pose,left_panel_load,handle_pose)
