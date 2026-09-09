@@ -266,3 +266,19 @@ a diagnostic holds the body/left route fixed to isolate the controller handoff
 from body motion; it deliberately cannot qualify as a completed transfer.
 Experimental preloads now require an explicit CLI profile; the default preserves
 existing preloads. All trial sources and failures remain archived.
+
+The held-route diagnostic009 also loses index-pad qualification while the body/
+left route remains at its initial target. Body route motion is therefore not
+necessary for this failure; this does not isolate which handoff component is
+responsible. Next ablation: held route with unchanged preloads, then disable the
+added pad tracker separately. Compare actual motor changes and raw contact onset
+at 22 seconds before changing geometry again. [Runtime trial inventory](evidence/standing-transfer-progress.json).
+
+Both the local and GPU independent audits of Isaac operation002 produce identical
+receipts. Its 172 final files, and the ready environment's 808-file recovery
+archive, were byte-verified before terminating owned pod d30lnidzxkvv01 at
+2026-09-09 09:11:17 UTC. No other pod was touched. Trials001–009 and planner
+sources are retained under DoorBench-runs/2026-09-09. Local free space fell to
+approximately 280 MB despite clearing 1.2 GB of old regenerable browser HTTP
+cache; more persistent storage is required before another fully recorded run.
+No new GPU allocation or Hugging Face upload is running.

@@ -190,3 +190,20 @@ transfer003 and004 failed; stronger tracking and spring-following are not fixes.
 Retain their archives. Next test: use consistent palm/fingertip commanded handle
 transforms while retaining press torque, then qualify transfer before release.
 The full Isaac opening/traversal and sensor-only learned hand policy remain open.
+
+### September 9, 2026, continuation after Isaac operation002
+
+Standing transfer001–008 remain unqualified; additional preload improves distal
+loads but leaves index-middle contact. Diagnostic009 holds the body/left route
+and still loses index qualification, locating the next investigation at the
+controller handoff rather than assuming body motion is the cause. Next run:
+held route, unchanged preload; then separately remove added fixed-pad tracking.
+Keep all original contact, joint, force and collision gates. Explicit preload
+profiles and bounded recenter options are recorded in the run manifest; default
+settings preserve the existing preload. Thirty-three focused tests pass.
+
+The completed Isaac evidence is byte-verified and independently audited locally
+and on GPU. The idle owned GPU is terminated. More local or external persistent
+storage is needed before further fully recorded physics runs (about 280 MB free).
+The full approved plan remains incomplete; no learned vision/tactile opening or
+full Isaac traversal has been demonstrated by these experiments.
