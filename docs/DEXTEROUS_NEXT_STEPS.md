@@ -512,3 +512,21 @@ support worse (154/250 final samples unloaded). The next candidate uses the prio
 an unnecessarily long push while the arm retracts. Its unchanged2001-sample
 admission passes at1.738 rad/s maximum joint-reference speed, below the2 rad/s
 limit. This is a new physical trial016, not a retiming of reported successes.
+
+At 15:04 UTC, withdrawal016 completed its physical trial and independent audit.
+Support, clearance (46.009 mm) and mechanical checks passed, but 407 intervals
+contained 1,727 invalid right-hand contact patches. Faster withdrawal is therefore
+rejected. Trial017 returns to the slower screened route and adds feedback for a
+fixed material point on the original distal thumb. Its Cartesian error is mapped
+only to capped finger motor commands; no physics state or helper forces are
+written. Sixteen focused checks pass, including motor caps and unchanged plant
+state. The physical result remains pending.
+
+Isaac005 is still recording. Its opening-stage grasp capture has not activated in
+observed controller snapshots, so the flag alone cannot qualify this comparison.
+Trial006 is queued to capture a continuous qualified grasp before substantial
+lever motion; it must pass a fresh native prerequisite and independent audit
+before Isaac runs. Each source bundle and collector has its own receipt. Both
+local and remote teardown guards were acknowledged for the owned L40S through
+2026-09-09T16:59:23.513286+00:00. This remains a privileged controller experiment, not a learned
+vision/tactile policy or a completed standing traversal.
