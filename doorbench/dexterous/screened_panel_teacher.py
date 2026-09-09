@@ -48,7 +48,10 @@ class ScreenedWholeBodyPanel:
     plan_schema='doorbench.whole-body-panel-plan.v1'
 
     def make_phase(self,plan,tracking_lead_rad,lead_start_angle,lead_ramp_rad):
-        return MeasuredAperturePhase(plan['initial_leaf_angle_rad'],plan['final_leaf_angle_rad'],plan['initial_leaf_velocity_rad_s'],tracking_lead=tracking_lead_rad,lead_start_angle=lead_start_angle,lead_ramp_rad=lead_ramp_rad)
+        envelope=plan['screen_receipt']['reference_phase_envelope']
+        speed=float(envelope['aperture_speed_limit_rad_s']);acceleration=float(envelope['aperture_acceleration_limit_rad_s2'])
+        if not (0<speed<=.149 and 0<acceleration<=.08):raise ValueError('Require the independently audited bounded phase rates')
+        return MeasuredAperturePhase(plan['initial_leaf_angle_rad'],plan['final_leaf_angle_rad'],plan['initial_leaf_velocity_rad_s'],maximum_speed=speed,maximum_acceleration=acceleration,tracking_lead=tracking_lead_rad,lead_start_angle=lead_start_angle,lead_ramp_rad=lead_ramp_rad)
 
     def reference_palm_pose(self,position,rotation,leaf_pose):
         return position,rotation

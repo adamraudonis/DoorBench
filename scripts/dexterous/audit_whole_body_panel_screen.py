@@ -20,12 +20,15 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--screen',type=Path,required=True)
     parser.add_argument('--duration-s',type=float,default=20.)
+    parser.add_argument('--aperture-speed-limit-rad-s',type=float,default=.149)
+    parser.add_argument('--aperture-acceleration-limit-rad-s2',type=float,default=.08)
     parser.add_argument('--samples',type=int,default=2001)
     parser.add_argument('--actual-leaf-lag-rad',type=float,default=0.,help='Conservative static door lag relative to the unchanged planned pose; initial state remains exact')
     parser.add_argument('--lag-start-angle-rad',type=float,help='Conservative envelope: retain5mrad below this reference angle, allow full declared lag above it')
     parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args()
     if not 0<=args.actual_leaf_lag_rad<=.02:raise ValueError('Require declared static leaf lag in [0,.02] rad')
+    if not (0<args.aperture_speed_limit_rad_s<=.149 and 0<args.aperture_acceleration_limit_rad_s2<=.08):raise ValueError('Require finite positive rates within original panel limits')
     if args.samples<2001:raise ValueError('Require >=2001 dense samples')
     report=json.loads(args.screen.read_text())
     run=Path(report['configuration']['source_run']).resolve()
@@ -121,7 +124,7 @@ def main():
         if bad or collisions or nearest<.04:failures.append(dict(time_s=float(t),violations=bad,collisions=collisions,right_clearance_m=nearest,closest_pair=pair))
         traces.append(np.r_[t,sample['progress'],sample['position'],sample['velocity'],sample['acceleration']])
         if index%200==0:print(json.dumps(dict(index=index,time_s=float(t),failures=len(failures),right_clearance_capped_m=nearest)),flush=True)
-    bounds=path.derivative_bounds();delta=angles[-1]-angles[0];speed=.149;acceleration=.08
+    bounds=path.derivative_bounds();delta=angles[-1]-angles[0];speed=args.aperture_speed_limit_rad_s;acceleration=args.aperture_acceleration_limit_rad_s2
     envelope=dict(maximum_joint_speed_rad_s=float(np.max(bounds['first'][6:])*speed/delta),maximum_joint_acceleration_rad_s2=float(np.max(bounds['second'][6:]*(speed/delta)**2+bounds['first'][6:]*acceleration/delta)),maximum_root_speed_m_s=float(bounds['root_translation_first_norm']*speed/delta),maximum_root_rotvec_speed_rad_s=float(bounds['root_rotvec_first_norm']*speed/delta),aperture_speed_limit_rad_s=speed,aperture_acceleration_limit_rad_s2=acceleration,method='Exact cubic-segment derivative extrema and conservative chain-rule acceleration bound')
     envelope['passed']=envelope['maximum_joint_speed_rad_s']<=1.2 and envelope['maximum_joint_acceleration_rad_s2']<=3. and envelope['maximum_root_speed_m_s']<=.02 and envelope['maximum_root_rotvec_speed_rad_s']<=.03
     if not envelope['passed']:failures.append(dict(measured_aperture_reference_envelope=envelope))
