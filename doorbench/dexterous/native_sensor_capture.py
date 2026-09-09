@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import mujoco
 from .sensor_contract import ActorObservationBuilder, SENSOR_KEYS
 
 
@@ -38,6 +39,7 @@ class NativeSensorCapture:
         if abs(self.sim.d.time-end_s)>1e-8 or abs(end_s-start_s-self.sim.m.opt.timestep)>1e-8:
             raise ValueError('Require the actual completed native interval')
         images=self.count%20==0
+        if images:mujoco.mj_camlight(self.sim.m,self.sim.d)
         observation=self.sim.observe(images=images)
         for key in SENSOR_KEYS:
             if key not in observation:continue
@@ -68,6 +70,7 @@ class NativeSensorCapture:
             control_source='privileged_teacher',scope=__doc__,samples=self.count,last_time_s=self.last_time,
             chunks=self.chunks,camera_frames=len(self.frame_times),camera_stride_steps=20,
             startup_observation_recorded=False,
+            camera_pose_refresh='mj_camlight after current-state kinematics, before render',
             source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             layout_sha256=hashlib.sha256((self.output/'layout.json').read_bytes()).hexdigest(),
             rgb_sha256=hashlib.sha256((self.output/'actor-rgb.npz').read_bytes()).hexdigest() if complete and self.frames else None,

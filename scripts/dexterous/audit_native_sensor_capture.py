@@ -78,6 +78,7 @@ def main():
     checks['complete_raw_join']=next(raw,None) is None and count==report['samples']
     checks['independent_sampled_gyro']=gyro_samples>0 and gyro_error<1e-6
     checks['independent_sampled_tactile']=gyro_samples>0 and tactile_error<1e-5
+    checks={key:bool(value) for key,value in checks.items()}
     out=dict(passed=all(checks.values()),checks=checks,samples=count,gyro_samples=gyro_samples,
         maximum_gyro_error_rad_s=gyro_error,maximum_tactile_error_N=tactile_error,scope=__doc__,source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         sensor_report_sha256=hashlib.sha256((sensor/'report.json').read_bytes()).hexdigest(),
