@@ -31,7 +31,9 @@ def main():
     p.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
     p.add_argument('--wait-for-run',type=Path,help='Wait for this earlier coordinator to finish before using the prepared node')
     p.add_argument('--isaac-timeout-seconds',type=float,default=4200.,help='Wall-clock budget including periodic evidence export')
+    p.add_argument('--operation-leaf-target-rad',type=float,default=.08)
     a=p.parse_args()
+    if not .075<=a.operation_leaf_target_rad<=.10:raise ValueError('Partial opening command must be .075..0.10 rad')
     if not 300<=a.isaac_timeout_seconds<=7200:raise ValueError('Isaac wall-clock budget must be 300..7200 seconds')
     if a.deadline_unix-time.time()<300:raise ValueError('At least five minutes of guarded runtime required')
     a.output.mkdir(parents=True,exist_ok=False)
@@ -43,6 +45,9 @@ def main():
     result['attained_hold_stage']=a.attained_hold_stage
     native_pad_options=['--operation-fixed-pad-control','--operation-pad-control-profile',a.material_pad_profile] if a.actual_material_pads else []
     isaac_pad_options=['--operation-actual-pad-control','--operation-material-profile',a.material_pad_profile] if a.actual_material_pads else []
+    native_pad_options+=['--operation-leaf-target-rad',str(a.operation_leaf_target_rad)]
+    isaac_pad_options+=['--operation-leaf-target-rad',str(a.operation_leaf_target_rad)]
+    result['commanded_leaf_target_rad']=a.operation_leaf_target_rad
     hold_options=['--hold-attained-grasp','--attained-hold-stage',a.attained_hold_stage] if a.hold_attained_grasp else []
     env=dict(os.environ,PYTHONPATH=str(a.source),DOORBENCH_WORK=str(a.work),OPENBLAS_NUM_THREADS='1',OMP_NUM_THREADS='1',OMNI_KIT_ACCEPT_EULA='YES',PYTHONUNBUFFERED='1',ACCEPT_EULA='Y',PRIVACY_CONSENT='Y')
     commands=[]
