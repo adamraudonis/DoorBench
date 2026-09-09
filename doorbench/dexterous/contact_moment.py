@@ -4,9 +4,9 @@ import numpy as np
 
 def contact_moment(point,frame,wrench,anchor,axis,*,body_index):
     point,frame,wrench,anchor,axis=map(lambda x:np.asarray(x,float),(point,frame,wrench,anchor,axis))
-    if (point.shape!=(3,) or frame.shape!=(3,3) or wrench.shape!=(6,) or anchor.shape!=(3,) or axis.shape!=(3,) or body_index not in (0,1)
+    if (point.shape!=(3,) or frame.shape!=(3,3) or wrench.shape!=(6,) or anchor.shape!=(3,) or axis.shape!=(3,) or type(body_index) is not int or body_index not in (0,1)
         or not np.isfinite(np.r_[point,frame.ravel(),wrench,anchor,axis]).all()
-        or not np.allclose(frame@frame.T,np.eye(3),atol=1e-6) or abs(np.linalg.det(frame)-1)>1e-6 or abs(np.linalg.norm(axis)-1)>1e-6):
+        or not np.allclose(frame@frame.T,np.eye(3),atol=1e-8,rtol=0) or abs(np.linalg.det(frame)-1)>1e-8 or abs(np.linalg.norm(axis)-1)>1e-8):
         raise ValueError('Finite synchronized contact frame, wrench and unit hinge axis required')
     sign=(-1,1)[body_index]
     force=sign*frame.T@wrench[:3];normal=sign*frame[0]*wrench[0]

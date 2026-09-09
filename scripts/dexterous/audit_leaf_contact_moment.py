@@ -11,22 +11,21 @@ import numpy as np,mujoco
 
 
 def contact_moment_about_axis(anchor,axis,point,frame,wrench,side):
-    anchor=np.asarray(anchor,float);axis=np.asarray(axis,float);point=np.asarray(point,float);frame=np.asarray(frame,float);wrench=np.asarray(wrench,float)
-    if (anchor.shape!=(3,) or axis.shape!=(3,) or point.shape!=(3,) or frame.shape!=(3,3) or wrench.shape!=(6,)
-            or type(side) is not int or side not in (0,1) or not np.isfinite(np.r_[anchor,axis,point,frame.ravel(),wrench]).all()
-            or not np.isclose(np.linalg.norm(axis),1.,atol=1e-8)
-            or not np.allclose(frame@frame.T,np.eye(3),atol=1e-8) or not np.isclose(np.linalg.det(frame),1.,atol=1e-8)):
-        raise ValueError('Require finite actual unit hinge/contact frames and an explicit contact side')
-    sign=1 if side==1 else -1
-    force=sign*(frame.T@wrench[:3]);torque=sign*(frame.T@wrench[3:]);normal_force=sign*frame[0]*wrench[0]
-    return float(axis@(np.cross(point-anchor,force)+torque)),float(axis@np.cross(point-anchor,normal_force)),force
+    from doorbench.dexterous.contact_moment import contact_moment
+    result=contact_moment(point,frame,wrench,anchor,axis,body_index=side)
+    return result['moment_about_hinge_Nm'],result['normal_force_moment_Nm'],np.asarray(result['force_on_body_world_N'])
 
 
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--run',type=Path,required=True);p.add_argument('--time',type=float,required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
+ if a.output.exists():p.error('Fresh diagnostic output required')
  run=a.run.resolve();sys.path.insert(0,str(run.with_name(run.name+'-source')))
  from doorbench.dexterous.environment import DexterousDoorEnv
- cfg=json.loads((run/'manifest.json').read_text())['configuration'];robot=Path(cfg['robot']);sim=DexterousDoorEnv(cfg['door'],robot,json.loads(robot.with_suffix('.audit.json').read_text()));m,d=sim.m,sim.d
+ source_manifest=json.loads((run/'manifest.json').read_text());cfg=source_manifest['configuration'];robot=Path(cfg['robot'])
+ def sha(path):
+  with Path(path).open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+ if sha(robot)!=source_manifest['inputs']['robot']['sha256'] or sha(Path(cfg['door'])/'door.xml')!=source_manifest['inputs']['door']['door.xml']:raise ValueError('Recorded model inputs changed')
+ sim=DexterousDoorEnv(cfg['door'],robot,json.loads(robot.with_suffix('.audit.json').read_text()));m,d=sim.m,sim.d
  manifest=json.loads((run/'raw-transitions/manifest.json').read_text())
  if not manifest['complete']:raise ValueError('Require a complete actual dynamics archive')
  c=next(c for c in manifest['chunks'] if c['interval_start_s']-1e-8<=a.time<c['interval_end_s']-1e-8);file=run/'raw-transitions'/c['file']
@@ -51,7 +50,7 @@ def main():
   side=membership.index(True);other=m.body(int(pair[1-side])).name;sign=1 if side==1 else -1
   value,normal_value,force=contact_moment_about_axis(anchor,axis,point,frame,wrench,side);moment[other]=moment.get(other,0.)+value;normal_moment[other]=normal_moment.get(other,0.)+normal_value
   if np.linalg.norm(wrench)>1e-8:rows.append(dict(other_body=other,moment_about_hinge_Nm=value,normal_force_moment_Nm=normal_value,tangential_force_moment_Nm=float(value-normal_value-axis@(sign*(frame.T@wrench[3:]))),contact_couple_moment_Nm=float(axis@(sign*(frame.T@wrench[3:]))),position_leaf_m=(leaf_rotation.T@(point-d.xpos[leaf])).tolist(),force_on_leaf_world_N=force.tolist(),force_on_leaf_local_N=(leaf_rotation.T@force).tolist()))
- result=dict(scope='Actual interval contact moment only; listed frictionloss is the original model limit, not an inferred solver multiplier.',interval_s=times,source_sha256=c['sha256'],maximum_actual_fk_error=actual_fk_error,hinge_anchor_world_m=anchor.tolist(),hinge_axis_world=axis.tolist(),leaf_angle_rad=float(d.qpos[m.jnt_qposadr[j]]),leaf_velocity_before_rad_s=float(d.qvel[va]),leaf_velocity_after_rad_s=float(after[va]),original_hinge_frictionloss_Nm=float(m.dof_frictionloss[va]),original_hinge_viscous_damping_Nm_s=float(m.dof_damping[va]),contact_moment_by_other_body_Nm=moment,normal_contact_moment_by_other_body_Nm=normal_moment,total_contact_moment_Nm=sum(moment.values()),contacts=rows)
+ result=dict(scope='Actual interval contact moment only; listed frictionloss is the original model limit, not an inferred solver multiplier.',interval_s=times,source_sha256=c['sha256'],auditor_sha256=sha(__file__),input_sha256={str(robot):sha(robot),str(Path(cfg['door'])/'door.xml'):sha(Path(cfg['door'])/'door.xml')},maximum_actual_fk_error=actual_fk_error,hinge_anchor_world_m=anchor.tolist(),hinge_axis_world=axis.tolist(),leaf_angle_rad=float(d.qpos[m.jnt_qposadr[j]]),leaf_velocity_before_rad_s=float(d.qvel[va]),leaf_velocity_after_rad_s=float(after[va]),original_hinge_frictionloss_Nm=float(m.dof_frictionloss[va]),original_hinge_viscous_damping_Nm_s=float(m.dof_damping[va]),contact_moment_by_other_body_Nm=moment,normal_contact_moment_by_other_body_Nm=normal_moment,total_contact_moment_Nm=sum(moment.values()),contacts=rows)
  a.output.parent.mkdir(parents=True,exist_ok=True);a.output.write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result,indent=2));sim.close()
 
 

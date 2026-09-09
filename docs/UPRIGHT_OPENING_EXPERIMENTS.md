@@ -156,9 +156,9 @@ no opening transition, lost grip and a physical joint-limit failure. Isaac was
 not launched. Clearance018 is a prospective smaller2mm shift using offset
 `(.002,-.003,.0025)m` and identical frozen source. Neither is qualified.
 
-Use `scripts/dexterous/audit_panel_contact_moment.py --trial RUN --at SECONDS
+Use `scripts/dexterous/audit_leaf_contact_moment.py --run RUN --time SECONDS
 --output FRESH.json` to diagnose an archived panel interval. It verifies source
 XML and chunk hashes, reconstructs only kinematics at the contact epoch and
-checks them against recorded body transforms. It decomposes actual direct leaf
+checks them against recorded body transforms. It decomposes actual leaf-subtree
 contact torque into normal, tangent and couple contributions. It does not
 recompute dynamics, assert complete torque balance or qualify the task.
