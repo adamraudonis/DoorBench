@@ -1,4 +1,16 @@
-# Isaac grasp: contact maintenance remains unresolved
+# Isaac opposed grasp: one verified component
+
+Latest result: `own-imu-grasp-pressure-006` passes 23/23 checks and both independent
+audits at the fixed reset. See the paired result below. This proves a grasp
+component, not handle operation, traversal or a learned vision policy.
+
+The 005/006 pair explicitly used **`legacy-tanh-v1`**, the historical explicit
+friction approximation. It does not qualify the separate `backend-dry-v2` passive
+joint implementation or prove backend parity. The original hand loopbacks,
+motor caps and contact checks still apply. A new locomotion component experiment
+uses `backend-dry-v2`; its result must be reported separately.
+
+## Retained earlier failures
 
 The fresh `own-imu-grasp-003` trial finished on September 9, 2026 at approximately 03:33 UTC. The corrected H1/Shadow robot passes **22/23 task checks** over 19 seconds. Its independent contact/physics audit reproduces the failed result, and all 16 own-IMU audit checks pass over 9,500 actual intervals. [Machine-readable evidence](evidence/own-imu-grasp-003.json).
 

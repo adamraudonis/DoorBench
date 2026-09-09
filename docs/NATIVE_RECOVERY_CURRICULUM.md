@@ -9,6 +9,8 @@ the actor actually reaches. This is MuJoCo development, not an Isaac policy resu
 | CPU full-history student002 recovery | 5 complete updates | Falls at 0.304 s | September 9, 2026, 05:35 |
 | GPU window student001 | 1,000 updates, 221 s | Falls at 0.428 s | September 9, 2026, 05:55:41 |
 | GPU full-history fine-tune001 | 3 full-history updates, fresh Adam, 335 s | Falls at 0.392 s | September 9, 2026, 06:11:15 |
+| GPU recovery curriculum001 | 30 updates on three recovery traces, 178 s | Falls at 0.580 s | September 9, 2026, 06:30:52 |
+| GPU motor-target curriculum001 | 100 updates, original motor feedback | Falls at 1.306 s | September 9, 2026, 06:42:44 |
 
 All use the same original reset and capped force interface. None opens the door.
 The latter rollout passes 15 sensor join checks; this verifies recorded data,
@@ -78,13 +80,24 @@ these updates. Full-task retention must be tested and reintroduced later. Weight
 update only after all three sources; recurrent state resets between sources.
 Without correction flags, training remains on the complete original episode.
 
-The first 30-update GPU curriculum is running under a bounded coordinator and
-independent collector. Unassisted evaluation follows verified download. Isaac
-transfer, a complete sensor-only task, varied starts and broad coverage remain
-unfinished. No improvement is claimed before physical evaluation.
+Both new GPU curricula and their unassisted evaluations have finished. The motor
+target actor has its own checkpoint schema and realizes targets through the
+original gains, transmissions, target bounds and force caps, using current joint
+encoders. Its constant first-target baseline also falls, at 0.942 s. Target
+training uses recorded actual force history only; predicted targets never enter
+the previous-force sensor channel. All 3,000 correction labels are realizable,
+but the complete task is not: 13 motors have later force commands that exceed
+the equivalent original target bounds, with a maximum 23.946 Nm discrepancy.
+The strict adapter rejects those labels. This mode is an early-balance experiment,
+not a replacement for the complete force-controlled teacher.
+
+[Pinned sensor locomotion](SENSOR_LOCOMOTION_BASELINE.md) provides a stronger
+hierarchical foundation. Isaac transfer, a complete sensor-only door task, varied
+starts and broad coverage remain unfinished.
 
 Evidence lives in `DoorBench-runs/2026-09-09/` with collector or local SHA receipts.
-Run Center lists `native-correction-001`. Closed historical `opening-010` and
-`opening-020` contact JSON files were losslessly gzip-packed to recover disk space.
+Run Center lists the correction and motor-target experiments. Closed historical
+`opening-010`, `opening-015`, `opening-018`, `opening-020` and `opening-027` contact
+JSON files were losslessly gzip-packed to recover disk space.
 Each includes `packed-contacts.json` and `restore-contacts.py`; restore before
 older tools that require the plain path.

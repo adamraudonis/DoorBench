@@ -137,3 +137,17 @@ Each implementation milestone must update the [execution ledger](DEXTEROUS_EXPER
   assumption; the bundled-source fix is committed and fresh retries are running.
   Full Isaac operation/traversal, robust student success and catalogue coverage
   remain unfinished.
+
+- September 9, 07:20 UTC: the new [sensor locomotion foundation](SENSOR_LOCOMOTION_BASELINE.md)
+  passes five-second native and actual Isaac trials. Isaac passes 15/15 runtime
+  and 19/19 independent checks with exactly replayed motor commands and mounted
+  gyro readings, under the original `backend-dry-v2` passive profile. The H1
+  walking network receives its orientation inputs from own IMU and encoders;
+  constant command and fixed upper posture remain explicit. No vision steering,
+  contact acquisition or full task success is claimed. Earlier raw-force students
+  still fall at 0.392–0.580 s; original motor-target feedback extends the latest
+  attempt to 1.306 s but is not usable. Privileged physical corrections are now
+  verified and separated from actual applied action history. The architecture
+  proceeds through validated locomotion, stopping and hand-control transitions
+  before more whole-body imitation. Complete Isaac traversal and final policy
+  remain unfinished.
