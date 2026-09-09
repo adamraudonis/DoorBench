@@ -191,3 +191,14 @@ queue wait, the complete native prerequisite, the Isaac wall-clock budget, and
 independent export/audit time **before** choosing the coordinator and teardown
 deadlines. A 36 s Isaac operation on this L40S took 2,987.5 wall-clock seconds
 including export; 36 simulated seconds is not a 36-second resource reservation.
+
+
+Future Isaac runs also write `wall-timing.json` every 250 steps and at exit.
+It partitions main-thread time into controller/submission, physics stepping,
+render/state refresh, and audit/recording/checkpoints. Startup and final export
+are excluded; asynchronous GPU work can be charged to a later synchronization.
+Use it to identify a bottleneck before changing environment counts. These are
+wall-time measurements, not GPU kernel profiling or an optimal-batch claim.
+The external profiler could not attach to experiment 028 under the container's
+process-inspection permissions; it produced no timing samples. The new timing
+code does not alter that frozen run or retroactively instrument its results.

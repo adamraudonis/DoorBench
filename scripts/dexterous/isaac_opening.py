@@ -974,8 +974,11 @@ def main():
         from doorbench.dexterous.teacher_query_recording import TeacherQueryRecorder
         teacher_queries=TeacherQueryRecorder(out/'teacher-query-evidence',joint_names=rnames,hand_body_names=hand_paths,dt=dt)
     time_origin=float(sim.current_time)
+    from doorbench.dexterous.wall_phase_timer import WallPhaseTimer
+    wall_timing=WallPhaseTimer()
     try:
         for step in range(round(a.seconds/dt)):
+            wall_timing.start()
             delivery_failure=None
             pos=robot.data.joint_pos[0].cpu().numpy();vel=robot.data.joint_vel[0].cpu().numpy()
             ctrl=np.zeros(len(kp)) if sensor_actor else controls[min(int(step*dt*50/a.time_scale),len(controls)-1)].copy()
@@ -1107,7 +1110,9 @@ def main():
                 effort[0,dnames.index('leaf_hinge')]=3. if step*dt>1.5 else 0.
                 door.set_joint_effort_target(effort)
             robot.write_data_to_sim();door.write_data_to_sim()
+            wall_timing.mark('controller_and_submission')
             contacts.clear();sim.step(render=False)
+            wall_timing.mark('physics_step')
             if passive_guard:
                 try:passive_guard.check(robot.root_physx_view,time_s=(step+1)*dt)
                 except ValueError:
@@ -1136,6 +1141,7 @@ def main():
             if abs(float(sim.current_time)-time_origin-(step+1)*dt)>.0001:
                 raise RuntimeError('Physics clock changed outside the explicit motor timestep')
             robot.update(dt);door.update(dt)
+            wall_timing.mark('render_and_state_refresh')
             if physics_audit_enabled:
                 if sequence and foot_initial is None:foot_initial=robot.data.body_state_w[0,foot_bodies,2].cpu().numpy().copy()
                 delivered=robot.root_physx_view.get_dof_actuation_forces()[0].cpu().numpy()
@@ -1323,6 +1329,9 @@ def main():
                 checkpoint_prefix()
                 if teacher_queries:teacher_queries.finish(complete=False,executed_steps=len(acquisition_states['time_s']))
             if sensor_recorder and (step+1)%2500==0:sensor_recorder.finish(complete=False)
+            wall_timing.finish('audit_recording_and_checkpoints')
+            if (step+1)%250==0:
+                (out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n')
             if (step+1)%50==0 and (out/'stop.request').exists():
                 (out/'early-stop.json').write_text(json.dumps(dict(reason='Requested graceful diagnostic stop',time_s=(step+1)*dt))+'\n')
                 break
@@ -1334,6 +1343,7 @@ def main():
                 (out/'early-stop.json').write_text(json.dumps(dict(reason='Robot fell',time_s=(step+1)*dt))+'\n')
                 break
     except BaseException as run_error:
+        (out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n')
         if passive_guard:
             (out/'joint-passive-invariants.json').write_text(json.dumps(passive_guard.receipt(),indent=2)+'\n')
         save_attained_left_plan()
@@ -1374,6 +1384,7 @@ def main():
         if writer:writer.close()
         if hand_writer:hand_writer.close()
         raise
+    (out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n')
     save_attained_left_plan()
     if balance_contact_stream:
         balance_contact_stream.close()
