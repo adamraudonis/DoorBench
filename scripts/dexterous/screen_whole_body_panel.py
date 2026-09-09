@@ -22,6 +22,8 @@ def main():
     p.add_argument('--root-extent-m',type=float,default=.05)
     p.add_argument('--root-rotation-rad',type=float,default=.15)
     p.add_argument('--root-rotation-norm-rad',type=float)
+    p.add_argument('--root-yaw-target-rad',type=float,help='Smooth prescribed upright yaw preference with continuity regularization and3cm root bound')
+    p.add_argument('--root-yaw-extent-rad',type=float,help='Explicit upright pivot: allow yaw separately while retaining a0.05rad roll/pitch increment bound')
     p.add_argument('--maximum-torso-tilt-deg',type=float,help='Optional absolute upright planning bound, independent of the initial root orientation')
     p.add_argument('--target-aperture-rad',type=float,default=1.2)
     p.add_argument('--nodes',type=int,default=61)
@@ -34,6 +36,8 @@ def main():
         raise ValueError('Require bounded declared geometry settings')
     if a.root_rotation_norm_rad is not None and not .01<=a.root_rotation_norm_rad<=.05:raise ValueError('Rotation norm must remain inside the original0.05rad screen')
     if a.maximum_torso_tilt_deg is not None and not 0<a.maximum_torso_tilt_deg<=12:raise ValueError('Require a positive torso bound within the physical safety limit')
+    if a.root_yaw_extent_rad is not None and (not .05<=a.root_yaw_extent_rad<=.3 or a.root_rotation_norm_rad is not None):raise ValueError('Upright yaw profile requires .05..0.3rad yaw and no isotropic rotation-norm override')
+    if a.root_yaw_target_rad is not None and (a.root_yaw_extent_rad is None or not abs(a.root_yaw_target_rad)<a.root_yaw_extent_rad):raise ValueError('Yaw target must lie inside its declared extent')
     run=a.source_run.resolve();config=json.loads((run/'manifest.json').read_text())['configuration']
     sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
     from doorbench.dexterous.environment import DexterousDoorEnv
@@ -89,6 +93,8 @@ def main():
     js=np.array([m.joint('robot/'+n).id for n in names]);qa=m.jnt_qposadr[js];initial=base[qa].copy()
     low=np.r_[np.full(3,-max(1e-12,a.root_extent_m)),np.full(3,-max(1e-12,a.root_rotation_rad)),m.jnt_range[js,0]+.001]
     high=np.r_[np.full(3,max(1e-12,a.root_extent_m)),np.full(3,max(1e-12,a.root_rotation_rad)),m.jnt_range[js,1]-.001]
+    if a.root_yaw_extent_rad is not None:low[5]=-a.root_yaw_extent_rad;high[5]=a.root_yaw_extent_rad
+    if a.root_yaw_target_rad is not None:low[6:]=m.jnt_range[js,0]+.005;high[6:]=m.jnt_range[js,1]-.005
     previous=np.r_[np.zeros(6),initial];rows=[]
     a.output.mkdir(parents=True,exist_ok=False)
     (a.output/'screen-source.py').write_bytes(Path(__file__).read_bytes())
@@ -107,6 +113,8 @@ def main():
             fu=float(np.clip((angle-base[leafq])/a.flatten_over_rad,0,1));fb=fu**3*(10+fu*(-15+6*fu))
             local,goal_rotation,_=flatten_palm_goal(local,local_r,palm_vertices,fb)
         goal_p=lp+lr@local;goal_r=lr@goal_rotation
+        phase=float(np.clip((angle-base[leafq])/(a.target_aperture_rad-base[leafq]),0,1));phase=phase**3*(10+phase*(-15+6*phase))
+        anchor=previous.copy()
         def evaluate(x):
             d.qpos[:]=state;d.qpos[rq:rq+3]=rp+x[:3]
             quat=(Rotation.from_rotvec(x[3:6])*rr).as_quat();d.qpos[rq+3:rq+7]=np.r_[quat[3],quat[:3]]
@@ -121,7 +129,9 @@ def main():
                 vertices=elbow_vertices@d.xmat[elbow].reshape(3,3).T+d.xpos[elbow]
                 gap=float(np.min((vertices-lp)@lr[:,1]*elbow_side))-slab_front
                 elbow_barrier=1000.*max(0.,.003-gap)
-            return np.r_[hands,foot,upright,elbow_barrier,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6],0. if a.root_rotation_norm_rad is None else 1000.*max(0.,np.linalg.norm(x[3:6])-(a.root_rotation_norm_rad-.0001))]
+            yaw_tilt_barrier=0. if a.root_yaw_extent_rad is None else 1000.*max(0.,np.linalg.norm(x[3:5])-.0499)
+            pivot=[] if a.root_yaw_target_rad is None else np.r_[5.*(x[5]-a.root_yaw_target_rad*phase),1000.*max(0.,np.linalg.norm(x[:3])-.0299),.2*(x-anchor)]
+            return np.r_[hands,foot,upright,elbow_barrier,yaw_tilt_barrier,pivot,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6],0. if a.root_rotation_norm_rad is None else 1000.*max(0.,np.linalg.norm(x[3:6])-(a.root_rotation_norm_rad-.0001))]
         fit=least_squares(evaluate,np.clip(previous,low,high),bounds=(low,high),max_nfev=800,ftol=1e-11,xtol=1e-11,gtol=1e-11)
         previous=fit.x.copy();res=evaluate(previous);mujoco.mj_collision(m,d)
         collisions=[]
@@ -139,7 +149,7 @@ def main():
             forbidden_collisions=collisions,nfev=int(fit.nfev))
         rows.append(row);print(json.dumps({k:v for k,v in row.items() if k not in ('qpos','joint_targets')}),flush=True)
     summary=dict(scope='Fresh unstepped attained-state panel workspace screen. No physical or loaded-palm qualification; target-rate resampling and dense collision audit are still required.',
-        configuration={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},source_code_sha256=hashlib.file_digest(Path(__file__).open('rb'),'sha256').hexdigest(),source_time_s=time,source_chunk_sha256=chunk['sha256'],
+        configuration={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},source_code_sha256=hashlib.file_digest((a.output/'screen-source.py').open('rb'),'sha256').hexdigest(),source_time_s=time,source_chunk_sha256=chunk['sha256'],
         maximum_actual_fk_error=error,initial_qpos=base.tolist(),initial_qvel=velocity.tolist(),names=names,rows=rows,
         maximum_palm_position_error_m=max(max(r['left_position_error_m'],r['right_position_error_m']) for r in rows),
         maximum_foot_position_error_m=max(r['maximum_foot_position_error_m'] for r in rows),maximum_torso_tilt_deg=max(r['torso_tilt_deg'] for r in rows),

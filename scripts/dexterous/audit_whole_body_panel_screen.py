@@ -31,6 +31,8 @@ def main():
     if not (0<args.aperture_speed_limit_rad_s<=.149 and 0<args.aperture_acceleration_limit_rad_s2<=.08):raise ValueError('Require finite positive rates within original panel limits')
     if args.samples<2001:raise ValueError('Require >=2001 dense samples')
     report=json.loads(args.screen.read_text())
+    yaw=report['configuration'].get('root_yaw_extent_rad')
+    if yaw is not None and (not .05<=yaw<=.3 or report['configuration'].get('root_rotation_norm_rad') is not None):raise ValueError('Invalid explicit upright-yaw planning profile')
     run=Path(report['configuration']['source_run']).resolve()
     config=json.loads((run/'manifest.json').read_text())['configuration']
     sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
@@ -120,6 +122,10 @@ def main():
         minimum_clearance=min(minimum_clearance,nearest)
         for key,value in vals.items():maxima[key]=max(maxima.get(key,0.),value)
         limits=dict(left_position_m=.0001,left_rotation_rad=.001,right_position_m=.0001,right_rotation_rad=.001,foot_position_m=.0001,foot_rotation_rad=.001,joint_violation_increase_rad=.000001,torso_tilt_deg=min(12.,float(report['configuration'].get('maximum_torso_tilt_deg') or 12.)),root_translation_m=.03,root_rotation_rad=.05,com_xy_displacement_m=.015,joint_velocity_rad_s=1.2,joint_acceleration_rad_s2=3.,root_velocity_m_s=.02,root_rotvec_velocity_rad_s=.03)
+        if yaw is not None:
+            vals.update(root_tilt_delta_rad=float(np.linalg.norm(x[3:5])),root_yaw_delta_rad=float(abs(x[5])))
+            limits.update(root_rotation_rad=float(np.hypot(.05,yaw)),root_tilt_delta_rad=.05,root_yaw_delta_rad=yaw)
+            for key in ('root_tilt_delta_rad','root_yaw_delta_rad'):maxima[key]=max(maxima.get(key,0.),vals[key])
         bad={key:vals[key] for key,limit in limits.items() if vals[key]>limit}
         if bad or collisions or nearest<.04:failures.append(dict(time_s=float(t),violations=bad,collisions=collisions,right_clearance_m=nearest,closest_pair=pair))
         traces.append(np.r_[t,sample['progress'],sample['position'],sample['velocity'],sample['acceleration']])

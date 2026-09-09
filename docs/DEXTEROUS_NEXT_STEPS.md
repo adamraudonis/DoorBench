@@ -700,3 +700,23 @@ representation. No numerical audit was changed. Pressure013's new close-up was
 rendered on the original node using its exact robot/door files and inspected at
 35.502 s from120-degree azimuth. The imageio2.37.4 diagnostic package was added
 without dependencies to the asset environment; simulation packages were retained.
+
+Wider opening screen007 fails pose tolerances despite no sampled collisions.
+Its final left-palm position error is2.062 mm and foot error1.156 mm. The left
+wrist yaw reaches its lower limit and Shadow wrist deviation its upper limit.
+Screen008 separately permits up to0.3 rad of root yaw, keeping a0.05 rad
+roll/pitch increment cap, four-degree absolute torso bound and all foot/contact/
+rate checks. It still misses pose tolerances; yaw alone does not remove the
+wrist constraint. An actual-pose Jacobian diagnostic predicts that lowering
+the left palm moves both wrist coordinates away from their stops. Screen009
+therefore adds a declared0.15 m contact-height descent. These remain unstepped
+geometry candidates and cannot qualify physical opening.
+
+Screen009 failed the dense audit despite successful sampled poses: interpolation
+overshot body limits and introduced abrupt target motion. Screen010 uses81 nodes,
+a0.10 m palm descent, smooth0.15 rad body yaw preference, continuity regularization
+and an interior joint-limit margin. It passes all2,001 dense samples with zero
+collisions or increased joint-limit violation, maximum torso tilt3.990 degrees,
+root translation19.579 mm and conservative peak joint acceleration0.522 rad/s².
+All30 focused planner/schedule tests pass. This qualifies geometry only; panel007
+will test the two-segment continuation from a closed start under physical load.
