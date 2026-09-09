@@ -107,5 +107,20 @@ Original joint-stop and loopback development tolerances remained unchanged.
 
 The Isaac adapter uses `--sensor-locomotion-stop-after-seconds 3 --seconds 10`
 with the same bound locomotion calibration and checkpoint. It has separate
-handoff/quiet-state checks. This new stopping port requires an actual GPU test;
-the verified five-second walking result does not qualify stopping.
+handoff/quiet-state checks. The actual `sensor-walk-stop-isaac-002` trial completed on September 9, 2026 at
+07:36:32 UTC. It passed 18/18 runtime checks and
+[22/22 independent checks](evidence/isaac-sensor-walk-stop-002.json).
+It moved 0.0883 m in the floor plane, handed off at 6.494 s, and stayed below
+1.950° torso tilt. All 5,000 motor commands and gyro components replayed exactly.
+The original `backend-dry-v2` passive profile and all physical checks remained
+active. The first launch failed before physics on an older system Python;
+using the pinned environment interpreter resolved setup without changing the
+controller. Its failed receipt is retained.
+
+
+Further lowering experiments remain unqualified. A first native descent reached
+0.872 m but rotated about 24°; its older height/balance audit did not check
+heading. A stricter heading objective held orientation but failed to descend.
+A wider-stance attempt lost support and accumulated QP failures. Robot-only IK
+posture guidance is under development with original joint bounds and explicit
+foot-frame residual checks. None of these results qualify handle interaction.

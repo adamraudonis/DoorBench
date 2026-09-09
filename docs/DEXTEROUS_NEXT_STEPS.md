@@ -151,3 +151,11 @@ Each implementation milestone must update the [execution ledger](DEXTEROUS_EXPER
   proceeds through validated locomotion, stopping and hand-control transitions
   before more whole-body imitation. Complete Isaac traversal and final policy
   remain unfinished.
+
+- September 9, 07:36 UTC: actual Isaac sensor walking/braking/stance trial002
+  passes 18 runtime and 22 independent checks over ten seconds, with exact replay
+  of every motor command and gyro reading. Its source, failed system-Python setup
+  attempt and verified final evidence archive are retained. Native walking/stopping
+  also passes 18 checks. Lowering exposed a heading defect missed by its initial
+  audit; height and heading are now separate acceptance checks. The complete
+  vision/tactile door policy and full Isaac opening/traversal remain unfinished.
