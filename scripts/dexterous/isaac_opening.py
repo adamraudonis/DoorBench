@@ -23,7 +23,7 @@ def validate_traversal_mode(args):
         return
     if not args.full_sequence_reset or not args.full_opening:
         raise ValueError('--traverse requires --full-sequence-reset and --full-opening')
-    if args.sensor_policy_checkpoint or getattr(args,'sensor_balance_calibration',None) or args.mechanism_test or args.panel_push:
+    if args.sensor_policy_checkpoint or getattr(args,'sensor_balance_calibration',None) or getattr(args,'sensor_locomotion_calibration',None) or args.mechanism_test or args.panel_push:
         raise ValueError('Traversal is an explicit privileged motor-teacher mode')
     if args.target_aperture < 1.2 or args.time_scale != 1.:
         raise ValueError('Traversal requires >=1.2 rad aperture and the unchanged controller clock')
@@ -141,6 +141,9 @@ p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smoot
 p.add_argument('--operator-compliance-gain',type=float,default=0.,help='Bounded palm-reference integral compensation for actual operator-angle error; motor and mechanism limits unchanged')
 p.add_argument('--sensor-policy-checkpoint',help='Execute the recurrent actor using only robot sensor packets; no teacher fallback')
 p.add_argument('--sensor-balance-calibration',help='Opt-in stationary sensor-only balance calibration; no learned policy or acquisition claim')
+p.add_argument('--sensor-locomotion-calibration',help='Separate five-second pinned H1 sensor-locomotion diagnostic; no door task claim')
+p.add_argument('--sensor-locomotion-robot',help='Bound robot-only model for IMU mounting and motor calibration')
+p.add_argument('--sensor-locomotion-checkpoint',help='Pinned original Unitree H1 locomotion network')
 p.add_argument('--sensor-balance-robot',help='Static robot-only XML calibration for the sensor balance estimator')
 p.add_argument('--sensor-arm-schedule',help='Opt-in frozen six-second scripted arm schedule over sensor-only balance; not a learned door policy')
 p.add_argument('--sensor-reach-protocol',help='Frozen eleven-second contact-free coordinated reach protocol over sensor-only balance')
@@ -287,7 +290,7 @@ def main():
     ref=json.loads(Path(a.reference).read_text());motors=json.loads(Path(a.motors).read_text())
     (out/'motor-contract.json').write_bytes(Path(a.motors).read_bytes())
     sequence_reset=json.loads(Path(a.full_sequence_reset).read_text()) if a.full_sequence_reset else None
-    sensor_control=bool(a.sensor_policy_checkpoint or a.sensor_balance_calibration)
+    sensor_control=bool(a.sensor_policy_checkpoint or a.sensor_balance_calibration or a.sensor_locomotion_calibration)
     physics_audit_enabled=bool(a.acquisition or sensor_control)
     if a.acquisition or a.reset_from_acquisition_path:
         ref['initial_joints']=dict(zip(ref['acquisition']['joint_names'],ref['acquisition']['path_qpos'][0]))
@@ -573,7 +576,12 @@ def main():
             from panel_push_teacher import PanelPushTeacher
             HandleTeacher=PanelPushTeacher
         teacher=HandleTeacher(a.native_robot,motors,ref,stance_qp=a.stance_qp,grip_rotation_fraction=a.grip_rotation_fraction,grip_force=a.grip_force)
-    if a.sensor_policy_checkpoint:
+    if a.sensor_locomotion_calibration:
+        from doorbench.dexterous.sensor_locomotion import SensorLocomotionController
+        sensor_actor=SensorLocomotionController.from_calibration(a.sensor_locomotion_robot,motors,sensor_recorder.layout,
+            a.sensor_locomotion_calibration,a.sensor_locomotion_checkpoint)
+        sensor_actor.reset_episode()
+    elif a.sensor_policy_checkpoint:
         from doorbench.dexterous.sensor_policy_controller import SensorPolicyController
         sensor_actor=SensorPolicyController(a.sensor_policy_checkpoint,motor_contract=motors,
             sensor_layout=sensor_recorder.layout,physics_dt_s=dt,device=a.device)
@@ -641,6 +649,11 @@ def main():
              'passage.py','isaac_post_opening_measurements.py')]
     if sensor_actor:
         inputs.append(Path(a.sensor_reset_preflight))
+        if a.sensor_locomotion_calibration:
+            inputs += [Path(a.sensor_locomotion_calibration),Path(a.sensor_locomotion_robot),Path(a.sensor_locomotion_checkpoint)]
+            (out/'sensor-locomotion-calibration.json').write_bytes(Path(a.sensor_locomotion_calibration).read_bytes())
+            sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
+                ('sensor_locomotion.py','motor_target_control.py','locomotion.py')]
         if a.sensor_policy_checkpoint:inputs.append(Path(a.sensor_policy_checkpoint))
         if a.sensor_balance_calibration:
             inputs += [Path(a.sensor_balance_calibration),Path(a.sensor_balance_robot)]
@@ -729,7 +742,7 @@ def main():
         pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
         rotation=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
         pad_steps.append(pad_evaluator.read(physics_dt=dt,time_s=0.,center=pose[:3]+rotation@grip_center,axis=rotation@grip_axis,half_length=grip_half,radius=grip_radius))
-        acquisition_reset=dict(root=controller_root_state(robot.data,traverse=bool(continuous))[0].cpu().tolist(),joints=robot.data.joint_pos[0].cpu().tolist(),door=dict(zip(dnames,door.data.joint_pos[0].cpu().tolist())),
+        acquisition_reset=dict(root=controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration))[0].cpu().tolist(),joints=robot.data.joint_pos[0].cpu().tolist(),door=dict(zip(dnames,door.data.joint_pos[0].cpu().tolist())),
             contact_evidence_note='t=0 contact buffers before the first explicit step; full static native path/initial clearances are recorded separately with the reference')
         (out/'acquisition-reset.json').write_text(json.dumps(acquisition_reset,indent=2)+'\n')
     foot_loads=np.zeros(2);right_hand_contact_count=0;right_hand_buffered_contact_count=0
@@ -789,7 +802,7 @@ def main():
         hp=measured_body[door.body_names.index('leaf_handle')];lp=measured_body[door.body_names.index('leaf')]
         angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in
                 [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
-        geometry=opening_geometry.read(time_s=t,pose_time_s=t,root=controller_root_state(robot.data,traverse=bool(continuous))[0].cpu().numpy(),
+        geometry=opening_geometry.read(time_s=t,pose_time_s=t,root=controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration))[0].cpu().numpy(),
             joints=dict(zip(rnames,robot.data.joint_pos[0].cpu().numpy())),angles=angles,
             body_poses=dict(zip(robot.body_names,robot.data.body_state_w[0,:,:7].cpu().numpy())),
             handle_pose=hp,leaf_pose=lp)
@@ -954,7 +967,7 @@ def main():
             forces=np.clip(kp*ctrl+bias[:,0]+bias[:,1]*lengths+bias[:,2]*speeds+feedforward+impedance,force_ranges[:,0],force_ranges[:,1])
             if a.acquisition:
                 body=door.data.body_state_w[0,:,:7].cpu().numpy()
-                measured_args=(step*dt,controller_root_state(robot.data,traverse=bool(continuous))[0].cpu().numpy(),dict(zip(rnames,pos)),dict(zip(rnames,vel)),body[door.body_names.index('leaf_handle')])
+                measured_args=(step*dt,controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration))[0].cpu().numpy(),dict(zip(rnames,pos)),dict(zip(rnames,vel)),body[door.body_names.index('leaf_handle')])
                 loads=dict(zip(hand_paths,hand_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().sum(axis=1)))
                 if full_opening:
                     state=full_measurement
@@ -1027,6 +1040,12 @@ def main():
                     (out/'actual-preparation-reference.json').write_text(json.dumps(sequence.actual_preparation)+'\n')
                 ctrl=teacher.target.copy();feedforward=np.zeros_like(forces)
             if sensor_actor:
+                if step==0 and (a.sensor_locomotion_calibration or getattr(sensor_actor,'action_semantics',None)=='original_motor_target_v1'):
+                    # Encoders are available at reset without inventing a past
+                    # IMU/tactile interval or advancing physics.
+                    ji=sensor_recorder.joint_indices
+                    sensor_recorder.builder.push('joint_position',pos[ji],capture_s=0.)
+                    sensor_recorder.builder.push('joint_velocity',vel[ji],capture_s=0.)
                 measured_body=door.data.body_state_w[0,:,:7].cpu().numpy()
                 teacher_queries.record(time_s=step*dt,root_state=robot.data.root_state_w[0].cpu().numpy(),
                     joint_position=pos,joint_velocity=vel,handle_pose=measured_body[door.body_names.index('leaf_handle')],
@@ -1041,6 +1060,8 @@ def main():
                 if step==0:sensor_recorder.record_initial_decision(packet,forces)
                 teacher_info=dict(phase='sensor_policy',runtime_inputs='numeric robot sensor packet and local acquisition clock',teacher_fallback=False) if not a.sensor_balance_calibration else dict(
                     **sensor_actor.last_info,phase='sensor_acquisition_balance' if a.sensor_acquisition_protocol else 'sensor_reach_balance' if a.sensor_reach_protocol else 'sensor_arm_balance' if a.sensor_arm_schedule else 'sensor_balance',teacher_fallback=False)
+            if a.sensor_locomotion_calibration:
+                teacher_info=dict(**sensor_actor.last_info,phase='sensor_locomotion',teacher_fallback=False)
             torque=matrix.T@forces-damp*vel-friction*np.tanh(vel/.001)
             robot.set_joint_effort_target(torch.tensor(torque[None],device=a.device,dtype=torch.float32))
             door.set_joint_position_target(target);door.set_joint_velocity_target(torch.zeros_like(target))
@@ -1176,7 +1197,7 @@ def main():
                     right_hand_contact_count=right_hand_contact_count,buffered_hand_contact_count=right_hand_buffered_contact_count))
             if physics_audit_enabled:
                 acquisition_states['time_s'].append((step+1)*dt)
-                acquisition_states['root'].append(controller_root_state(robot.data,traverse=bool(continuous))[0].cpu().numpy().copy())
+                acquisition_states['root'].append(controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration))[0].cpu().numpy().copy())
                 acquisition_states['joints'].append(robot.data.joint_pos[0].cpu().numpy().copy())
                 acquisition_states['motor_forces'].append(forces.copy())
                 acquisition_states['door'].append(door.data.joint_pos[0].cpu().numpy().copy())
@@ -1218,7 +1239,7 @@ def main():
                     robot=dict(zip(robot.body_names,robot.data.body_state_w[0,:,:7].cpu().tolist())),
                     door=dict(zip(door.body_names,door.data.body_state_w[0,:,:7].cpu().tolist()))),indent=2)+'\n')
             if step%10==0:
-                state=controller_root_state(robot.data,traverse=bool(continuous))[0].cpu().numpy()
+                state=controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration))[0].cpu().numpy()
                 up=robot.data.projected_gravity_b[0].cpu().numpy()
                 row=dict(time_s=(step+1)*dt,sim_time_s=float(sim.current_time)-time_origin,root=state.tolist(),torso_tilt_deg=float(np.degrees(np.arccos(np.clip(-up[2],-1,1)))),
                          joints=robot.data.joint_pos[0].cpu().tolist(),door=dict(zip(dnames,door.data.joint_pos[0].cpu().tolist())),
@@ -1360,7 +1381,7 @@ def main():
             max_motor_delivery_error_Nm=max_motor_delivery_error,
             physics_dt_s=dt,duration_s=acquisition_states['time_s'][-1],runtime_robot_pose_writes=0,direct_door_commands=False,
             initial_contact_evidence_note=acquisition_reset['contact_evidence_note'],final_pad_grasp=pad_steps[-1])
-        if sensor_actor and not a.sensor_balance_calibration:
+        if sensor_actor and not (a.sensor_balance_calibration or a.sensor_locomotion_calibration):
             actor_checks=dict(checks)
             actor_checks.update(motor_delivery=max_motor_delivery_error<1e-4,
                 no_wrong_pad_patch=all(c['pad_qualified'] for row in pad_steps for c in row['contacts']))
@@ -1530,6 +1551,22 @@ def main():
             for name in ('traversal-report.json','report.json'):
                 (out/name).write_text(json.dumps(traversal_report,indent=2)+'\n')
             print('TRAVERSAL_RESULT '+json.dumps({k:v for k,v in traversal_report.items() if k!='final_traversal_measurement'}),flush=True)
+    if a.sensor_locomotion_calibration:
+        loco_checks=current_physics_checks()
+        loco_checks['declared_duration']=len(acquisition_states['time_s'])==round(a.seconds/dt)
+        roots=np.asarray(acquisition_states['root'])
+        loco_report=dict(passed=all(loco_checks.values()),checks=loco_checks,
+            scope='Pinned H1 sensor-only locomotion component; constant body command, no learned vision task policy or door opening',
+            duration_s=float(acquisition_states['time_s'][-1]),runtime_robot_pose_writes=0,teacher_actions=0,
+            action_semantics=sensor_actor.action_semantics,checkpoint_sha256=sensor_actor.checkpoint_sha256,
+            root_displacement_world_m=(roots[-1,:3]-np.asarray(acquisition_reset['root'])[:3]).tolist(),
+            controller_inputs='Joint encoders, own mounted IMU delta angle, internal gait clock and static calibration',
+            initial_orientation_calibration='upright; yaw/XY arbitrary',joint_passive_profile=a.joint_passive_profile,
+            maximum_torso_tilt_deg=max(acquisition_states['torso_tilt_deg']),
+            max_motor_delivery_error_Nm=max_motor_delivery_error,vision_task_policy=False,full_task_qualified=False)
+        for name in ('locomotion-report.json','report.json'):
+            (out/name).write_text(json.dumps(loco_report,indent=2)+'\n')
+        print('LOCOMOTION_RESULT '+json.dumps(loco_report),flush=True)
     if passive_guard:
         (out/'joint-passive-invariants.json').write_text(json.dumps(passive_guard.receipt(),indent=2)+'\n')
     completed_recording=(len(acquisition_states['time_s'])==round(a.seconds/dt) or

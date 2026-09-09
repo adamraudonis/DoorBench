@@ -24,8 +24,8 @@ from scripts.dexterous.train_sensor_imitation import atomic_json, atomic_torch
 
 
 
-def initialize_actor_weights(actor, model, episode):
-    if (actor['schema'] != SENSOR_ACTOR_CHECKPOINT_SCHEMA
+def initialize_actor_weights(actor, model, episode, *, schema=SENSOR_ACTOR_CHECKPOINT_SCHEMA):
+    if (actor['schema'] != schema
             or actor['dimensions'] != asdict(episode.dimensions)
             or actor['motor_contract_sha256'] != episode.motor_contract_sha256
             or actor['sensor_layout'] != episode.layout
@@ -73,6 +73,7 @@ def main():
     p.add_argument('--correction-run', type=Path, action='append', default=[], help='Separately audited bounded native recovery source')
     p.add_argument('--correction-only', action='store_true', help='Explicit approach curriculum; does not retain complete-task imitation coverage')
     p.add_argument('--motor-targets', action='store_true', help='New checkpoint action space using original motor target feedback, recorded force history only')
+    p.add_argument('--teacher-prefix-seconds', type=float, help='Explicit bounded curriculum from the qualified teacher; no complete-task training coverage')
     initial = p.add_mutually_exclusive_group()
     initial.add_argument('--resume-state', type=Path, help='Completed-update checkpoint; output must be a new directory')
     initial.add_argument('--initialize-actor', type=Path, help='Fine-tune existing sensor weights with fresh Adam; new experiment, not exact optimizer recovery')
@@ -86,6 +87,10 @@ def main():
     if a.correction_only and not a.correction_run:
         p.error('--correction-only requires at least one --correction-run')
     episode = NativeSensorDemonstration(a.run, a.camera_variant)
+    if a.teacher_prefix_seconds is not None:
+        if a.correction_only:p.error('Teacher prefix cannot contribute to correction-only training')
+        from doorbench.dexterous.native_demonstration_prefix import NativeDemonstrationPrefix
+        episode=NativeDemonstrationPrefix(episode,a.teacher_prefix_seconds)
     from doorbench.dexterous.native_correction_demonstrations import NativeCorrectionDemonstration
     corrections = [NativeCorrectionDemonstration(path) for path in a.correction_run]
     for correction in corrections:
@@ -95,8 +100,8 @@ def main():
     episodes = ([] if a.correction_only else [episode]) + corrections
     from doorbench.dexterous.motor_target_control import MotorTargetDemonstration, MOTOR_TARGET_SCHEMA
     if a.motor_targets:
-        if a.resume_state or a.initialize_actor:
-            p.error('Motor-target experiment requires fresh initialization or explicit --initialize-feature-actor')
+        if a.resume_state:
+            p.error('Exact optimizer resume is not yet supported for motor-target experiments; preserve the run')
         motors=json.loads((a.run/'motors-input.json').read_text())
         episodes=[MotorTargetDemonstration(e,motors) for e in episodes]
     elif a.initialize_feature_actor:
@@ -117,14 +122,15 @@ def main():
             configuration.update(initialization='pretrained_features_new_motor_target_head',
                 initial_actor_sha256=hashlib.sha256(a.initialize_feature_actor.read_bytes()).hexdigest(),
                 previous_optimizer_restored=False)
-        _,first_target=episodes[0].sequence(0,1)
-        with torch.no_grad():
-            model.action[0].weight.zero_()
-            model.action[0].bias.copy_(torch.as_tensor(np.arctanh(np.clip(first_target[0],-.999999,.999999)),device=a.device))
-        configuration['initial_head']='Zero weights, inverse-tanh bias of first admitted teacher motor target; static training initialization, not a runtime teacher'
+        if not a.initialize_actor:
+            _,first_target=episodes[0].sequence(0,1)
+            with torch.no_grad():
+                model.action[0].weight.zero_()
+                model.action[0].bias.copy_(torch.as_tensor(np.arctanh(np.clip(first_target[0],-.999999,.999999)),device=a.device))
+            configuration['initial_head']='Zero weights, inverse-tanh bias of first admitted teacher motor target; static training initialization, not a runtime teacher'
     if a.initialize_actor is not None:
         actor = torch.load(a.initialize_actor, map_location=a.device, weights_only=False)
-        initialize_actor_weights(actor, model, episode)
+        initialize_actor_weights(actor, model, episode,schema=MOTOR_TARGET_SCHEMA if a.motor_targets else SENSOR_ACTOR_CHECKPOINT_SCHEMA)
         configuration.update(initialization='pretrained_actor_fresh_adam',
             initial_actor_sha256=hashlib.sha256(a.initialize_actor.read_bytes()).hexdigest(),
             pretrained_optimizer_steps=actor.get('completed_optimizer_steps'),
@@ -186,7 +192,7 @@ def main():
         complete=completed==a.iterations, history=history, interrupted=interrupted,
         resumed_optimizer_steps=initial_completed, missing_historical_updates=initial_completed-len(inherited_history),
         source_examples=sum(len(e) for e in episodes), correction_only=a.correction_only,
-        complete_task_examples_in_update=0 if a.correction_only else len(episode),
+        complete_task_examples_in_update=0 if a.correction_only or a.teacher_prefix_seconds is not None else len(episode),
         physical_rollout_evaluated=False, scope=__doc__)
     atomic_json(a.output/'report.json', report)
     print(json.dumps(report), flush=True)

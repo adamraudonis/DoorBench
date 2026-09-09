@@ -4,6 +4,14 @@
 def validate_sensor_balance_protocol(options):
     """Keep separately qualified balance experiments and their durations distinct."""
     calibration=getattr(options,'sensor_balance_calibration',None)
+    locomotion=getattr(options,'sensor_locomotion_calibration',None)
+    loco_robot=getattr(options,'sensor_locomotion_robot',None)
+    loco_checkpoint=getattr(options,'sensor_locomotion_checkpoint',None)
+    if any((locomotion,loco_robot,loco_checkpoint)):
+        if (not all((locomotion,loco_robot,loco_checkpoint)) or calibration
+                or getattr(options,'sensor_policy_checkpoint',None)
+                or getattr(options,'seconds',None)!=5.):
+            raise ValueError('Sensor locomotion requires its separate five-second calibration, robot and pinned checkpoint')
     robot=getattr(options,'sensor_balance_robot',None)
     arms=getattr(options,'sensor_arm_schedule',None)
     reach=getattr(options,'sensor_reach_protocol',None)
@@ -31,7 +39,7 @@ def validate_sensor_balance_protocol(options):
 
 
 def validate_sensor_actor_mode(options):
-    if not (getattr(options,'sensor_policy_checkpoint',None) or getattr(options,'sensor_balance_calibration',None)):
+    if not (getattr(options,'sensor_policy_checkpoint',None) or getattr(options,'sensor_balance_calibration',None) or getattr(options,'sensor_locomotion_calibration',None)):
         return
     if not getattr(options,'sensor_layout',None):
         raise ValueError('Sensor policy requires the actual sensor calibration')

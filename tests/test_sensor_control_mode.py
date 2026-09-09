@@ -3,6 +3,15 @@ import pytest
 from doorbench.dexterous.control_mode import validate_sensor_actor_mode,validate_sensor_balance_protocol
 
 
+def test_locomotion_cannot_mix_oracle_or_incomplete_calibration():
+    values=dict(sensor_locomotion_calibration='static.json',sensor_locomotion_robot='robot.xml',
+        sensor_locomotion_checkpoint='motion.pt',seconds=5.,sensor_layout='sensors.json',
+        reset_from_acquisition_path=True,sensor_reset_preflight='reset.json')
+    validate_sensor_balance_protocol(SimpleNamespace(**values));validate_sensor_actor_mode(SimpleNamespace(**values))
+    for change in ({'sensor_locomotion_robot':None},{'sensor_policy_checkpoint':'other.pt'},{'seconds':19.}):
+        with pytest.raises(ValueError):validate_sensor_balance_protocol(SimpleNamespace(**(values|change)))
+    with pytest.raises(ValueError):validate_sensor_actor_mode(SimpleNamespace(**(values|{'native_robot':'oracle.xml'})))
+
 def test_sensor_actor_accepts_only_sensor_control_with_static_reset_and_audit_settings():
     validate_sensor_actor_mode(SimpleNamespace(sensor_policy_checkpoint='actor.pt',sensor_layout='actual.json',
         reset_from_acquisition_path=True,sensor_reset_preflight='reset.json',sensor_objective='partial-opening',record=True))

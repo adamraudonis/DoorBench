@@ -62,8 +62,12 @@ def prepare_trial(run, camera_profile):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    for name in ('teacher-run', 'checkpoint', 'output'):
+    for name in ('teacher-run', 'output'):
         p.add_argument('--'+name, type=Path, required=True)
+    policy=p.add_mutually_exclusive_group(required=True)
+    policy.add_argument('--checkpoint',type=Path)
+    policy.add_argument('--locomotion-checkpoint',type=Path,help='Explicit pinned sensor-locomotion baseline; not a learned door policy')
+    p.add_argument('--body-command',type=float,nargs=3,default=[0.,0.,0.])
     p.add_argument('--camera-profile', type=Path, default=Path('configs/dexterous/h1-manipulation-cameras.json'))
     p.add_argument('--seconds', type=float, default=130.)
     p.add_argument('--max-wall-seconds', type=float, default=900.)
@@ -76,10 +80,18 @@ def main():
     m,d = sim.m,sim.d
     config = json.loads((a.teacher_run/'manifest.json').read_text())['configuration']
     robot, door = Path(config['robot']), Path(config['door'])
-    actor = SensorPolicyController(a.checkpoint, motor_contract=motors, sensor_layout=layout, physics_dt_s=.002)
+    if a.locomotion_checkpoint:
+        from doorbench.dexterous.sensor_locomotion import SensorLocomotionController
+        posture=json.loads((a.teacher_run/'body_reset.json').read_text())['motor_targets']
+        actor=SensorLocomotionController(robot,motors,layout,posture,a.locomotion_checkpoint,a.body_command)
+    else:
+        actor = SensorPolicyController(a.checkpoint, motor_contract=motors, sensor_layout=layout, physics_dt_s=.002)
     configuration={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()}
     configuration.update(robot=str(robot),door=str(door),control_source='sensor_actor',reset_chunk_sha256=chunk['sha256'],runtime_pose_writes=0)
     configuration['action_semantics']=actor.action_semantics
+    if a.locomotion_checkpoint:
+        configuration.update(upper_motor_posture=posture,locomotion_checkpoint_sha256=digest(a.locomotion_checkpoint),
+            initial_orientation_calibration='upright; yaw and XY arbitrary',vision_task_policy=False)
     capture(Path(__file__).resolve().parents[2],a.output,configuration)
     sensors=NativeSensorCapture(sim,motors,layout,a.output/'own-sensors',control_source='sensor_actor')
     packet=sensors.initial_packet();actor.reset_episode()
