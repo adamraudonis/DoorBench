@@ -576,3 +576,15 @@ prefix, capped force handoff and unchanged hybrid palm support, followed by the
 screened body/contact targets. New physical gates require the0.75 rad target to
 be held, completed reference progress and <=5 degrees torso tilt throughout the
 panel phase, in addition to existing mechanical/contact/clearance checks.
+
+At 15:38 UTC, native panel001 completed100 s and failed only
+`standing_panel_aperture_held` (32/33 runtime checks). The door settled at
+0.678031 rad, short of the0.75 rad target. Independent contact reduction
+found zero invalid loaded RH patches and passed every check except the physical
+report's overall failure. Final unintended penetration was only0.016 mm; the
+wide final frame was personally inspected. This does not qualify the extension.
+Raw failed evidence was uploaded to the draft research archive, independently
+downloaded and hash-verified before local raw copies were evicted. Qualified
+withdrawal017 remains intact. Panel002 adds an explicit10 N/rad aperture tracking
+correction to the palm-load target, bounded to2.05–3.5 N with original motor caps.
+It is a new continuous100-second physical trial; all acceptance gates remain.
