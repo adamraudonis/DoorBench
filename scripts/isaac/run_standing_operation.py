@@ -98,6 +98,10 @@ def main():
         run([asset,a.source/'scripts/dexterous/audit_sensor_acquisition_contacts.py','--trial',native,'--output',a.output/'native-independent-audit.json'],'native-contact-audit',600)
         if not result['native_runtime_passed']:raise ValueError('Destination-native sustained hold failed')
         if json.loads((a.output/'native-independent-audit.json').read_text()).get('passed') is not True:raise ValueError('Native independent raw-contact audit failed')
+        if a.hold_attained_grasp:
+            started=json.loads((native/'trace.json').read_text())[-1]['teacher'].get('attained_hold_started_s')
+            result['native_attained_hold_started_s']=started
+            if type(started) not in (int,float) or not 0<started<=35.5:raise ValueError('Native attained hold did not activate with a qualified hold window')
         run([asset,a.source/'scripts/dexterous/export_sensor_layout.py','--robot',robot,'--output',layout],'robot-sensor-layout',120)
         inputs=[a.ready,a.reference,robot,motors,reference,screen/'geometry-audit.json',native/'report.json',layout,Path(ready['robot_usd']),Path(ready['door_usd'])]
         (a.output/'provenance.json').write_text(json.dumps(dict(source=frozen,coordinator_sha256=sha(__file__),input_sha256={str(path):sha(path) for path in inputs},scope=result['scope']),indent=2))
@@ -110,6 +114,11 @@ def main():
         audit=json.loads((a.output/'isaac-independent-audit.json').read_text())
         result['independent_audit_passed']=bool(audit['accounting_passed'] and audit['independent_raw_contact_audit_complete'])
         result['passed']=bool(result['isaac_runtime_passed'] and result['independent_audit_passed'])
+        if a.hold_attained_grasp:
+            latest=json.loads((trial/'latest.json').read_text());started=latest['teacher'].get('attained_hold_started_s')
+            result['isaac_attained_hold_started_s']=started
+            result['attained_hold_activated']=bool(type(started) in (int,float) and 0<started<=latest['time_s']-.5)
+            result['passed'] &= result['attained_hold_activated']
     except Exception as exc:result['error']=type(exc).__name__+': '+str(exc)
     finally:
         result['finished_unix']=time.time()
