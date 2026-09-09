@@ -36,9 +36,11 @@ def validate_route_geometry(config):
 
 
 class StandingTransferTeacher:
-    def __init__(self,operation,motors,path,*,start_seconds=22.,preload_profile='maintain',grasp_shift=(0.,0.,0.),hold_route=False):
+    def __init__(self,operation,motors,path,*,start_seconds=22.,preload_profile='maintain',grasp_shift=(0.,0.,0.),hold_route=False,handoff_seconds=0.):
         if preload_profile not in PROFILES:raise ValueError('Unknown transfer preload profile')
         if type(hold_route) is not bool:raise ValueError('Explicit diagnostic hold flag required')
+        if not np.isfinite(handoff_seconds) or not 0<=handoff_seconds<=2:raise ValueError('Handoff duration must be in [0,2] seconds')
+        self.handoff_seconds=handoff_seconds;self.motor_handoff=None
         self.hold_route=hold_route
         self.preload_profile=preload_profile
         self.grasp_shift=np.asarray(grasp_shift,float)
@@ -77,6 +79,7 @@ class StandingTransferTeacher:
                 raise ValueError('Actual standing state differs from the independently screened route start')
             if self.operation.open_started is None or not .075<=angles['leaf']<=.10:
                 raise ValueError('Qualified partial opening required before standing transfer')
+            self.previous_motors=teacher.last_force.copy()
             self.left.begin(t,root,joints,leaf_pose,handle_pose);self.started=t
             self.initial_digit_forces=dict(teacher.digit_forces)
         if self.started is not None:
@@ -93,6 +96,12 @@ class StandingTransferTeacher:
         forces,info=self.operation.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified)
         if self.started is not None:
             forces=self.left.apply_forces(forces,joints,velocities)
+            if self.handoff_seconds:
+                from .motor_handoff import MotorHandoff
+                if self.motor_handoff is None:self.motor_handoff=MotorHandoff(self.previous_motors,forces,teacher.caps,self.handoff_seconds)
+                forces=self.motor_handoff.force(forces,t-self.started)
+                teacher.last_force=forces.copy()
+                info={**info,'motor_handoff_seconds':self.handoff_seconds,'motor_handoff_initial_offset_Nm':self.motor_handoff.offset.tolist()}
             info={**info,**self.left.info, 'standing_transfer_started_s':self.started,'preload_profile':self.preload_profile,'diagnostic_route_held':self.hold_route,'requested_digit_preloads_N':dict(teacher.digit_forces),'transfer_grasp_shift_m':self.grasp_shift.tolist()}
         self.info=info
         return forces,info
