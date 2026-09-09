@@ -103,7 +103,7 @@ robot-only FK. Neither target nor actual body pose is a runtime observation.
             if reflex_inputs is None:raise ValueError('Require actual causal tactile inputs for feedback-goal reconstruction')
             layout,packets=reflex_inputs
             if len(packets['tactile'])!=len(rows):raise ValueError('Incomplete tactile feedback inputs')
-            reflex=TactileGraspReflex(layout,dict(zip(model.names,model.joint_limits)))
+            reflex=TactileGraspReflex(layout,dict(zip(model.names,model.joint_limits)),profile=model.parameters['tactile_reflex_profile'])
     except (ValueError,KeyError,TypeError,OverflowError) as exc:errors.append('Static evaluator/reset: '+str(exc))
     physics_valid=type(physics_checks) is dict and bool(physics_checks) and all(type(k) is str and type(v) is bool for k,v in physics_checks.items())
     families_valid=physics_valid and all(any(k in physics_checks for k in family) for family in PHYSICS_FAMILIES)

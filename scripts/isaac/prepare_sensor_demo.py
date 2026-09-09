@@ -24,7 +24,8 @@ REFERENCE = 'configs/dexterous/door55-precurl-v2/reference.json'
 CALIBRATION = 'configs/dexterous/sensor-balance-v1.json'
 SCHEDULES = {'reach':'configs/dexterous/sensor-reach-balance-feedforward-v3.json',
              'grasp':'configs/dexterous/sensor-acquisition-balance-v1.json',
-             'grasp-pressure':'configs/dexterous/sensor-acquisition-pressure-v1.json'}
+             'grasp-pressure':'configs/dexterous/sensor-acquisition-pressure-v1.json',
+             'grasp-pressure-v2':'configs/dexterous/sensor-acquisition-pressure-v2.json'}
 
 
 def usd_dependencies(paths):

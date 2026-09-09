@@ -25,8 +25,10 @@ def validate_parameters(parameters):
     if type(parameters) is not dict:raise ValueError('Require acquisition parameters')
     expected=dict(PARAMETER_VALUES)
     if 'tactile_reflex_profile' in parameters:
-        from .tactile_grasp_reflex import PROFILE
-        expected.update(tactile_reflex_profile=PROFILE,feedback_profile='finger-distal-pressure-v1')
+        from .tactile_grasp_reflex import PROFILES
+        profile=parameters['tactile_reflex_profile']
+        if profile not in PROFILES:raise ValueError('Unknown declared tactile profile')
+        expected.update(tactile_reflex_profile=profile,feedback_profile='finger-distal-pressure-'+profile.rsplit('-',1)[1])
     if set(parameters)!=set(expected)|{'scope','source_reference_sha256'}:
         raise ValueError('Require the exact qualified acquisition parameter schema')
     for key,wanted in expected.items():

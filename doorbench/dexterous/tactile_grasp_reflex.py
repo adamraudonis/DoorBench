@@ -10,6 +10,7 @@ from pathlib import Path
 from .sensor_contract import SENSOR_KEYS
 
 PROFILE = 'four-finger-preload-v1'
+PROFILES={'four-finger-preload-v1':.4,'four-finger-preload-v2':1.5}
 INPUT_KEYS=('tactile','sensor_time_s','sensor_valid')
 
 
@@ -29,7 +30,9 @@ def archived_reflex_inputs(run, *, engine):
 
 
 class TactileGraspReflex:
-    def __init__(self, layout, joint_limits, *, physics_dt_s=.002):
+    def __init__(self, layout, joint_limits, *, physics_dt_s=.002, profile=PROFILE):
+        if profile not in PROFILES:raise ValueError('Unknown declared distal pressure profile')
+        self.profile=profile;self.target_load=PROFILES[profile]
         if physics_dt_s != .002 or layout['channel_order'] != ['z', 'x', 'y']:
             raise ValueError('Require the original 2ms local normal-first tactile contract')
         self.dt=physics_dt_s;self.limits=dict(joint_limits);self.cells={};offset=0
@@ -63,7 +66,7 @@ class TactileGraspReflex:
             load=float(np.maximum(0.,touch[cells]).sum()) if valid else None
             if valid:self.filtered[digit]+=self.dt/(.04+self.dt)*(load-self.filtered[digit])
             if active:
-                error=.4-self.filtered[digit]
+                error=self.target_load-self.filtered[digit]
                 rate=0. if abs(error)<=.05 else float(np.clip(.2*error,-.08,.08))
                 names=['rh_'+digit.upper()+'J'+j for j in ('1','2')]
                 allowed=min(.08,*(2*(self.limits[n][1]-1e-4-float(nominal[n])) for n in names))
@@ -72,8 +75,8 @@ class TactileGraspReflex:
                 name='rh_'+digit.upper()+'J'+joint
                 result[name]=float(nominal[name])+self.offsets[digit]/2
         self.last_time=float(now_s)
-        self.info=dict(profile=PROFILE,active=active,filtered_distal_normal_load_N=dict(self.filtered),
-            coupled_motor_preload_rad=dict(self.offsets),target_normal_load_N=.4,
+        self.info=dict(profile=self.profile,active=active,filtered_distal_normal_load_N=dict(self.filtered),
+            coupled_motor_preload_rad=dict(self.offsets),target_normal_load_N=self.target_load,
             maximum_coupled_preload_rad=.08,maximum_coupled_slew_radps=.08,
             dynamic_inputs='local distal tactile cells and validity; nominal scripted joint targets and local clock',
             object_geometry_input=False,thumb_target_changed=False)

@@ -44,10 +44,10 @@ class SensorReachBalanceController:
         self.balance.bias[finger,2]-=self.finger_velocity_damping
         self.reflex=None
         if tactile_reflex_profile is not None:
-            from .tactile_grasp_reflex import TactileGraspReflex, PROFILE
-            if tactile_reflex_profile!=PROFILE:raise ValueError('Unknown tactile reflex profile')
+            from .tactile_grasp_reflex import TactileGraspReflex, PROFILES
+            if tactile_reflex_profile not in PROFILES:raise ValueError('Unknown tactile reflex profile')
             limits={n:self.balance.m.jnt_range[j].copy() for n,j in zip(self.goal_names,self.joint_ids)}
-            self.reflex=TactileGraspReflex(sensor_layout,limits,physics_dt_s=physics_dt_s)
+            self.reflex=TactileGraspReflex(sensor_layout,limits,physics_dt_s=physics_dt_s,profile=tactile_reflex_profile)
         self.reset_episode()
 
     @property

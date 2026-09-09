@@ -4,12 +4,12 @@ from doorbench.dexterous.tactile_grasp_reflex import TactileGraspReflex
 from doorbench.dexterous.sensor_contract import SENSOR_KEYS
 
 
-def fixture():
+def fixture(profile='four-finger-preload-v1'):
     sensors=[dict(body_name='rh_'+d+'distal',width=4,height=2,dimension=24) for d in ('ff','mf','rf','lf')]
     layout=dict(channel_order=['z','x','y'],sensors=sensors,tactile_dimension=96)
     nominal={f'rh_{d}J{j}':.2 for d in ('FF','MF','RF','LF') for j in ('1','2')}
     nominal.update(rh_THJ2=.1,torso=.3)
-    c=TactileGraspReflex(layout,{n:(0.,1.) for n in nominal})
+    c=TactileGraspReflex(layout,{n:(0.,1.) for n in nominal},profile=profile)
     packet=dict(tactile=np.zeros(96),sensor_time_s=np.zeros(len(SENSOR_KEYS)),sensor_valid=np.ones(len(SENSOR_KEYS),bool))
     return c,packet,nominal
 
@@ -42,3 +42,13 @@ def test_missing_or_stale_touch_cannot_trigger_closing():
     with pytest.raises(ValueError,match='stale'):c.apply(p,19.,q)
     c.reset();p['sensor_time_s'][:]=.1
     with pytest.raises(ValueError,match='future'):c.apply(p,0.,q)
+
+
+def test_higher_force_target_keeps_the_original_motion_bounds():
+    c,p,q=fixture('four-finger-preload-v2');p['tactile'][:]=.05
+    for i in range(9500):
+        t=i*.002;p['sensor_time_s'][:]=t;c.apply(p,t,q)
+    assert c.info['target_normal_load_N']==1.5
+    assert all(0<v<=.08 for v in c.info['coupled_motor_preload_rad'].values())
+    assert c.info['maximum_coupled_slew_radps']==.08
+    assert not c.info['thumb_target_changed']

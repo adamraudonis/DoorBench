@@ -17,3 +17,9 @@ PYTHONPATH=. python scripts/isaac/prepare_sensor_demo.py --receipt "$READY" \
 ```
 
 The complete previous trial and its 1,317 source/asset inputs have been verified off-pod. Failed trials remain in the record.
+
+## First tactile comparison and the next force target
+
+`own-imu-grasp-pressure-001` also fails the sustained-hold gate. Its longest qualified hold rises from 0.002 to 0.032 seconds, and every digit has a positive minimum pad force over the final half-second. The minima are 0.134, 0.115, 0.058, 0.054 and 0.176 N for index, middle, ring, little and thumb respectively. No invalid loaded patches are reported. Independent reconstruction is pending; this is still a failed component.
+
+The next declared candidate, `grasp-pressure-v2`, raises the local normal-force target from 0.4 to 1.5 N. Additional coupled flexion remains limited to 0.08 rad at 0.08 rad/s, with unchanged original motor caps and unchanged thumb targets. It must undergo the same fresh preparation and actual physical checks. The v1 native trial applied zero additional flexion because its existing grasp already exceeded the preload deadband; its pass therefore established compatibility, not corrective effectiveness.
