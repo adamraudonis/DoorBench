@@ -67,7 +67,10 @@ def main():
     p.add_argument("--wait-for-loaded-aperture",action="store_true",
                    help="Keep the original half-second load requirement before early aperture termination")
     p.add_argument("--continuous-traversal",action="store_true")
+    p.add_argument("--record-actor-sensors",action="store_true")
     a = p.parse_args()
+    if a.record_actor_sensors and not a.continuous_traversal:
+        raise ValueError('Own-sensor capture currently requires the continuous native protocol')
     if a.moving_body_recontact and not a.screened_palm_recontact:
         raise ValueError('Moving-body targets require the declared timed recontact experiment')
     if a.wait_for_loaded_aperture and not a.moving_body_recontact:
@@ -140,6 +143,10 @@ def main():
                        'post_opening_route.py','passage.py','native_post_opening_measurements.py',
                        'native_continuous_bridge.py','locomotion_manipulation.py'):
             shutil.copy2(own/'doorbench/dexterous'/module,stage/'doorbench/dexterous'/module)
+    if a.record_actor_sensors:
+        for module in ('native_sensor_capture.py','sensor_contract.py'):
+            shutil.copy2(own/'doorbench/dexterous'/module,stage/'doorbench/dexterous'/module)
+        shutil.copy2(own/'scripts/dexterous/export_sensor_layout.py',stage/'scripts/dexterous/export_sensor_layout.py')
     if a.whole_body_panel_plan:
         for module in ('screened_panel_path.py','screened_panel_teacher.py','actual_base_palm.py','palm_normal_admittance.py','panel_torso_target.py'):
             shutil.copy2(own/'doorbench/dexterous'/module,stage/'doorbench/dexterous'/module)
@@ -230,6 +237,17 @@ def main():
             "times=np.array([[r[0],r[1]] for r in warning_rows]),"
             "before=np.array([r[2] for r in warning_rows],dtype=np.int64),"
             "after=np.array([r[3] for r in warning_rows],dtype=np.int64))")
+        if a.record_actor_sensors:
+            replace_once('    warning_rows=[]',
+                "    from doorbench.dexterous.native_sensor_capture import NativeSensorCapture\n"
+                "    from scripts.dexterous.export_sensor_layout import export_layout\n"
+                "    own_sensors=NativeSensorCapture(sim,motors,export_layout(a.robot),a.output/'own-sensors')\n"
+                "    warning_rows=[]")
+            replace_once('            raw_stream.write(raw)',
+                "            raw_stream.write(raw)\n"
+                "            own_sensors.capture(start_s=raw['interval_start_s'],end_s=raw['interval_end_s'],actual_forces=d.actuator_force[aids])")
+            replace_once('        sim.close()',
+                "        own_sensors.finish(complete=completed)\n        sim.close()")
         stop=next(line for line in text.splitlines() if line.strip().startswith('if sequence.blocked_reason or'))
         replace_once(stop,"            if sequence.blocked_reason or sequence.continuous.done or not row['finite'] or row['torso_tilt_deg']>35:break")
         marker="        (a.output/'report.json').write_text"
@@ -498,6 +516,7 @@ def main():
             moving_body_recontact=a.moving_body_recontact,
             wait_for_loaded_aperture=a.wait_for_loaded_aperture,
             continuous_traversal=a.continuous_traversal,
+            record_actor_sensors=a.record_actor_sensors,
             screened_panel_lead_audit_sha256=digest(stage/"panel-lead-audit.json") if a.screened_panel_lead_audit else None,
             screened_panel_lead_start_rad=a.screened_panel_lead_start_rad,screened_panel_lead_ramp_rad=a.screened_panel_lead_ramp_rad,
             record_panel_targets=a.record_panel_targets or a.hybrid_include_waist,
