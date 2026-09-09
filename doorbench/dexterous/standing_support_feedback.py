@@ -10,6 +10,25 @@ from .operation_teacher import pose_components, smooth_phase
 
 
 class StandingSupportFeedback:
+    def update_target_velocity(self):
+        """Bounded velocity feedforward at the actual left-IK update rate.
+
+        Repeated physics intervals keep the last value. Differentiating the
+        held 100 Hz target at 500 Hz would instead create artificial spikes.
+        """
+        l=self.left;t=l.last_update;q=np.asarray(l.target,float)
+        if t is None or q.shape!=(7,) or not np.isfinite(q).all():raise ValueError('Complete finite left-arm target required')
+        previous=getattr(self,'previous_target',None)
+        if previous is None:
+            l.target_velocity=np.zeros(7)
+        else:
+            oldt,oldq=previous;dt=t-oldt
+            if dt==0:return
+            if not 0<dt<=.05:raise ValueError('Monotonic left-IK clock required')
+            velocity=np.clip((q-oldq)/dt,-2.,2.)
+            l.target_velocity+=dt/(.04+dt)*(velocity-l.target_velocity)
+        self.previous_target=(float(t),q.copy())
+
     def __init__(self, left):
         self.left=left;self.previous=None;self.started=None
         m,d=left.m,left.d;body=m.site_bodyid[left.palm]

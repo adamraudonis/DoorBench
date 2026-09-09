@@ -34,6 +34,8 @@ class StandingWithdrawalTeacher:
         self.support_feedback=None
         self.left_arm_only=config.get('left_arm_only',False)
         if type(self.left_arm_only) is not bool:raise ValueError('Explicit left-arm solve option required')
+        self.left_target_velocity=config.get('left_target_velocity',False)
+        if type(self.left_target_velocity) is not bool or (self.left_target_velocity and not self.hybrid_support):raise ValueError('Left target velocity requires explicit hybrid support')
         audit_path=Path(config['audit_path']);screen_path=Path(config['screen_path']);source=Path(config['source_run'])
         if sha(audit_path)!=config['audit_sha256'] or sha(screen_path)!=config['screen_sha256']:raise ValueError('Withdrawal evidence changed')
         audit=json.loads(audit_path.read_text());screen=json.loads(screen_path.read_text())
@@ -118,6 +120,7 @@ class StandingWithdrawalTeacher:
                 from .standing_support_feedback import StandingSupportFeedback
                 self.support_feedback=StandingSupportFeedback(self.left)
             self.support_feedback.update(t,leaf_pose,left_panel_load,self.left.support_load_target)
+            if self.left_target_velocity:self.support_feedback.update_target_velocity()
         force,info=self.operation.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified)
         force=self.left.apply_forces(force,joints,velocities)
         # The screened withdrawal is expressed in the attained resting world.
