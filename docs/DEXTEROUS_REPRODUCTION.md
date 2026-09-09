@@ -151,10 +151,17 @@ For a new release candidate on the same verified native embodiment:
 python scripts/dexterous/plan_direct_standing_release.py \
   --source-run out/native-standing-hub-return-001 \
   --output out/my-direct-release \
-  --retreat-profile slide-lift --whole-body
+  --retreat-profile slide-lift --whole-body --coordinated-release \
+  --radial-clearance-m .03 --thumb-j3-margin-rad .035 \
+  --early-palm-clearance-m .04 --early-palm-direction up
 python scripts/dexterous/audit_standing_ungrip.py \
   --source-run out/native-standing-hub-return-001 \
   --screen out/my-direct-release/report.json
+python scripts/dexterous/audit_release_leaf_motion.py \
+  --source-run out/native-standing-hub-return-001 \
+  --screen out/my-direct-release/report.json \
+  --leaf-envelope-rad .012 --clearance-reserve-m .002 \
+  --output out/my-direct-release/leaf-motion-audit.json
 ```
 
 Use a fresh output directory. The source must pass its runtime, independent pad
@@ -167,3 +174,20 @@ For a different robot or an Isaac destination, repeat preparation, native and
 imported mechanics checks, and planning from that destination's attained state.
 Do not relabel a MuJoCo geometric pass as an Isaac result or rewrite historical
 audit hashes to accommodate changed inputs.
+
+The moving-leaf screen evaluates 3,003 configurations. It grows the declared
+leaf-angle uncertainty and clearance reserve during release, checking every
+non-distal lever surface and all hand contacts with the other handle colliders.
+A failed screen must not dispatch a new motor test. Bind a passing report through
+`leaf_motion_audit_path` and `leaf_motion_audit_sha256` in the withdrawal config;
+the controller checks every named source hash before admission. The optional
+`withdrawal_whole_little_finger_hub_avoidance: true` includes the little fingertip
+in the existing bounded hub feedback after withdrawal starts. These settings
+are experimental, not a qualified full opening or traversal recipe.
+
+Monitor registration must wait for the probe to create its own `run.pid`; never
+precreate the probe's reserved output directory. For GPU scheduling, include any
+queue wait, the complete native prerequisite, the Isaac wall-clock budget, and
+independent export/audit time **before** choosing the coordinator and teardown
+deadlines. A 36 s Isaac operation on this L40S took 2,987.5 wall-clock seconds
+including export; 36 simulated seconds is not a 36-second resource reservation.
