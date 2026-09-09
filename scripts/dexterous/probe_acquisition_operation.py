@@ -105,6 +105,7 @@ def main():
     parser.add_argument('--standing-transfer-preload-profile',choices=('maintain','balanced-4n','index-6n'),default='maintain')
     parser.add_argument('--standing-transfer-grasp-shift',type=float,nargs=3,default=(0.,0.,0.))
     parser.add_argument('--standing-transfer-path',type=Path,help='Explicit attained-state screened bimanual transfer after partial opening')
+    parser.add_argument('--index-finger-force',type=float,help='Explicit index preload through original motor limits')
     parser.add_argument('--middle-finger-force',type=float,help='Explicit middle-finger preload; original motor caps unchanged')
     parser.add_argument('--grasp-offset-in-handle-m',nargs=3,type=float,default=[0.,0.,0.])
     parser.add_argument('--min-acquisition-seconds', type=float, default=10.6,
@@ -131,7 +132,7 @@ def main():
     shutil.copy2(args.reference, args.output/'reference.json')
     sim = DexterousDoorEnv(args.door, args.robot, json.loads(args.robot.with_suffix('.audit.json').read_text()))
     m, d = sim.m, sim.d
-    teacher = AcquisitionTeacher(args.robot, motors, ref,stance_profile=args.stance_profile,pressure_segment=args.pressure_segment,middle_finger_force=args.middle_finger_force)
+    teacher = AcquisitionTeacher(args.robot, motors, ref,stance_profile=args.stance_profile,pressure_segment=args.pressure_segment,middle_finger_force=args.middle_finger_force,index_finger_force=args.index_finger_force)
     sim.reset(randomize=False, images=False)
     d.qpos[sim.root_qadr:sim.root_qadr+7] = teacher.initial_root
     ids = np.array([m.joint('robot/'+n).id for n in teacher.names])
