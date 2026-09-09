@@ -74,8 +74,27 @@ def iter_whole_body_return(model, **attained_state):
     The20mm root bounds, original joint margins and planted-foot objectives
     are unchanged. Only the private planner data may be modified.
     """
+    d, identity = copy_attained_return_state(model, **attained_state)
+    yield from _iter_admitted_whole_body_return(model, d)
+
+
+def iter_destination_whole_body_return(model, **attained_state):
+    """Solve from qualified actual destination poses, returning admission evidence.
+
+    Each result retains the measured-state identity and explicit float32 profile.
+    This geometric path still requires independent destination collision checks
+    and an actual force-controlled rollout before it can be qualified for use.
+    """
+    from .destination_return_kinematics import admit_destination_return_kinematics
+    d, receipt = admit_destination_return_kinematics(model, **attained_state)
+    for row in _iter_admitted_whole_body_return(model, d):
+        yield dict(row, destination_admission=receipt)
+
+
+def _iter_admitted_whole_body_return(model, d):
+    # Both public entry points create this private MjData themselves. No active
+    # plant state, control buffer or simulator callback reaches the solver.
     m = model
-    d, identity = copy_attained_return_state(m, **attained_state)
     base = d.qpos.copy()
     hb=m.body('leaf_handle').id;rh=m.site('robot/rh_palm_touch').id;lh=m.site('robot/lh_palm_touch').id;H=d.xmat[hb].reshape(3,3);pr=H.T@(d.site_xpos[rh]-d.xpos[hb]);rr=H.T@d.site_xmat[rh].reshape(3,3);PL=d.site_xpos[lh].copy();RL=d.site_xmat[lh].reshape(3,3).copy()
     hj=m.joint('leaf_handle_hinge').id;d.qpos[m.jnt_qposadr[hj]]=0.;mujoco.mj_kinematics(m,d);PR=d.xpos[hb]+d.xmat[hb].reshape(3,3)@pr;RR=d.xmat[hb].reshape(3,3)@rr;target_base=d.qpos.copy()

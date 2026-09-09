@@ -48,3 +48,20 @@ def test_invalid_or_partial_measurements_are_rejected(change):
     if change=='unnormalized':state['qpos'][3]=.99
     if change=='incomplete':state['qvel']=state['qvel'][:-1]
     with pytest.raises(ValueError):admit_destination_return_kinematics(m,**state)
+
+
+def test_destination_planner_admits_before_solving_and_attaches_evidence(monkeypatch):
+    from doorbench.dexterous import whole_body_return_planner as planner
+    m,state=fixture();original=state['qpos'].copy();calls=[]
+    def solve(model,data):
+        assert model is m and not np.shares_memory(data.qpos,state['qpos'])
+        calls.append(data.time)
+        yield {'progress':0.0}
+    monkeypatch.setattr(planner,'_iter_admitted_whole_body_return',solve)
+    row=list(planner.iter_destination_whole_body_return(m,**state))[0]
+    assert calls==[3.] and row['destination_admission']['passed']
+    assert np.array_equal(original,state['qpos'])
+    state['body_poses_xyz_wxyz'][-1,0]+=.001
+    with pytest.raises(DestinationKinematicsFailure):
+        list(planner.iter_destination_whole_body_return(m,**state))
+    assert calls==[3.]

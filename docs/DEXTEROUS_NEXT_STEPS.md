@@ -104,3 +104,15 @@ Each implementation milestone must update the [execution ledger](DEXTEROUS_EXPER
 - September 9, 04:29 UTC: the first Isaac tactile correction remains a failed sustained grasp (longest hold 0.032 s versus 0.002 s baseline), with both independent audits complete and all 8,500 pre-reflex intervals exactly identical. The 1.5 N candidate passes native grasp but fails motor tracking (0.06706 rad versus the unchanged 0.04 rad gate), so Isaac is withheld. An intermediate 0.8 N candidate is undergoing fresh native qualification. Its first preparation was rejected before physics for a mismatched feedback version; the corrected retry has a new source/trace and all three checked-in schedules now have admission tests (40 focused tests pass). Exact failed-run inputs and evidence are retained off-pod. No complete Isaac traversal or sensor-policy success is claimed.
 
 - September 9, 05:03 UTC: actual Isaac pressure004 completes 19 s and independently reproduces a 0.822 s opposed hold, but remains 22/23 because the final index pad minimum is 0.171 N (required 0.2 N). All four preload offsets saturate at 0.08 rad. Exact reset states nevertheless diverge before preload because the balance QP's automatic rho interval uses wall time; the next paired experiment fixes that interval at 25 iterations and compares 0.08/0.12 rad preload limits at the same 0.8 N force target. Both native preparations are underway, with serial actual Isaac launches guarded by completed preparation and archive checks; 96 focused tests pass. The native sensor-fed acquisition/press diagnostic reaches 0.53793 rad then stops at 25.81 s on unintended contact. The five-pass sensor-student comparison is also running on CPU and will execute a real rollout afterward. Owned L40S allocation renewed with verified local/remote guards through 06:32 UTC; no other pod touched.
+
+- September 9, 05:21 UTC: fixed-QP grasp preparations005/006 pass all five checks;
+  every native trajectory array is exactly equal between the two pressure limits.
+  Both preparation/input archives are verified off-pod, and actual Isaac005 is
+  running before the serial006 trial. The five-update student process exited
+  unexpectedly after three saved updates; the cause is not established. Recovery
+  now restores weights, Adam moments and Torch RNG in a new output directory,
+  rejects data/protocol changes, and records missing historical losses explicitly.
+  Nine focused training tests pass and updates4–5 are running before the planned
+  physical rollout. The destination return adapter feeds the original41-node
+  solver with measured Isaac poses; exact geometric equivalence and16 focused
+  tests pass. This is not yet an actual release/opening/traversal qualification.
