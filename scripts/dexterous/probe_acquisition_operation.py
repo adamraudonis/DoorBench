@@ -100,6 +100,7 @@ def main():
     parser.add_argument('--index-tendon-offset-rad',type=float,default=0.)
     parser.add_argument('--index-proximal-offset-rad',type=float,default=0.)
     parser.add_argument('--pressure-segment',choices=['nearest','distal'],default='nearest')
+    parser.add_argument('--standing-return-hold-finger-posture',action='store_true',help='Experimental attained coupled finger posture with original motor limits')
     parser.add_argument('--standing-return-path',type=Path,help='Source-bound measured-state lever return after the qualified transfer')
     parser.add_argument('--standing-transfer-attained-arm',action='store_true',help='Experimental: track screened attained arm joints with measured initial motor preload')
     parser.add_argument('--standing-transfer-no-fixed-pads',action='store_true',help='Ablation: preserve operation digit controller without extra transfer pad tracking')
@@ -117,6 +118,7 @@ def main():
     args = parser.parse_args()
     if not args.portable_wrapper and (args.operation_fixed_pad_control or args.index_proximal_offset_rad or args.index_tendon_offset_rad):
         parser.error('Contact-control options require the portable operation wrapper')
+    if args.standing_return_hold_finger_posture and not args.standing_return_path:parser.error('Finger posture continuation requires an explicit return path')
     if not args.standing_transfer_path and (args.standing_return_path or args.standing_transfer_attained_arm or args.standing_transfer_no_fixed_pads or args.standing_transfer_start_seconds!=22. or args.standing_transfer_hold_route or args.standing_transfer_handoff_seconds or args.standing_transfer_preload_profile!='maintain' or any(args.standing_transfer_grasp_shift)):
         parser.error('Transfer options require an explicit transfer route')
     if not np.isfinite([args.seconds,args.press_seconds,args.min_acquisition_seconds]).all() or min(args.seconds,args.press_seconds) <= 0 or args.min_acquisition_seconds < 0:
@@ -172,7 +174,7 @@ def main():
     states = {key:[] for key in ('qpos', 'qvel', 'ctrl')}
     if args.standing_return_path:
         from doorbench.dexterous.standing_return import StandingReturnTeacher
-        transfer=StandingReturnTeacher(transfer,motors,args.standing_return_path)
+        transfer=StandingReturnTeacher(transfer,motors,args.standing_return_path,hold_finger_posture=args.standing_return_hold_finger_posture)
     traces = [];recorder=archive=None;controller_steps=[]
     if args.record_transitions:
         from doorbench.dexterous.native_transition_audit import NativeTransitionRecorder
