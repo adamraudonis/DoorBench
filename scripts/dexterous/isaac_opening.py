@@ -1213,6 +1213,8 @@ def main():
             all_contacts.extend(dict(time_s=(step+1)*dt,**c) for c in contacts)
             if step==0:
                 (out/'initial-body-poses.json').write_text(json.dumps(dict(
+                    time_s=(step+1)*dt, pose_epoch='post-first-physics-step',
+                    pose_convention='world body-origin xyz and wxyz quaternion',
                     robot=dict(zip(robot.body_names,robot.data.body_state_w[0,:,:7].cpu().tolist())),
                     door=dict(zip(door.body_names,door.data.body_state_w[0,:,:7].cpu().tolist()))),indent=2)+'\n')
             if step%10==0:
