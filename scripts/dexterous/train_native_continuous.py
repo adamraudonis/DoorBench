@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fit complete audited native sensor histories from fresh weights.
+"""Fit complete audited native sensor histories with full-source updates.
 
 Reports supervised training loss only, never a physical task success. Recurrent
 state spans the entire episode; weights update only after a full source pass.
