@@ -179,3 +179,20 @@ def test_index_tendon_reference_preserves_joint_difference_and_changes_sum():
     assert acq.path[0,1]-acq.path[0,0]==pytest.approx(.001)
     for invalid in (float('nan'),.1201,-.1201):
         with pytest.raises(ValueError):DoorOperationTeacher(acq,GEOMETRY,index_tendon_offset_rad=invalid)
+
+
+def test_operator_hold_waits_for_actual_release_and_valid_grasp():
+    wrapper=DoorOperationTeacher(Acquisition(),GEOMETRY,press_seconds=1.,attained_hold_stage='operator')
+    seen=[]
+    class Capture:
+        def force(self,t,force,joints,velocities,*,eligible):
+            seen.append(eligible)
+            return force,{}
+    wrapper.attained_hold=Capture()
+    for t in np.arange(0.,.51,.01):tick(wrapper,t)
+    tick(wrapper,1.51,operator=.85,latch=.005,leaf=.006)
+    assert seen[-1] is False
+    tick(wrapper,1.52,operator=.85,latch=.012,leaf=.006)
+    assert seen[-1] is True
+    tick(wrapper,1.53,valid=False,operator=.85,latch=.012,leaf=.006)
+    assert seen[-1] is False
