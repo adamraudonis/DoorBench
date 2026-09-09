@@ -98,6 +98,10 @@ def main():
     times=np.array([row['episode_time_s'] for row in phase])
     if not np.isfinite(times).all() or not np.allclose(np.diff(times),.002,rtol=0,atol=1e-9):
         raise ValueError('Require consecutive 2ms panel reference rows')
+    run_report=json.loads((run/'report.json').read_text())
+    if run_report.get('opening_handoff') is not None:
+        if abs(times[-1]+.002-run_report['opening_handoff']['time_s'])>1e-8:
+            raise ValueError('Panel target trace does not reach the selected continuation handoff')
     simulation=DexterousDoorEnv(config['door'],robot,json.loads(robot.with_suffix('.audit.json').read_text()))
     model,data=simulation.m,simulation.d
     joint=model.joint('leaf_hinge').id;leaf=model.body('leaf').id
