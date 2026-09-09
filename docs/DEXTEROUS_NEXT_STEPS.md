@@ -564,3 +564,15 @@ These changes do not qualify a physical continuation. Screen006 starts at79.598 
 of qualified withdrawal017; the preceding250 actual intervals have at least
 43.011 mm RH clearance and2.077 N left-palm load. It retains the four-degree
 absolute posture bound and screens a smaller contact-height change.
+
+At 15:27 UTC, panel screen006 passed all2,001 dense
+samples, including original mesh collisions,40 mm RH clearance, four-degree
+absolute torso tilt and derivative bounds. Maximum reference joint speed is
+0.0752 rad/s and acceleration0.3296 rad/s² with the explicitly audited0.06 rad/s
+aperture cap and0.005 rad/s² aperture acceleration. This remains geometry only.
+The source-bound motor composition is now running as native-standing-panel-001
+from the original closed-door start for100 s. It carries the qualified withdrawal
+prefix, capped force handoff and unchanged hybrid palm support, followed by the
+screened body/contact targets. New physical gates require the0.75 rad target to
+be held, completed reference progress and <=5 degrees torso tilt throughout the
+panel phase, in addition to existing mechanical/contact/clearance checks.
