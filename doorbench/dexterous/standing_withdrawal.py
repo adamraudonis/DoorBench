@@ -34,6 +34,8 @@ class StandingWithdrawalTeacher:
         self.support_feedback=None
         self.left_arm_only=config.get('left_arm_only',False)
         if type(self.left_arm_only) is not bool:raise ValueError('Explicit left-arm solve option required')
+        self.left_full_orientation=config.get('left_full_orientation',False)
+        if type(self.left_full_orientation) is not bool or (self.left_full_orientation and not self.left_arm_only):raise ValueError('Full palm orientation requires isolated left-arm IK')
         self.left_target_velocity=config.get('left_target_velocity',False)
         if type(self.left_target_velocity) is not bool or (self.left_target_velocity and not self.hybrid_support):raise ValueError('Left target velocity requires explicit hybrid support')
         audit_path=Path(config['audit_path']);screen_path=Path(config['screen_path']);source=Path(config['source_run'])
@@ -99,7 +101,7 @@ class StandingWithdrawalTeacher:
             self.stance_rotation_bias=teacher.stance.target_rotation@self.root_rotations(0.).as_matrix().T
             self.stance_names=[teacher.m.joint(int(j)).name for j in teacher.stance.joints]
             self.stance_joint_bias=teacher.stance.joint_target.copy()-np.array([joints[n] for n in self.stance_names])
-            if self.left_arm_only:self.left.isolate_left_arm(root,joints)
+            if self.left_arm_only:self.left.isolate_left_arm(root,joints,leaf_pose=leaf_pose if self.left_full_orientation else None)
         if self.started_withdrawal is None:
             force,self.info=self.returned.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified,left_panel_load=left_panel_load)
             return force,self.info

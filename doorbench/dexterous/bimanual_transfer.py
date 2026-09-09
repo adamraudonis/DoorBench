@@ -126,7 +126,7 @@ class LeftPalmContact:
         self.lower=m.jnt_range[self.solve_joints,0]+.01;self.upper=m.jnt_range[self.solve_joints,1]-.01
         self.offset=0.
 
-    def isolate_left_arm(self,root,joints):
+    def isolate_left_arm(self,root,joints,*,leaf_pose=None):
         """Drop the old right-palm/waist IK constraint after bimanual handoff.
 
         Only the private kinematic solve changes; measured waist and right-arm
@@ -142,6 +142,11 @@ class LeftPalmContact:
         self.lower=self.m.jnt_range[self.solve_joints,0]+.01
         self.upper=self.m.jnt_range[self.solve_joints,1]-.01
         self.previous=self.d.qpos[self.solve_qa].copy()
+        if leaf_pose is not None:
+            pose=np.asarray(leaf_pose,float)
+            if pose.shape!=(7,) or not np.isfinite(pose).all() or not np.isclose(np.linalg.norm(pose[3:]),1.,atol=1e-5):raise ValueError('Measured normalized panel pose required')
+            rotation=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
+            self.panel_palm_rotation=rotation.T@self.d.site_xmat[self.palm].reshape(3,3)
 
     def begin(self,t,root,joints,leaf_pose,handle_pose):
         self.started=t
@@ -203,7 +208,9 @@ class LeftPalmContact:
             def residual(q):
                 d.qpos[self.solve_qa]=q;mujoco.mj_kinematics(m,d)
                 right=np.r_[100*(d.site_xpos[self.right_palm]-right_goal),10*Rotation.from_matrix(right_rotation@d.site_xmat[self.right_palm].reshape(3,3).T).as_rotvec()] if not self.fixed_waist else np.zeros(0)
-                return np.r_[100*(d.site_xpos[self.palm]-goal),10*(d.site_xmat[self.palm].reshape(3,3)[:,2]-desired_z),
+                orientation=(Rotation.from_matrix(rotation@self.panel_palm_rotation@d.site_xmat[self.palm].reshape(3,3).T).as_rotvec()
+                    if hasattr(self,'panel_palm_rotation') else d.site_xmat[self.palm].reshape(3,3)[:,2]-desired_z)
+                return np.r_[100*(d.site_xpos[self.palm]-goal),10*orientation,
                     right,.03*(q-seed)]
             fit=least_squares(residual,np.clip(self.previous,self.lower,self.upper),bounds=(self.lower,self.upper),max_nfev=140)
             self.target=(fit.x if self.fixed_waist else fit.x[1:8]).copy();self.previous=fit.x.copy()
