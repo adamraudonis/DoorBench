@@ -105,6 +105,10 @@ def main():
         run([asset,a.source/'scripts/dexterous/audit_sensor_acquisition_contacts.py','--trial',native,'--output',a.output/'native-independent-audit.json'],'native-contact-audit',600)
         if not result['native_runtime_passed']:raise ValueError('Destination-native sustained hold failed')
         if json.loads((a.output/'native-independent-audit.json').read_text()).get('passed') is not True:raise ValueError('Native independent raw-contact audit failed')
+        if a.actual_material_pads:
+            profile=json.loads((native/'trace.json').read_text())[-1]['teacher'].get('operation_pad_control')
+            result['native_material_pad_profile']=profile
+            if profile!='actual-material-v1':raise ValueError('Actual material controller did not activate in native test')
         if a.hold_attained_grasp:
             started=json.loads((native/'trace.json').read_text())[-1]['teacher'].get('attained_hold_started_s')
             result['native_attained_hold_started_s']=started
@@ -121,6 +125,11 @@ def main():
         audit=json.loads((a.output/'isaac-independent-audit.json').read_text())
         result['independent_audit_passed']=bool(audit['accounting_passed'] and audit['independent_raw_contact_audit_complete'])
         result['passed']=bool(result['isaac_runtime_passed'] and result['independent_audit_passed'])
+        if a.actual_material_pads:
+            profile=json.loads((trial/'latest.json').read_text())['teacher'].get('operation_pad_control')
+            result['isaac_material_pad_profile']=profile
+            result['material_controller_activated']=profile=='actual-material-v1'
+            result['passed'] &= result['material_controller_activated']
         if a.hold_attained_grasp:
             latest=json.loads((trial/'latest.json').read_text());started=latest['teacher'].get('attained_hold_started_s')
             result['isaac_attained_hold_started_s']=started
