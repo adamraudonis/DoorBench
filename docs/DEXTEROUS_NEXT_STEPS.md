@@ -230,3 +230,30 @@ The previous storage block is resolved for immediate trials. Closed failed-trial
 recordings are hash-verified on the persistent RunPod volume; the temporary CPU
 transfer pod and idle GPU are terminated. Full operation009–012 artifacts also
 have verified permanent local archives. The overall approved plan remains open.
+
+### September 9, 2026, 10:15 UTC: isolate moving-body grasp loss
+
+The fresh operation012 route passes 1,001 independent geometric samples, with
+maximum fixed hand/foot error 0.558 mm and root tilt 2.534 degrees. Native transfer011
+and012 both reach about 4 N left-palm support, but fail right-pad qualification
+(19/20 runtime checks); independent raw-contact audits retain those failures.
+Trial012 removes extra transfer pad feedback, so that feedback alone does not
+explain the failure. Held-route diagnostic013 retains all five qualified pads
+through 44 seconds; its left-support check correctly fails because no reach was
+requested. This isolates moving-body compensation from an unavoidable static slip.
+
+Recorded wrist flexion is near its original stop. The geometric route preserves
+the attained palm pose, whereas the operation IK pursues a different, loaded
+Cartesian reference. Trial014 tests the screened joint route with retained initial
+motor preload and changing gravity feedforward. It keeps original motor caps,
+physical gates, and the explicit one-second handoff. This is experimental until
+its actual force-driven recording passes.
+
+Owned L40S `4jqu6fih3f0cc0` ($1.09/hour) is preparing with local and remote deadline
+guards. `scripts/isaac/run_standing_operation.py` waits for corrected-hand readiness,
+checks frozen source hashes, rescreens on the destination, runs and audits the
+36-second native prerequisite, then runs actual Isaac and audits its raw contacts.
+A detached collector retains the run under `DoorBench-runs/2026-09-09/standing-sustain-isaac-003`.
+The deadline is fixed in the owned-pod journal and Run Center. No Isaac result is
+claimed until this pipeline finishes. Full opening/traversal and the learned
+vision/tactile actor remain unfinished.
