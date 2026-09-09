@@ -1,0 +1,197 @@
+{
+  "report": {
+    "schema": "doorbench.actual-reset-kinematic-fixture.v1",
+    "scope": "Isolated GPU reset synchronization fixture; no physics integration after setup.\n\nTwo reset-only root/joint assignments exercise the documented tensor kinematic\nupdate before an own-body gyro reset read. No robot task or sensor accuracy\nclaim follows from this fixture.\n",
+    "passed": true,
+    "checks": {
+      "two_distinct_reset_cases": true,
+      "exact_no_physics_clock_advance": true,
+      "updated_pose_matches_closed_form": true,
+      "positive_stale_read_control": true,
+      "reset_state_retained": true,
+      "producer_reads_synchronized_tensor": true,
+      "zero_physics_steps_after_setup": true
+    },
+    "cases": [
+      {
+        "root_yaw_rad": 0.43,
+        "joint_bend_rad": 0.71,
+        "before": [
+          [
+            0.0,
+            0.0,
+            1.399999976158142,
+            0.0,
+            0.0,
+            -7.574781690777854e-09,
+            0.9999999403953552
+          ]
+        ],
+        "after": [
+          [
+            0.3184988498687744,
+            -0.04565395414829254,
+            1.4516723155975342,
+            -0.07415743917226791,
+            0.3395874500274658,
+            0.20004448294639587,
+            0.9160585403442383
+          ]
+        ],
+        "expected_position": [
+          0.3184989144679997,
+          -0.04565390656475872,
+          1.4516723751981018
+        ],
+        "expected_quaternion_xyzw": [
+          -0.07415751052518423,
+          0.33958758168910286,
+          0.2000444670448664,
+          0.916058485687453
+        ],
+        "rotation_error_rad": 3.203479339311884e-07,
+        "position_error_m": 9.994738744926984e-08,
+        "stale_before_error_rad": 0.8253139881933192,
+        "clock_before": [
+          0.004000000189989805,
+          2
+        ],
+        "clock_after": [
+          0.004000000189989805,
+          2
+        ],
+        "actual_joint_position": [
+          [
+            0.7099999785423279
+          ]
+        ],
+        "actual_joint_velocity": [
+          [
+            0.0
+          ]
+        ],
+        "producer_reset_exact_raw": true,
+        "producer_receipt": {
+          "schema": "doorbench.imu-gyro-producer.v1",
+          "profile": "pose-delta-angle-v1",
+          "source_body_path": "/World/fixture/imu_body",
+          "source": "Consecutive own rigid-body tensor orientations composed with fixed IMU mounting rotation",
+          "actor_fields": [
+            "imu_gyro"
+          ],
+          "actor_receives_orientation": false,
+          "physics_writes": 0,
+          "output_frame": "IMU local axes; finite net rotation axis has identical start/end-frame coordinates",
+          "quantity": "SO(3) interval delta angle divided by elapsed seconds; not instantaneous backend angular velocity",
+          "physics_dt_s": 0.002,
+          "interval_s": 0.002,
+          "availability": "At interval end",
+          "effective_midpoint_delay_s": 0.001,
+          "output_dtype": "float32",
+          "added_noise_std_radps": 0.0,
+          "ideal_sensor": true,
+          "accelerometer": "Unchanged backend velocity-derived specific force; mixed numerical semantics explicitly retained",
+          "samples": 0,
+          "last_interval_end_s": 0.0,
+          "maximum_delta_angle_rad": 0.0,
+          "initialized": true,
+          "failed_reason": null
+        }
+      },
+      {
+        "root_yaw_rad": -0.26,
+        "joint_bend_rad": -0.39,
+        "before": [
+          [
+            0.3184988498687744,
+            -0.04565395414829254,
+            1.4516723155975342,
+            -0.07415743917226791,
+            0.3395874500274658,
+            0.20004448294639587,
+            0.9160585403442383
+          ]
+        ],
+        "after": [
+          [
+            0.12651802599430084,
+            -0.08045220375061035,
+            1.484981656074524,
+            -0.025118764489889145,
+            -0.19213135540485382,
+            -0.12717726826667786,
+            0.9727694392204285
+          ]
+        ],
+        "expected_position": [
+          0.12651794516442655,
+          -0.08045219048342678,
+          1.4849818119714626
+        ],
+        "expected_quaternion_xyzw": [
+          -0.025118758628242695,
+          -0.1921315123458918,
+          -0.12717727351110916,
+          0.9727694850430585
+        ],
+        "rotation_error_rad": 2.9072200424253927e-07,
+        "position_error_m": 1.7610605393277164e-07,
+        "stale_before_error_rad": 1.279349435579196,
+        "clock_before": [
+          0.004000000189989805,
+          2
+        ],
+        "clock_after": [
+          0.004000000189989805,
+          2
+        ],
+        "actual_joint_position": [
+          [
+            -0.38999998569488525
+          ]
+        ],
+        "actual_joint_velocity": [
+          [
+            0.0
+          ]
+        ],
+        "producer_reset_exact_raw": true,
+        "producer_receipt": {
+          "schema": "doorbench.imu-gyro-producer.v1",
+          "profile": "pose-delta-angle-v1",
+          "source_body_path": "/World/fixture/imu_body",
+          "source": "Consecutive own rigid-body tensor orientations composed with fixed IMU mounting rotation",
+          "actor_fields": [
+            "imu_gyro"
+          ],
+          "actor_receives_orientation": false,
+          "physics_writes": 0,
+          "output_frame": "IMU local axes; finite net rotation axis has identical start/end-frame coordinates",
+          "quantity": "SO(3) interval delta angle divided by elapsed seconds; not instantaneous backend angular velocity",
+          "physics_dt_s": 0.002,
+          "interval_s": 0.002,
+          "availability": "At interval end",
+          "effective_midpoint_delay_s": 0.001,
+          "output_dtype": "float32",
+          "added_noise_std_radps": 0.0,
+          "ideal_sensor": true,
+          "accelerometer": "Unchanged backend velocity-derived specific force; mixed numerical semantics explicitly retained",
+          "samples": 0,
+          "last_interval_end_s": 0.0,
+          "maximum_delta_angle_rad": 0.0,
+          "initialized": true,
+          "failed_reason": null
+        }
+      }
+    ],
+    "physics_steps_after_setup": 0,
+    "source_sha256": "3baa86d910471a8a39fa36b690416f330dc209140484ac0409e5deb7e6a39cc3",
+    "synchronization": "SimulationView.update_articulations_kinematic once after each reset-only assignment; no step/render/forward",
+    "primary_documentation": "https://docs.omniverse.nvidia.com/kit/docs/omni_physics/107.0/extensions/runtime/source/omni.physics.tensors/docs/api/python.html"
+  },
+  "archive": "/Users/adamraudonis/Desktop/Projects/DoorBench-runs/2026-09-09/reset-sync-002",
+  "verified_final_archive": true,
+  "report_sha256": "51828a2bd7562726f179ce211e7b8260a177bc65bcbb8ebb463f0e339d4be4aa",
+  "source_commit": "c3c720954",
+  "prior_failed_fixture": "reset-sync-001 retained with assertion TypeError; not a failed physics comparison"
+}

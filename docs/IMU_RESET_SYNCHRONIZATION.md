@@ -32,3 +32,17 @@ against closed-form geometry and verifies that the simulation time and step
 index did not advance. The producer then reads the synchronized body directly.
 It does not run the humanoid or qualify a grasp. Each launch must preserve its
 source hash, process cap and resulting report before a corrected grasp trial.
+
+The actual L40S retry `reset-sync-002` passes **7/7 checks** on September 9,
+2026 at **02:59 UTC**. Both reset cases preserve the simulation clock and joint
+state, reproduce the synchronized producer read exactly, and match closed-form
+positions within 1.77e-7 m and rotations within 3.21e-7 rad. The stale-read
+positive control detects both deliberately changed poses. No physics step is
+taken during these reset checks. [Report and source identity](evidence/imu-reset-synchronization-002.json).
+
+The independent collector verified the complete archive before this result was
+recorded. The first fixture attempt failed in its final Python assertion because
+it applied `abs` to a list; that attempt remains retained. The correction uses
+NumPy's elementwise absolute value and changes no physical tolerance. This
+fixture qualifies the reset synchronization operation, not the humanoid grasp;
+fresh native preparation and the subsequent actual Isaac trial remain required.
