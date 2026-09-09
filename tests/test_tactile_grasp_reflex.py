@@ -44,11 +44,12 @@ def test_missing_or_stale_touch_cannot_trigger_closing():
     with pytest.raises(ValueError,match='future'):c.apply(p,0.,q)
 
 
-def test_higher_force_target_keeps_the_original_motion_bounds():
-    c,p,q=fixture('four-finger-preload-v2');p['tactile'][:]=.05
+@pytest.mark.parametrize('profile,target',[('four-finger-preload-v2',1.5),('four-finger-preload-v3',.8)])
+def test_higher_force_target_keeps_the_original_motion_bounds(profile,target):
+    c,p,q=fixture(profile);p['tactile'][:]=.05
     for i in range(9500):
         t=i*.002;p['sensor_time_s'][:]=t;c.apply(p,t,q)
-    assert c.info['target_normal_load_N']==1.5
+    assert c.info['target_normal_load_N']==target
     assert all(0<v<=.08 for v in c.info['coupled_motor_preload_rad'].values())
     assert c.info['maximum_coupled_slew_radps']==.08
     assert not c.info['thumb_target_changed']

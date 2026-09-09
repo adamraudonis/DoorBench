@@ -10,7 +10,7 @@ from pathlib import Path
 from .sensor_contract import SENSOR_KEYS
 
 PROFILE = 'four-finger-preload-v1'
-PROFILES={'four-finger-preload-v1':.4,'four-finger-preload-v2':1.5}
+PROFILES={'four-finger-preload-v1':.4,'four-finger-preload-v2':1.5,'four-finger-preload-v3':.8}
 INPUT_KEYS=('tactile','sensor_time_s','sensor_valid')
 
 
