@@ -92,8 +92,8 @@ class StandingWithdrawalTeacher:
         self.panel_force=None
         profile=config.get('panel_aperture_force_profile')
         if profile is not None:
-            if profile=='bounded-pi-stop-v1' and not config.get('panel_plan_path'):raise ValueError('Terminal braking requires a screened panel target')
-            if profile not in ('bounded-pi-v1','bounded-pi-stop-v1'):raise ValueError('Unknown panel aperture force profile')
+            if profile in ('bounded-pi-stop-v1','bounded-pi-stop-v2') and not config.get('panel_plan_path'):raise ValueError('Terminal braking requires a screened panel target')
+            if profile not in ('bounded-pi-v1','bounded-pi-stop-v1','bounded-pi-stop-v2'):raise ValueError('Unknown panel aperture force profile')
             from .panel_aperture_force import PanelApertureForce
             self.panel_force=PanelApertureForce()
         self.panel=None;self.panel_handoff=None
@@ -101,7 +101,7 @@ class StandingWithdrawalTeacher:
             if sha(config['panel_plan_path'])!=config.get('panel_plan_sha256'):raise ValueError('Panel plan bytes changed')
             from .standing_panel_reference import StandingPanelReference
             self.panel=StandingPanelReference(scene,config['panel_plan_path'],self.left)
-            if profile=='bounded-pi-stop-v1':self.panel_force=PanelApertureForce(terminal_aperture=self.panel.plan['final_leaf_angle_rad'])
+            if profile in ('bounded-pi-stop-v1','bounded-pi-stop-v2'):self.panel_force=PanelApertureForce(terminal_aperture=self.panel.plan['final_leaf_angle_rad'],terminal_support_margin_N=.5 if profile=='bounded-pi-stop-v2' else 0.)
             if self.panel.plan['robot_xml_sha256']!=motors['source_xml_sha256']:raise ValueError('Panel plan uses another robot contract')
             if self.panel.start_time<self.start_time:raise ValueError('Panel continuation cannot precede withdrawal')
         self.initial_angles={name:float(actual[m.joint(joint).qposadr[0]]) for name,joint in [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}

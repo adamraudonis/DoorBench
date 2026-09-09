@@ -32,3 +32,11 @@ def test_terminal_braking_releases_accumulated_force_smoothly_and_stays_latched(
     target,info=c.update(20.402,.75,.738,2.25)
     assert target<=2.25 and info['panel_braking_started_s']==20.002
     with pytest.raises(ValueError):PanelApertureForce(terminal_aperture=float('nan'))
+
+
+def test_braking_can_retain_explicit_bounded_support_margin():
+    c=PanelApertureForce(terminal_aperture=.75,terminal_support_margin_N=.5)
+    for i in range(1001):c.update(i*.002,.75,.65,2.25)
+    for i in range(1001,1301):target,info=c.update(i*.002,.75,.741,2.25)
+    assert target==2.75 and info['panel_force_profile']=='bounded-pi-stop-v2'
+    with pytest.raises(ValueError):PanelApertureForce(terminal_aperture=.75,terminal_support_margin_N=.6)

@@ -4,8 +4,10 @@ import numpy as np
 
 class PanelApertureForce:
     maximum_target_N=6.
-    def __init__(self, *, terminal_aperture=None):
+    def __init__(self, *, terminal_aperture=None, terminal_support_margin_N=0.):
         if terminal_aperture is not None and (not np.isfinite(terminal_aperture) or terminal_aperture<=.01):raise ValueError('Finite terminal aperture required')
+        if not np.isfinite(terminal_support_margin_N) or not 0<=terminal_support_margin_N<=.5:raise ValueError('Bounded terminal support margin required')
+        self.terminal_support_margin_N=terminal_support_margin_N
         self.terminal_aperture=terminal_aperture;self.braking_started=None
         self.previous=None;self.velocity=0.;self.integral=0.
 
@@ -28,6 +30,6 @@ class PanelApertureForce:
                 # reaches the final stopping band. Passive hinge friction then
                 # arrests the leaf; palm contact remains supported.
                 u=float(np.clip((t-self.braking_started)/.25,0.,1.));blend=u*u*u*(10+u*(-15+6*u))
-                target=(1-blend)*target+blend*min(target,base)
+                target=(1-blend)*target+blend*min(target,base+self.terminal_support_margin_N)
         self.previous=(float(t),float(measured))
-        return target,dict(panel_force_profile='bounded-pi-v1' if self.terminal_aperture is None else 'bounded-pi-stop-v1',panel_force_integral_N=self.integral,panel_filtered_velocity_rad_s=self.velocity,panel_force_target_N=target,panel_braking_started_s=self.braking_started)
+        return target,dict(panel_force_profile='bounded-pi-v1' if self.terminal_aperture is None else 'bounded-pi-stop-v2' if self.terminal_support_margin_N else 'bounded-pi-stop-v1',panel_force_integral_N=self.integral,panel_filtered_velocity_rad_s=self.velocity,panel_force_target_N=target,panel_braking_started_s=self.braking_started,terminal_support_margin_N=self.terminal_support_margin_N)
