@@ -229,3 +229,18 @@ Its status persisted for five physics intervals and the episode remains failed.
 A prospective100,000-iteration run changes only the declared solver work budget;
 absolute/relative tolerances,25-iteration rho updates, motor limits and all
 physical/contact gates remain unchanged. The default is still50,000.
+
+
+September 9, 19:45 UTC: transfer002 was interrupted at14.942s by local disk
+exhaustion, before its transfer phase. It has an explicit execution-failure
+receipt and incomplete raw evidence; no physical outcome is inferred. Failed
+transfer001 and clearance018/019 archives were uploaded, independently downloaded
+and SHA-verified before raw local eviction. Transfer003 repeats the100,000
+iteration experiment from the closed-door reset in a fresh directory.
+
+`plan_standing_return.py` now prepares the next lever-return route from a source
+that passes runtime, pad and whole-handle checks. It binds the actual recorded
+state and model hashes, screens41 candidate nodes, then independently audits401
+interpolated poses including hub clearance. It emits a reusable configuration
+only after both geometric screens pass. A configuration still requires a fresh
+physical run and the same full contact audits; planning is not execution.
