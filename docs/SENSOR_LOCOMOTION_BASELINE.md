@@ -348,3 +348,30 @@ A detached collector retains the run under `DoorBench-runs/2026-09-09/standing-s
 The deadline is fixed in the owned-pod journal and Run Center. No Isaac result is
 claimed until this pipeline finishes. Full opening/traversal and the learned
 vision/tactile actor remain unfinished.
+
+### September 9, 2026: native standing transfer qualified
+
+Trial016 passes **20/20 runtime checks and 6/6 independent raw-contact checks**
+over 50 seconds (25,000 actual physics intervals). Its final 31.968 seconds retain
+continuous opposed distal-pad contact, with zero invalid loaded patches. Left-palm
+support is 3.69 N at the endpoint and the leaf remains at 0.08274 rad (4.74 degrees).
+Original motor caps, joints, collisions, loopback mechanics and upright gates pass.
+The final hand close-up and whole-body frame were personally inspected.
+[Independent receipt](evidence/native-standing-transfer-016.json).
+
+The successful experimental mode tracks the screened torso and right-arm joint
+route together, retaining initial motor preload plus changing gravity feedforward.
+The left-arm solver compensates at the measured torso instead of replacing that
+route. Trial015 tracked only the right arm and failed; trial014 rejected a reference
+velocity incorrectly differentiated at physics substeps. The corrected rate uses
+actual reference-update times. No physical state is written after the initial reset.
+
+This qualifies acquisition, lever/latch operation, partial opening and left-palm
+transfer in native MuJoCo. Release, substantial opening and walking through in this
+standing sequence remain open; this is a privileged teacher, not a learned policy.
+The separate actual Isaac 36-second operation repeat is preparing on the guarded
+L40S. All failed trials remain labeled and archived.
+
+Controller exceptions now retain an incomplete raw archive, the actual completed
+physics intervals, terminal state, and a failing report. A deliberately injected
+failure at 0.008 seconds retained all four completed intervals and correctly failed.
