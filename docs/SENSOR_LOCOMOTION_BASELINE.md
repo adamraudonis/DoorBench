@@ -222,3 +222,24 @@ Raw contact transforms are absent from this frozen version, so this is a runtime
 pass with independent accounting, not a complete independent raw-contact audit.
 The separate standing-operation trial001 passed its exact destination-native
 18/18 prerequisite and is now executing actual Isaac with raw contact recording.
+
+
+Native standing-operation trial007 also passes 18 runtime and six independent
+contact checks with the 3 N middle-finger preload; see
+[the raw-contact receipt](evidence/native-standing-operation-007.json). Its exact
+destination-native repeat passes 18/18. Isaac operation trial001 timed out at its
+old wall deadline after delayed grasp qualification (operation only began at
+17.076 s); its final partial archive is byte-verified, with no completed task
+report. Trial002 starts operation at 10.6 s using the previously qualified preload
+and a renewed, separately guarded wall deadline. This remains an active trial.
+
+The standing bimanual transfer experiment uses a distinct 101-node geometric
+route, independently screened at 1,001 interpolated poses: fixed right-hand/foot
+errors stay below 0.627 mm and 0.002 rad, root tilt below 2.6 degrees, and no
+collision check fails. The first physical trial keeps balance and the partial
+opening but loses right-hand contact and leaves the left palm 1.28 mm short of
+the panel. Trial002 adds fixed material-point pad tracking and an 8 mm bounded
+normal approach: the left palm sustains roughly 4 N, but right-hand grasp still
+fails. These are failed transfers, not full-opening evidence. Trial003 tests
+stronger bounded pad tracking through the same original motors. No joint,
+contact, opposition, penetration or motor limit is relaxed.
