@@ -36,9 +36,12 @@ def validate_route_geometry(config):
 
 
 class StandingTransferTeacher:
-    def __init__(self,operation,motors,path,*,start_seconds=22.,preload_profile='maintain',grasp_shift=(0.,0.,0.),hold_route=False,handoff_seconds=0.,fixed_pad_tracking=True):
+    def __init__(self,operation,motors,path,*,start_seconds=22.,preload_profile='maintain',grasp_shift=(0.,0.,0.),hold_route=False,handoff_seconds=0.,fixed_pad_tracking=True,attained_arm_tracking=False):
         if not np.isfinite(start_seconds) or start_seconds<=0:raise ValueError('Transfer start must be finite and positive')
         if preload_profile not in PROFILES:raise ValueError('Unknown transfer preload profile')
+        self.attained_arm_tracking=attained_arm_tracking;self.arm_tracker=None
+        if type(attained_arm_tracking) is not bool:raise ValueError('Explicit attained-arm tracking flag required')
+        if attained_arm_tracking and fixed_pad_tracking:raise ValueError('Isolate attained-arm tracking from added fixed-pad feedback')
         if type(fixed_pad_tracking) is not bool:raise ValueError('Explicit fixed-pad tracking flag required')
         self.fixed_pad_tracking=fixed_pad_tracking
         if type(hold_route) is not bool:raise ValueError('Explicit diagnostic hold flag required')
@@ -83,6 +86,9 @@ class StandingTransferTeacher:
             if self.operation.open_started is None or not .075<=angles['leaf']<=.10:
                 raise ValueError('Qualified partial opening required before standing transfer')
             self.previous_motors=teacher.last_force.copy()
+            if self.attained_arm_tracking:
+                from .attained_arm_tracking import AttainedArmTracking
+                self.arm_tracker=AttainedArmTracking(teacher,joints,self.previous_motors)
             self.left.begin(t,root,joints,leaf_pose,handle_pose);self.started=t
             self.initial_digit_forces=dict(teacher.digit_forces)
         if self.started is not None:
@@ -99,6 +105,9 @@ class StandingTransferTeacher:
         forces,info=self.operation.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified)
         if self.started is not None:
             forces=self.left.apply_forces(forces,joints,velocities)
+            if self.arm_tracker:
+                forces,arm_info=self.arm_tracker.force(forces,t,dict(zip(self.names,q)),joints,velocities)
+                info={**info,**arm_info}
             if self.handoff_seconds:
                 from .motor_handoff import MotorHandoff
                 if self.motor_handoff is None:self.motor_handoff=MotorHandoff(self.previous_motors,forces,teacher.caps,self.handoff_seconds)

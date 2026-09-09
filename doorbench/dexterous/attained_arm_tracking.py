@@ -1,0 +1,41 @@
+"""Experimental motor tracking of a screened arm route from a loaded pose.
+
+The initial motor preload is retained as feedforward, adjusted for changing
+modeled gravity. All actuation uses the original motors and force limits.
+This privileged controller has no access to physical state setters.
+"""
+import numpy as np
+
+
+class AttainedArmTracking:
+    def __init__(self, teacher, joints, previous_forces):
+        self.teacher=teacher
+        self.act=teacher.arm_motors.copy()
+        self.names=[];self.va=[];self.qa=[]
+        for i in self.act:
+            actuator=teacher.act[i]
+            joint=teacher.m.actuator_trnid[actuator,0]
+            self.names.append(teacher.m.joint(int(joint)).name)
+            self.va.append(int(teacher.m.jnt_dofadr[joint]))
+            self.qa.append(int(teacher.m.jnt_qposadr[joint]))
+        self.va=np.asarray(self.va);self.qa=np.asarray(self.qa)
+        self.initial=np.asarray([joints[n] for n in self.names],float)
+        self.preload=np.asarray(previous_forces,float)[self.act].copy()-teacher.d.qfrc_bias[self.va]
+        self.kp=teacher.kp[self.act]*10.
+        self.kd=teacher.damping[self.act]-teacher.bias[self.act,2]
+        if not np.isfinite(np.r_[self.initial,self.preload,self.kp,self.kd]).all():raise ValueError('Finite attained-arm motor contract required')
+        self.previous_target=None;self.previous_time=None
+
+    def force(self, forces, t, target, joints, velocities):
+        target=np.asarray([target[n] for n in self.names],float)
+        q=np.asarray([joints[n] for n in self.names]);v=np.asarray([velocities[n] for n in self.names])
+        if not np.isfinite(np.r_[target,q,v,t]).all():raise ValueError('Finite arm target/state required')
+        if self.previous_time is not None and t<self.previous_time:raise ValueError('Monotonic arm clock required')
+        velocity=np.zeros_like(target) if self.previous_time is None or t==self.previous_time else (target-self.previous_target)/(t-self.previous_time)
+        # A screened path is slow, but reject an accidental target/clock jump.
+        if np.max(abs(velocity))>2.:raise ValueError('Screened arm reference exceeds 2 rad/s')
+        result=np.asarray(forces,float).copy()
+        requested=self.preload+self.teacher.d.qfrc_bias[self.va]+self.kp*(target-q)+self.kd*(velocity-v)
+        result[self.act]=np.clip(requested,self.teacher.caps[self.act,0],self.teacher.caps[self.act,1])
+        self.previous_target=target.copy();self.previous_time=t
+        return result,dict(attained_arm_tracking=True,arm_reference_velocity_rad_s=velocity.tolist(),maximum_arm_target_error_rad=float(np.max(abs(target-q))),arm_clipped_motors=int(np.count_nonzero(result[self.act]!=requested)))
