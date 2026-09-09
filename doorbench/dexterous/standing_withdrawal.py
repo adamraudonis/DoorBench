@@ -35,6 +35,9 @@ class StandingWithdrawalTeacher:
         self.thumb_pad_feedback=config.get('thumb_pad_feedback',False)
         if type(self.thumb_pad_feedback) is not bool:raise ValueError('Explicit thumb feedback option required')
         self.thumb_feedback=None
+        self.final_hub_avoidance=config.get('final_hub_avoidance',False)
+        if type(self.final_hub_avoidance) is not bool:raise ValueError('Explicit final hub avoidance option required')
+        if self.final_hub_avoidance and self.operation.hub_avoidance is None:raise ValueError('Final hub avoidance requires the original hub geometry/controller')
         self.left_arm_only=config.get('left_arm_only',False)
         if type(self.left_arm_only) is not bool:raise ValueError('Explicit left-arm solve option required')
         self.left_full_orientation=config.get('left_full_orientation',False)
@@ -219,6 +222,9 @@ class StandingWithdrawalTeacher:
                 goal=self.panel.d.xpos[body]+self.panel.d.xmat[body].reshape(3,3)@self.thumb_local
             force,thumb_info=self.thumb_feedback.force(force,t,goal,t-self.release_started)
             hand_info={**hand_info,**thumb_info}
+        if self.final_hub_avoidance:
+            force,hub_info=self.operation.hub_avoidance.force(force,float(smooth_phase(elapsed)))
+            hand_info={**hand_info,**hub_info,'withdrawal_hub_avoidance_applied_after_finger_tracking':True}
         if self.handoff is None:self.handoff=MotorHandoff(self.previous_force,force,teacher.caps,1.)
         force=self.handoff.force(force,elapsed);teacher.last_force=force.copy()
         if panel_goal is not None:
