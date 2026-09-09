@@ -98,10 +98,10 @@ def iter_whole_body_ungrip(model, *, qpos, qvel, time_s, release_samples,
     if maximum_torso_tilt_deg is not None:
         initial_tilt=float(np.degrees(np.arccos(np.clip(d.xmat[m.body('robot/torso_link').id].reshape(3,3)[2,2],-1,1))))
         if not np.isfinite(maximum_torso_tilt_deg) or not initial_tilt<maximum_torso_tilt_deg<=4:
-            raise ValueError('Upright withdrawal requires a positive rotation margin within the original 4 degree gate')
-        # Conservative axis box lies inside the permitted geodesic rotation ball.
+            raise ValueError('Upright withdrawal requires a positive rotation margin within the standing 4 degree design target')
+        # Bound horizontal rotation; yaw remains available without extra lean.
         # Independent dense FK still checks the actual torso, feet and contacts.
-        rotation_bound=min(.12,.99*np.radians(maximum_torso_tilt_deg-initial_tilt)/np.sqrt(3))
+        rotation_bound=min(.12,.99*np.radians(maximum_torso_tilt_deg-initial_tilt)/np.sqrt(2))
     for dx,dy,roll in [(0,-.16056,0)]:
      rows=[];previous=np.r_[np.zeros(6),start]
      nodes=[('grasp_adjustment',float(u)) for u in np.linspace(0,1,31)]+[('measured_release',float(u)) for u in np.linspace(0,1,len(times))[1:] if withdrawal_profile=='recorded' or float(times[round(u*(len(times)-1))])<=4.1+1e-8]
@@ -120,7 +120,7 @@ def iter_whole_body_ungrip(model, *, qpos, qvel, time_s, release_samples,
        a,b=[fn.index(f'rh_{digit}J{k}') for k in (1,2)]
        if f[a]>f[b]:f[[a,b]]=f[[a,b]].mean()
       target_base=base.copy();target_base[fqa]=f;lo=np.r_[[-.08,-.08,-.04],[-.12,-.12,-.12],m.jnt_range[js,0]+.001];hi=np.r_[[.08,.08,.04],[.12,.12,.12],m.jnt_range[js,1]-.001]
-      lo[3:6]=-rotation_bound;hi[3:6]=rotation_bound
+      lo[3:5]=-rotation_bound;hi[3:5]=rotation_bound
       def fun(x):
        d.qpos[:]=target_base;d.qpos[rq:rq+3]=rootP+x[:3];r=(Rotation.from_rotvec(x[3:6])*rootR).as_quat();d.qpos[rq+3:rq+7]=np.r_[r[3],r[:3]];d.qpos[qa]=x[6:];mujoco.mj_kinematics(m,d)
        hand=np.r_[100*(d.site_xpos[rh]-PR),10*Rotation.from_matrix(RR@d.site_xmat[rh].reshape(3,3).T).as_rotvec(),100*(d.site_xpos[lh]-PL),10*Rotation.from_matrix(RL@d.site_xmat[lh].reshape(3,3).T).as_rotvec()]

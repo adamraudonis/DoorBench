@@ -100,6 +100,7 @@ def main():
     parser.add_argument('--index-tendon-offset-rad',type=float,default=0.)
     parser.add_argument('--index-proximal-offset-rad',type=float,default=0.)
     parser.add_argument('--pressure-segment',choices=['nearest','distal'],default='nearest')
+    parser.add_argument('--standing-withdrawal-path',type=Path,help='Independently screened withdrawal after the qualified standing return')
     parser.add_argument('--standing-return-palm-feedback',action='store_true',help='Experimental bounded privileged palm correction during return')
     parser.add_argument('--standing-return-support-load',type=float,help='Explicit left support target during return, above the original 2 N gate')
     parser.add_argument('--standing-return-hold-finger-posture',action='store_true',help='Experimental attained coupled finger posture with original motor limits')
@@ -120,6 +121,7 @@ def main():
     args = parser.parse_args()
     if not args.portable_wrapper and (args.operation_fixed_pad_control or args.index_proximal_offset_rad or args.index_tendon_offset_rad):
         parser.error('Contact-control options require the portable operation wrapper')
+    if args.standing_withdrawal_path and not args.standing_return_path:parser.error('Withdrawal requires a standing return route')
     if (args.standing_return_palm_feedback or args.standing_return_hold_finger_posture or args.standing_return_support_load is not None) and not args.standing_return_path:parser.error('Finger posture continuation requires an explicit return path')
     if not args.standing_transfer_path and (args.standing_return_path or args.standing_transfer_attained_arm or args.standing_transfer_no_fixed_pads or args.standing_transfer_start_seconds!=22. or args.standing_transfer_hold_route or args.standing_transfer_handoff_seconds or args.standing_transfer_preload_profile!='maintain' or any(args.standing_transfer_grasp_shift)):
         parser.error('Transfer options require an explicit transfer route')
@@ -177,6 +179,12 @@ def main():
     if args.standing_return_path:
         from doorbench.dexterous.standing_return import StandingReturnTeacher
         transfer=StandingReturnTeacher(transfer,motors,args.standing_return_path,hold_finger_posture=args.standing_return_hold_finger_posture,support_load_target=args.standing_return_support_load,palm_feedback=args.standing_return_palm_feedback)
+    withdrawal_pairs=None
+    if args.standing_withdrawal_path:
+        from doorbench.dexterous.standing_withdrawal import StandingWithdrawalTeacher
+        from doorbench.dexterous.standing_withdrawal_audit import clearance_pairs,environment_clearance,withdrawal_checks
+        transfer=StandingWithdrawalTeacher(transfer,motors,args.standing_withdrawal_path)
+        withdrawal_pairs=clearance_pairs(m)
     traces = [];recorder=archive=None;controller_steps=[]
     if args.record_transitions:
         from doorbench.dexterous.native_transition_audit import NativeTransitionRecorder
@@ -217,6 +225,8 @@ def main():
                     recorder.before_step();sim.plant.step();row,raw=recorder.after_step();archive.write(raw);controller_steps.append(dict(time_s=float(d.time)-m.opt.timestep,**info))
                 else:row = audited_native_step(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')
                 if transfer:row['left_surface']=recorder.left_surface.copy()
+                if withdrawal_pairs is not None and d.time>=transfer.start_time-1e-8:
+                    row['right_environment_clearance_m']=environment_clearance(m,d,withdrawal_pairs)
                 row['bolt_slide_m'] = float(d.qpos[m.jnt_qposadr[bj]])
                 row['operation'] = goal_info
                 physics.append(row)
@@ -258,6 +268,9 @@ def main():
             report['checks']['operator_returned_to_rest']=bool(tail) and all(abs(r['handle_angle_rad'])<=.05 for r in tail)
             report['checks']['bolt_returned_to_rest']=bool(tail) and all(abs(r.get('bolt_slide_m',1.))<=.001 for r in tail)
             report['standing_return']=dict(route=str(args.standing_return_path),started_s=transfer.return_started,final=transfer.info)
+        if args.standing_withdrawal_path:
+            report['checks']=withdrawal_checks(report['checks'],physics,dt=m.opt.timestep,duration=args.seconds,started=transfer.started_withdrawal,release_started=transfer.release_started,completed=transfer.info.get('withdrawal_progress',0)>=.999)
+            report['standing_withdrawal']=dict(route=str(args.standing_withdrawal_path),started_s=transfer.started_withdrawal,release_started_s=transfer.release_started,final=transfer.info)
         report.update(passed=all(report['checks'].values()),scope=__doc__,
             runtime_robot_pose_writes=0,direct_door_commands=False,
             maximum_handle_rad=max(r['handle_angle_rad'] for r in physics),
@@ -272,13 +285,17 @@ def main():
                 palm_rotation_in_handle=operation.r_relative.tolist(),operation_start_s=operation.started,
                 opening_start_s=operation.open_started,press_seconds=operation.press_seconds,
                 opening_seconds=operation.opening_seconds,final_goals=operation.info)
-        (args.output/'report.json').write_text(json.dumps(report,indent=2)+'\n')
         (args.output/'trace.json').write_text(json.dumps(traces)+'\n')
         with gzip.open(args.output/'physics-steps.json.gz','wt') as stream:
             json.dump(physics,stream)
         np.savez_compressed(args.output/'trajectory.npz',**states,
                             terminal_qpos=d.qpos.copy(),terminal_qvel=d.qvel.copy(),
                             terminal_ctrl=d.ctrl.copy(),terminal_time_s=float(d.time))
+        # Publish completion only after every evidence stream is closed. A
+        # reader must never mistake a still-writing gzip archive for a final run.
+        report_tmp=args.output/'report.json.tmp'
+        report_tmp.write_text(json.dumps(report,indent=2)+'\n')
+        report_tmp.replace(args.output/'report.json')
         print(json.dumps({k:v for k,v in report.items() if k!='final_contacts'}),flush=True)
     finally:
         if archive and not archive.closed:archive.close(complete=False)

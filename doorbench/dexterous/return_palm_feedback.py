@@ -47,9 +47,12 @@ class ReturnPalmFeedback:
         mujoco.mj_comPos(self.m,self.d)
 
     def targets(self,t,nominal,root,joints,handle_pose,leaf_pose,angles,operator_goal):
-        self._read(root,joints)
         p,r = reproject_grasp(handle_pose,leaf_pose,angles,
             dict(operator=operator_goal,leaf=angles['leaf']),self.position,self.rotation,self.geometry)
+        return self.world_targets(t,nominal,root,joints,p,r)
+
+    def world_targets(self,t,nominal,root,joints,p,r):
+        self._read(root,joints)
         pe = p-self.d.site_xpos[self.teacher.palm]
         re = Rotation.from_matrix(r@self.d.site_xmat[self.teacher.palm].reshape(3,3).T).as_rotvec()
         mujoco.mj_jacSite(self.m,self.d,self.jp,self.jr,self.teacher.palm)

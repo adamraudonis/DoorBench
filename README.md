@@ -40,6 +40,7 @@ The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock
 | Isaac, sensor-feedback scripted grasp (`legacy-tanh-v1`) | **23/23 grasp checks**, including final opposed five-pad hold; independent audits passed | September 9, 2026, 05:50 (audit/archive) |
 | Isaac, sensor-driven walking and stopping (`backend-dry-v2`) | **18/18 runtime + 22/22 independent checks** over 10 s; no door interaction | September 9, 2026, 07:36 |
 | Isaac, standing privileged grasp (`backend-dry-v2`) | **15/15 runtime checks**, final opposed fingertip hold; contact accounting verified | September 9, 2026, 08:20 |
+| MuJoCo, upright privileged handle return | **23/23 runtime + 6/6 independent checks** over 64 s; opposed grip, latch operation, partial opening, left-palm support and lever return; maximum torso tilt 2.89° ([audit](docs/evidence/native-standing-return-004.json)) | September 9, 2026, 11:02–11:05 |
 | Isaac, standing handle operation (`backend-dry-v2`) | **Failed: 18/19 checks**; physical latch release and 4.44° opening, but three fingers leave their distal pads ([audit](docs/evidence/isaac-standing-operation-002.json)) | September 9, 2026, 08:59 |
 | MuJoCo, latest learned motor-target sensor actor | **0/1 complete tasks**; fell after 1.306 s | September 9, 2026, 06:42 |
 
