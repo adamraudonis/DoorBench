@@ -298,3 +298,23 @@ stricter distal/whole-handle native prerequisite. Independent auditing rejects
 a profile that differs from the recorded launch, and future coordinator success
 also requires zero invalid loaded patches over the entire episode, beyond the
 existing final sustained-grasp window. No new protocol has yet run.
+
+
+The complete bounded-recording withdrawal002 failed joint range, loaded lever
+surface and full-handle checks despite reaching0.350164rad. Hub contact begins
+at69.072s (316 patches,87 intervals, maximum42.93N); invalid distal surfaces run
+69.442–70.912s, and a16-interval joint excursion peaks at0.020101rad. All evidence
+is retained in a verified draft archive and a public failure receipt. The
+attained-grasp-increment alternative failed its geometric screen and was not run.
+
+A composition issue was identified: attained finger tracking overwrites the
+operation controller's hub feedback. Withdrawal003 prospectively enables
+`final_hub_avoidance`, applying the existing bounded3N feedback after finger
+tracking, before the original capped motor handoff. This changes only the
+withdrawal phase; it is a fresh physical experiment, not a repaired report.
+
+Isaac hub-follow022 is queued after hub021. It prospectively follows the measured
+lever after0.025rad leaf clearance, with hub avoidance active, while retaining
+`distal-pad-v1` and the newly mandatory whole-episode loaded-patch gate. No volar
+protocol is dispatched. Both shutdown guards were verified for21:40:15UTC,
+within the12h allocation lifetime ceiling; the coordinator reserves export time.
