@@ -45,8 +45,10 @@ def main():
         offset+=sensor['dimension']
     channels=grid[:,:,1:3].sum(axis=(1,2)).astype(float);vector=channels[[1,2,0]];load=float(channels[0])
     rm=mujoco.MjModel.from_xml_path(str(robot));names=[rm.joint(i).name for i in range(1,rm.njnt)];actions=[rm.actuator(i).name for i in range(rm.nu)]
+    motors=json.loads((a.trial/'motors.json').read_text())
+    if not np.array_equal([r['kp'] for r in motors['actuators']],rm.actuator_gainprm[:,0]):raise ValueError('Static original gain calibration differs from XML')
     M=scalar_transmission_matrix(rm,np.arange(61),np.arange(1,rm.njnt))
-    calc=RobotThumbNormalAdmittance(rm,names,actions,M,profile);pos,R,jp,jr=calc.geometry(q);B,p=calc.basis(q)
+    calc=RobotThumbNormalAdmittance(rm,names,actions,M,profile,motors);pos,R,jp,jr=calc.geometry(q);B,p=calc.basis(q)
     direction=R@(vector/np.linalg.norm(vector));coeff=np.linalg.lstsq(jp@B,direction,rcond=None)[0];delta=B@coeff;delta*=.001/np.max(abs(delta))
     sim=DexterousDoorEnv(door,robot,json.loads(robot.with_suffix('.audit.json').read_text()));m=sim.m;d=mujoco.MjData(m)
     qa=np.array([m.joint('robot/'+name).qposadr[0] for name in NAMES]);body=m.body('robot/rh_thdistal').id;lever=m.geom('leaf_handle_lever_col_n').id
@@ -75,7 +77,7 @@ def main():
     differential=[dict(sign=s,delta_rad=(s*delta).tolist(),**geometry(base[qa]+s*delta)) for s in (-1,0,1)]
     trials=[]
     for requested_load in (3.,6.):
-        c=RobotThumbNormalAdmittance(rm,names,actions,M,profile);current=q.copy()
+        c=RobotThumbNormalAdmittance(rm,names,actions,M,profile,motors);current=q.copy()
         c.update(goals,current,vector,load,now_s=23.);samples=[];error=None
         for step in range(1001):
             if step:

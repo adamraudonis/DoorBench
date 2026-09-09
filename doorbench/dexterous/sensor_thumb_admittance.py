@@ -12,6 +12,9 @@ class _ThumbAdmittanceArm:
     def force(self,packet,*,now_s,joint_goals=None):
         extra={};goals=dict(joint_goals)
         if now_s>=23.-1e-9:
+            rows=self.calculator.mapper.groups['th'][1];b=self.inner.balance
+            if not np.array_equal(b.kp[rows],self.calculator.gain) or not np.array_equal(b.bias[rows,1],-self.calculator.gain):
+                raise ValueError('Admittance retained span differs from actual post-ramp policy gains')
             grid=packet['tactile'][self.tactile_slice].reshape(3,2,4)
             sums=grid[:,:,1:3].sum(axis=(1,2)).astype(float)
             goals,extra=self.calculator.update(goals,packet['joint_position'],sums[[1,2,0]],max(0.,float(sums[0])),now_s=now_s)
@@ -24,7 +27,8 @@ class SensorThumbAdmittanceController(SensorThumbFlexionForceController):
         self.thumb_admittance_protocol=validate_profile(thumb_admittance_protocol)
         super().__init__(*args,**kwargs)
         b=self.arm.balance
-        self.thumb_admittance=RobotThumbNormalAdmittance(b.m,self.joint_names,self.action_names,b.matrix,self.thumb_admittance_protocol)
+        contract=args[4] if len(args)>4 else kwargs['motor_contract']
+        self.thumb_admittance=RobotThumbNormalAdmittance(b.m,self.joint_names,self.action_names,b.matrix,self.thumb_admittance_protocol,contract)
         self.arm=_ThumbAdmittanceArm(self.arm,self.thumb_admittance,self.slices['th'])
     def force(self,packet,*,now_s):
         force,info=super().force(packet,now_s=now_s)

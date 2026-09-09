@@ -18,7 +18,7 @@ from doorbench.dexterous.sensor_thumb_admittance import SensorThumbAdmittanceCon
 
 def setup(authored):
     original=old(authored);b=original.arm.balance
-    calculator=RobotThumbNormalAdmittance(b.m,b.names,b.actions,b.matrix,PROFILE.copy())
+    calculator=RobotThumbNormalAdmittance(b.m,b.names,b.actions,b.matrix,PROFILE.copy(),authored[1])
     q=b.desired.copy()
     for n,value in zip(NAMES,[.91,1.18,-.154,-.668,-.18]):q[b.names.index(n)]=value
     goals=dict(zip(NAMES,q[calculator.columns]));goals['torso']=0.
@@ -34,6 +34,21 @@ def test_original_effort_tangent_and_robot_local_jacobian(authored):
         plus=c.geometry(q+delta)[0];minus=c.geometry(q-delta)[0]
         np.testing.assert_allclose((plus-minus)/2e-6,jp[:,i],atol=1e-8,rtol=0)
     assert np.linalg.matrix_rank(jp@B)==3 and c.d.time==0. and c.mapper.d.time==0.
+
+
+def test_normalized_calculator_and_original_xml_share_actual_policy_gain(authored):
+    import mujoco
+    c,q,g=setup(authored)
+    np.testing.assert_array_equal(c.m.actuator_gainprm[:,0],np.ones(61))
+    np.testing.assert_array_equal(c.gain,[24.,16.])
+    model=mujoco.MjModel.from_xml_path(str(authored[0]))
+    original=RobotThumbNormalAdmittance(model,c.names,c.mapper.actions,c.mapper.matrix,PROFILE.copy(),authored[1])
+    np.testing.assert_array_equal(original.basis(q)[0],c.basis(q)[0])
+    for calc in (c,original):calc.update(g,q,[0,0,3.],3.,now_s=23.)
+    for i in range(1,51):
+        a,ai=c.update(g,q,[0,0,6.],6.,now_s=23.+i*.002)
+        b,bi=original.update(g,q,[0,0,6.],6.,now_s=23.+i*.002)
+        assert a==b and ai==bi
 
 
 def test_slew_bounds_other_joints_and_no_alias(authored):

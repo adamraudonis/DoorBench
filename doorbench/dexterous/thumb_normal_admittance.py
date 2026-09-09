@@ -58,7 +58,7 @@ def intersect_scalar_bounds(column, low, high):
 
 
 class RobotThumbNormalAdmittance:
-    def __init__(self, model, joint_names, action_names, transmission, profile):
+    def __init__(self, model, joint_names, action_names, transmission, profile, original_motor_contract):
         self.profile = validate_profile(profile)
         self.mapper = RobotThumbFlexionForce(model, joint_names, action_names, transmission)
         self.m, self.names = model, tuple(joint_names)
@@ -70,9 +70,18 @@ class RobotThumbNormalAdmittance:
         self.thumb = model.site('rh_thdistal_touch').id
         self.palm = model.site('rh_palm_touch').id
         self.jp = np.zeros((3, model.nv)); self.jr = self.jp.copy()
-        self.gain = 16. * model.actuator_gainprm[self.mapper.groups['th'][1], 0]
-        if np.any(self.gain <= 0):
-            raise ValueError('Original positive thumb gain calibration required')
+        motors = original_motor_contract['actuators']
+        if ([r['name'] for r in motors] != list(action_names)
+                or not np.array_equal([r['force_range'] for r in motors], model.actuator_forcerange)):
+            raise ValueError('Original motor contract order and force caps required')
+        native_gain = np.array([r['kp'] for r in motors], float)
+        if native_gain.shape != (61,) or not np.isfinite(native_gain).all() or np.any(native_gain <= 0):
+            raise ValueError('Original positive motor gain calibration required')
+        # SensorBalanceController's unstepped model uses force-normalized
+        # affine motors. Its model gain array is not the actual policy gain.
+        # Read the original contract admitted by that controller, then require
+        # exact agreement with the live post-ramp policy before every use.
+        self.gain = 16. * native_gain[self.mapper.groups['th'][1]]
         self.reset()
 
     def reset(self):
@@ -141,7 +150,8 @@ class RobotThumbNormalAdmittance:
             self.filtered_force = float(load); self.filtered_vector = vector.copy()
             self.last_time = t
             return dict(goals), dict(thumb_admittance_started=True, thumb_admittance_reference_offset_m=[0.,0.,0.],
-                                    thumb_admittance_goal_velocity_rad_s=[0.]*5, thumb_admittance_scope=PROFILE['scope'])
+                                    thumb_admittance_goal_velocity_rad_s=[0.]*5, thumb_admittance_scope=PROFILE['scope'],
+                                    thumb_admittance_pressure_policy_gain_Nm_rad=self.gain.tolist())
         alpha = -np.expm1(-dt / self.profile['filter_tau_s'])
         self.filtered_force += alpha * (load-self.filtered_force)
         self.filtered_vector += alpha * (vector-self.filtered_vector)
@@ -213,4 +223,5 @@ class RobotThumbNormalAdmittance:
             thumb_admittance_direction_palm=direction.tolist(), thumb_admittance_position_error_m=(self.anchor_position+self.reference_offset-position).tolist(),
             thumb_admittance_actual_margins_rad=measured_margin.tolist(), thumb_admittance_interior_velocity_deficit_rad_s=np.maximum(0.,need_lo-velocity).tolist(),
             thumb_admittance_effort_tangent_residual=pressure_tangent_error, thumb_admittance_frozen_base_goals_rad=self.nominal.tolist(),
+            thumb_admittance_pressure_policy_gain_Nm_rad=self.gain.tolist(),
             thumb_admittance_calculator_time_s=self.d.time, thumb_admittance_scope=PROFILE['scope'])
