@@ -64,7 +64,7 @@ def collect(directory, telemetry=False):
         log_path=root.parent/'isaac-operation.log'
         result=dict(passed=report.get('passed'),checks=checks,scope=report.get('scope'),report_file='operation-report.json') if report else None
         return dict(pipeline=True,config=dict(engine='Isaac Sim / PhysX · H1 + Shadow Hands',scope=imported.get('scope'),deadline_unix=parent.get('deadline_unix'),deadline_label='Experiment coordinator deadline',expected_duration_s=imported['args'].get('seconds')),
-                    status=status,complete=complete,result=result,progress=progress,
+                    status=status,complete=complete,result=result,progress=progress,wall_timing=read(root/'wall-timing.json',None),
                     stage='Runtime checks finished; '+status if report else progress.get('teacher',{}).get('phase','Starting Isaac physics'),
                     heartbeat=time.time(),gpu=gpu,log=tail(log_path),log_updated=log_path.stat().st_mtime if log_path.exists() else None)
     if (root / 'pipeline.json').exists():

@@ -158,7 +158,11 @@ def main():
         args.standing_transfer_path,args.standing_return_path,args.standing_withdrawal_path],
         args.output/'controller-inputs')
     (args.output/'run.pid').write_text(str(os.getpid()))
-    (args.output/'pipeline.json').write_text(json.dumps(dict(stage='Native physics and full handle verification',report_file='report.json',scope=__doc__)))
+    def stage(label):
+        temporary=args.output/'pipeline.json.tmp'
+        temporary.write_text(json.dumps(dict(stage=label,report_file='report.json',scope=__doc__)))
+        temporary.replace(args.output/'pipeline.json')
+    stage('Native physics and full handle verification')
     shutil.copy2(__file__, args.output/'diagnostic-source.py')
     (args.output/'source-override.json').write_text(json.dumps(dict(entry_point='diagnostic-source.py',
         sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),controller_root=str(controller_root),scope=__doc__),indent=2)+'\n')
@@ -278,6 +282,7 @@ def main():
             import traceback
             controller_error=type(exc).__name__+': '+str(exc)
             (args.output/'error.txt').write_text(traceback.format_exc())
+        stage('Reducing recorded physical and contact checks')
         report = audit_grasp_steps(physics,physics_dt=m.opt.timestep,expected_duration=args.seconds)
         if archive:
             archive.close(complete=controller_error is None)
@@ -327,6 +332,7 @@ def main():
                 palm_rotation_in_handle=operation.r_relative.tolist(),operation_start_s=operation.started,
                 opening_start_s=operation.open_started,press_seconds=operation.press_seconds,
                 opening_seconds=operation.opening_seconds,final_goals=operation.info)
+        stage('Exporting lossless step records and trajectory')
         (args.output/'trace.json').write_text(json.dumps(traces)+'\n')
         physics.export(args.output/'physics-steps.json.gz')
         np.savez_compressed(args.output/'trajectory.npz',**states,
@@ -337,6 +343,7 @@ def main():
         whole_handle=dict(passed=False,scope='Complete archived handle contacts required')
         if archive is not None:
             try:
+                stage('Auditing the complete handle assembly archive')
                 from scripts.dexterous.audit_native_handle_assembly import audit as audit_handle_assembly
                 whole_handle=audit_handle_assembly(args.output)
             except Exception as exc:

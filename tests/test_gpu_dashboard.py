@@ -189,10 +189,12 @@ def test_actual_isaac_trial_exposes_sim_clock_and_waits_for_independent_result(t
     (parent/'run.pid').write_text(str(os.getpid()))
     (root/'configuration.json').write_text(json.dumps(dict(args=dict(robot_usd='robot.usda',seconds=36),scope='Actual privileged PhysX; no traversal')))
     (root/'progress.json').write_text(json.dumps(dict(time_s=12.5,teacher=dict(phase='lever_operation'))))
+    (root/'wall-timing.json').write_text(json.dumps(dict(completed_steps=250,phase_seconds=dict(physics_step=2.))))
     result=module.collect(root)
     assert result['pipeline'] and result['status']=='running'
     assert result['progress']['time_s']==12.5 and result['config']['expected_duration_s']==36
     assert result['config']['engine'].startswith('Isaac')
+    assert result['wall_timing']['phase_seconds']['physics_step']==2.
     (root/'operation-report.json').write_text(json.dumps(dict(passed=True,checks=dict(grasp=True))))
     result=module.collect(root)
     assert result['status']=='awaiting independent audit' and not result['complete']

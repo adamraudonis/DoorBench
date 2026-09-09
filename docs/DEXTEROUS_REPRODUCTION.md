@@ -202,3 +202,13 @@ wall-time measurements, not GPU kernel profiling or an optimal-batch claim.
 The external profiler could not attach to experiment 028 under the container's
 process-inspection permissions; it produced no timing samples. The new timing
 code does not alter that frozen run or retroactively instrument its results.
+
+
+Native step export now writes one encoded JSON record per gzip write, retaining
+byte-identical decoded arrays and chunk recovery. A recorded-chunk microbenchmark
+reduced CPU time from 0.0579 to 0.0294 s; this is not a whole-run speedup claim.
+The monitor distinguishes physics, reduction, export and whole-handle auditing.
+Reserve at least 2 GiB of free local space before a long native trial alongside
+a GPU collector; archived duplicates can otherwise leave little actual capacity.
+Only evict evidence after full upload/download hash verification, and ensure a
+collector has reached its verified terminal state so it cannot recopy evicted files.

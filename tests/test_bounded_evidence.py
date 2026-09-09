@@ -18,7 +18,9 @@ def test_lossless_repeated_audit_iteration_and_export(tmp_path):
     output = tmp_path / 'physics-steps.json.gz'
     evidence.export(output)
     with gzip.open(output, 'rt') as stream:
-        assert json.load(stream) == rows
+        encoded=stream.read()
+        assert json.loads(encoded) == rows
+        assert encoded==json.dumps(rows,separators=(',', ':'))
     assert list(evidence) == rows
     with pytest.raises(ValueError):
         evidence.export(output)

@@ -86,6 +86,6 @@ class BoundedEvidence:
             for index, row in enumerate(self):
                 if index:
                     stream.write(',')
-                json.dump(row, stream, separators=(',', ':'))
+                stream.write(json.dumps(row, separators=(',', ':')))
             stream.write(']')
         temporary.replace(target)
