@@ -211,3 +211,14 @@ minimum pad loads are 1.069/0.949/5.299/4.422/11.664 N. See the
 [independent receipt](evidence/native-standing-operation-006.json).
 The same frozen variant is being prepared for destination-native verification
 and an actual Isaac operation trial.
+
+
+The destination Isaac standing-grasp trial002 finished at **2026-09-09 08:20:19
+UTC** and passes **15/15 runtime checks** with the explicit 3 N middle-finger
+preload. Its complete 124-file archive is byte-verified locally. Contact
+accounting confirms zero invalid loaded patches and a 0.584 s uninterrupted hold
+through the endpoint; [receipt](evidence/isaac-standing-acquisition-002.json).
+Raw contact transforms are absent from this frozen version, so this is a runtime
+pass with independent accounting, not a complete independent raw-contact audit.
+The separate standing-operation trial001 passed its exact destination-native
+18/18 prerequisite and is now executing actual Isaac with raw contact recording.

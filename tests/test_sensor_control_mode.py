@@ -30,6 +30,8 @@ def test_sensor_actor_accepts_only_sensor_control_with_static_reset_and_audit_se
     ('stance_qp',True),('press_feedforward',True),('grip_reset_targets',True),
     ('arm_impedance',2.),('grip_impedance',2.),('grip_rotation_fraction',.5),
     ('operator_compliance_gain',.5),('acquisition_middle_finger_force',3.),
+    ('acquisition_pressure_segment','distal'),('operation_grasp_offset_in_handle_m',[.004,0,0]),
+    ('operation_min_acquisition_seconds',10.6),
     ('acquisition_index_finger_force',3.),('time_scale',2.)])
 def test_no_optional_teacher_or_feedback_path_can_be_combined_with_actor(name,value):
     options=SimpleNamespace(sensor_policy_checkpoint='actor.pt',sensor_layout='actual.json',**{name:value})
