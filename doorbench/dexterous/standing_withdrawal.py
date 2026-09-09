@@ -29,6 +29,9 @@ class StandingWithdrawalTeacher:
         self.support_target=float(config.get('left_support_target_N',4.))
         if not np.isfinite(self.support_target) or not 2<self.support_target<=4:raise ValueError('Withdrawal support target must remain above the original 2 N gate')
         self.initial_support_target=self.left.support_load_target
+        self.hybrid_support=config.get('hybrid_support',False)
+        if type(self.hybrid_support) is not bool:raise ValueError('Explicit hybrid support option required')
+        self.support_feedback=None
         audit_path=Path(config['audit_path']);screen_path=Path(config['screen_path']);source=Path(config['source_run'])
         if sha(audit_path)!=config['audit_sha256'] or sha(screen_path)!=config['screen_sha256']:raise ValueError('Withdrawal evidence changed')
         audit=json.loads(audit_path.read_text());screen=json.loads(screen_path.read_text())
@@ -106,6 +109,12 @@ class StandingWithdrawalTeacher:
         teacher.stance.joint_target[:]=np.array([targets[n] for n in self.stance_names])+self.stance_joint_bias
         self.left.support_load_target=self.initial_support_target+float(smooth_phase(elapsed/2.))*(self.support_target-self.initial_support_target)
         self.left.update_targets(t,root,joints,leaf_pose,left_panel_load,handle_pose)
+        if self.hybrid_support:
+            self.left._read(root,joints)
+            if self.support_feedback is None:
+                from .standing_support_feedback import StandingSupportFeedback
+                self.support_feedback=StandingSupportFeedback(self.left)
+            self.support_feedback.update(t,leaf_pose,left_panel_load,self.left.support_load_target)
         force,info=self.operation.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified)
         force=self.left.apply_forces(force,joints,velocities)
         # The screened withdrawal is expressed in the attained resting world.
