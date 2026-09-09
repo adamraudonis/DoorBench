@@ -142,6 +142,7 @@ p.add_argument('--operation-grasp-offset-in-handle-m',nargs=3,type=float,help='O
 p.add_argument('--operation-min-acquisition-seconds',type=float,default=0.,help='Earliest qualified grasp-to-operation handoff')
 p.add_argument('--hold-attained-grasp',action='store_true',help='Capture original coupled finger targets after a qualified partial opening')
 p.add_argument('--operation-actual-pad-control',action='store_true')
+p.add_argument('--operation-material-profile',choices=('actual-material-v1','actual-material-v2'),default='actual-material-v1')
 p.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
@@ -513,7 +514,7 @@ def main():
                 basis=np.eye(3)['XYZ'.index(joint.GetAxisAttr().Get())]
                 joint_geometry[role+'_origin']=np.array(joint.GetLocalPos1Attr().Get())
                 joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*map(float,basis))))
-            operation=DoorOperationTeacher(teacher,joint_geometry,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile="actual-material-v1" if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
+            operation=DoorOperationTeacher(teacher,joint_geometry,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile=a.operation_material_profile if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
             if sequence_reset and not a.full_opening:
                 from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
                 sequence=FullSequenceTeacher(a.native_robot,motors,ref,
@@ -561,7 +562,7 @@ def main():
                 operator_target_rad=.87,leaf_target_rad=.08,press_duration_s=5.,opening_duration_s=3.,
                 wait_for_press_completion=not a.open_on_latch_clear,
                 operator_compliance_gain=a.operator_compliance_gain,operator_compliance_limit_rad=.15,
-                freeze_compliance_on_release=True,fixed_pad_control=a.operation_actual_pad_control,pad_control_profile="actual-material-v1" if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,
+                freeze_compliance_on_release=True,fixed_pad_control=a.operation_actual_pad_control,pad_control_profile=a.operation_material_profile if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,
                 scope='Continuous walking, lowering, readiness, acquisition and partial opening; no traversal' if sequence else 'Contact-free acquisition to lever, latch and partial opening; no approach or traversal',
                 final_hold='The final 0.5 s must pass the unchanged strict five-pad check and hold leaf angle in [0.075, 0.10] rad; report intermediate digit unloads separately'),indent=2)+'\n')
             if full_opening:

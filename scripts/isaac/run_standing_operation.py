@@ -27,6 +27,7 @@ def main():
     p.add_argument('--deadline-unix',type=float,required=True)
     p.add_argument('--hold-attained-grasp',action='store_true',help='Test qualified attained finger hold in both physics backends')
     p.add_argument('--actual-material-pads',action='store_true')
+    p.add_argument('--material-pad-profile',choices=('actual-material-v1','actual-material-v2'),default='actual-material-v1')
     p.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
     p.add_argument('--wait-for-run',type=Path,help='Wait for this earlier coordinator to finish before using the prepared node')
     p.add_argument('--isaac-timeout-seconds',type=float,default=4200.,help='Wall-clock budget including periodic evidence export')
@@ -40,8 +41,8 @@ def main():
     if a.actual_material_pads and a.hold_attained_grasp:raise ValueError('Choose one explicit hand controller')
     result['actual_material_pads']=a.actual_material_pads
     result['attained_hold_stage']=a.attained_hold_stage
-    native_pad_options=['--operation-fixed-pad-control','--operation-pad-control-profile','actual-material-v1'] if a.actual_material_pads else []
-    isaac_pad_options=['--operation-actual-pad-control'] if a.actual_material_pads else []
+    native_pad_options=['--operation-fixed-pad-control','--operation-pad-control-profile',a.material_pad_profile] if a.actual_material_pads else []
+    isaac_pad_options=['--operation-actual-pad-control','--operation-material-profile',a.material_pad_profile] if a.actual_material_pads else []
     hold_options=['--hold-attained-grasp','--attained-hold-stage',a.attained_hold_stage] if a.hold_attained_grasp else []
     env=dict(os.environ,PYTHONPATH=str(a.source),DOORBENCH_WORK=str(a.work),OPENBLAS_NUM_THREADS='1',OMP_NUM_THREADS='1',OMNI_KIT_ACCEPT_EULA='YES',PYTHONUNBUFFERED='1',ACCEPT_EULA='Y',PRIVACY_CONSENT='Y')
     commands=[]
@@ -108,7 +109,7 @@ def main():
         if a.actual_material_pads:
             profile=json.loads((native/'trace.json').read_text())[-1]['teacher'].get('operation_pad_control')
             result['native_material_pad_profile']=profile
-            if profile!='actual-material-v1':raise ValueError('Actual material controller did not activate in native test')
+            if profile!=a.material_pad_profile:raise ValueError('Actual material controller did not activate in native test')
         if a.hold_attained_grasp:
             started=json.loads((native/'trace.json').read_text())[-1]['teacher'].get('attained_hold_started_s')
             result['native_attained_hold_started_s']=started
@@ -128,7 +129,7 @@ def main():
         if a.actual_material_pads:
             profile=json.loads((trial/'latest.json').read_text())['teacher'].get('operation_pad_control')
             result['isaac_material_pad_profile']=profile
-            result['material_controller_activated']=profile=='actual-material-v1'
+            result['material_controller_activated']=profile==a.material_pad_profile
             result['passed'] &= result['material_controller_activated']
         if a.hold_attained_grasp:
             latest=json.loads((trial/'latest.json').read_text());started=latest['teacher'].get('attained_hold_started_s')

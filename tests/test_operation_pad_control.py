@@ -44,3 +44,11 @@ def test_actual_material_targets_follow_measured_handle_without_arm_counterforce
     np.testing.assert_allclose(c.targets['ff'],[.2,.307,.4])
     np.testing.assert_allclose(c.targets['th'],[.2,.293,.4])
     assert motors[1]==.5 and info['operation_pad_control']=='actual-material-v1'
+
+
+def test_second_actual_profile_retains_original_posture_servo():
+    c=fixture();c.profile='actual-material-v2';c.teacher.target=np.array([1.1,1.])
+    c.tracker.generalized_force=lambda d,targets:(np.zeros(2),{})
+    pose=np.array([0.,0.,0.,1.,0.,0.,0.]);geometry=dict(operator_origin=np.zeros(3),operator_axis=np.array([0.,1.,0.]),leaf_origin=np.zeros(3),leaf_axis=np.array([0.,0.,1.]))
+    motors,info=c.force(np.array([1.,.5]),1.,pose,pose,dict(operator=0.,leaf=0.),dict(operator=.8,leaf=.1),geometry)
+    np.testing.assert_array_equal(motors,[1.,.5]);assert info['finger_posture_relaxation_fraction']==0.
