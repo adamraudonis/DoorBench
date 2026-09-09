@@ -12,6 +12,7 @@ this operation does not.
 ```sh
 python scripts/dexterous/plan_sensor_handle_press.py \
   --acquisition out/qualified-sensor-acquisition \
+  --independent-audit out/native-independent.json \
   --output out/press-plan-fresh
 python scripts/dexterous/probe_sensor_handle_operation.py \
   --robot /path/to/h1-shadow-loopback-v2.xml \
@@ -88,3 +89,5 @@ The acquired prefix, loaded-contact failure and all force/contact records are
 retained. The independent contact reducer also handles interrupted failures;
 an absent requested final window is explicitly failed rather than treated as
 an empty successful hold.
+
+New press plans use schema v2 and bind the exact acquisition calibration, schedule, motor contract, initial velocity, gravity compensation and controller source closure. The independent acquisition audit must hash-bind the physical trajectory and controller evidence. Changing tactile preload or another acquisition setting requires regenerating the plan. Historical v1 attempts remain archived; they are not admitted by new operation runs.

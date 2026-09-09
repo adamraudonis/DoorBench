@@ -111,7 +111,10 @@ def main():
     controller=arm.balance
     base_route=ScriptedAcquisitionSchedule(arm.goal_names,ref['acquisition']['joint_names'],ref['acquisition']['path_qpos'],start_s=schedule['start_s'],reach_seconds=schedule['reach_seconds'],settle_seconds=schedule['settle_seconds'])
     plan=json.loads(a.press_plan.read_text())
-    if not plan['passed'] or plan['schema']!='doorbench.offline-sensor-press-plan.v1' or plan['robot_xml_sha256']!=sha(robot) or plan['door_xml_sha256']!=sha(door/'door.xml') or plan['source_reference_sha256']!=sha(a.reference) or plan['acquisition_seconds']!=base_route.duration_s:raise ValueError('Qualified matching offline press plan required')
+    from doorbench.dexterous.press_plan_binding import require_press_binding
+    require_press_binding(plan,calibration=a.calibration,schedule=a.schedule,motors=a.motors,
+        gravity_correction=a.gravity_correction,initial_velocity=a.initial_velocity)
+    if not plan['passed'] or plan['schema']!='doorbench.offline-sensor-press-plan.v2' or plan['robot_xml_sha256']!=sha(robot) or plan['door_xml_sha256']!=sha(door/'door.xml') or plan['source_reference_sha256']!=sha(a.reference) or plan['acquisition_seconds']!=base_route.duration_s:raise ValueError('Qualified matching offline press plan required')
     route=ScriptedHandleOperationSchedule(base_route,plan['joint_names'],plan['path_qpos'],press_seconds=plan['press_seconds'],settle_seconds=plan['settle_seconds'])
     if base_route.duration_s!=schedule['duration_s'] or route.duration_s!=a.seconds or route.duration_s!=plan['duration_s'] or route.sampled_maximum_goal_speed()>arm.maximum_goal_speed_radps:raise ValueError('Declared duration or joint-goal slew disagrees with route')
     builder=ActorObservationBuilder(joint_count=69,action_count=61,tactile_dimension=layout['tactile_dimension'])

@@ -40,7 +40,7 @@ The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock
 | Isaac, scripted sensor-feedback reach | **20/20 reach + 14/14 physics checks** | September 8, 2026, 20:04 |
 | Isaac, scripted sensor-feedback grasp | **22/23 checks; failed sustained opposed hold**; zero invalid loaded patches | September 9, 2026, 03:33 |
 | Isaac, tactile preload follow-up | **Failed final hold**: 0.822 s opposed grasp, then index load below threshold; independently audited | September 9, 2026, 04:52 (audit/archive) |
-| MuJoCo, learned sensor actor after one training pass | **0/1 complete tasks**; fell after 0.296 s | September 9, 2026, 03:33 |
+| MuJoCo, learned sensor actor after five complete training updates | **0/1 complete tasks**; fell after 0.304 s | September 9, 2026, 05:35 |
 
 The native sequence takes **127.99 seconds** and uses privileged state; it is not a natural-speed motion or learned vision/tactile policy. Complete Isaac traversal, varied-start repeatability and catalogue coverage remain unfinished. [Native evidence and replay instructions](docs/CONTINUOUS_NATIVE_TRAVERSAL.md) · [Current progress](docs/DEXTEROUS_NEXT_STEPS.md) · [Isaac grasp evidence](docs/ISAAC_TACTILE_GRASP.md) · [Prepare a sensor demo](docs/ISAAC_SENSOR_DEMO_PREPARATION.md).
 

@@ -94,3 +94,5 @@ losses. The same audited native source, camera and real reset checks apply.
 A two-update CPU admission fixture completed successfully; 17 sampling/history
 tests passed. Neither training loss nor that fixture establishes physical skill.
 Every selected checkpoint still needs a complete, unassisted sensor rollout.
+
+The recovered five-update CPU experiment completed updates4–5 in997.56 seconds, preserving its three earlier optimizer updates. The subsequent unassisted rollout still fell at0.304 seconds with no door motion, teacher actions, external forces or motor-delivery error. This is0/1 task success; the smaller prediction loss did not produce meaningful balance improvement. A separately identified GPU short-window experiment is next.

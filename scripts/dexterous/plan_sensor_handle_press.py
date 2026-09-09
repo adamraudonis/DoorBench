@@ -23,12 +23,15 @@ def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--acquisition',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
+    p.add_argument('--independent-audit',type=Path,required=True,help='Hash-bound native-independent.json for the attained acquisition')
     p.add_argument('--handle-angle',type=float,default=.85);a=p.parse_args()
     if a.output.exists():p.error('Fresh planner output required')
     if not np.isfinite(a.handle_angle) or not 0<a.handle_angle<=.87:p.error('Original handle travel required')
     a.output.mkdir(parents=True)
     source=a.acquisition;report=json.loads((source/'report.json').read_text());prov=json.loads((source/'provenance.json').read_text())
-    if not report['passed'] or not json.loads((source/'independent-contact-audit.json').read_text())['passed']:raise ValueError('Actual acquired-state qualification required')
+    from doorbench.dexterous.press_plan_binding import acquisition_binding,verify_acquisition_audit
+    if not report['passed']:raise ValueError('Actual acquired-state qualification required')
+    verify_acquisition_audit(source,json.loads(a.independent_audit.read_text()))
     ref=json.loads((source/'reference.json').read_text());robot=Path(prov['parameters']['robot']);door=Path(prov['parameters']['door']);door=door if door.is_dir() else door.parent
     if sha(robot)!=prov['robot_xml_sha256'] or sha(door/'door.xml')!=prov['door_xml_sha256']:raise ValueError('Planning plant source differs')
     archive=np.load(source/'trajectory.npz');terminal=archive['qpos'][-1].copy()
@@ -64,7 +67,8 @@ def main():
         valid=pos_error<.0001 and rot_error<.001 and not bad and penetration<=.003 and np.all(command>=m.jnt_range[ids,0]) and np.all(command<=m.jnt_range[ids,1])
         rows.append(command.tolist());screen.append(dict(index=index,handle_angle_rad=float(angle),palm_error_m=pos_error,orientation_error_rad=rot_error,max_nonfoot_penetration_m=penetration,passed=bool(valid),bad_contacts=bad))
         last=solved.copy()
-    result=dict(schema='doorbench.offline-sensor-press-plan.v1',passed=all(r['passed'] for r in screen),
+    result=dict(schema='doorbench.offline-sensor-press-plan.v2',acquisition_binding=acquisition_binding(prov),
+        independent_acquisition_audit_sha256=sha(a.independent_audit),passed=all(r['passed'] for r in screen),
         scope='Offline geometry-derived static motor goals; no runtime root/door/geometry access',joint_names=names,path_qpos=rows,press_seconds=8.,settle_seconds=3.,
         acquisition_seconds=19.,duration_s=30.,requested_handle_angle_rad=a.handle_angle,source_terminal_time_s=float(archive['time'][-1]),
         source_acquisition_provenance_sha256=sha(source/'provenance.json'),source_trajectory_sha256=sha(source/'trajectory.npz'),source_reference_sha256=sha(source/'reference.json'),
