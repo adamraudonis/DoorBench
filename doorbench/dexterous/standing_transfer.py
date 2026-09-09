@@ -11,6 +11,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation,Slerp
 from .bimanual_transfer import LeftPalmContact
 from .operation_teacher import smooth_phase
+from .transfer_preload import PROFILES, transfer_preload
 
 
 def validate_route_geometry(config):
@@ -35,7 +36,14 @@ def validate_route_geometry(config):
 
 
 class StandingTransferTeacher:
-    def __init__(self,operation,motors,path,*,start_seconds=22.):
+    def __init__(self,operation,motors,path,*,start_seconds=22.,preload_profile='maintain',grasp_shift=(0.,0.,0.)):
+        if preload_profile not in PROFILES:raise ValueError('Unknown transfer preload profile')
+        self.preload_profile=preload_profile
+        self.grasp_shift=np.asarray(grasp_shift,float)
+        if self.grasp_shift.shape!=(3,) or not np.isfinite(self.grasp_shift).all() or np.linalg.norm(self.grasp_shift)>.003:
+            raise ValueError('Transfer grasp shift must be finite and within 3 mm')
+        self.original_grasp_offset=operation.grasp_offset.copy()
+        if np.linalg.norm(self.original_grasp_offset+self.grasp_shift)>.01:raise ValueError('Total grasp offset exceeds 10 mm')
         self.operation=operation;self.acquisition=operation.acquisition
         self.path=Path(path);self.config=json.loads(self.path.read_text())
         c=self.config
@@ -71,8 +79,8 @@ class StandingTransferTeacher:
             self.initial_digit_forces=dict(teacher.digit_forces)
         if self.started is not None:
             pressure_blend=float(smooth_phase(t-self.started))
-            teacher.digit_forces={digit:initial+pressure_blend*((8. if digit=='th' else 6. if digit=='ff' else 4.)-initial)
-                                  for digit,initial in self.initial_digit_forces.items()}
+            teacher.digit_forces=transfer_preload(self.initial_digit_forces,t-self.started,self.preload_profile)
+            self.operation.grasp_offset=self.original_grasp_offset+pressure_blend*self.grasp_shift
             self.left.update_targets(t,root,joints,leaf_pose,left_panel_load,handle_pose)
             u=float(smooth_phase(self.left.progress));coordinate=u*100;i=min(int(coordinate),99);f=coordinate-i
             root_goal=(1-f)*self.roots[i,:3]+f*self.roots[i+1,:3]
@@ -83,6 +91,6 @@ class StandingTransferTeacher:
         forces,info=self.operation.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified)
         if self.started is not None:
             forces=self.left.apply_forces(forces,joints,velocities)
-            info={**info,**self.left.info, 'standing_transfer_started_s':self.started}
+            info={**info,**self.left.info, 'standing_transfer_started_s':self.started,'preload_profile':self.preload_profile,'requested_digit_preloads_N':dict(teacher.digit_forces),'transfer_grasp_shift_m':self.grasp_shift.tolist()}
         self.info=info
         return forces,info

@@ -97,6 +97,8 @@ def main():
     parser.add_argument('--open-on-latch-clear', action='store_true')
     parser.add_argument('--operator-compliance-gain',type=float,default=0.)
     parser.add_argument('--pressure-segment',choices=['nearest','distal'],default='nearest')
+    parser.add_argument('--standing-transfer-preload-profile',choices=('maintain','balanced-4n','index-6n'),default='maintain')
+    parser.add_argument('--standing-transfer-grasp-shift',type=float,nargs=3,default=(0.,0.,0.))
     parser.add_argument('--standing-transfer-path',type=Path,help='Explicit attained-state screened bimanual transfer after partial opening')
     parser.add_argument('--middle-finger-force',type=float,help='Explicit middle-finger preload; original motor caps unchanged')
     parser.add_argument('--grasp-offset-in-handle-m',nargs=3,type=float,default=[0.,0.,0.])
@@ -149,7 +151,7 @@ def main():
     if args.standing_transfer_path:
         if not args.portable_wrapper or not args.record_transitions:raise ValueError('Standing transfer requires portable operation and full physical evidence')
         from doorbench.dexterous.standing_transfer import StandingTransferTeacher
-        transfer=StandingTransferTeacher(operation,motors,args.standing_transfer_path)
+        transfer=StandingTransferTeacher(operation,motors,args.standing_transfer_path,preload_profile=args.standing_transfer_preload_profile,grasp_shift=args.standing_transfer_grasp_shift)
     hand_names = {b:m.body(b).name.removeprefix('robot/') for b in range(m.nbody)
                   if m.body(b).name.startswith(('robot/rh_', 'robot/lh_'))}
     physics = [native_grasp_sample(sim, 'leaf_handle_lever_col_n', handle_joint='leaf_handle_hinge')]
