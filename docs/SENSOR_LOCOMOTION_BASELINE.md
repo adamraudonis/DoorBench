@@ -252,3 +252,9 @@ the robot destabilized early. Both failed archives are retained. Trial005 restor
 the more stable controller and blends fixed-pad targets toward the same commanded
 handle transform as the palm over one second. Trial005 completed 36 seconds with 19/20 runtime checks, including left-palm support and balance, but failed right-hand grasp. Close-up recorded-state renders show the lever moving from distal pads toward middle segments. Consistent targets alone did not fix the grasp. No joint,
 contact, opposition, penetration or motor limit is relaxed.
+
+Trial006 raises commanded distal preload smoothly to 4 N per finger and 8 N
+for the thumb during transfer. It preserves balance, physical limits and left
+support (19/20), with four digits on qualified pads at the endpoint; the index
+still loads its middle segment. Trial007 isolates a 6 N index preload while
+retaining the other trial006 settings. Neither is yet a qualified transfer.

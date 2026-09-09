@@ -71,7 +71,7 @@ class StandingTransferTeacher:
             self.initial_digit_forces=dict(teacher.digit_forces)
         if self.started is not None:
             pressure_blend=float(smooth_phase(t-self.started))
-            teacher.digit_forces={digit:initial+pressure_blend*((8. if digit=='th' else 4.)-initial)
+            teacher.digit_forces={digit:initial+pressure_blend*((8. if digit=='th' else 6. if digit=='ff' else 4.)-initial)
                                   for digit,initial in self.initial_digit_forces.items()}
             self.left.update_targets(t,root,joints,leaf_pose,left_panel_load,handle_pose)
             u=float(smooth_phase(self.left.progress));coordinate=u*100;i=min(int(coordinate),99);f=coordinate-i
