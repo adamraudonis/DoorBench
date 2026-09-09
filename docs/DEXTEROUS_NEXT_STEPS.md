@@ -775,3 +775,12 @@ archived world contact positions within1.1e-16 m. The qualified16 s grasp and
 later slip were personally inspected at hand scale; images and hashes are
 retained. Five pose-validation tests pass. Future operation runs also record
 the actual hand camera, avoiding dependence on diagnostic reconstruction.
+
+Lead015 reproduces pressure014 exactly through the measured15.002 s prefix,
+including motors, body/root joints and door states. Its first invalid contact
+again occurs17.360 s. It was stopped for export: the0.012 rad lead setting had
+not changed the pre-failure trajectory and therefore does not address slip onset.
+A fresh event-based experiment will follow measured handle rotation once actual
+leaf travel reaches0.02 rad, blending out the unnecessary continued press over
+one second. No physical pose, door force, contact threshold or motor cap changes.
+Twenty-nine controller tests pass; actual native/Isaac qualification is required.

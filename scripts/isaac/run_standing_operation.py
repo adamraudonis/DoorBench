@@ -33,7 +33,9 @@ def main():
     p.add_argument('--isaac-timeout-seconds',type=float,default=4200.,help='Wall-clock budget including periodic evidence export')
     p.add_argument('--operation-leaf-target-rad',type=float,default=.08)
     p.add_argument('--operation-leaf-lead-limit-rad',type=float)
+    p.add_argument('--operation-operator-follow-after-leaf-rad',type=float)
     a=p.parse_args()
+    if a.operation_operator_follow_after_leaf_rad is not None and (not .015<=a.operation_operator_follow_after_leaf_rad<=.05 or a.hold_attained_grasp):raise ValueError('Operator follow requires .015..0.05 rad and no fixed hold')
     if a.operation_leaf_lead_limit_rad is not None and not .002<=a.operation_leaf_lead_limit_rad<=.03:raise ValueError('Leaf lead bound must be .002..0.03 rad')
     if not .075<=a.operation_leaf_target_rad<=.10:raise ValueError('Partial opening command must be .075..0.10 rad')
     if not 300<=a.isaac_timeout_seconds<=7200:raise ValueError('Isaac wall-clock budget must be 300..7200 seconds')
@@ -51,6 +53,10 @@ def main():
     isaac_pad_options+=['--operation-leaf-target-rad',str(a.operation_leaf_target_rad)]
     result['commanded_leaf_target_rad']=a.operation_leaf_target_rad
     result['leaf_lead_limit_rad']=a.operation_leaf_lead_limit_rad
+    result['operator_follow_after_leaf_rad']=a.operation_operator_follow_after_leaf_rad
+    if a.operation_operator_follow_after_leaf_rad is not None:
+        options=['--operation-operator-follow-after-leaf-rad',str(a.operation_operator_follow_after_leaf_rad)]
+        native_pad_options+=options;isaac_pad_options+=options
     if a.operation_leaf_lead_limit_rad is not None:
         options=['--operation-leaf-lead-limit-rad',str(a.operation_leaf_lead_limit_rad)]
         native_pad_options+=options;isaac_pad_options+=options
@@ -116,6 +122,11 @@ def main():
         result['native_runtime_passed']=json.loads((native/'report.json').read_text()).get('passed') is True
         run([asset,a.source/'scripts/dexterous/audit_sensor_acquisition_contacts.py','--trial',native,'--output',a.output/'native-independent-audit.json'],'native-contact-audit',600)
         if not result['native_runtime_passed']:raise ValueError('Destination-native sustained hold failed')
+        if a.operation_operator_follow_after_leaf_rad is not None:
+            last=json.loads((native/'trace.json').read_text())[-1]
+            started=last['teacher'].get('operator_follow_started_s')
+            result['native_operator_follow_started_s']=started
+            if type(started) not in (int,float) or not 0<started<=35:raise ValueError('Operator follow did not activate in native test')
         if json.loads((a.output/'native-independent-audit.json').read_text()).get('passed') is not True:raise ValueError('Native independent raw-contact audit failed')
         if a.actual_material_pads:
             profile=json.loads((native/'trace.json').read_text())[-1]['teacher'].get('operation_pad_control')
@@ -137,6 +148,11 @@ def main():
         audit=json.loads((a.output/'isaac-independent-audit.json').read_text())
         result['independent_audit_passed']=bool(audit['accounting_passed'] and audit['independent_raw_contact_audit_complete'])
         result['passed']=bool(result['isaac_runtime_passed'] and result['independent_audit_passed'])
+        if a.operation_operator_follow_after_leaf_rad is not None:
+            latest=json.loads((trial/'latest.json').read_text());started=latest['teacher'].get('operator_follow_started_s')
+            result['isaac_operator_follow_started_s']=started
+            result['operator_follow_activated']=type(started) in (int,float) and 0<started<=latest['time_s']-1.
+            result['passed'] &= result['operator_follow_activated']
         if a.actual_material_pads:
             profile=json.loads((trial/'latest.json').read_text())['teacher'].get('operation_pad_control')
             result['isaac_material_pad_profile']=profile

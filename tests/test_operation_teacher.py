@@ -241,3 +241,25 @@ def test_default_leaf_reference_preserves_original_opening_command():
     _,info=tick(wrapper,5.,operator=.85,latch=.012,leaf=.006)
     assert info['leaf_lead_limit_rad'] is None
     assert info['goal_leaf_rad']==pytest.approx(.08)
+
+
+def test_operator_follow_requires_measured_clearance_and_smoothly_releases_press():
+    wrapper=DoorOperationTeacher(Acquisition(),GEOMETRY,press_seconds=1.,operator_follow_after_leaf_rad=.02)
+    for t in np.arange(0.,.51,.01):tick(wrapper,t)
+    tick(wrapper,1.51,operator=.85,latch=.012)
+    _,info=tick(wrapper,2.,operator=.82,latch=.012,leaf=.019)
+    assert info['operator_follow_started_s'] is None
+    _,info=tick(wrapper,2.01,operator=.82,latch=.012,leaf=.021)
+    assert info['commanded_operator_reference_rad']==pytest.approx(.87)
+    _,info=tick(wrapper,2.51,operator=.7,latch=.01,leaf=.03)
+    assert info['commanded_operator_reference_rad']==pytest.approx((.87+.7)/2)
+    _,info=tick(wrapper,3.01,operator=.4,latch=.006,leaf=.04)
+    assert info['commanded_operator_reference_rad']==pytest.approx(.4)
+    assert info['operator_follow_fraction']==pytest.approx(1.)
+    assert info['goal_leaf_rad']>0
+
+
+@pytest.mark.parametrize('threshold',[float('nan'),float('inf'),.01,.051])
+def test_operator_follow_rejects_invalid_clearance(threshold):
+    with pytest.raises(ValueError,match='Operator follow'):
+        DoorOperationTeacher(Acquisition(),GEOMETRY,operator_follow_after_leaf_rad=threshold)

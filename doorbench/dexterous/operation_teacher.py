@@ -41,12 +41,14 @@ class DoorOperationTeacher:
                  operator_target=.87, release_operator_threshold=.80,
                  release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True,
                  operator_compliance_gain=0., operator_compliance_limit=.15,
-                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening', pad_control_profile='commanded-material-v1', leaf_lead_limit_rad=None):
+                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening', pad_control_profile='commanded-material-v1', leaf_lead_limit_rad=None, operator_follow_after_leaf_rad=None):
         if type(fixed_pad_control) is not bool:raise ValueError('Explicit contact-controller flag required')
         if pad_control_profile not in ('commanded-material-v1','actual-material-v1','actual-material-v2','measured-pressure-v1'):raise ValueError('Unknown pad control profile')
         self.pad_control_profile=pad_control_profile
         if leaf_lead_limit_rad is not None and (not np.isfinite(leaf_lead_limit_rad) or not .002<=leaf_lead_limit_rad<=.03):raise ValueError('Measured leaf lead must be .002..0.03 rad')
         self.leaf_lead_limit_rad=leaf_lead_limit_rad
+        if operator_follow_after_leaf_rad is not None and (not np.isfinite(operator_follow_after_leaf_rad) or not .015<=operator_follow_after_leaf_rad<=.05 or hold_attained_grasp):raise ValueError('Operator follow requires .015..0.05 rad clearance and no fixed attained hold')
+        self.operator_follow_after_leaf_rad=operator_follow_after_leaf_rad;self.operator_follow_started=None
         self.fixed_pad_control=fixed_pad_control;self.pad_control=None
         if type(hold_attained_grasp) is not bool or (hold_attained_grasp and fixed_pad_control):raise ValueError('Attained hold is a separate explicit hand controller')
         self.attained_hold=None
@@ -162,10 +164,14 @@ class DoorOperationTeacher:
         requested_leaf_goal=goal_l
         if self.open_started is not None and self.leaf_lead_limit_rad is not None:
             goal_l=min(goal_l,angles['leaf']+self.leaf_lead_limit_rad)
+        if self.operator_follow_after_leaf_rad is not None and self.open_started is not None and self.operator_follow_started is None and angles['leaf']>=self.operator_follow_after_leaf_rad:
+            self.operator_follow_started=t
+        follow=0. if self.operator_follow_started is None else float(smooth_phase(t-self.operator_follow_started))
+        reference_h=(1-follow)*(goal_h+self.operator_compliance)+follow*angles['operator']
         # Ramp the optional reference recenter over one second. This moves a
         # bounded motor controller's target, never the physical hand or handle.
         offset=smooth_phase(t-self.started)*self.grasp_offset
-        pos, rot = reproject_grasp(handle_pose,leaf_pose,angles,dict(operator=goal_h+self.operator_compliance,leaf=goal_l),
+        pos, rot = reproject_grasp(handle_pose,leaf_pose,angles,dict(operator=reference_h,leaf=goal_l),
                                   self.p_relative+offset,self.r_relative,self.geometry)
         if self.index_reference is not None:
             teacher.path[-1,self.index_column]=self.index_reference+smooth_phase(t-self.started)*self.index_proximal_offset
@@ -176,7 +182,7 @@ class DoorOperationTeacher:
         force, info = teacher.force(t,root,joints,velocities,handle_pose,hand_loads)
         if self.pad_control is not None:
             force,pad_info=self.pad_control.force(force,t-self.started,handle_pose,leaf_pose,angles,
-                dict(operator=goal_h+self.operator_compliance,leaf=goal_l),self.geometry,hand_loads=hand_loads)
+                dict(operator=reference_h,leaf=goal_l),self.geometry,hand_loads=hand_loads)
             info={**info,**pad_info}
         if self.attained_hold is not None:
             eligible=bool(grasp_qualified and (self.attained_hold_stage=='acquisition' or
@@ -192,6 +198,8 @@ class DoorOperationTeacher:
                          goal_handle_rad=float(goal_h),goal_leaf_rad=float(goal_l),
                          requested_leaf_goal_rad=float(requested_leaf_goal),leaf_lead_limit_rad=self.leaf_lead_limit_rad,
                          palm_compliance_rotation_rad=self.operator_compliance,
+                         operator_follow_started_s=self.operator_follow_started,operator_follow_fraction=follow,
+                         commanded_operator_reference_rad=float(reference_h),operator_follow_after_leaf_rad=self.operator_follow_after_leaf_rad,
                          grasp_offset_in_handle_m=offset.tolist(),
                          index_proximal_offset_rad=float(smooth_phase(t-self.started)*self.index_proximal_offset),
                          index_tendon_offset_rad=float(smooth_phase(t-self.started)*self.index_tendon_offset),
