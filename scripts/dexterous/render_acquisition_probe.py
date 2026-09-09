@@ -42,6 +42,8 @@ def main():
     args=p.parse_args()
     verified_inputs=verify_recorded_xml(args.trial,args.robot,args.door)
     report=json.loads((args.trial/'report.json').read_text())
+    whole_handle_path=args.trial/'independent-whole-handle-audit.json'
+    whole_handle=json.loads(whole_handle_path.read_text()) if whole_handle_path.exists() else None
     trace=json.loads((args.trial/'trace.json').read_text())
     trajectory=np.load(args.trial/'trajectory.npz')
     times=np.asarray([row['sim_time_s'] for row in trace])
@@ -85,7 +87,7 @@ def main():
                     sim.hide_sensor_overlays(renderer.scene)
                     image=Image.fromarray(renderer.render());draw=ImageDraw.Draw(image)
                     draw.rectangle((0,0,960,35),fill='black')
-                    outcome='PROBE CHECKS PASSED' if report['passed'] else 'FAILED TASK CHECKS'
+                    outcome='FAILED WHOLE-HANDLE AUDIT' if whole_handle is not None and not whole_handle['passed'] else 'LEGACY PROBE PASS; WHOLE HANDLE UNVERIFIED' if report['passed'] and whole_handle is None else 'PROBE + WHOLE-HANDLE CHECKS PASSED' if report['passed'] else 'FAILED TASK CHECKS'
                     draw.text((12,12),f'RECORDED MUJOCO PHYSICS | {outcome} | t={times[i]:.2f}s | thumb: blue',fill='white')
                     if writer:writer.append_data(np.asarray(image))
                     if args.at or frame in (0,len(indices)//2,len(indices)-1):

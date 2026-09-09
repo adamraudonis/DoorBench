@@ -172,3 +172,17 @@ hub patches, maximum7.7866N, from24.234 through69.244s. The earlier45 checks
 remain historical evidence of their limited scope, not a qualified whole-hand
 episode. The coordinator now requires `native-whole-handle-audit.json` before
 any new Isaac dispatch. Full sequence qualification is pending a hub-safe grasp.
+
+
+Panel009 completed210s at1.200033rad (68.8°), with34 original runtime and12
+original independent checks passing. Its new whole-handle check fails with the
+same45,352 earlier hub patches as panel006; it is not a qualified episode.
+The complete lossless archive was uploaded, downloaded and hash-verified before
+local raw files were evicted. Receipts and contact diagnostics are retained.
+
+The next native-only experiment uses `--operation-handle-hub-avoidance`:
+`little-finger-3N-v1` starts avoiding the hub within4mm, with800N/m stiffness,
+3Ns/m damping and a3N repulsive target cap. The force is mapped only through
+existing finger motors and clipped to their original limits; it does not apply
+an external wrench. It uses privileged geometric queries in the private teacher
+model. Both the original grip audit and full handle-assembly audit are required.

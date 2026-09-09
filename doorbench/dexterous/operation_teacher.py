@@ -41,9 +41,14 @@ class DoorOperationTeacher:
                  operator_target=.87, release_operator_threshold=.80,
                  release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True,
                  operator_compliance_gain=0., operator_compliance_limit=.15,
-                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening', pad_control_profile='commanded-material-v1', leaf_lead_limit_rad=None, operator_follow_after_leaf_rad=None):
+                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening', pad_control_profile='commanded-material-v1', leaf_lead_limit_rad=None, operator_follow_after_leaf_rad=None, handle_hub_avoidance=False):
         if type(fixed_pad_control) is not bool:raise ValueError('Explicit contact-controller flag required')
         if pad_control_profile not in ('commanded-material-v1','actual-material-v1','actual-material-v2','measured-pressure-v1'):raise ValueError('Unknown pad control profile')
+        if type(handle_hub_avoidance) is not bool:raise ValueError('Explicit hub-avoidance flag required')
+        self.hub_avoidance=None
+        if handle_hub_avoidance:
+            from .handle_hub_avoidance import HandleHubAvoidance
+            self.hub_avoidance=HandleHubAvoidance(acquisition_teacher)
         self.pad_control_profile=pad_control_profile
         if leaf_lead_limit_rad is not None and (not np.isfinite(leaf_lead_limit_rad) or not .002<=leaf_lead_limit_rad<=.03):raise ValueError('Measured leaf lead must be .002..0.03 rad')
         self.leaf_lead_limit_rad=leaf_lead_limit_rad
@@ -184,6 +189,9 @@ class DoorOperationTeacher:
             force,pad_info=self.pad_control.force(force,t-self.started,handle_pose,leaf_pose,angles,
                 dict(operator=reference_h,leaf=goal_l),self.geometry,hand_loads=hand_loads)
             info={**info,**pad_info}
+        if self.hub_avoidance is not None:
+            force,hub_info=self.hub_avoidance.force(force,float(smooth_phase(t-self.started)))
+            info={**info,**hub_info}
         if self.attained_hold is not None:
             eligible=bool(grasp_qualified and (self.attained_hold_stage=='acquisition' or
                 (self.attained_hold_stage=='operator' and self.open_started is not None
