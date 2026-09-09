@@ -2,7 +2,7 @@ from doorbench.dexterous.standing_withdrawal_audit import withdrawal_checks
 
 
 def rows():
-    return [dict(sim_time_s=i/10,handle_angle_rad=0.,bolt_slide_m=0.,
+    return [dict(sim_time_s=i/10,door_q=.08 if i<=10 else .3,handle_angle_rad=0.,bolt_slide_m=0.,
         pad_grasp=dict(valid_pad_grasp=i<=10,contacts=[]),
         left_surface=dict(palm_normal_load_N=3.),right_environment_clearance_m=.05 if i>=15 else 0.) for i in range(21)]
 
@@ -19,6 +19,8 @@ def test_intentional_release_requires_prior_opposition_and_final_clearance():
     assert not audit(data)['opposed_grip_before_intentional_release']
     data=rows();data[-2]['right_environment_clearance_m']=.03
     assert not audit(data)['final_hand_clear_of_environment']
+    data=rows();data[8]['door_q']=.3
+    assert not audit(data)['opening_bounded_before_intentional_release']
 
 
 def test_release_does_not_exempt_wrong_loaded_surfaces_or_failed_motor_checks():

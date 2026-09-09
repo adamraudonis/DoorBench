@@ -26,6 +26,9 @@ class StandingWithdrawalTeacher:
         self.qualified_since=None;self.info={};self.handoff=None
         config=json.loads(Path(path).read_text())
         if config.get('schema')!='doorbench.standing-withdrawal.v1':raise ValueError('Explicit standing withdrawal config required')
+        self.support_target=float(config.get('left_support_target_N',4.))
+        if not np.isfinite(self.support_target) or not 2<self.support_target<=4:raise ValueError('Withdrawal support target must remain above the original 2 N gate')
+        self.initial_support_target=self.left.support_load_target
         audit_path=Path(config['audit_path']);screen_path=Path(config['screen_path']);source=Path(config['source_run'])
         if sha(audit_path)!=config['audit_sha256'] or sha(screen_path)!=config['screen_sha256']:raise ValueError('Withdrawal evidence changed')
         audit=json.loads(audit_path.read_text());screen=json.loads(screen_path.read_text())
@@ -99,11 +102,14 @@ class StandingWithdrawalTeacher:
         teacher.stance.target_root[:]=(1-f)*self.roots[i,:3]+f*self.roots[i+1,:3]+self.stance_root_bias
         teacher.stance.target_rotation=self.stance_rotation_bias@self.root_rotations(clock).as_matrix()
         teacher.stance.joint_target[:]=np.array([targets[n] for n in self.stance_names])+self.stance_joint_bias
+        self.left.support_load_target=self.initial_support_target+float(smooth_phase(elapsed/2.))*(self.support_target-self.initial_support_target)
         self.left.update_targets(t,root,joints,leaf_pose,left_panel_load,handle_pose)
         force,info=self.operation.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified)
         force=self.left.apply_forces(force,joints,velocities)
-        lp,lr=pose_components(leaf_pose);oldp,oldr=self.initial_leaf;delta=lr@oldr.T
-        goal=lp+delta@((1-f)*self.positions[i]+f*self.positions[i+1]-oldp);rotation=delta@self.rotations(clock).as_matrix()
+        # The screened withdrawal is expressed in the attained resting world.
+        # Following the moving leaf here lets both hands chase an opening door
+        # during the regrasp, instead of retaining the screened working pose.
+        goal=(1-f)*self.positions[i]+f*self.positions[i+1];rotation=self.rotations(clock).as_matrix()
         targets,palm_info=self.palm.world_targets(t,targets,root,joints,goal,rotation)
         force,arm_info=self.arm.force(force,t,targets,joints,velocities)
         desired=np.asarray([targets.get(n,joints[n]) for n in teacher.names])
@@ -113,5 +119,5 @@ class StandingWithdrawalTeacher:
         force,hand_info=self.hand.force(force,joints,velocities)
         if self.handoff is None:self.handoff=MotorHandoff(self.previous_force,force,teacher.caps,1.)
         force=self.handoff.force(force,elapsed);teacher.last_force=force.copy()
-        self.info={**info,**self.left.info,**arm_info,**hand_info,**palm_info,'phase':'standing_withdrawal','withdrawal_started_s':self.started_withdrawal,'release_started_s':self.release_started,'withdrawal_progress':float(smooth_phase(elapsed/self.duration)),'withdrawal_clock_s':clock,'grip_preload_scale':scale,'stance_reference_preserved':True,'stance_reference_root_offset_m':self.stance_root_bias.tolist(),'stance_reference_joint_offset_rad':dict(zip(self.stance_names,self.stance_joint_bias.tolist())),'controller_scope':'Privileged screened upright withdrawal; only original capped motors'}
+        self.info={**info,**self.left.info,**arm_info,**hand_info,**palm_info,'phase':'standing_withdrawal','withdrawal_started_s':self.started_withdrawal,'release_started_s':self.release_started,'withdrawal_progress':float(smooth_phase(elapsed/self.duration)),'withdrawal_clock_s':clock,'grip_preload_scale':scale,'goal_frame':'attained-resting-world','stance_reference_preserved':True,'stance_reference_root_offset_m':self.stance_root_bias.tolist(),'stance_reference_joint_offset_rad':dict(zip(self.stance_names,self.stance_joint_bias.tolist())),'controller_scope':'Privileged screened upright withdrawal; only original capped motors'}
         return force,self.info
