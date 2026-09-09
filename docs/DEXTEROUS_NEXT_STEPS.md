@@ -398,3 +398,16 @@ including the earlier thumb-base release, passes all 2,001 dense samples: maximu
 position error 0.500 mm, rotation error 0.003965 rad, torso tilt 3.977 degrees and
 final hand clearance 46.45 mm. Trial007 tests this new route physically. Neither
 pose projection nor geometric admission is a physical success claim.
+
+Trial007 passes the physical joint-limit check and reduces invalid loaded contact
+to 10 physical samples / 39 independently reconstructed patches. All remaining
+invalid patches are on the thumb near or past the lever's axial end during
+69.578–69.642 seconds; the original 1 mm axial-clearance rule remains enforced.
+Final clearance is 46.07 mm. Left-palm support recovers to about 3 N at the endpoint
+but is not continuous across the required half-second window, so the trial fails.
+Candidate012 adds earlier thumb-base separation in THJ5/THJ3 while preserving
+THJ4's limit margin. It passes the unchanged 2,001-sample audit; trial008 is running.
+
+The owned GPU has passed runtime dependency checks, Door55 generation, and a live
+Isaac Sim startup (about 20 seconds). Pinned robot checkout/import and the separate
+actual physics readiness proof precede the queued standing-operation experiment.
