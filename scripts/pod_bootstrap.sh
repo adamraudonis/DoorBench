@@ -108,8 +108,11 @@ uv pip install 'mujoco==3.12.0' || exit 1
 phase "== [6/6] first headless Isaac Sim start (pulls the extension registry, up to ~10 min)"
 cd $W/IsaacLab
 STARTUP_LOG="$W/isaacsim-first-start.log"
-timeout 1500 python -c "from isaacsim import SimulationApp; app = SimulationApp({'headless': True}); print('ISAACSIM_OK', flush=True); app.close()" > "$STARTUP_LOG" 2>&1
-STARTUP_RC=$?
+if timeout 1500 python -u -c "from isaacsim import SimulationApp; app = SimulationApp({'headless': True}); print('ISAACSIM_OK', flush=True); app.close()" 2>&1 | tee "$STARTUP_LOG"; then
+  STARTUP_RC=0
+else
+  STARTUP_RC=$?
+fi
 if [ "$STARTUP_RC" != 0 ] || ! grep -q '^ISAACSIM_OK$' "$STARTUP_LOG" || grep -q 'Traceback (most recent call last)' "$STARTUP_LOG"; then
   echo "ISAACSIM_STARTUP_FAILED (exit=$STARTUP_RC; see $STARTUP_LOG)"
   tail -30 "$STARTUP_LOG"
