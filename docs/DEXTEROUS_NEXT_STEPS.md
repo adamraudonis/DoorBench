@@ -357,3 +357,18 @@ rather than retaining the old squeeze preload until its end. This is a new contr
 experiment, not a reinterpretation of trial003. It still requires the preceding
 half-second opposed grasp and left support, original loaded-surface checks, and
 final clearance. The same screened route, motor limits and support target apply.
+
+Withdrawal004 completes all 40,300 physical intervals and clears the right hand:
+independent final half-second clearance is 46.80 mm, with exact raw-contact label
+reconstruction. It still **fails**: 3,668 invalid loaded patches, a maximum sampled
+right-thumb THJ4 limit overshoot of 0.0202 rad, and no final left-palm support.
+The leaf reaches 1.337 rad, but that is not a qualified opening result. Hand views
+at 69/71/71.36 seconds in trial003 and 73 seconds in trial004 were inspected; the
+contact failure is visible during the slide off the handle.
+
+Trial005 applies the existing hybrid normal-force projection to left support,
+using measured leaf velocity and the original palm collision surface. It blends
+in over two seconds, retains the 2.25 N target and all original motor caps, and
+keeps the same screened withdrawal. This tests the large left-palm reacquisition
+load (26 N near 78 seconds in trial004). Fourteen focused tests pass; physical
+qualification is pending. No successful full traversal or learned policy is claimed.
