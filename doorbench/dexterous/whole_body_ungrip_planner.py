@@ -73,7 +73,8 @@ def copy_ungrip_inputs(model, qpos, qvel, time_s, release_samples, *,
 
 def iter_whole_body_ungrip(model, *, qpos, qvel, time_s, release_samples,
                           finger_lead_seconds=0., early_lift_m=.002,
-                          withdrawal_profile='recorded'):
+                          withdrawal_profile='recorded', maximum_torso_tilt_deg=None,
+                          retarget_attained_grasp=False):
     """Yield the original candidate; no physical or dense-path pass is implied."""
     m=model
     d,release_samples=copy_ungrip_inputs(m,qpos,qvel,time_s,release_samples,
@@ -84,6 +85,23 @@ def iter_whole_body_ungrip(model, *, qpos, qvel, time_s, release_samples,
     right=['right_'+n for n in ('shoulder_pitch','shoulder_roll','shoulder_yaw','elbow','wrist_yaw')]+['rh_WRJ2','rh_WRJ1'];left=['left_'+n for n in ('shoulder_pitch','shoulder_roll','shoulder_yaw','elbow','wrist_yaw')]+['lh_WRJ2','lh_WRJ1'];legs=[side+'_'+j for side in ('left','right') for j in ('hip_yaw','hip_roll','hip_pitch','knee','ankle')];names=legs+['torso']+right+left;js=np.array([m.joint('robot/'+n).id for n in names]);qa=m.jnt_qposadr[js];start=base[qa].copy()
     src=release_samples;fn=list(src['finger_joint_names']);fjs=np.array([m.joint('robot/'+n).id for n in fn]);fqa=m.jnt_qposadr[fjs];fds=np.asarray(src['finger_joint_delta_rad']);pp=np.asarray(src['palm_position_handle']);times=np.asarray(src['time_s']);trials=[]
     source_fingers=np.asarray(src['source_finger_joint_positions']);source_rotations=np.asarray(src['palm_rotation_handle']);source_initial_p=pp[0];source_initial_r=source_rotations[0];initial_relative_p=H.T@(P-d.xpos[hb]);initial_relative_r=H.T@R;handleP=d.xpos[hb].copy()
+    if retarget_attained_grasp:
+        # Transfer recorded withdrawal increments, avoiding a preliminary move
+        # into an old embodiment posture. This is a new geometric candidate,
+        # not the original measured trajectory or a physical qualification.
+        delta_rotation=initial_relative_r@source_initial_r.T
+        pp=(pp-source_initial_p)@delta_rotation.T+initial_relative_p
+        source_rotations=delta_rotation@source_rotations
+        source_fingers=source_fingers-source_fingers[0]+base[fqa]
+        source_initial_p=initial_relative_p.copy();source_initial_r=initial_relative_r.copy()
+    rotation_bound=.12
+    if maximum_torso_tilt_deg is not None:
+        initial_tilt=float(np.degrees(np.arccos(np.clip(d.xmat[m.body('robot/torso_link').id].reshape(3,3)[2,2],-1,1))))
+        if not np.isfinite(maximum_torso_tilt_deg) or not initial_tilt<maximum_torso_tilt_deg<=4:
+            raise ValueError('Upright withdrawal requires a positive rotation margin within the original 4 degree gate')
+        # Conservative axis box lies inside the permitted geodesic rotation ball.
+        # Independent dense FK still checks the actual torso, feet and contacts.
+        rotation_bound=min(.12,.99*np.radians(maximum_torso_tilt_deg-initial_tilt)/np.sqrt(3))
     for dx,dy,roll in [(0,-.16056,0)]:
      rows=[];previous=np.r_[np.zeros(6),start]
      nodes=[('grasp_adjustment',float(u)) for u in np.linspace(0,1,31)]+[('measured_release',float(u)) for u in np.linspace(0,1,len(times))[1:] if withdrawal_profile=='recorded' or float(times[round(u*(len(times)-1))])<=4.1+1e-8]
@@ -102,6 +120,7 @@ def iter_whole_body_ungrip(model, *, qpos, qvel, time_s, release_samples,
        a,b=[fn.index(f'rh_{digit}J{k}') for k in (1,2)]
        if f[a]>f[b]:f[[a,b]]=f[[a,b]].mean()
       target_base=base.copy();target_base[fqa]=f;lo=np.r_[[-.08,-.08,-.04],[-.12,-.12,-.12],m.jnt_range[js,0]+.001];hi=np.r_[[.08,.08,.04],[.12,.12,.12],m.jnt_range[js,1]-.001]
+      lo[3:6]=-rotation_bound;hi[3:6]=rotation_bound
       def fun(x):
        d.qpos[:]=target_base;d.qpos[rq:rq+3]=rootP+x[:3];r=(Rotation.from_rotvec(x[3:6])*rootR).as_quat();d.qpos[rq+3:rq+7]=np.r_[r[3],r[:3]];d.qpos[qa]=x[6:];mujoco.mj_kinematics(m,d)
        hand=np.r_[100*(d.site_xpos[rh]-PR),10*Rotation.from_matrix(RR@d.site_xmat[rh].reshape(3,3).T).as_rotvec(),100*(d.site_xpos[lh]-PL),10*Rotation.from_matrix(RL@d.site_xmat[lh].reshape(3,3).T).as_rotvec()]

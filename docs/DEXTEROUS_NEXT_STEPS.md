@@ -304,7 +304,7 @@ motor caps, upright posture and joint limits remain unchanged acceptance gates.
 The next stage is physical withdrawal. A first unstepped retargeted release cleared
 its sampled contact checks but tilted the torso 6.69 degrees; it is rejected for
 this standing route. A second candidate explicitly bounds rotation within the
-original 4-degree torso gate before independent dense screening. Neither candidate
+standing planner’s 4-degree design target before independent dense screening. Neither candidate
 is a physical release result. Full opening, traversal and the learned sensor-only
 policy remain unfinished.
 
