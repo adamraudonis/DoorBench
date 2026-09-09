@@ -61,6 +61,19 @@ def test_path_rebinding_cannot_skip_native_qualification(tmp_path,monkeypatch):
     assert not plan['native_preparation_passed']
 
 
+def test_explicit_gyro_profile_is_frozen_in_future_command_only(tmp_path,monkeypatch):
+    baseline=setup_plan(tmp_path,monkeypatch)
+    assert '--sensor-gyro-profile' not in baseline['isaac_argv']
+    plan=m.build_plan(tmp_path/'ready/ready.json',tmp_path/'new-output',root=tmp_path/'repo',
+                      gyro_profile='pose-delta-angle-v1')
+    assert plan['isaac_sensor_gyro_profile']=='pose-delta-angle-v1'
+    assert plan['isaac_argv'][-2:]==['--sensor-gyro-profile','pose-delta-angle-v1']
+    assert '--sensor-gyro-profile' not in [arg for phase in plan['phases'] for arg in phase['argv']]
+    assert not plan['isaac_qualified']
+    with pytest.raises(ValueError,match='gyro profile'):
+        m.build_plan(tmp_path/'ready/ready.json',tmp_path/'another-output',root=tmp_path/'repo',gyro_profile='undeclared')
+
+
 def test_virtualenv_python_symlink_is_preserved_in_every_command(tmp_path,monkeypatch):
     setup_plan(tmp_path,monkeypatch)
     base=tmp_path/'system-python';base.write_text('interpreter')

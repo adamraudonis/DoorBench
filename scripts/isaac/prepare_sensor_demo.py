@@ -54,6 +54,7 @@ def write_json(path, value):
 
 
 def build_plan(receipt_path, output, *, task='reach', passive_profile='legacy-tanh-v1',
+               gyro_profile='backend-angular-velocity-v1',
                root=ROOT, native_python=sys.executable, isaac_python=None):
     from doorbench.dexterous.motor_contract_identity import motor_contract_fingerprint
     from doorbench.dexterous.robot_design_identity import robot_design_identity
@@ -61,6 +62,8 @@ def build_plan(receipt_path, output, *, task='reach', passive_profile='legacy-ta
     if output.exists():raise FileExistsError('Use a fresh preparation directory; retain failures')
     if task not in SCHEDULES or passive_profile not in ('legacy-tanh-v1','backend-dry-v2'):
         raise ValueError('Unknown component or passive profile')
+    if gyro_profile not in ('backend-angular-velocity-v1','pose-delta-angle-v1'):
+        raise ValueError('Unknown declared Isaac gyro profile')
     receipt=load_ready_receipt(receipt_path,expected_profile='shadow-loopback-v2')
     robot=Path(receipt['native_robot']);motors_path=Path(receipt['motor_contract'])
     door=Path(receipt['door_usd']).with_name('door.xml')
@@ -114,6 +117,8 @@ def build_plan(receipt_path, output, *, task='reach', passive_profile='legacy-ta
         '--sensor-'+kind+'-route',str(runtime/'joint-route.json'),'--grasp-profile','distal-pad-v1',
         '--joint-passive-profile',passive_profile,'--seconds',str(seconds),'--output',str(trial),
         '--headless','--device','cuda:0','--record','--enable_cameras']
+    if gyro_profile!='backend-angular-velocity-v1':
+        argv+=['--sensor-gyro-profile',gyro_profile]
     hashes=dict(receipt['input_hashes'])
     usd_closure=usd_dependencies([receipt['robot_usd'],receipt['door_usd']])
     hashes.update(usd_closure['file_sha256'])
@@ -123,6 +128,7 @@ def build_plan(receipt_path, output, *, task='reach', passive_profile='legacy-ta
     return dict(schema='doorbench.sensor-demo-preparation.v1',root=str(root),output=str(output),task=task,
         scope='Native-qualified preparation only; future actual Isaac component must independently pass; no vision learning, opening or traversal claim',
         ready_receipt=str(receipt_path),physics_dt_s=.002,duration_s=seconds,joint_passive_profile=passive_profile,
+        isaac_sensor_gyro_profile=gyro_profile,
         calibration_rebound=rebound,candidate_calibration=calibration,original_calibration=str(calib),
         candidate_calibration_path=str(calibration_path),native_qualification_required=True,
         input_sha256=hashes,usd_dependency_closure=usd_closure,source_files=[str(p) for p in source_files],
@@ -242,6 +248,8 @@ def main():
     p.add_argument('--receipt',type=Path);p.add_argument('--output',type=Path)
     p.add_argument('--task',choices=('reach','grasp'),default='reach')
     p.add_argument('--joint-passive-profile',choices=('legacy-tanh-v1','backend-dry-v2'),default='legacy-tanh-v1')
+    p.add_argument('--sensor-gyro-profile',choices=('backend-angular-velocity-v1','pose-delta-angle-v1'),default='backend-angular-velocity-v1',
+                   help='Explicit future Isaac sensor semantics; native preparation does not qualify this backend producer')
     p.add_argument('--native-python',type=Path,default=Path(sys.executable));p.add_argument('--isaac-python',type=Path)
     mode=p.add_mutually_exclusive_group(required=True);mode.add_argument('--dry-run',action='store_true');mode.add_argument('--check-only',action='store_true');mode.add_argument('--verify-launch',type=Path)
     a=p.parse_args()
@@ -250,7 +258,7 @@ def main():
     if a.output is None:p.error('--output is required for preparation')
     ready=Path(os.environ.get('DOORBENCH_READY_DIR',ready_directory(ROOT,'shadow-loopback-v2')))
     plan=build_plan(a.receipt or ready/'ready.json',a.output,task=a.task,passive_profile=a.joint_passive_profile,
-                    native_python=a.native_python,isaac_python=a.isaac_python)
+                    gyro_profile=a.sensor_gyro_profile,native_python=a.native_python,isaac_python=a.isaac_python)
     if a.check_only:
         plan=execute(plan)
         print(json.dumps(dict(native_preparation_passed=True,isaac_launched=False,
