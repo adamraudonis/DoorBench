@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation,Slerp
 from .bimanual_transfer import LeftPalmContact
-from .operation_teacher import smooth_phase
+from .operation_teacher import smooth_phase, reproject_grasp
 
 
 def validate_route_geometry(config):
@@ -68,16 +68,7 @@ class StandingTransferTeacher:
             if self.operation.open_started is None or not .075<=angles['leaf']<=.10:
                 raise ValueError('Qualified partial opening required before standing transfer')
             self.left.begin(t,root,joints,leaf_pose,handle_pose);self.started=t
-            # The latch is already clear. Bind the attained grasp, then follow
-            # the spring-returning operator instead of commanding further press
-            # while the material-point tracker asks the pads to follow it back.
-            hr=Rotation.from_quat(np.asarray(handle_pose)[[4,5,6,3]]).as_matrix()
-            self.operation.p_relative=hr.T@(self.left.d.site_xpos[self.left.right_palm]-np.asarray(handle_pose)[:3])-self.operation.grasp_offset
-            self.operation.r_relative=hr.T@self.left.d.site_xmat[self.left.right_palm].reshape(3,3)
-            self.operation.operator_compliance=0.
-            self.operation.operator_compliance_gain=0.
         if self.started is not None:
-            self.operation.operator_target=float(angles['operator'])
             self.left.update_targets(t,root,joints,leaf_pose,left_panel_load,handle_pose)
             u=float(smooth_phase(self.left.progress));coordinate=u*100;i=min(int(coordinate),99);f=coordinate-i
             root_goal=(1-f)*self.roots[i,:3]+f*self.roots[i+1,:3]
@@ -87,7 +78,17 @@ class StandingTransferTeacher:
             teacher.stance.joint_target[:]=[q[self.names.index(teacher.m.joint(int(j)).name)] for j in teacher.stance.joints]
         forces,info=self.operation.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified)
         if self.started is not None:
+            # Track fixed pads against the same commanded handle transform as
+            # the palm, preserving the press torque while the spring is loaded.
+            # Blend from measured geometry to avoid a new target step at handoff.
+            u=float(smooth_phase(t-self.started))
+            goals=dict(operator=angles['operator']+u*(info['goal_handle_rad']+info['palm_compliance_rotation_rad']-angles['operator']),
+                       leaf=angles['leaf']+u*(info['goal_leaf_rad']-angles['leaf']))
+            hp,hr=reproject_grasp(handle_pose,leaf_pose,angles,goals,np.zeros(3),np.eye(3),self.operation.geometry)
+            quat=Rotation.from_matrix(hr).as_quat()
+            self.left.handle_pose=np.r_[hp,quat[3],quat[:3]]
             forces=self.left.apply_forces(forces,joints,velocities)
-            info={**info,**self.left.info, 'standing_transfer_started_s':self.started,'operator_mode':'follow-measured-after-release'}
+            info={**info,'pad_goal_mode':'blend-to-commanded-handle','pad_goal_blend':u}
+            info={**info,**self.left.info, 'standing_transfer_started_s':self.started}
         self.info=info
         return forces,info

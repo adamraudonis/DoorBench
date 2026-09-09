@@ -180,3 +180,13 @@ Each implementation milestone must update the [execution ledger](DEXTEROUS_EXPER
   repeats 18/18; actual Isaac partial-opening trial001 is running from b9311e1e0.
   Existing left-hand transfer targets fail at the standing pose; coordinated
   bimanual geometry is being screened before any physical transfer attempt.
+
+### September 9, 2026, 09:07 UTC
+
+Isaac standing operation002 completed: physical handle depression, latch release,
+and 4.44-degree partial opening, but failed sustained fingertip contact (18/19).
+The independent audit reconstructs every raw contact interval. Native standing
+transfer003 and004 failed; stronger tracking and spring-following are not fixes.
+Retain their archives. Next test: use consistent palm/fingertip commanded handle
+transforms while retaining press torque, then qualify transfer before release.
+The full Isaac opening/traversal and sensor-only learned hand policy remain open.

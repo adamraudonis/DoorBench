@@ -231,7 +231,13 @@ destination-native repeat passes 18/18. Isaac operation trial001 timed out at it
 old wall deadline after delayed grasp qualification (operation only began at
 17.076 s); its final partial archive is byte-verified, with no completed task
 report. Trial002 starts operation at 10.6 s using the previously qualified preload
-and a renewed, separately guarded wall deadline. This remains an active trial.
+and a renewed, separately guarded wall deadline. It finished on **2026-09-09
+08:59:34 UTC**: 18/19 runtime checks passed, but sustained distal-pad grasp
+failed. The handle reached 0.81361 rad, latch retraction 11.727 mm, and final leaf
+opening 0.077532 rad (4.44 degrees). Three fingers loaded middle segments at the
+endpoint. The [independent raw-contact audit](evidence/isaac-standing-operation-002.json)
+reproduces all 11,000 intervals, including the failure. This is physical latch
+release and partial opening evidence, not a qualified opening or traversal.
 
 The standing bimanual transfer experiment uses a distinct 101-node geometric
 route, independently screened at 1,001 interpolated poses: fixed right-hand/foot
@@ -240,6 +246,9 @@ collision check fails. The first physical trial keeps balance and the partial
 opening but loses right-hand contact and leaves the left palm 1.28 mm short of
 the panel. Trial002 adds fixed material-point pad tracking and an 8 mm bounded
 normal approach: the left palm sustains roughly 4 N, but right-hand grasp still
-fails. These are failed transfers, not full-opening evidence. Trial003 tests
-stronger bounded pad tracking through the same original motors. No joint,
+fails. These are failed transfers, not full-opening evidence. Trial003's stronger pad tracking worsened grasp and violated a joint stop.
+Trial004 followed the measured spring-returning operator, but the door closed and
+the robot destabilized early. Both failed archives are retained. Trial005 restores
+the more stable controller and blends fixed-pad targets toward the same commanded
+handle transform as the palm over one second. It is an experiment, not a result. No joint,
 contact, opposition, penetration or motor limit is relaxed.
