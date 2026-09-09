@@ -22,10 +22,13 @@ class AcquisitionTeacher:
                  grip_force=6., finger_grip_scale=1/3, grip_start=.995,
                  palm_integral=1., torso_impedance=10., middle_finger_force=None,
                  index_finger_force=None, stance_solver_settings=None, stance_profile=None,
-                 pressure_segment='nearest', handle_hub_geometry=None):
+                 pressure_segment='nearest', handle_hub_geometry=None, landed_foot_max_iterations=50000):
         if pressure_segment not in ('nearest','distal'):raise ValueError('Unknown pressure segment')
         self.pressure_segment=pressure_segment
         if stance_profile not in (None,'landed-foot-v1'):raise ValueError('Unknown declared stance profile')
+        if type(landed_foot_max_iterations) is not int or not 50000<=landed_foot_max_iterations<=200000:raise ValueError('Bounded landed-foot solver iteration budget required')
+        if stance_profile!='landed-foot-v1' and landed_foot_max_iterations!=50000:raise ValueError('Iteration override requires landed-foot stance')
+        self.landed_foot_max_iterations=landed_foot_max_iterations
         self.stance_profile=stance_profile
         self.stance_solver_settings=validate_stance_solver_settings(stance_solver_settings)
         if stance_profile is not None and self.stance_solver_settings:raise ValueError('Landed-foot profile already fixes its solver settings')
@@ -143,7 +146,7 @@ class AcquisitionTeacher:
                 stance_sim=SimpleNamespace(m=m,d=d,joint_prefix='',actuators=self.act,root_qadr=0,root_vadr=0,pelvis=m.body('pelvis').id,external_generalized_force=external)
                 if self.stance_profile=='landed-foot-v1':
                     from .locomotion_manipulation import LandedFootStanceController
-                    stance_sim.stance_solver_settings={'max_iter':50000,'rho':.001,'adaptive_rho_interval':25}
+                    stance_sim.stance_solver_settings={'max_iter':self.landed_foot_max_iterations,'rho':.001,'adaptive_rho_interval':25}
                     self.stance=LandedFootStanceController(stance_sim)
                 else:self.stance=StanceController(stance_sim,solver_settings=self.stance_solver_settings)
             self.stance.sim.external_generalized_force=external

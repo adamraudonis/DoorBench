@@ -221,3 +221,11 @@ Path003 passes1,001 samples with0.257mm maximum fixed-hand/foot error,0.000665ra
 rotation error,2.55° root tilt and zero extra handle penetration. Physics remains
 unqualified. The dense auditor now checks hub geometry as well as its original
 constraints. Robot joint bounds and physics checks remain unchanged.
+
+
+The first physical rebased transfer preserved opposed pads and zero hub contact,
+but the stance QP reached50,000iterations at36.14s (primal residual0.00012288).
+Its status persisted for five physics intervals and the episode remains failed.
+A prospective100,000-iteration run changes only the declared solver work budget;
+absolute/relative tolerances,25-iteration rho updates, motor limits and all
+physical/contact gates remain unchanged. The default is still50,000.

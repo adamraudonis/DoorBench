@@ -125,6 +125,7 @@ def main():
     parser.add_argument('--operation-leaf-target-rad',type=float,default=.08,help='Commanded partial opening; physical acceptance bounds stay unchanged')
     parser.add_argument('--operation-leaf-lead-limit-rad',type=float,help='Explicit measured-door lead bound for a new standalone opening trial')
     parser.add_argument('--operation-operator-follow-after-leaf-rad',type=float,help='Blend toward the measured handle angle after the leaf clears the latch')
+    parser.add_argument('--landed-foot-max-iterations',type=int,default=50000,help='Explicit solver work budget; physical limits and convergence tolerances remain unchanged')
     parser.add_argument('--operation-handle-hub-avoidance',action='store_true',help='Explicit bounded little-finger motor repulsion from the handle hub')
     args = parser.parse_args()
     if args.operation_handle_hub_avoidance and not args.portable_wrapper:parser.error('Hub avoidance requires portable operation wrapper')
@@ -164,7 +165,7 @@ def main():
         if m.geom_type[g]!=mujoco.mjtGeom.mjGEOM_CYLINDER or m.body(m.geom_bodyid[g]).name!='leaf_handle':raise ValueError('Expected original handle-body cylinder hub')
         hub_geometry=dict(size=m.geom_size[g].tolist(),position=m.geom_pos[g].tolist(),quaternion_wxyz=m.geom_quat[g].tolist())
         (args.output/'hub-geometry.json').write_text(json.dumps(hub_geometry,indent=2)+'\n')
-    teacher = AcquisitionTeacher(args.robot, motors, ref,handle_hub_geometry=hub_geometry,stance_profile=args.stance_profile,pressure_segment=args.pressure_segment,middle_finger_force=args.middle_finger_force,index_finger_force=args.index_finger_force)
+    teacher = AcquisitionTeacher(args.robot, motors, ref,handle_hub_geometry=hub_geometry,landed_foot_max_iterations=args.landed_foot_max_iterations,stance_profile=args.stance_profile,pressure_segment=args.pressure_segment,middle_finger_force=args.middle_finger_force,index_finger_force=args.index_finger_force)
     sim.reset(randomize=False, images=False)
     d.qpos[sim.root_qadr:sim.root_qadr+7] = teacher.initial_root
     ids = np.array([m.joint('robot/'+n).id for n in teacher.names])
