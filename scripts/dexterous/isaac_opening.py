@@ -142,7 +142,7 @@ p.add_argument('--operation-grasp-offset-in-handle-m',nargs=3,type=float,help='O
 p.add_argument('--operation-min-acquisition-seconds',type=float,default=0.,help='Earliest qualified grasp-to-operation handoff')
 p.add_argument('--hold-attained-grasp',action='store_true',help='Capture original coupled finger targets after a qualified partial opening')
 p.add_argument('--operation-actual-pad-control',action='store_true')
-p.add_argument('--operation-material-profile',choices=('actual-material-v1','actual-material-v2'),default='actual-material-v1')
+p.add_argument('--operation-material-profile',choices=('actual-material-v1','actual-material-v2','measured-pressure-v1'),default='actual-material-v1')
 p.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')

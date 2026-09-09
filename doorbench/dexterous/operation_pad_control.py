@@ -10,9 +10,13 @@ from .operation_teacher import pose_components, reproject_grasp, smooth_phase
 
 class OperationPadControl:
     def __init__(self, teacher, handle_pose, *, profile="commanded-material-v1"):
-        if profile not in ("commanded-material-v1","actual-material-v1","actual-material-v2"):raise ValueError("Unknown material contact profile")
+        if profile not in ("commanded-material-v1","actual-material-v1","actual-material-v2","measured-pressure-v1"):raise ValueError("Unknown material contact profile")
         self.profile=profile
         self.teacher=teacher
+        if profile=='measured-pressure-v1':
+            from .digit_pressure_feedback import DigitPressureFeedback
+            self.pressure=DigitPressureFeedback(teacher)
+            return
         distal={digit:[g for g in geoms if teacher.m.body(teacher.m.geom_bodyid[g]).name.endswith('distal')]
                 for digit,geoms in teacher.digit_geoms.items()}
         self.tracker=PadTracker(teacher.m,teacher.d,distal,teacher.lever,
@@ -20,8 +24,12 @@ class OperationPadControl:
         hp,hr=pose_components(handle_pose)
         self.relative={digit:hr.T@(position-hp) for digit,position in self.tracker.positions(teacher.d).items()}
 
-    def force(self, forces, elapsed, handle_pose, leaf_pose, angles, goals, geometry):
+    def force(self, forces, elapsed, handle_pose, leaf_pose, angles, goals, geometry, hand_loads=None):
         teacher=self.teacher;blend=float(smooth_phase(elapsed))
+        if getattr(self,'profile',None)=='measured-pressure-v1':
+            result,info=self.pressure.force(forces,blend,hand_loads)
+            teacher.last_force=result.copy()
+            return result,info
         # Palm recentering changes finger posture, not the material contact
         # targets on the lever. Translating these by the palm offset moves them
         # off the physical cylinder and defeats contact feedback.

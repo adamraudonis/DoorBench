@@ -43,7 +43,7 @@ class DoorOperationTeacher:
                  operator_compliance_gain=0., operator_compliance_limit=.15,
                  freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening', pad_control_profile='commanded-material-v1'):
         if type(fixed_pad_control) is not bool:raise ValueError('Explicit contact-controller flag required')
-        if pad_control_profile not in ('commanded-material-v1','actual-material-v1','actual-material-v2'):raise ValueError('Unknown pad control profile')
+        if pad_control_profile not in ('commanded-material-v1','actual-material-v1','actual-material-v2','measured-pressure-v1'):raise ValueError('Unknown pad control profile')
         self.pad_control_profile=pad_control_profile
         self.fixed_pad_control=fixed_pad_control;self.pad_control=None
         if type(hold_attained_grasp) is not bool or (hold_attained_grasp and fixed_pad_control):raise ValueError('Attained hold is a separate explicit hand controller')
@@ -171,7 +171,7 @@ class DoorOperationTeacher:
         force, info = teacher.force(t,root,joints,velocities,handle_pose,hand_loads)
         if self.pad_control is not None:
             force,pad_info=self.pad_control.force(force,t-self.started,handle_pose,leaf_pose,angles,
-                dict(operator=goal_h+self.operator_compliance,leaf=goal_l),self.geometry)
+                dict(operator=goal_h+self.operator_compliance,leaf=goal_l),self.geometry,hand_loads=hand_loads)
             info={**info,**pad_info}
         if self.attained_hold is not None:
             eligible=bool(grasp_qualified and (self.attained_hold_stage=='acquisition' or
