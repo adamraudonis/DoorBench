@@ -35,3 +35,25 @@ The [complete v1 comparison receipt](evidence/isaac-grasp-preload-comparison-001
 This comparison is not an identical-prefix causal test. Initial reset states are exact matches, but the first balance QP takes 50 versus 75 iterations. The existing solver leaves its adaptive-rho interval to a wall-time heuristic. Pre-reflex state/force differences are retained in the comparison receipt. The new opt-in `fixed-rho-interval25-v1` uses an explicit 25-iteration interval, with unchanged residual tolerances, force caps and objective. A paired test uses that solver for both the 0.08 rad and 0.12 rad pressure limits, holding the 0.8 N target and 0.08 rad/s slew constant. Both require fresh native and actual Isaac qualification; historical solver behavior remains reproducible by omitting the profile.
 
 The first uninterrupted native acquisition-to-press test with v3 reaches 0.53793 rad (30.82 degrees) before stopping at 25.81 s for unintended hand contact. The acquisition handoff passes; the complete operation does not. A qualified grasp is not a qualified lever press or door opening.
+
+## Fixed-solver paired result: qualified grasp
+
+Pressure006 passes all23 original grasp checks. Both independent actual-physics
+and own-gyro audits reproduce the result; final files were hash-verified off-pod
+on September9 at05:50UTC. It achieves a0.99-second opposed hold, and the final
+half-second minimum pad loads are0.324,0.342,0.273,0.329 and0.994N for index,
+middle, ring, little and thumb respectively. No loaded patch violates the
+original distal anatomy. Maximum motor-coordinate tracking error is0.01742rad.
+
+The matching0.08rad-limit baseline005 still fails its final index-pad hold. All
+8,500 pre-reflex physical intervals are exactly identical for root state, all
+joints, motor forces, door positions and velocities. Both native preparations
+also have identical complete trajectories. The candidate's maximum coupled
+preloads are0.10068,0.09566,0.08736 and0.08342rad; its0.12rad limit is sufficient
+without changing force caps, thumb targets, anatomy or physical gates.
+[Full paired comparison](evidence/isaac-grasp-preload-comparison-006.json).
+
+This is one same-reset grasp component in actual Isaac, using a scripted joint
+route over sensor-feedback balance and fingertip preload. It is not vision
+learning, mechanism operation, traversal, varied-start reliability or catalogue
+coverage. Those remain separate required milestones.

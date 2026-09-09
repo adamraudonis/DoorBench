@@ -116,3 +116,17 @@ Each implementation milestone must update the [execution ledger](DEXTEROUS_EXPER
   physical rollout. The destination return adapter feeds the original41-node
   solver with measured Isaac poses; exact geometric equivalence and16 focused
   tests pass. This is not yet an actual release/opening/traversal qualification.
+
+- September9,05:53UTC: actual fixed-QP pressure006 passes23/23 grasp checks and
+  both independent audits; all evidence is verified locally. Paired005/006
+  pre-reflex states and forces are exactly identical across8,500 intervals.
+  The0.12rad preload cap resolves the terminal index-load failure without
+  changing original anatomy, force or motion gates. Five complete CPU student
+  updates still give0/1 tasks (fall at0.304s). A separately frozen1,000-update
+  GPU short-window experiment is running, with an automatic unassisted rollout
+  after verified collection. Press plans now bind the exact attained acquisition
+  configuration and controller source; regenerated candidates pass geometry.
+  Their first execution was rejected before physics by a Git-only provenance
+  assumption; the bundled-source fix is committed and fresh retries are running.
+  Full Isaac operation/traversal, robust student success and catalogue coverage
+  remain unfinished.
