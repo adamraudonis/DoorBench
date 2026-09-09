@@ -154,6 +154,13 @@ class StandingWithdrawalTeacher:
         if type(self.panel_gain) not in (int,float) or not np.isfinite(self.panel_gain) or not 0<=self.panel_gain<=20:raise ValueError('Require bounded explicit panel force feedback')
         self.panel_force=None
         profile=config.get('panel_aperture_force_profile')
+        initial_stiction=config.get('panel_initial_stiction_assist',False)
+        initial_load=config.get('panel_initial_load_profile','standard-6N-v1')
+        if type(initial_stiction) is not bool or initial_load not in ('standard-6N-v1','bounded-7N-v1'):
+            raise ValueError('Explicit initial panel assistance and load profile required')
+        if (initial_stiction or initial_load!='standard-6N-v1') and (not config.get('panel_plan_path') or profile not in ('bounded-pi-stop-v1','bounded-pi-stop-v2')):
+            raise ValueError('Initial stiction assistance requires a screened terminal panel target')
+        if initial_load!='standard-6N-v1' and not initial_stiction:raise ValueError('Expanded panel load requires explicit stiction assistance')
         if profile is not None:
             if profile in ('bounded-pi-stop-v1','bounded-pi-stop-v2') and not config.get('panel_plan_path'):raise ValueError('Terminal braking requires a screened panel target')
             if profile not in ('bounded-pi-v1','bounded-pi-stop-v1','bounded-pi-stop-v2'):raise ValueError('Unknown panel aperture force profile')
@@ -164,15 +171,15 @@ class StandingWithdrawalTeacher:
             if sha(config['panel_plan_path'])!=config.get('panel_plan_sha256'):raise ValueError('Panel plan bytes changed')
             from .standing_panel_reference import StandingPanelReference
             self.panel=StandingPanelReference(scene,config['panel_plan_path'],self.left)
-            if profile in ('bounded-pi-stop-v1','bounded-pi-stop-v2'):self.panel_force=PanelApertureForce(terminal_aperture=self.panel.plan['final_leaf_angle_rad'],terminal_support_margin_N=.5 if profile=='bounded-pi-stop-v2' else 0.)
+            if profile in ('bounded-pi-stop-v1','bounded-pi-stop-v2'):self.panel_force=PanelApertureForce(terminal_aperture=self.panel.plan['final_leaf_angle_rad'],terminal_support_margin_N=.5 if profile=='bounded-pi-stop-v2' else 0.,stiction_assist=initial_stiction,load_profile=initial_load)
             if self.panel.plan['robot_xml_sha256']!=motors['source_xml_sha256']:raise ValueError('Panel plan uses another robot contract')
             if self.panel.start_time<self.start_time:raise ValueError('Panel continuation cannot precede withdrawal')
         self.panel_schedule=None
         if config.get('panel_continuations') and self.panel is None:raise ValueError('Panel continuations require an initial screened segment')
         if self.panel is not None:
             panels=[self.panel]
-            self.panel_stiction_assistance=[False]
-            self.panel_load_profiles=["standard-6N-v1"]
+            self.panel_stiction_assistance=[initial_stiction]
+            self.panel_load_profiles=[initial_load]
             for entry in config.get('panel_continuations',[]):
                 if sha(entry['path'])!=entry['sha256']:raise ValueError('Continuation plan bytes changed')
                 candidate=StandingPanelReference(scene,entry['path'],self.left)
