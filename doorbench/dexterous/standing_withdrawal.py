@@ -32,6 +32,9 @@ class StandingWithdrawalTeacher:
         self.hybrid_support=config.get('hybrid_support',False)
         if type(self.hybrid_support) is not bool:raise ValueError('Explicit hybrid support option required')
         self.support_feedback=None
+        self.thumb_pad_feedback=config.get('thumb_pad_feedback',False)
+        if type(self.thumb_pad_feedback) is not bool:raise ValueError('Explicit thumb feedback option required')
+        self.thumb_feedback=None
         self.left_arm_only=config.get('left_arm_only',False)
         if type(self.left_arm_only) is not bool:raise ValueError('Explicit left-arm solve option required')
         self.left_full_orientation=config.get('left_full_orientation',False)
@@ -59,6 +62,18 @@ class StandingWithdrawalTeacher:
         qs=np.asarray([r['qpos'] for r in rows]);self.times=np.array([r['time_s'] for r in rows])
         if qs.shape!=(len(rows),m.nq) or not np.isfinite(qs).all() or not np.all(np.diff(self.times)>0):raise ValueError('Finite monotonic withdrawal coordinates required')
         if not np.allclose(np.linalg.norm(qs[:,rq+3:rq+7],axis=1),1.,atol=1e-8,rtol=0):raise ValueError('Normalized withdrawal roots required')
+        if self.thumb_pad_feedback:
+            body=m.body('robot/rh_thdistal').id;lever=m.geom('leaf_handle_lever_col_n').id;nearest=[]
+            for g in range(m.ngeom):
+                if m.geom_bodyid[g]!=body or not m.geom_contype[g]:continue
+                pair=np.zeros(6);distance=mujoco.mj_geomDistance(m,d,g,lever,.2,pair)
+                nearest.append((distance,pair.copy()))
+            distance,pair=min(nearest,key=lambda v:v[0])
+            if abs(distance)>.01:raise ValueError('Source thumb must be near the actual lever')
+            self.thumb_local=d.xmat[body].reshape(3,3).T@(pair[:3]-d.xpos[body]);points=[]
+            for q in qs:
+                d.qpos[:]=q;mujoco.mj_kinematics(m,d);points.append(d.xpos[body]+d.xmat[body].reshape(3,3)@self.thumb_local)
+            self.thumb_positions=np.asarray(points)
         self.names=list(screen['trials'][0]['rows'][0]['joints'])
         self.finger_names=list(screen['trials'][0]['rows'][0]['finger_joints'])
         for row in rows[1:]:
@@ -136,6 +151,13 @@ class StandingWithdrawalTeacher:
         scale=1. if self.release_started is None else 1.-float(smooth_phase((t-self.release_started)/1.))
         self.hand.preload=self.preload*scale
         force,hand_info=self.hand.force(force,joints,velocities)
+        if self.thumb_pad_feedback and self.release_started is not None:
+            if self.thumb_feedback is None:
+                from .thumb_withdrawal_feedback import ThumbWithdrawalFeedback
+                self.thumb_feedback=ThumbWithdrawalFeedback(teacher,self.thumb_local)
+            goal=(1-f)*self.thumb_positions[i]+f*self.thumb_positions[i+1]
+            force,thumb_info=self.thumb_feedback.force(force,t,goal,t-self.release_started)
+            hand_info={**hand_info,**thumb_info}
         if self.handoff is None:self.handoff=MotorHandoff(self.previous_force,force,teacher.caps,1.)
         force=self.handoff.force(force,elapsed);teacher.last_force=force.copy()
         self.info={**info,**self.left.info,**arm_info,**hand_info,**palm_info,'phase':'standing_withdrawal','withdrawal_started_s':self.started_withdrawal,'release_started_s':self.release_started,'withdrawal_progress':float(smooth_phase(elapsed/self.duration)),'withdrawal_clock_s':clock,'grip_preload_scale':scale,'goal_frame':'attained-resting-world','stance_reference_preserved':True,'stance_reference_root_offset_m':self.stance_root_bias.tolist(),'stance_reference_joint_offset_rad':dict(zip(self.stance_names,self.stance_joint_bias.tolist())),'controller_scope':'Privileged screened upright withdrawal; only original capped motors'}
