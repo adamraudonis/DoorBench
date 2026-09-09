@@ -27,6 +27,7 @@ def main():
     for name in ('source','ready','reference','output','work'):p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--deadline-unix',type=float,required=True)
     p.add_argument('--hold-attained-grasp',action='store_true',help='Test qualified attained finger hold in both physics backends')
+    p.add_argument('--operation-handle-hub-avoidance',action='store_true')
     p.add_argument('--actual-material-pads',action='store_true')
     p.add_argument('--material-pad-profile',choices=('actual-material-v1','actual-material-v2','measured-pressure-v1'),default='actual-material-v1')
     p.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
@@ -51,6 +52,7 @@ def main():
     result['hold_attained_grasp']=a.hold_attained_grasp
     if a.actual_material_pads and a.hold_attained_grasp:raise ValueError('Choose one explicit hand controller')
     result['actual_material_pads']=a.actual_material_pads
+    result['handle_hub_avoidance']=a.operation_handle_hub_avoidance
     result['attained_hold_stage']=a.attained_hold_stage
     native_pad_options=['--operation-fixed-pad-control','--operation-pad-control-profile',a.material_pad_profile] if a.actual_material_pads else []
     isaac_pad_options=['--operation-actual-pad-control','--operation-material-profile',a.material_pad_profile] if a.actual_material_pads else []
@@ -123,6 +125,9 @@ def main():
         run([asset,a.source/'scripts/dexterous/rescreen_acquisition_reference.py','--robot',robot,'--door',door,'--reference',a.reference,'--output',screen],'geometry-screen',900)
         if json.loads((screen/'geometry-audit.json').read_text()).get('passed') is not True:raise ValueError('Destination geometry screen failed')
         reference=screen/'reference.json'
+        if a.operation_handle_hub_avoidance:
+            native_pad_options+=['--operation-handle-hub-avoidance']
+            isaac_pad_options+=['--operation-hub-geometry',str(native/'hub-geometry.json')]
         run([asset,a.source/'scripts/dexterous/probe_acquisition_operation.py','--robot',robot,'--door',door,'--reference',reference,'--motors',motors,'--stance-profile','landed-foot-v1','--record-transitions','--index-finger-force','3','--portable-wrapper','--operator-compliance-gain','.2','--pressure-segment','distal','--grasp-offset-in-handle-m',*grasp_offset,'--seconds','36','--output',native,*hold_options,*native_pad_options],'native-prerequisite',1200,allowed_codes=(0,1))
         result['native_runtime_passed']=json.loads((native/'report.json').read_text()).get('passed') is True
         run([asset,a.source/'scripts/dexterous/audit_sensor_acquisition_contacts.py','--trial',native,'--output',a.output/'native-independent-audit.json'],'native-contact-audit',600)
@@ -130,6 +135,10 @@ def main():
         result['native_whole_handle_passed']=json.loads((a.output/'native-whole-handle-audit.json').read_text())['passed']
         if not result['native_whole_handle_passed']:raise ValueError('Native hand contacts outside the grasped lever; Isaac launch blocked')
         if not result['native_runtime_passed']:raise ValueError('Destination-native sustained hold failed')
+        if a.operation_handle_hub_avoidance:
+            last=json.loads((native/'trace.json').read_text())[-1]
+            result['native_hub_avoidance_activated']=last['teacher'].get('hub_avoidance_profile')=='little-finger-3N-v1' and last['teacher'].get('hub_avoidance_blend')==1.
+            if not result['native_hub_avoidance_activated']:raise ValueError('Native hub avoidance did not activate')
         if a.operation_operator_follow_after_leaf_rad is not None:
             last=json.loads((native/'trace.json').read_text())[-1]
             started=last['teacher'].get('operator_follow_started_s')
@@ -146,6 +155,7 @@ def main():
             if type(started) not in (int,float) or not 0<started<=35.5:raise ValueError('Native attained hold did not activate with a qualified hold window')
         run([asset,a.source/'scripts/dexterous/export_sensor_layout.py','--robot',robot,'--output',layout],'robot-sensor-layout',120)
         inputs=[a.ready,a.reference,robot,motors,reference,screen/'geometry-audit.json',native/'report.json',layout,Path(ready['robot_usd']),Path(ready['door_usd'])]
+        if a.operation_handle_hub_avoidance:inputs.append(native/'hub-geometry.json')
         (a.output/'provenance.json').write_text(json.dumps(dict(source=frozen,coordinator_sha256=sha(__file__),input_sha256={str(path):sha(path) for path in inputs},scope=result['scope']),indent=2))
         trial=a.output/'trial'
         if a.deadline_unix-time.time()<a.isaac_timeout_seconds+300:raise TimeoutError('Insufficient guarded time for Isaac run and evidence export')
@@ -156,6 +166,10 @@ def main():
         audit=json.loads((a.output/'isaac-independent-audit.json').read_text())
         result['independent_audit_passed']=bool(audit['accounting_passed'] and audit['independent_raw_contact_audit_complete'])
         result['passed']=bool(result['isaac_runtime_passed'] and result['independent_audit_passed'])
+        if a.operation_handle_hub_avoidance:
+            latest=json.loads((trial/'latest.json').read_text())
+            result['isaac_hub_avoidance_activated']=latest['teacher'].get('hub_avoidance_profile')=='little-finger-3N-v1' and latest['teacher'].get('hub_avoidance_blend')==1.
+            result['passed'] &= result['isaac_hub_avoidance_activated']
         if a.operation_operator_follow_after_leaf_rad is not None:
             latest=json.loads((trial/'latest.json').read_text());started=latest['teacher'].get('operator_follow_started_s')
             result['isaac_operator_follow_started_s']=started

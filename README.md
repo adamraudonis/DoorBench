@@ -49,6 +49,7 @@ The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock
 | MuJoCo, upright release and panel opening | **Not fully qualified:** 42.5° opening passed the earlier lever-only checks, but the whole-handle audit found little-finger hub contact ([correction](docs/evidence/native-standing-panel-006-whole-handle.json)) | September 9, 2026, whole-handle re-audit |
 | Isaac, held-grasp comparison | **Failed: 17/19 runtime checks**; lever/latch operated, grip and opening hold lost; intended hold never activated ([audit](docs/evidence/isaac-standing-hold-005.json)) | September 9, 2026, 15:05 completion |
 | Isaac, measured-pressure opening | **Failed: 17/19 runtime checks** over 27.4 s; door opens, but fingers slip and thumb contacts the wrong surface; stopped early and independently audited ([audit](docs/evidence/isaac-standing-pressure-014.json)) | September 9, 2026, 17:27 completion |
+| MuJoCo, hub-safe privileged partial opening | **18/18 runtime + 7/7 independent checks** over36s; door opens4.34°, zero misplaced lever patches and zero extra handle contacts; no traversal ([audit](docs/evidence/native-standing-hub-002.json)) | September9, 2026, 19:11 verification |
 | MuJoCo, latest learned motor-target sensor actor | **0/1 complete tasks**; fell after 1.306 s | September 9, 2026, 06:42 |
 
 [Sensor locomotion evidence and limitations](docs/SENSOR_LOCOMOTION_BASELINE.md) · [Earlier failures, recovery curriculum and training commands](docs/NATIVE_RECOVERY_CURRICULUM.md).

@@ -14,8 +14,12 @@ dispatch. Historical reports remain unchanged; they cannot establish whole-hand
 qualification. The same source sequence underlies the current wider-opening
 experiment, so greater aperture cannot repair this earlier contact defect.
 
-Native panel009 has reached68.8° upright under its declared7N continuation
-profile; final legacy checks and the new full assembly check are pending.
+Native panel009 finished at68.8° upright under its declared7N continuation
+profile. Its original34+12 checks pass, but its whole-handle check fails.
+The corrected native hub002 test now passes18 original runtime checks,6 pad
+audits and the new assembly audit over36s, with zero invalid lever patches and
+zero extra handle contacts ([evidence](evidence/native-standing-hub-002.json)).
+It opens4.34°; it does not traverse. The fresh Isaac port is pending.
 Isaac follow016 remains failed. Clearance017 and018 failed native prerequisites;
 clearance019's coordinator was stopped to prevent dispatch under the incomplete
 audit. Its native process is allowed to finish for diagnosis. The immediate

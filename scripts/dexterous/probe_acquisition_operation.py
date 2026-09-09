@@ -10,6 +10,7 @@ import gzip
 import hashlib
 import inspect
 import json
+import os
 from pathlib import Path
 import shutil
 
@@ -149,6 +150,8 @@ def main():
     # in an isolated worktree, and retain the executed driver as an override.
     controller_root = Path(inspect.getfile(AcquisitionTeacher)).resolve().parents[2]
     capture(controller_root, args.output, {k:str(v) if isinstance(v, Path) else v for k,v in vars(args).items()})
+    (args.output/'run.pid').write_text(str(os.getpid()))
+    (args.output/'pipeline.json').write_text(json.dumps(dict(stage='Native physics and full handle verification',report_file='report.json',scope=__doc__)))
     shutil.copy2(__file__, args.output/'diagnostic-source.py')
     (args.output/'source-override.json').write_text(json.dumps(dict(entry_point='diagnostic-source.py',
         sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),controller_root=str(controller_root),scope=__doc__),indent=2)+'\n')
@@ -256,6 +259,7 @@ def main():
                     for key in states:
                         states[key].append(getattr(d,key).copy())
                     (args.output/'latest.json').write_text(json.dumps(trace)+'\n')
+                    (args.output/'progress.json').write_text(json.dumps(dict(sim_time_s=float(d.time),expected_duration_s=args.seconds,door_angle_rad=row['door_q'],torso_tilt_deg=row['torso_tilt_deg'])))
                     if step % 500 == 0:
                         print(json.dumps(trace),flush=True)
                 if not row['finite'] or row['torso_tilt_deg'] > 35:
@@ -321,6 +325,16 @@ def main():
                             terminal_ctrl=d.ctrl.copy(),terminal_time_s=float(d.time))
         # Publish completion only after every evidence stream is closed. A
         # reader must never mistake a still-writing gzip archive for a final run.
+        whole_handle=dict(passed=False,scope='Complete archived handle contacts required')
+        if archive is not None:
+            try:
+                from scripts.dexterous.audit_native_handle_assembly import audit as audit_handle_assembly
+                whole_handle=audit_handle_assembly(args.output)
+            except Exception as exc:
+                whole_handle=dict(passed=False,error=type(exc).__name__+': '+str(exc),scope='Whole-handle audit could not complete')
+        (args.output/'whole-handle-audit.json').write_text(json.dumps(whole_handle,indent=2)+'\n')
+        report['checks']['whole_handle_assembly']=whole_handle['passed']
+        report['passed']=all(report['checks'].values())
         report_tmp=args.output/'report.json.tmp'
         report_tmp.write_text(json.dumps(report,indent=2)+'\n')
         report_tmp.replace(args.output/'report.json')

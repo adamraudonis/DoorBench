@@ -186,3 +186,21 @@ The next native-only experiment uses `--operation-handle-hub-avoidance`:
 existing finger motors and clipped to their original limits; it does not apply
 an external wrench. It uses privileged geometric queries in the private teacher
 model. Both the original grip audit and full handle-assembly audit are required.
+
+
+Native hub002 passes18 original runtime checks,6 independent pad checks and the
+new assembly check over36s: final aperture0.0758125rad, zero invalid lever
+patches, zero hub contacts. Hub001 never stepped: its initial implementation
+incorrectly assumed the private acquisition model already contained the hub.
+Hub002 explicitly copies the original hub cylinder geometry into that private,
+non-colliding calculator and selects proximal/middle little-finger geoms even
+when pressure feedback uses distal geoms only. The active plant is unchanged.
+
+A fresh Isaac comparison uses the identical hub descriptor emitted by its new
+native prerequisite, with its hash preserved. The coordinator verifies actual
+activation of `little-finger-3N-v1` in both backends. Full native assembly gating
+is mandatory; old passing reports cannot authorize dispatch. A bounded75-minute
+owned-pod window is being armed for native verification, Isaac and collection;
+the lifecycle ceiling is explicitly extended to12h to allow this corrective
+run after the newly discovered verification gap. This is not permission to
+leave the GPU running indefinitely.
