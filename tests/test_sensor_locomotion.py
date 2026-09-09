@@ -13,3 +13,16 @@ def test_noncommuting_torso_and_base_rotations_are_separated():
     actual=pelvis_rotation_increment(rel0,rel1,observed,.002)
     np.testing.assert_allclose(actual,delta,atol=1e-14)
     assert np.linalg.norm(Rotation.from_rotvec(observed*.002).as_matrix()-delta)>.01
+
+
+def test_motion_command_is_bounded_and_rejection_preserves_previous_command():
+    import pytest
+    from doorbench.dexterous.sensor_locomotion import SensorLocomotionController
+    c=object.__new__(SensorLocomotionController)
+    c.command_motion([.1,0.,0.],phase_amplitude=.5)
+    for command,amplitude in (([.31,0,0],.5),([0,0,0],-1),([0,0,0],float('nan')),([0,0],1)):
+        with pytest.raises(ValueError):c.command_motion(command,phase_amplitude=amplitude)
+        np.testing.assert_array_equal(c.command,[.1,0,0])
+        assert c.phase_amplitude==.5
+    c.command_motion([0,0,0],phase_amplitude=0)
+    assert c.phase_amplitude==0

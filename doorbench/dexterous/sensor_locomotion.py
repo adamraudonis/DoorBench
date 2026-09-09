@@ -72,11 +72,18 @@ class SensorLocomotionController:
         if self.command.shape!=(3,) or not np.isfinite(self.command).all() or np.any(abs(self.command)>[.3,.12,.4]):
             raise ValueError('Require a bounded constant body velocity command')
         self.legs=np.array([self.names.index(n) for n in JOINT_NAMES]);self.joints=np.array([self.motor.names.index(n) for n in JOINT_NAMES])
+        self.phase_amplitude=1.
         self.walk=H1WalkingPolicy(checkpoint);self.shapes=ActorDimensions(tactile=layout['tactile_dimension']).shapes
         self.jp=np.zeros((3,m.nv));self.jr=self.jp.copy()
         self.action_semantics='pinned_h1_sensor_locomotion_constant_command_v1'
         self.checkpoint_sha256=hashlib.sha256(Path(checkpoint).read_bytes()).hexdigest()
         self._active=False
+
+    def command_motion(self,command,*,phase_amplitude=1.):
+        command=np.asarray(command,float)
+        if command.shape!=(3,) or not np.isfinite(command).all() or np.any(abs(command)>[.3,.12,.4]) or not np.isfinite(phase_amplitude) or not 0<=phase_amplitude<=1:
+            raise ValueError('Bounded body command and gait amplitude required')
+        self.command=command.copy();self.phase_amplitude=float(phase_amplitude)
 
     def reset_episode(self):
         self.walk.reset();self.orientation=np.eye(3);self.last_time=None;self.history={}
@@ -132,7 +139,7 @@ class SensorLocomotionController:
             del self.history[step-1]
         if step%10==0:
             self.target=self.walk.step(q[self.joints],dq[self.joints],self.gyro,
-                self.orientation.T@np.array([0.,0.,-1.]),self.command,t)
+                self.orientation.T@np.array([0.,0.,-1.]),self.command,t,phase_amplitude=self.phase_amplitude)
         desired=H1WalkingPolicy.torques(self.target,q[self.joints],dq[self.joints])
         desired=np.clip(desired,self.motor.caps[self.legs,0],self.motor.caps[self.legs,1])
         bias=self.motor.state_bias(q,dq);u=self.posture.copy()

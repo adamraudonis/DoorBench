@@ -67,6 +67,7 @@ def main():
     policy=p.add_mutually_exclusive_group(required=True)
     policy.add_argument('--checkpoint',type=Path)
     policy.add_argument('--locomotion-checkpoint',type=Path,help='Explicit pinned sensor-locomotion baseline; not a learned door policy')
+    p.add_argument('--stop-after-s',type=float,help='Explicit experimental sensor walking-to-stance transition')
     p.add_argument('--body-command',type=float,nargs=3,default=[0.,0.,0.])
     p.add_argument('--camera-profile', type=Path, default=Path('configs/dexterous/h1-manipulation-cameras.json'))
     p.add_argument('--seconds', type=float, default=130.)
@@ -74,6 +75,7 @@ def main():
     a = p.parse_args()
     if not np.isfinite([a.seconds, a.max_wall_seconds]).all() or min(a.seconds, a.max_wall_seconds) <= 0:
         p.error('Finite positive rollout bounds required')
+    if a.stop_after_s is not None and not a.locomotion_checkpoint:p.error('--stop-after-s requires the explicit locomotion component')
     if a.output.exists():
         raise FileExistsError('Preserve earlier physical rollouts')
     sim, motors, layout, chunk = prepare_trial(a.teacher_run, a.camera_profile)
@@ -83,7 +85,10 @@ def main():
     if a.locomotion_checkpoint:
         from doorbench.dexterous.sensor_locomotion import SensorLocomotionController
         posture=json.loads((a.teacher_run/'body_reset.json').read_text())['motor_targets']
-        actor=SensorLocomotionController(robot,motors,layout,posture,a.locomotion_checkpoint,a.body_command)
+        if a.stop_after_s is not None:
+            from doorbench.dexterous.sensor_walk_stop import SensorWalkStopController
+            actor=SensorWalkStopController(robot,motors,layout,posture,a.locomotion_checkpoint,a.body_command,a.stop_after_s)
+        else:actor=SensorLocomotionController(robot,motors,layout,posture,a.locomotion_checkpoint,a.body_command)
     else:
         actor = SensorPolicyController(a.checkpoint, motor_contract=motors, sensor_layout=layout, physics_dt_s=.002)
     configuration={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()}
@@ -99,7 +104,10 @@ def main():
     archive=NativeTransitionArchive(a.output/'raw-transitions')
     started=time.monotonic();rows=[];reason='duration';maximum_delivery_error=0.
     for step in range(int(round(a.seconds/.002))):
-        force=actor.force(packet,float(d.time));d.ctrl[sim.actuators]=force
+        try:force=actor.force(packet,float(d.time))
+        except Exception as exc:
+            reason='controller_rejected';atomic_json(a.output/'controller-error.json',dict(time_s=float(d.time),error=str(exc),type=type(exc).__name__,last_info=getattr(actor,'last_info',{})));break
+        d.ctrl[sim.actuators]=force
         recorder.before_step();sim.plant.step();row,raw=recorder.after_step();archive.write(raw)
         maximum_delivery_error=max(maximum_delivery_error,float(np.max(abs(d.actuator_force[sim.actuators]-force))))
         packet=sensors.capture(start_s=raw['interval_start_s'],end_s=raw['interval_end_s'],actual_forces=d.actuator_force[sim.actuators])
@@ -117,6 +125,7 @@ def main():
         action_semantics=actor.action_semantics,
         stop_reason=reason,time_s=float(d.time),runtime_pose_writes=0,teacher_actions=0,
         maximum_motor_delivery_error_Nm=maximum_delivery_error,final=sim.diagnostics(),scope=__doc__)
+    report['controller_final_info']=getattr(actor,'last_info',{})
     atomic_json(a.output/'report.json',report);sim.close();print(json.dumps(report))
 
 

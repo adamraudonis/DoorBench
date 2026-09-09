@@ -84,3 +84,28 @@ component, not a complete door task or a learned vision/touch policy.
 The previous grasp's `legacy-tanh-v1` result is a different passive-joint profile.
 The next architecture should learn perception, steering and dexterous interaction
 above validated locomotion/balance components, with explicit tested transitions.
+
+## Walking to a quiet stance
+
+`--stop-after-s 3` selects a separate ten-second native component. It requests
+braking at the next appropriate gait phase, sets body velocity to zero and
+reduces the H1 oscillator amplitude over one second. Only after three seconds
+of braking, sustained local foot touch and estimated speed below 0.02 m/s does
+it transfer to the sensor balance controller. The new stance initializes only
+its private unstepped estimator and motor targets from encoders and the prior
+IMU estimate. No active robot pose is written. It is a timed stop experiment,
+not visual approach control.
+
+Trial001 failed after one stance interval: fleeting two-foot support did not
+establish a valid stop. Trial002 never transitioned because its walking gait
+continued. Both are preserved. Trial003 included gait braking and passed
+[18 independent checks](evidence/native-sensor-walk-stop-003.json) over 5,000
+physical steps: 0.133 m forward travel, stance handoff at 6.582 s, maximum root
+tilt 1.976°, final-second speed below 0.000051 m/s and minimum actual foot
+support 213.65 N. Every motor command replayed exactly with no QP failures.
+Original joint-stop and loopback development tolerances remained unchanged.
+
+The Isaac adapter uses `--sensor-locomotion-stop-after-seconds 3 --seconds 10`
+with the same bound locomotion calibration and checkpoint. It has separate
+handoff/quiet-state checks. This new stopping port requires an actual GPU test;
+the verified five-second walking result does not qualify stopping.

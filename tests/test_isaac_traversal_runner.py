@@ -197,5 +197,5 @@ def test_source_preserves_independent_opening_prefix_and_actual_traversal_arrays
     assert "acquisition_states['actual_motor_forces'].append(last_actual_motor_forces.copy())" in text
     assert "acquisition_states['actual_joint_effort'].append(delivered.copy())" in text
     assert "acquisition_states['legacy_root_state_w'].append(robot.data.root_state_w[0].cpu().numpy().copy())" in text
-    assert "acquisition_states['root'].append(controller_root_state(robot.data,traverse=bool(continuous))" in text
+    assert "acquisition_states['root'].append(controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration))" in text
     assert "traversal-contacts.jsonl.gz" in text

@@ -89,3 +89,10 @@ def test_acquisition_remains_separate_from_no_contact_reach(changes):
         sensor_acquisition_protocol='acquisition.json',sensor_acquisition_route='joints.json')
     values.update(changes)
     with pytest.raises(ValueError):validate_sensor_balance_protocol(SimpleNamespace(**values))
+
+
+def test_explicit_walk_stop_has_its_own_duration_and_request():
+    base=dict(sensor_locomotion_calibration='cal.json',sensor_locomotion_robot='robot.xml',sensor_locomotion_checkpoint='h1.pt',sensor_locomotion_stop_after_seconds=3.,seconds=10.)
+    validate_sensor_balance_protocol(SimpleNamespace(**base))
+    for change in ({'seconds':5.},{'sensor_locomotion_stop_after_seconds':2.},{'sensor_locomotion_calibration':None}):
+        with pytest.raises(ValueError):validate_sensor_balance_protocol(SimpleNamespace(**(base|change)))

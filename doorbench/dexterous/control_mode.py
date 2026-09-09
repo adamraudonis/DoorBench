@@ -7,11 +7,13 @@ def validate_sensor_balance_protocol(options):
     locomotion=getattr(options,'sensor_locomotion_calibration',None)
     loco_robot=getattr(options,'sensor_locomotion_robot',None)
     loco_checkpoint=getattr(options,'sensor_locomotion_checkpoint',None)
+    stop=getattr(options,'sensor_locomotion_stop_after_seconds',None)
+    if stop is not None and (not locomotion or stop!=3.):raise ValueError('Walking stop requires the explicit 3s request and locomotion inputs')
     if any((locomotion,loco_robot,loco_checkpoint)):
         if (not all((locomotion,loco_robot,loco_checkpoint)) or calibration
                 or getattr(options,'sensor_policy_checkpoint',None)
-                or getattr(options,'seconds',None)!=5.):
-            raise ValueError('Sensor locomotion requires its separate five-second calibration, robot and pinned checkpoint')
+                or getattr(options,'seconds',None)!=(10. if stop is not None else 5.)):
+            raise ValueError('Sensor locomotion requires its separate five-second calibration (10s for the explicit stopping trial), robot and pinned checkpoint')
     robot=getattr(options,'sensor_balance_robot',None)
     arms=getattr(options,'sensor_arm_schedule',None)
     reach=getattr(options,'sensor_reach_protocol',None)

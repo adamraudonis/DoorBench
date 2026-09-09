@@ -142,6 +142,7 @@ p.add_argument('--operator-compliance-gain',type=float,default=0.,help='Bounded 
 p.add_argument('--sensor-policy-checkpoint',help='Execute the recurrent actor using only robot sensor packets; no teacher fallback')
 p.add_argument('--sensor-balance-calibration',help='Opt-in stationary sensor-only balance calibration; no learned policy or acquisition claim')
 p.add_argument('--sensor-locomotion-calibration',help='Separate five-second pinned H1 sensor-locomotion diagnostic; no door task claim')
+p.add_argument('--sensor-locomotion-stop-after-seconds',type=float,help='Explicit 10s walking/stopping component with a 3s stop request')
 p.add_argument('--sensor-locomotion-robot',help='Bound robot-only model for IMU mounting and motor calibration')
 p.add_argument('--sensor-locomotion-checkpoint',help='Pinned original Unitree H1 locomotion network')
 p.add_argument('--sensor-balance-robot',help='Static robot-only XML calibration for the sensor balance estimator')
@@ -580,6 +581,9 @@ def main():
         from doorbench.dexterous.sensor_locomotion import SensorLocomotionController
         sensor_actor=SensorLocomotionController.from_calibration(a.sensor_locomotion_robot,motors,sensor_recorder.layout,
             a.sensor_locomotion_calibration,a.sensor_locomotion_checkpoint)
+        if a.sensor_locomotion_stop_after_seconds is not None:
+            from doorbench.dexterous.sensor_walk_stop import SensorWalkStopController
+            sensor_actor=SensorWalkStopController.from_calibration(a.sensor_locomotion_robot,motors,sensor_recorder.layout,a.sensor_locomotion_calibration,a.sensor_locomotion_checkpoint,a.sensor_locomotion_stop_after_seconds)
         sensor_actor.reset_episode()
     elif a.sensor_policy_checkpoint:
         from doorbench.dexterous.sensor_policy_controller import SensorPolicyController
@@ -653,7 +657,7 @@ def main():
             inputs += [Path(a.sensor_locomotion_calibration),Path(a.sensor_locomotion_robot),Path(a.sensor_locomotion_checkpoint)]
             (out/'sensor-locomotion-calibration.json').write_bytes(Path(a.sensor_locomotion_calibration).read_bytes())
             sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
-                ('sensor_locomotion.py','motor_target_control.py','locomotion.py')]
+                ('sensor_locomotion.py','sensor_walk_stop.py','sensor_balance.py','locomotion_manipulation.py','stance.py','motor_target_control.py','locomotion.py')]
         if a.sensor_policy_checkpoint:inputs.append(Path(a.sensor_policy_checkpoint))
         if a.sensor_balance_calibration:
             inputs += [Path(a.sensor_balance_calibration),Path(a.sensor_balance_robot)]
@@ -1555,6 +1559,11 @@ def main():
         loco_checks=current_physics_checks()
         loco_checks['declared_duration']=len(acquisition_states['time_s'])==round(a.seconds/dt)
         roots=np.asarray(acquisition_states['root'])
+        if a.sensor_locomotion_stop_after_seconds is not None:
+            tail=roots[np.asarray(acquisition_states['time_s'])>=a.seconds-1.-1e-8]
+            loco_checks['supported_stance_handoff']=sensor_actor.balance is not None
+            loco_checks['stance_solver_clean']=sensor_actor.balance is not None and sensor_actor.balance.qp_failures==0
+            loco_checks['quiet_final_second']=bool(len(tail)>=500 and np.max(np.linalg.norm(tail[:,7:9],axis=1))<.03 and np.max(np.ptp(tail[:,:2],axis=0))<.03)
         loco_report=dict(passed=all(loco_checks.values()),checks=loco_checks,
             scope='Pinned H1 sensor-only locomotion component; constant body command, no learned vision task policy or door opening',
             duration_s=float(acquisition_states['time_s'][-1]),runtime_robot_pose_writes=0,teacher_actions=0,
@@ -1564,6 +1573,8 @@ def main():
             initial_orientation_calibration='upright; yaw/XY arbitrary',joint_passive_profile=a.joint_passive_profile,
             maximum_torso_tilt_deg=max(acquisition_states['torso_tilt_deg']),
             max_motor_delivery_error_Nm=max_motor_delivery_error,vision_task_policy=False,full_task_qualified=False)
+        if a.sensor_locomotion_stop_after_seconds is not None:
+            loco_report.update(scope='Sensor-driven walking, gait braking and supported stance transition; no vision navigation or door task',controller_final_info=sensor_actor.last_info,controller_inputs='Joint encoders, own mounted IMU, foot tactile grids, internal gait clock, static calibration and a fixed stop request')
         for name in ('locomotion-report.json','report.json'):
             (out/name).write_text(json.dumps(loco_report,indent=2)+'\n')
         print('LOCOMOTION_RESULT '+json.dumps(loco_report),flush=True)
