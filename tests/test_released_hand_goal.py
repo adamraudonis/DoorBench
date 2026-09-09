@@ -1,6 +1,14 @@
 import numpy as np
 import pytest
 from doorbench.dexterous.released_hand_goal import released_hand_goal
+from doorbench.dexterous.released_hand_goal import released_hand_phase
+
+
+def test_retreat_phase_keeps_roundoff_inside_exact_endpoints():
+    for u in np.r_[np.linspace(0.,1.,2001),np.nextafter(1.,2.)]:
+        assert 0<=released_hand_phase(u)<=1
+    assert released_hand_phase(0.)==0 and released_hand_phase(1.)==1
+    with pytest.raises(ValueError):released_hand_phase(1.001)
 
 
 def test_legacy_world_goal_is_fixed_and_root_goal_moves_rigidly():

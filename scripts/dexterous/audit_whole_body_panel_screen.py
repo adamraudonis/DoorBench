@@ -61,7 +61,7 @@ def main():
     rhp=d.site_xpos[rh].copy();rhr=d.site_xmat[rh].reshape(3,3).copy()
     lr=d.xmat[leafbody].reshape(3,3).copy();lp=d.xpos[leafbody].copy()
     lhp=lr.T@(d.site_xpos[lh]-lp);lhr=lr.T@d.site_xmat[lh].reshape(3,3)
-    from doorbench.dexterous.released_hand_goal import released_hand_goal
+    from doorbench.dexterous.released_hand_goal import released_hand_goal, released_hand_phase
     right_outward=np.sign((rhp-lp)@lr[:,1])*lr[:,1]
     palm_vertices=original_palm_vertices(m,d,lh) if report['configuration'].get('flatten_palm') else None
     robot_body=m.jnt_bodyid[m.joint('robot/free_base').id];com=d.subtree_com[robot_body].copy()
@@ -108,7 +108,7 @@ def main():
             fu=float(np.clip((reference_angle-angles[0])/report['configuration'].get('flatten_over_rad',.2),0,1));fb=fu**3*(10+fu*(-15+6*fu))
             local,localr,_=flatten_palm_goal(local,lhr,palm_vertices,fb)
         targetp=leafp+leafr@local;targetr=leafr@localr
-        progress=float(sample['progress']);retreat_phase=progress**3*(10+progress*(-15+6*progress))
+        progress=float(sample['progress']);retreat_phase=released_hand_phase(progress)
         right_target_p,right_target_r=released_hand_goal(rhp,rhr,initial[rq:rq+3],x[:6],right_outward,retreat_phase,frame=report['configuration'].get('right_hand_frame','world'),retreat_m=report['configuration'].get('right_hand_retreat_m',0.))
         rotation_error=lambda target,actual:float(np.linalg.norm(Rotation.from_matrix(target@actual.T).as_rotvec()))
         max_joint_increase=float(np.max(np.maximum(m.jnt_range[scalar,0]-d.qpos[sq],d.qpos[sq]-m.jnt_range[scalar,1])-np.maximum(initial_violation,0)))
