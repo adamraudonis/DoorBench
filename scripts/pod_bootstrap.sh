@@ -46,6 +46,11 @@ python -V
 phase "== [3/6] Isaac Sim $ISAACSIM_VERSION (pip wheels, ~10 GB)"
 # uv downloads the ~10 GB of wheels concurrently (24 MB/s measured) where pip crawled at 0.4 MB/s on one RunPod host.
 export UV_LINK_MODE=copy UV_CACHE_DIR="$W/.uv-cache"
+# Install the actual CUDA build first. Plain ==2.7.0 also accepts a PyPI build,
+# which made the later Isaac Lab upgrade download a second large Torch wheel.
+if [ "$ISAACSIM_VERSION" = "5.1.0" ] && [ "$ISAACLAB_TAG" = "v2.3.2" ]; then
+  uv pip install "torch==2.7.0+cu128" "torchvision==0.22.0+cu128" "torchaudio==2.7.0+cu128" --index-url https://download.pytorch.org/whl/cu128
+fi
 python -c "import isaacsim" 2>/dev/null || {
   uv pip install "isaacsim[all,extscache]==$ISAACSIM_VERSION" --extra-index-url https://pypi.nvidia.com || exit 1
 }
@@ -53,7 +58,7 @@ python -c "import isaacsim" 2>/dev/null || {
 phase "== [4/6] Isaac Lab $ISAACLAB_TAG (installs torch cu128 + rsl_rl)"
 if [ ! -d $W/IsaacLab ]; then git clone -q --depth 1 --branch "$ISAACLAB_TAG" https://github.com/isaac-sim/IsaacLab.git $W/IsaacLab; fi
 # pre-fetch torch cu128 with uv (fast, concurrent) so isaaclab.sh's pip step finds it installed
-uv pip install "torch==2.7.0" "torchvision==0.22.0" --index-url https://download.pytorch.org/whl/cu128 2>&1 | tail -1
+uv pip install "torch==2.7.0+cu128" "torchvision==0.22.0+cu128" --index-url https://download.pytorch.org/whl/cu128
 # Stream installation progress into the launch log. A trailing `tail` buffered
 # every package message until completion and made a slow FUSE install look hung.
 cd $W/IsaacLab && git fetch -q --depth 1 origin "$ISAACLAB_TAG" && git checkout -q FETCH_HEAD && ./isaaclab.sh --install rsl_rl
@@ -63,7 +68,7 @@ cd $W/IsaacLab && git fetch -q --depth 1 origin "$ISAACLAB_TAG" && git checkout 
 # (what pip's isolated build env picks) no longer ships -> build it once without isolation against setuptools < 81.
 FLATDICT_PIN=$(grep -o "flatdict[=<>~!]*[0-9.]*" $W/IsaacLab/source/isaaclab/setup.py | head -1)   # e.g. flatdict==4.0.1
 pip install -q "setuptools<81" wheel && pip install -q --no-build-isolation "${FLATDICT_PIN:-flatdict}" 2>&1 | tail -1
-pip install -q -e $W/IsaacLab/source/isaaclab 2>&1 | tail -1
+pip install -e $W/IsaacLab/source/isaaclab
 # NOTE: `import isaaclab` only works inside a running Kit app (it needs pxr), so check the packages resolve instead.
 python -c "import importlib.util as u; assert all(u.find_spec(m) for m in ('isaaclab', 'isaaclab_tasks', 'rsl_rl')); print('ISAACLAB_IMPORT_OK')" || { echo "ISAACLAB_IMPORT_FAILED"; exit 1; }
 

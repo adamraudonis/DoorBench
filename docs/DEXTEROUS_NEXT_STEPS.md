@@ -315,3 +315,35 @@ never started a container and was terminated; its persistent volume is retained.
 No new off-pod transfer is claimed. Closed return001–003 are SHA-verified in the
 permanent local run directory. An inactive, unopened downloaded application-update
 cache was removed to recover disk space; no unique experiment evidence was deleted.
+
+### September 9 continuation: withdrawal admission and physical failures
+
+The fifth upright withdrawal geometry candidate passes an independent 2,001-sample
+unstepped audit: maximum torso tilt 3.977 degrees, palm position error 0.182 mm,
+and final hand/environment clearance 46.46 mm. It uses the previously measured
+`clearance-lift-v4` release with a 10 mm early lift, retimed over 16 seconds, from
+the actual return004 terminal state. This is geometric admission, not physical success.
+
+Physical withdrawal001 lost balance when the route replaced the loaded stance
+controller's equilibrium offsets. Withdrawal002 preserves those offsets and stays
+upright, but loses opposed grip during repositioning. Its release prerequisite
+correctly aborts the run. Neither is a passing reference. Withdrawal003 tests a
+world-fixed right-hand goal, matching the screened route, and reduces left support
+target from 4 N to 2.25 N over two seconds; the measured support gate stays 2 N.
+The partial-opening envelope is required until intentional release. After release,
+the left palm may open the leaf farther; joint, collision, upright and motor gates
+still apply, and the final hand must remain at least 4 cm clear for half a second.
+
+The raw archives for failed transfer011/012/013/015 and withdrawal001 were streamed
+to a **draft** GitHub research release, independently downloaded and SHA-256
+verified before their duplicate local raw files were evicted. Reports, trajectories,
+source snapshots and per-file restore receipts remain local. This is not a dataset
+release; Hugging Face was not updated. Restore commands are in each run's
+`.remote-artifacts-github.json` and the permanent `remote-archives` directory.
+
+The owned L40S has finished the CUDA/Isaac Lab install stage and is installing the
+remaining dependencies. The frozen source and independent teardown guards remain
+intact. A future bootstrap change explicitly installs the CUDA Torch build before
+Isaac Sim to avoid downloading both the PyPI and CUDA builds; this optimization
+has not yet been timed on a fresh node. Full standing traversal, Isaac operation
+qualification, and learned vision/tactile control remain open.
