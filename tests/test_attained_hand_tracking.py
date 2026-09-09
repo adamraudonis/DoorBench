@@ -13,3 +13,20 @@ def test_coupled_motor_preserves_sum_preload_and_original_cap():
     np.testing.assert_allclose(force,[.3])
     force,info=controller.force(np.zeros(1),zero,zero)
     np.testing.assert_allclose(force,[1.]);assert info['finger_clipped_motors']==1
+
+
+def test_reference_velocity_tracks_coupled_tendon_without_changing_caps():
+    teacher=SimpleNamespace(fingers=np.array([0]),names=['a','b'],matrix=np.array([[1.,1.]]),finger_inverse=np.array([[.5,.5]]),d=SimpleNamespace(qfrc_bias=np.zeros(2)),va=np.array([0,1]),kp=np.ones(1),damping=np.ones(1),bias=np.zeros((1,3)),caps=np.array([[-1.,1.]]))
+    q=dict(a=.2,b=.3);v=dict(a=.1,b=.2)
+    controller=AttainedHandTracking(teacher,q,np.array([.3]))
+    moving,info=controller.force(np.zeros(1),q,v,target_joint_velocities=v)
+    np.testing.assert_allclose(moving,[.3])
+    assert info['finger_velocity_feedforward']
+    np.testing.assert_allclose(info['finger_motor_reference_velocity_rad_s'],[.3])
+    stationary,_=controller.force(np.zeros(1),q,v)
+    assert stationary[0]<moving[0]
+    capped,info=controller.force(np.zeros(1),q,v,target_joint_velocities=dict(a=2.,b=2.))
+    np.testing.assert_allclose(capped,[1.]);assert info['finger_clipped_motors']==1
+    import pytest
+    for bad in [dict(a=.1),dict(a=float('nan'),b=0.),dict(a=2.01,b=0.)]:
+        with pytest.raises(ValueError):controller.force(np.zeros(1),q,v,target_joint_velocities=bad)

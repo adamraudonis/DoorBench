@@ -32,6 +32,9 @@ class StandingWithdrawalTeacher:
         self.hybrid_support=config.get('hybrid_support',False)
         if type(self.hybrid_support) is not bool:raise ValueError('Explicit hybrid support option required')
         self.support_feedback=None
+        self.finger_velocity_feedforward=config.get('finger_velocity_feedforward',False)
+        if type(self.finger_velocity_feedforward) is not bool:raise ValueError('Explicit finger velocity feedforward option required')
+        self.previous_finger_target=None
         self.thumb_pad_feedback=config.get('thumb_pad_feedback',False)
         if type(self.thumb_pad_feedback) is not bool:raise ValueError('Explicit thumb feedback option required')
         self.thumb_feedback=None
@@ -211,7 +214,22 @@ class StandingWithdrawalTeacher:
         self.hand.targets=(teacher.matrix@desired)[self.hand.indices]
         scale=1. if self.release_started is None else 1.-float(smooth_phase((t-self.release_started)/1.))
         self.hand.preload=self.preload*scale
-        force,hand_info=self.hand.force(force,joints,velocities)
+        reference_velocity=None
+        if self.finger_velocity_feedforward:
+            # The route specifies joint positions; damping must track their
+            # velocity rather than resisting every intentional finger motion.
+            # Differentiate only screened finger coordinates, never palm IK.
+            current=np.asarray([targets[n] for n in self.finger_names])
+            speed=np.zeros_like(current)
+            if self.previous_finger_target is not None:
+                previous_time,previous=self.previous_finger_target
+                dt=t-previous_time
+                if not 0<dt<=.05:raise ValueError('Monotonic bounded finger reference clock required')
+                speed=(current-previous)/dt
+            reference_velocity=dict.fromkeys(teacher.names,0.)
+            reference_velocity.update(zip(self.finger_names,speed))
+            self.previous_finger_target=(float(t),current.copy())
+        force,hand_info=self.hand.force(force,joints,velocities,target_joint_velocities=reference_velocity)
         if self.thumb_pad_feedback and self.release_started is not None:
             if self.thumb_feedback is None:
                 from .thumb_withdrawal_feedback import ThumbWithdrawalFeedback

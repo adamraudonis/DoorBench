@@ -343,3 +343,19 @@ reapplying hub avoidance after finger tracking. The joint-range gate now
 passes. Withdrawal004 tests 4 N receiving-palm support, up from 2.25 N, within
 the original controller range. It starts from the same closed-door reset and
 retains all existing gates; it is running, not qualified.
+
+
+Withdrawal004 again shows a transient receiving-palm unload around69s despite
+a4N target. Its80.6s rollout completed; final contact audits are pending. The
+attained finger controller damps absolute joint motion while the arm controller
+already tracks reference velocity. The optional `finger_velocity_feedforward`
+comparison adds the derivative of screened finger positions to that damping
+term, mapped through the original coupled motor transmission. It rejects
+incomplete/nonfinite inputs and reference speeds above2rad/s, retains the same
+stiffness and original motor caps, and defaults off. Five focused hand/withdrawal
+tests pass. This is a prospective controller change, not a physical success.
+
+GPU pressure024 removes lever-following from023 while retaining measured pad
+pressure and hub avoidance. Its source is the same frozen archive; native and
+whole-handle gates still precede Isaac. Both owned shutdown guards were verified
+for21:57:21UTC, within the12h allocation ceiling, with collection time reserved.
