@@ -274,6 +274,14 @@ def main():
         if args.standing_withdrawal_path:
             report['checks']=withdrawal_checks(report['checks'],physics,dt=m.opt.timestep,duration=args.seconds,started=transfer.started_withdrawal,release_started=transfer.release_started,completed=transfer.info.get('withdrawal_progress',0)>=.999)
             report['standing_withdrawal']=dict(route=str(args.standing_withdrawal_path),started_s=transfer.started_withdrawal,release_started_s=transfer.release_started,final=transfer.info)
+            if transfer.panel is not None:
+                target=transfer.panel.plan['final_leaf_angle_rad']
+                report['checks']['standing_panel_started']=transfer.panel.started is not None
+                report['checks']['standing_panel_reference_completed']=transfer.info.get('panel_progress',0)>=.999
+                report['checks']['standing_panel_aperture_held']=bool(tail) and all(target-.02<=r['door_q']<=target+.05 for r in tail)
+                panel_rows=[r for r in physics if r['sim_time_s']>=transfer.panel.start_time]
+                report['checks']['standing_panel_upright']=bool(panel_rows) and all(r['torso_tilt_deg']<=5. for r in panel_rows)
+                report['standing_panel']=dict(scope='Privileged upright continuation to screened partial aperture, not traversal',started_s=transfer.panel.started,target_aperture_rad=target,final=transfer.info)
         report.update(passed=all(report['checks'].values()),scope=__doc__,
             runtime_robot_pose_writes=0,direct_door_commands=False,
             maximum_handle_rad=max(r['handle_angle_rad'] for r in physics),

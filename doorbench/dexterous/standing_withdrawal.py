@@ -87,6 +87,11 @@ class StandingWithdrawalTeacher:
         self.release_phase=config.get('release_phase','measured_release')
         if self.release_phase not in ('measured_release','grasp_adjustment'):raise ValueError('Explicit screened release phase required')
         self.release_clock=min(r['time_s'] for r in rows[1:] if r['phase']==self.release_phase)
+        self.panel=None;self.panel_handoff=None
+        if config.get('panel_plan_path'):
+            if sha(config['panel_plan_path'])!=config.get('panel_plan_sha256'):raise ValueError('Panel plan bytes changed')
+            from .standing_panel_reference import StandingPanelReference
+            self.panel=StandingPanelReference(scene,config['panel_plan_path'],self.left)
         self.initial_angles={name:float(actual[m.joint(joint).qposadr[0]]) for name,joint in [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
 
     @property
@@ -129,6 +134,14 @@ class StandingWithdrawalTeacher:
         teacher.stance.target_root[:]=(1-f)*self.roots[i,:3]+f*self.roots[i+1,:3]+self.stance_root_bias
         teacher.stance.target_rotation=self.stance_rotation_bias@self.root_rotations(clock).as_matrix()
         teacher.stance.joint_target[:]=np.array([targets[n] for n in self.stance_names])+self.stance_joint_bias
+        panel_goal=None;panel_info={}
+        if self.panel is not None and t>=self.panel.start_time-1e-8:
+            if self.panel.started is None:
+                self.panel_previous_force=teacher.last_force.copy()
+                self.arm=AttainedArmTracking(teacher,joints,self.panel_previous_force)
+                self.palm=ReturnPalmFeedback(teacher,root,joints,handle_pose,self.operation.geometry)
+            targets,position,rotation,panel_info=self.panel.update(t,root,joints,angles['leaf'],teacher.stance)
+            panel_goal=(position,rotation)
         self.left.support_load_target=self.initial_support_target+float(smooth_phase(elapsed/2.))*(self.support_target-self.initial_support_target)
         self.left.update_targets(t,root,joints,leaf_pose,left_panel_load,handle_pose)
         if self.hybrid_support:
@@ -144,6 +157,7 @@ class StandingWithdrawalTeacher:
         # Following the moving leaf here lets both hands chase an opening door
         # during the regrasp, instead of retaining the screened working pose.
         goal=(1-f)*self.positions[i]+f*self.positions[i+1];rotation=self.rotations(clock).as_matrix()
+        if panel_goal is not None:goal,rotation=panel_goal
         targets,palm_info=self.palm.world_targets(t,targets,root,joints,goal,rotation)
         force,arm_info=self.arm.force(force,t,targets,joints,velocities)
         desired=np.asarray([targets.get(n,joints[n]) for n in teacher.names])
@@ -156,9 +170,15 @@ class StandingWithdrawalTeacher:
                 from .thumb_withdrawal_feedback import ThumbWithdrawalFeedback
                 self.thumb_feedback=ThumbWithdrawalFeedback(teacher,self.thumb_local)
             goal=(1-f)*self.thumb_positions[i]+f*self.thumb_positions[i+1]
+            if panel_goal is not None:
+                body=self.panel.m.body('robot/rh_thdistal').id
+                goal=self.panel.d.xpos[body]+self.panel.d.xmat[body].reshape(3,3)@self.thumb_local
             force,thumb_info=self.thumb_feedback.force(force,t,goal,t-self.release_started)
             hand_info={**hand_info,**thumb_info}
         if self.handoff is None:self.handoff=MotorHandoff(self.previous_force,force,teacher.caps,1.)
         force=self.handoff.force(force,elapsed);teacher.last_force=force.copy()
-        self.info={**info,**self.left.info,**arm_info,**hand_info,**palm_info,'phase':'standing_withdrawal','withdrawal_started_s':self.started_withdrawal,'release_started_s':self.release_started,'withdrawal_progress':float(smooth_phase(elapsed/self.duration)),'withdrawal_clock_s':clock,'grip_preload_scale':scale,'goal_frame':'attained-resting-world','stance_reference_preserved':True,'stance_reference_root_offset_m':self.stance_root_bias.tolist(),'stance_reference_joint_offset_rad':dict(zip(self.stance_names,self.stance_joint_bias.tolist())),'controller_scope':'Privileged screened upright withdrawal; only original capped motors'}
+        if panel_goal is not None:
+            if self.panel_handoff is None:self.panel_handoff=MotorHandoff(self.panel_previous_force,force,teacher.caps,1.)
+            force=self.panel_handoff.force(force,t-self.panel.started);teacher.last_force=force.copy()
+        self.info={**panel_info,**info,**self.left.info,**arm_info,**hand_info,**palm_info,'phase':'standing_panel_continuation' if panel_goal is not None else 'standing_withdrawal','withdrawal_started_s':self.started_withdrawal,'release_started_s':self.release_started,'withdrawal_progress':float(smooth_phase(elapsed/self.duration)),'withdrawal_clock_s':clock,'grip_preload_scale':scale,'goal_frame':'attained-resting-world','stance_reference_preserved':True,'stance_reference_root_offset_m':self.stance_root_bias.tolist(),'stance_reference_joint_offset_rad':dict(zip(self.stance_names,self.stance_joint_bias.tolist())),'controller_scope':'Privileged screened upright withdrawal; only original capped motors'}
         return force,self.info
