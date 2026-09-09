@@ -34,6 +34,9 @@ def main():
     a=p.parse_args()
     if not np.isfinite(a.duration) or a.duration<=0:raise ValueError('Positive finite duration required')
     source=a.source_run
+    if (a.screen.parent/'standing-audit.json').exists():raise ValueError('Fresh audit output required')
+    whole_path=source/'independent-whole-handle-audit.json'
+    if json.loads(whole_path.read_text()).get('passed') is not True:raise ValueError('Whole-handle source qualification required')
     runtime=json.loads((source/'report.json').read_text())
     raw_audit=json.loads((source/'independent-pad-audit.json').read_text())
     if runtime.get('passed') is not True or raw_audit.get('passed') is not True:raise ValueError('Qualified physical return and independent contact audit required')
@@ -73,6 +76,8 @@ def main():
         tilt=float(np.degrees(np.arccos(np.clip(d.xmat[torso].reshape(3,3)[2,2],-1,1))))
         invalid=[]
         for c in d.contact[:d.ncon]:
+            bodies=[m.body(m.geom_bodyid[g]).name for g in c.geom]
+            if c.dist<0 and 'leaf_handle' in bodies and any(b.startswith('robot/rh_') for b in bodies) and lever not in c.geom:invalid.append('contact outside grasped lever')
             if lever not in c.geom or c.dist>=0:continue
             side=0 if c.geom[1]==lever else 1;b=int(m.geom_bodyid[c.geom[side]]);name=m.body(b).name
             if not name.startswith('robot/rh_'):continue
@@ -88,7 +93,7 @@ def main():
     clearance=min(float(mujoco.mj_geomDistance(m,d,g,h,.5,None)) for g in hand for h in scene)
     scalar=[m.jnt_qposadr[j] for j in range(m.njnt) if m.jnt_type[j]==mujoco.mjtJoint.mjJNT_HINGE and m.joint(j).name.startswith('robot/')]
     speed=float(np.max(abs(np.diff(np.array(sampled)[:,scalar],axis=0)/(a.duration/2000))))
-    inputs=[robot,door/'door.xml',source/'trajectory.npz',source/'report.json',source/'independent-pad-audit.json',a.screen,Path(__file__)]
+    inputs=[robot,door/'door.xml',source/'trajectory.npz',source/'report.json',source/'independent-pad-audit.json',whole_path,a.screen,Path(__file__)]
     result=dict(passed=not failures and clearance>=.04 and speed<=2.,samples=2001,physics_steps=0,duration_s=a.duration,initial_episode_time_s=start_time,maximum_position_error_m=peakp,maximum_rotation_error_rad=peakr,maximum_torso_tilt_deg=peakt,maximum_joint_reference_velocity_rad_s=speed,final_rh_environment_clearance_m=clearance,failures=failures,input_sha256={str(p):sha(p) for p in inputs},scope='Unstepped independent geometry and anatomy screen only; physical release remains unqualified')
     (a.screen.parent/'standing-audit.json').write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps({k:v for k,v in result.items() if k not in ('failures','input_sha256')}),flush=True)
