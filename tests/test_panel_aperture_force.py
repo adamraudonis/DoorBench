@@ -17,3 +17,18 @@ def test_invalid_measurements_and_clock_cannot_modify_the_target():
     c.update(0.,.5,.5,2.25)
     with pytest.raises(ValueError,match='clock'):c.update(0.,.5,.5,2.25)
     with pytest.raises(ValueError,match='clock'):c.update(.1,.5,.5,2.25)
+
+
+def test_terminal_braking_releases_accumulated_force_smoothly_and_stays_latched():
+    c=PanelApertureForce(terminal_aperture=.75)
+    for i in range(10001):target,_=c.update(i*.002,.75,.65,2.25)
+    assert target>4.
+    before=target
+    target,info=c.update(20.002,.75,.741,2.25)
+    assert info['panel_braking_started_s']==20.002
+    for i in range(10002,10201):target,_=c.update(i*.002,.75,.741,2.25)
+    assert 2.05<=target<=2.25
+    # A small backward fluctuation cannot restore the accumulated pushing load.
+    target,info=c.update(20.402,.75,.738,2.25)
+    assert target<=2.25 and info['panel_braking_started_s']==20.002
+    with pytest.raises(ValueError):PanelApertureForce(terminal_aperture=float('nan'))
