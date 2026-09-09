@@ -26,3 +26,11 @@ def test_original_caps_and_invalid_target_speed():
     assert result[0]==5. and info['arm_clipped_motors']==1
     with pytest.raises(ValueError,match='2 rad/s'):c.force(np.zeros(1),1.001,{'right_wrist_yaw':.4},q,v)
     with pytest.raises(ValueError,match='Monotonic'):c.force(np.zeros(1),.1,q,q,v)
+
+
+def test_velocity_uses_reference_update_clock_not_physics_substeps():
+    _,c=fixture();q={'right_wrist_yaw':.2};v={'right_wrist_yaw':0.}
+    c.force(np.zeros(1),0.,q,q,v)
+    for t in [.002,.004,.006,.008]:c.force(np.zeros(1),t,q,q,v)
+    _,info=c.force(np.zeros(1),.01,{'right_wrist_yaw':.21},q,v)
+    np.testing.assert_allclose(info['arm_reference_velocity_rad_s'],[1.])
