@@ -54,7 +54,7 @@ class StandingTransferTeacher:
         leftnames=c['left_joint_names'];rows=[]
         for row in c['left_targets']:
             rows.append({**row,**{k:np.asarray(row[k],float) for k in ('position','normal','nominal')}})
-        self.left=LeftPalmContact(self.acquisition,motors,(leftnames,rows),fixed_waist=False,track_fixed_pads=True,reach_seconds=8.,contact_force=8.,maximum_normal_offset=.008)
+        self.left=LeftPalmContact(self.acquisition,motors,(leftnames,rows),fixed_waist=False,track_fixed_pads=True,reach_seconds=8.,contact_force=8.,maximum_normal_offset=.008,pad_tracking_stiffness=2400.,pad_tracking_maximum_force=12.)
         self.start_seconds=start_seconds;self.started=None;self.info={}
         self.rotations=Slerp(np.linspace(0,1,101),Rotation.from_quat(self.roots[:,[4,5,6,3]]))
 

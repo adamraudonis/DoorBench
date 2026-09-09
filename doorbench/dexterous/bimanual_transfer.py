@@ -91,7 +91,9 @@ def replace_normal_acceleration(servo, arm_mass, normal_jacobian, normal_force, 
 
 
 class LeftPalmContact:
-    def __init__(self, teacher, motors, targets, *, reach_seconds=5., contact_force=8., fixed_waist=False, track_fixed_pads=False, support_load_target=4., maximum_normal_offset=.004):
+    def __init__(self, teacher, motors, targets, *, reach_seconds=5., contact_force=8., fixed_waist=False, track_fixed_pads=False, support_load_target=4., maximum_normal_offset=.004, pad_tracking_stiffness=800., pad_tracking_maximum_force=6.):
+        if not np.isfinite([pad_tracking_stiffness,pad_tracking_maximum_force]).all() or not 0<pad_tracking_stiffness<=2400 or not 0<pad_tracking_maximum_force<=12:raise ValueError('Bounded pad-tracking gains required')
+        self.pad_tracking_stiffness=pad_tracking_stiffness;self.pad_tracking_maximum_force=pad_tracking_maximum_force
         if not np.isfinite(maximum_normal_offset) or not 0<maximum_normal_offset<=.025:raise ValueError('Explicit normal offset must be within 25 mm')
         self.maximum_normal_offset=float(maximum_normal_offset)
         if not np.isfinite(support_load_target) or not 2 < support_load_target <= 10:
@@ -140,7 +142,7 @@ class LeftPalmContact:
         distal={digit:[g for g in geoms if self.m.body(self.m.geom_bodyid[g]).name.endswith('distal')] for digit,geoms in self.teacher.digit_geoms.items()}
         if self.track_fixed_pads:
             from doorbench.dexterous.pad_tracking import PadTracker
-            self.pads=PadTracker(self.m,self.d,distal,self.teacher.lever,digits=('ff','mf','rf','lf','th'),stiffness=800.,damping=2.,maximum_force=6.)
+            self.pads=PadTracker(self.m,self.d,distal,self.teacher.lever,digits=('ff','mf','rf','lf','th'),stiffness=self.pad_tracking_stiffness,damping=2.,maximum_force=self.pad_tracking_maximum_force)
             self.pad_targets_handle={digit:hr.T@(position-handle_pose[:3]) for digit,position in self.pads.positions(self.d).items()}
         # Keep the waist target explicit during bimanual work. Right-arm IK
         # still compensates through its seven actual joints as the waist moves.
