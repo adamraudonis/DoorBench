@@ -109,7 +109,9 @@ def main():
         maximum_motor_cap_excess_Nm=cap_excess, maximum_body_frame_error=geometry_error,
         final_second_minimum_body_y_m=minimum_y, final_second_max_horizontal_speed_m_s=speed,
         final_second_excursion_m=excursion, body_frame_sample_stride=100, geometry_samples=geometry_samples,
-        scope=__doc__, raw_manifest_sha256=hashlib.sha256((run/'raw-transitions/manifest.json').read_bytes()).hexdigest())
+        scope=__doc__, raw_manifest_sha256=hashlib.sha256((run/'raw-transitions/manifest.json').read_bytes()).hexdigest(),
+        auditor_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        warning_sidecar_sha256=hashlib.sha256((run/'actual-warning-intervals.npz').read_bytes()).hexdigest() if warning_sidecar is not None else None)
     (run/'independent-continuous-audit.json').write_text(json.dumps(result,indent=2)+'\n')
     sim.close()
     print(json.dumps(result))

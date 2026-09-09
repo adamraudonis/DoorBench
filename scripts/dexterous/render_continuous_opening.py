@@ -30,6 +30,7 @@ def main():
     p.add_argument('--azimuth',type=float,default=150.)
     p.add_argument('--cutaway-walls',action='store_true',help='Hide wall visuals only for inspection through the doorway')
     p.add_argument('--from-time',type=float,default=0.);p.add_argument('--snapshots-only',action='store_true')
+    p.add_argument('--until-time',type=float,help='End a close-up at this recorded episode time')
     a=p.parse_args();run=a.run.resolve()
     report=json.loads((run/'report.json').read_text())
     config=json.loads((run/'manifest.json').read_text())['configuration']
@@ -62,7 +63,9 @@ def main():
     palm=None if a.view=='body' else m.site('robot/'+('lh' if a.view=='left-hand' else 'rh')+'_palm_touch').id
     option=mujoco.MjvOption();option.sitegroup[:]=0
     start=max(times[0],a.from_time)
-    desired=np.linspace(start,times[-1],3) if a.snapshots_only else np.arange(start,times[-1]+1e-8,.04)
+    end=times[-1] if a.until_time is None else a.until_time
+    if not np.isfinite(end) or not start<end<=times[-1]:raise ValueError('Require a bounded increasing replay interval')
+    desired=np.linspace(start,end,3) if a.snapshots_only else np.arange(start,end+1e-8,.04)
     indices=np.minimum(np.searchsorted(times,desired),len(times)-1)
     from contextlib import nullcontext
     with mujoco.Renderer(m,height=720,width=960) as renderer:
