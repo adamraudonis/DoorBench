@@ -736,3 +736,17 @@ agrees that the trial failed. A new explicit measured-leaf lead limit will test
 whether hand targets outrun the door; it caps only the motor controller's goal,
 retaining original contact, joint and aperture criteria. Twenty-four focused
 controller tests pass; physical success remains unproven.
+
+Pressure014 exported27.4 s and retains17/19 runtime checks: contact hold and
+requested-duration completion fail. Independent audit accounting passes; the
+trial remains failed. Its raw evidence is retained off-pod. Lead015 tests a
+0.012 rad measured-leaf lead bound on frozen source5d4bff03b, under the same
+18:47:58 UTC guard, with a45-minute Isaac budget after native qualification.
+
+Panel007 entered segment2 at119 s but stalls near0.76454 rad. Its measured-phase
+lead is approximately0.005 rad, so the ordinary integral builds pushing force
+very slowly against static hinge friction. A separate opt-in continuation
+profile adds a bounded integral increment only with positive requested progress,
+measured velocity below0.001 rad/s and remaining travel above0.02 rad. Existing
+6 N target cap, motor limits, terminal braking and all physical gates stay fixed.
+Fourteen focused force/schedule/contact tests pass; no physical success follows.

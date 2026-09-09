@@ -40,3 +40,29 @@ def test_braking_can_retain_explicit_bounded_support_margin():
     for i in range(1001,1301):target,info=c.update(i*.002,.75,.741,2.25)
     assert target==2.75 and info['panel_force_profile']=='bounded-pi-stop-v2'
     with pytest.raises(ValueError):PanelApertureForce(terminal_aperture=.75,terminal_support_margin_N=.6)
+
+
+def test_stiction_assistance_builds_bounded_force_only_for_stalled_progress():
+    controller=PanelApertureForce(terminal_aperture=1.2,terminal_support_margin_N=.5,stiction_assist=True)
+    ordinary=PanelApertureForce(terminal_aperture=1.2,terminal_support_margin_N=.5)
+    for i in range(2501):
+        force,info=controller.update(i*.002,.755,.75,2.25)
+        baseline,_=ordinary.update(i*.002,.755,.75,2.25)
+    assert info['panel_stiction_active']
+    assert force>baseline+.4
+    assert force<=controller.maximum_target_N
+    for i in range(2501,2752):
+        force,info=controller.update(i*.002,1.2,1.195,2.25)
+    assert not info['panel_stiction_active']
+    assert force<=2.75
+
+
+def test_stiction_assistance_does_not_boost_moving_or_completed_reference():
+    controller=PanelApertureForce(terminal_aperture=1.2,stiction_assist=True)
+    for i in range(501):
+        angle=.75+i*.002*.01
+        _,info=controller.update(i*.002,angle+.005,angle,2.25)
+    assert not info['panel_stiction_active']
+    controller=PanelApertureForce(terminal_aperture=1.2,stiction_assist=True)
+    _,info=controller.update(0.,.75,.75,2.25)
+    assert not info['panel_stiction_active']
