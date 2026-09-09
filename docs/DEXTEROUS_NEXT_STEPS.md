@@ -207,3 +207,26 @@ and on GPU. The idle owned GPU is terminated. More local or external persistent
 storage is needed before further fully recorded physics runs (about 280 MB free).
 The full approved plan remains incomplete; no learned vision/tactile opening or
 full Isaac traversal has been demonstrated by these experiments.
+
+### September 9, 2026: sustained native grasp qualified
+
+Native standing operation012 passes all 18 runtime checks and all six independent
+raw-contact checks over 36 seconds (18,000 physics intervals). A 3 N index preload
+established during acquisition produces 17.968 seconds of continuous qualified
+opposed distal-pad contact through the endpoint, with zero invalid loaded patches.
+The original joint, collision, motor and upright limits remain unchanged. The
+handle reaches 0.8643 rad, the bolt retracts 12.52 mm and the leaf opens 4.34 degrees.
+[Independent receipt](evidence/native-standing-operation-012.json).
+
+This is a privileged native partial-opening result, not an Isaac repeat, full
+traversal or learned vision/tactile policy. Extended baseline008 and posture
+corrections009–010 fail sustained contact; experimental pad controller011 also
+fails opening. Its subsequently corrected material-target code remains unqualified.
+A fresh coordinated route is being screened from operation012's actual 36-second
+state before another force-driven left-hand transfer. Transfer timing is explicit;
+start-pose and all physical tolerances remain unchanged.
+
+The previous storage block is resolved for immediate trials. Closed failed-trial
+recordings are hash-verified on the persistent RunPod volume; the temporary CPU
+transfer pod and idle GPU are terminated. Full operation009–012 artifacts also
+have verified permanent local archives. The overall approved plan remains open.

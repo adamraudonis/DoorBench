@@ -49,3 +49,16 @@ against the receipt before extracting or using it. Container-local `/root` and
 The S3 interface can also access the volume without a running pod, but it needs
 separate S3 credentials. The current transfer path uses SSH and existing RunPod
 authorization. [S3 access instructions](https://docs.runpod.io/storage/s3-api).
+
+## September 9 archive status
+
+The temporary CPU transfer pod was terminated after verification. The 100 GB
+network volume remains provisioned. Three closed archives and complete failed
+standing-transfer001–008 directories are stored under `/workspace/archive/`.
+Twelve index files were verified on the volume before teardown. Reattachment to
+a new pod has not yet been tested.
+
+Large raw recordings in local transfer001–008 directories were replaced with
+`remote-artifacts.json` retrieval receipts after remote and local SHA-256 checks.
+Reports, manifests and source archives remain local. Restore the listed raw files
+before rerunning an independent contact audit; a local report alone is insufficient.

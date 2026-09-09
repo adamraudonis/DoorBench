@@ -100,6 +100,7 @@ def main():
     parser.add_argument('--index-tendon-offset-rad',type=float,default=0.)
     parser.add_argument('--index-proximal-offset-rad',type=float,default=0.)
     parser.add_argument('--pressure-segment',choices=['nearest','distal'],default='nearest')
+    parser.add_argument('--standing-transfer-start-seconds',type=float,default=22.)
     parser.add_argument('--standing-transfer-handoff-seconds',type=float,default=0.)
     parser.add_argument('--standing-transfer-hold-route',action='store_true',help='Diagnostic: hold body/left route at its initial pose; never a completed transfer')
     parser.add_argument('--standing-transfer-preload-profile',choices=('maintain','balanced-4n','index-6n'),default='maintain')
@@ -113,7 +114,7 @@ def main():
     args = parser.parse_args()
     if not args.portable_wrapper and (args.operation_fixed_pad_control or args.index_proximal_offset_rad or args.index_tendon_offset_rad):
         parser.error('Contact-control options require the portable operation wrapper')
-    if not args.standing_transfer_path and (args.standing_transfer_hold_route or args.standing_transfer_handoff_seconds or args.standing_transfer_preload_profile!='maintain' or any(args.standing_transfer_grasp_shift)):
+    if not args.standing_transfer_path and (args.standing_transfer_start_seconds!=22. or args.standing_transfer_hold_route or args.standing_transfer_handoff_seconds or args.standing_transfer_preload_profile!='maintain' or any(args.standing_transfer_grasp_shift)):
         parser.error('Transfer options require an explicit transfer route')
     if not np.isfinite([args.seconds,args.press_seconds,args.min_acquisition_seconds]).all() or min(args.seconds,args.press_seconds) <= 0 or args.min_acquisition_seconds < 0:
         parser.error('Use finite positive operation durations')
@@ -161,7 +162,7 @@ def main():
     if args.standing_transfer_path:
         if not args.portable_wrapper or not args.record_transitions:raise ValueError('Standing transfer requires portable operation and full physical evidence')
         from doorbench.dexterous.standing_transfer import StandingTransferTeacher
-        transfer=StandingTransferTeacher(operation,motors,args.standing_transfer_path,preload_profile=args.standing_transfer_preload_profile,grasp_shift=args.standing_transfer_grasp_shift,hold_route=args.standing_transfer_hold_route,handoff_seconds=args.standing_transfer_handoff_seconds)
+        transfer=StandingTransferTeacher(operation,motors,args.standing_transfer_path,start_seconds=args.standing_transfer_start_seconds,preload_profile=args.standing_transfer_preload_profile,grasp_shift=args.standing_transfer_grasp_shift,hold_route=args.standing_transfer_hold_route,handoff_seconds=args.standing_transfer_handoff_seconds)
     hand_names = {b:m.body(b).name.removeprefix('robot/') for b in range(m.nbody)
                   if m.body(b).name.startswith(('robot/rh_', 'robot/lh_'))}
     physics = [native_grasp_sample(sim, 'leaf_handle_lever_col_n', handle_joint='leaf_handle_hinge')]

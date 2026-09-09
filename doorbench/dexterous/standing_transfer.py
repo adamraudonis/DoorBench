@@ -37,6 +37,7 @@ def validate_route_geometry(config):
 
 class StandingTransferTeacher:
     def __init__(self,operation,motors,path,*,start_seconds=22.,preload_profile='maintain',grasp_shift=(0.,0.,0.),hold_route=False,handoff_seconds=0.):
+        if not np.isfinite(start_seconds) or start_seconds<=0:raise ValueError('Transfer start must be finite and positive')
         if preload_profile not in PROFILES:raise ValueError('Unknown transfer preload profile')
         if type(hold_route) is not bool:raise ValueError('Explicit diagnostic hold flag required')
         if not np.isfinite(handoff_seconds) or not 0<=handoff_seconds<=2:raise ValueError('Handoff duration must be in [0,2] seconds')
