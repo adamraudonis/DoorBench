@@ -63,7 +63,10 @@ def main():
     p.add_argument("--screened-panel-normal-admittance",action="store_true")
     p.add_argument("--screened-panel-include-waist",action="store_true")
     p.add_argument("--screened-palm-recontact",action="store_true")
+    p.add_argument("--moving-body-recontact",action="store_true")
     a = p.parse_args()
+    if a.moving_body_recontact and not a.screened_palm_recontact:
+        raise ValueError('Moving-body targets require the declared timed recontact experiment')
     if a.screened_palm_recontact and not (a.whole_body_panel_plan and a.screened_panel_actual_base_correction
             and a.screened_panel_normal_admittance and a.screened_panel_include_waist and a.screened_panel_lead_rad==0
             and a.screened_panel_lead_start_rad is None):
@@ -131,6 +134,9 @@ def main():
         shutil.copy2(a.whole_body_panel_plan,stage/'whole-body-panel-plan.json')
         if a.screened_palm_recontact:
             shutil.copy2(own/'doorbench/dexterous/palm_recontact_teacher.py',stage/'doorbench/dexterous/palm_recontact_teacher.py')
+        if a.moving_body_recontact:
+            for module in ('moving_body_recontact.py','whole_body_contact_targets.py'):
+                shutil.copy2(own/'doorbench/dexterous'/module,stage/'doorbench/dexterous'/module)
         if a.screened_panel_lead_audit:shutil.copy2(a.screened_panel_lead_audit,stage/'panel-lead-audit.json')
     if a.hybrid_include_waist or a.record_panel_targets:
         shutil.copy2(own/'doorbench/dexterous/panel_chain_projection.py',stage/'doorbench/dexterous/panel_chain_projection.py')
@@ -202,6 +208,9 @@ def main():
         if a.screened_palm_recontact:
             from doorbench.dexterous.palm_recontact_teacher import TimedPalmRecontact
             ScreenedWholeBodyPanel=TimedPalmRecontact
+        if a.moving_body_recontact:
+            from doorbench.dexterous.moving_body_recontact import MovingBodyPalmRecontact
+            ScreenedWholeBodyPanel=MovingBodyPalmRecontact
         full.CoordinatedPanelPush=lambda left,**options:ScreenedWholeBodyPanel(left,stage/'whole-body-panel-plan.json',normal_feedforward_N=a.screened_panel_feedforward_n,actual_base_correction=a.screened_panel_actual_base_correction,palm_normal_admittance=a.screened_panel_normal_admittance,correction_include_waist=a.screened_panel_include_waist,tracking_lead_rad=a.screened_panel_lead_rad,lead_start_angle=a.screened_panel_lead_start_rad,lead_ramp_rad=a.screened_panel_lead_ramp_rad,lead_receipt=stage/'panel-lead-audit.json' if a.screened_panel_lead_audit else None,**options)
     original_force = full.FullOpeningTeacher.force
     panel_trace=None
@@ -264,11 +273,14 @@ def main():
                      left_arm_targets=self.left.target.tolist(),left_arm_target_velocity=self.left.target_velocity.tolist(),
                      actual_base_correction=self.push.latest.get('actual_base_correction'),
                      normal_admittance=self.push.latest.get('normal_admittance'),
+                     whole_body_adaptation=self.push.latest.get('whole_body_adaptation'),
                      corrected_chain_joint_names=self.push.correction_names if self.push.correction is not None else None,
                      corrected_chain_targets=self.push.corrected_chain_target.tolist() if self.push.corrected_chain_target is not None else None,
                      corrected_chain_velocity=self.push.corrected_chain_velocity.tolist() if self.push.corrected_chain_velocity is not None else None,
                      actual_torso_force=self.push.latest.get('actual_torso_force'))
             panel_phase_trace.write(json.dumps(row,allow_nan=False)+'\n')
+        if a.moving_body_recontact and self.push.started is None and self.release.started is not None:
+            self.push.remember_output(t,self.release.body_goal(t))
         return force,info
 
     full.FullOpeningTeacher.force = measured_force
@@ -279,7 +291,13 @@ def main():
             release=self.opening.release
             self.opening._diagnostic_episode_offset=self.acquisition_started
             if a.whole_body_panel_plan and self.opening.push.started is not None:
-                self.opening.push.advance(t-self.acquisition_started,args[6]['leaf'])
+                if a.moving_body_recontact:
+                    if self.opening.whole_body_return_path is not None:
+                        raise ValueError('Do not let a second legacy stance owner overwrite the moving-body target')
+                    self.opening.push.update(t-self.acquisition_started,args[0],args[1],args[5],
+                        kwargs['evidence']['left_palm_load_N'],args[6]['leaf'],True)
+                else:
+                    self.opening.push.advance(t-self.acquisition_started,args[6]['leaf'])
                 apply_stance_goal(self.body.controller,self.opening.push.body_goal(t-self.acquisition_started))
             elif release.started is not None:
                 goal=release.body_goal(t-self.acquisition_started)
@@ -396,6 +414,7 @@ def main():
             screened_panel_normal_admittance=a.screened_panel_normal_admittance,
             screened_panel_include_waist=a.screened_panel_include_waist,
             screened_palm_recontact=a.screened_palm_recontact,
+            moving_body_recontact=a.moving_body_recontact,
             screened_panel_lead_audit_sha256=digest(stage/"panel-lead-audit.json") if a.screened_panel_lead_audit else None,
             screened_panel_lead_start_rad=a.screened_panel_lead_start_rad,screened_panel_lead_ramp_rad=a.screened_panel_lead_ramp_rad,
             record_panel_targets=a.record_panel_targets or a.hybrid_include_waist,

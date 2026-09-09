@@ -53,6 +53,10 @@ class ScreenedWholeBodyPanel:
     def reference_palm_pose(self,position,rotation,leaf_pose):
         return position,rotation
 
+    def adapt_body_targets(self,t,root,joints,position,rotation):
+        """Optional target-only adaptation after the world contact goal is fixed."""
+        return False
+
     def __init__(self,left,path,*,normal_feedforward_N=3.5,tracking_lead_rad=.005,lead_start_angle=None,lead_ramp_rad=.1,lead_receipt=None,actual_base_correction=False,palm_normal_admittance=False,correction_include_waist=False,**legacy_options):
         if type(normal_feedforward_N) not in (int,float) or not np.isfinite(normal_feedforward_N) or not 0 < normal_feedforward_N <= 8.:
             raise ValueError('Require a finite declared normal feedforward in (0,8] N; original motor caps remain unchanged')
@@ -160,6 +164,11 @@ class ScreenedWholeBodyPanel:
             offset,admittance_info=self.admittance.update(t,palm_load)
             commanded_position_world+=self.left.normal*offset
             self.latest['normal_admittance']=admittance_info
+        if self.adapt_body_targets(t,root,joints,commanded_position_world,commanded_rotation_world):
+            self.previous=self.latest['coordinate'][6:].copy()
+            self.teacher.path[-1,self.indices]=self.previous
+            self.left.target=self.previous[left_indices].copy()
+            self.left.target_velocity=self.latest['velocity'][6:][left_indices].copy()
         if self.correction is not None:
             # This privileged teacher supplies a world reference. The correction
             # itself receives only its goal in the actual measured base frame
