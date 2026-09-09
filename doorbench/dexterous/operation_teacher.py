@@ -41,11 +41,13 @@ class DoorOperationTeacher:
                  operator_target=.87, release_operator_threshold=.80,
                  release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True,
                  operator_compliance_gain=0., operator_compliance_limit=.15,
-                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False):
+                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening'):
         if type(fixed_pad_control) is not bool:raise ValueError('Explicit contact-controller flag required')
         self.fixed_pad_control=fixed_pad_control;self.pad_control=None
         if type(hold_attained_grasp) is not bool or (hold_attained_grasp and fixed_pad_control):raise ValueError('Attained hold is a separate explicit hand controller')
         self.attained_hold=None
+        if attained_hold_stage not in ('acquisition','opening'):raise ValueError('Explicit attained hold stage required')
+        self.attained_hold_stage=attained_hold_stage
         if hold_attained_grasp:
             from .qualified_hand_hold import QualifiedHandHold
             self.attained_hold=QualifiedHandHold(acquisition_teacher)
@@ -170,8 +172,9 @@ class DoorOperationTeacher:
                 dict(operator=goal_h+self.operator_compliance,leaf=goal_l),self.geometry)
             info={**info,**pad_info}
         if self.attained_hold is not None:
-            eligible=bool(self.open_started is not None and t>=self.open_started+self.opening_seconds
-                and grasp_qualified and .075<=angles['leaf']<=.10 and angles['operator']>=.75 and angles['latch']>=.0105)
+            eligible=bool(grasp_qualified and (self.attained_hold_stage=='acquisition' or
+                (self.open_started is not None and t>=self.open_started+self.opening_seconds
+                and .075<=angles['leaf']<=.10 and angles['operator']>=.75 and angles['latch']>=.0105)))
             force,hold_info=self.attained_hold.force(t,force,joints,velocities,eligible=eligible)
             info={**info,**hold_info}
         self.info = dict(phase='lever_operation' if self.open_started is None else 'partial_opening',
