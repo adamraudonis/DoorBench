@@ -34,12 +34,12 @@ The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock
 
 **Dexterous humanoid development — one lever door:**
 
-**Current status:** the upright native robot can grasp the handle, partly open the door, transfer support to its left palm and return the lever. Hand withdrawal, full Isaac traversal and learned vision/tactile control remain unfinished. Earlier complete native demonstrations predate the whole-handle audit and are not fully qualified under it.
+**Current status:** the upright native robot can grasp the handle, partly open the door, transfer support to its left palm, return the lever and withdraw its right hand. Full qualified opening/traversal and learned vision/tactile control remain unfinished. Earlier complete native demonstrations predate the whole-handle audit and are not fully qualified under it.
 
 | Engine / controller | Recorded result | UTC date |
 |---|---|---|
 | MuJoCo, upright privileged H1/Shadow teacher | **30/30 runtime checks + independent pad and whole-handle audits passed** over 80.6 s; releases the handle with left-palm support at a 5.97° opening; no traversal ([evidence](docs/evidence/native-standing-hub-withdrawal-016.json)) | September 9, 2026, 22:50 UTC verification |
-| Isaac, upright privileged handle operation | **Failed: 17/19 runtime checks** over 36 s; latch operated, but fingertip contact and held opening were lost ([evidence](docs/evidence/isaac-standing-hub-pressure-026.json)) | September 9, 2026, 21:51 completion |
+| Isaac, upright privileged handle operation | **Failed: 17/19 runtime checks** over 36 s; latch operated, but fingertip contact and held opening were lost ([evidence](docs/evidence/isaac-standing-hub-trigger-028.json)) | September 9, 2026, 22:56 completion |
 | Isaac, standing privileged grasp | **15/15 runtime checks**, final opposed fingertip hold; contact accounting verified; no opening | September 9, 2026, 08:20 |
 | Isaac, sensor-driven walking and stopping | **18/18 runtime + 22/22 independent checks** over 10 s; no door interaction | September 9, 2026, 07:36 |
 | MuJoCo, learned motor-target sensor actor | **0/1 complete tasks**; fell after 1.306 s | September 9, 2026, 06:42 |

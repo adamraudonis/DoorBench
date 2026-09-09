@@ -46,6 +46,12 @@ def atomic_json(path,value):
     temp.write_text(json.dumps(value,indent=2,allow_nan=False)+'\n');os.replace(temp,path)
 
 
+def final_transfer_options(manifest):
+    # Same-size progress rewrites can share an mtime during a live run.
+    # Final evidence must refresh bytes even when rsync's quick check agrees.
+    return ['--checksum'] if manifest else []
+
+
 def verify_local(root,manifest):
     if not manifest:raise ValueError('Empty final evidence manifest')
     for name,expected in manifest.items():
@@ -95,7 +101,7 @@ def collect(a):
             before=probe(manifest=True)
             if before['exists']:
                 with log.open('ab') as stream:
-                    subprocess.run(['rsync','-az','--timeout=30','--exclude=*.writing','--exclude=*.tmp',
+                    subprocess.run(['rsync','-az',*final_transfer_options(before.get('files')),'--timeout=30','--exclude=*.writing','--exclude=*.tmp',
                         '--exclude=*.tmp.*','--exclude=*.writing.*','--exclude=*.pending','--exclude=*.pyc','--exclude=__pycache__','-e',shlex.join(ssh[:-1]),
                         a.host+':'+shlex.quote(a.remote.rstrip('/')+'/'),str(target)+'/'],
                         stdout=stream,stderr=stream,timeout=180,check=True)

@@ -37,3 +37,17 @@ def test_final_manifest_excludes_compound_temporary_names(tmp_path, capsys):
     assert 'stable.partial.json.gz' in result['files']
     assert not any(name in result['files'] for name in
                    ('pad.partial.tmp.gz', 'trace.json.pending', 'status.writing.json'))
+
+
+def test_final_sync_repairs_same_size_same_mtime_progress(tmp_path):
+    import os, shutil, subprocess
+    if not shutil.which('rsync'):pytest.skip('rsync unavailable')
+    source=tmp_path/'source';destination=tmp_path/'destination'
+    source.mkdir();destination.mkdir()
+    (source/'progress.json').write_bytes(b'final');(destination/'progress.json').write_bytes(b'stale')
+    for folder in (source,destination):os.utime(folder/'progress.json',(1700000000,1700000000))
+    manifest={'progress.json':dict(bytes=5,sha256=hashlib.sha256(b'final').hexdigest())}
+    subprocess.run(['rsync','-a',*module.final_transfer_options(None),str(source)+'/',str(destination)+'/'],check=True)
+    with pytest.raises(ValueError):module.verify_local(destination,manifest)
+    subprocess.run(['rsync','-a',*module.final_transfer_options(manifest),str(source)+'/',str(destination)+'/'],check=True)
+    assert module.verify_local(destination,manifest)==1
