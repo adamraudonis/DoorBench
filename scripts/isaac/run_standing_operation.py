@@ -161,6 +161,8 @@ def main():
         if a.deadline_unix-time.time()<a.isaac_timeout_seconds+300:raise TimeoutError('Insufficient guarded time for Isaac run and evidence export')
         run([isaac,a.source/'scripts/dexterous/isaac_opening.py','--robot-usd',ready['robot_usd'],'--door-usd',ready['door_usd'],'--motors',motors,'--reference',reference,'--sensor-layout',layout,'--reset-from-acquisition-path','--grasp-profile','distal-pad-v1','--joint-passive-profile','backend-dry-v2','--seconds','36','--output',trial,'--headless','--device','cuda:0','--record','--enable_cameras','--sensor-gyro-profile','pose-delta-angle-v1','--acquisition','--native-robot',robot,'--acquisition-stance-profile','landed-foot-v1','--acquisition-pressure-segment','distal','--acquisition-index-finger-force','3','--operate-after-acquisition','--operator-compliance-gain','.2','--operation-min-acquisition-seconds','10.6','--operation-grasp-offset-in-handle-m',*grasp_offset,*hold_options,*isaac_pad_options],'isaac-operation',a.isaac_timeout_seconds,allowed_codes=(0,1))
         # Preserve and independently audit failures as well as successful runs.
+        result['isaac_report_emitted']=(trial/'operation-report.json').is_file()
+        if not result['isaac_report_emitted']:raise RuntimeError('Isaac exited before its physical report; inspect isaac-operation.log')
         result['isaac_runtime_passed']=json.loads((trial/'operation-report.json').read_text())['passed']
         run([asset,a.source/'scripts/dexterous/audit_isaac_acquisition_contacts.py','--trial',trial,'--output',a.output/'isaac-independent-audit.json'],'isaac-contact-audit',600)
         audit=json.loads((a.output/'isaac-independent-audit.json').read_text())

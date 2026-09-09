@@ -204,3 +204,20 @@ owned-pod window is being armed for native verification, Isaac and collection;
 the lifecycle ceiling is explicitly extended to12h to allow this corrective
 run after the newly discovered verification gap. This is not permission to
 leave the GPU running indefinitely.
+
+
+Isaac hub020's destination-native prerequisite passed the original checks and
+full assembly gate with zero extra handle contacts. Isaac itself stopped during
+startup because the new descriptor Path was not JSON-serializable. No physical
+Isaac episode is claimed. Hub021 corrects only argument serialization and uses
+a fresh source tree and run directory; the original error log remains retained.
+
+`rebase_standing_transfer.py` now regenerates the later receiving-hand route
+from a fully audited attained grasp, using the older route only as a posture
+preference. Paths001/002 failed interpolation at their first interval. The
+planner now eases from the measured initial soft-limit posture into its25mrad
+planning margin over20nodes, instead of forcing an immediate wrist/posture jump.
+Path003 passes1,001 samples with0.257mm maximum fixed-hand/foot error,0.000665rad
+rotation error,2.55° root tilt and zero extra handle penetration. Physics remains
+unqualified. The dense auditor now checks hub geometry as well as its original
+constraints. Robot joint bounds and physics checks remain unchanged.

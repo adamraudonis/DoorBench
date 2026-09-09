@@ -199,7 +199,7 @@ from isaaclab.app import AppLauncher
 AppLauncher.add_app_launcher_args(p)
 p.add_argument('--operation-leaf-target-rad',type=float,default=.08,help='Commanded partial opening; physical acceptance bounds stay unchanged')
 p.add_argument('--operation-leaf-lead-limit-rad',type=float,help='Explicit measured-door lead bound for a new standalone opening trial')
-p.add_argument('--operation-hub-geometry',type=Path,help='Original hub descriptor from the independently gated native prerequisite')
+p.add_argument('--operation-hub-geometry',type=str,help='Original hub descriptor from the independently gated native prerequisite')
 p.add_argument('--operation-operator-follow-after-leaf-rad',type=float,help='Blend toward the measured handle angle after the leaf clears the latch')
 a=p.parse_args()
 if a.operation_operator_follow_after_leaf_rad is not None and (not .015<=a.operation_operator_follow_after_leaf_rad<=.05 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset or a.hold_attained_grasp):p.error('Operator follow requires standalone operation, no fixed hold, and .015..0.05 rad')
@@ -513,8 +513,8 @@ def main():
         hub_geometry=None
         if a.operation_hub_geometry:
             if not a.operate_after_acquisition or a.full_opening or sequence_reset:raise ValueError('Hub avoidance currently requires standalone operation')
-            hub_geometry=json.loads(a.operation_hub_geometry.read_text())
-            (out/'hub-geometry.json').write_text(json.dumps(dict(source_sha256=hashlib.sha256(a.operation_hub_geometry.read_bytes()).hexdigest(),geometry=hub_geometry),indent=2)+'\n')
+            hub_geometry=json.loads(Path(a.operation_hub_geometry).read_text())
+            (out/'hub-geometry.json').write_text(json.dumps(dict(source_sha256=hashlib.sha256(Path(a.operation_hub_geometry).read_bytes()).hexdigest(),geometry=hub_geometry),indent=2)+'\n')
         teacher=AcquisitionTeacher(a.native_robot,motors,ref,handle_hub_geometry=hub_geometry,middle_finger_force=a.acquisition_middle_finger_force,index_finger_force=a.acquisition_index_finger_force,stance_profile=a.acquisition_stance_profile,pressure_segment=a.acquisition_pressure_segment or 'nearest')
         operation=None
         if a.operate_after_acquisition:

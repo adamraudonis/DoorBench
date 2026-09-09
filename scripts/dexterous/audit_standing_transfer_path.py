@@ -20,7 +20,9 @@ def main():
     d.qpos[:]=path[0];mujoco.mj_kinematics(m,d)
     bodies=[m.body('robot/'+n).id for n in ('left_ankle_link','right_ankle_link')];rp=m.site('robot/rh_palm_touch').id
     bp=d.xpos[bodies].copy();br=d.xmat[bodies].reshape(2,3,3).copy();hp=d.site_xpos[rp].copy();hr=d.site_xmat[rp].reshape(3,3).copy()
-    bad=[];peakpos=peakrot=peaktilt=0.
+    bad=[];peakpos=peakrot=peaktilt=0.;peak_extra_handle=0.
+    handle=m.body('leaf_handle').id;lever=m.geom('leaf_handle_lever_col_n').id
+    hands={b for b in range(m.nbody) if m.body(b).name.startswith('robot/rh_')}
     for i,u in enumerate(np.linspace(0,1,1001)):
         coordinate=u*100;j=min(int(coordinate),99);f=coordinate-j;q=path[j]*(1-f)+path[j+1]*f
         quat=Slerp([0,1],Rotation.from_quat(path[j:j+2,scene.root+3:scene.root+7][:,[1,2,3,0]]))(f).as_quat();q[scene.root+3:scene.root+7]=quat[[3,0,1,2]]
@@ -28,8 +30,13 @@ def main():
         pe=max(np.linalg.norm(d.site_xpos[rp]-hp),np.max(np.linalg.norm(d.xpos[bodies]-bp,axis=1)))
         re=max(np.linalg.norm(Rotation.from_matrix(d.site_xmat[rp].reshape(3,3)@hr.T).as_rotvec()),max(np.linalg.norm(Rotation.from_matrix(d.xmat[b].reshape(3,3)@r.T).as_rotvec()) for b,r in zip(bodies,br)))
         peakpos=max(peakpos,float(pe));peakrot=max(peakrot,float(re));rotation=Rotation.from_quat(q[scene.root+3:scene.root+7][[1,2,3,0]]).as_matrix();tilt=float(np.degrees(np.arccos(np.clip(rotation[2,2],-1,1))));peaktilt=max(peaktilt,tilt)
-        if not check['passed'] or pe>.001 or re>.01 or tilt>4:bad.append(dict(index=i,position_error_m=float(pe),rotation_error_rad=float(re),root_tilt_deg=tilt,collision=check))
-    out=dict(passed=not bad,samples=1001,maximum_fixed_hand_or_foot_position_error_m=peakpos,maximum_fixed_hand_or_foot_rotation_error_rad=peakrot,maximum_root_tilt_deg=peaktilt,bad_samples=bad,physics_steps=0,scope='Dense interpolation/FK/collision only; no physical contact/load or motor feasibility claim',input_sha256={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (a.robot,a.door,a.path,Path(__file__))})
+        extra=0.
+        for contact in d.contact[:d.ncon]:
+            pair=[int(m.geom_bodyid[g]) for g in contact.geom]
+            if handle in pair and any(b in hands for b in pair) and lever not in contact.geom:extra=max(extra,-float(contact.dist))
+        peak_extra_handle=max(peak_extra_handle,extra)
+        if not check['passed'] or pe>.001 or re>.01 or tilt>4 or extra>0:bad.append(dict(index=i,position_error_m=float(pe),rotation_error_rad=float(re),root_tilt_deg=tilt,extra_handle_penetration_m=extra,collision=check))
+    out=dict(passed=not bad,maximum_extra_handle_penetration_m=peak_extra_handle,samples=1001,maximum_fixed_hand_or_foot_position_error_m=peakpos,maximum_fixed_hand_or_foot_rotation_error_rad=peakrot,maximum_root_tilt_deg=peaktilt,bad_samples=bad,physics_steps=0,scope='Dense interpolation/FK/collision only; no physical contact/load or motor feasibility claim',input_sha256={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (a.robot,a.door,a.path,Path(__file__))})
     a.output.write_text(json.dumps(out,indent=2,default=lambda x:x.item() if isinstance(x,np.generic) else x.tolist())+'\n');print(json.dumps({k:v for k,v in out.items() if k not in ('bad_samples','input_sha256')}))
 
 
