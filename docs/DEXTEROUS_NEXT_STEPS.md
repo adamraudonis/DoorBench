@@ -544,3 +544,23 @@ Isaac005 completed17/19 runtime checks. Its independent recorded-contact audit
 passed its scoped checks, but runtime grasp/opening hold failed and the intended
 hold never activated. This is explicitly a failed comparison. Isaac006 is now
 running its fresh native prerequisite before the earlier-capture GPU test.
+
+At 15:23 UTC, the upright withdrawal remains qualified29+8. Both early-grasp006
+and post-latch007 captures failed the destination-native sustained grasp check;
+neither was sent into Isaac. The next candidate008 captures a qualified grasp
+at an already-open leaf without requiring continued full lever depression.
+Actual005 traces show a continuous opposed window from17.022 to23.542 s while
+the operator settles below the old capture threshold. Runtime mechanism and
+contact gates are unchanged;43 focused tests pass. Owned GPU guards still expire
+at16:59:23 UTC, and008 uses the remaining allocation with its own collector.
+
+Stationary full panel screens001/002 collided at the elbow. Screen003 includes
+original elbow mesh clearance against the panel plane and removed sampled
+collisions, but misses pose tolerances. Shorter004/005 paths fail the independent
+dense audit on interpolation/torso and reference-acceleration limits. The solver
+now reserves numerical margin inside declared bounds, and the audited reference
+speed/acceleration are consumed by the controller instead of a fixed default.
+These changes do not qualify a physical continuation. Screen006 starts at79.598 s
+of qualified withdrawal017; the preceding250 actual intervals have at least
+43.011 mm RH clearance and2.077 N left-palm load. It retains the four-degree
+absolute posture bound and screens a smaller contact-height change.
