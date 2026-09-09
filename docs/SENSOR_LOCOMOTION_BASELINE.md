@@ -258,3 +258,11 @@ for the thumb during transfer. It preserves balance, physical limits and left
 support (19/20), with four digits on qualified pads at the endpoint; the index
 still loads its middle segment. Trial007 isolates a 6 N index preload while
 retaining the other trial006 settings. Neither is yet a qualified transfer.
+
+Trial007 loads all five distal pads at its endpoint but also loads the index
+middle segment, so it remains failed. Trial008's 1.8 mm recenter also fails that
+index-contact gate. Both retain balance, motor limits and left support. Next,
+a diagnostic holds the body/left route fixed to isolate the controller handoff
+from body motion; it deliberately cannot qualify as a completed transfer.
+Experimental preloads now require an explicit CLI profile; the default preserves
+existing preloads. All trial sources and failures remain archived.
