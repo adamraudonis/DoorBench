@@ -29,7 +29,10 @@ class SensorBalanceController:
     The first cold packet uses only constant calibration/posture feedforward.
     """
     def __init__(self, robot_xml, motor_contract, sensor_layout, desired_posture,
-                 *, physics_dt_s=.002, image_shape=(128,128,3), gravity_correction=.2):
+                 *, physics_dt_s=.002, image_shape=(128,128,3), gravity_correction=.2,
+                 solver_profile=None):
+        if solver_profile not in (None,'fixed-rho-interval25-v1'):raise ValueError('Unknown explicit balance solver profile')
+        self.solver_profile=solver_profile
         path=Path(robot_xml);motors=motor_contract;layout=sensor_layout
         sha=hashlib.sha256(path.read_bytes()).hexdigest()
         if motors.get('source_xml_sha256')!=sha or layout.get('robot_xml_sha256')!=sha:
@@ -126,6 +129,7 @@ class SensorBalanceController:
         self.sim=SimpleNamespace(m=m,d=d,root_qadr=0,root_vadr=0,pelvis=self.pelvis,
             joint_prefix='',actuators=self.act,external_generalized_force=np.zeros(m.nv),
             stance_solver_settings={'max_iter':50000,'rho':.001})
+        if self.solver_profile=='fixed-rho-interval25-v1':self.sim.stance_solver_settings['adaptive_rho_interval']=25
         self.stance=LandedFootStanceController(self.sim)
         self.failed_reason=None
         self.last_time=None;self.last_gyro_time=None;self.last_solver_time=-np.inf

@@ -24,6 +24,8 @@ PARAMETER_VALUES=dict(schema='doorbench.scripted-sensor-acquisition.v1',allow_to
 def validate_parameters(parameters):
     if type(parameters) is not dict:raise ValueError('Require acquisition parameters')
     expected=dict(PARAMETER_VALUES)
+    if 'balance_solver_profile' in parameters:
+        expected['balance_solver_profile']='fixed-rho-interval25-v1'
     if 'tactile_reflex_profile' in parameters:
         from .tactile_grasp_reflex import PROFILES
         profile=parameters['tactile_reflex_profile']
@@ -99,7 +101,7 @@ class SensorAcquisitionBalanceRuntime(SensorBalanceRuntime):
             physics_dt_s=.002,gravity_correction=calibration['gravity_correction'],allow_torso_yaw=True,
             maximum_goal_speed_radps=parameters['maximum_goal_speed_radps'],finger_impedance_multiplier=parameters['finger_impedance_multiplier'],
             finger_velocity_damping=parameters['finger_velocity_damping'],finger_target_velocity_damping=True,
-            tactile_reflex_profile=parameters.get('tactile_reflex_profile'))
+            tactile_reflex_profile=parameters.get('tactile_reflex_profile'),balance_solver_profile=parameters.get('balance_solver_profile'))
         self.goal_names=tuple(self._controller.goal_names)
         self.goal_motor_names=tuple(self._controller.balance.actions[i] for i in self._controller.arm_motors)
         if self.goal_names!=self._route.names or len(self.goal_motor_names)!=26:raise ValueError('Changed reach motor/joint scope')

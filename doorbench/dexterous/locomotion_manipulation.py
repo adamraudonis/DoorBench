@@ -108,7 +108,7 @@ class LandedFootStanceController(StanceController):
             rho_estimate=float(getattr(result.info,'rho_estimate',np.nan)),
             problem_sha256=fingerprint.hexdigest(),osqp_version=osqp.__version__,
             eps_abs=1e-4,eps_rel=1e-4,max_iter=maximum_iterations,
-            requested_settings=dict(settings),adaptive_rho_note='Unspecified interval uses the solver wall-time heuristic',
+            requested_settings=dict(settings),adaptive_rho_note=('Fixed iteration interval; no wall-time interval selection' if settings.get('adaptive_rho_interval',0)>0 else 'Unspecified interval uses the solver wall-time heuristic'),
             polishing=False)
         if result.info.status_val not in (1,2):return None,result.info.status
         self.last=result.x

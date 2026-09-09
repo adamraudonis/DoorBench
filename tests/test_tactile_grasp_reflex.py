@@ -55,10 +55,33 @@ def test_higher_force_target_keeps_the_original_motion_bounds(profile,target):
     assert not c.info['thumb_target_changed']
 
 
-@pytest.mark.parametrize('version',[1,2,3])
+@pytest.mark.parametrize('version',[1,2,3,4])
 def test_checked_in_pressure_schedule_passes_runtime_admission(version):
     import json
     from pathlib import Path
     from doorbench.dexterous.sensor_acquisition_runtime import validate_parameters
     path=Path(__file__).resolve().parents[1]/f'configs/dexterous/sensor-acquisition-pressure-v{version}.json'
     validate_parameters(json.loads(path.read_text()))
+
+
+def test_v4_exposes_more_position_authority_without_more_speed_or_changed_thumb():
+    c,p,q=fixture('four-finger-preload-v4');previous={d:0. for d in c.offsets}
+    for i in range(9500):
+        t=i*.002;p['sensor_time_s'][:]=t;r=c.apply(p,t,q)
+        assert all(abs(c.offsets[d]-previous[d])<=.08*.002+1e-12 for d in c.offsets)
+        previous=dict(c.offsets)
+    assert all(v==pytest.approx(.12) for v in c.offsets.values())
+    assert r['rh_THJ2']==q['rh_THJ2'] and r['torso']==q['torso']
+    assert c.info['target_normal_load_N']==.8
+
+
+@pytest.mark.parametrize('version',[3,4])
+def test_fixed_qp_schedule_is_explicit_and_admitted(version):
+    import json
+    from pathlib import Path
+    from doorbench.dexterous.sensor_acquisition_runtime import validate_parameters
+    path=Path(__file__).resolve().parents[1]/f'configs/dexterous/sensor-acquisition-pressure-v{version}-fixed-qp.json'
+    values=json.loads(path.read_text());validate_parameters(values)
+    assert values['balance_solver_profile']=='fixed-rho-interval25-v1'
+    values['balance_solver_profile']='unrecorded'
+    with pytest.raises(ValueError,match='balance_solver_profile'):validate_parameters(values)

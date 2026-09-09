@@ -116,3 +116,24 @@ def test_local_calculator_never_steps_and_absent_touch_rejects_support_hypothesi
     with pytest.raises(RuntimeError,match='support hypothesis'):c.force(p,now_s=.052)
     assert c.d.time==0
     np.testing.assert_array_equal(c.sim.external_generalized_force,np.zeros(c.m.nv))
+
+
+def test_fixed_solver_profile_is_recorded_and_replays_identical_sensor_history(authored):
+    controllers=[SensorBalanceController(*copy.deepcopy(authored),image_shape=(8,8,3),
+        solver_profile='fixed-rho-interval25-v1') for _ in range(2)]
+    histories=[]
+    for controller in controllers:
+        history=[]
+        for i in range(30):
+            packet=cold(controller) if i==0 else valid(controller,i*.002)
+            force,info=controller.force(packet,now_s=i*.002)
+            assert info['qp_solver']['requested_settings']['adaptive_rho_interval']==25
+            history.append(force.copy())
+        histories.append(history)
+    np.testing.assert_array_equal(histories[0],histories[1])
+    assert all(c.d.time==0 for c in controllers)
+
+
+def test_unknown_balance_solver_profile_is_rejected(authored):
+    with pytest.raises(ValueError,match='solver profile'):
+        SensorBalanceController(*authored,solver_profile='relaxed')

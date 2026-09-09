@@ -13,9 +13,9 @@ class SensorReachBalanceController:
                  *, physics_dt_s=.002, image_shape=(128,128,3), gravity_correction=.2,
                  maximum_goal_speed_radps=1.5, allow_torso_yaw=False,
                  finger_impedance_multiplier=1., finger_velocity_damping=0.,
-                 finger_target_velocity_damping=False, tactile_reflex_profile=None):
+                 finger_target_velocity_damping=False, tactile_reflex_profile=None, balance_solver_profile=None):
         self.balance=SensorBalanceController(robot_xml,motor_contract,sensor_layout,desired_posture,
-            physics_dt_s=physics_dt_s,image_shape=image_shape,gravity_correction=gravity_correction)
+            physics_dt_s=physics_dt_s,image_shape=image_shape,gravity_correction=gravity_correction,solver_profile=balance_solver_profile)
         if type(allow_torso_yaw) is not bool:raise ValueError('Declare torso yaw scope explicitly')
         self.allow_torso_yaw=allow_torso_yaw
         self.goal_names=tuple(n for n in self.balance.names if n.startswith('rh_') or (n.startswith('right_') and not any(k in n for k in ('hip_','knee','ankle'))) or (allow_torso_yaw and n=='torso'))

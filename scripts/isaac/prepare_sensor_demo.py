@@ -26,7 +26,10 @@ SCHEDULES = {'reach':'configs/dexterous/sensor-reach-balance-feedforward-v3.json
              'grasp':'configs/dexterous/sensor-acquisition-balance-v1.json',
              'grasp-pressure':'configs/dexterous/sensor-acquisition-pressure-v1.json',
              'grasp-pressure-v2':'configs/dexterous/sensor-acquisition-pressure-v2.json',
-             'grasp-pressure-v3':'configs/dexterous/sensor-acquisition-pressure-v3.json'}
+             'grasp-pressure-v3':'configs/dexterous/sensor-acquisition-pressure-v3.json',
+             'grasp-pressure-v4':'configs/dexterous/sensor-acquisition-pressure-v4.json',
+             'grasp-pressure-fixed':'configs/dexterous/sensor-acquisition-pressure-v3-fixed-qp.json',
+             'grasp-pressure-wide-fixed':'configs/dexterous/sensor-acquisition-pressure-v4-fixed-qp.json'}
 
 
 def usd_dependencies(paths):

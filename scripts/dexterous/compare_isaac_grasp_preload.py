@@ -41,7 +41,7 @@ def main():
     excluded={'feedback_profile','tactile_reflex_profile','scope'}
     if ({k:v for k,v in parameters[0].items() if k not in excluded} !=
             {k:v for k,v in parameters[1].items() if k not in excluded} or
-            parameters[1].get('tactile_reflex_profile') not in ('four-finger-preload-v1','four-finger-preload-v2','four-finger-preload-v3')):
+            parameters[1].get('tactile_reflex_profile') not in ('four-finger-preload-v1','four-finger-preload-v2','four-finger-preload-v3','four-finger-preload-v4')):
         raise ValueError('Different nominal acquisition protocols')
     same_inputs={k:sources[0][k]==sources[1][k] for k in ('motor-contract.json','balance-acquisition-route.json','sensors/layout.json')}
     same_config={k:configurations[0][k]==configurations[1][k] for k in
