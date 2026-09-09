@@ -804,3 +804,19 @@ misses posture tolerances;1 cm passes sampled positions but fails the dense foot
 rotation check. Increasing the declared foot orientation objective weight keeps
 the original acceptance tolerances and exposes the other constrained hand/foot
 tradeoffs. No failed geometric or physical trial is promoted.
+
+The [upright experiment and portability guide](UPRIGHT_OPENING_EXPERIMENTS.md)
+collects the active controller switches, qualification stages, source/coordinate
+contracts, and explicit requirements for another robot or cluster. Follow016
+passed18/18 native runtime and6/6 independent contact checks, holding the leaf
+at0.078041 rad while its operator-follow transition returned the handle toward
+rest. Its actual Isaac trial is running with a dedicated hand camera; the8 s
+close-up was inspected.
+
+Planner screens016/017 were stopped as incomplete numerical diagnostics after
+repeated iteration-limit stalls. A smooth pose-interior penalty and same-state
+numerical warm starts are now supported; neither relaxes the dense audit.
+Screen018 still misses late pose tolerances with a1 cm radial shift. Screen019
+is testing a3 mm shift, motivated by the measured near-threshold hinge moment.
+Thirty-two focused planner/schedule tests pass. No new wider physical pass is
+claimed.

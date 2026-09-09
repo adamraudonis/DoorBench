@@ -12,6 +12,18 @@ from scipy.optimize import least_squares
 from scipy.spatial.transform import Rotation
 
 
+def pose_constraint_barrier(hands,feet,foot_weight):
+    """Prioritize an80% interior margin of unchanged dense pose tolerances."""
+    hands=np.asarray(hands,float);feet=np.asarray(feet,float)
+    if hands.shape!=(12,) or feet.shape!=(12,) or not np.isfinite(np.r_[hands,feet,foot_weight]).all() or not 10<=foot_weight<=100:
+        raise ValueError('Complete finite weighted pose residuals required')
+    errors=[]
+    for residual,weight in ((hands,10.),(feet,foot_weight)):
+        for i in (0,6):
+            errors.extend((np.linalg.norm(residual[i:i+3])/100/.0001,np.linalg.norm(residual[i+3:i+6])/weight/.001))
+    return 10*np.maximum(np.asarray(errors)-.8,0.)**2
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--source-run',type=Path,required=True)
@@ -22,6 +34,8 @@ def main():
     p.add_argument('--root-extent-m',type=float,default=.05)
     p.add_argument('--root-rotation-rad',type=float,default=.15)
     p.add_argument('--root-rotation-norm-rad',type=float)
+    p.add_argument('--warm-start-screen',type=Path,help='Numerical guesses only from the same exact source state and aperture grid')
+    p.add_argument('--pose-tolerance-barrier',action='store_true',help='Prioritize interior hand/foot pose feasibility over posture regularization')
     p.add_argument('--foot-orientation-weight',type=float,default=10.,help='Declared geometric objective weight; dense foot tolerances stay unchanged')
     p.add_argument('--root-yaw-target-rad',type=float,help='Smooth prescribed upright yaw preference with continuity regularization and3cm root bound')
     p.add_argument('--root-yaw-extent-rad',type=float,help='Explicit upright pivot: allow yaw separately while retaining a0.05rad roll/pitch increment bound')
@@ -100,6 +114,15 @@ def main():
     previous=np.r_[np.zeros(6),initial];rows=[]
     a.output.mkdir(parents=True,exist_ok=False)
     (a.output/'screen-source.py').write_bytes(Path(__file__).read_bytes())
+    warm=None;warm_hash=None
+    if a.warm_start_screen is not None:
+        data=a.warm_start_screen.read_bytes();seed=json.loads(data);warm_hash=hashlib.sha256(data).hexdigest()
+        if seed['source_chunk_sha256']!=chunk['sha256'] or not np.array_equal(seed['initial_qpos'],base) or seed['names']!=names or len(seed['rows'])!=a.nodes:raise ValueError('Warm start must use the exact source state, joint order and grid')
+        angles=np.linspace(base[leafq],a.target_aperture_rad,a.nodes)
+        if not np.allclose([r['leaf_angle_rad'] for r in seed['rows']],angles,atol=1e-12,rtol=0):raise ValueError('Warm-start aperture grid differs')
+        warm=np.array([np.r_[r['root_delta'],[r['joint_targets'][n] for n in names]] for r in seed['rows']])
+        if not np.isfinite(warm).all():raise ValueError('Finite warm-start guesses required')
+        (a.output/'warm-start-source.json').write_bytes(data)
     (a.output/'palm-panel-geometry-source.py').write_bytes((Path(__file__).resolve().parents[2]/'doorbench/dexterous/palm_panel_geometry.py').read_bytes())
     for angle in np.linspace(base[leafq],a.target_aperture_rad,a.nodes):
         if a.admit_exact_soft_limit_start:
@@ -133,8 +156,9 @@ def main():
                 elbow_barrier=1000.*max(0.,.003-gap)
             yaw_tilt_barrier=0. if a.root_yaw_extent_rad is None else 1000.*max(0.,np.linalg.norm(x[3:5])-.0499)
             pivot=[] if a.root_yaw_target_rad is None else np.r_[5.*(x[5]-a.root_yaw_target_rad*phase),1000.*max(0.,np.linalg.norm(x[:3])-.0299),.2*(x-anchor)]
-            return np.r_[hands,foot,upright,elbow_barrier,yaw_tilt_barrier,pivot,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6],0. if a.root_rotation_norm_rad is None else 1000.*max(0.,np.linalg.norm(x[3:6])-(a.root_rotation_norm_rad-.0001))]
-        fit=least_squares(evaluate,np.clip(previous,low,high),bounds=(low,high),max_nfev=800,ftol=1e-11,xtol=1e-11,gtol=1e-11)
+            pose_barrier=pose_constraint_barrier(hands,foot,a.foot_orientation_weight) if a.pose_tolerance_barrier else []
+            return np.r_[hands,foot,pose_barrier,upright,elbow_barrier,yaw_tilt_barrier,pivot,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6],0. if a.root_rotation_norm_rad is None else 1000.*max(0.,np.linalg.norm(x[3:6])-(a.root_rotation_norm_rad-.0001))]
+        fit=least_squares(evaluate,np.clip(previous if warm is None else warm[len(rows)],low,high),bounds=(low,high),max_nfev=800,ftol=1e-11,xtol=1e-11,gtol=1e-11)
         previous=fit.x.copy();res=evaluate(previous);mujoco.mj_collision(m,d)
         collisions=[]
         for c in d.contact[:d.ncon]:
@@ -152,7 +176,7 @@ def main():
             forbidden_collisions=collisions,nfev=int(fit.nfev))
         rows.append(row);print(json.dumps({k:v for k,v in row.items() if k not in ('qpos','joint_targets')}),flush=True)
     summary=dict(scope='Fresh unstepped attained-state panel workspace screen. No physical or loaded-palm qualification; target-rate resampling and dense collision audit are still required.',
-        configuration={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},source_code_sha256=hashlib.file_digest((a.output/'screen-source.py').open('rb'),'sha256').hexdigest(),source_time_s=time,source_chunk_sha256=chunk['sha256'],
+        configuration={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},warm_start_screen_sha256=warm_hash,source_code_sha256=hashlib.file_digest((a.output/'screen-source.py').open('rb'),'sha256').hexdigest(),source_time_s=time,source_chunk_sha256=chunk['sha256'],
         maximum_actual_fk_error=error,initial_qpos=base.tolist(),initial_qvel=velocity.tolist(),names=names,rows=rows,
         maximum_palm_position_error_m=max(max(r['left_position_error_m'],r['right_position_error_m']) for r in rows),
         maximum_foot_position_error_m=max(r['maximum_foot_position_error_m'] for r in rows),maximum_torso_tilt_deg=max(r['torso_tilt_deg'] for r in rows),
