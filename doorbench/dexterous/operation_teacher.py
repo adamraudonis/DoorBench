@@ -41,9 +41,14 @@ class DoorOperationTeacher:
                  operator_target=.87, release_operator_threshold=.80,
                  release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True,
                  operator_compliance_gain=0., operator_compliance_limit=.15,
-                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False):
+                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False):
         if type(fixed_pad_control) is not bool:raise ValueError('Explicit contact-controller flag required')
         self.fixed_pad_control=fixed_pad_control;self.pad_control=None
+        if type(hold_attained_grasp) is not bool or (hold_attained_grasp and fixed_pad_control):raise ValueError('Attained hold is a separate explicit hand controller')
+        self.attained_hold=None
+        if hold_attained_grasp:
+            from .qualified_hand_hold import QualifiedHandHold
+            self.attained_hold=QualifiedHandHold(acquisition_teacher)
         self.grasp_offset=np.asarray(grasp_offset_in_handle_m,dtype=float)
         if self.grasp_offset.shape!=(3,) or not np.isfinite(self.grasp_offset).all() or np.linalg.norm(self.grasp_offset)>.01:
             raise ValueError('Grasp offset must be a finite handle-frame vector within 10 mm')
@@ -164,6 +169,11 @@ class DoorOperationTeacher:
             force,pad_info=self.pad_control.force(force,t-self.started,handle_pose,leaf_pose,angles,
                 dict(operator=goal_h+self.operator_compliance,leaf=goal_l),self.geometry)
             info={**info,**pad_info}
+        if self.attained_hold is not None:
+            eligible=bool(self.open_started is not None and t>=self.open_started+self.opening_seconds
+                and grasp_qualified and .075<=angles['leaf']<=.10 and angles['operator']>=.75 and angles['latch']>=.0105)
+            force,hold_info=self.attained_hold.force(t,force,joints,velocities,eligible=eligible)
+            info={**info,**hold_info}
         self.info = dict(phase='lever_operation' if self.open_started is None else 'partial_opening',
                          operation_start_s=self.started,opening_start_s=self.open_started,
                          goal_handle_rad=float(goal_h),goal_leaf_rad=float(goal_l),
