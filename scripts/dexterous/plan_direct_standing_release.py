@@ -34,7 +34,11 @@ def main():
     parser.add_argument('--whole-body',action='store_true',help='Permit bounded upright root/limb adjustment with feet and left palm fixed')
     parser.add_argument('--coordinated-release',action='store_true',help='Begin the free-end slide during pad separation')
     parser.add_argument('--thumb-j3-margin-rad',type=float,default=.001)
+    parser.add_argument('--early-palm-clearance-m',type=float,default=0.,help='Move palm away from leaf during finger separation')
+    parser.add_argument('--early-palm-direction',choices=('away','up'),default='away')
     a=parser.parse_args()
+    if not np.isfinite(a.early_palm_clearance_m) or not 0<=a.early_palm_clearance_m<=.03:
+        raise ValueError('Early palm clearance must be within 0–30 mm')
     if not np.isfinite(a.radial_clearance_m) or not .01<=a.radial_clearance_m<=.03:
         raise ValueError('Explicit radial separation must be 10–30 mm')
     if not np.isfinite(a.thumb_j3_margin_rad) or not .001<=a.thumb_j3_margin_rad<=.08:
@@ -134,7 +138,9 @@ def main():
                 digit['previous']=fit.x.copy();worst=max(worst,float(np.linalg.norm(fit.fun[:3]))/100)
             d.qpos[qa]=digit['previous']
         fingers=d.qpos.copy()
-        target=initial_p+.12*slide*free_end_direction+lift*(np.array([0.,0.,.1])+.04*outward)
+        early=a.early_palm_clearance_m*separation
+        early_direction=outward if a.early_palm_direction=='away' else np.array([0.,0.,1.])
+        target=initial_p+.12*slide*free_end_direction+lift*(np.array([0.,0.,.1])+.04*outward)+early*early_direction
         def arm_residual(v):
             d.qpos[:]=fingers;d.qpos[armqa]=v;mujoco.mj_kinematics(m,d)
             return np.r_[100*(d.site_xpos[palm]-target),10*Rotation.from_matrix(initial_R@d.site_xmat[palm].reshape(3,3).T).as_rotvec(),.01*(v-base[armqa])]
@@ -145,12 +151,12 @@ def main():
             hand=np.r_[100*(d.site_xpos[palm]-target),10*Rotation.from_matrix(initial_R@d.site_xmat[palm].reshape(3,3).T).as_rotvec(),100*(d.site_xpos[left]-leftP),10*Rotation.from_matrix(leftR@d.site_xmat[left].reshape(3,3).T).as_rotvec()]
             foot=np.concatenate([np.r_[100*(d.xpos[b]-footP[i]),10*Rotation.from_matrix(footR[i]@d.xmat[b].reshape(3,3).T).as_rotvec()] for i,b in enumerate(feet)])
             return np.r_[hand,foot,.01*(v[6:]-base[bodyqa]),.02*v[:6]]
-        if a.whole_body and (lift>0 or slide>0):
+        if a.whole_body and (lift>0 or slide>0 or early>0):
             lo=np.r_[[-.06,-.06,-.03],[-rotation_margin,-rotation_margin,-.12],np.minimum(base[bodyqa],m.jnt_range[body_ids,0]+.001)]
             hi=np.r_[[.06,.06,.03],[rotation_margin,rotation_margin,.12],np.maximum(base[bodyqa],m.jnt_range[body_ids,1]-.001)]
             fit=least_squares(body_residual,np.clip(previous_body,lo+1e-12,hi-1e-12),bounds=(lo,hi),max_nfev=400,ftol=1e-10,xtol=1e-10,gtol=1e-10)
             previous_body=fit.x.copy();body_residual(previous_body)
-        elif lift>0 or slide>0:
+        elif lift>0 or slide>0 or early>0:
             lo=np.minimum(base[armqa],m.jnt_range[arms,0]+.001);hi=np.maximum(base[armqa],m.jnt_range[arms,1]-.001)
             fit=least_squares(arm_residual,np.clip(previous_arm,lo+1e-12,hi-1e-12),bounds=(lo,hi),max_nfev=200)
             previous_arm=fit.x.copy()
@@ -158,7 +164,7 @@ def main():
         else:arm_residual(previous_arm)
         q=d.qpos.copy();actual_p=d.site_xpos[palm].copy();actual_R=d.site_xmat[palm].reshape(3,3).copy()
         rows.append(dict(time_s=float(time),phase='grasp_adjustment' if time==0 else 'measured_release' if time<=3 else 'clearance_lift',qpos=q.tolist(),palm_position=actual_p.tolist(),palm_rotation=actual_R.tolist(),requested_palm_position=target.tolist(),joints={n:float(q[m.joint('robot/'+n).qposadr[0]]) for n in body_names},finger_joints={n:float(q[m.joint('robot/'+n).qposadr[0]]) for n in finger_names}))
-    report=dict(scope=__doc__,initial_time_s=start,source_trajectory_sha256=sha(source/'trajectory.npz'),robot_xml_sha256=sha(robot),planner_source_path=str(frozen),planner_source_sha256=sha(frozen),configuration=dict(source_run=str(source),radial_clearance_m=a.radial_clearance_m,finger_profile=a.finger_profile,retreat_profile=a.retreat_profile,whole_body=a.whole_body,coordinated_release=a.coordinated_release,thumb_j3_margin_rad=a.thumb_j3_margin_rad),source_evidence_sha256={str(p):sha(p) for p in evidence},maximum_pad_goal_residual_m=worst,trials=[dict(rows=rows)])
+    report=dict(scope=__doc__,initial_time_s=start,source_trajectory_sha256=sha(source/'trajectory.npz'),robot_xml_sha256=sha(robot),planner_source_path=str(frozen),planner_source_sha256=sha(frozen),configuration=dict(source_run=str(source),radial_clearance_m=a.radial_clearance_m,finger_profile=a.finger_profile,retreat_profile=a.retreat_profile,whole_body=a.whole_body,coordinated_release=a.coordinated_release,thumb_j3_margin_rad=a.thumb_j3_margin_rad,early_palm_clearance_m=a.early_palm_clearance_m,early_palm_direction=a.early_palm_direction),source_evidence_sha256={str(p):sha(p) for p in evidence},maximum_pad_goal_residual_m=worst,trials=[dict(rows=rows)])
     (a.output/'report.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(dict(nodes=len(rows),maximum_pad_goal_residual_m=worst,physics_steps=0)),flush=True)
     sim.close()

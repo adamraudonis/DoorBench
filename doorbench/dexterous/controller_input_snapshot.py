@@ -10,7 +10,7 @@ def snapshot_controller_inputs(paths, output, *, timing='before controller initi
     # Only declared control-document references are followed. An audit may name
     # gigabytes of raw transitions; those belong to the source episode archive.
     references={'screen_path','audit_path','planner_source_path','panel_plan_path',
-                'plan_path','dense_audit_path','scene_path_source'}
+                'plan_path','dense_audit_path','scene_path_source','leaf_motion_audit_path'}
     def mappings(value):
         if isinstance(value,dict):
             yield value

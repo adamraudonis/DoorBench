@@ -50,6 +50,8 @@ class StandingWithdrawalTeacher:
         audit_path=Path(config['audit_path']);screen_path=Path(config['screen_path']);source=Path(config['source_run'])
         if sha(audit_path)!=config['audit_sha256'] or sha(screen_path)!=config['screen_sha256']:raise ValueError('Withdrawal evidence changed')
         audit=json.loads(audit_path.read_text());screen=json.loads(screen_path.read_text())
+        from .release_motion_admission import validate_motion_screen
+        validate_motion_screen(config,screen_path,source)
         if audit.get('passed') is not True or audit.get('samples')!=2001 or audit.get('physics_steps')!=0:raise ValueError('Independent dense withdrawal admission required')
         if audit['input_sha256'].get(str(screen_path))!=sha(screen_path) or audit['input_sha256'].get(str(source/'trajectory.npz'))!=sha(source/'trajectory.npz'):raise ValueError('Withdrawal audit belongs to another state or route')
         for name,digest in audit['input_sha256'].items():

@@ -441,10 +441,20 @@ copy; this is not a retroactive initialization attestation. Model assets and
 complete source episode archives remain separate requirements.
 
 
-### September 9, 21:32 UTC — withdrawal007 remains failed; live Isaac monitoring corrected
+### September 9, 21:29 UTC — withdrawal007 remains failed; live Isaac monitoring corrected
 
 Withdrawal007 passes 28/30 runtime checks: the thumb margin and 2.25 N receiving-palm target fix the earlier joint-limit and final support failures. Independent records still reject 703 ring-finger middle-segment patches at 69.524–70.798 s and 30 little-finger hub patches over 23 intervals at 68.976–69.024 s. Final aperture is 0.108101 rad; the hand ends 64.36 mm clear. Actual close-up at 70.002 s was personally inspected. [Scoped evidence](evidence/native-standing-hub-withdrawal-007.json). No gate was relaxed.
 
 Prospective withdrawal008 uses 30 mm rather than 18 mm radial finger separation, retaining the coordinated free-end retreat, thumb margin, and 2.25 N support. Its unstepped 2,001-sample audit passes: 3.64 micrometers maximum palm error, 2.867 degrees torso tilt, 1.091 rad/s maximum reference velocity, 42.75 mm final clearance. Full motor physics and independent audits are running; this is not yet a qualified release.
 
 The local Run Center now recognizes actual Isaac operation records, displays elapsed/target simulated seconds, and waits for independent coordinator acceptance before calling a run complete. Newly registered and live runs take polling priority over unavailable historical nodes; dead archives back off to five minutes. Eighteen focused tests pass. The live Isaac pressure026 page was verified visually, including its hand close-up. Its coordinator deadline is labelled separately from pod teardown. The browser link is http://127.0.0.1:5193/?run=standing-hub-pressure-isaac-026-trial . Pressure026 has lost grip during lever pressing; final records are still pending.
+
+
+### Moving-leaf release verification
+
+Withdrawal008 also fails: 28/30 runtime checks pass, but independent reconstruction finds 1,337 invalid distal-contract patches and 69 little-finger hub patches. Increasing radial separation alone is insufficient. Final aperture is 0.109503 rad, with 54.43 mm hand clearance; these terminal values do not repair the earlier contact failure. [Evidence](evidence/native-standing-hub-withdrawal-008.json).
+
+A separate `audit_release_leaf_motion.py` now checks non-distal lever and all hub clearances across 3,003 unstepped configurations, including a declared ±0.012 rad leaf envelope that grows over the first three route seconds. It supplements the original static anatomy screen and physical audit. On direct-release006 it detects 228 intersecting configurations, with a worst 5.24 mm penetration; no force or physical success is inferred. A 12 mm early palm retreat away from the door (direct-release007) fails both static and moving-door checks, so it is not dispatched to physics. A 20 mm early upward palm motion is being screened next. Original reports remain unchanged.
+
+
+Direct-release008, with 20 mm early upward palm travel, passes both geometric screens: 2,001 original samples (4.10 micrometers maximum palm error; 2.870 degrees torso tilt; 1.091 rad/s joint reference speed; 42.75 mm final clearance), and all 3,003 moving-leaf configurations (minimum tested non-distal/assembly clearance 0.124 mm). The latter is a geometric envelope, not proof of dynamic robustness. A source-bound optional admission check now rejects changed audit files, changed source/route inputs and failed moving-leaf screens; ten targeted admission, snapshot, withdrawal and hand tests pass. Native withdrawal009 will test this exact route through the original capped motors and complete contact audits.
