@@ -318,3 +318,28 @@ lever after0.025rad leaf clearance, with hub avoidance active, while retaining
 `distal-pad-v1` and the newly mandatory whole-episode loaded-patch gate. No volar
 protocol is dispatched. Both shutdown guards were verified for21:40:15UTC,
 within the12h allocation lifetime ceiling; the coordinator reserves export time.
+
+
+### September 9, 20:36 UTC: failed comparisons retained
+
+Isaac hub021 completed all 36 simulated seconds but passed only 17/19 runtime
+checks: distal grasp and held partial opening failed. Final aperture was
+0.070147 rad. A separate read-only audit reconstructed the raw contacts and
+confirmed accounting completeness, with 25,631 invalid loaded patches; this
+does not qualify the task. The coordinator exhausted its older export budget
+before its own independent audit, so the supplemental audit is identified
+separately in [the evidence](evidence/isaac-standing-hub-021.json).
+
+Hub-follow022 failed its native prerequisite with a balance/solver failure.
+Hub-follow023 added the predeclared measured-pressure controller: it completed
+36 seconds and retained the final opposed grasp, but failed joint range, held
+aperture and whole-handle checks. Neither dispatched Isaac. See the
+[022](evidence/isaac-standing-hub-follow-022.json) and
+[023](evidence/isaac-standing-hub-follow-023.json) receipts. Following a freely
+returning lever has not established a stable opening strategy.
+
+Native withdrawal003 also failed both independent contact audits, despite
+reapplying hub avoidance after finger tracking. The joint-range gate now
+passes. Withdrawal004 tests 4 N receiving-palm support, up from 2.25 N, within
+the original controller range. It starts from the same closed-door reset and
+retains all existing gates; it is running, not qualified.
