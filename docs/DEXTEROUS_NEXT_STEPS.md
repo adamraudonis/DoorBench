@@ -4,6 +4,13 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 
 ## Starting point
 
+September 9, 06:29 UTC: additional GPU imitation still fails unassisted balance.
+Three [physically executed approach recoveries](NATIVE_RECOVERY_CURRICULUM.md)
+now pass their independent correction audits. A 30-update correction curriculum
+is running, with unassisted evaluation queued after verified evidence collection.
+The separate bound handle-press plans both still fail near 0.538 rad; they are
+not promoted by geometric planning success. All full-plan completion gates remain.
+
 The v1 H1/dual-Shadow simulation produced opening of `db0055_swing_single` in four fixed-start Isaac repetitions, but those results are **not mechanically qualified**: the imported hand omitted the manufacturer's passive finger loopback constraints. Two fresh prepared environments reached 95 degrees. These are initialized, privileged demonstrations: the hand starts near the handle, the teacher uses simulator geometry/state, and the robot does not approach or traverse. They are not a robustness score or a vision/tactile policy. See [the evidence and reproduction commands](ISAAC_HANDLE_DEMO.md).
 
 The current H1 actor passes the native Door55 approach in 9/9 varied-start development trials, and straight walking/stopping passed a live Isaac check. The corrected hand now acquires an opposed grasp in native simulation. Live Isaac acquisition passes its physical checks but has brief digit unloading; complete task integration remains unresolved. A later initialized Isaac opening repeat failed because the teacher released too early. The G1 walking checkpoint belongs to a different embodiment. Component passes do not establish the complete task.
