@@ -154,3 +154,16 @@ def test_compliance_is_bounded_freezes_on_release_and_preserves_actual_target():
     assert original.operator_compliance==0.
     with pytest.raises(ValueError):
         DoorOperationTeacher(Acquisition(),GEOMETRY,operator_compliance_gain=float('nan'))
+
+
+def test_index_reference_offset_is_bounded_ramped_and_does_not_change_acquisition():
+    acq=Acquisition();acq.names=['rh_FFJ3'];acq.path=np.array([[1.1]])
+    wrapper=DoorOperationTeacher(acq,GEOMETRY,index_proximal_offset_rad=-.025)
+    for t in np.arange(0.,.51,.01):tick(wrapper,t)
+    assert acq.path[0,0]==pytest.approx(1.1)
+    tick(wrapper,.51)
+    assert 1.09999<acq.path[0,0]<=1.1
+    tick(wrapper,1.5)
+    assert acq.path[0,0]==pytest.approx(1.075)
+    for invalid in (float('nan'),.1001,-.1001):
+        with pytest.raises(ValueError):DoorOperationTeacher(acq,GEOMETRY,index_proximal_offset_rad=invalid)

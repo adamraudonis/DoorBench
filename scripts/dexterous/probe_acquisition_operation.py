@@ -96,6 +96,7 @@ def main():
     parser.add_argument('--portable-wrapper', action='store_true')
     parser.add_argument('--open-on-latch-clear', action='store_true')
     parser.add_argument('--operator-compliance-gain',type=float,default=0.)
+    parser.add_argument('--index-proximal-offset-rad',type=float,default=0.)
     parser.add_argument('--pressure-segment',choices=['nearest','distal'],default='nearest')
     parser.add_argument('--standing-transfer-handoff-seconds',type=float,default=0.)
     parser.add_argument('--standing-transfer-hold-route',action='store_true',help='Diagnostic: hold body/left route at its initial pose; never a completed transfer')
@@ -144,7 +145,7 @@ def main():
     if args.portable_wrapper:
         from doorbench.dexterous.operation_teacher import DoorOperationTeacher
         operation = DoorOperationTeacher(teacher,dict(operator_origin=m.jnt_pos[hj],operator_axis=m.jnt_axis[hj],
-            leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),min_acquisition_seconds=args.min_acquisition_seconds,press_seconds=args.press_seconds,wait_for_press_completion=not args.open_on_latch_clear,operator_compliance_gain=args.operator_compliance_gain,grasp_offset_in_handle_m=args.grasp_offset_in_handle_m)
+            leaf_origin=m.jnt_pos[lj],leaf_axis=m.jnt_axis[lj]),min_acquisition_seconds=args.min_acquisition_seconds,press_seconds=args.press_seconds,wait_for_press_completion=not args.open_on_latch_clear,operator_compliance_gain=args.operator_compliance_gain,grasp_offset_in_handle_m=args.grasp_offset_in_handle_m,index_proximal_offset_rad=args.index_proximal_offset_rad)
         wrapper_source = Path(inspect.getfile(DoorOperationTeacher))
         shutil.copy2(wrapper_source,args.output/'operation-teacher-source.py')
         (args.output/'operation-teacher-source.json').write_text(json.dumps(dict(
