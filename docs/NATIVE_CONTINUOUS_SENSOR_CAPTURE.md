@@ -55,3 +55,42 @@ PYTHONPATH=. python scripts/dexterous/evaluate_native_sensor_policy.py \
   --checkpoint out/native-continuous-student-001/actor.pt \
   --output out/native-continuous-student-001-rollout
 ```
+
+## Recovery and shorter training windows
+
+A completed-update checkpoint can be resumed into a **new** output directory:
+
+```bash
+python scripts/dexterous/train_native_continuous.py \
+  --run out/continuous-opening-traversal-003-sensors \
+  --camera-variant out/continuous-opening-traversal-003-camera-v1 \
+  --resume-state out/native-continuous-student-002/training-state.pt \
+  --output out/native-continuous-student-002-recovery --iterations 5
+```
+
+`--iterations` is the total completed-update target, including saved updates.
+Recovery requires the same data, device and training settings. It restores Adam
+moments and Torch RNG; an interrupted partial pass is recomputed from its start.
+Older checkpoints lack historical loss rows, which are marked missing rather
+than reconstructed or invented.
+
+The existing short-window trainer also accepts this native archive explicitly:
+
+```bash
+python scripts/dexterous/train_sensor_imitation.py \
+  --native-episode out/continuous-opening-traversal-003-sensors out/continuous-opening-traversal-003-camera-v1 \
+  --output out/native-window-student --device cuda --iterations 1000 \
+  --sequence-length 32 --burn-in 32 --batch-size 4 \
+  --episode-start-probability .25 --window-sampling prefix_complete_v1 \
+  --previous-action-training dual_history_v1 --checkpoint-every 100 \
+  --max-wall-seconds 1800
+```
+
+This is a separate optimization experiment. It makes more frequent updates using
+sampled windows and records exactly which labels were supervised. The recurrent
+burn-in is bounded; it does not preserve a complete episode's hidden state during
+training. Both recorded and actor-owned command histories receive separate
+losses. The same audited native source, camera and real reset checks apply.
+A two-update CPU admission fixture completed successfully; 17 sampling/history
+tests passed. Neither training loss nor that fixture establishes physical skill.
+Every selected checkpoint still needs a complete, unassisted sensor rollout.

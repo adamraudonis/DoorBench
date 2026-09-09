@@ -39,6 +39,7 @@ def atomic_torch(path, value):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--episode',type=Path,action='append',default=[])
+    parser.add_argument('--native-episode',type=Path,nargs=2,action='append',default=[],metavar=('RUN','CAMERA_VARIANT'),help='Audited native full-sequence source and separately audited fixed-eye camera variant')
     parser.add_argument('--dataset-manifest',type=Path,help='Hash-verified relative-path bundle; mutually exclusive with other dataset arguments')
     parser.add_argument('--correction-dataset',type=Path,action='append',default=[],help='Separate audited counterfactual teacher labels on real student sensor observations')
     parser.add_argument('--validation-episode',type=Path,action='append',default=[])
@@ -67,9 +68,11 @@ def main():
         parser.error('Episode-start probability must be in [0,1]')
     if min(args.checkpoint_every,args.evaluate_every,args.max_wall_seconds)<0 or not np.isfinite(args.max_wall_seconds):
         parser.error('Periodic intervals and wall bound must be nonnegative')
+    if args.native_episode and (args.episode or args.correction_dataset or args.validation_episode or args.dataset_manifest or args.legacy_teacher_receipt or args.reset_observation_run):
+        parser.error('Native admission owns its source, camera and actual reset; do not mix archive formats')
     if args.dataset_manifest and (args.episode or args.correction_dataset or args.validation_episode or args.legacy_teacher_receipt or args.reset_observation_run):
         parser.error('Frozen bundle owns all dataset paths; do not mix independent inputs')
-    if not args.dataset_manifest and (not args.episode or args.evaluate_every):
+    if not args.dataset_manifest and (not (args.episode or args.native_episode) or args.evaluate_every):
         parser.error('Supply an episode or a bundle; periodic fixed-fit evaluation requires a bundle')
     if args.reset_observation_run and not args.episode_start_probability:
         parser.error('Cold-start augmentation requires explicit start-window supervision')
@@ -82,13 +85,16 @@ def main():
         for key,value in bundle['training_settings'].items():
             if getattr(args,key)!=value:
                 parser.error(f'Frozen training setting differs: {key}')
+    elif args.native_episode:
+        from doorbench.dexterous.native_sensor_demonstrations import NativeSensorDemonstration
+        episodes=[NativeSensorDemonstration(run,camera) for run,camera in args.native_episode]
     else:
         episodes=[SensorDemonstration(p,qualification=args.qualification,legacy_teacher_receipt=args.legacy_teacher_receipt,reset_observation_run=args.reset_observation_run) for p in args.episode]
         episodes += [CorrectionDemonstration(p) for p in args.correction_dataset]
     validation=[SensorDemonstration(p,qualification=args.qualification) for p in args.validation_episode]
     first=episodes[0];dimensions=first.dimensions
     identity=lambda e:e.metadata['files']['actor-sensors.npz']
-    if {identity(e) for e in episodes}&{identity(e) for e in validation}:
+    if validation and {identity(e) for e in episodes}&{identity(e) for e in validation}:
         raise ValueError('Validation must use separate episodes, not renamed training archives')
     for episode in episodes+validation:
         if (episode.layout!=first.layout or episode.dimensions!=dimensions or
@@ -99,7 +105,7 @@ def main():
             raise ValueError('Episode is too short for the declared recurrent window')
         if (args.previous_action_training!='recorded' or args.evaluate_actor_history_sources) and (episode.times[0]!=0 or np.any(episode.numeric['previous_action'][0]!=0)):
             raise ValueError('Actor-history training requires an audited actual cold episode reset')
-    capture(Path(__file__).resolve().parents[2],args.output,{k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()})
+    capture(Path(__file__).resolve().parents[2],args.output,json.loads(json.dumps(vars(args),default=str)))
     random.seed(args.seed);np.random.seed(args.seed);torch.manual_seed(args.seed)
     rng=np.random.default_rng(args.seed);device=torch.device(args.device)
     model=SensorActor(dimensions).to(device);optimizer=torch.optim.AdamW(model.parameters(),lr=args.learning_rate)
