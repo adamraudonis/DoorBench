@@ -66,11 +66,14 @@ def main():
     p.add_argument("--moving-body-recontact",action="store_true")
     p.add_argument("--wait-for-loaded-aperture",action="store_true",
                    help="Keep the original half-second load requirement before early aperture termination")
+    p.add_argument("--continuous-traversal",action="store_true")
     a = p.parse_args()
     if a.moving_body_recontact and not a.screened_palm_recontact:
         raise ValueError('Moving-body targets require the declared timed recontact experiment')
     if a.wait_for_loaded_aperture and not a.moving_body_recontact:
         raise ValueError('Loaded-aperture termination is declared only for this moving-body continuation')
+    if a.continuous_traversal and not (a.moving_body_recontact and a.wait_for_loaded_aperture):
+        raise ValueError('Continuous traversal requires the declared loaded moving-body opening')
     if a.screened_palm_recontact and not (a.whole_body_panel_plan and a.screened_panel_actual_base_correction
             and a.screened_panel_normal_admittance and a.screened_panel_include_waist and a.screened_panel_lead_rad==0
             and a.screened_panel_lead_start_rad is None):
@@ -132,6 +135,11 @@ def main():
                            ("native-transition-archive-source.py", "native_transition_archive.py")):
         shutil.copy2(source / stored, stage / "doorbench/dexterous" / module)
     own = Path(__file__).resolve().parents[2]
+    if a.continuous_traversal:
+        for module in ('continuous_door_teacher.py','post_opening_teacher.py','post_opening.py',
+                       'post_opening_route.py','passage.py','native_post_opening_measurements.py',
+                       'native_continuous_bridge.py','locomotion_manipulation.py'):
+            shutil.copy2(own/'doorbench/dexterous'/module,stage/'doorbench/dexterous'/module)
     if a.whole_body_panel_plan:
         for module in ('screened_panel_path.py','screened_panel_teacher.py','actual_base_palm.py','palm_normal_admittance.py','panel_torso_target.py'):
             shutil.copy2(own/'doorbench/dexterous'/module,stage/'doorbench/dexterous'/module)
@@ -190,6 +198,32 @@ def main():
         new="(row['door_q']>=a.target_aperture and len(physics)>=251 and all(r.get('left_surface_audit',{}).get('palm_normal_load_N',0)>=2. for r in physics[-251:])) or not row['finite']"
         if text.count(old)!=1:raise ValueError('Frozen aperture stop condition changed')
         driver.write_text(text.replace(old,new))
+    if a.continuous_traversal:
+        text=driver.read_text()
+        def replace_once(old,new):
+            nonlocal text
+            if text.count(old)!=1:raise ValueError('Frozen continuous driver integration point changed: '+old[:60])
+            text=text.replace(old,new)
+        replace_once('    completed=False',
+            "    from doorbench.dexterous import native_continuous_bridge as bridge\n"
+            "    from doorbench.dexterous.native_transition_audit import _contact_solution\n"
+            "    _,previous_raw=_contact_solution(sim)\n"
+            "    previous_raw.update(interval_start_s=0.,interval_end_s=0.)\n"
+            "    body_bounds=bridge.RobotBounds(m)\n    bridge.annotate(sim,physics[0],body_bounds)\n    completed=False")
+        line=next(line for line in text.splitlines() if line.strip().startswith('force,info=sequence.force('))
+        newcall=line.rstrip()[:-1]+',**continuation_packet)'
+        replace_once(line,
+            "            continuation_packet=bridge.packet(sim,previous_raw,physical_sample_passed(previous),teacher.names,aids)\n"
+            "            try:\n    "+newcall+"\n"
+            "            except ValueError as error:\n"
+            "                (a.output/'error.txt').write_text(str(error)+'\\n')\n                break")
+        replace_once('            row,raw=recorder.after_step()',
+            '            row,raw=recorder.after_step()\n            previous_raw=raw\n            bridge.annotate(sim,row,body_bounds)')
+        stop=next(line for line in text.splitlines() if line.strip().startswith('if sequence.blocked_reason or'))
+        replace_once(stop,"            if sequence.blocked_reason or sequence.continuous.done or not row['finite'] or row['torso_tilt_deg']>35:break")
+        marker="        (a.output/'report.json').write_text"
+        replace_once(marker,"        report=bridge.report(sequence.continuous,report,physics,sim)\n"+marker)
+        driver.write_text(text)
     shutil.copy2(Path(__file__), stage / "scripts/dexterous/probe_walking_release.py")
     sys.path.insert(0, str(stage))
 
@@ -288,7 +322,8 @@ def main():
                      corrected_chain_targets=self.push.corrected_chain_target.tolist() if self.push.corrected_chain_target is not None else None,
                      corrected_chain_velocity=self.push.corrected_chain_velocity.tolist() if self.push.corrected_chain_velocity is not None else None,
                      actual_torso_force=self.push.latest.get('actual_torso_force'))
-            panel_phase_trace.write(json.dumps(row,allow_nan=False)+'\n')
+            if a.continuous_traversal:self._pending_panel_row=row
+            else:panel_phase_trace.write(json.dumps(row,allow_nan=False)+'\n')
         if a.moving_body_recontact and self.push.started is None and self.release.started is not None:
             self.push.remember_output(t,self.release.body_goal(t))
         return force,info
@@ -323,6 +358,31 @@ def main():
                     raise AssertionError('The walking force assembly overwrote the projected chain')
             return result
         WalkingOpeningTeacher.force=moving_stance_force
+    if a.continuous_traversal:
+        import doorbench.dexterous.walking_opening_teacher as walking_module
+        from doorbench.dexterous.continuous_door_teacher import ContinuousDoorTeacher
+        from doorbench.dexterous.post_opening_teacher import PostOpeningTeacher
+        original_walking_class=walking_module.WalkingOpeningTeacher
+        class NativeContinuousAdapter:
+            def __init__(self,*args,**kwargs):
+                self.walking=original_walking_class(*args,**kwargs)
+                post=PostOpeningTeacher(args[0],args[1],args[4],args[5],door_xml=kwargs['door_xml'],
+                    stow_profile='sequential-v2',phase_seconds=4.,inward_roll=.07,passage=True)
+                self.continuous=ContinuousDoorTeacher.from_components(self.walking,post,args[1],args[4],
+                    maximum_seconds=a.seconds,handoff_policy='loaded-hold-v2')
+            def __getattr__(self,name):return getattr(self.walking,name)
+            @property
+            def blocked_reason(self):return self.continuous.blocked_reason
+            def force(self,*args,**kwargs):
+                force,info=self.continuous.force(*args,**kwargs)
+                pending=getattr(self.walking.opening,'_pending_panel_row',None)
+                if pending is not None:
+                    # A crossing computes an opening proposal but returns the
+                    # continuation force. Archive only actually selected targets.
+                    if self.continuous.handoff is None:panel_phase_trace.write(json.dumps(pending,allow_nan=False)+'\n')
+                    del self.walking.opening._pending_panel_row
+                return force,dict(info['component'],continuous=info)
+        walking_module.WalkingOpeningTeacher=NativeContinuousAdapter
     runner = load("_frozen_walking_release_probe", driver)
     base_archive = runner.NativeTransitionArchive
     prefix_source = a.verified_prefix_run.resolve() if a.verified_prefix_run else source
@@ -426,6 +486,7 @@ def main():
             screened_palm_recontact=a.screened_palm_recontact,
             moving_body_recontact=a.moving_body_recontact,
             wait_for_loaded_aperture=a.wait_for_loaded_aperture,
+            continuous_traversal=a.continuous_traversal,
             screened_panel_lead_audit_sha256=digest(stage/"panel-lead-audit.json") if a.screened_panel_lead_audit else None,
             screened_panel_lead_start_rad=a.screened_panel_lead_start_rad,screened_panel_lead_ramp_rad=a.screened_panel_lead_ramp_rad,
             record_panel_targets=a.record_panel_targets or a.hybrid_include_waist,
