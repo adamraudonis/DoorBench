@@ -491,3 +491,24 @@ retains coupled finger posture using original capped motors and a one-second
 command handoff;32 related tests pass. A fresh native prerequisite and independent
 audit precede its Isaac run. Whether this capture actually activates will be
 verified from recorded controller epochs; enabling the flag is not proof.
+
+At 14:10 UTC, the incomplete Isaac003 archive is independently byte-verified
+(219 files). Its last progress snapshot is35.502 s; the last completed checkpoint
+receipt is33.982 s. No final operation report exists. The original coordinator
+cutoff interrupted the final periodic export even though the pod guard had been
+renewed. The README now discloses this incomplete trial.
+
+Attained-hold004's native prerequisite passed runtime and independent contact
+checks with zero invalid patches; its actual hold activated at21.282 s. Its
+coordinator was explicitly replaced before Isaac launched, allowing the native
+audit child to finish. Replacement005 uses the same tested controller, verifies
+actual hold activation, reserves70 minutes plus export time for Isaac, and requests
+`stop.request` before process signals on a timeout. Both completed and incomplete
+evidence remain distinguishable. It is running the native prerequisite now.
+
+Withdrawal015 still has one invalid thumb interval and higher palm force made
+support worse (154/250 final samples unloaded). The next candidate uses the prior
+2.25 N force target, greater axial thumb reserve and a12-second withdrawal, avoiding
+an unnecessarily long push while the arm retracts. Its unchanged2001-sample
+admission passes at1.738 rad/s maximum joint-reference speed, below the2 rad/s
+limit. This is a new physical trial016, not a retiming of reported successes.
