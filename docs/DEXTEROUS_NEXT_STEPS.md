@@ -434,3 +434,20 @@ and right-arm coordinates in the private solve and still uses original capped
 motors. Twenty focused tests pass. A separate unstepped thumb candidate targets
 radial separation before arm withdrawal; it requires fresh dense admission and
 physical testing. Full standing traversal and learned control remain unqualified.
+
+At 13:32 UTC, Isaac operation003 has reached 0.07678 rad of leaf opening
+with a 0.79679 rad lever angle and 11.48 mm latch retraction; the 36-second
+sustained test is still running. Native withdrawal010 completed but failed palm
+support and thumb surface checks (19 invalid intervals / 44 independently audited
+patches). Its final right-hand clearance was 45.86 mm.
+
+Radial thumb candidate014 passes the unchanged 2,001-sample geometry audit. Its
+25 mm material-pad radial goal is not fully reachable (15.29 mm maximum residual
+is explicitly recorded), so only its actual solved poses are admitted. Trial011
+was interrupted by ENOSPC at17.922 seconds, before withdrawal, and has a separate
+infrastructure-failure receipt rather than a fabricated completed report. After
+verified remote archiving freed space, trial012 restarted with the same config
+and a 1.4 GiB preflight reserve. Original successful evidence remains local.
+A supporting-left-hand close-up replay option is now available. Bounded optional
+left-arm target velocity uses the 100 Hz IK clock, with a 40 ms filter and 2 rad/s
+cap; 21 focused tests pass. It is not enabled in trial012.
