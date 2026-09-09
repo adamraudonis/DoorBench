@@ -164,7 +164,7 @@ class StandingWithdrawalTeacher:
             self.left._read(root,joints)
             if self.support_feedback is None:
                 from .standing_support_feedback import StandingSupportFeedback
-                self.support_feedback=StandingSupportFeedback(self.left)
+                self.support_feedback=StandingSupportFeedback(self.left,maximum_target_N=self.panel_force.maximum_target_N if self.panel_force is not None else 4.)
             self.support_feedback.update(t,leaf_pose,left_panel_load,self.left.support_load_target)
             if self.left_target_velocity:self.support_feedback.update_target_velocity()
         force,info=self.operation.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified)

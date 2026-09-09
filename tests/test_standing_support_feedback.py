@@ -34,3 +34,18 @@ def test_left_velocity_uses_ik_clock_not_repeated_physics_calls():
     assert np.all(c.left.target_velocity<=2.)
     c.left.last_update-=.02
     with pytest.raises(ValueError,match='clock'):c.update_target_velocity()
+
+
+def test_integral_force_profile_and_support_adapter_share_the_declared_range():
+    from doorbench.dexterous.panel_aperture_force import PanelApertureForce
+    force=PanelApertureForce()
+    for i in range(5001):target,_=force.update(i*.002,.75,.65,2.25)
+    assert 4<target<=force.maximum_target_N
+    c=StandingSupportFeedback.__new__(StandingSupportFeedback)
+    c.previous=None;c.started=None;c.surface=np.array([[0.,.01,0.]])
+    c.left=SimpleNamespace(palm=0,d=SimpleNamespace(site_xpos=np.array([[.2,0.,0.]]),site_xmat=np.eye(3).reshape(1,9)))
+    pose=np.array([0.,0.,0.,1.,0.,0.,0.])
+    with pytest.raises(ValueError,match='bounded'):c.update(10.,pose,3.,target)
+    c.maximum_target_N=force.maximum_target_N
+    c.update(10.,pose,3.,target)
+    assert c.left.hybrid_normal_target==target

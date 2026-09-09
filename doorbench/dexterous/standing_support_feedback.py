@@ -29,7 +29,9 @@ class StandingSupportFeedback:
             l.target_velocity+=dt/(.04+dt)*(velocity-l.target_velocity)
         self.previous_target=(float(t),q.copy())
 
-    def __init__(self, left):
+    def __init__(self, left, *, maximum_target_N=4.):
+        if not np.isfinite(maximum_target_N) or not 2<maximum_target_N<=8:raise ValueError("Explicit bounded palm-load range required")
+        self.maximum_target_N=float(maximum_target_N)
         self.left=left;self.previous=None;self.started=None
         m,d=left.m,left.d;body=m.site_bodyid[left.palm]
         site_R=d.site_xmat[left.palm].reshape(3,3);cloud=[]
@@ -44,7 +46,7 @@ class StandingSupportFeedback:
         if self.surface.ndim!=2 or not len(self.surface):raise ValueError('Palm collision surface required')
 
     def update(self,t,leaf_pose,palm_load,target):
-        if not np.isfinite([t,palm_load,target]).all() or palm_load<0 or not 2<target<=4:raise ValueError('Finite bounded support measurements required')
+        if not np.isfinite([t,palm_load,target]).all() or palm_load<0 or not 2<target<=getattr(self,'maximum_target_N',4.):raise ValueError('Finite bounded support measurements required')
         p,R=pose_components(leaf_pose);l=self.left;d=l.d
         if self.started is None:self.started=t
         velocity=np.zeros(3);dt=0.
