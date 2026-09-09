@@ -41,6 +41,12 @@ class StandingWithdrawalTeacher:
         self.finger_pad_feedback=config.get('finger_pad_feedback',False)
         if type(self.finger_pad_feedback) is not bool:raise ValueError('Explicit finger material feedback option required')
         self.finger_feedback={};self.finger_points={}
+        segment_avoidance=config.get('release_ring_segment_avoidance',False)
+        if type(segment_avoidance) is not bool:raise ValueError('Explicit release segment avoidance option required')
+        self.release_segment_avoidance=None
+        if segment_avoidance:
+            from .lever_segment_avoidance import LeverSegmentAvoidance
+            self.release_segment_avoidance=LeverSegmentAvoidance(self.acquisition)
         self.final_hub_avoidance=config.get('final_hub_avoidance',False)
         if type(self.final_hub_avoidance) is not bool:raise ValueError('Explicit final hub avoidance option required')
         if self.final_hub_avoidance and self.operation.hub_avoidance is None:raise ValueError('Final hub avoidance requires the original hub geometry/controller')
@@ -278,6 +284,9 @@ class StandingWithdrawalTeacher:
                     goal=self.panel.d.xpos[body]+self.panel.d.xmat[body].reshape(3,3)@local
                 force,digit_info[digit]=feedback.force(force,t,goal,t-self.release_started)
             hand_info={**hand_info,'finger_material_feedback':digit_info}
+        if self.release_segment_avoidance is not None and self.release_started is not None:
+            force,segment_info=self.release_segment_avoidance.force(force,float(smooth_phase(t-self.release_started)))
+            hand_info={**hand_info,**segment_info}
         if self.final_hub_avoidance:
             force,hub_info=self.withdrawal_hub_avoidance.force(force,float(smooth_phase(elapsed)))
             hand_info={**hand_info,**hub_info,'withdrawal_hub_avoidance_applied_after_finger_tracking':True}
