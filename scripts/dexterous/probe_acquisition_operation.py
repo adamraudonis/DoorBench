@@ -97,6 +97,7 @@ def main():
     parser.add_argument('--open-on-latch-clear', action='store_true')
     parser.add_argument('--operator-compliance-gain',type=float,default=0.)
     parser.add_argument('--pressure-segment',choices=['nearest','distal'],default='nearest')
+    parser.add_argument('--standing-transfer-path',type=Path,help='Explicit attained-state screened bimanual transfer after partial opening')
     parser.add_argument('--middle-finger-force',type=float,help='Explicit middle-finger preload; original motor caps unchanged')
     parser.add_argument('--grasp-offset-in-handle-m',nargs=3,type=float,default=[0.,0.,0.])
     parser.add_argument('--min-acquisition-seconds', type=float, default=10.6,
@@ -144,6 +145,11 @@ def main():
             source_path=str(wrapper_source),sha256=hashlib.sha256(wrapper_source.read_bytes()).hexdigest()),indent=2)+'\n')
     else:
         operation = OperationGoals(teacher, m, d, press_seconds=args.press_seconds)
+    transfer=None
+    if args.standing_transfer_path:
+        if not args.portable_wrapper or not args.record_transitions:raise ValueError('Standing transfer requires portable operation and full physical evidence')
+        from doorbench.dexterous.standing_transfer import StandingTransferTeacher
+        transfer=StandingTransferTeacher(operation,motors,args.standing_transfer_path)
     hand_names = {b:m.body(b).name.removeprefix('robot/') for b in range(m.nbody)
                   if m.body(b).name.startswith(('robot/rh_', 'robot/lh_'))}
     physics = [native_grasp_sample(sim, 'leaf_handle_lever_col_n', handle_joint='leaf_handle_hinge')]
@@ -174,17 +180,18 @@ def main():
                          rot@d.qvel[sim.root_vadr+3:sim.root_vadr+6]]
             measured_joints, measured_velocities = dict(zip(teacher.names,d.qpos[qa])),dict(zip(teacher.names,d.qvel[va]))
             if args.portable_wrapper:
-                force,info = operation.force(float(d.time),root,measured_joints,measured_velocities,
+                force,info = (transfer or operation).force(float(d.time),root,measured_joints,measured_velocities,
                     np.r_[d.xpos[hb],d.xquat[hb]],np.r_[d.xpos[lb],d.xquat[lb]],
                     dict(operator=d.qpos[m.jnt_qposadr[hj]],leaf=d.qpos[m.jnt_qposadr[lj]],latch=d.qpos[m.jnt_qposadr[bj]]),
-                    loads,grasp_qualified=physics[-1]['pad_grasp']['valid_pad_grasp'])
-                goal_info = operation.info
+                    loads,grasp_qualified=physics[-1]['pad_grasp']['valid_pad_grasp'],**({'left_panel_load':recorder.left_surface['total_normal_load_N']} if transfer else {}))
+                goal_info = transfer.info if transfer else operation.info
             else:
                 force, info = teacher.force(float(d.time),root,measured_joints,measured_velocities,np.r_[d.xpos[hb],d.xquat[hb]],loads)
             d.ctrl[aids] = force
             if recorder:
                 recorder.before_step();sim.plant.step();row,raw=recorder.after_step();archive.write(raw);controller_steps.append(dict(time_s=float(d.time)-m.opt.timestep,**info))
             else:row = audited_native_step(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')
+            if transfer:row['left_surface']=recorder.left_surface.copy()
             row['bolt_slide_m'] = float(d.qpos[m.jnt_qposadr[bj]])
             row['operation'] = goal_info
             physics.append(row)
@@ -210,6 +217,10 @@ def main():
         tail = [r for r in physics if r['sim_time_s'] >= args.seconds-.5-1e-8]
         report['checks']['partial_leaf_opening_held'] = bool(tail) and all(.075 <= r['door_q'] <= .10 for r in tail)
         report['checks']['opening_bounded_for_transfer'] = max(r['door_q'] for r in physics) <= .12
+        if transfer:
+            report['checks']['standing_transfer_started']=transfer.started is not None
+            report['checks']['final_left_palm_support']=bool(tail) and all(r.get('left_surface',{}).get('palm_normal_load_N',0)>=2 for r in tail)
+            report['standing_transfer']=dict(scope='Privileged physical partial opening and left-palm transfer only; no release/traversal',route=str(args.standing_transfer_path),started_s=transfer.started,final=transfer.info)
         report.update(passed=all(report['checks'].values()),scope=__doc__,
             runtime_robot_pose_writes=0,direct_door_commands=False,
             maximum_handle_rad=max(r['handle_angle_rad'] for r in physics),
