@@ -198,7 +198,9 @@ p.add_argument('--mechanism-test',action='store_true',help='Non-robot calibratio
 from isaaclab.app import AppLauncher
 AppLauncher.add_app_launcher_args(p)
 p.add_argument('--operation-leaf-target-rad',type=float,default=.08,help='Commanded partial opening; physical acceptance bounds stay unchanged')
+p.add_argument('--operation-leaf-lead-limit-rad',type=float,help='Explicit measured-door lead bound for a new standalone opening trial')
 a=p.parse_args()
+if a.operation_leaf_lead_limit_rad is not None and (not .002<=a.operation_leaf_lead_limit_rad<=.03 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Leaf lead bound requires standalone operation and .002..0.03 rad')
 if not .075<=a.operation_leaf_target_rad<=.10:p.error('Partial opening command must be .075..0.10 rad')
 if a.operation_leaf_target_rad!=.08 and (not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Leaf command override requires standalone operation')
 if a.sensor_gyro_profile!='backend-angular-velocity-v1' and not a.sensor_layout:
@@ -517,7 +519,7 @@ def main():
                 basis=np.eye(3)['XYZ'.index(joint.GetAxisAttr().Get())]
                 joint_geometry[role+'_origin']=np.array(joint.GetLocalPos1Attr().Get())
                 joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*map(float,basis))))
-            operation=DoorOperationTeacher(teacher,joint_geometry,leaf_target=a.operation_leaf_target_rad,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile=a.operation_material_profile if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
+            operation=DoorOperationTeacher(teacher,joint_geometry,leaf_target=a.operation_leaf_target_rad,leaf_lead_limit_rad=a.operation_leaf_lead_limit_rad,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile=a.operation_material_profile if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
             if sequence_reset and not a.full_opening:
                 from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
                 sequence=FullSequenceTeacher(a.native_robot,motors,ref,

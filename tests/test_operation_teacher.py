@@ -212,3 +212,32 @@ def test_opened_leaf_capture_does_not_require_holding_a_released_latch_down():
         tick(wrapper,1.52,operator=.85,latch=.012,leaf=.006)
         tick(wrapper,4.53,operator=.7,latch=.01,leaf=.08)
     assert observed=={'opening':False,'aperture':True}
+
+
+@pytest.mark.parametrize('limit',[float('nan'),float('inf'),0.,.001,.031])
+def test_measured_leaf_lead_rejects_invalid_bounds(limit):
+    with pytest.raises(ValueError,match='Measured leaf lead'):
+        DoorOperationTeacher(Acquisition(),GEOMETRY,leaf_lead_limit_rad=limit)
+
+
+def test_measured_leaf_lead_waits_for_door_and_resumes_with_motion():
+    wrapper=DoorOperationTeacher(Acquisition(),GEOMETRY,press_seconds=1.,leaf_lead_limit_rad=.012)
+    for t in np.arange(0.,.51,.01):tick(wrapper,t)
+    tick(wrapper,1.51,operator=.85,latch=.012)
+    _,info=tick(wrapper,5.,operator=.85,latch=.012,leaf=.006)
+    assert info['requested_leaf_goal_rad']==pytest.approx(.08)
+    assert info['goal_leaf_rad']==pytest.approx(.018)
+    _,info=tick(wrapper,5.002,operator=.85,latch=.012,leaf=.03)
+    assert info['goal_leaf_rad']==pytest.approx(.042)
+    _,info=tick(wrapper,5.004,operator=.85,latch=.012,leaf=.079)
+    assert info['goal_leaf_rad']==pytest.approx(.08)
+    assert info['actual_leaf_rad']==pytest.approx(.079)
+
+
+def test_default_leaf_reference_preserves_original_opening_command():
+    wrapper=DoorOperationTeacher(Acquisition(),GEOMETRY,press_seconds=1.)
+    for t in np.arange(0.,.51,.01):tick(wrapper,t)
+    tick(wrapper,1.51,operator=.85,latch=.012)
+    _,info=tick(wrapper,5.,operator=.85,latch=.012,leaf=.006)
+    assert info['leaf_lead_limit_rad'] is None
+    assert info['goal_leaf_rad']==pytest.approx(.08)

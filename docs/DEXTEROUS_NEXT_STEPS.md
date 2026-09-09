@@ -727,3 +727,12 @@ collisions or increased joint-limit violation, maximum torso tilt3.990 degrees,
 root translation19.579 mm and conservative peak joint acceleration0.522 rad/s².
 All30 focused planner/schedule tests pass. This qualifies geometry only; panel007
 will test the two-segment continuation from a closed start under physical load.
+
+Pressure014 was stopped after its contact recording established failure. The
+first excluded loaded patch appeared at17.360 s during opening; the last valid
+opposed grasp was17.328 s. At26 s the index had no contact and the thumb loaded
+its middle link on an excluded surface. The independent audit completes and
+agrees that the trial failed. A new explicit measured-leaf lead limit will test
+whether hand targets outrun the door; it caps only the motor controller's goal,
+retaining original contact, joint and aperture criteria. Twenty-four focused
+controller tests pass; physical success remains unproven.

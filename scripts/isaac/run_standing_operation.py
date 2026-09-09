@@ -32,7 +32,9 @@ def main():
     p.add_argument('--wait-for-run',type=Path,help='Wait for this earlier coordinator to finish before using the prepared node')
     p.add_argument('--isaac-timeout-seconds',type=float,default=4200.,help='Wall-clock budget including periodic evidence export')
     p.add_argument('--operation-leaf-target-rad',type=float,default=.08)
+    p.add_argument('--operation-leaf-lead-limit-rad',type=float)
     a=p.parse_args()
+    if a.operation_leaf_lead_limit_rad is not None and not .002<=a.operation_leaf_lead_limit_rad<=.03:raise ValueError('Leaf lead bound must be .002..0.03 rad')
     if not .075<=a.operation_leaf_target_rad<=.10:raise ValueError('Partial opening command must be .075..0.10 rad')
     if not 300<=a.isaac_timeout_seconds<=7200:raise ValueError('Isaac wall-clock budget must be 300..7200 seconds')
     if a.deadline_unix-time.time()<300:raise ValueError('At least five minutes of guarded runtime required')
@@ -48,6 +50,10 @@ def main():
     native_pad_options+=['--operation-leaf-target-rad',str(a.operation_leaf_target_rad)]
     isaac_pad_options+=['--operation-leaf-target-rad',str(a.operation_leaf_target_rad)]
     result['commanded_leaf_target_rad']=a.operation_leaf_target_rad
+    result['leaf_lead_limit_rad']=a.operation_leaf_lead_limit_rad
+    if a.operation_leaf_lead_limit_rad is not None:
+        options=['--operation-leaf-lead-limit-rad',str(a.operation_leaf_lead_limit_rad)]
+        native_pad_options+=options;isaac_pad_options+=options
     hold_options=['--hold-attained-grasp','--attained-hold-stage',a.attained_hold_stage] if a.hold_attained_grasp else []
     env=dict(os.environ,PYTHONPATH=str(a.source),DOORBENCH_WORK=str(a.work),OPENBLAS_NUM_THREADS='1',OMP_NUM_THREADS='1',OMNI_KIT_ACCEPT_EULA='YES',PYTHONUNBUFFERED='1',ACCEPT_EULA='Y',PRIVACY_CONSENT='Y')
     commands=[]
