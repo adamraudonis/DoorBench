@@ -20,7 +20,7 @@ import uuid
 import pod
 from arm_remote_guard import REMOTE as LEGACY_REMOTE
 
-STATE=Path.home()/'.runpod/doorbench_dexterous_pod.json'
+STATE=pod.STATE
 GUARD_ROOT=Path.home()/'.runpod/doorbench-guards'
 
 GUARD='''import json,os,sys,time,urllib.request,urllib.error

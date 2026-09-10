@@ -12,7 +12,9 @@ import subprocess
 import sys
 import time
 
-STATE = Path.home() / '.runpod/doorbench_dexterous_pod.json'
+# Explicit per-allocation journals let a replacement node coexist with a stopped
+# node whose persistent volume still contains evidence. Child guards inherit it.
+STATE = Path(os.environ.get('DOORBENCH_POD_STATE', str(Path.home() / '.runpod/doorbench_dexterous_pod.json'))).expanduser()
 
 def api():
     path = Path(__file__).resolve().parents[1] / 'runpod_pod.py'

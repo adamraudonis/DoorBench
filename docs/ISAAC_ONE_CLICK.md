@@ -87,3 +87,15 @@ The helper verifies the journal, API identity, exact old guard processes and bot
 new acknowledgements before replacing guards. It never signals GPU jobs or
 selects another allocation. The total ceiling is explicitly recorded in the
 plan and receipt, capped at24hours; it is not an automatic recurring renewal.
+
+
+### Preserve a stopped allocation when preparing a replacement
+
+If a stopped pod cannot resume because its host has no GPU available, keep its journal and volume until outstanding evidence is recovered. A separately owned allocation can use a different journal without overwriting that record:
+
+```sh
+export DOORBENCH_POD_STATE="$HOME/.runpod/doorbench_dexterous_replacement.json"
+python3 scripts/isaac/launch.py --config configs/isaac/runtime-v2.json --hours 2 --no-browser
+```
+
+This command can allocate a new billable node; it is not a resume of the stopped node. The selected journal is inherited by the creation guard and used by remote guard arming and renewal. Keep the same environment variable for status/renewal/teardown commands on that allocation. Omitting it preserves the original default journal. Verify both guards and readiness before dispatching experiments; do not count bootstrap or unit tests as an Isaac task result.
