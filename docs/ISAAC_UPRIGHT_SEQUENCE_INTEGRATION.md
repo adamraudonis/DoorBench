@@ -303,3 +303,8 @@ The candidate is `out/standing-index004-transfer-001/transfer.json`. It is an
 unstepped native geometry result, not a physical transfer and not an Isaac-bound
 route. The measured042 endpoint still requires its own admission and rebase.
 [Geometry evidence](evidence/native-index004-transfer001-geometry.json).
+
+The first042 partial checkpoint contains1000 same-clock samples through2.0s,
+with six7-component measured body poses per sample. All values are finite;
+maximum quaternion norm error is1.789e-7. This verifies live recorder output,
+not the final endpoint or opening result. [Prefix check](evidence/isaac042-body-record-prefix.json).
