@@ -333,3 +333,20 @@ uses the earlier successful transfer mode: attained-arm tracking, no added
 fixed-pad transfer feedback and a1s motor handoff. The storage check reserves
 800MiB for this native test plus850MiB for unfinished042 collection.
 No native transfer result exists yet. [Dispatch](evidence/native-index-transfer001-dispatch.json).
+
+## Native transfer001 failed; do not plan release from it
+
+The50s physical transfer established final left-palm support and retained partial
+aperture, but failed original joint-limit, sustained-grasp and stance-solver
+checks. Independent pad audit failed with27,828 invalid loaded patches; whole
+handle assembly audit passed. The run is not a qualified continuation source.
+
+First stance failure was36.13s (five maximum-iteration intervals in total), first
+post-transfer grasp loss38.856s, first invalid pad38.918s and first joint-limit
+violation47.084s. At the nearest saved state38.922s, root-position error was3.23mm
+and palm-position error1.74mm against the screened route. The initial invalid
+patches were on the index middle segment. At49.982s the worst joint was right
+thumb THJ5 at0.03048rad beyond its limit. These measured correlations suggest
+examining feedback that maintains the grasp through root tracking errors; they
+do not prove that the earlier solver failures caused the slip. Do not widen
+contact classification or joint limits. [Failure evidence](evidence/native-index-transfer001-failure.json).
