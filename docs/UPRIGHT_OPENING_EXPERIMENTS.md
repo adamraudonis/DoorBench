@@ -604,3 +604,11 @@ The initialized portable post-opening planner was exercised against the qualifie
 A bounded waiter (`out/plan-upright006-after-audits.py`, PID41509 at launch) now waits for native006 and all four final audits. Only if every report passes does it run the same planner with `--plan-only --portable --passage --stow-profile sequential-v2` against006's actual terminal trajectory. Its result remains initialized geometry only. Inputs/command: `out/upright006-post-opening-plan-command.json`; outcome: `out/upright006-post-opening-plan-waiter-result.json`. No failed prefix is accepted and no extra physical trial is automatically launched by this waiter.
 
 At2026-09-10 08:25:10 UTC, the idle owned GPU pod was stopped and API-confirmedEXITED after verifying the latest coordinator/collector were terminal. Prepared workspace retained; no new GPU physics. Fresh guards/readiness checks are required upon restart. Native006 and the contingent planning check continue locally. [Lifecycle receipt](evidence/owned-pod-paused-20260910.json).
+
+### Improving the contact lever arm
+
+Native005's terminal palm contacts lie about9cm from the hinge; measured normal moment0.6705Nm for7.445N normal force gives an effective9cm lever arm before opposing friction. Existing wide003 intentionally shifted contact4cm inward. A new prospective geometric path instead shifts4cm outward from the same qualified source, an8cm difference at the endpoint, without changing forces or the door.
+
+Screen leverage001 completed41 nodes with no forbidden collisions, but its independent2001-sample audit fails: right-position error0.593mm, foot-position error0.403mm, foot rotation0.00207rad, and root rotation rate0.104rad/s exceed original limits. It is not cleared for a physical run. [Audit summary](evidence/panel-leverage001-screen.json).
+
+Screen leverage002 is running with121 nodes, the existing pose-tolerance barrier and foot-orientation objective weight100. The source, outward contact,4deg upright bound, root bounds and all independent acceptance limits stay unchanged. It is a geometric candidate only. Native006 continues with its original frozen configuration.
