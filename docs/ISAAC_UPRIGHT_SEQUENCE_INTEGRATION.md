@@ -135,3 +135,21 @@ one-second teacher ramp and original motor/contact gates remain unchanged.
 Forty-seven focused pipeline, launcher and teacher tests pass. A GPU comparison
 requires a fresh immutable source snapshot; do not edit frozen040 or claim these
 options were present in its command.
+
+## Imported collider inventory
+
+The six importer warnings about default sphere types prompted a read-only audit
+of the verified040 import. All974 source collider identities (body, geometry
+name and type) match the USD:958 meshes,12 cylinders and4 boxes, with no sphere
+colliders. The prepared XML has six default geometry declarations without type,
+but every body geometry has an explicit type. This is consistent with warnings
+about defaults; it does not prove their exact importer call site.
+
+`scripts/dexterous/audit_imported_collision_inventory.py --mjcf PREPARED_XML
+--usd IMPORTED_ROBOT_USDA --output NEW_JSON` repeats the check without starting
+physics or modifying inputs. It detects wrong types and wrong identities, not
+just matching counts. Three tests include replacing a cylinder with a sphere
+and renaming its body geometry. This inventory does not validate mesh vertices,
+cooked convex hull dimensions, transforms or task success. Frozen041 is unchanged;
+its resulting import should receive the same check after verified collection.
+[040 inventory](evidence/isaac040-collider-inventory.json).
