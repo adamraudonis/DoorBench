@@ -290,3 +290,16 @@ pad audit. Maximum leaf angle was0.07787978648 rad. The coordinator proceeded
 to sensor-layout export for the actual Isaac test. Report hashes and checks are
 retained in [native qualification](evidence/isaac042-native-qualified.json).
 This is a native result only; it does not establish042 Isaac or full traversal.
+
+## Native transfer candidate for the newer grasp
+
+While042 runs, `rebase_standing_transfer.py` rebuilt the earlier transfer route
+from qualified native index-posture004's actual36s state. All101 planned nodes
+and1001 dense interpolation samples passed. Maximum fixed-hand/foot position
+error was0.230mm, rotation error0.000595rad, and root tilt2.545degrees. No extra
+handle penetration was detected.
+
+The candidate is `out/standing-index004-transfer-001/transfer.json`. It is an
+unstepped native geometry result, not a physical transfer and not an Isaac-bound
+route. The measured042 endpoint still requires its own admission and rebase.
+[Geometry evidence](evidence/native-index004-transfer001-geometry.json).
