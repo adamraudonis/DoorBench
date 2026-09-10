@@ -101,6 +101,19 @@ PID42832, `out/archive-leverage001-launch.json`). This preserves original bytes
 remotely and keeps compact trajectories/reports local. Check the live process
 and verified receipt before treating that space as available.
 
+## Isaac046 first sensor checkpoint verified
+
+The actual5s sensor export binds the time-zero packet to the first applied
+motor action at0.002s. Original caps, causal actor packet validation, exact
+packet hash and unchanged input hashes pass. This verifies only the initial
+label boundary, not full demonstration admission or task completion. See
+[initial label binding](evidence/isaac046-initial-label-binding.json).
+
+Both actual128x128 eye images were personally inspected at the5s checkpoint.
+The handle is visible in both, with reaching arm/body and doorway boundaries.
+Finger contact cannot be judged at that resolution. Recheck visibility during
+grasp and transfer. See [eye review](evidence/isaac046-eye-review-5s.json).
+
 ## Next sensor recording requirements
 
 The next fresh Isaac run should capture the new same-run initial sensor packet
