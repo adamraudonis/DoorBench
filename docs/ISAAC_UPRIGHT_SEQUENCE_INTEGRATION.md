@@ -397,3 +397,11 @@ by independent download before local raw eviction. Reports remain, and it is
 not a source for current transfer work. This brought the new native test plus
 850MiB remaining Isaac collection reservation under the20GiB retained limit.
 [Archive receipt](evidence/native-middle005-verified-offload.json).
+
+Transfer002 stopped near36.65s when the target solver reached its0.08rad
+correction bound and remaining palm-position error reached0.642mm, exceeding
+the explicit0.5mm target-admission limit (rotation error0.002885rad). Its
+controller exception correctly prevents a complete50s success. Physical and
+independent archive audits are still finishing. Inspect the boundary state
+before changing the correction budget; no successful transfer is claimed.
+[Controller stop](evidence/native-index-transfer002-controller-stop.json).
