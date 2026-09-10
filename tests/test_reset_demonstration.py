@@ -62,3 +62,23 @@ def test_reset_label_is_actual_teacher_first_force_and_start_time_is_zero(tmp_pa
     values,labels=data.sequence(0,3)
     np.testing.assert_allclose(labels[:,0],[0.,.1,.2])
     assert not values['images'][0].any() and data.metadata['reset_observation']['failed_actor_motor_label_used'] is False
+
+
+@pytest.mark.parametrize('defect',[None,'hash','action','late','previous_action'])
+def test_same_run_teacher_initial_packet_is_bound_to_first_applied_action(tmp_path,defect):
+    import hashlib
+    from doorbench.dexterous.reset_demonstration import recorded_teacher_start
+    teacher,_,dims,packet=reset_pair(tmp_path)
+    motors={'actuators':[{'force_range':[-2.,2.]} for _ in range(4)]}
+    if defect=='previous_action':packet['previous_action'][0]=.1
+    p=teacher/'sensors/teacher-initial-decision.npz'
+    np.savez_compressed(p,**packet,motor_forces=np.zeros(4),time_s=np.asarray(0.))
+    report=dict(control_source='privileged_teacher',teacher_initial_decision_sha256=hashlib.sha256(p.read_bytes()).hexdigest())
+    if defect=='hash':report['teacher_initial_decision_sha256']='changed'
+    action=np.full(4,.1 if defect=='action' else 0.)
+    args=(teacher,dims,motors,report,.004 if defect=='late' else .002,action,.002)
+    if defect:
+        with pytest.raises(ValueError):recorded_teacher_start(*args)
+    else:
+        result,receipt=recorded_teacher_start(*args)
+        assert receipt['first_applied_action_matches'] and 'motor_forces' not in result

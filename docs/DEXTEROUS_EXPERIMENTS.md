@@ -367,3 +367,8 @@ Identified why local intermediate physics chunks survived successful remote expo
 ### September10: Isaac045 advances past both integration failures
 
 Native runtime, independent pad and whole-handle audits pass. Actual Isaac process188579 reached0.502s with0.4437degree torso tilt; it is live and progressing past the setup and second-step failures. This does not establish grasp or transfer success. Evidence: `evidence/isaac045-physics-started.json`. Collector cleanup is now committed but existing live collector86114 must finish before applying verified redundant-chunk pruning.
+
+
+### September10: restore the actual cold start for sensor training
+
+Isaac042 sensor admission passes17999 causal examples with about580MB peak loader memory. A bounded CPU actor-history fit was rejected before training because042 lacks a recorded time-zero packet. Added future teacher pre-step capture and hash/action-bound same-run reader admission;32 relevant tests pass. No fabricated observation, checkpoint or policy success. Live045 remains unchanged. Evidence: `evidence/isaac042-sensor-data-admission.json`.

@@ -192,6 +192,22 @@ class IsaacSensorRecorder:
         if path.exists():raise ValueError('Initial actor decision already recorded')
         _atomic_npz(path, **packet, motor_forces=np.asarray(motor_forces), time_s=np.asarray(0.))
 
+    def record_teacher_initial_decision(self, motor_forces):
+        """Capture the real builder state before any teacher physics step.
+
+        Invalid sensors stay invalid. Motor forces are a separate training label,
+        never an observation or invented zero-history substitute after a run.
+        """
+        if self.control_source!='privileged_teacher' or self.times:
+            raise ValueError('Teacher initial packet must precede all physical samples')
+        path=self.output/'teacher-initial-decision.npz'
+        if path.exists():raise ValueError('Initial teacher decision already recorded')
+        forces=np.asarray(motor_forces,float)
+        if forces.shape!=(len(self.layout['action_order']),) or not np.isfinite(forces).all():
+            raise ValueError('Finite original motor forces required')
+        packet=self.builder.observe(now_s=0.,previous_action=np.zeros_like(forces))
+        _atomic_npz(path,**packet,motor_forces=forces,time_s=np.asarray(0.))
+
     def finish(self, *, complete=True):
         from PIL import Image
         producer_receipt=self._write_gyro_receipt()
@@ -229,6 +245,8 @@ class IsaacSensorRecorder:
             rgb_mean_pixel_change={key:float(np.abs(frames[-1].astype(float)-frames[0]).mean()) if frames else None for key,frames in self.frames.items()},
             limitations=['Sensor stream checks alone do not establish task success', 'Robot camera usefulness requires visual inspection',
                          'Exact camera extrinsics and cross-engine mount parity require independent audit'])
+        initial=self.output/'teacher-initial-decision.npz'
+        if initial.exists():report['teacher_initial_decision_sha256']=hashlib.sha256(initial.read_bytes()).hexdigest()
         report['numeric_file_sha256']={name:hashlib.sha256((self.output/name).read_bytes()).hexdigest() for name in ('actor-sensors.npz','actor-rgb.npz')}
         _atomic_json(self.output/'report.json',report)
         return report

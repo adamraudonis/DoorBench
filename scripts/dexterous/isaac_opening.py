@@ -1149,6 +1149,8 @@ def main():
                     **sensor_actor.last_info,phase='sensor_acquisition_balance' if a.sensor_acquisition_protocol else 'sensor_reach_balance' if a.sensor_reach_protocol else 'sensor_arm_balance' if a.sensor_arm_schedule else 'sensor_balance',teacher_fallback=False)
             if a.sensor_locomotion_calibration:
                 teacher_info=dict(**sensor_actor.last_info,phase='sensor_locomotion',teacher_fallback=False)
+            if step==0 and sensor_recorder is not None and sensor_actor is None:
+                sensor_recorder.record_teacher_initial_decision(forces)
             torque=matrix.T@forces-damp*vel-friction*np.tanh(vel/.001)
             robot.set_joint_effort_target(torch.tensor(torque[None],device=a.device,dtype=torch.float32))
             door.set_joint_position_target(target);door.set_joint_velocity_target(torch.zeros_like(target))

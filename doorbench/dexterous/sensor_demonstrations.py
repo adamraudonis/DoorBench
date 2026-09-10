@@ -85,6 +85,14 @@ class SensorDemonstration:
             self.times=self.times[:count]
             self.numeric={key:value[:count] for key,value in self.numeric.items()}
         reset_metadata=None
+        if 'teacher_initial_decision_sha256' in sensor_report:
+            if legacy is not None or reset_observation_run is not None:
+                raise ValueError('Same-run initial observation cannot mix reset sources')
+            from .reset_demonstration import recorded_teacher_start
+            packet,reset_metadata=recorded_teacher_start(self.path,self.dimensions,motors,sensor_report,
+                float(self.times[0]),self.numeric['previous_action'][0],float(report['physics_dt_s']))
+            self.times=np.r_[0.,self.times]
+            self.numeric={key:np.concatenate((packet[key][None],value),axis=0) for key,value in self.numeric.items()}
         if reset_observation_run is not None:
             if legacy is None or qualification!='acquisition-report.json':
                 raise ValueError('Cold-start augmentation requires the audited acquisition-only prefix')

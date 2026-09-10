@@ -24,3 +24,21 @@ Use `--qualification acquisition-report.json` for an acquisition-only curriculum
 Before reporting a sensor-only result, execute the checkpoint in the physical simulator with the privileged teacher disabled, then run the same independent physical and task gates. Record matched seeds, complete failures and camera/tactile ablations. Imitation on successful teacher states alone is expected to suffer from errors accumulated during execution; teacher corrections on student-visited states and recovery training remain required work.
 
 On a different cluster, preserve the checkpoint, sensor layout, actuator ordering, robot asset hashes, physics timestep and exact evaluation protocol. A different robot needs a new validated mechanics/sensor/action adapter and new training data; changing array dimensions alone does not establish a port.
+
+
+## Same-run initial observation
+
+New teacher recordings capture `sensors/teacher-initial-decision.npz` before the
+first physics step. Its packet comes from the same sensor builder used by the
+actor, with unavailable streams left invalid. The teacher motor action is a
+separate label. The sensor report binds this file's SHA; the demonstration reader
+checks time zero, motor bounds and agreement with the first post-step recorded
+action before prepending it. Actor-history training can then start from an actual
+recorded reset without substituting later frames or another run.
+
+September10: qualified Isaac042 supplies17999 causal examples, but lacks this
+initial packet. Its attempted actor-history fit was rejected before training;
+no checkpoint was created. Run045 is already immutable and also predates the
+capture change. A future physics run must validate the new capture before any
+actor-history training claim.32 relevant tests pass; these are not a live sensor
+policy result.
