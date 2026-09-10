@@ -92,8 +92,9 @@ This is privileged controller feedback; it is neither a direct door command nor
 a sensor-only policy. Requested and clipped angles are recorded separately.
 Unit tests verify both lead and lag bounds and that an unretracted bolt cannot
 be bypassed. The0.06rad native candidate stalled; the0.10rad candidate passed
-native runtime and independent contact checks. Isaac040 is testing the latter;
-its native prerequisite also passed. No Isaac result is yet established.
+native runtime and independent contact checks. Isaac040 completed36s but failed sustained pad grasp and the independent
+contact qualification (11 excluded patches). Its native prerequisite passed.
+See [the final evidence](evidence/isaac-handlelead040-final-failure.json).
 
 
 ## Extracting a measured standalone state
@@ -111,8 +112,11 @@ missing values. Extraction is read-only and existing outputs cannot be overwritt
 This adapter does not qualify a failed grasp, prove imported FK equivalence, or
 restore a running simulator. Only use a mechanically qualified attained state
 for continuation planning, followed by the independent geometry and contact
-gates above. Twenty-six focused adapter/binding tests pass; actual040 archive
-extraction remains pending completion and verified collection.
+gates above. Twenty-six focused adapter/binding tests pass; actual040 final archive
+extraction now passes at exactly36s after293 files were finally verified. All
+69 measured positions/velocities, root13 and declared door positions/velocities
+are present. [Extraction identity](evidence/isaac040-final-state-extraction.json).
+This failed grasp endpoint is diagnostic only and cannot seed a qualified route.
 
 
 ## Index-posture candidate after handle-lead040

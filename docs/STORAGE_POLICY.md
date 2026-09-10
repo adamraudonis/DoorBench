@@ -40,3 +40,15 @@ The release audit now reads full-step evidence once, retaining only its three ha
 ## Recorded replay memory
 
 The acquisition replay renderer now streams its control trace and retains only timestamps. A completed141,238,780-byte trace produces a120,000-byte array for15,000 frames, exactly matching an independent bounded scan and the trajectory frame count. It no longer retains the full nested controller diagnostics merely to choose frame times.21 focused renderer/JSON-stream tests pass, including truncated-record rejection and unchanged input-XML identity checks. This is a renderer allocation reduction, not a measured whole-process peak or physics speedup. Evidence: [render-trace-streaming](evidence/render-trace-streaming.json).
+
+## Isaac040 measured recording cost
+
+The complete18,000-step040 main-thread timing reports2900.55s:261.06s
+controller/submission,1088.27s physics,51.65s render/state refresh and1499.58s
+combined audit/recording/checkpoints. This does not identify checkpoints alone
+as the bottleneck; it includes synchronization and per-step contact analysis.
+Future source snapshots split the last phase into audit/state recording,
+camera/video output and periodic checkpoints. Frozen041 retains its original
+source. No physics, record frequency, precision or acceptance gate changes.
+The timer and actual-state adapter tests pass (12 focused tests); separate
+phase costs still require a future live run.

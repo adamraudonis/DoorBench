@@ -1330,6 +1330,7 @@ def main():
                     (out/'latest.json').write_text(json.dumps(row)+'\n')
                     (out/'progress.json').write_text(json.dumps(progress)+'\n')
                     print('PHYSX_PROGRESS '+json.dumps(progress),flush=True)
+            wall_timing.mark('audit_and_state_recording')
             if camera and step%20==0:
                 camera.update(dt*20);frame=camera.data.output['rgb'][0].cpu().numpy()[...,:3]
                 writer.append_data(frame)
@@ -1338,11 +1339,12 @@ def main():
                 hand_camera.update(dt*20);hand_frame=hand_camera.data.output['rgb'][0].cpu().numpy()[...,:3]
                 hand_writer.append_data(hand_frame)
                 if step%500==0:imageio.imwrite(out/f'hand-frame-{step:05d}.png',hand_frame)
+            wall_timing.mark('camera_and_video_output')
             if (step+1)%1000==0:
                 checkpoint_prefix()
                 if teacher_queries:teacher_queries.finish(complete=False,executed_steps=len(acquisition_states['time_s']))
             if sensor_recorder and (step+1)%2500==0:sensor_recorder.finish(complete=False)
-            wall_timing.finish('audit_recording_and_checkpoints')
+            wall_timing.finish('periodic_checkpoints')
             if (step+1)%250==0:
                 (out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n')
             if (step+1)%50==0 and (out/'stop.request').exists():
