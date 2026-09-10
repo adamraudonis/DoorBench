@@ -1,0 +1,123 @@
+{
+  "scope": "Replay one measured tracking error across a candidate path without stepping physics.\n\nThis is a diagnostic, not a physical qualification or a bound on future errors.\nIt tests elbow/leaf clearance only; the full dense and physical audits still apply.\n",
+  "time_s": 353.4160000009594,
+  "samples": 1001,
+  "source_raw_chunk_sha256": "68aa081b7d48cf828abd4b0e794c548f594525e75eb0996a6b760383a2331f90",
+  "source_plan_sha256": "4e09cdee665c13e5017e8a754d8283f6c26f2463c5dabd1c761a076cb4a2b027",
+  "candidate_plan_sha256": "ff40dee8a17c201a2b31de6bc99ed18c98ec4cc8e482552292cf79c842b181ab",
+  "root_error_rotvec_rad": [
+    0.000700239705478074,
+    6.20567123219699e-05,
+    0.0064883988497737395
+  ],
+  "root_error_translation_m": [
+    -0.0007833929273035889,
+    -3.378026162115244e-05,
+    -0.00037700900015935623
+  ],
+  "joint_names": [
+    "left_hip_yaw",
+    "left_hip_roll",
+    "left_hip_pitch",
+    "left_knee",
+    "left_ankle",
+    "right_hip_yaw",
+    "right_hip_roll",
+    "right_hip_pitch",
+    "right_knee",
+    "right_ankle",
+    "torso",
+    "right_shoulder_pitch",
+    "right_shoulder_roll",
+    "right_shoulder_yaw",
+    "right_elbow",
+    "right_wrist_yaw",
+    "left_shoulder_pitch",
+    "left_shoulder_roll",
+    "left_shoulder_yaw",
+    "left_elbow",
+    "left_wrist_yaw",
+    "rh_WRJ2",
+    "rh_WRJ1",
+    "lh_WRJ2",
+    "lh_WRJ1"
+  ],
+  "joint_errors_rad": [
+    -0.006418554589538501,
+    -0.0009122849571893965,
+    -0.0035189523328778144,
+    0.007004544184751632,
+    -0.0028646047180269363,
+    -0.006199141319623271,
+    -0.000857601867581697,
+    -0.002778547433893913,
+    0.008393338748300061,
+    -0.004667989369925005,
+    -0.0005130642546473663,
+    -0.06000079954617088,
+    -0.02468016068861212,
+    0.02223295812065018,
+    -0.06000016390972429,
+    -0.05999996553819911,
+    0.016596250735756102,
+    0.04035681995729634,
+    0.01831776905178728,
+    0.09260586074329424,
+    0.004930488278017481,
+    -0.004682125291704215,
+    -0.0594819400195937,
+    -0.0073181177488683136,
+    0.0558759037627303
+  ],
+  "leaf_error_rad": 0.007672698491298258,
+  "results": {
+    "nominal": {
+      "worst": {
+        "clearance_m": 0.006036643243739515,
+        "progress": 0.032,
+        "leaf_angle_rad": 1.2342756175188225
+      },
+      "samples_below_3mm": 0,
+      "endpoint_clearance_m": {
+        "start": 0.006572115881405383,
+        "end": 0.01799999999999923
+      }
+    },
+    "measured_root_error": {
+      "worst": {
+        "clearance_m": 0.00130777913707017,
+        "progress": 0.032,
+        "leaf_angle_rad": 1.2342756175188225
+      },
+      "samples_below_3mm": 47,
+      "endpoint_clearance_m": {
+        "start": 0.0018761438223206474,
+        "end": 0.012691985073431883
+      }
+    },
+    "measured_root_joint_leaf_error": {
+      "worst": {
+        "clearance_m": 0.002138956859971696,
+        "progress": 0.032,
+        "leaf_angle_rad": 1.2419483160101208
+      },
+      "samples_below_3mm": 43,
+      "endpoint_clearance_m": {
+        "start": 0.0026891265678212757,
+        "end": 0.015137351124729212
+      }
+    }
+  },
+  "interpretation": "Measured early tracking error violates3mm clearance already at the exact initial state; changing only the later margin ramp cannot remove this diagnostic failure.",
+  "controller_inspection": {
+    "planner": "screen_whole_body_panel.py captures feet_r from initial state and fits every node to it",
+    "controller": "StanceController.command uses self.target_rotation for each foot orientation and contact frame; StandingPanelReference.update changes this target with the planned root rotation",
+    "candidate_max_root_rotation_change_rad": 0.2082803450031618,
+    "hypothesis": "Coupled foot/root targets may contribute to tracking error; not yet established by a physical comparison. Introduce explicit fixed-foot target mode preserving historical defaults and replay identity before testing."
+  },
+  "source_sha256": {
+    "doorbench/dexterous/stance.py": "03d8b2e3d472bcf96e89e1b32bb38109c830cc3c8826bf536352f00a7c8d3ec8",
+    "doorbench/dexterous/standing_panel_reference.py": "cf3933cd5e7c90f5171658e92671f80cff54adf44c9a6276f424fe5e665886e0",
+    "scripts/dexterous/screen_whole_body_panel.py": "e835b1dbdef93436534f88dd9692b0382e1124c4c7f9199c72f80a65d9121c40"
+  }
+}

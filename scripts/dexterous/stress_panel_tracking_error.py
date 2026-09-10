@@ -94,6 +94,7 @@ def main():
     for name in ('nominal', 'measured_root_error', 'measured_root_joint_leaf_error'):
         worst = {'clearance_m': float('inf')}
         count = 0
+        endpoints = {}
         for s in np.linspace(0., 1., a.samples):
             q = pose(candidate, s)
             q[leafq] = float(np.interp(s, [0., 1.], angles))
@@ -106,10 +107,13 @@ def main():
             d.qpos[:] = q
             mujoco.mj_kinematics(m, d)
             gap = min(float(mujoco.mj_geomDistance(m, d, g, h, .1, None)) for g in ge for h in gs)
+            if s == 0. or s == 1.:
+                endpoints['start' if s == 0. else 'end'] = gap
             count += gap < .003
             if gap < worst['clearance_m']:
                 worst = {'clearance_m': gap, 'progress': float(s), 'leaf_angle_rad': float(q[leafq])}
-        results[name] = {'worst': worst, 'samples_below_3mm': count}
+        results[name] = {'worst': worst, 'samples_below_3mm': count,
+                         'endpoint_clearance_m': endpoints}
     sim.close()
     report = {'scope': __doc__, 'time_s': a.time_s, 'samples': a.samples,
               'source_raw_chunk_sha256': chunk['sha256'],
