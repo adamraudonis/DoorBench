@@ -324,3 +324,8 @@ Added source-bound Isaac mode to the transfer planner, re-extracting recorded st
 ### Isaac standing-transfer runtime integration
 
 The opt-in standalone Isaac path now instantiates StandingTransferTeacher after qualified acquisition, applies only original capped motors and records per-step actual panel-pair forces to bounded storage. Final qualification adds complete transfer clock, independently reduced left-palm support and stance checks to every existing physical/handle check. The coordinator keeps its36s native grasp prerequisite and runs50s in Isaac when a screened route is supplied.19 focused local tests pass; CLI tests stub only launcher argument registration. Actual Isaac execution remains unverified.
+
+
+### Actual standing transfer043 dispatched
+
+Source04bd4236c / acfda05e91a4eb04 is immutable and hash-verified on the owned A40. Real pod argument preflight passes with the established coordinator environment. The36s native prerequisite is live, followed conditionally by50s in actual Isaac using measured route002 and original force/contact limits. Both teardown guards were renewed and acknowledged until23:25:58UTC; collection and Run Center entries are attached. Latest failed native004–006 contact archives were independently uploaded/downloaded/hash-verified before local eviction, preserving trajectories/controller traces and exact006 failure inputs. [Dispatch](evidence/isaac043-transfer-dispatch.json). No physical transfer success yet.
