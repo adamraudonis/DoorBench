@@ -933,3 +933,22 @@ Its verified archival is live (`out/archive-wide002-launch.json`, `.log`). `out/
 Wider002's1,123,737,600-byte archive was independently downloaded/hash-verified, then462 local raw copies were offloaded. The300s duration comparison passed storage admission and is now live as `out/native-standing-panel-wide-003` (physics79645, waiter78848). Its first observed acquisition progress is13.582s; no wider result is claimed. All three independent audits remain attached via `out/launch-wide003-after-archive.log`. Its controller/configuration is identical to002; only the episode horizon changes.
 
 Replacement GPU bootstrap generated db0055 successfully, with asset check/sign-off passing, and is now restoring the pinned shared Isaac runtime dependencies before its headless startup and physical smoke proof. Coordinator032 remains waiting for the readiness receipt; asset sign-off does not establish robot interaction or backend qualification.
+
+
+## September 10: localized Isaac grip migration and tangent-only trial
+
+Isaac friction037 is a failed36-second privileged partial-opening trial. A streaming diagnostic now locates the first unqualified patch above0.1N at17.838s on the index middle segment. At the nearest recorded teacher sample (4ms later), the lever was0.82647rad versus reference0.90417rad, with3.06mm palm tracking error and2.73mm hub gap. The large final lever error is later than the initial migration and does not establish its cause. Index distal force-weighted local z moved from18.0mm in second10 to8.1mm in second17. These are contact centroids, not tracked single material points. The0.1N threshold is diagnostic only; qualification thresholds are unchanged. The source has18,001 sampled states including reset, distinct from18,000 physical intervals.
+
+Reproduce without loading the full recording into memory:
+
+```sh
+PYTHONPATH=. python scripts/dexterous/summarize_grasp_migration.py \
+  --trial /path/to/isaac-standing-friction-037/trial \
+  --output /path/to/grasp-migration.json
+```
+
+`actual-tangent-v1` is an opt-in privileged teacher experiment, available in both native and Isaac operation entrypoints. It projects100N/m material-point correction onto the measured lever cylinder tangent plane, capped at1N per digit before conversion through original finger motors. It retains original posture, motor damping, radial preload and caps; it does not add arm counterforce or move simulator poses. Unlike earlier full-position profiles, it deliberately avoids radial spring competition. No claim of improved grasp until actual physical audits pass. Native trial `out/native-standing-tangent-001` uses the same36-second hub002 protocol and immutable initial model/reference, with only this profile enabled. Independent raw pad and whole-handle audits are queued; no GPU launch is authorized by passing unit tests alone. Storage admission reserves576MiB under the20GiB retained limit and10GiB free reserve.
+
+The broader requirements remain uninterrupted Isaac approach/open/traverse/stable finish, sensor-only learned actor, held-out evaluation and declared coverage. Neither this partial opening nor geometry-screened passage017 satisfies them.
+
+Native tangent001 subsequently passed runtime and both independent audits over18,000 physical intervals. Maximum/final leaf0.077934rad, maximum operator0.858008rad. Evidence: `docs/evidence/native-standing-tangent-001.json`. This admits an Isaac comparison under identical gates; no Isaac result exists for this profile yet.

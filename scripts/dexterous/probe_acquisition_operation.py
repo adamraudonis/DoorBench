@@ -98,7 +98,7 @@ def main():
     parser.add_argument('--open-on-latch-clear', action='store_true')
     parser.add_argument('--operator-compliance-gain',type=float,default=0.)
     parser.add_argument('--operation-fixed-pad-control',action='store_true')
-    parser.add_argument('--operation-pad-control-profile',choices=('commanded-material-v1','actual-material-v1','actual-material-v2','measured-pressure-v1'),default='commanded-material-v1')
+    parser.add_argument('--operation-pad-control-profile',choices=('commanded-material-v1','actual-material-v1','actual-material-v2','actual-tangent-v1','measured-pressure-v1'),default='commanded-material-v1')
     parser.add_argument('--hold-attained-grasp',action='store_true',help='Capture coupled finger posture after qualified partial opening')
     parser.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
     parser.add_argument('--index-tendon-offset-rad',type=float,default=0.)

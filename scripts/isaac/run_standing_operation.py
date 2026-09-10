@@ -31,7 +31,7 @@ def main():
     p.add_argument('--operation-hub-clearance-m',type=float,default=.004,help='Prospective 4–8 mm hub-avoidance activation; force cap remains 3 N')
     p.add_argument('--isaac-grasp-profile',choices=('distal-pad-v1','volar-phalange-v1'),default='distal-pad-v1',help='Prospectively declared Isaac anatomy contract; the native prerequisite retains stricter distal and whole-handle checks')
     p.add_argument('--actual-material-pads',action='store_true')
-    p.add_argument('--material-pad-profile',choices=('actual-material-v1','actual-material-v2','measured-pressure-v1'),default='actual-material-v1')
+    p.add_argument('--material-pad-profile',choices=('actual-material-v1','actual-material-v2','actual-tangent-v1','measured-pressure-v1'),default='actual-material-v1')
     p.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
     p.add_argument('--wait-for-run',type=Path,help='Wait for this earlier coordinator to finish before using the prepared node')
     p.add_argument('--isaac-timeout-seconds',type=float,default=4200.,help='Wall-clock budget including periodic evidence export')

@@ -9,6 +9,17 @@ import mujoco
 import numpy as np
 
 
+def tangent_force(force, normal, maximum_force):
+    """Project a requested pad force onto the measured surface tangent plane."""
+    force, normal = np.asarray(force, float), np.asarray(normal, float)
+    if (force.shape != (3,) or normal.shape != (3,)
+            or not np.isfinite(np.r_[force, normal, maximum_force]).all()
+            or maximum_force <= 0 or abs(np.linalg.norm(normal)-1.) > 1e-6):
+        raise ValueError('Finite force, unit normal and positive force cap required')
+    result = force - normal * (force @ normal)
+    return result * min(1., maximum_force / max(1e-12, np.linalg.norm(result)))
+
+
 class PadTracker:
     def __init__(self, model, reference_data, digit_geoms, lever, *, digits,
                  stiffness=300., damping=2., maximum_force=6.):
@@ -35,7 +46,7 @@ class PadTracker:
         return {digit: data.xpos[body] + data.xmat[body].reshape(3,3) @ local
                 for digit, (body, local) in self.pads.items()}
 
-    def generalized_force(self, data, targets):
+    def generalized_force(self, data, targets, *, surface_normals=None):
         result = np.zeros(self.m.nv); errors = {}
         positions = self.positions(data)
         for digit, (body, _) in self.pads.items():
@@ -43,6 +54,8 @@ class PadTracker:
             mujoco.mj_jac(self.m, data, self.jp, self.jr, position, body)
             error = np.asarray(targets[digit]) - position
             force = self.stiffness * error - self.damping * (self.jp @ data.qvel)
+            if surface_normals is not None:
+                force = tangent_force(force, surface_normals[digit], self.maximum_force)
             magnitude = np.linalg.norm(force)
             if magnitude > self.maximum_force:
                 force *= self.maximum_force / magnitude

@@ -10,7 +10,7 @@ from .operation_teacher import pose_components, reproject_grasp, smooth_phase
 
 class OperationPadControl:
     def __init__(self, teacher, handle_pose, *, profile="commanded-material-v1"):
-        if profile not in ("commanded-material-v1","actual-material-v1","actual-material-v2","measured-pressure-v1"):raise ValueError("Unknown material contact profile")
+        if profile not in ("commanded-material-v1","actual-material-v1","actual-material-v2","actual-tangent-v1","measured-pressure-v1"):raise ValueError("Unknown material contact profile")
         self.profile=profile
         self.teacher=teacher
         if profile=='measured-pressure-v1':
@@ -21,6 +21,12 @@ class OperationPadControl:
                 for digit,geoms in teacher.digit_geoms.items()}
         self.tracker=PadTracker(teacher.m,teacher.d,distal,teacher.lever,
             digits=('ff','mf','rf','lf','th'),stiffness=1200.,damping=3.,maximum_force=6. if profile.startswith("actual-material-") else 12.)
+        if profile == 'actual-tangent-v1':
+            # Gentle material slip correction only. Original motor damping,
+            # finger posture and normal preload remain in the base teacher.
+            self.tracker.stiffness=100.
+            self.tracker.damping=0.
+            self.tracker.maximum_force=1.
         hp,hr=pose_components(handle_pose)
         self.relative={digit:hr.T@(position-hp) for digit,position in self.tracker.positions(teacher.d).items()}
 
@@ -35,18 +41,30 @@ class OperationPadControl:
         # off the physical cylinder and defeats contact feedback.
         targets={digit:reproject_grasp(handle_pose,leaf_pose,angles,goals,relative,np.eye(3),geometry)[0]
                  for digit,relative in self.relative.items()}
-        actual=getattr(self,'profile','commanded-material-v1').startswith('actual-material-')
+        actual=getattr(self,'profile','commanded-material-v1').startswith('actual-')
         if actual:
             hp,hr=pose_components(handle_pose)
             targets={digit:hp+hr@relative for digit,relative in self.relative.items()}
-        generalized,errors=self.tracker.generalized_force(teacher.d,targets)
+        if getattr(self,'profile',None) == 'actual-tangent-v1':
+            center=teacher.d.geom_xpos[teacher.lever]
+            axis=teacher.d.geom_xmat[teacher.lever].reshape(3,3)[:,2]
+            normals={}
+            for digit,target in targets.items():
+                radial=target-center
+                radial=radial-axis*float(radial@axis)
+                length=float(np.linalg.norm(radial))
+                if length<1e-6:raise ValueError('Material target must lie off the lever axis')
+                normals[digit]=radial/length
+            generalized,errors=self.tracker.generalized_force(teacher.d,targets,surface_normals=normals)
+        else:
+            generalized,errors=self.tracker.generalized_force(teacher.d,targets)
         length=teacher.matrix@teacher.d.qpos[teacher.qa]
         # Relax only the finger positional servo, retaining its velocity damping
         # and the original acquisition controller's distal normal preload.
         posture=(teacher.kp*teacher.target+teacher.bias[:,0]+teacher.bias[:,1]*length
                  +teacher.kp*teacher.gain*(teacher.target-length))
         result=np.asarray(forces,float).copy()
-        relaxation=0. if getattr(self,'profile',None)=='actual-material-v2' else .8
+        relaxation=0. if getattr(self,'profile',None) in ('actual-material-v2','actual-tangent-v1') else .8
         result[teacher.fingers]-=relaxation*blend*posture[teacher.fingers]
         result[teacher.fingers]+=blend*(teacher.finger_inverse@generalized[teacher.va])
         if not actual:result[teacher.arm_motors]+=blend*(teacher.arm_inverse@generalized[teacher.va])

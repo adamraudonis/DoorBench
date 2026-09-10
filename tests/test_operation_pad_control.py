@@ -52,3 +52,21 @@ def test_second_actual_profile_retains_original_posture_servo():
     pose=np.array([0.,0.,0.,1.,0.,0.,0.]);geometry=dict(operator_origin=np.zeros(3),operator_axis=np.array([0.,1.,0.]),leaf_origin=np.zeros(3),leaf_axis=np.array([0.,0.,1.]))
     motors,info=c.force(np.array([1.,.5]),1.,pose,pose,dict(operator=0.,leaf=0.),dict(operator=.8,leaf=.1),geometry)
     np.testing.assert_array_equal(motors,[1.,.5]);assert info['finger_posture_relaxation_fraction']==0.
+
+
+def test_tangent_profile_uses_measured_surface_and_retains_arm_and_posture():
+    c=fixture();c.profile='actual-tangent-v1';c.teacher.lever=0
+    c.teacher.d.geom_xpos=np.zeros((1,3));c.teacher.d.geom_xmat=np.eye(3).reshape(1,9)
+    def tracking(data,targets,*,surface_normals):
+        np.testing.assert_allclose(surface_normals['ff'],[0.,1.,0.])
+        np.testing.assert_allclose(surface_normals['th'],[0.,-1.,0.])
+        return np.zeros(2),{}
+    c.tracker.generalized_force=tracking
+    pose=np.array([0.,0.,0.,1.,0.,0.,0.]);geometry=dict(operator_origin=np.zeros(3),
+        operator_axis=np.array([0.,1.,0.]),leaf_origin=np.zeros(3),leaf_axis=np.array([0.,0.,1.]))
+    before=c.teacher.d.qpos.copy()
+    motors,info=c.force(np.array([1.,.5]),1.,pose,pose,dict(operator=0.,leaf=0.),
+        dict(operator=.8,leaf=.1),geometry)
+    np.testing.assert_array_equal(motors,[1.,.5])
+    np.testing.assert_array_equal(c.teacher.d.qpos,before)
+    assert info['finger_posture_relaxation_fraction']==0.

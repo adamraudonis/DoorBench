@@ -43,7 +43,7 @@ class DoorOperationTeacher:
                  operator_compliance_gain=0., operator_compliance_limit=.15,
                  freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening', pad_control_profile='commanded-material-v1', leaf_lead_limit_rad=None, operator_follow_after_leaf_rad=None, handle_hub_avoidance=False, hub_clearance_m=.004):
         if type(fixed_pad_control) is not bool:raise ValueError('Explicit contact-controller flag required')
-        if pad_control_profile not in ('commanded-material-v1','actual-material-v1','actual-material-v2','measured-pressure-v1'):raise ValueError('Unknown pad control profile')
+        if pad_control_profile not in ('commanded-material-v1','actual-material-v1','actual-material-v2','actual-tangent-v1','measured-pressure-v1'):raise ValueError('Unknown pad control profile')
         if type(handle_hub_avoidance) is not bool:raise ValueError('Explicit hub-avoidance flag required')
         if not np.isfinite(hub_clearance_m) or not .004<=hub_clearance_m<=.008:
             raise ValueError('Hub clearance activation must be 4–8 mm')
