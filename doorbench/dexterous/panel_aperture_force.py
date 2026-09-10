@@ -8,13 +8,13 @@ class PanelApertureForce:
         if terminal_aperture is not None and (not np.isfinite(terminal_aperture) or terminal_aperture<=.01):raise ValueError('Finite terminal aperture required')
         if not np.isfinite(terminal_support_margin_N) or not 0<=terminal_support_margin_N<=.5:raise ValueError('Bounded terminal support margin required')
         if type(stiction_assist) is not bool or (stiction_assist and terminal_aperture is None):raise ValueError('Stiction assistance requires an explicit terminal aperture')
-        if load_profile not in ("standard-6N-v1", "bounded-7N-v1"):raise ValueError("Unknown declared palm load profile")
+        limits={"standard-6N-v1":(6.,3.),"bounded-7N-v1":(7.,4.5),"bounded-9N-v1":(9.,6.5)}
+        if load_profile not in limits:raise ValueError("Unknown declared palm load profile")
         if load_profile!="standard-6N-v1" and not stiction_assist:raise ValueError("Expanded load target requires explicit terminal stiction assistance")
         if terminal_minimum_support_N is not None and (terminal_aperture is None or not np.isfinite(terminal_minimum_support_N) or not 2.05<=terminal_minimum_support_N<=2.75):raise ValueError("Bounded terminal support floor requires a terminal aperture")
         self.terminal_minimum_support_N=terminal_minimum_support_N
         self.load_profile=load_profile
-        self.maximum_target_N=7. if load_profile=="bounded-7N-v1" else 6.
-        self.maximum_integral_N=4.5 if load_profile=="bounded-7N-v1" else 3.
+        self.maximum_target_N,self.maximum_integral_N=limits[load_profile]
         self.stiction_assist=stiction_assist
         self.terminal_support_margin_N=terminal_support_margin_N
         self.terminal_aperture=terminal_aperture;self.braking_started=None

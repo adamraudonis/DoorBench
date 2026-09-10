@@ -103,3 +103,17 @@ def test_terminal_support_floor_preserves_prebrake_force_and_original_caps():
             PanelApertureForce(terminal_aperture=.75,terminal_minimum_support_N=value)
     with pytest.raises(ValueError,match='support floor'):
         PanelApertureForce(terminal_minimum_support_N=2.4)
+
+
+def test_nine_newton_candidate_is_explicit_bounded_and_releases_integral_at_target():
+    c=PanelApertureForce(terminal_aperture=1.2,stiction_assist=True,
+        load_profile='bounded-9N-v1',terminal_minimum_support_N=2.4)
+    for i in range(40001):
+        target,info=c.update(i*.002,1.105,1.1,2.25)
+        assert 2.05<=target<=9
+    assert 7<target<=9 and info['panel_force_integral_N']==6.5
+    assert info['panel_maximum_target_N']==9
+    for i in range(40001,40201):target,info=c.update(i*.002,1.2,1.205,2.25)
+    assert target==2.4
+    assert PanelApertureForce().maximum_target_N==6
+    with pytest.raises(ValueError):PanelApertureForce(load_profile='bounded-9N-v1')
