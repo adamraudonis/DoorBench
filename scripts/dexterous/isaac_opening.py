@@ -204,8 +204,9 @@ p.add_argument('--operation-leaf-lead-limit-rad',type=float,help='Explicit measu
 p.add_argument('--operation-hub-geometry',type=str,help='Original hub descriptor from the independently gated native prerequisite')
 p.add_argument('--operation-hub-clearance-m',type=float,default=.004,help='Prospective 4–8 mm hub-avoidance activation; force cap remains 3 N')
 p.add_argument('--operation-operator-follow-after-leaf-rad',type=float,help='Blend toward the measured handle angle after the leaf clears the latch')
+p.add_argument('--validate-arguments-only',action='store_true',help='Validate CLI combinations without starting SimulationApp')
 a=p.parse_args()
-if a.operation_operator_follow_after_leaf_rad is not None and (not .015<=a.operation_operator_follow_after_leaf_rad<=.05 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset or a.hold_attained_grasp):p.error('Operator follow requires standalone operation, no fixed hold, and .015..0.05 rad')
+if a.operation_operator_follow_after_leaf_rad is not None and (not .015<=a.operation_operator_follow_after_leaf_rad<=.05 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Operator follow requires standalone operation and .015..0.05 rad')
 if a.operation_leaf_lead_limit_rad is not None and (not .002<=a.operation_leaf_lead_limit_rad<=.03 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Leaf lead bound requires standalone operation and .002..0.03 rad')
 if not .075<=a.operation_leaf_target_rad<=.10:p.error('Partial opening command must be .075..0.10 rad')
 if a.operation_leaf_target_rad!=.08 and (not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Leaf command override requires standalone operation')
@@ -266,6 +267,9 @@ balance_scope=('Sensor-only analytical balance with scripted torso, arm and fing
 try:validate_traversal_mode(a)
 except ValueError as error:p.error(str(error))
 if not .70<=a.operation_opening_trigger_rad<=.80:raise ValueError('Opening trigger must be .70.. .80 rad')
+if not math.isfinite(a.operation_hub_clearance_m) or not .004<=a.operation_hub_clearance_m<=.008:p.error('Hub clearance activation must be 4–8 mm')
+if a.validate_arguments_only:
+    print(json.dumps(dict(arguments_valid=True,physics_started=False)));raise SystemExit(0)
 if a.record or a.sensor_layout:a.enable_cameras=True
 launcher=AppLauncher(a);app=launcher.app
 import numpy as np

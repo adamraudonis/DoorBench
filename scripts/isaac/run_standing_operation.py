@@ -93,6 +93,13 @@ def main():
         argv=list(map(str,argv));commands.append(dict(name=name,argv=argv,started_unix=time.time()))
         (a.output/'commands.json').write_text(json.dumps(commands,indent=2))
         stage(name)
+        if name in ('native-prerequisite','isaac-operation'):
+            with (a.output/(name+'-arguments.log')).open('w') as log:
+                preflight=subprocess.run(argv+['--validate-arguments-only'],cwd=a.source,env=env,
+                    stdout=log,stderr=subprocess.STDOUT,timeout=min(90.,remaining))
+            commands[-1]['argument_preflight_returncode']=preflight.returncode
+            (a.output/'commands.json').write_text(json.dumps(commands,indent=2))
+            if preflight.returncode:raise RuntimeError(name+' argument preflight failed before physics')
         with (a.output/(name+'.log')).open('w') as log:
             process=subprocess.Popen(argv,cwd=a.source,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
             try:code=process.wait(timeout=min(maximum,remaining))
