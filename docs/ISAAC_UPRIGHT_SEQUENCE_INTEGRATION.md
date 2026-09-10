@@ -113,3 +113,21 @@ restore a running simulator. Only use a mechanically qualified attained state
 for continuation planning, followed by the independent geometry and contact
 gates above. Twenty-six focused adapter/binding tests pass; actual040 archive
 extraction remains pending completion and verified collection.
+
+
+## Index-posture candidate after handle-lead040
+
+The measured040 first excluded index-middle contact occurs at16.36s, just after
+lever return. A source-verified static sweep suggested proximal offset−0.02rad
+and summed FFJ1/2 tendon offset+0.06rad. Native index-posture004 now passes all19
+runtime checks and both independent contact audits over36s, ending at0.077877rad.
+It is only a qualified native partial-opening candidate.
+
+The coordinator and Isaac CLI now accept `--operation-index-proximal-offset-rad`
+and `--operation-index-tendon-offset-rad`, defaulting to zero. They enforce the
+teacher's existing0.1/0.12rad bounds and forward the same values to both backends.
+Isaac permits nonzero offsets only for standalone operation. The existing
+one-second teacher ramp and original motor/contact gates remain unchanged.
+Forty-seven focused pipeline, launcher and teacher tests pass. A GPU comparison
+requires a fresh immutable source snapshot; do not edit frozen040 or claim these
+options were present in its command.

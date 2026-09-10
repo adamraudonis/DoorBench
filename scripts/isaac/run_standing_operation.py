@@ -41,6 +41,8 @@ def main():
     p.add_argument('--operation-leaf-lead-limit-rad',type=float)
     p.add_argument('--operation-operator-follow-after-leaf-rad',type=float)
     p.add_argument('--operation-grasp-offset-in-handle-m',nargs=3,type=float,default=(.004,-.003,.0025),help='Explicit bounded handle-frame palm recentering, shared by native and Isaac')
+    p.add_argument('--operation-index-proximal-offset-rad',type=float,default=0.)
+    p.add_argument('--operation-index-tendon-offset-rad',type=float,default=0.)
     a=p.parse_args()
     if not math.isfinite(a.operation_hub_clearance_m) or not .004<=a.operation_hub_clearance_m<=.008:raise ValueError('Hub clearance activation must be 4–8 mm')
     if a.operation_hub_clearance_m!=.004 and not a.operation_handle_hub_avoidance:raise ValueError('Explicit hub avoidance required for changed activation')
@@ -52,9 +54,14 @@ def main():
     if not .075<=a.operation_leaf_target_rad<=.10:raise ValueError('Partial opening command must be .075..0.10 rad')
     if not 300<=a.isaac_timeout_seconds<=7200:raise ValueError('Isaac wall-clock budget must be 300..7200 seconds')
     if a.deadline_unix-time.time()<300:raise ValueError('At least five minutes of guarded runtime required')
+    for value,limit in [(a.operation_index_proximal_offset_rad,.1),(a.operation_index_tendon_offset_rad,.12)]:
+        if not math.isfinite(value) or abs(value)>limit:raise ValueError('Finite bounded index posture offsets required')
+    native_index_options=['--index-proximal-offset-rad',str(a.operation_index_proximal_offset_rad),'--index-tendon-offset-rad',str(a.operation_index_tendon_offset_rad)]
+    isaac_index_options=['--operation-index-proximal-offset-rad',str(a.operation_index_proximal_offset_rad),'--operation-index-tendon-offset-rad',str(a.operation_index_tendon_offset_rad)]
     a.output.mkdir(parents=True,exist_ok=False)
     (a.output/'run.pid').write_text(str(os.getpid()))
     result={'passed':False,'scope':'Privileged standing acquisition and held partial opening; no full opening, traversal or learned actor'}
+    result['index_posture_offsets_rad']={'proximal':a.operation_index_proximal_offset_rad,'tendon':a.operation_index_tendon_offset_rad}
     result['isaac_grasp_profile']=a.isaac_grasp_profile
     result['native_prerequisite_grasp_profile']='distal-pad-v1'
     result['operation_hub_clearance_m']=a.operation_hub_clearance_m
@@ -155,7 +162,7 @@ def main():
         if a.operation_handle_hub_avoidance:
             native_pad_options+=['--operation-handle-hub-avoidance']
             isaac_pad_options+=['--operation-hub-geometry',str(native/'hub-geometry.json')]
-        run([asset,a.source/'scripts/dexterous/probe_acquisition_operation.py','--robot',robot,'--door',door,'--reference',reference,'--motors',motors,'--stance-profile','landed-foot-v1','--record-transitions','--index-finger-force','3','--portable-wrapper','--operator-compliance-gain','.2','--pressure-segment','distal','--grasp-offset-in-handle-m',*grasp_offset,'--seconds','36','--output',native,*hold_options,*native_pad_options],'native-prerequisite',1200,allowed_codes=(0,1))
+        run([asset,a.source/'scripts/dexterous/probe_acquisition_operation.py','--robot',robot,'--door',door,'--reference',reference,'--motors',motors,'--stance-profile','landed-foot-v1','--record-transitions','--index-finger-force','3','--portable-wrapper','--operator-compliance-gain','.2','--pressure-segment','distal','--grasp-offset-in-handle-m',*grasp_offset,'--seconds','36','--output',native,*native_index_options,*hold_options,*native_pad_options],'native-prerequisite',1200,allowed_codes=(0,1))
         result['native_runtime_passed']=json.loads((native/'report.json').read_text()).get('passed') is True
         run([asset,a.source/'scripts/dexterous/audit_sensor_acquisition_contacts.py','--trial',native,'--output',a.output/'native-independent-audit.json'],'native-contact-audit',600)
         run([asset,a.source/'scripts/dexterous/audit_native_handle_assembly.py','--trial',native,'--output',a.output/'native-whole-handle-audit.json'],'native-whole-handle-audit',600,allowed_codes=(0,1))
@@ -186,7 +193,7 @@ def main():
         (a.output/'provenance.json').write_text(json.dumps(dict(source=frozen,coordinator_sha256=sha(__file__),input_sha256={str(path):sha(path) for path in inputs},scope=result['scope']),indent=2))
         trial=a.output/'trial'
         if a.deadline_unix-time.time()<a.isaac_timeout_seconds+300:raise TimeoutError('Insufficient guarded time for Isaac run and evidence export')
-        run([isaac,a.source/'scripts/dexterous/isaac_opening.py','--robot-usd',ready['robot_usd'],'--door-usd',ready['door_usd'],'--motors',motors,'--reference',reference,'--sensor-layout',layout,'--reset-from-acquisition-path','--grasp-profile',a.isaac_grasp_profile,'--joint-passive-profile','backend-dry-v2','--seconds','36','--output',trial,'--headless','--device','cuda:0','--record','--enable_cameras','--sensor-gyro-profile','pose-delta-angle-v1','--acquisition','--native-robot',robot,'--acquisition-stance-profile','landed-foot-v1','--acquisition-pressure-segment','distal','--acquisition-index-finger-force','3','--operate-after-acquisition','--operator-compliance-gain','.2','--operation-min-acquisition-seconds','10.6','--operation-grasp-offset-in-handle-m',*grasp_offset,*hold_options,*isaac_pad_options],'isaac-operation',a.isaac_timeout_seconds,allowed_codes=(0,1))
+        run([isaac,a.source/'scripts/dexterous/isaac_opening.py','--robot-usd',ready['robot_usd'],'--door-usd',ready['door_usd'],'--motors',motors,'--reference',reference,'--sensor-layout',layout,'--reset-from-acquisition-path','--grasp-profile',a.isaac_grasp_profile,'--joint-passive-profile','backend-dry-v2','--seconds','36','--output',trial,'--headless','--device','cuda:0','--record','--enable_cameras','--sensor-gyro-profile','pose-delta-angle-v1','--acquisition','--native-robot',robot,'--acquisition-stance-profile','landed-foot-v1','--acquisition-pressure-segment','distal','--acquisition-index-finger-force','3','--operate-after-acquisition','--operator-compliance-gain','.2','--operation-min-acquisition-seconds','10.6','--operation-grasp-offset-in-handle-m',*grasp_offset,*isaac_index_options,*hold_options,*isaac_pad_options],'isaac-operation',a.isaac_timeout_seconds,allowed_codes=(0,1))
         # Preserve and independently audit failures as well as successful runs.
         result['isaac_report_emitted']=(trial/'operation-report.json').is_file()
         if not result['isaac_report_emitted']:raise RuntimeError('Isaac exited before its physical report; inspect isaac-operation.log')

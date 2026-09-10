@@ -140,6 +140,8 @@ p.add_argument('--acquisition-middle-finger-force',type=float,help='Explicit acq
 p.add_argument('--acquisition-index-finger-force',type=float,help='Explicit acquisition index-finger preload in N; original motor caps unchanged')
 p.add_argument('--acquisition-pressure-segment',choices=['distal'],help='Apply the grasp-force reference through distal geometry only')
 p.add_argument('--operation-grasp-offset-in-handle-m',nargs=3,type=float,help='Optional handle-frame reference recenter, at most 10 mm; one-second smooth ramp')
+p.add_argument('--operation-index-proximal-offset-rad',type=float,default=0.,help='Bounded index proximal reference offset, smoothly applied during operation')
+p.add_argument('--operation-index-tendon-offset-rad',type=float,default=0.,help='Bounded summed index tendon reference offset, split over FFJ1/2')
 p.add_argument('--operation-min-acquisition-seconds',type=float,default=0.,help='Earliest qualified grasp-to-operation handoff')
 p.add_argument('--hold-attained-grasp',action='store_true',help='Capture original coupled finger targets after a qualified partial opening')
 p.add_argument('--operation-actual-pad-control',action='store_true')
@@ -228,6 +230,9 @@ if a.acquisition_pressure_segment and (not a.acquisition or a.full_sequence_rese
 if not math.isfinite(a.operation_min_acquisition_seconds) or a.operation_min_acquisition_seconds<0:p.error('Finite nonnegative operation handoff time required')
 if a.operation_actual_pad_control and (not a.operate_after_acquisition or a.full_sequence_reset or a.full_opening or a.hold_attained_grasp):p.error('Actual material pads require a separate standalone operation trial')
 if a.hold_attained_grasp and (not a.operate_after_acquisition or a.full_sequence_reset or a.full_opening):p.error('Attained grasp hold requires a standalone operation trial')
+for value,limit in [(a.operation_index_proximal_offset_rad,.1),(a.operation_index_tendon_offset_rad,.12)]:
+    if not math.isfinite(value) or abs(value)>limit:p.error('Finite bounded index posture offsets required')
+if (a.operation_index_proximal_offset_rad or a.operation_index_tendon_offset_rad) and (not a.operate_after_acquisition or a.full_sequence_reset or a.full_opening):p.error('Index offsets require standalone operation')
 if a.operation_grasp_offset_in_handle_m is not None:
     if not all(math.isfinite(v) for v in a.operation_grasp_offset_in_handle_m) or sum(v*v for v in a.operation_grasp_offset_in_handle_m)>.01**2:p.error('Finite grasp offset within 10 mm required')
 if (a.operation_grasp_offset_in_handle_m is not None or a.operation_min_acquisition_seconds) and (not a.operate_after_acquisition or a.full_sequence_reset or a.full_opening):p.error('Operation offsets/timing require a separate operation trial')
@@ -537,7 +542,7 @@ def main():
                 basis=np.eye(3)['XYZ'.index(joint.GetAxisAttr().Get())]
                 joint_geometry[role+'_origin']=np.array(joint.GetLocalPos1Attr().Get())
                 joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*map(float,basis))))
-            operation=DoorOperationTeacher(teacher,joint_geometry,release_operator_threshold=a.operation_opening_trigger_rad,handle_hub_avoidance=hub_geometry is not None,hub_clearance_m=a.operation_hub_clearance_m,leaf_target=a.operation_leaf_target_rad,leaf_lead_limit_rad=a.operation_leaf_lead_limit_rad,operator_lead_limit_rad=a.operation_operator_lead_limit_rad,operator_follow_after_leaf_rad=a.operation_operator_follow_after_leaf_rad,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile=a.operation_material_profile if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
+            operation=DoorOperationTeacher(teacher,joint_geometry,index_proximal_offset_rad=a.operation_index_proximal_offset_rad,index_tendon_offset_rad=a.operation_index_tendon_offset_rad,release_operator_threshold=a.operation_opening_trigger_rad,handle_hub_avoidance=hub_geometry is not None,hub_clearance_m=a.operation_hub_clearance_m,leaf_target=a.operation_leaf_target_rad,leaf_lead_limit_rad=a.operation_leaf_lead_limit_rad,operator_lead_limit_rad=a.operation_operator_lead_limit_rad,operator_follow_after_leaf_rad=a.operation_operator_follow_after_leaf_rad,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile=a.operation_material_profile if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
             if sequence_reset and not a.full_opening:
                 from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
                 sequence=FullSequenceTeacher(a.native_robot,motors,ref,
