@@ -280,3 +280,8 @@ The previously owned replacement could notresume because its host has no free GP
 ### September10: prevent duplicate evidence downloads
 
 The preparation collector covered the entire source output directory, while a second collector covered the nested experiment. This could download the same recordings twice. The current readiness collector was replaced with one scoped to `out/isaac-ready`; the dedicated experiment collector remains active. Future one-click operation outputs now use a sibling experiments directory. Six launcher/pipeline tests pass, including disjoint collector paths. Existing partial evidence was retained. This explains a possible duplication mechanism, not all historical disk use. [Evidence](evidence/isaac-collector-overlap-fix.json).
+
+
+### September10: passage015 clears obstacles but misses orientation tolerance
+
+The2001-sample audit passes hand/elbow scene clearance, balance, positions and rate limits, but36 samples reach up to1.058009mrad left-palm orientation error against a1mrad bound. Candidate016 tightens the internal fit from0.9 to0.7mrad using015 as numerical initialization; acceptance limits stay unchanged. Conservative signed plane bounds now avoid querying distant floor pairs while keeping below-plane and intersecting shapes.18 focused tests pass. No new native physical replay was started. [Evidence](evidence/passage015-dense-failure.json).

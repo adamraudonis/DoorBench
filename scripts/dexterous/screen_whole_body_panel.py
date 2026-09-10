@@ -24,6 +24,19 @@ def pose_constraint_barrier(hands,feet,foot_weight):
     return 10*np.maximum(np.asarray(errors)-.8,0.)**2
 
 
+def clearance_candidate_pairs(hand_positions,hand_radii,scene_positions,scene_radii,planes,cap):
+    """Conservative sphere bounds, with signed bounds for infinite planes.
+
+    A point below a plane remains a candidate. The plane's infinite enclosing
+    sphere must not force every distant hand shape into an exact query.
+    """
+    delta=hand_positions[:,None]-scene_positions
+    lower=np.linalg.norm(delta,axis=2)-hand_radii[:,None]-scene_radii
+    for column,normal in planes:
+        lower[:,column]=delta[:,column]@normal-hand_radii
+    return np.argwhere(lower<=cap)
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--source-run',type=Path,required=True)
@@ -38,6 +51,7 @@ def main():
     p.add_argument('--right-hand-frame',choices=('world','root'),default='world')
     p.add_argument('--right-hand-retreat-m',type=float,default=0.)
     p.add_argument('--right-hand-scene-margin-m',type=float,default=0.,help='Optional exact released-hand collision clearance constraint; dense audit remains mandatory')
+    p.add_argument('--left-palm-rotation-fit-rad',type=float,default=.0009,help='Interior left palm orientation bound; independent1mrad audit unchanged')
     p.add_argument('--warm-start-screen',type=Path,help='Numerical guesses only from the same exact source state and aperture grid')
     p.add_argument('--pose-tolerance-barrier',action='store_true',help='Prioritize interior hand/foot pose feasibility over posture regularization')
     p.add_argument('--balance-envelope-barrier',action='store_true',help='Fit inside existing3cm root and1.5cm COM audit bounds; does not change audit limits')
@@ -59,6 +73,7 @@ def main():
     p.add_argument('--flatten-palm',action='store_true',help='Rotate the actual palm face toward the panel over0.2rad while preserving its collision support plane')
     p.add_argument('--admit-exact-soft-limit-start',action='store_true',help='Retain only the measured initial solver-limit excursion, then smoothly regain the 1mm/rad numeric joint margin within 0.1rad aperture')
     a=p.parse_args()
+    if not .0005<=a.left_palm_rotation_fit_rad<=.0009:raise ValueError('Left palm fit bound must be0.5..0.9mrad')
     if a.right_hand_scene_margin_m and (a.solver_method!='constrained' or not .04<=a.right_hand_scene_margin_m<=.06):raise ValueError('Exact hand margin requires constrained solver and40..60mm')
     if a.elbow_clearance_ramp_rad and not .05<=a.elbow_clearance_ramp_rad<=.3:raise ValueError('Elbow margin ramp must be0 or0.05..0.3rad')
     if not np.isfinite(a.palm_twist_rad) or abs(a.palm_twist_rad)>.6:raise ValueError('Bounded palm twist required')
@@ -137,8 +152,8 @@ def main():
             else:raise ValueError('Unsupported original collider for exact hand constraint')
         def hand_clearance():
             cap=a.right_hand_scene_margin_m+.005
-            distances=np.linalg.norm(d.geom_xpos[hand_geoms,None]-d.geom_xpos[scene_geoms],axis=2)
-            pairs=np.argwhere(distances-radii[hand_geoms,None]-radii[scene_geoms]<=cap)
+            planes=[(j,d.geom_xmat[g].reshape(3,3)[:,2]) for j,g in enumerate(scene_geoms) if m.geom_type[g]==mujoco.mjtGeom.mjGEOM_PLANE]
+            pairs=clearance_candidate_pairs(d.geom_xpos[hand_geoms],radii[hand_geoms],d.geom_xpos[scene_geoms],radii[scene_geoms],planes,cap)
             return min([cap]+[float(mujoco.mj_geomDistance(m,d,int(hand_geoms[i]),int(scene_geoms[j]),cap,None)) for i,j in pairs])
     from doorbench.dexterous.released_hand_goal import released_hand_goal
     outward=np.sign((right_p-leaf_p)@leaf_r[:,1])*leaf_r[:,1]
@@ -220,7 +235,7 @@ def main():
                 # Interior planning bounds; the independent dense audit still
                 # enforces its original 0.1mm/1mrad tolerances and scene gaps.
                 values=[]
-                for offset,rotation_weight,rotation_limit in [(0,10.,.0009),(6,.1 if a.right_hand_relaxed_orientation else 10.,.30 if a.right_hand_relaxed_orientation else .0009),(12,a.foot_orientation_weight,.0009),(18,a.foot_orientation_weight,.0009)]:
+                for offset,rotation_weight,rotation_limit in [(0,10.,a.left_palm_rotation_fit_rad),(6,.1 if a.right_hand_relaxed_orientation else 10.,.30 if a.right_hand_relaxed_orientation else .0009),(12,a.foot_orientation_weight,.0009),(18,a.foot_orientation_weight,.0009)]:
                     values.extend([1.-float(np.sum((residual[offset:offset+3]/.008)**2)),1.-float(np.sum((residual[offset+3:offset+6]/(rotation_weight*rotation_limit))**2))])
                 values.extend([1.-float(np.sum((x[:3]/.029)**2)),1.-float(np.sum(((d.subtree_com[robot_body,:2]-com[:2])/.014)**2))])
                 if a.maximum_torso_tilt_deg is not None:
