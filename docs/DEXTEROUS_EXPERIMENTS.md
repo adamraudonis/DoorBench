@@ -357,3 +357,8 @@ All native gates passed. Isaac got past provenance and completed0.002s, then tor
 ### September10: fresh Isaac045 dispatched
 
 Sourcee853509fb and all packaged hashes verified on the owned A40.24 focused tests pass; original042 source qualification still passes. Both guards remain live with00:15:47UTC September11 teardown; no extension. Storage admission includes86 seconds of evidence plus32MiB of reviews. Closed043/044 intermediate physics chunks were hash checked against independently downloaded archives before removal.045 coordinator183731 is live with collector86114; terminal hand review and updated endpoint qualification are queued. No new physical success is claimed.
+
+
+### September10: prevent incremental-collector chunk accumulation
+
+Identified why local intermediate physics chunks survived successful remote exports: incremental rsync copies but never deletes. Added final-manifest-gated, decoded-record comparison before pruning redundant contiguous working chunks.12 collector tests pass, including changed/sparse/still-remote chunks and altered final exports. No live collector or simulator was restarted. Run045 remains active; use the updated cleanup after final collection.

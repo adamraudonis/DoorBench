@@ -52,3 +52,8 @@ camera/video output and periodic checkpoints. Frozen041 retains its original
 source. No physics, record frequency, precision or acceptance gate changes.
 The timer and actual-state adapter tests pass (12 focused tests); separate
 phase costs still require a future live run.
+
+
+### Collector working-chunk retention
+
+Incremental rsync does not delete local files when the remote exporter removes working chunks. The collector now checks these against a hash-verified final export: only a contiguous, identical decoded prefix can be removed, and any chunks still listed in the final remote manifest remain. Missing, changed or sparse records are retained. This uses streaming comparison and keeps the final archive. Existing collectors retain their startup code; apply `prune_redundant_chunks` only after their final manifest is verified. The removal inventory is recorded in new collector receipts.

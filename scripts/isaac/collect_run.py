@@ -69,6 +69,49 @@ def verify_local(root,manifest):
     return len(manifest)
 
 
+def prune_redundant_chunks(root,manifest):
+    """Drop only contiguous working records proven present in a verified export.
+
+    Incremental rsync intentionally never deletes. Consequently files removed by
+    the remote exporter can remain locally. A matching decoded prefix proves
+    these copies redundant; absent, changed, or sparse evidence stays intact.
+    """
+    import gzip
+    from doorbench.dexterous.json_record_stream import iter_json_object_array
+    root=Path(root);removed=[]
+    exports={'physics-chunks':'physics-steps.json.gz',
+        'controller-chunks':'controller-steps.json.gz',
+        'standing-transfer-chunks':'standing-transfer-steps.json.gz'}
+    for dirname,exportname in exports.items():
+        for folder in root.rglob(dirname):
+            if folder.is_symlink() or not folder.is_dir():continue
+            export=folder.parent/exportname;relative=str(export.relative_to(root))
+            if relative not in manifest:continue
+            chunks=sorted(folder.glob('*.jsonl.gz'))
+            if not chunks or any(p.name!=f'{i:06d}.jsonl.gz' or p.is_symlink()
+                    or str(p.relative_to(root)) in manifest for i,p in enumerate(chunks)):continue
+            verify_local(root,{relative:manifest[relative]})
+            fingerprints={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in chunks}
+            matches=True
+            try:
+                with gzip.open(export,'rt') as stream:
+                    records=iter_json_object_array(stream)
+                    for chunk in chunks:
+                        with gzip.open(chunk,'rt') as lines:
+                            for line in lines:
+                                if json.loads(line)!=next(records):matches=False;break
+                        if not matches:break
+            except (OSError,ValueError,StopIteration,EOFError):matches=False
+            if not matches:continue
+            if any(hashlib.sha256(p.read_bytes()).hexdigest()!=sha for p,sha in fingerprints.items()):continue
+            verify_local(root,{relative:manifest[relative]})
+            for p in chunks:
+                removed.append(dict(path=str(p.relative_to(root)),bytes=p.stat().st_size,
+                    sha256=fingerprints[p],verified_export=relative))
+                p.unlink()
+    return removed
+
+
 def collect(a):
     minimum_free_mib=getattr(a,'minimum_free_mib',10240)
     if type(minimum_free_mib) is not int or not 0<=minimum_free_mib<=16384:raise ValueError('Explicit storage reserve must be 0..16384 MiB')
@@ -134,7 +177,9 @@ def collect(a):
                     if before!=after:raise ValueError('Remote evidence changed during final transfer')
                     count=verify_local(target,after['files'])
                     atomic_json(target.with_name(target.name+'-remote-manifest.json'),after)
-                    save(status='verified_final_archive',final_bytes_verified=True,verified_files=count)
+                    removed=prune_redundant_chunks(target,after['files'])
+                    save(status='verified_final_archive',final_bytes_verified=True,verified_files=count,
+                         redundant_chunks_removed=removed)
                     return
         except (OSError,ValueError,subprocess.SubprocessError) as error:
             save(status='retrying_partial_archive',last_error=type(error).__name__+': '+str(error))

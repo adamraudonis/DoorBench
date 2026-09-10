@@ -81,3 +81,25 @@ def test_remote_size_inventory_includes_stable_partial_before_completion(tmp_pat
     exec(module.REMOTE_PROBE, {'INPUT':dict(remote=str(tmp_path),pid_file='run.pid',terminal='report.json',manifest=True)})
     result=json.loads(capsys.readouterr().out)
     assert result['transfer_bytes']==4096 and 'files' not in result
+
+
+@pytest.mark.parametrize('mode',['matching','changed','sparse','still_remote','bad_export'])
+def test_redundant_chunks_require_verified_matching_final_records(tmp_path,mode):
+    import gzip,json
+    folder=tmp_path/'native/physics-chunks';folder.mkdir(parents=True)
+    chunk=folder/('000001.jsonl.gz' if mode=='sparse' else '000000.jsonl.gz')
+    with gzip.open(chunk,'wt') as f:f.write(json.dumps({'time':1})+'\n')
+    export=folder.parent/'physics-steps.json.gz'
+    with gzip.open(export,'wt') as f:json.dump([{'time':2 if mode=='changed' else 1},{'time':3}],f)
+    relative=str(export.relative_to(tmp_path))
+    manifest={relative:dict(bytes=export.stat().st_size,sha256=hashlib.sha256(export.read_bytes()).hexdigest())}
+    if mode=='still_remote':manifest[str(chunk.relative_to(tmp_path))]={}
+    if mode=='bad_export':manifest[relative]['sha256']='changed'
+    if mode=='bad_export':
+        with pytest.raises(ValueError):module.prune_redundant_chunks(tmp_path,manifest)
+        assert chunk.exists()
+    else:
+        removed=module.prune_redundant_chunks(tmp_path,manifest)
+        assert bool(removed)==(mode=='matching')
+        assert chunk.exists()==(mode!='matching')
+    assert export.exists()
