@@ -36,6 +36,8 @@ class HandleRelativeArmTarget:
         self.relative_rotation=rotation.T@self.d.site_xmat[self.site].reshape(3,3)
         self.correction=np.zeros(7);self.goal=np.zeros(7);self.last_time=None;self.last_solve=None
         self.solve_info={}
+        self.previous_nominal=None;self.nominal_time=None
+        self.nominal_velocity=np.zeros(len(self.names));self.target_velocity=dict.fromkeys(self.names,0.)
 
     def read(self,root,joints):
         root=np.asarray(root,float)
@@ -70,6 +72,18 @@ class HandleRelativeArmTarget:
                 raise ValueError(f'Handle-relative arm target is outside bounded reachability: {fit.message}; position={np.linalg.norm(error[:3])/100:.6g}m rotation={np.linalg.norm(error[3:6])/10:.6g}rad')
             self.goal=fit.x-base;self.last_solve=t
             self.solve_info=dict(position_error_m=float(np.linalg.norm(error[:3])/100),rotation_error_rad=float(np.linalg.norm(error[3:6])/10),evaluations=fit.nfev)
+        # Differentiate the 10 ms route and 2 ms correction on their own
+        # clocks. Differentiating their sum treats a route step as a 2 ms
+        # change whenever compensation changed in the intervening substeps.
+        nominal_values=np.array([nominal[n] for n in self.names],float)
+        if not np.isfinite(nominal_values).all():raise ValueError('Finite nominal joint target required')
+        if self.previous_nominal is None or not np.array_equal(nominal_values,self.previous_nominal):
+            if self.nominal_time is not None and t<=self.nominal_time:
+                raise ValueError('Changed nominal target requires advancing controller clock')
+            self.nominal_velocity=np.zeros(len(self.names)) if self.nominal_time is None else (nominal_values-self.previous_nominal)/(t-self.nominal_time)
+            self.previous_nominal=nominal_values.copy();self.nominal_time=t
+        elif t-self.nominal_time>.02:
+            self.nominal_velocity=np.zeros(len(self.names))
         dt=0. if self.last_time is None else t-self.last_time
         previous=self.correction.copy()
         self.correction+=np.clip(self.goal-self.correction,-.5*dt,.5*dt)
@@ -77,5 +91,9 @@ class HandleRelativeArmTarget:
         if np.max(abs(corrected-base-previous))>.5*dt+1e-10:
             raise ValueError('Moving nominal bounds conflict with compensation rate limit')
         self.correction=corrected-base;self.last_time=t
+        velocity=self.nominal_velocity.copy()
+        if dt>0:
+            for i,n in enumerate(ARM_NAMES):velocity[self.names.index(n)]+=(self.correction[i]-previous[i])/dt
+        self.target_velocity=dict(zip(self.names,map(float,velocity)))
         result=dict(nominal);result.update(zip(ARM_NAMES,map(float,corrected)))
         return result,dict(handle_relative_arm=True,maximum_correction_rad=float(np.max(abs(self.correction))),correction_limit_rad=.08,correction_rate_limit_rad_s=.5,solve=self.solve_info.copy())

@@ -116,7 +116,7 @@ class StandingTransferTeacher:
                 if self.handle_target is not None:
                     arm_target,compensation_info=self.handle_target.target(t,root,joints,handle_pose,arm_target)
                     info={**info,**compensation_info}
-                forces,arm_info=self.arm_tracker.force(forces,t,arm_target,joints,velocities)
+                forces,arm_info=self.arm_tracker.force(forces,t,arm_target,joints,velocities,reference_velocity=None if self.handle_target is None else self.handle_target.target_velocity)
                 info={**info,**arm_info}
             if self.handoff_seconds:
                 from .motor_handoff import MotorHandoff

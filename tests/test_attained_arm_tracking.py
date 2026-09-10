@@ -34,3 +34,13 @@ def test_velocity_uses_reference_update_clock_not_physics_substeps():
     for t in [.002,.004,.006,.008]:c.force(np.zeros(1),t,q,q,v)
     _,info=c.force(np.zeros(1),.01,{'right_wrist_yaw':.21},q,v)
     np.testing.assert_allclose(info['arm_reference_velocity_rad_s'],[1.])
+
+
+def test_separate_velocity_feedforward_keeps_caps_and_speed_gate():
+    _,c=fixture();q={'right_wrist_yaw':.2};v={'right_wrist_yaw':0.}
+    c.force(np.zeros(1),0.,q,q,v)
+    result,info=c.force(np.zeros(1),.002,{'right_wrist_yaw':.2005},q,v,reference_velocity={'right_wrist_yaw':.05})
+    np.testing.assert_allclose(info['arm_reference_velocity_rad_s'],[.05])
+    np.testing.assert_allclose(result,[1.+100*.0005+1.2*.05])
+    with pytest.raises(ValueError,match='2 rad/s'):
+        c.force(np.zeros(1),.004,q,q,v,reference_velocity={'right_wrist_yaw':2.01})

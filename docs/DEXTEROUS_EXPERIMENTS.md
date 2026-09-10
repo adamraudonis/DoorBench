@@ -285,3 +285,8 @@ The preparation collector covered the entire source output directory, while a se
 ### September10: passage015 clears obstacles but misses orientation tolerance
 
 The2001-sample audit passes hand/elbow scene clearance, balance, positions and rate limits, but36 samples reach up to1.058009mrad left-palm orientation error against a1mrad bound. Candidate016 tightens the internal fit from0.9 to0.7mrad using015 as numerical initialization; acceptance limits stay unchanged. Conservative signed plane bounds now avoid querying distant floor pairs while keeping below-plane and intersecting shapes.18 focused tests pass. No new native physical replay was started. [Evidence](evidence/passage015-dense-failure.json).
+
+
+### September 10: transfer002 mixed-clock diagnosis
+
+The failed compensated transfer retains valid pad contact and passes the joint threshold through its last physical sample at36.66s. Compared with transfer001, its lever returns faster (.7625 versus .8011rad at36.64s); this does not prove causality. A concrete velocity-feedforward defect combines a10ms route with2ms corrections before differentiating, inflating the route contribution by up to5x. Separate component clocks now preserve the same motor caps,2rad/s speed rejection and.08rad correction envelope. Ten focused tests pass. Another physical comparison is required; the wider static IK envelope is not adopted. See [diagnostic evidence](evidence/native-transfer002-mixed-clock-diagnosis.json).
