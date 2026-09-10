@@ -38,6 +38,7 @@ class StanceController:
         self.target_root=d.qpos[sim.root_qadr:sim.root_qadr+3].copy()
         yaw=np.arctan2(d.xmat[sim.pelvis].reshape(3,3)[1,0],d.xmat[sim.pelvis].reshape(3,3)[0,0])
         self.target_rotation=Rotation.from_euler('z',yaw).as_matrix()
+        self.fixed_foot_rotations=None
         self.foot_positions=d.xpos[self.feet].copy()
         self.joint_target=d.qpos[self.qa].copy()
         self.support=[]
@@ -53,15 +54,27 @@ class StanceController:
             self.support.append((sole[:,:2].min(0)+.003,sole[:,:2].max(0)-.003,-float(sole[:,2].min())))
         self.last=None
 
+    def foot_target_rotation(self,index):
+        """Historical root-coupled targets unless explicitly frozen at handoff."""
+        return self.target_rotation if self.fixed_foot_rotations is None else self.fixed_foot_rotations[index]
+
+    def freeze_foot_targets(self):
+        """Preserve current targets continuously while allowing pelvis rotation.
+
+        These are controller references, never anchors or simulator pose writes.
+        Preserve an existing per-foot reference when crossing another segment.
+        """
+        self.fixed_foot_rotations=np.array([self.foot_target_rotation(i).copy() for i in range(2)])
+
     def command(self):
         s=self.sim;m,d=s.m,s.d;n=16;nt=10;nf=12;N=n+nt+nf
         M=np.zeros((m.nv,m.nv));mujoco.mj_fullM(m,d,M)
         J=[];accelerations=[]
-        for body,pos in zip(self.feet,self.foot_positions):
+        for foot_index,(body,pos) in enumerate(zip(self.feet,self.foot_positions)):
             jp=np.zeros((3,m.nv));jr=jp.copy();mujoco.mj_jacBody(m,d,jp,jr,body)
-            R=self.target_rotation;T=np.zeros((6,6));T[:3,:3]=R.T;T[3:,3:]=R.T
+            R=self.foot_target_rotation(foot_index);T=np.zeros((6,6));T[:3,:3]=R.T;T[3:,3:]=R.T
             jac=T@np.vstack((jp,jr));J.append(jac[:,self.v])
-            orient=Rotation.from_matrix(self.target_rotation@d.xmat[body].reshape(3,3).T).as_rotvec()
+            orient=Rotation.from_matrix(R@d.xmat[body].reshape(3,3).T).as_rotvec()
             error=T@np.r_[pos-d.xpos[body],orient]
             accelerations.extend(100*error-20*(jac@d.qvel))
         J=np.vstack(J)
@@ -147,10 +160,10 @@ class PoseStanceController(StanceController):
         jp=np.zeros((3,m.nv));jr=jp.copy()
         def jacobians():
             rows=[];errors=[]
-            for body,pos in zip(self.feet,self.foot_positions):
+            for foot_index,(body,pos) in enumerate(zip(self.feet,self.foot_positions)):
                 mujoco.mj_jacBody(m,k,jp,jr,body)
                 rows.append(np.vstack([jp*5,jr]))
-                orient=Rotation.from_matrix(self.target_rotation@k.xmat[body].reshape(3,3).T).as_rotvec()
+                orient=Rotation.from_matrix(self.foot_target_rotation(foot_index)@k.xmat[body].reshape(3,3).T).as_rotvec()
                 errors.extend(np.r_[5*(pos-k.xpos[body]),orient])
             return np.vstack(rows),np.asarray(errors)
         for _ in range(20):
@@ -161,9 +174,10 @@ class PoseStanceController(StanceController):
             if np.linalg.norm(error)<1e-4:break
         mujoco.mj_forward(m,k)
         J=[]
-        for body in self.feet:
+        for foot_index,body in enumerate(self.feet):
             mujoco.mj_jacBody(m,k,jp,jr,body)
-            T=np.zeros((6,6));T[:3,:3]=self.target_rotation.T;T[3:,3:]=self.target_rotation.T
+            R=self.foot_target_rotation(foot_index)
+            T=np.zeros((6,6));T[:3,:3]=R.T;T[3:,3:]=R.T
             J.append(T@np.vstack([jp,jr]))
         J=np.vstack(J)
         rootJ=J[:,self.v[:6]].T
