@@ -221,3 +221,8 @@ Both replacement guards were acknowledged on the owned A40 before the old
 guards stopped; teardown is now September10 at21:42:27 UTC. The local preparation
 passed the20GiB retention admission with72s plus128MiB reserved. The dispatcher
 checks storage again after readiness. [Preparation](evidence/isaac-body-poses042-preparation.json).
+
+Failed039 was also archived with independent download/hash verification before
+removing84 local raw files, leaving additional space for042 collection. Its
+reports and visual diagnostics remain. Any new037/039 raw reanalysis must first
+restore the corresponding private archive. [039 offload](evidence/isaac039-verified-offload.json).
