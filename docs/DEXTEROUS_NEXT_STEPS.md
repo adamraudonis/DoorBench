@@ -4,7 +4,7 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 
 ## Restart checkpoint
 
-Read the latest update in [the restart handoff](../handoffs/RESTART_2026-09-10.md), then verify process and pod state. Native outward-contact opening is being tested after a300s trial remained upright but stopped at61.3 degrees. Its dense geometry and motion-rate audit passes; physical qualification remains pending. The owned replacement GPU was stopped after evidence collection. No complete upright traversal or successful sensor-only opening is claimed. Storage admission and verified offloading are mandatory before dispatch.
+Read the latest update in [the restart handoff](../handoffs/RESTART_2026-09-10.md), then verify process and pod state before acting. The current experiment is the guarded A40 handle-lead040 comparison: it must pass its native prerequisite and independent contact audits before Isaac runs. The previous Isaac039 attempt lost its grasp and was stopped with an explicit incomplete-episode record. Native passage019 is still being screened; it is not a qualified physical traversal. No complete upright Isaac traversal or successful sensor-only opening is claimed. Storage admission and verified offloading are mandatory before dispatch. See [the storage inventory](STORAGE_INVENTORY_2026-09-10.md) for the scope of the current limits.
 
 ## Starting point
 
