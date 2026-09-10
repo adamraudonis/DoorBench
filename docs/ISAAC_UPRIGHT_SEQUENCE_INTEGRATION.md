@@ -226,3 +226,28 @@ Failed039 was also archived with independent download/hash verification before
 removing84 local raw files, leaving additional space for042 collection. Its
 reports and visual diagnostics remain. Any new037/039 raw reanalysis must first
 restore the corresponding private archive. [039 offload](evidence/isaac039-verified-offload.json).
+
+## Combined destination planner admission
+
+`admit_destination_planner` now requires both the bound69-joint/root/door state
+and same-epoch measured body poses before returning an unstepped planning state.
+It preserves measured velocities and exposes the existing coordinate and2um/2urad
+body checks together. Eighteen focused tests cover valid admission, stale or
+missing bodies, changed joint data and wrong door identity. Legacy041 cannot
+pass this combined admission because it lacks the required body recording.
+
+The CLI below runs on a machine where the original robot assets resolve. It
+checks bound robot XML and door USD hashes, records source-design identities
+including referenced assets, and rechecks inputs after admission. Door MJCF/USD
+collision cooking parity and physical contact qualification are separate.
+
+```sh
+PYTHONPATH=. python scripts/dexterous/audit_destination_planner.py \
+  --robot ORIGINAL_ROBOT.xml --door ORIGINAL_DOOR.xml \
+  --door-usd ORIGINAL_DOOR.usda --extracted MEASURED_STATE.json \
+  --motors motor-contract.json --output NEW_ADMISSION.json
+```
+
+A pose mismatch produces a failed evidence receipt; missing or changed input
+identities fail without a passing receipt. This source is newer than frozen042
+and will be used as a separately identified read-only audit after collection.
