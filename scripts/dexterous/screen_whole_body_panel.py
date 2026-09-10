@@ -37,6 +37,7 @@ def main():
     p.add_argument('--right-hand-relaxed-orientation',action='store_true',help='Released root-following hand may rotate within0.35rad; contact and joint gates remain unchanged')
     p.add_argument('--right-hand-frame',choices=('world','root'),default='world')
     p.add_argument('--right-hand-retreat-m',type=float,default=0.)
+    p.add_argument('--right-hand-scene-margin-m',type=float,default=0.,help='Optional exact released-hand collision clearance constraint; dense audit remains mandatory')
     p.add_argument('--warm-start-screen',type=Path,help='Numerical guesses only from the same exact source state and aperture grid')
     p.add_argument('--pose-tolerance-barrier',action='store_true',help='Prioritize interior hand/foot pose feasibility over posture regularization')
     p.add_argument('--balance-envelope-barrier',action='store_true',help='Fit inside existing3cm root and1.5cm COM audit bounds; does not change audit limits')
@@ -58,6 +59,7 @@ def main():
     p.add_argument('--flatten-palm',action='store_true',help='Rotate the actual palm face toward the panel over0.2rad while preserving its collision support plane')
     p.add_argument('--admit-exact-soft-limit-start',action='store_true',help='Retain only the measured initial solver-limit excursion, then smoothly regain the 1mm/rad numeric joint margin within 0.1rad aperture')
     a=p.parse_args()
+    if a.right_hand_scene_margin_m and (a.solver_method!='constrained' or not .04<=a.right_hand_scene_margin_m<=.06):raise ValueError('Exact hand margin requires constrained solver and40..60mm')
     if a.elbow_clearance_ramp_rad and not .05<=a.elbow_clearance_ramp_rad<=.3:raise ValueError('Elbow margin ramp must be0 or0.05..0.3rad')
     if not np.isfinite(a.palm_twist_rad) or abs(a.palm_twist_rad)>.6:raise ValueError('Bounded palm twist required')
     if not .001<=a.joint_margin_rad<=.01:raise ValueError('Joint fit margin must be1..10mrad')
@@ -118,6 +120,26 @@ def main():
         elbow_side=float(np.sign((d.xpos[elbow]-leaf_p)@leaf_r[:,1]))
         slab_front=float(np.max(slab_vertices[:,1]*elbow_side))
     right_p=d.site_xpos[rh].copy();right_r=d.site_xmat[rh].reshape(3,3).copy()
+    if a.right_hand_scene_margin_m:
+        hand_geoms=np.array([g for g in range(m.ngeom) if m.geom_contype[g] and m.body(m.geom_bodyid[g]).name.startswith('robot/rh_')])
+        scene_geoms=np.array([g for g in range(m.ngeom) if m.geom_contype[g] and not m.body(m.geom_bodyid[g]).name.startswith('robot/')])
+        radii=np.zeros(m.ngeom)
+        for g in np.r_[hand_geoms,scene_geoms]:
+            kind=int(m.geom_type[g]);size=m.geom_size[g]
+            if kind==int(mujoco.mjtGeom.mjGEOM_MESH):
+                mesh=m.geom_dataid[g];start=m.mesh_vertadr[mesh];count=m.mesh_vertnum[mesh]
+                radii[g]=float(np.linalg.norm(m.mesh_vert[start:start+count],axis=1).max())
+            elif kind==int(mujoco.mjtGeom.mjGEOM_BOX):radii[g]=float(np.linalg.norm(size))
+            elif kind==int(mujoco.mjtGeom.mjGEOM_SPHERE):radii[g]=float(size[0])
+            elif kind==int(mujoco.mjtGeom.mjGEOM_CAPSULE):radii[g]=float(size[0]+size[1])
+            elif kind==int(mujoco.mjtGeom.mjGEOM_CYLINDER):radii[g]=float(np.hypot(size[0],size[1]))
+            elif kind==int(mujoco.mjtGeom.mjGEOM_PLANE):radii[g]=np.inf
+            else:raise ValueError('Unsupported original collider for exact hand constraint')
+        def hand_clearance():
+            cap=a.right_hand_scene_margin_m+.005
+            distances=np.linalg.norm(d.geom_xpos[hand_geoms,None]-d.geom_xpos[scene_geoms],axis=2)
+            pairs=np.argwhere(distances-radii[hand_geoms,None]-radii[scene_geoms]<=cap)
+            return min([cap]+[float(mujoco.mj_geomDistance(m,d,int(hand_geoms[i]),int(scene_geoms[j]),cap,None)) for i,j in pairs])
     from doorbench.dexterous.released_hand_goal import released_hand_goal
     outward=np.sign((right_p-leaf_p)@leaf_r[:,1])*leaf_r[:,1]
     feet=[m.body('robot/'+side+'_ankle_link').id for side in ('left','right')]
@@ -210,6 +232,7 @@ def main():
                     values.append((gap-elbow_margin)/.01)
                 if a.root_yaw_extent_rad is not None:values.append(1.-float(np.sum((x[3:5]/.0495)**2)))
                 elif a.root_rotation_norm_rad is not None:values.append(1.-float(np.sum((x[3:6]/(a.root_rotation_norm_rad-.0001))**2)))
+                if a.right_hand_scene_margin_m:values.append((hand_clearance()-a.right_hand_scene_margin_m)/.01)
                 return np.asarray(values)
             def preference(x):
                 return float(np.sum((x-anchor)**2)+(.1*(x[5]-a.root_yaw_target_rad*phase)**2 if a.root_yaw_target_rad is not None else 0.))
@@ -236,6 +259,7 @@ def main():
         if a.solver_method=='constrained':
             row['minimum_normalized_constraint']=fit.minimum_constraint
             row['solver_feasible']=fit.minimum_constraint>=-1e-7
+        if a.right_hand_scene_margin_m:row['right_hand_scene_clearance_capped_m']=hand_clearance()
         if a.keep_elbow_in_front:
             vertices=elbow_vertices@d.xmat[elbow].reshape(3,3).T+d.xpos[elbow]
             row['elbow_panel_plane_gap_m']=float(np.min((vertices-lp)@lr[:,1]*elbow_side))-slab_front
