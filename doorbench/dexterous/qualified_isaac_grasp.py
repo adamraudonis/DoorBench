@@ -45,13 +45,44 @@ def validate_reports(report,audit,coordinator,extracted):
         raise ValueError('Complete original source file bindings required')
 
 
+TRANSFER_CHECKS=frozenset(('complete_transfer_clock','standing_transfer_started',
+    'measured_palm_load_accounting','final_left_palm_support','stance_solves_every_interval'))
+
+
+def validate_transfer_evidence(report,coordinator,audit,expected_hashes):
+    """A grasp-qualified endpoint cannot silently stand in for palm transfer."""
+    if coordinator.get('independent_transfer_passed') is not True:
+        raise ValueError('Independent transfer qualification required')
+    checks=audit.get('checks',{})
+    if (audit.get('passed') is not True or audit.get('producer_matches') is not True
+            or set(checks)!=TRANSFER_CHECKS or any(v is not True for v in checks.values())
+            or any(report['checks'].get(k) is not True for k in TRANSFER_CHECKS)):
+        raise ValueError('Complete matching transfer checks required')
+    # Archive relocation changes directory names, never content identity.
+    recorded=audit.get('input_sha256',{})
+    normalized={Path(k).name:v for k,v in recorded.items()}
+    expected={Path(k).name:v for k,v in expected_hashes.items()}
+    if len(recorded)!=2 or len(normalized)!=2 or normalized!=expected:
+        raise ValueError('Transfer audit must bind the original report and force stream')
+
+
 def load_qualified_isaac_grasp(run,extracted_path):
     run=Path(run);trial=run/'trial';extracted_path=Path(extracted_path)
     report_path=trial/'operation-report.json';audit_path=run/'isaac-independent-audit.json';coordinator_path=run/'coordinator-result.json'
     tracked=[extracted_path,report_path,audit_path,coordinator_path]+[trial/n for n in sorted(EXTRACTED_FILES|AUDITED_FILES)]
+    initial_report=json.loads(report_path.read_text())
+    transfer_paths=[]
+    if 'standing_transfer' in initial_report:
+        transfer_paths=[run/'isaac-transfer-audit.json',trial/'standing-transfer-steps.json.gz']
+        tracked+=transfer_paths
     before={str(p):digest(p) for p in tracked}
     extracted=json.loads(extracted_path.read_text());report=json.loads(report_path.read_text());audit=json.loads(audit_path.read_text());coordinator=json.loads(coordinator_path.read_text())
     validate_reports(report,audit,coordinator,extracted)
+    if bool(transfer_paths)!=('standing_transfer' in report):raise ValueError('Source transfer mode changed during admission')
+    if transfer_paths:
+        transfer_audit=json.loads(transfer_paths[0].read_text())
+        validate_transfer_evidence(report,coordinator,transfer_audit,
+            {str(p):before[str(p)] for p in (report_path,transfer_paths[1])})
     for record in (extracted,audit):
         for name,sha in record['input_sha256'].items():
             if before[str(trial/name)]!=sha:raise ValueError('Source evidence hash mismatch: '+name)

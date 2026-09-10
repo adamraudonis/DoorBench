@@ -342,3 +342,8 @@ Native grasp prerequisite passed, but actual Isaac failed before physics because
 ### September 10: Isaac044 fresh dispatch
 
 Fixed source771081693 packaged and remotely verified. Twenty focused tests pass. Storage admission initially rejected the run; archived closed043 evidence to the private draft release, independently verified download checksum, then evicted73 local raw prerequisite files while retaining reports. New admission passes without raising the20GiB retention limit. Both owned-pod guards renewed to 2026-09-11T00:15:47.617140+00:00. Fresh coordinator and native prerequisite are live; collection, close-up review, and qualified endpoint admission are attached. This is dispatch evidence, not transfer success. See `evidence/isaac044-transfer-dispatch.json`.
+
+
+### September 10: bind transfer evidence before endpoint reuse
+
+The qualified Isaac endpoint loader now additionally requires a passing independent transfer receipt whenever the operation report contains a standing transfer. It checks all five transfer gates, coordinator agreement, and report/force-stream content hashes; duplicate hash entries are rejected and archive relocation is supported. Five focused tests pass, including failure and tampering cases. Live044 source is unchanged: its queued endpoint audit uses the earlier source, so re-run endpoint qualification with this revision before planning any continuation from044.

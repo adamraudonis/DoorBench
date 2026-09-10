@@ -21,3 +21,26 @@ def test_incomplete_or_unexpected_hash_inventory_rejected():
     for index in (1,3):
         args=fixture();args[index]['input_sha256']['../unrelated']='hash'
         with pytest.raises(ValueError,match='file bindings'):validate_reports(*args)
+
+
+def test_transfer_endpoint_requires_complete_bound_transfer_audit():
+    from doorbench.dexterous.qualified_isaac_grasp import validate_transfer_evidence,TRANSFER_CHECKS
+    report={'checks':dict.fromkeys(TRANSFER_CHECKS,True)}
+    coordinator={'independent_transfer_passed':True}
+    hashes={'/trial/operation-report.json':'report','/trial/standing-transfer-steps.json.gz':'stream'}
+    audit=dict(passed=True,producer_matches=True,checks=dict.fromkeys(TRANSFER_CHECKS,True),input_sha256=hashes)
+    validate_transfer_evidence(report,coordinator,audit,hashes)
+    for key,value in [('passed',False),('producer_matches',False),('checks',{}),('input_sha256',{})]:
+        changed=deepcopy(audit);changed[key]=value
+        with pytest.raises(ValueError):validate_transfer_evidence(report,coordinator,changed,hashes)
+    for check in TRANSFER_CHECKS:
+        changed=deepcopy(audit);changed['checks'][check]=False
+        with pytest.raises(ValueError):validate_transfer_evidence(report,coordinator,changed,hashes)
+    with pytest.raises(ValueError):validate_transfer_evidence(report,{},audit,hashes)
+    wrong=dict(hashes);wrong['/trial/standing-transfer-steps.json.gz']='changed bytes'
+    with pytest.raises(ValueError):validate_transfer_evidence(report,coordinator,audit,wrong)
+
+    relocated={k.replace('/trial/','/restored/trial/'):v for k,v in hashes.items()}
+    validate_transfer_evidence(report,coordinator,audit,relocated)
+    duplicated=deepcopy(audit);duplicated['input_sha256']['/other/operation-report.json']='report'
+    with pytest.raises(ValueError):validate_transfer_evidence(report,coordinator,duplicated,hashes)
