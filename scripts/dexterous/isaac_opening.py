@@ -202,6 +202,7 @@ p.add_argument('--operation-opening-trigger-rad',type=float,default=.80,help='Co
 p.add_argument('--operation-leaf-target-rad',type=float,default=.08,help='Commanded partial opening; physical acceptance bounds stay unchanged')
 p.add_argument('--operation-leaf-lead-limit-rad',type=float,help='Explicit measured-door lead bound for a new standalone opening trial')
 p.add_argument('--operation-hub-geometry',type=str,help='Original hub descriptor from the independently gated native prerequisite')
+p.add_argument('--operation-hub-clearance-m',type=float,default=.004,help='Prospective 4–8 mm hub-avoidance activation; force cap remains 3 N')
 p.add_argument('--operation-operator-follow-after-leaf-rad',type=float,help='Blend toward the measured handle angle after the leaf clears the latch')
 a=p.parse_args()
 if a.operation_operator_follow_after_leaf_rad is not None and (not .015<=a.operation_operator_follow_after_leaf_rad<=.05 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset or a.hold_attained_grasp):p.error('Operator follow requires standalone operation, no fixed hold, and .015..0.05 rad')
@@ -530,7 +531,7 @@ def main():
                 basis=np.eye(3)['XYZ'.index(joint.GetAxisAttr().Get())]
                 joint_geometry[role+'_origin']=np.array(joint.GetLocalPos1Attr().Get())
                 joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*map(float,basis))))
-            operation=DoorOperationTeacher(teacher,joint_geometry,release_operator_threshold=a.operation_opening_trigger_rad,handle_hub_avoidance=hub_geometry is not None,leaf_target=a.operation_leaf_target_rad,leaf_lead_limit_rad=a.operation_leaf_lead_limit_rad,operator_follow_after_leaf_rad=a.operation_operator_follow_after_leaf_rad,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile=a.operation_material_profile if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
+            operation=DoorOperationTeacher(teacher,joint_geometry,release_operator_threshold=a.operation_opening_trigger_rad,handle_hub_avoidance=hub_geometry is not None,hub_clearance_m=a.operation_hub_clearance_m,leaf_target=a.operation_leaf_target_rad,leaf_lead_limit_rad=a.operation_leaf_lead_limit_rad,operator_follow_after_leaf_rad=a.operation_operator_follow_after_leaf_rad,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile=a.operation_material_profile if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
             if sequence_reset and not a.full_opening:
                 from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
                 sequence=FullSequenceTeacher(a.native_robot,motors,ref,

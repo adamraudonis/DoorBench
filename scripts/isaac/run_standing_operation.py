@@ -28,6 +28,7 @@ def main():
     p.add_argument('--deadline-unix',type=float,required=True)
     p.add_argument('--hold-attained-grasp',action='store_true',help='Test qualified attained finger hold in both physics backends')
     p.add_argument('--operation-handle-hub-avoidance',action='store_true')
+    p.add_argument('--operation-hub-clearance-m',type=float,default=.004,help='Prospective 4–8 mm hub-avoidance activation; force cap remains 3 N')
     p.add_argument('--isaac-grasp-profile',choices=('distal-pad-v1','volar-phalange-v1'),default='distal-pad-v1',help='Prospectively declared Isaac anatomy contract; the native prerequisite retains stricter distal and whole-handle checks')
     p.add_argument('--actual-material-pads',action='store_true')
     p.add_argument('--material-pad-profile',choices=('actual-material-v1','actual-material-v2','measured-pressure-v1'),default='actual-material-v1')
@@ -40,6 +41,8 @@ def main():
     p.add_argument('--operation-operator-follow-after-leaf-rad',type=float)
     p.add_argument('--operation-grasp-offset-in-handle-m',nargs=3,type=float,default=(.004,-.003,.0025),help='Explicit bounded handle-frame palm recentering, shared by native and Isaac')
     a=p.parse_args()
+    if not math.isfinite(a.operation_hub_clearance_m) or not .004<=a.operation_hub_clearance_m<=.008:raise ValueError('Hub clearance activation must be 4–8 mm')
+    if a.operation_hub_clearance_m!=.004 and not a.operation_handle_hub_avoidance:raise ValueError('Explicit hub avoidance required for changed activation')
     if not all(math.isfinite(v) for v in a.operation_grasp_offset_in_handle_m) or math.sqrt(sum(v*v for v in a.operation_grasp_offset_in_handle_m))>.01:raise ValueError('Finite palm recentering must remain within1cm')
     if a.operation_operator_follow_after_leaf_rad is not None and (not .015<=a.operation_operator_follow_after_leaf_rad<=.05 or a.hold_attained_grasp):raise ValueError('Operator follow requires .015..0.05 rad and no fixed hold')
     if a.operation_leaf_lead_limit_rad is not None and not .002<=a.operation_leaf_lead_limit_rad<=.03:raise ValueError('Leaf lead bound must be .002..0.03 rad')
@@ -52,6 +55,7 @@ def main():
     result={'passed':False,'scope':'Privileged standing acquisition and held partial opening; no full opening, traversal or learned actor'}
     result['isaac_grasp_profile']=a.isaac_grasp_profile
     result['native_prerequisite_grasp_profile']='distal-pad-v1'
+    result['operation_hub_clearance_m']=a.operation_hub_clearance_m
     result['operation_grasp_offset_in_handle_m']=a.operation_grasp_offset_in_handle_m
     grasp_offset=list(map(str,a.operation_grasp_offset_in_handle_m))
     result['hold_attained_grasp']=a.hold_attained_grasp
@@ -65,6 +69,8 @@ def main():
     isaac_pad_options+=['--operation-leaf-target-rad',str(a.operation_leaf_target_rad)]
     options=['--operation-opening-trigger-rad',str(a.operation_opening_trigger_rad)]
     native_pad_options+=options;isaac_pad_options+=options
+    native_pad_options+=['--operation-hub-clearance-m',str(a.operation_hub_clearance_m)]
+    isaac_pad_options+=['--operation-hub-clearance-m',str(a.operation_hub_clearance_m)]
     result['controller_opening_trigger_rad']=a.operation_opening_trigger_rad
     result['commanded_leaf_target_rad']=a.operation_leaf_target_rad
     result['leaf_lead_limit_rad']=a.operation_leaf_lead_limit_rad

@@ -302,3 +302,9 @@ def test_attained_hold_cannot_overwrite_live_hub_clearance_force():
     assert forces[0] == pytest.approx(1.7)
     np.testing.assert_array_equal(forces[1:], np.arange(6.)[1:])
     assert info['hub_avoidance_force_N'] == .3
+
+
+@pytest.mark.parametrize('clearance', [.003, .0081, float('nan'), float('inf')])
+def test_hub_activation_retains_bounded_declared_clearance(clearance):
+    with pytest.raises(ValueError, match='Hub clearance'):
+        DoorOperationTeacher(Acquisition(), GEOMETRY, hub_clearance_m=clearance)
