@@ -16,7 +16,7 @@ def measured_contacts(m,raw,*,physics_qualified):
         for name,sign in zip(names,(-1,1)):
             if name in forces:forces[name]+=sign*force
             if name in ('left_ankle_link','right_ankle_link') and any(m.geom(g).name=='floor' for g in c.get('geom',())):feet[('left_ankle_link','right_ankle_link').index(name)]+=sign*force[2]
-        if any(n.startswith('lh_') for n in names):
+        if any(n.startswith('robot/lh_') for n in full_names) and not all(n.startswith('robot/') for n in full_names):
             left_count+=int(c['distance_m']<=0 or c['wrench_contact_frame'][0]>1e-8);left_load+=max(0.,float(c['wrench_contact_frame'][0]))
         if any(n.startswith('robot/rh_') for n in full_names) and not all(n.startswith('robot/') for n in full_names):
             right_count+=int(c['distance_m']<=0 or c['wrench_contact_frame'][0]>1e-8)
@@ -52,7 +52,7 @@ def outward_release_normal(m,raw):
     normals=[]
     for c in raw['contacts']:
         names=[m.body(b).name for b in c['body']]
-        if 'leaf' in names and any(n.startswith('robot/lh_') for n in names):normals.append((1 if names[1].startswith('robot/lh_') else -1)*np.asarray(c['frame_world'])[0])
+        if 'leaf' in names and any(n.startswith('robot/lh_') for n in names) and (c['distance_m']<=0 or c['wrench_contact_frame'][0]>1e-8):normals.append((1 if names[1].startswith('robot/lh_') else -1)*np.asarray(c['frame_world'])[0])
     if not normals:raise ValueError('An actual attained left-panel contact normal is required')
     normal=np.mean(normals,axis=0)
     if not np.isfinite(normal).all() or np.linalg.norm(normal)<1e-6:raise ValueError('Ambiguous measured release direction')

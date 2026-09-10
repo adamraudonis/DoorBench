@@ -77,3 +77,25 @@ def test_physical_gate_remains_strict_for_limits_and_external_assistance():
     assert qualified_physics_row(r)
     for key,value in [('max_joint_limit_violation_rad',.0201),('external_wrench_max',1e-9),('finite','yes'),('torso_tilt_deg',12.),('motor_delivery_error_Nm',np.nan)]:
         bad=dict(r);bad[key]=value;assert not qualified_physics_row(bad)
+
+
+def test_left_self_contact_is_not_external_support_but_keeps_actual_force():
+    m=fixture().m
+    self_contact=contact(m,'robot/pelvis','robot/lh_palm',20)
+    panel=contact(m,'leaf','robot/lh_palm',3)
+    _,forces,e=measured_contacts(m,dict(contacts=[self_contact,panel]),physics_qualified=True)
+    assert e['left_hand_contacts']==1 and e['left_hand_load_N']==3
+    np.testing.assert_array_equal(forces['lh_palm'],[0,23,0])
+    _,_,e=measured_contacts(m,dict(contacts=[self_contact]),physics_qualified=True)
+    assert e['left_hand_contacts']==0 and e['left_hand_load_N']==0
+
+
+def test_separated_unloaded_contact_cannot_supply_release_direction():
+    m=fixture().m
+    c=contact(m,'leaf','robot/lh_palm',0);c['distance_m']=.001
+    with pytest.raises(ValueError,match='actual attained'):
+        outward_release_normal(m,dict(contacts=[c]))
+    c['wrench_contact_frame'][0]=.01
+    np.testing.assert_array_equal(outward_release_normal(m,dict(contacts=[c])),[0,1,0])
+    c['body'].reverse()
+    np.testing.assert_array_equal(outward_release_normal(m,dict(contacts=[c])),[0,-1,0])

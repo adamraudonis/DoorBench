@@ -53,14 +53,11 @@ def continuation_contact_summary(sensor_paths, filter_paths, normal_forces,
                 raise ValueError('Invalid measured normal contact')
             if name in feet_names and other.rsplit('/', 1)[-1] == 'floor':
                 feet[feet_names.index(name)] += load * normal[2]
-            if name.startswith('lh_'):
-                # Both sensors observe a self-contact. Count/load it only once,
-                # while retaining separate physical forces on each hand body.
-                duplicate = (other.rsplit('/', 1)[-1].startswith('lh_') and
-                             other in paths and paths[i] > other)
-                if not duplicate:
-                    left_count += int(gap <= 0 or load > 1e-8)
-                    left_load += load
+            if name.startswith('lh_') and not other.startswith('/World/H1/'):
+                # Internal robot contact is not external panel support. Actual
+                # per-body forces remain available in the separate force map.
+                left_count += int(gap <= 0 or load > 1e-8)
+                left_load += load
                 if (other == '/World/Door/Articulation/leaf' and
                         (gap <= 0 or load > 1e-8)):
                     panel_normals.append(normal.copy())

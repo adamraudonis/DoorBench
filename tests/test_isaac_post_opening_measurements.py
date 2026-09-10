@@ -60,7 +60,7 @@ def test_corrupt_evidence_is_rejected(change):
     with pytest.raises(ValueError): continuation_contact_summary(**args)
 
 
-def test_left_self_contact_load_is_not_counted_twice():
+def test_left_self_contact_is_not_external_support():
     args = fixture()
     args['sensor_paths'] += ['/World/H1/lh_ffdistal']
     args['filter_paths'][2] = ['/World/H1/lh_ffdistal']
@@ -73,5 +73,6 @@ def test_left_self_contact_load_is_not_counted_twice():
     args['distances'] = np.array([[-.0001], [-.0001], [-.0001], [.002], [-.0001], [np.nan]])
     args['capacity'] = 6
     result = continuation_contact_summary(**args)
-    assert result['evidence']['left_hand_contacts'] == 1
-    assert result['evidence']['left_hand_load_N'] == 4
+    assert result['evidence']['left_hand_contacts'] == 0
+    assert result['evidence']['left_hand_load_N'] == 0
+    assert result['release_normal_world'] is None
