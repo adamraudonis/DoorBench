@@ -70,3 +70,11 @@ archives without this field must not be treated as complete continuation states.
 The recording change does not alter motor commands, physics or acceptance gates;
 verify the field and epoch count in the next actual Isaac archive before relying
 on it for source-state planning.
+
+The root-state metadata now uses the same mode predicate as the recorder:
+continuous, calibrated locomotion and standing acquisition use actor-origin
+world velocity. Other modes preserve the legacy COM-velocity convention.
+Previously standing acquisition was mislabeled as COM velocity in configuration;
+its numeric recording was actor-origin. This correction applies to future source
+snapshots only. Frozen tangent038 predates it and the joint-velocity addition;
+do not use that archive as a complete continuation state or rewrite its evidence.
