@@ -202,3 +202,22 @@ declares the new ordered body recording. It requires the exact bound state epoch
 complete array shape and valid measured quaternions. Legacy041 remains extractable
 without fabricated body evidence. Sixteen recorder/extraction tests pass; this
 still does not establish full-body kinematic admission on a live run.
+
+## Measured-body repeat042 dispatched for preparation
+
+Fresh source `64c79febf35c999bc44f30fcd6803a7a26b22b0928c82331cd0935bbe1b0405f`
+contains the body recorder and extractor. The queued trial repeats041 control:
+index proximal -0.02 rad, tendon +0.06 rad, handle lead 0.10 rad and the original
+2 N middle preload. It must pass its native prerequisite and full Isaac contact
+audits before its endpoint is eligible for continuation planning. Preparation
+and an attached collector are running; no042 result is claimed here.
+
+Failed037 raw records were privately archived, independently downloaded and
+hash-verified before84 local raw files were removed (652,666,082 logical bytes).
+Reports and visual diagnostics remain locally; qualified041 raw evidence stays
+local. [Offload receipt](evidence/isaac037-verified-offload.json).
+
+Both replacement guards were acknowledged on the owned A40 before the old
+guards stopped; teardown is now September10 at21:42:27 UTC. The local preparation
+passed the20GiB retention admission with72s plus128MiB reserved. The dispatcher
+checks storage again after readiness. [Preparation](evidence/isaac-body-poses042-preparation.json).
