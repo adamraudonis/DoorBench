@@ -36,10 +36,13 @@ def validate_route_geometry(config):
 
 
 class StandingTransferTeacher:
-    def __init__(self,operation,motors,path,*,start_seconds=22.,preload_profile='maintain',grasp_shift=(0.,0.,0.),hold_route=False,handoff_seconds=0.,fixed_pad_tracking=True,attained_arm_tracking=False):
+    def __init__(self,operation,motors,path,*,start_seconds=22.,preload_profile='maintain',grasp_shift=(0.,0.,0.),hold_route=False,handoff_seconds=0.,fixed_pad_tracking=True,attained_arm_tracking=False,handle_relative_arm=False):
         if not np.isfinite(start_seconds) or start_seconds<=0:raise ValueError('Transfer start must be finite and positive')
         if preload_profile not in PROFILES:raise ValueError('Unknown transfer preload profile')
         self.attained_arm_tracking=attained_arm_tracking;self.arm_tracker=None
+        if type(handle_relative_arm) is not bool or (handle_relative_arm and not attained_arm_tracking):
+            raise ValueError('Handle-relative targets require explicit attained-arm tracking')
+        self.handle_relative_arm=handle_relative_arm;self.handle_target=None
         if type(attained_arm_tracking) is not bool:raise ValueError('Explicit attained-arm tracking flag required')
         if attained_arm_tracking and fixed_pad_tracking:raise ValueError('Isolate attained-arm tracking from added fixed-pad feedback')
         if type(fixed_pad_tracking) is not bool:raise ValueError('Explicit fixed-pad tracking flag required')
@@ -90,6 +93,9 @@ class StandingTransferTeacher:
                 from .attained_arm_tracking import AttainedArmTracking
                 self.arm_tracker=AttainedArmTracking(teacher,joints,self.previous_motors)
             self.left.begin(t,root,joints,leaf_pose,handle_pose);self.started=t
+            if self.handle_relative_arm:
+                from .handle_relative_arm import HandleRelativeArmTarget
+                self.handle_target=HandleRelativeArmTarget(teacher.m,self.names,root,joints,handle_pose)
             self.initial_digit_forces=dict(teacher.digit_forces)
         if self.started is not None:
             pressure_blend=float(smooth_phase(t-self.started))
@@ -106,7 +112,11 @@ class StandingTransferTeacher:
         if self.started is not None:
             forces=self.left.apply_forces(forces,joints,velocities)
             if self.arm_tracker:
-                forces,arm_info=self.arm_tracker.force(forces,t,dict(zip(self.names,q)),joints,velocities)
+                arm_target=dict(zip(self.names,q))
+                if self.handle_target is not None:
+                    arm_target,compensation_info=self.handle_target.target(t,root,joints,handle_pose,arm_target)
+                    info={**info,**compensation_info}
+                forces,arm_info=self.arm_tracker.force(forces,t,arm_target,joints,velocities)
                 info={**info,**arm_info}
             if self.handoff_seconds:
                 from .motor_handoff import MotorHandoff

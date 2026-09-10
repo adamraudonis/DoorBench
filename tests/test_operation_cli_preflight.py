@@ -31,7 +31,7 @@ def test_lead_controller_can_continue_into_explicit_attained_arm_transfer(tmp_pa
     args=command(tmp_path);args=args[:args.index('--portable-wrapper')]+[
         '--portable-wrapper','--operation-operator-lead-limit-rad','.10',
         '--standing-transfer-path',str(tmp_path/'transfer'),'--standing-transfer-attained-arm',
-        '--standing-transfer-no-fixed-pads','--validate-arguments-only']
+        '--standing-transfer-no-fixed-pads','--standing-transfer-handle-relative-arm','--validate-arguments-only']
     env={**os.environ,'PYTHONPATH':str(ROOT)}
     result=subprocess.run(args,cwd=ROOT,env=env,capture_output=True,text=True)
     assert result.returncode==0,result.stderr
@@ -41,4 +41,4 @@ def test_lead_controller_can_continue_into_explicit_attained_arm_transfer(tmp_pa
                         [a for a in args if a!='--standing-transfer-attained-arm']]:
         result=subprocess.run(unsupported,cwd=ROOT,env=env,capture_output=True,text=True)
         assert result.returncode==2
-        assert 'Operator lead requires' in result.stderr
+        assert 'Operator lead requires' in result.stderr or 'Handle-relative targets require' in result.stderr

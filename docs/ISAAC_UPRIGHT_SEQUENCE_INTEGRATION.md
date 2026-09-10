@@ -370,3 +370,19 @@ that late recovery works. The solve's bounds include the already attained
 nominal wrist pose so introducing a margin cannot force an initial jump farther
 inside the range. Original physical joint limits remain unchanged.
 [Comparison](evidence/native-transfer001-compensation-screen.json).
+
+## Opt-in handle-relative arm target experiment
+
+`--standing-transfer-handle-relative-arm` now anchors the palm-to-handle
+transform at measured transfer entry. A separate unstepped kinematic model
+solves seven right-arm targets every20ms, bounded within0.08rad of the screened
+nominal route. Corrections slew at0.5rad/s; a conflicting moving bound or
+unreachable target fails explicitly. The existing attained-arm motor controller
+consumes these targets and retains original force caps. The mode requires an
+explicit attained-arm transfer with added fixed-pad tracking disabled; return
+is not yet supported. Default behavior and frozen042 are unchanged.
+
+Twenty focused target, CLI, motor-handoff, preload and arm-controller tests pass.
+Tests cover initial continuity, correction size/rate, malformed or unreachable
+states, and no physics stepping in the target generator. This is prospective
+controller code; no physical result exists for the option yet.
