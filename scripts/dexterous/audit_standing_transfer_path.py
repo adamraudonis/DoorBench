@@ -36,7 +36,9 @@ def main():
             if handle in pair and any(b in hands for b in pair) and lever not in contact.geom:extra=max(extra,-float(contact.dist))
         peak_extra_handle=max(peak_extra_handle,extra)
         if not check['passed'] or pe>.001 or re>.01 or tilt>4 or extra>0:bad.append(dict(index=i,position_error_m=float(pe),rotation_error_rad=float(re),root_tilt_deg=tilt,extra_handle_penetration_m=extra,collision=check))
-    out=dict(passed=not bad,maximum_extra_handle_penetration_m=peak_extra_handle,samples=1001,maximum_fixed_hand_or_foot_position_error_m=peakpos,maximum_fixed_hand_or_foot_rotation_error_rad=peakrot,maximum_root_tilt_deg=peaktilt,bad_samples=bad,physics_steps=0,scope='Dense interpolation/FK/collision only; no physical contact/load or motor feasibility claim',input_sha256={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (a.robot,a.door,a.path,Path(__file__))})
+    from doorbench.dexterous.transfer_contact_geometry import receiving_palm_gap
+    receiving=receiving_palm_gap(m,d)
+    out=dict(passed=not bad and receiving['passed'],receiving_palm_geometry=receiving,maximum_extra_handle_penetration_m=peak_extra_handle,samples=1001,maximum_fixed_hand_or_foot_position_error_m=peakpos,maximum_fixed_hand_or_foot_rotation_error_rad=peakrot,maximum_root_tilt_deg=peaktilt,bad_samples=bad,physics_steps=0,scope='Dense interpolation/FK/collision only; no physical contact/load or motor feasibility claim',input_sha256={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (a.robot,a.door,a.path,Path(__file__))})
     a.output.write_text(json.dumps(out,indent=2,default=lambda x:x.item() if isinstance(x,np.generic) else x.tolist())+'\n');print(json.dumps({k:v for k,v in out.items() if k not in ('bad_samples','input_sha256')}))
 
 

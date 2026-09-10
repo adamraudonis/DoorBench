@@ -23,6 +23,7 @@ def validate_route_geometry(config):
         if hashlib.sha256(path.read_bytes()).hexdigest()!=c[key]:raise ValueError('Standing route input bytes changed: '+str(path))
     audit=json.loads(proof.read_text())
     if audit.get('passed') is not True or audit.get('samples')!=1001 or audit.get('physics_steps')!=0:raise ValueError('Complete independent geometry audit required')
+    if audit.get('receiving_palm_geometry',{}).get('passed') is not True:raise ValueError('Independent receiving-palm capture-distance audit required')
     for p in (robot,door,source):
         if audit['input_sha256'].get(str(p))!=hashlib.sha256(p.read_bytes()).hexdigest():raise ValueError('Route and audit inputs differ')
     scene=LandedLeftScene(robot,door);m,d=scene.m,scene.d;path=np.asarray(json.loads(source.read_text())['path_qpos'],float)

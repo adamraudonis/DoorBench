@@ -6,6 +6,24 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 
 Isaac042 passes its 36-second privileged standing grasp, handle operation and held partial opening, with 19/19 runtime checks and independent raw-contact audits. This is not full opening/traversal or a sensor-only policy. Isaac043 passed its native grasp prerequisite but failed during Isaac setup before physics: the transfer route was appended to the provenance input list before initialization. Its run, endpoint rejection and review evidence are verified off-pod. The initialization-order fix passes four targeted tests, including execution of the actual provenance setup block. Run044 passed all native prerequisites and reached0.002s in Isaac, then failed on step2: the new contact recorder overwrote joint-friction coefficients with a contact-friction array. The local fix uses a distinct name, and an execution regression covers recording followed by the actual next torque expression. Five targeted tests pass. No transfer success is established. Run044 evidence is verified off-pod and bulk native diagnostics are archived with verified hashes. Fresh045 is dispatched from e853509fb with24 focused tests passing, storage admission, collection and both guards verified. Run045 native runtime and both independent contact audits pass. Actual Isaac process188579 reached36.502s; transfer activated at36.0s after its measured starting-state gate. Left progress is0.00222 and stance solved; the latest36.002s pad sample is valid. A27.002s middle-finger unload recovered by28.002s; retain it for final auditing. No completed transfer result yet. Inspect this process and coordinator183731 before taking action. Do not restart044. Run045 includes the updated endpoint loader binding independent transfer evidence. See [045 dispatch](evidence/isaac045-transfer-dispatch.json). See [042 evidence](evidence/isaac042-qualified-partial-opening.json) and [043 startup failure](evidence/isaac043-startup-failure.json). Owned-pod teardown deadline: 2026-09-11T00:15:47.617140+00:00. See [044 dispatch](evidence/isaac044-transfer-dispatch.json); inspect live handles before continuing.
 
+## Run045 receiving-palm diagnosis
+
+At46.0s the actual recorded left-palm mesh is still about10cm short of the
+panel. Its route ends with the palm touch site at leaf-local Y=-0.182864m;
+the slab front is at-0.022m. The bounded8mm controller correction cannot
+repair that target. The rebased posture template preserved a joint displacement,
+but did not constrain the final receiving hand to the panel. The old dense
+screen checked clearance and fixed hand/feet, not receiving-palm reach.
+See [measured geometry evidence](evidence/isaac045-receiving-palm-gap.json).
+
+New dense audits must include original palm-to-slab distance within the8mm
+capture range; finger contact cannot qualify it. The runtime route loader now
+requires this explicit audit. Two focused geometric tests cover a10cm miss
+with a touching finger, a reachable palm and excessive penetration. Live045
+remains immutable. Next: finish and collect045; re-solve the rebased planner
+with an explicit panel-relative palm endpoint/orientation and screen the full
+path again before dispatch. Do not enlarge contact offsets or relax force gates.
+
 ## Next sensor recording requirements
 
 The next fresh Isaac run should capture the new same-run initial sensor packet
