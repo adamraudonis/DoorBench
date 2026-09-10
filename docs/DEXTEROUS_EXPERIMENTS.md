@@ -314,3 +314,8 @@ Transfer005 reproduces the37.26s stop after both IK seeds. The earlier terminal 
 ### Exact transfer006 replay corrects offline progress interpretation
 
 The captured failed solve reproduces with zero differences in lower/upper bounds, fit and residual. Earlier offline approximations applied smooth_phase twice to already-smoothed logged left_progress; their nominal target/fit conclusions are superseded. Actual physical failures and mixed-clock tests remain valid. The real active wrist bound is-.688132rad, the authored lower stop plus.01rad interior margin. An exact-input offline .005rad margin fit meets unchanged pose tolerances (.276mm/.003285rad), entirely inside the authored stop. No physical settings changed. Next check contact geometry and prospective control, or revise the route to avoid that stop. [Exact evidence](evidence/native-transfer006-exact-diagnosis.json).
+
+
+### Isaac042 measured transfer route
+
+Added source-bound Isaac mode to the transfer planner, re-extracting recorded state and requiring original runtime/contact reports plus model-coordinate admission. A1mm altered root is rejected. Route001 fails node41 orientation (.0101246rad >.01). Route002 increases pose weighting to400 without changing gates:101 nodes and independent1001-sample interpolation/collision audit PASS; maximum fixed hand/foot errors.1473mm/.009281rad, maximum torso tilt2.665degrees, extra handle penetration0. Both archives are verified off-pod (9/10 files). This is a geometric candidate; standalone Isaac motor-controller integration and physical transfer remain next. [Evidence](evidence/isaac042-transfer-route.json).
