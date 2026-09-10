@@ -52,3 +52,38 @@ def test_coincident_windows_do_not_duplicate_interval_counts():
     result=withdrawal_checks({},iter(data),dt=.1,duration=2.,started=1.,release_started=1.,completed=True)
     assert result['resting_grip_before_withdrawal']
     assert result['opposed_grip_before_intentional_release']
+
+
+def test_clearance_keeps_pair_order_and_restores_ceiling_after_penetration(monkeypatch):
+    import mujoco
+    import pytest
+    from doorbench.dexterous.standing_withdrawal_audit import environment_clearance
+    calls=[];distances=[.2,.4,-.01,-.03]
+    def exact(model,data,g,h,cap,segment):
+        calls.append((g,h,cap));return min(distances[g],cap)
+    monkeypatch.setattr(mujoco,'mj_geomDistance',exact)
+    assert environment_clearance(None,None,iter([(i,10) for i in range(4)]))==-.03
+    assert [(g,h) for g,h,_ in calls]==[(i,10) for i in range(4)]
+    assert calls[0][2]==calls[3][2]==.5
+    assert calls[1][2]==calls[2][2]==pytest.approx(.200000001)
+    with pytest.raises(ValueError,match='nonempty'):
+        environment_clearance(None,None,[])
+
+
+def test_clearance_matches_original_exact_queries_across_real_poses():
+    import mujoco
+    import numpy as np
+    from doorbench.dexterous.standing_withdrawal_audit import environment_clearance
+    m=mujoco.MjModel.from_xml_string('''<mujoco><worldbody>
+      <geom type="plane" size="10 10 .1"/>
+      <geom type="box" size=".1 .2 .05" pos=".2 0 .3"/>
+      <geom type="capsule" size=".03 .2" pos="0 .2 .3"/>
+      <body><freejoint/><geom type="box" size=".05 .04 .03"/></body>
+    </worldbody></mujoco>''')
+    d=mujoco.MjData(m);g=int(m.body_geomadr[1]);pairs=[(g,h) for h in range(m.ngeom) if h!=g]
+    rng=np.random.default_rng(901)
+    for _ in range(100):
+        d.qpos[:3]=rng.uniform([-.3,-.3,0],[.3,.3,.8])
+        q=rng.normal(size=4);d.qpos[3:7]=q/np.linalg.norm(q);mujoco.mj_forward(m,d)
+        expected=min(float(mujoco.mj_geomDistance(m,d,a,b,.5,None)) for a,b in pairs)
+        assert environment_clearance(m,d,pairs)==expected

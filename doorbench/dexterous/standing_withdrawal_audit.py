@@ -12,7 +12,18 @@ def clearance_pairs(model):
 
 
 def environment_clearance(model,data,pairs):
-    return min(float(mujoco.mj_geomDistance(model,data,g,h,.5,None)) for g,h in pairs)
+    iterator=iter(pairs)
+    try:g,h=next(iterator)
+    except StopIteration:raise ValueError('Explicit nonempty geometry pairs required') from None
+    minimum=float(mujoco.mj_geomDistance(model,data,g,h,.5,None))
+    for g,h in iterator:
+        # Pairs farther than the best positive distance cannot lower the
+        # minimum. Keep exact queries, their order, and the original ceiling
+        # for penetrating/touching pairs; never use a negative search radius.
+        cap=minimum+1e-9 if 0<minimum<.5-1e-9 else .5
+        distance=float(mujoco.mj_geomDistance(model,data,g,h,cap,None))
+        if distance<minimum:minimum=distance
+    return minimum
 
 
 def withdrawal_checks(original,rows,*,dt,duration,started,release_started,completed):
