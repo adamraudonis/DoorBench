@@ -71,10 +71,13 @@ def main():
     initial_violation=np.maximum(m.jnt_range[scalar,0]-initial[sq],initial[sq]-m.jnt_range[scalar,1])
     hand=[g for g in range(m.ngeom) if m.geom_contype[g] and m.body(m.geom_bodyid[g]).name.startswith('robot/rh_')]
     scene=[g for g in range(m.ngeom) if m.geom_contype[g] and not m.body(m.geom_bodyid[g]).name.startswith('robot/')]
+    elbows=[g for g in range(m.ngeom) if m.geom_contype[g] and m.body(m.geom_bodyid[g]).name in ('robot/left_elbow_link','robot/right_elbow_link')]
+    if not elbows:raise ValueError('Original elbow collision geometry required')
+    minimum_elbow_clearance=.003001
     # Conservative, explicit enclosing radii for broad-phase pruning. Exact
     # mj_geomDistance still evaluates every pair that can be within 40 mm.
     radii=np.zeros(m.ngeom)
-    for g in hand+scene:
+    for g in hand+elbows+scene:
         kind=int(m.geom_type[g]);size=m.geom_size[g]
         if kind==int(mujoco.mjtGeom.mjGEOM_MESH):
             mesh=m.geom_dataid[g];start=m.mesh_vertadr[mesh];count=m.mesh_vertnum[mesh]
@@ -126,6 +129,15 @@ def main():
             g,h=hand[hi],scene[si];distance=float(mujoco.mj_geomDistance(m,d,g,h,.040001,None));exact_pairs+=1
             if distance<nearest:nearest=distance;pair=[m.geom(g).name,m.geom(h).name]
         minimum_clearance=min(minimum_clearance,nearest)
+        elbow_nearest=.003001;elbow_pair=None
+        elbow_centers=np.linalg.norm(d.geom_xpos[elbows,None,:]-d.geom_xpos[None,scene,:],axis=2)
+        for ei,si in np.argwhere(elbow_centers-radii[elbows,None]-radii[None,scene]<.003001):
+            g,h=elbows[ei],scene[si]
+            gap=float(mujoco.mj_geomDistance(m,d,g,h,.003001,None));exact_pairs+=1
+            if gap<elbow_nearest:elbow_nearest=gap;elbow_pair=[int(g),int(h)]
+        minimum_elbow_clearance=min(minimum_elbow_clearance,elbow_nearest)
+        if elbow_nearest<.003:
+            failures.append(dict(time_s=float(t),elbow_clearance_m=elbow_nearest,elbow_geom_pair=elbow_pair,required_elbow_clearance_m=.003))
         for key,value in vals.items():maxima[key]=max(maxima.get(key,0.),value)
         limits=dict(left_position_m=.0001,left_rotation_rad=.001,right_position_m=.0001,right_rotation_rad=.001,foot_position_m=.0001,foot_rotation_rad=.001,joint_violation_increase_rad=.000001,torso_tilt_deg=min(12.,float(report['configuration'].get('maximum_torso_tilt_deg') or 12.)),root_translation_m=.03,root_rotation_rad=.05,com_xy_displacement_m=.015,joint_velocity_rad_s=1.2,joint_acceleration_rad_s2=3.,root_velocity_m_s=.02,root_rotvec_velocity_rad_s=.03)
         if relaxed:limits['right_rotation_rad']=.35
@@ -144,7 +156,7 @@ def main():
     args.output.mkdir(parents=True,exist_ok=False)
     (args.output/'audit-source.py').write_bytes(Path(__file__).read_bytes())
     (args.output/'screened-panel-path-source.py').write_bytes((Path(__file__).resolve().parents[2]/'doorbench/dexterous/screened_panel_path.py').read_bytes())
-    receipt=dict(schema='doorbench.whole-body-panel-screen.v1',passed=not failures,scope='Unstepped geometry and target-rate qualification only. No loaded support, force tracking, release, or opening success claim.',screen_sha256=hashlib.file_digest(args.screen.open('rb'),'sha256').hexdigest(),source_chunk_sha256=report['source_chunk_sha256'],source_time_s=report['source_time_s'],reference_phase_envelope=envelope,actual_leaf_lag_rad=args.actual_leaf_lag_rad,lag_start_angle_rad=args.lag_start_angle_rad,lag_scope='Static collision screen only; does not assume or guarantee the physical tracking lag. The exact initial pose is unshifted.',duration_s=args.duration_s,samples=args.samples,exact_initial_state=True,optimizer_initial_coordinate_adjustment_removed=optimizer_initial_change,limits=limits,maxima=maxima,minimum_all_rh_scene_clearance_capped_m=minimum_clearance,hand_shapes=len(hand),scene_shapes=len(scene),exact_distance_pairs=exact_pairs,failures=failures)
+    receipt=dict(schema='doorbench.whole-body-panel-screen.v1',passed=not failures,scope='Unstepped geometry and target-rate qualification only. No loaded support, force tracking, release, or opening success claim.',screen_sha256=hashlib.file_digest(args.screen.open('rb'),'sha256').hexdigest(),source_chunk_sha256=report['source_chunk_sha256'],source_time_s=report['source_time_s'],reference_phase_envelope=envelope,actual_leaf_lag_rad=args.actual_leaf_lag_rad,lag_start_angle_rad=args.lag_start_angle_rad,lag_scope='Static collision screen only; does not assume or guarantee the physical tracking lag. The exact initial pose is unshifted.',duration_s=args.duration_s,samples=args.samples,exact_initial_state=True,optimizer_initial_coordinate_adjustment_removed=optimizer_initial_change,limits=limits,maxima=maxima,minimum_all_rh_scene_clearance_capped_m=minimum_clearance,minimum_elbow_scene_clearance_capped_m=minimum_elbow_clearance,required_elbow_clearance_m=.003,elbow_shapes=len(elbows),hand_shapes=len(hand),scene_shapes=len(scene),exact_distance_pairs=exact_pairs,failures=failures)
     (args.output/'report.json').write_text(json.dumps(receipt,indent=2)+'\n')
     np.savez_compressed(args.output/'target-traces.npz',values=np.array(traces))
     plan=dict(schema='doorbench.whole-body-panel-plan.v1',initial_qpos=initial.tolist(),initial_qvel=report['initial_qvel'],initial_robot_joints={m.joint(j).name.removeprefix('robot/'):float(initial[m.jnt_qposadr[j]]) for j in range(m.njnt) if m.joint(j).name.startswith('robot/') and m.jnt_type[j] in (2,3)},robot_xml_sha256=hashlib.file_digest(robot.open('rb'),'sha256').hexdigest(),initial_leaf_velocity_rad_s=float(report['initial_qvel'][m.jnt_dofadr[m.joint('leaf_hinge').id]]),initial_leaf_angle_rad=float(angles[0]),final_leaf_angle_rad=float(angles[-1]),initial_episode_time_s=report['source_time_s'],root_qpos_address=int(rq),joint_names=names,joint_qpos_addresses=qa.tolist(),progress=((angles-angles[0])/(angles[-1]-angles[0])).tolist(),coordinates=coords.tolist(),duration_s=args.duration_s,screen_receipt=receipt)
