@@ -309,3 +309,8 @@ Panel-relative transfer004 stops at37.26s on orientation reachability, with phys
 
 
 Transfer005 reproduces the37.26s stop after both IK seeds. The earlier terminal fit does not reproduce actual input closely enough to explain the failure. Added a one-time JSON capture of exact failed root/joint/reference/anchor/nominal/bound inputs, leaving controller and physical behavior unchanged. No tolerance changes. [Failure](evidence/native-index-transfer005-failure.json).
+
+
+### Exact transfer006 replay corrects offline progress interpretation
+
+The captured failed solve reproduces with zero differences in lower/upper bounds, fit and residual. Earlier offline approximations applied smooth_phase twice to already-smoothed logged left_progress; their nominal target/fit conclusions are superseded. Actual physical failures and mixed-clock tests remain valid. The real active wrist bound is-.688132rad, the authored lower stop plus.01rad interior margin. An exact-input offline .005rad margin fit meets unchanged pose tolerances (.276mm/.003285rad), entirely inside the authored stop. No physical settings changed. Next check contact geometry and prospective control, or revise the route to avoid that stop. [Exact evidence](evidence/native-transfer006-exact-diagnosis.json).

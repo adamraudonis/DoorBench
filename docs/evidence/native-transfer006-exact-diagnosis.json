@@ -1,0 +1,107 @@
+{
+  "passed": false,
+  "checks": {
+    "complete_physics_step_evidence": false,
+    "closed_leaf_start": true,
+    "resting_operator_start": true,
+    "contact_free_start": true,
+    "finite": true,
+    "upright": true,
+    "physical_joint_limits": true,
+    "nonfoot_penetration": true,
+    "native_motor_limits": true,
+    "no_external_assistance": true,
+    "documented_loopback_limits": true,
+    "sustained_pad_grasp": false,
+    "stance_solves_every_interval": false,
+    "no_warning_intervals": true,
+    "controller_completed": false,
+    "acquisition_precedes_operation": true,
+    "operator_driven_to_release": true,
+    "partial_leaf_opening_held": false,
+    "opening_bounded_for_transfer": true,
+    "standing_transfer_started": true,
+    "final_left_palm_support": false,
+    "whole_handle_assembly": false
+  },
+  "controller_error": "ValueError: Relative arm target is outside bounded reachability after 2 starts: `gtol` termination condition is satisfied.; position=0.000417917m rotation=0.00505307rad",
+  "final_leaf_rad": 0.09155163287998293,
+  "exact_replay": {
+    "reproduced": true,
+    "error": "Relative arm target is outside bounded reachability after 2 starts: `gtol` termination condition is satisfied.; position=0.000417917m rotation=0.00505307rad",
+    "maximum_absolute_differences": {
+      "lower": 0.0,
+      "upper": 0.0,
+      "fit": 0.0,
+      "residual": 0.0
+    },
+    "replay_solve": {},
+    "reference_frame": "leaf",
+    "time_s": 37.25999999999957,
+    "physics_steps": 0,
+    "robot_sha256": "3148cbbefa04e65ae813080275008619a3d4ef94f1ca0887c8f51e79630c3c21",
+    "snapshot_sha256": "8b1e3796e8ba9853e14e2d39bc7b271ddf0e738c598b2dd87de93743a0e31e93",
+    "scope": "Reproduction of a failed kinematic solve only; not physical success or feasibility proof",
+    "active_bounds": {
+      "rh_WRJ1": {
+        "value": -0.6881319999999999,
+        "lower": -0.688132,
+        "upper": -0.6016311368589379
+      }
+    }
+  },
+  "wrist_margin_screen": [
+    {
+      "wrist_interior_margin_rad": 0.01,
+      "converged": true,
+      "position_error_m": 0.00041791732472579467,
+      "rotation_error_rad": 0.005053071468389007,
+      "wrist_rad": -0.6881319999999999,
+      "authored_wrist_lower_rad": -0.698132,
+      "maximum_correction_rad": 0.04307646927326525,
+      "scope": "Exact-input offline IK screen only; no contact or physical success"
+    },
+    {
+      "wrist_interior_margin_rad": 0.005,
+      "converged": true,
+      "position_error_m": 0.00027575542968769404,
+      "rotation_error_rad": 0.003284894271620001,
+      "wrist_rad": -0.6931319999999999,
+      "authored_wrist_lower_rad": -0.698132,
+      "maximum_correction_rad": 0.04157261392164768,
+      "scope": "Exact-input offline IK screen only; no contact or physical success"
+    },
+    {
+      "wrist_interior_margin_rad": 0.0,
+      "converged": true,
+      "position_error_m": 0.00013334930681409342,
+      "rotation_error_rad": 0.0015642969945762314,
+      "wrist_rad": -0.6981319999999999,
+      "authored_wrist_lower_rad": -0.698132,
+      "maximum_correction_rad": 0.047088542816162926,
+      "scope": "Exact-input offline IK screen only; no contact or physical success"
+    }
+  ],
+  "audits": {
+    "scope": "Independent native transfer contact audits; no Isaac or full traversal claim",
+    "passed": false,
+    "independent-pad-audit.json": {
+      "exit_code": 1,
+      "passed": false
+    },
+    "independent-whole-handle-audit.json": {
+      "exit_code": 1,
+      "passed": false
+    },
+    "finished_unix": 1789074349.102462
+  },
+  "correction": "Earlier offline scripts smoothed reported left_progress a second time. Their nominal target and fit conclusions must not be used. Reported left_progress is already smooth_phase(self.left.progress). Exact input replay006 supersedes those approximations. Physical runs and mixed-clock unit tests are unchanged.",
+  "invalidated_offline_conclusions": [
+    "native-transfer001-compensation-screen.json",
+    "native-transfer002-mixed-clock-diagnosis.json (offline boundary only)",
+    "native-leaf-relative-transfer-screen.json",
+    "native-index-transfer004-failure.json (offline terminal fit only)"
+  ],
+  "decision": "Investigate wrist interior safety margin, which is stricter than authored joint stop. No physical limit or tolerance has been changed. Exact-state IK with .005 interior margin meets pose tolerances; still requires collision and motor-driven verification.",
+  "verified_unix": 1789074415.1438131
+}
