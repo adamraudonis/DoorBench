@@ -42,3 +42,16 @@ def test_lead_controller_can_continue_into_explicit_attained_arm_transfer(tmp_pa
         result=subprocess.run(unsupported,cwd=ROOT,env=env,capture_output=True,text=True)
         assert result.returncode==2
         assert 'Operator lead requires' in result.stderr or 'Handle-relative targets require' in result.stderr
+
+
+def test_leaf_relative_transfer_requires_explicit_nonconflicting_frame(tmp_path):
+    args=command(tmp_path);args=args[:args.index('--portable-wrapper')]+[
+        '--portable-wrapper','--standing-transfer-path',str(tmp_path/'transfer'),
+        '--standing-transfer-attained-arm','--standing-transfer-no-fixed-pads',
+        '--standing-transfer-leaf-relative-arm','--validate-arguments-only']
+    env={**os.environ,'PYTHONPATH':str(ROOT)}
+    result=subprocess.run(args,cwd=ROOT,env=env,capture_output=True,text=True)
+    assert result.returncode==0,result.stderr
+    for unsupported in [args+['--standing-transfer-handle-relative-arm'],args+['--standing-return-path','missing'],[a for a in args if a!='--standing-transfer-attained-arm']]:
+        assert subprocess.run(unsupported,cwd=ROOT,env=env,capture_output=True).returncode==2
+    assert not (tmp_path/'output').exists()

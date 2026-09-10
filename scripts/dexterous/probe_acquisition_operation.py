@@ -109,6 +109,7 @@ def main():
     parser.add_argument('--standing-return-support-load',type=float,help='Explicit left support target during return, above the original 2 N gate')
     parser.add_argument('--standing-return-hold-finger-posture',action='store_true',help='Experimental attained coupled finger posture with original motor limits')
     parser.add_argument('--standing-return-path',type=Path,help='Source-bound measured-state lever return after the qualified transfer')
+    parser.add_argument('--standing-transfer-leaf-relative-arm',action='store_true',help='Experimental panel-relative palm hold: follows leaf swing but resists lever return')
     parser.add_argument('--standing-transfer-handle-relative-arm',action='store_true',help='Experimental bounded handle-relative target compensation during attained-arm transfer')
     parser.add_argument('--standing-transfer-attained-arm',action='store_true',help='Experimental: track screened attained arm joints with measured initial motor preload')
     parser.add_argument('--standing-transfer-no-fixed-pads',action='store_true',help='Ablation: preserve operation digit controller without extra transfer pad tracking')
@@ -147,7 +148,8 @@ def main():
     if args.hold_attained_grasp and (not args.portable_wrapper or args.standing_transfer_path):parser.error('Attained hold requires a standalone portable operation trial')
     if not args.portable_wrapper and (args.operation_fixed_pad_control or args.index_proximal_offset_rad or args.index_tendon_offset_rad):
         parser.error('Contact-control options require the portable operation wrapper')
-    if args.standing_transfer_handle_relative_arm and (not args.standing_transfer_path or not args.standing_transfer_attained_arm or not args.standing_transfer_no_fixed_pads or args.standing_return_path):
+    if args.standing_transfer_handle_relative_arm and args.standing_transfer_leaf_relative_arm:parser.error("Choose one relative arm reference frame")
+    if (args.standing_transfer_handle_relative_arm or args.standing_transfer_leaf_relative_arm) and (not args.standing_transfer_path or not args.standing_transfer_attained_arm or not args.standing_transfer_no_fixed_pads or args.standing_return_path):
         parser.error('Handle-relative targets require explicit attained-arm transfer without return')
     if args.standing_withdrawal_path and not args.standing_return_path:parser.error('Withdrawal requires a standing return route')
     if (args.standing_return_palm_feedback or args.standing_return_hold_finger_posture or args.standing_return_support_load is not None) and not args.standing_return_path:parser.error('Finger posture continuation requires an explicit return path')
@@ -225,7 +227,7 @@ def main():
     if args.standing_transfer_path:
         if not args.portable_wrapper or not args.record_transitions:raise ValueError('Standing transfer requires portable operation and full physical evidence')
         from doorbench.dexterous.standing_transfer import StandingTransferTeacher
-        transfer=StandingTransferTeacher(operation,motors,args.standing_transfer_path,start_seconds=args.standing_transfer_start_seconds,fixed_pad_tracking=not args.standing_transfer_no_fixed_pads,attained_arm_tracking=args.standing_transfer_attained_arm,preload_profile=args.standing_transfer_preload_profile,grasp_shift=args.standing_transfer_grasp_shift,hold_route=args.standing_transfer_hold_route,handoff_seconds=args.standing_transfer_handoff_seconds,handle_relative_arm=args.standing_transfer_handle_relative_arm)
+        transfer=StandingTransferTeacher(operation,motors,args.standing_transfer_path,start_seconds=args.standing_transfer_start_seconds,fixed_pad_tracking=not args.standing_transfer_no_fixed_pads,attained_arm_tracking=args.standing_transfer_attained_arm,preload_profile=args.standing_transfer_preload_profile,grasp_shift=args.standing_transfer_grasp_shift,hold_route=args.standing_transfer_hold_route,handoff_seconds=args.standing_transfer_handoff_seconds,handle_relative_arm=args.standing_transfer_handle_relative_arm,leaf_relative_arm=args.standing_transfer_leaf_relative_arm)
     hand_names = {b:m.body(b).name.removeprefix('robot/') for b in range(m.nbody)
                   if m.body(b).name.startswith(('robot/rh_', 'robot/lh_'))}
     from doorbench.dexterous.bounded_evidence import BoundedEvidence

@@ -19,7 +19,9 @@ def pose_rotation(pose):
 
 
 class HandleRelativeArmTarget:
-    def __init__(self, model, names, root, joints, handle_pose):
+    def __init__(self, model, names, root, joints, handle_pose, *, reference_frame="handle"):
+        if reference_frame not in ("handle","leaf"):raise ValueError("Explicit handle or leaf reference frame required")
+        self.reference_frame=reference_frame
         self.m=model;self.d=mujoco.MjData(model);self.names=list(names)
         free=np.flatnonzero(model.jnt_type==mujoco.mjtJoint.mjJNT_FREE)
         if len(free)!=1 or model.jnt_qposadr[free[0]]!=0:
@@ -96,4 +98,4 @@ class HandleRelativeArmTarget:
             for i,n in enumerate(ARM_NAMES):velocity[self.names.index(n)]+=(self.correction[i]-previous[i])/dt
         self.target_velocity=dict(zip(self.names,map(float,velocity)))
         result=dict(nominal);result.update(zip(ARM_NAMES,map(float,corrected)))
-        return result,dict(handle_relative_arm=True,maximum_correction_rad=float(np.max(abs(self.correction))),correction_limit_rad=.08,correction_rate_limit_rad_s=.5,solve=self.solve_info.copy())
+        return result,dict(handle_relative_arm=self.reference_frame=="handle",leaf_relative_arm=self.reference_frame=="leaf",arm_reference_frame=self.reference_frame,maximum_correction_rad=float(np.max(abs(self.correction))),correction_limit_rad=.08,correction_rate_limit_rad_s=.5,solve=self.solve_info.copy())

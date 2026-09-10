@@ -293,3 +293,8 @@ The failed compensated transfer retains valid pad contact and passes the joint t
 
 
 Separate-clock transfer003 completed its failed report and both independent audits: the same.08rad envelope was exhausted (position residual.50697mm against.5mm acceptance). Physical joint/motor checks pass and no invalid operation pad patches were reported, but complete-transfer checks fail. The clock repair is verified in isolation; it does not resolve the physical drift. Next investigate base compensation separately from following lever spring return. [Failure evidence](evidence/native-index-transfer003-failure.json).
+
+
+### Panel-relative transfer candidate
+
+An opt-in panel-relative palm target follows leaf swing but does not chase returning lever rotation. It uses the same bounded IK, motor path and separately differentiated target components as transfer003. Five recorded transfer001 poses need at most.0407rad correction; late hand overlap reaches5.2mm, so these are not qualified recovery targets. Test prospectively from the attained grasp under unchanged physical gates.23 focused tests pass. [Screen](evidence/native-leaf-relative-transfer-screen.json).
