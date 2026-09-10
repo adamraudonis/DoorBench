@@ -325,3 +325,11 @@ USD files. After verifying final collection, SHA256 and closed handles, four
 were replaced by hard links to the fifth. All paths and bytes remain; timestamps
 are shared. This removes751,965,364 duplicate logical bytes from retention
 accounting. [Deduplication receipt](evidence/imported-robot-hardlink-dedup042.json).
+
+The50s native transfer test is now dispatched as
+`out/native-standing-index-transfer-001`, with independent pad/whole-handle audits
+queued. It repeats index004's controller, starts the rebased transfer at36s and
+uses the earlier successful transfer mode: attained-arm tracking, no added
+fixed-pad transfer feedback and a1s motor handoff. The storage check reserves
+800MiB for this native test plus850MiB for unfinished042 collection.
+No native transfer result exists yet. [Dispatch](evidence/native-index-transfer001-dispatch.json).
