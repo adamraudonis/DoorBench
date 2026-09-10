@@ -52,11 +52,13 @@ def main():
     p.add_argument('--flatten-over-rad',type=float,default=.2)
     p.add_argument('--keep-elbow-in-front',action='store_true',help='Conservative original elbow-mesh clearance from the moving panel plane')
     p.add_argument('--elbow-clearance-m',type=float,default=.003,help='Interior elbow-to-panel planning margin; exact dense scene clearance remains mandatory')
+    p.add_argument('--elbow-clearance-ramp-rad',type=float,default=0.,help='Smoothly increase elbow margin from4mm over a declared aperture interval')
     p.add_argument('--elbow-barrier-weight',type=float,default=1000.,help='Soft planning weight; never substitutes for dense acceptance')
     p.add_argument('--palm-twist-rad',type=float,default=0.,help='Smooth palm rotation about the panel normal; preserves collision vertex depths')
     p.add_argument('--flatten-palm',action='store_true',help='Rotate the actual palm face toward the panel over0.2rad while preserving its collision support plane')
     p.add_argument('--admit-exact-soft-limit-start',action='store_true',help='Retain only the measured initial solver-limit excursion, then smoothly regain the 1mm/rad numeric joint margin within 0.1rad aperture')
     a=p.parse_args()
+    if a.elbow_clearance_ramp_rad and not .05<=a.elbow_clearance_ramp_rad<=.3:raise ValueError('Elbow margin ramp must be0 or0.05..0.3rad')
     if not np.isfinite(a.palm_twist_rad) or abs(a.palm_twist_rad)>.6:raise ValueError('Bounded palm twist required')
     if not .001<=a.joint_margin_rad<=.01:raise ValueError('Joint fit margin must be1..10mrad')
     if not -.04<=a.radius_shift_m<=.04 or not .1<=a.flatten_over_rad<=.6 or not 0<=a.height_drop_m<=.15 or not 0<=a.root_extent_m<=.08 or not 0<=a.root_rotation_rad<=.2 or a.nodes<21:
@@ -159,6 +161,12 @@ def main():
             goal_rotation=twist_palm_goal(goal_rotation,a.palm_twist_rad*blend)
         goal_p=lp+lr@local;goal_r=lr@goal_rotation
         phase=float(np.clip((angle-base[leafq])/(a.target_aperture_rad-base[leafq]),0,1));phase=phase**3*(10+phase*(-15+6*phase))
+        elbow_margin=a.elbow_clearance_m
+        if a.elbow_clearance_ramp_rad:
+            fraction=float(np.clip((angle-base[leafq])/a.elbow_clearance_ramp_rad,0,1))
+            fraction=fraction**3*(10+fraction*(-15+6*fraction))
+            start_margin=min(.004,a.elbow_clearance_m)
+            elbow_margin=start_margin+(a.elbow_clearance_m-start_margin)*fraction
         anchor=previous.copy()
         def evaluate(x):
             d.qpos[:]=state;d.qpos[rq:rq+3]=rp+x[:3]
@@ -174,7 +182,7 @@ def main():
             if a.keep_elbow_in_front:
                 vertices=elbow_vertices@d.xmat[elbow].reshape(3,3).T+d.xpos[elbow]
                 gap=float(np.min((vertices-lp)@lr[:,1]*elbow_side))-slab_front
-                elbow_barrier=a.elbow_barrier_weight*max(0.,a.elbow_clearance_m-gap)
+                elbow_barrier=a.elbow_barrier_weight*max(0.,elbow_margin-gap)
             yaw_tilt_barrier=0. if a.root_yaw_extent_rad is None else 1000.*max(0.,np.linalg.norm(x[3:5])-.0499)
             pivot=[] if a.root_yaw_target_rad is None else np.r_[5.*(x[5]-a.root_yaw_target_rad*phase),1000.*max(0.,np.linalg.norm(x[:3])-.0299),.2*(x-anchor)]
             pose_barrier=pose_constraint_barrier(hands,foot,a.foot_orientation_weight) if a.pose_tolerance_barrier else []
@@ -199,8 +207,8 @@ def main():
                 if a.keep_elbow_in_front:
                     vertices=elbow_vertices@d.xmat[elbow].reshape(3,3).T+d.xpos[elbow]
                     gap=float(np.min((vertices-lp)@lr[:,1]*elbow_side))-slab_front
-                    values.append((gap-a.elbow_clearance_m)/.01)
-                if a.root_yaw_extent_rad is not None:values.append(1.-float(np.sum((x[3:5]/.0499)**2)))
+                    values.append((gap-elbow_margin)/.01)
+                if a.root_yaw_extent_rad is not None:values.append(1.-float(np.sum((x[3:5]/.0495)**2)))
                 elif a.root_rotation_norm_rad is not None:values.append(1.-float(np.sum((x[3:6]/(a.root_rotation_norm_rad-.0001))**2)))
                 return np.asarray(values)
             def preference(x):
@@ -231,7 +239,8 @@ def main():
         if a.keep_elbow_in_front:
             vertices=elbow_vertices@d.xmat[elbow].reshape(3,3).T+d.xpos[elbow]
             row['elbow_panel_plane_gap_m']=float(np.min((vertices-lp)@lr[:,1]*elbow_side))-slab_front
-            row['elbow_planning_margin_satisfied']=row['elbow_panel_plane_gap_m']>=a.elbow_clearance_m
+            row['required_elbow_planning_margin_m']=elbow_margin
+            row['elbow_planning_margin_satisfied']=row['elbow_panel_plane_gap_m']>=elbow_margin
         rows.append(row);print(json.dumps({k:v for k,v in row.items() if k not in ('qpos','joint_targets')}),flush=True)
     summary=dict(scope='Fresh unstepped attained-state panel workspace screen. No physical or loaded-palm qualification; target-rate resampling and dense collision audit are still required.',
         configuration={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},warm_start_screen_sha256=warm_hash,source_code_sha256=hashlib.file_digest((a.output/'screen-source.py').open('rb'),'sha256').hexdigest(),source_time_s=time,source_chunk_sha256=chunk['sha256'],
