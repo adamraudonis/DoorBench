@@ -221,3 +221,8 @@ native exports. An unfinished collector can resume after capacity is restored.
 
 
 Isaac evidence serialization now encodes one record per write instead of issuing a write for each nested JSON token. The decoded JSON bytes match the previous default `json.dump` format exactly, including floating-point values; tests cover nested records, escaping and single-pass streaming. A 200-record actual Isaac checkpoint sample took 0.076 s versus 0.054 s locally with identical 1,342,166 decoded bytes. This is a serialization sample, not an end-to-end GPU speedup or batch-capacity measurement. Checkpoint frequency, full physical records and acceptance checks are unchanged. The already-running immutable hold030 source is unchanged; this improvement applies only to future source bundles.
+
+
+### Storage limits supersede earlier reserves
+
+The earlier1GiB collector/2GiB launch reserves were insufficient. The active native operation driver and collector now enforce the [development storage policy](STORAGE_POLICY.md):10GiB host reserve, incoming-output headroom, a20GiB retained-evidence budget, and verified removal of redundant export chunks. Older historical instructions mentioning smaller reserves should not be used to bypass these checks.

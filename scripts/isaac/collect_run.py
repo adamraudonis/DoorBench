@@ -31,13 +31,15 @@ try:
  stat=Path('/proc/'+str(pid)+'/stat').read_text().rsplit(')',1)[1].split()
  alive=stat[0]!='Z'
 except (OSError,ValueError):pass
-result=dict(exists=p.is_dir(),pid=pid,alive=alive,terminal=(p/INPUT['terminal']).is_file())
-if INPUT['manifest'] and result['terminal'] and pid and not alive:
- result['files']={}
+result=dict(exists=p.is_dir(),pid=pid,alive=alive,terminal=(p/INPUT['terminal']).is_file(),transfer_bytes=0)
+final=INPUT['manifest'] and result['terminal'] and pid and not alive
+if final:result['files']={}
+if result['exists']:
  for f in sorted(p.rglob('*')):
   if f.is_symlink():raise ValueError('Archive may not silently follow remote symlinks')
   if f.is_file() and '__pycache__' not in f.parts and not f.name.endswith(('.writing','.tmp','.pending','.pyc')) and '.tmp.' not in f.name and '.writing.' not in f.name:
-   result['files'][str(f.relative_to(p))]=dict(bytes=f.stat().st_size,sha256=digest(f))
+   size=f.stat().st_size;result['transfer_bytes']+=size
+   if final:result['files'][str(f.relative_to(p))]=dict(bytes=size,sha256=digest(f))
 print(json.dumps(result))
 '''
 
@@ -61,13 +63,14 @@ def verify_local(root,manifest):
         p=Path(root)/relative
         if p.is_symlink() or not p.is_file() or p.stat().st_size!=expected['bytes']:
             raise ValueError('Missing or changed evidence: '+name)
-        if hashlib.file_digest(p.open('rb'),'sha256').hexdigest()!=expected['sha256']:
-            raise ValueError('Evidence hash differs: '+name)
+        with p.open('rb') as stream:
+            if hashlib.file_digest(stream,'sha256').hexdigest()!=expected['sha256']:
+                raise ValueError('Evidence hash differs: '+name)
     return len(manifest)
 
 
 def collect(a):
-    minimum_free_mib=getattr(a,'minimum_free_mib',1024)
+    minimum_free_mib=getattr(a,'minimum_free_mib',10240)
     if type(minimum_free_mib) is not int or not 0<=minimum_free_mib<=16384:raise ValueError('Explicit storage reserve must be 0..16384 MiB')
     if not a.host or a.host.startswith('-') or any(c.isspace() for c in a.host):raise ValueError('Invalid SSH host')
     if not Path(a.remote).is_absolute() or not 1<=a.port<=65535:raise ValueError('Absolute remote path and valid port required')
@@ -103,11 +106,19 @@ def collect(a):
         try:
             before=probe(manifest=True)
             free_bytes=shutil.disk_usage(target).free
-            enough_space=free_bytes>=minimum_free_mib*1024**2
+            # Reserve space for a full atomic replacement, not just a free-space
+            # threshold before an arbitrarily large copy. Conservative for deltas.
+            required_bytes=minimum_free_mib*1024**2+before.get("transfer_bytes",0)
+            enough_space=free_bytes>=required_bytes
             if before['exists'] and not enough_space:
-                save(status='waiting_for_storage',free_bytes=free_bytes,minimum_free_bytes=minimum_free_mib*1024**2,
+                save(status='waiting_for_storage',free_bytes=free_bytes,minimum_free_bytes=minimum_free_mib*1024**2,required_bytes=required_bytes,
                      storage_waits=state.get('storage_waits',0)+1,last_error='Local evidence reserve unavailable; remote experiment is not stopped')
             if before['exists'] and enough_space:
+                # Aggregate retention is separate from the host free-space guard.
+                sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+                from doorbench.dexterous.storage_budget import check_retained_budget
+                archive_root=next((p for p in target.parents if p.name=='DoorBench-runs'),target.parent)
+                check_retained_budget([archive_root],incoming_bytes=before.get('transfer_bytes',0))
                 with log.open('ab') as stream:
                     subprocess.run(['rsync','-az',*final_transfer_options(before.get('files')),'--timeout=30','--exclude=*.writing','--exclude=*.tmp',
                         '--exclude=*.tmp.*','--exclude=*.writing.*','--exclude=*.pending','--exclude=*.pyc','--exclude=__pycache__','-e',shlex.join(ssh[:-1]),
@@ -138,7 +149,7 @@ def main():
     p.add_argument('--destination',type=Path,required=True);p.add_argument('--deadline',type=float,required=True)
     p.add_argument('--terminal',default='balance-report.json');p.add_argument('--interval',type=float,default=30)
     p.add_argument('--pid-file',default='run.pid',help='Process receipt relative to the copied directory')
-    p.add_argument('--minimum-free-mib',type=int,default=1024,help='Pause copies below this local free-space reserve; does not stop the remote experiment')
+    p.add_argument('--minimum-free-mib',type=int,default=10240,help='Keep this free-space reserve PLUS room for the full incoming snapshot; does not stop the remote experiment')
     p.add_argument('--resume',action='store_true',help='Resume the same unfinished archive after its worker exits')
     p.add_argument('--detach',action='store_true');a=p.parse_args()
     if a.detach:

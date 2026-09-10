@@ -144,6 +144,12 @@ def main():
         parser.error('Transfer options require an explicit transfer route')
     if not np.isfinite([args.seconds,args.press_seconds,args.min_acquisition_seconds]).all() or min(args.seconds,args.press_seconds) <= 0 or args.min_acquisition_seconds < 0:
         parser.error('Use finite positive operation durations')
+    from doorbench.dexterous.storage_budget import check_storage, check_retained_budget, EVIDENCE_BYTES_PER_SECOND
+    storage_admission = check_storage(args.output, seconds_remaining=args.seconds)
+    retained_roots=[args.output.parent]
+    local_archive=Path.home()/"Desktop/Projects/DoorBench-runs"
+    if local_archive.exists():retained_roots.append(local_archive)
+    storage_admission.update(check_retained_budget(retained_roots,incoming_bytes=int(args.seconds*EVIDENCE_BYTES_PER_SECOND)))
     if args.output.exists():
         raise SystemExit('Use a new output directory')
     if not json.loads((args.reference.parent/'geometry-audit.json').read_text())['passed']:
@@ -157,6 +163,7 @@ def main():
     snapshot_controller_inputs([args.reference,args.motors,args.reference.parent/'geometry-audit.json',
         args.standing_transfer_path,args.standing_return_path,args.standing_withdrawal_path],
         args.output/'controller-inputs')
+    (args.output/'storage-admission.json').write_text(json.dumps(storage_admission,indent=2)+'\n')
     (args.output/'run.pid').write_text(str(os.getpid()))
     def stage(label):
         temporary=args.output/'pipeline.json.tmp'
@@ -230,6 +237,8 @@ def main():
         controller_error=None
         try:
             for step in range(round(args.seconds/m.opt.timestep)):
+                if step % 500 == 0:
+                    check_storage(args.output, seconds_remaining=max(0.,args.seconds-float(d.time)))
                 if not args.portable_wrapper and operation.started is None and d.time >= 10.6-1e-8:
                     tail = [r for r in physics if r['sim_time_s'] >= d.time-.5-1e-8]
                     if len(tail) >= 250 and all(r['pad_grasp']['valid_pad_grasp'] for r in tail) and teacher.info.get('path_fraction',0) >= .999:

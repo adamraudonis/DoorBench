@@ -6,6 +6,7 @@ closed chunks; exported files retain the existing gzip JSON-array contract.
 """
 import bisect
 import gzip
+import hashlib
 import json
 from pathlib import Path
 
@@ -22,8 +23,11 @@ class BoundedEvidence:
         self.pending = []
         self.count = 0
         self.latest = None
+        self.exported_path = None
 
     def append(self, row):
+        if self.exported_path is not None:
+            raise ValueError("Cannot append to finalized evidence")
         encoded = json.dumps(row, separators=(',', ':'))
         self.pending.append(encoded)
         self.latest = encoded
@@ -48,6 +52,11 @@ class BoundedEvidence:
         return self.count
 
     def __iter__(self):
+        if self.exported_path is not None:
+            from .json_record_stream import iter_json_object_array
+            with gzip.open(self.exported_path, "rt") as stream:
+                yield from iter_json_object_array(stream)
+            return
         for path in self.chunks:
             with gzip.open(path, 'rt') as stream:
                 for line in stream:
@@ -64,6 +73,11 @@ class BoundedEvidence:
             raise IndexError(index)
         if index == self.count - 1:
             return json.loads(self.latest)
+        if self.exported_path is not None:
+            for offset, row in enumerate(self):
+                if offset == index:
+                    return row
+            raise ValueError("Truncated finalized evidence")
         chunk = bisect.bisect_right(self.ends, index)
         start = self.ends[chunk - 1] if chunk else 0
         if chunk == len(self.chunks):
@@ -75,17 +89,37 @@ class BoundedEvidence:
         raise ValueError('Truncated evidence chunk')
 
     def export(self, target):
-        """Atomically publish the original JSON array; keep chunks for recovery."""
+        """Verify final decoded bytes before releasing redundant working chunks.
+
+        Failed export or verification preserves all chunks for recovery. Audit
+        iteration remains available from the finalized lossless JSON array.
+        """
         self.flush()
         target = Path(target)
         if target.exists():
             raise ValueError('Fresh evidence export required')
         temporary = target.with_suffix(target.suffix + '.pending')
-        with gzip.open(temporary, 'wt') as stream:
-            stream.write('[')
+        expected = hashlib.sha256()
+        def write(stream, value):
+            expected.update(value.encode('utf-8'))
+            stream.write(value)
+        with gzip.open(temporary, 'wt', encoding='utf-8') as stream:
+            write(stream, '[')
             for index, row in enumerate(self):
                 if index:
-                    stream.write(',')
-                stream.write(json.dumps(row, separators=(',', ':')))
-            stream.write(']')
+                    write(stream, ',')
+                write(stream, json.dumps(row, separators=(',', ':')))
+            write(stream, ']')
+        actual = hashlib.sha256()
+        with gzip.open(temporary, 'rb') as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b''):
+                actual.update(block)
+        if actual.digest() != expected.digest():
+            raise ValueError('Final evidence bytes differ; working chunks retained')
         temporary.replace(target)
+        old_chunks = list(self.chunks)
+        self.exported_path = target
+        self.chunks.clear()
+        self.ends.clear()
+        for path in old_chunks:
+            path.unlink()

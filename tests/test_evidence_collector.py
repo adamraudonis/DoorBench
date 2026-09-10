@@ -53,17 +53,18 @@ def test_final_sync_repairs_same_size_same_mtime_progress(tmp_path):
     assert module.verify_local(destination,manifest)==1
 
 
-def test_collector_waits_without_starting_rsync_when_storage_is_low(tmp_path,monkeypatch):
+@pytest.mark.parametrize('free_mib,incoming_mib',[(64,0),(1500,1000)])
+def test_collector_waits_without_starting_rsync_when_storage_is_low(tmp_path,monkeypatch,free_mib,incoming_mib):
     import json
     from types import SimpleNamespace
     now=[1.];calls=[]
     monkeypatch.setattr(module.time,'time',lambda:now[0])
     monkeypatch.setattr(module.time,'sleep',lambda _:now.__setitem__(0,101.))
     monkeypatch.setattr(module.signal,'signal',lambda *_:None)
-    monkeypatch.setattr(module.shutil,'disk_usage',lambda _:SimpleNamespace(free=64*1024**2))
+    monkeypatch.setattr(module.shutil,'disk_usage',lambda _:SimpleNamespace(free=free_mib*1024**2))
     def run(argv,**kwargs):
         calls.append(argv[0]);assert argv[0]=='ssh'
-        return SimpleNamespace(stdout=json.dumps(dict(exists=True,pid=42,alive=True,terminal=False)))
+        return SimpleNamespace(stdout=json.dumps(dict(exists=True,pid=42,alive=True,terminal=False,transfer_bytes=incoming_mib*1024**2)))
     monkeypatch.setattr(module.subprocess,'run',run)
     args=SimpleNamespace(host='example.test',port=22,remote='/owned/run',deadline=100.,interval=5.,
         destination=tmp_path/'evidence',resume=False,key=tmp_path/'key',terminal='report.json',pid_file='run.pid',minimum_free_mib=1024)
@@ -71,3 +72,12 @@ def test_collector_waits_without_starting_rsync_when_storage_is_low(tmp_path,mon
     receipt=json.loads((tmp_path/'evidence-collector.json').read_text())
     assert calls==['ssh'] and receipt['storage_waits']==1
     assert not receipt['final_bytes_verified'] and receipt['copies']==0
+
+
+def test_remote_size_inventory_includes_stable_partial_before_completion(tmp_path, capsys):
+    import json
+    (tmp_path/'stable.partial.json.gz').write_bytes(b'x'*4096)
+    (tmp_path/'unfinished.tmp').write_bytes(b'x'*100)
+    exec(module.REMOTE_PROBE, {'INPUT':dict(remote=str(tmp_path),pid_file='run.pid',terminal='report.json',manifest=True)})
+    result=json.loads(capsys.readouterr().out)
+    assert result['transfer_bytes']==4096 and 'files' not in result
