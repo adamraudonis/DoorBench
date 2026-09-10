@@ -178,6 +178,7 @@ def dispatch_standing_operation(receipt,session,registry,session_name,work,deadl
     # Preparation collects remote/out. Keep experiment recordings outside that
     # subtree so its independent collector cannot download the same bytes twice.
     output=remote+'-experiments/'+session_name+'/standing-operation'
+    coordinator_log=str(Path(output).parent/'coordinator.log')
     ssh=ssh_args(receipt['host'],receipt['port'],receipt['key'])
     argv=['python3',remote+'/scripts/isaac/run_standing_operation.py','--source',remote,
         '--ready',receipt['ready_receipt'],'--reference',remote+'/configs/dexterous/door55-standing-acquisition-v1.json',
@@ -186,7 +187,7 @@ def dispatch_standing_operation(receipt,session,registry,session_name,work,deadl
     # Background within a script so SSH closes without retaining its stdout pipe.
     script=f'''mkdir -p {shlex.quote(str(Path(output).parent))}
 if test ! -e {shlex.quote(output)}; then
-nohup {shlex.join(argv)} > {shlex.quote(remote+'/out/standing-operation-coordinator.log')} 2>&1 < /dev/null &
+nohup {shlex.join(argv)} > {shlex.quote(coordinator_log)} 2>&1 < /dev/null &
 fi
 '''
     run(ssh+['bash -s'],input=script,text=True)
@@ -198,7 +199,7 @@ fi
     run([sys.executable,ROOT/'scripts/gpu_dashboard/server.py','--config',registry,'--register-only',
         '--id','standing-operation-'+session_name,'--name','Door55: native prerequisite and actual Isaac standing operation',
         '--results',output,'--ssh-host',receipt['host'],'--ssh-port',receipt['port'],'--ssh-key',receipt['key']])
-    return dict(remote=output,deadline_unix=deadline-60,evidence_collector=collector,
+    return dict(remote=output,coordinator_log=coordinator_log,deadline_unix=deadline-60,evidence_collector=collector,
         local_evidence=str(session/'standing-operation-evidence'),scope='Privileged partial opening qualification; not traversal or a learned policy')
 
 

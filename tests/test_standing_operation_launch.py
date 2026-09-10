@@ -26,6 +26,9 @@ def test_dispatch_is_bounded_detached_and_collects_task_evidence(tmp_path,monkey
     assert not Path(r['remote']).is_relative_to(Path(receipt['remote'])/'out')
     assert collector[collector.index('--remote')+1]==r['remote']
     assert 'mkdir -p ' in script
+    assert not Path(r['coordinator_log']).is_relative_to(Path(receipt['remote'])/'out')
+    assert r['coordinator_log'] in script
+    assert Path(r['coordinator_log']).parent == Path(r['remote']).parent
 
 
 def test_insufficient_budget_does_not_dispatch(tmp_path,monkeypatch):
