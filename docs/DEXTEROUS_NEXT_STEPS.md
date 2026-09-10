@@ -4,7 +4,29 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 
 ## Restart checkpoint
 
-Isaac042 passes its 36-second privileged standing grasp, handle operation and held partial opening, with 19/19 runtime checks and independent raw-contact audits. This is not full opening/traversal or a sensor-only policy. Isaac043 passed its native grasp prerequisite but failed during Isaac setup before physics: the transfer route was appended to the provenance input list before initialization. Its run, endpoint rejection and review evidence are verified off-pod. The initialization-order fix passes four targeted tests, including execution of the actual provenance setup block. Run044 passed all native prerequisites and reached0.002s in Isaac, then failed on step2: the new contact recorder overwrote joint-friction coefficients with a contact-friction array. The local fix uses a distinct name, and an execution regression covers recording followed by the actual next torque expression. Five targeted tests pass. No transfer success is established. Run044 evidence is verified off-pod and bulk native diagnostics are archived with verified hashes. Fresh045 is dispatched from e853509fb with24 focused tests passing, storage admission, collection and both guards verified. Run045 native runtime and both independent contact audits pass. Actual Isaac process188579 reached36.502s; transfer activated at36.0s after its measured starting-state gate. Left progress is0.00222 and stance solved; the latest36.002s pad sample is valid. A27.002s middle-finger unload recovered by28.002s; retain it for final auditing. No completed transfer result yet. Inspect this process and coordinator183731 before taking action. Do not restart044. Run045 includes the updated endpoint loader binding independent transfer evidence. See [045 dispatch](evidence/isaac045-transfer-dispatch.json). See [042 evidence](evidence/isaac042-qualified-partial-opening.json) and [043 startup failure](evidence/isaac043-startup-failure.json). Owned-pod teardown deadline: 2026-09-11T00:15:47.617140+00:00. See [044 dispatch](evidence/isaac044-transfer-dispatch.json); inspect live handles before continuing.
+Isaac046 is dispatched on the owned A40: coordinator244861, collector45635,
+remote `/workspace/doorbench-standing-transfer046`. It uses the corrected
+plan004 route (1001 geometric samples passed), same physical limits/preloads,
+new same-run time-zero sensor packet and explicit manipulation camera profile.
+The immutable source is40488922e06626fe;24 focused tests pass. Both guards were
+verified and renewed until2026-09-11T02:32:18.838187+00:00. Storage admission reserves both generated
+evidence and a full atomic verification copy under the unchanged20GiB limit.
+See [046 dispatch](evidence/isaac046-transfer-dispatch.json). Check live handles
+before any restart. Hand-review waiter245085 and endpoint waiter245236 have
+collectors; the endpoint is admitted only if the complete run passes.
+
+Isaac045 finished50s and failed sustained final grasp and left-palm support.
+Its run, hand review and rejected endpoint are fully verified off-pod. The
+corrected planner targets the actual panel;045's old route stopped about10cm
+short. Final grasp logs separately found28/251 invalid samples due to unloading.
+No completed physical transfer, full Isaac traversal or sensor-only success yet.
+Qualified042 remains the best completed Isaac standing partial-opening result.
+
+Passage003 and leverage001 archives are both uploaded and independently
+verified;801 and601 raw files respectively were evicted. All reports and compact
+trajectories remain local. The045 collector is recovered;244 redundant local
+chunks were also compared against verified exports and removed. Archive receipts
+are in `DoorBench-runs/remote-archives`. Restore raw records before re-auditing.
 
 ## Run045 receiving-palm diagnosis
 
