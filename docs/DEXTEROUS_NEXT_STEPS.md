@@ -4,7 +4,7 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 
 ## Restart checkpoint
 
-The owner requested an application restart on September10. See [the current restart handoff](../handoffs/RESTART_2026-09-10.md) before acting: local workers are stopped, the GPU is stopped, panel004 reaches45.6° but fails final palm support, and panel005 was deliberately interrupted. Earlier live-status paragraphs below are historical.
+Work resumed after the September10 restart. Read the timestamped update at the top of [the restart handoff](../handoffs/RESTART_2026-09-10.md), then verify processes and pod state before launching anything. As verified at 06:30 UTC, native wider-opening003 and replacement GPU setup are running; Isaac032 waits for live readiness. Panel006 is qualified at45.6°, while wider-opening001/002 failed the aperture target. The original stopped-state notes below the handoff update are historical. No complete upright traversal or successful sensor-only opening is claimed.
 
 ## Starting point
 
