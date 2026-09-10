@@ -231,3 +231,6 @@ The earlier1GiB collector/2GiB launch reserves were insufficient. The active nat
 ### Monitor processes on their execution host
 
 For a live GPU run, the Run Center registry must use the remote result path plus `ssh_host`, `ssh_port` and `ssh_key`. A collector's local snapshot contains a remote `run.pid`; treating that snapshot as a locally executing run can falsely report stopped, or match an unrelated local PID. Keep the local archive for evidence and query the remote process for live status. This mismatch was corrected for hold032, and a direct remote dashboard snapshot confirmed running while waiting for readiness. An unreachable host is unknown status, not proof of process termination.
+
+
+For an experiment with a hard pod teardown, order the deadlines so the coordinator finishes before the collector stops, and the collector stops before teardown. Leave time for the final checksum copy; renew all affected deadlines together if more time is needed. Hold032 initially had its collector stop two minutes before its coordinator deadline; the collector was stopped cleanly and resumed with07:57:08UTC (coordinator07:55:08UTC, teardown07:58:08UTC). This changes neither physics nor resource allocation. Large exports may require a larger collection margin, so monitor completion rather than treating scheduled deadlines as proof that evidence is safe.
