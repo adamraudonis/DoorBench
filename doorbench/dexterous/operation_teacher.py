@@ -54,7 +54,7 @@ class DoorOperationTeacher:
         self.pad_control_profile=pad_control_profile
         if leaf_lead_limit_rad is not None and (not np.isfinite(leaf_lead_limit_rad) or not .002<=leaf_lead_limit_rad<=.03):raise ValueError('Measured leaf lead must be .002..0.03 rad')
         self.leaf_lead_limit_rad=leaf_lead_limit_rad
-        if operator_follow_after_leaf_rad is not None and (not np.isfinite(operator_follow_after_leaf_rad) or not .015<=operator_follow_after_leaf_rad<=.05 or hold_attained_grasp):raise ValueError('Operator follow requires .015..0.05 rad clearance and no fixed attained hold')
+        if operator_follow_after_leaf_rad is not None and (not np.isfinite(operator_follow_after_leaf_rad) or not .015<=operator_follow_after_leaf_rad<=.05):raise ValueError('Operator follow requires .015..0.05 rad clearance')
         self.operator_follow_after_leaf_rad=operator_follow_after_leaf_rad;self.operator_follow_started=None
         self.fixed_pad_control=fixed_pad_control;self.pad_control=None
         if type(hold_attained_grasp) is not bool or (hold_attained_grasp and fixed_pad_control):raise ValueError('Attained hold is a separate explicit hand controller')

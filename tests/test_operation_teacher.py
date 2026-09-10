@@ -308,3 +308,27 @@ def test_attained_hold_cannot_overwrite_live_hub_clearance_force():
 def test_hub_activation_retains_bounded_declared_clearance(clearance):
     with pytest.raises(ValueError, match='Hub clearance'):
         DoorOperationTeacher(Acquisition(), GEOMETRY, hub_clearance_m=clearance)
+
+
+def test_captured_fingers_remain_active_while_palm_follows_returning_operator():
+    wrapper=DoorOperationTeacher(Acquisition(),GEOMETRY,press_seconds=1.,
+        hold_attained_grasp=True,attained_hold_stage='operator',operator_follow_after_leaf_rad=.05)
+
+    class CapturedFingers:
+        def force(self,t,forces,joints,velocities,*,eligible):
+            result=forces.copy()
+            result[0]=.25
+            return result,{'attained_hold_started_s':1.8}
+
+    hold=CapturedFingers()
+    wrapper.attained_hold=hold
+    for t in np.arange(0.,.51,.01):tick(wrapper,t)
+    tick(wrapper,1.51,operator=.85,latch=.012)
+    _,info=tick(wrapper,2.,operator=.82,latch=.012,leaf=.049)
+    assert info['operator_follow_started_s'] is None
+    tick(wrapper,2.01,operator=.82,latch=.012,leaf=.051)
+    forces,info=tick(wrapper,3.01,operator=.65,latch=.008,leaf=.075)
+    assert info['commanded_operator_reference_rad']==pytest.approx(.65)
+    assert info['operator_follow_fraction']==pytest.approx(1.)
+    assert forces[0]==.25 and wrapper.attained_hold is hold
+    assert info['attained_hold_started_s']==1.8

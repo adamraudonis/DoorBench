@@ -44,7 +44,7 @@ def main():
     if not math.isfinite(a.operation_hub_clearance_m) or not .004<=a.operation_hub_clearance_m<=.008:raise ValueError('Hub clearance activation must be 4–8 mm')
     if a.operation_hub_clearance_m!=.004 and not a.operation_handle_hub_avoidance:raise ValueError('Explicit hub avoidance required for changed activation')
     if not all(math.isfinite(v) for v in a.operation_grasp_offset_in_handle_m) or math.sqrt(sum(v*v for v in a.operation_grasp_offset_in_handle_m))>.01:raise ValueError('Finite palm recentering must remain within1cm')
-    if a.operation_operator_follow_after_leaf_rad is not None and (not .015<=a.operation_operator_follow_after_leaf_rad<=.05 or a.hold_attained_grasp):raise ValueError('Operator follow requires .015..0.05 rad and no fixed hold')
+    if a.operation_operator_follow_after_leaf_rad is not None and not .015<=a.operation_operator_follow_after_leaf_rad<=.05:raise ValueError('Operator follow requires .015..0.05 rad')
     if a.operation_leaf_lead_limit_rad is not None and not .002<=a.operation_leaf_lead_limit_rad<=.03:raise ValueError('Leaf lead bound must be .002..0.03 rad')
     if not .70<=a.operation_opening_trigger_rad<=.80:raise ValueError('Opening trigger must be .70.. .80 rad')
     if not .075<=a.operation_leaf_target_rad<=.10:raise ValueError('Partial opening command must be .075..0.10 rad')
