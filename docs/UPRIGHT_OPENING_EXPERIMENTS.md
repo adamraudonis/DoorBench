@@ -596,3 +596,9 @@ Native005 final audits are now complete:33/35 runtime, with only reference compl
 At2026-09-10 08:17:31 UTC, native006 was admitted and verified running for300s. An earlier admission attempt failed before physics; after verified offload of closed032/033, the unchanged budget passed. Retained evidence16277716878bytes; no reserve, duration or success threshold reduction. Final result pending.
 
 While native006 runs, the existing initialized post-opening probe was prepared for reuse: storage admission, bounded summary recording and completion publication after closed exports now match the opening runner. Its interval hand summary delegates to the common external-contact adapter so internal robot contact is not relabeled as environmental support.33 focused tests pass. No initialized traversal was launched, and its eventual result must remain separate from an uncut full-task rollout.
+
+### Preparing the actual upright continuation
+
+The initialized portable post-opening planner was exercised against the qualified45.6deg panel006 endpoint. It rejected initialization with its original supported-feet/released-hand/aperture>=1.2rad precondition; no continuation physics steps occurred. A passed partial-opening report cannot authorize traversal. [Actual rejection evidence](evidence/upright-continuation-aperture-rejection.json).
+
+A bounded waiter (`out/plan-upright006-after-audits.py`, PID41509 at launch) now waits for native006 and all four final audits. Only if every report passes does it run the same planner with `--plan-only --portable --passage --stow-profile sequential-v2` against006's actual terminal trajectory. Its result remains initialized geometry only. Inputs/command: `out/upright006-post-opening-plan-command.json`; outcome: `out/upright006-post-opening-plan-waiter-result.json`. No failed prefix is accepted and no extra physical trial is automatically launched by this waiter.
