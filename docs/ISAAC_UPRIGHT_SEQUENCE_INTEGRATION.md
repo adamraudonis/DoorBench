@@ -283,3 +283,10 @@ manifest before the waiter was launched. For future tar transfers use
 `--no-same-owner`; do not rerun preparation merely because archive ownership
 restoration fails. [Endpoint queue](evidence/isaac042-planner-audit-queue.json),
 [hand review queue](evidence/isaac042-hand-review-queue.json).
+
+042 native prerequisite passed its runtime report, independent pad audit and
+whole-handle audit. No invalid loaded patches were found by the independent
+pad audit. Maximum leaf angle was0.07787978648 rad. The coordinator proceeded
+to sensor-layout export for the actual Isaac test. Report hashes and checks are
+retained in [native qualification](evidence/isaac042-native-qualified.json).
+This is a native result only; it does not establish042 Isaac or full traversal.
