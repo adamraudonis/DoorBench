@@ -270,3 +270,8 @@ Extracted400 raw/reference comparisons at approximately0.25s intervals in passag
 ### September10: standalone Isaac friction accounting
 
 Fixed an inspected force-input mismatch: standalone operation omitted tangential hand loads while native and longer Isaac controllers included them. The shared pair reducer now feeds both hand bodies to standalone and walking operation, preserving signed normal and friction vectors and validating buffer capacity/overlap.24 focused CPU tests pass and the Isaac entrypoint compiles. No live GPU trial has run with this change; historical failures remain failures. [Evidence](evidence/isaac-standalone-friction-accounting.json).
+
+
+### September10: queued live friction-accounting check
+
+The previously owned replacement could notresume because its host has no free GPU; its workspace was preserved. Allocated a separate L40S with a two-hour deadline and queued source-verified preparation, native prerequisite and standalone Isaac test under priorhub021 parameters. The test requires fresh local/remote guards and preserves failure evidence through an independent collector. No test result yet. [Allocation evidence](evidence/isaac-friction037-allocation.json).
