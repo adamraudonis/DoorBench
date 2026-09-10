@@ -265,3 +265,8 @@ The81-node constrained candidate passes dense pose, rate and elbow limits, but t
 ### September10: retain correlated tracking errors
 
 Extracted400 raw/reference comparisons at approximately0.25s intervals in passage003's final100s. Maximum sampled root error was0.037037rad (2.122°), mainly yaw, at380.75s. Applying that root error alone to candidate014 gives18.008mm elbow intersection; applying its correlated arm and leaf errors gives4.795mm minimum clearance. Neither establishes physical support or a robustness bound, and these late errors may be consequences of forbidden contact. This supplements the earlier first-contact diagnosis. Reproduce with `PYTHONPATH=. <science-python> scripts/dexterous/summarize_panel_tracking.py --trial out/native-standing-panel-passage-003 --plan out/standing-panel-passage-012-audit/target-plan.json --start 300 --output out/passage003-tracking-samples.json`. [Tracking summary](evidence/passage003-tracking-envelope.json); [counterfactual stress](evidence/passage014-late-tracking-stress.json). No newphysics or GPU run.
+
+
+### September10: standalone Isaac friction accounting
+
+Fixed an inspected force-input mismatch: standalone operation omitted tangential hand loads while native and longer Isaac controllers included them. The shared pair reducer now feeds both hand bodies to standalone and walking operation, preserving signed normal and friction vectors and validating buffer capacity/overlap.24 focused CPU tests pass and the Isaac entrypoint compiles. No live GPU trial has run with this change; historical failures remain failures. [Evidence](evidence/isaac-standalone-friction-accounting.json).

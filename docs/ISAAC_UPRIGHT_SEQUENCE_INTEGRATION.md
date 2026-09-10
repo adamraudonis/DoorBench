@@ -1,7 +1,7 @@
 # Port the upright sequence to Isaac
 
 Status: implementation inspection on 2026-09-10. This is not evidence of an
-Isaac opening or traversal. Native passage003 is still being evaluated.
+Isaac opening or traversal. Native passage003 finished and failed physical support/contact checks.
 The complete objective remains in [the research plan](DEXTEROUS_PLAN.md).
 
 ## Actual integration gap
@@ -53,3 +53,7 @@ Before restarting the owned pod, rediscover its endpoint and arm fresh local
 and remote teardown guards. Retain the prepared environment, immutable input
 hashes, command lines, compact reports and restore receipts. Apply storage
 admission before collecting full-rate evidence.
+
+## Standalone force-accounting correction
+
+The standalone operation branch previously passed only normal contact loads to the teacher, while native compensation and the longer Isaac branches included friction. It now uses the shared validated normal-plus-friction pair reducer for both hands. Portable source capture includes the measurement helper; reports explicitly identify this force convention.24 focused CPU tests pass, including known signed friction vectors, duplicate/truncated buffer rejection and launcher checks. This has not yet been tested on a live GPU and does not repair or reclassify historical runs. See [accounting evidence](evidence/isaac-standalone-friction-accounting.json).

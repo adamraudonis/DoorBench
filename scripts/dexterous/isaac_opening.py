@@ -658,7 +658,7 @@ def main():
     if a.panel_push:sources.append(Path(__file__).with_name('panel_push_teacher.py'))
     if a.acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('acquisition_teacher.py','isaac_tendons.py','grasp_verification.py','isaac_pad_audit.py')]
     if a.operation_hub_geometry:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/handle_hub_avoidance.py')
-    if a.operate_after_acquisition:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/operation_teacher.py')
+    if a.operate_after_acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('operation_teacher.py','isaac_opening_measurements.py')]
     if sequence:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
         ('full_sequence_teacher.py','approach_teacher.py','approach_lowering.py','locomotion.py','locomotion_approach.py','locomotion_manipulation.py','locomotion_posture.py','isaac_sensors.py')]
     inputs=[Path(a.robot_usd),Path(a.door_usd),Path(a.motors),Path(a.reference)]
@@ -833,10 +833,8 @@ def main():
         foot_rows=[next(i for i,path in enumerate(audit_paths) if path.rsplit('/',1)[-1]==name) for name in feet]
         foot_bodies=[robot.body_names.index(name) for name in feet]
         foot_initial=None
-    if sequence or full_opening:
-        hand_audit_rows=[i for i,path in enumerate(audit_paths) if path.rsplit('/',1)[-1].startswith(('rh_','lh_'))]
     def read_full_opening_measurement(t):
-        from doorbench.dexterous.isaac_opening_measurements import contact_force_pairs,panel_surface_loads
+        from doorbench.dexterous.isaac_opening_measurements import contact_force_pairs,panel_surface_loads,hand_contact_loads
         normal=audit_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().copy()
         vectors,points,counts,starts=[v.cpu().numpy().copy() for v in audit_contacts.get_friction_data(dt)]
         pairs=contact_force_pairs(normal,vectors.reshape(16384,3),counts,starts,capacity=16384)
@@ -849,7 +847,7 @@ def main():
             body_poses=dict(zip(robot.body_names,robot.data.body_state_w[0,:,:7].cpu().numpy())),
             handle_pose=hp,leaf_pose=lp)
         surface=panel_surface_loads(audit_paths,audit_filters,pairs,lp)
-        loads={audit_paths[i]:pairs[i].sum(axis=0) for i in hand_audit_rows}
+        loads=hand_contact_loads(audit_paths,pairs)
         result=dict(geometry=geometry,surface=surface,angles=angles,hand_forces=loads,
             root_height_m=float(robot.data.root_state_w[0,2]),
             torso_tilt_deg=float(np.degrees(np.arccos(np.clip(-robot.data.projected_gravity_b[0,2].item(),-1,1)))))
@@ -1062,15 +1060,14 @@ def main():
                             state['angles'],state['hand_forces'],**opening_measurements)
                 elif operation:
                     angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
+                    # Both standalone and walking-to-operation teachers need the
+                    # measured tangential load as well as the normal matrix.
+                    from doorbench.dexterous.isaac_opening_measurements import contact_force_pairs,hand_contact_loads
+                    normal=audit_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().copy()
+                    patch_friction,patch_points,patch_counts,patch_starts=[v.cpu().numpy().copy() for v in audit_contacts.get_friction_data(dt)]
+                    pairs=contact_force_pairs(normal,patch_friction.reshape(16384,3),patch_counts,patch_starts,capacity=16384)
+                    loads=hand_contact_loads(audit_paths,pairs)
                     if sequence:
-                        all_loads=audit_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().copy().sum(axis=1)
-                        # PhysX exposes tangential patch forces separately from its
-                        # normal-force matrix. Native hand-load compensation uses both.
-                        from doorbench.dexterous.isaac_sensors import _collapse_pairs
-                        patch_friction,patch_points,patch_counts,patch_starts=[v.cpu().numpy().copy() for v in audit_contacts.get_friction_data(dt)]
-                        patches=_collapse_pairs(patch_friction.reshape(16384,3),patch_points.reshape(16384,3),patch_counts,patch_starts,capacity=16384)
-                        for i,(_,vectors) in enumerate(patches):all_loads[i]+=vectors.sum(axis=0)
-                        loads={audit_paths[i]:all_loads[i] for i in hand_audit_rows}
                         forces,teacher_info=sequence.force(*measured_args[:4],foot_loads,measured_args[4],
                             body[door.body_names.index('leaf')],angles,loads,
                             grasp_qualified=pad_steps[-1]['valid_pad_grasp'],hand_contact_count=right_hand_contact_count)
@@ -1509,6 +1506,7 @@ def main():
             absolute_operation_start=operation.started+offset if operation.started is not None else None
             operation_rows=[r for r in pad_steps if absolute_operation_start is not None and r['sim_time_s']>=absolute_operation_start]
             operation_report=dict(report,scope='Continuous live PhysX walk/lower/prepare/acquire/partial opening; no traversal or sensor-only claim' if sequence else 'Live PhysX contact-free acquisition to lever, latch and partial opening; no approach/traversal or sensor-only claim',
+                teacher_hand_loads='Both hands, world-space normal plus distinct friction patches from actual PhysX contact buffers',
                 checks=operation_checks,passed=all(operation_checks.values()),
                 maximum_handle_rad=float(handle.max()),maximum_leaf_rad=float(leaf.max()),
                 final_leaf_rad=float(leaf[-1]),maximum_bolt_retraction_m=float(bolt.max()),

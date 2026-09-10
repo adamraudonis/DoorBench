@@ -55,6 +55,23 @@ def contact_force_pairs(normal_matrix, friction_vectors, counts, starts, *, capa
     return matrix
 
 
+def hand_contact_loads(sensor_paths, pair_forces):
+    """Sum measured normal-plus-friction pairs for each original hand body.
+
+    Keep both hands and world-space force signs for teacher load compensation.
+    This is privileged contact accounting, never an actor observation.
+    """
+    paths = tuple(sensor_paths)
+    pairs = np.asarray(pair_forces, dtype=float)
+    if (len(paths) != len(set(paths)) or pairs.ndim != 3
+            or pairs.shape[0] != len(paths) or pairs.shape[2] != 3
+            or not np.isfinite(pairs).all()):
+        raise ValueError('Unique body rows and finite contact force pairs required')
+    return {path: pairs[i].sum(axis=0)
+            for i, path in enumerate(paths)
+            if path.rsplit('/', 1)[-1].startswith(('rh_', 'lh_'))}
+
+
 def panel_surface_loads(sensor_paths, filter_paths, pair_forces, leaf_pose, *,
                         leaf_path='/World/Door/Articulation/leaf', side='lh'):
     """Actual force projected against panel +Y, separately for palm and fingers.

@@ -2,8 +2,28 @@ import numpy as np
 import pytest
 
 from doorbench.dexterous.isaac_opening_measurements import (
-    OpeningGeometryMeasurements, contact_force_pairs, panel_surface_loads,
+    OpeningGeometryMeasurements, contact_force_pairs, panel_surface_loads, hand_contact_loads,
 )
+
+
+def test_hand_load_compensation_includes_friction_both_hands_and_surface_pairs():
+    paths = ['/World/H1/rh_palm', '/World/H1/lh_ffdistal', '/World/H1/left_ankle_link']
+    normal = np.zeros((3, 2, 3))
+    normal[0, 0] = [0, 2, 0]
+    normal[1, 1] = [0, -3, 0]
+    normal[2, 0] = [0, 0, 100]
+    friction = np.array([[1., 0, -2], [-.5, 0, 1], [4, 0, 2], [np.nan]*3])
+    pairs = contact_force_pairs(normal, friction, np.array([[1, 1], [0, 1], [0, 0]]),
+                                np.array([[0, 1], [0, 2], [0, 0]]), capacity=4)
+    loads = hand_contact_loads(paths, pairs)
+    assert set(loads) == set(paths[:2])
+    np.testing.assert_array_equal(loads[paths[0]], [.5, 2, -1])
+    np.testing.assert_array_equal(loads[paths[1]], [4, -3, 2])
+    np.testing.assert_array_equal(normal[0, 0], [0, 2, 0])
+    with pytest.raises(ValueError):
+        hand_contact_loads([paths[0]]*3, pairs)
+    with pytest.raises(ValueError):
+        hand_contact_loads(paths, np.full_like(pairs, np.nan))
 
 
 def test_surface_load_uses_exact_panel_and_actual_palm_separately():
