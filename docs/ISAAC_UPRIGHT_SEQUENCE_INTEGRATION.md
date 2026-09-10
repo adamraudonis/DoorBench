@@ -268,3 +268,18 @@ passing result was produced from that input.
 [Dispatch](evidence/isaac-body-poses042-dispatch.json),
 [collider inventory](evidence/isaac042-collider-inventory.json).
 This is readiness and inventory evidence, not a042 opening result.
+
+042 has two bounded post-run waiters with attached collectors: close-up hand
+review and the combined full-body endpoint audit. The endpoint audit requires
+the physical coordinator to pass before extracting36s and running the planner
+admission against original robot/door files. Its separate immutable audit source
+has identity `3abe11664cc973e5068c5e92c67f17b9a4ab9aa12d41e7be173063be2e274110`;
+frozen042 physics source is unchanged. A failed source run or pose mismatch
+cannot produce a passing endpoint result.
+
+The diagnostic source transfer initially exited on unsupported ownership changes
+in the pod volume. Every extracted source file subsequently matched its SHA256
+manifest before the waiter was launched. For future tar transfers use
+`--no-same-owner`; do not rerun preparation merely because archive ownership
+restoration fails. [Endpoint queue](evidence/isaac042-planner-audit-queue.json),
+[hand review queue](evidence/isaac042-hand-review-queue.json).
