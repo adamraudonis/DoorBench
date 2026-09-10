@@ -1313,8 +1313,8 @@ def main():
             if standing_transfer:
                 leaf_pose=door.data.body_state_w[0,door.body_names.index('leaf'),:7].cpu().numpy().copy()
                 normal=audit_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().copy()
-                friction,points,counts,starts=[v.cpu().numpy().copy() for v in audit_contacts.get_friction_data(dt)]
-                pairs=contact_force_pairs(normal,friction.reshape(16384,3),counts,starts,capacity=16384)
+                transfer_friction,points,counts,starts=[v.cpu().numpy().copy() for v in audit_contacts.get_friction_data(dt)]
+                pairs=contact_force_pairs(normal,transfer_friction.reshape(16384,3),counts,starts,capacity=16384)
                 surface=panel_surface_loads(audit_paths,audit_filters,pairs,leaf_pose)
                 transfer_steps.append(dict(time_s=(step+1)*dt,leaf_pose=leaf_pose.tolist(),surface=surface,
                     stance_status=teacher_info.get('stance_status'),started_s=standing_transfer.started))

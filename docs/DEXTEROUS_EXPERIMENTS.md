@@ -347,3 +347,8 @@ Fixed source771081693 packaged and remotely verified. Twenty focused tests pass.
 ### September 10: bind transfer evidence before endpoint reuse
 
 The qualified Isaac endpoint loader now additionally requires a passing independent transfer receipt whenever the operation report contains a standing transfer. It checks all five transfer gates, coordinator agreement, and report/force-stream content hashes; duplicate hash entries are rejected and archive relocation is supported. Five focused tests pass, including failure and tampering cases. Live044 source is unchanged: its queued endpoint audit uses the earlier source, so re-run endpoint qualification with this revision before planning any continuation from044.
+
+
+### September10: Isaac044 first-step recorder failure
+
+All native gates passed. Isaac got past provenance and completed0.002s, then torque calculation failed because new post-step contact recording reused the joint-friction variable name for a16384x3 patch buffer. Renamed the contact buffer; a regression executes the actual recorder block followed by the actual torque expression and verifies preservation of the69 joint coefficients. Five targeted tests pass. This is an integration failure, not failed physical transfer; no transfer was attempted. Next run must use fresh source/output directories.
