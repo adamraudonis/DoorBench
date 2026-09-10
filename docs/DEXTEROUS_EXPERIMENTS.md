@@ -332,3 +332,8 @@ Source04bd4236c / acfda05e91a4eb04 is immutable and hash-verified on the owned A
 
 
 Run043 native prerequisite passes19/19 runtime checks and both independent contact audits. Isaac child171008 is launched with50s and the exact measured route002. No simulated progress was yet published at this check. Review and qualified-endpoint audit workers are attached; one initial review SSH dispatch failed, was verified absent remotely, and only that worker was retried. Physical transfer remains unqualified. [Evidence](evidence/isaac043-native-qualified.json).
+
+
+### September 10: Isaac043 setup failure
+
+Native grasp prerequisite passed, but actual Isaac failed before physics because transfer provenance used `inputs` before initialization. All terminal evidence is verified off-pod, and the endpoint admission correctly rejected the failed run. Fixed initialization order and added a regression that executes the actual provenance block; four targeted tests pass. No transfer success is claimed. Next attempt uses fresh source and output directories.

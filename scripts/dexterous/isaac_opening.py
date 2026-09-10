@@ -688,12 +688,14 @@ def main():
     if a.acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('acquisition_teacher.py','isaac_tendons.py','grasp_verification.py','isaac_pad_audit.py')]
     if a.operation_hub_geometry:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/handle_hub_avoidance.py')
     if a.standing_transfer_route:
-        inputs.append(Path(a.standing_transfer_route))
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('standing_transfer.py','standing_transfer_evaluation.py','attained_arm_tracking.py','transfer_preload.py','motor_handoff.py','bimanual_transfer.py','bounded_evidence.py')]
     if a.operate_after_acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('operation_teacher.py','isaac_opening_measurements.py')]
     if sequence:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
         ('full_sequence_teacher.py','approach_teacher.py','approach_lowering.py','locomotion.py','locomotion_approach.py','locomotion_manipulation.py','locomotion_posture.py','isaac_sensors.py')]
     inputs=[Path(a.robot_usd),Path(a.door_usd),Path(a.motors),Path(a.reference)]
+    if a.standing_transfer_route:
+        inputs.append(Path(a.standing_transfer_route))
+        (out/'standing-transfer-route.json').write_bytes(Path(a.standing_transfer_route).read_bytes())
     if a.native_robot:inputs.append(Path(a.native_robot))
     if a.grasp_profile_definition:inputs.append(Path(a.grasp_profile_definition))
     if sequence:
