@@ -153,3 +153,32 @@ and renaming its body geometry. This inventory does not validate mesh vertices,
 cooked convex hull dimensions, transforms or task success. Frozen041 is unchanged;
 its resulting import should receive the same check after verified collection.
 [040 inventory](evidence/isaac040-collider-inventory.json).
+
+## Qualified041 endpoint and coordinate mapping
+
+041 passes all19 runtime checks and the complete18,000-interval independent
+contact audit: zero excluded loaded contacts and zero failed final-hold samples.
+This is one privileged standing partial opening, not a full sequence or repeatability
+result. Its292 result files and17 hand-review files are verified locally.
+[Qualification](evidence/isaac041-qualified-partial-opening.json).
+
+`destination_planning_coordinates.planning_coordinates` maps the immutable
+measured binding to fresh planner qpos/qvel arrays. It checks the original motor
+and door identities, exactly one free root and complete scalar-joint coverage.
+Root angular velocity is converted from world to body axes; linear velocity stays
+in world axes. It never steps or writes an active plant. Fifteen mapping/extraction
+tests pass, including a90-degree rotated-root case and rejection of altered state
+and coordinate inventories.
+
+On actual041, all72 scalar coordinates map, and hand poses reconstructed using
+731 hash-verified source assets agree within1.081um/1.663urad. The original
+source XML is retained; only referenced asset paths are relocated in a separate
+planning copy. [Mapping evidence](evidence/isaac041-planning-coordinates.json).
+
+The standalone archive records hand-body transforms but lacks attained foot and
+torso body poses. Therefore this is not yet the complete measured-body admission
+required by `admit_destination_return_kinematics`. Future standalone recordings
+need same-epoch feet, torso, both palms and handle poses before that admission can
+be demonstrated. Do not substitute reconstructed values for original measured
+poses. The native transfer rebase CLI also expects native manifest/trajectory
+inputs; a separate bound Isaac input path is still required.
