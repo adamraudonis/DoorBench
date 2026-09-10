@@ -29,3 +29,26 @@ def test_release_does_not_exempt_wrong_loaded_surfaces_or_failed_motor_checks():
     result=withdrawal_checks({'native_motor_limits':False},rows(),dt=.1,duration=2.,started=.6,release_started=None,completed=False)
     assert not result['native_motor_limits'] and not result['withdrawal_route_completed']
     assert not result['opposed_grip_before_intentional_release']
+
+
+def test_compressed_evidence_needs_only_one_pass():
+    class Once:
+        def __iter__(self):
+            assert not getattr(self,'read',False), 'Full evidence reread'
+            self.read=True
+            yield from rows()
+    assert audit(Once()) == audit(rows())
+
+
+def test_missing_interval_and_outside_window_contact_still_fail():
+    data=rows();data.pop(7)
+    assert not audit(data)['opposed_grip_before_intentional_release']
+    data=rows();data[13]['pad_grasp']['contacts']=[{'pad_qualified':False}]
+    assert not audit(iter(data))['no_invalid_loaded_right_surfaces']
+
+
+def test_coincident_windows_do_not_duplicate_interval_counts():
+    data=rows()
+    result=withdrawal_checks({},iter(data),dt=.1,duration=2.,started=1.,release_started=1.,completed=True)
+    assert result['resting_grip_before_withdrawal']
+    assert result['opposed_grip_before_intentional_release']
