@@ -81,15 +81,31 @@ def main():
     d.qpos[:]=frozen;mujoco.mj_kinematics(m,d);hand=m.site('robot/rh_palm_touch').id
     hp=d.site_xpos[hand].copy();hr=d.site_xmat[hand].reshape(3,3).copy();feet=[m.body('robot/'+n+'_ankle_link').id for n in ('left','right')];fp=d.xpos[feet].copy();fr=d.xmat[feet].reshape(2,3,3).copy()
     root=Rotation.from_quat(frozen[scene.root+3:scene.root+7][[1,2,3,0]]);oldroot=Rotation.from_quat(prior[0,scene.root+3:scene.root+7][[1,2,3,0]])
-    initial=np.r_[frozen[qa],np.zeros(3)];previous=initial.copy();active=np.r_[np.arange(1,8),np.arange(15,len(initial))];path=[];rows=[]
+    # Cartesian receiving-hand preferences are explicit, rather than inferred
+    # from joint displacements in a different attained stance. The final dense
+    # audit independently checks actual palm collision geometry against slab.
+    target_rows=template['left_targets']
+    positions=np.asarray([row['position'] for row in target_rows],float)
+    normals=np.asarray([row['normal'] for row in target_rows],float)
+    if positions.shape!=(101,3) or normals.shape!=(101,3) or not np.isfinite(np.r_[positions.ravel(),normals.ravel()]).all() or not np.allclose(np.linalg.norm(normals,axis=1),1,atol=1e-6):
+        raise ValueError('Complete panel-relative receiving-palm preferences required')
+    leaf_rotation=d.xmat[scene.leaf].reshape(3,3).copy()
+    start_position=leaf_rotation.T@(d.site_xpos[scene.palm]-d.xpos[scene.leaf])
+    start_normal=leaf_rotation.T@d.site_xmat[scene.palm].reshape(3,3)[:,2]
+    initial=np.r_[frozen[qa],np.zeros(3)];previous=initial.copy();active=np.arange(len(initial));path=[];rows=[]
     for i,old in enumerate(prior):
         phase=min(1.,i/a.initial_margin_transition_nodes);blend=phase**3*(10+phase*(-15+6*phase))
         node_lower=(1-blend)*np.minimum(lower,initial-1e-12)+blend*lower
         node_upper=(1-blend)*np.maximum(upper,initial+1e-12)+blend*upper
         nominal=np.r_[frozen[qa]+old[qa]-prior[0,qa],(Rotation.from_quat(old[scene.root+3:scene.root+7][[1,2,3,0]])*oldroot.inv()).as_rotvec()]
+        u=i/100;receive_blend=u**3*(10+u*(-15+6*u))
+        receive_position=positions[i]+(1-receive_blend)*(start_position-positions[0])
+        receive_normal=normals[i]+(1-receive_blend)*(start_normal-normals[0])
+        if np.linalg.norm(receive_normal)<1e-6:raise ValueError('Ambiguous receiving-palm normal interpolation')
+        receive_normal/=np.linalg.norm(receive_normal)
         def residual(x):
             q=frozen.copy();q[qa]=x[:-3];quat=(Rotation.from_rotvec(x[-3:])*root).as_quat();q[scene.root+3:scene.root+7]=quat[[3,0,1,2]];d.qpos[:]=q;mujoco.mj_kinematics(m,d)
-            return np.r_[a.pose_weight*(d.site_xpos[hand]-hp),(a.pose_weight/10)*Rotation.from_matrix(d.site_xmat[hand].reshape(3,3)@hr.T).as_rotvec(),100*(x[15:18]-nominal[15:18]),10*(x[-3:]-nominal[-3:]),*[np.r_[a.pose_weight*(d.xpos[b]-pos),(a.pose_weight/10)*Rotation.from_matrix(d.xmat[b].reshape(3,3)@rot.T).as_rotvec()] for b,pos,rot in zip(feet,fp,fr)],.001*(x-nominal),.01*(x-previous)]
+            return np.r_[a.pose_weight*(leaf_rotation.T@(d.site_xpos[scene.palm]-d.xpos[scene.leaf])-receive_position),(a.pose_weight/10)*(leaf_rotation.T@d.site_xmat[scene.palm].reshape(3,3)[:,2]-receive_normal),a.pose_weight*(d.site_xpos[hand]-hp),(a.pose_weight/10)*Rotation.from_matrix(d.site_xmat[hand].reshape(3,3)@hr.T).as_rotvec(),100*(x[15:18]-nominal[15:18]),10*(x[-3:]-nominal[-3:]),*[np.r_[a.pose_weight*(d.xpos[b]-pos),(a.pose_weight/10)*Rotation.from_matrix(d.xmat[b].reshape(3,3)@rot.T).as_rotvec()] for b,pos,rot in zip(feet,fp,fr)],.001*(x-nominal),.01*(x-previous)]
         def objective(value):
             x=nominal.copy();x[active]=value;return residual(x)
         if i==0:x=initial.copy();converged=True
@@ -98,9 +114,11 @@ def main():
         errors=residual(x);previous=x.copy();q=d.qpos.copy();row=static_pose_check(m,d,coordinate=i/100)
         pe=float(max(np.linalg.norm(d.site_xpos[hand]-hp),max(np.linalg.norm(d.xpos[b]-pos) for b,pos in zip(feet,fp))))
         re=float(max(np.linalg.norm(Rotation.from_matrix(d.site_xmat[hand].reshape(3,3)@hr.T).as_rotvec()),max(np.linalg.norm(Rotation.from_matrix(d.xmat[b].reshape(3,3)@rot.T).as_rotvec()) for b,rot in zip(feet,fr))))
-        row.update(index=i,max_position_error_m=pe,max_rotation_error_rad=re,solver_converged=converged);row['passed']=bool(row['passed'] and pe<=.001 and re<=.01);rows.append(row);path.append(q.tolist())
+        receive_error=float(np.linalg.norm(leaf_rotation.T@(d.site_xpos[scene.palm]-d.xpos[scene.leaf])-receive_position))
+        receive_normal_error=float(np.linalg.norm(leaf_rotation.T@d.site_xmat[scene.palm].reshape(3,3)[:,2]-receive_normal))
+        row.update(receiving_position_error_m=receive_error,receiving_normal_error=receive_normal_error,index=i,max_position_error_m=pe,max_rotation_error_rad=re,solver_converged=converged);row['passed']=bool(row['passed'] and pe<=.001 and re<=.01 and receive_error<=.001 and receive_normal_error<=.01);rows.append(row);path.append(q.tolist())
         if not row['passed']:break
-    result=dict(pose_weight=a.pose_weight,initial_margin_transition_nodes=a.initial_margin_transition_nodes,passed=len(path)==101 and all(r['passed'] for r in rows),physics_steps=0,scope=__doc__,samples=rows,path_qpos=path,input_sha256=input_hashes)
+    result=dict(receiving_target_source='Explicit panel-relative template preferences, independently rechecked against original collision geometry',pose_weight=a.pose_weight,initial_margin_transition_nodes=a.initial_margin_transition_nodes,passed=len(path)==101 and all(r['passed'] for r in rows),physics_steps=0,scope=__doc__,samples=rows,path_qpos=path,input_sha256=input_hashes)
     if input_hashes!={path:sha(path) for path in input_hashes}:raise ValueError('Planning source changed during solve')
     if source_qualification is not None:result['source_qualification']=source_qualification
     report=a.output/'report.json';report.write_text(json.dumps(result,indent=2,default=lambda v:v.item() if isinstance(v,np.generic) else v.tolist())+'\n')

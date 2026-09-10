@@ -24,6 +24,15 @@ remains immutable. Next: finish and collect045; re-solve the rebased planner
 with an explicit panel-relative palm endpoint/orientation and screen the full
 path again before dispatch. Do not enlarge contact offsets or relax force gates.
 
+The planner now solves receiving-hand Cartesian targets along with the working
+hand and both feet, allowing torso and left-arm coordinates to change within
+original planning bounds. Plan003 progressed through80 nodes but was rejected
+at node79: fixed hand/foot rotation error0.010200rad exceeded0.01rad. Its
+receiving position error was42micrometers. Plan004 repeats this solve with
+pose weight800 rather than400, with every acceptance tolerance unchanged.
+See [003 evidence](evidence/isaac042-transfer-plan003.json). No new route or
+physical transfer is qualified yet.
+
 ## Next sensor recording requirements
 
 The next fresh Isaac run should capture the new same-run initial sensor packet
