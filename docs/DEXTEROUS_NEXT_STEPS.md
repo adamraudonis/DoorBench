@@ -4,7 +4,7 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 
 ## Restart checkpoint
 
-Read the latest update in [the restart handoff](../handoffs/RESTART_2026-09-10.md), then verify process and pod state before acting. The current experiment is the guarded A40 handle-lead040 comparison: it must pass its native prerequisite and independent contact audits before Isaac runs. The previous Isaac039 attempt lost its grasp and was stopped with an explicit incomplete-episode record. Native passage019 is still being screened; it is not a qualified physical traversal. No complete upright Isaac traversal or successful sensor-only opening is claimed. Storage admission and verified offloading are mandatory before dispatch. See [the storage inventory](STORAGE_INVENTORY_2026-09-10.md) for the scope of the current limits.
+Isaac042 now passes its36-second privileged standing grasp, handle operation and held partial opening, with19/19 runtime checks and independent raw-contact audits. All294 run files,7 planner-admission files and17 diagnostic-review files are verified off-pod. Its recorded feet, torso, palms and handle pass coordinate admission for planning. This is not full opening/traversal or a sensor-only policy. Native panel-relative transfer005 is the current physical comparison; inspect its process and final audits before inferring progress. See [042 evidence](evidence/isaac042-qualified-partial-opening.json), [005 dispatch](evidence/native-index-transfer005-dispatch.json), and the latest execution-ledger entries. Storage admission remains mandatory. The owned A40 guard deadline is September10 21:42:27UTC; verify live state before reuse or renewal.
 
 ## Starting point
 
