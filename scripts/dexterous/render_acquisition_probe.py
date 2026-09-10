@@ -11,6 +11,13 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from doorbench.dexterous.environment import DexterousDoorEnv
+from doorbench.dexterous.json_record_stream import iter_json_object_array
+
+
+def recorded_trace_times(path):
+    """Keep only timestamps, not the full per-frame controller diagnostics."""
+    with path.open() as stream:
+        return np.fromiter((row['sim_time_s'] for row in iter_json_object_array(stream)),dtype=float)
 
 
 def verify_recorded_xml(trial,robot,door):
@@ -44,9 +51,8 @@ def main():
     report=json.loads((args.trial/'report.json').read_text())
     whole_handle_path=args.trial/'independent-whole-handle-audit.json'
     whole_handle=json.loads(whole_handle_path.read_text()) if whole_handle_path.exists() else None
-    trace=json.loads((args.trial/'trace.json').read_text())
+    times=recorded_trace_times(args.trial/'trace.json')
     trajectory=np.load(args.trial/'trajectory.npz')
-    times=np.asarray([row['sim_time_s'] for row in trace])
     if len(times)!=len(trajectory['qpos']) or not np.isfinite(times).all() or np.any(np.diff(times)<=0):
         raise ValueError('Recorded states need a matching monotonic physics clock')
     for recorded,actual in ((args.trial/'robot-input.xml',args.robot),(args.trial/'door-input.xml',args.door/'door.xml')):
