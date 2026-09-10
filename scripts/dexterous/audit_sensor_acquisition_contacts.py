@@ -19,6 +19,7 @@ from doorbench.dexterous.environment import DexterousDoorEnv
 from doorbench.dexterous.native_transition_archive import NativeTransitionArchive
 from doorbench.dexterous.grasp_verification import pad_opposition, shadow_surface_qualified
 from doorbench.dexterous.json_record_stream import iter_json_object_array
+from doorbench.dexterous.interval_clock import validate_step_epochs
 
 
 def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
@@ -70,6 +71,7 @@ def audit(trial,*,phase='grasp'):
         scene=[g for g in active if not m.body(m.geom_bodyid[g]).name.startswith('robot/')]
         if not hand or not scene:raise ValueError('Complete hand/environment collision geometry required')
         clearance_pairs=[(g,h) for g in hand for h in scene]
+    expected_epoch=0.
     n=valid_count=current=best=0;force_error=0.;mismatches=[];bad_patches=0;first_touch=first_valid=None;bestend=None
     min_final={k:float('inf') for k in ('ff','mf','rf','lf','th')};final_valid=True;final_count=0
     raw_name='raw-transitions/manifest.json' if array_format else 'actual-transitions/manifest.json' if (trial/'actual-transitions/manifest.json').exists() else 'actual-transitions.jsonl.gz'
@@ -91,10 +93,9 @@ def audit(trial,*,phase='grasp'):
         for line,rawline in itertools.zip_longest(physical_rows(),actual_rows()):
                 if line is None or rawline is None:raise ValueError('Endpoint and actual-interval arrays have different lengths')
                 row=line;raw=rawline
-                t=n*.002;end=t+.002
-                for value,wanted in ((raw['interval_start_s'],t),(raw['geometry_time_s'],t),(raw['interval_end_s'],end),
-                                     (row['contact_geometry_time_s'],t),(row['measurement_pose_time_s'],end)):
-                    if abs(value-wanted)>1e-9:raise ValueError('Contact or endpoint epoch mismatch')
+                t=expected_epoch
+                end=validate_step_epochs(raw,row,t)
+                expected_epoch=end
                 result,patches=raw_pad_evidence(m,raw,lever)
                 if any(c['normal_force_N']>0 for c in patches) and first_touch is None:first_touch=t
                 if result['valid_pad_grasp']!=row['pad_grasp']['valid_pad_grasp']:mismatches.append(n)
