@@ -2,6 +2,9 @@
 """Test an initialized motor-only Door55 continuation, optionally through passage."""
 import argparse,gzip,hashlib,inspect,json,shutil,time
 from pathlib import Path
+from itertools import islice
+from doorbench.dexterous.bounded_evidence import BoundedEvidence
+from doorbench.dexterous.storage_budget import check_storage,check_retained_budget,EVIDENCE_BYTES_PER_SECOND
 from types import SimpleNamespace
 import mujoco,numpy as np
 from doorbench.dexterous.environment import DexterousDoorEnv
@@ -19,19 +22,15 @@ def hand_loads(m,d):
     count=0;load=0.
     for i,c in enumerate(d.contact[:d.ncon]):
         bodies=[m.body(m.geom_bodyid[g]).name for g in c.geom]
-        if any(n.startswith('robot/lh_') for n in bodies):
-            if c.dist<=0:count+=1
-            force=np.zeros(6);mujoco.mj_contactForce(m,d,i,force);load+=max(0.,float(force[0]))
+        if any(n.startswith('robot/lh_') for n in bodies) and not all(n.startswith('robot/') for n in bodies):
+            force=np.zeros(6);mujoco.mj_contactForce(m,d,i,force)
+            count+=int(c.dist<=0 or force[0]>1e-8);load+=max(0.,float(force[0]))
     return count,load
 
 
 def interval_hand_loads(m,raw):
-    count=0;load=0.
-    for c in raw['contacts']:
-        if any(m.body(b).name.startswith('robot/lh_') for b in c['body']):
-            count+=int(c['distance_m']<=0)
-            load+=max(0.,float(c['wrench_contact_frame'][0]))
-    return count,load
+    _,_,evidence=measured_contacts(m,raw,physics_qualified=False)
+    return evidence['left_hand_contacts'],evidence['left_hand_load_N']
 
 
 def planning_state(sim):
@@ -55,11 +54,16 @@ def main():
     p.add_argument('--inward-roll',type=float,default=0.);p.add_argument('--portable',action='store_true')
     p.add_argument('--stow-profile',choices=('original-v1','sequential-v2'),default='original-v1')
     a=p.parse_args()
+    if not np.isfinite(a.seconds) or a.seconds<=0:raise ValueError('Finite positive continuation duration required')
     if a.output.exists():raise ValueError('Use fresh output directory')
     if not a.no_rise and a.checkpoint is None:raise ValueError('Rise requires the audited H1 stabilization checkpoint')
     if a.portable and a.no_rise:raise ValueError('Portable continuation currently includes the qualified rise sequence')
     if a.stow_profile!='original-v1' and not a.portable:raise ValueError('New stow profile requires portable measured-state controller')
-    a.output.mkdir(parents=True);arguments={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()};(a.output/'arguments.json').write_text(json.dumps(arguments,indent=2)+'\n')
+    admission={'space':check_storage(a.output,seconds_remaining=0. if a.plan_only else a.seconds),
+        'retention':check_retained_budget([a.output.parent,Path.home()/'Desktop/Projects/DoorBench-runs'],incoming_bytes=0 if a.plan_only else int(np.ceil(a.seconds*EVIDENCE_BYTES_PER_SECOND)))}
+    a.output.mkdir(parents=True)
+    (a.output/'storage-admission.json').write_text(json.dumps(admission,indent=2)+'\n')
+    arguments={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()};(a.output/'arguments.json').write_text(json.dumps(arguments,indent=2)+'\n')
     files={k:dict(path=str(v),sha256=hashlib.sha256(v.read_bytes()).hexdigest()) for k,v in vars(a).items() if isinstance(v,Path) and v.is_file()}
     for path in (Path(__file__),Path(inspect.getfile(StowRiseController)),Path(inspect.getfile(native_grasp_sample)),Path(inspect.getfile(PassageWaypoints)),Path(inspect.getfile(NativeTransitionRecorder)),Path(inspect.getfile(PostOpeningTeacher)),Path(inspect.getfile(measured_state))):files[path.name]=dict(path=str(path),sha256=hashlib.sha256(path.read_bytes()).hexdigest());shutil.copy2(path,a.output/path.name)
     path=Path(inspect.getfile(plan_sequential_stow));files[path.name]=dict(path=str(path),sha256=hashlib.sha256(path.read_bytes()).hexdigest());shutil.copy2(path,a.output/path.name)
@@ -92,7 +96,7 @@ def main():
     walking_command=None;walking_amplitude=None
     immutable=('body_mass','body_inertia','body_gravcomp','jnt_range','dof_damping','dof_armature','dof_frictionloss','geom_contype','geom_conaffinity','geom_friction','actuator_gainprm','actuator_biasprm','actuator_ctrlrange','actuator_forcerange');original={k:getattr(m,k).copy() for k in immutable}
     body_bounds=RobotBounds(m)
-    physics=[];traces=[];states={k:[] for k in ('qpos','qvel','ctrl')};actual=[]
+    physics=BoundedEvidence(a.output/'physics-chunks');traces=[];states={k:[] for k in ('qpos','qvel','ctrl')};actual=[]
     def sample(row,count,load):
         row.update(left_hand_contacts=count,left_hand_load_N=load,measurement_pose_time_s=float(d.time),joint_state_time_s=float(d.time))
         limited=np.flatnonzero(m.jnt_limited);q=d.qpos[m.jnt_qposadr[limited]]
@@ -124,6 +128,7 @@ def main():
     maximum_motor_delivery_error=0.;raw_file=gzip.open(a.output/'actual-transitions.jsonl.gz','wt')
     try:
         for tick in range(round(a.seconds/m.opt.timestep)):
+            if tick%500==0:check_storage(a.output,seconds_remaining=max(0.,a.seconds-float(d.time)))
             if portable:
                 try:force,info=cached if tick==0 else portable_call(previous_raw)
                 except Exception as exc:controller_error=dict(time_s=float(d.time),error=repr(exc));break
@@ -156,19 +161,22 @@ def main():
         if passage is not None:
             report['checks'].update(passage_completed=passage.done,whole_body_beyond_frame=all(r['minimum_body_y_m']>.2 for r in tail),geometry_guards=bool(passage.screens) and all(x['passed'] for x in passage.screens))
             report.update(passage_screens=passage.screens,passage_events=passage.events,passage_stage=passage.stage)
-        report['checks'].update(actual_motor_delivery=maximum_motor_delivery_error<1e-5,actual_step_contact_epochs=all(r['contact_force_source']=='actual_mj_step_dynamics' and abs(r['contact_interval_end_s']-r['sim_time_s'])<1e-8 and abs(r['contact_interval_start_s']+m.opt.timestep-r['sim_time_s'])<1e-8 for r in physics[1:]))
-        report['checks']['no_runtime_mujoco_warnings']=all(r['mujoco_warning_interval']['passed'] for r in physics[1:])
+        report['checks'].update(actual_motor_delivery=maximum_motor_delivery_error<1e-5,actual_step_contact_epochs=all(r['contact_force_source']=='actual_mj_step_dynamics' and abs(r['contact_interval_end_s']-r['sim_time_s'])<1e-8 and abs(r['contact_interval_start_s']+m.opt.timestep-r['sim_time_s'])<1e-8 for r in islice(physics,1,None)))
+        report['checks']['no_runtime_mujoco_warnings']=all(r['mujoco_warning_interval']['passed'] for r in islice(physics,1,None))
         report['initialized_warning_counts']=initialized_warning_counts
         report['final_warning_counts']=warning_counts(d).tolist()
         if portable:report['checks']['portable_numeric_contract']=controller_error is None
         report.update(controller_error=controller_error,portable_adapter=bool(portable))
         report.update(passed=all(report['checks'].values()),scope='Initialized continuation from exact attained qpos/qvel; release/stow/rise'+('/alignment/passage' if a.passage else '')+'; no uninterrupted opening or sensor-only policy claim',events=controller.events,solver_failures=controller.solver_failures,walking_stabilizer_started_s=controller.walk_started,arguments=arguments,runtime_pose_writes=0,door_commands=False,physics_dt_s=m.opt.timestep,measurement_refresh='Actual mj_step force solution copied first; mj_kinematics refreshes endpoint geometry only; separate unstepped planning data uses mj_forward',maximum_motor_delivery_error_Nm=maximum_motor_delivery_error,source_terminal_time_s=source_time,final_root=d.qpos[sim.root_qadr:sim.root_qadr+7].tolist(),final_door_q=physics[-1]['door_q'],final_second_max_horizontal_speed_m_s=float(tail_speed),final_second_horizontal_excursion_m=float(tail_excursion),maximum_tilt_deg=max(r['torso_tilt_deg'] for r in physics),max_nonfoot_penetration_m=max(r['max_nonfoot_penetration_m'] for r in physics),max_all_joint_violation_rad=max(r['all_joint_violation'] for r in physics),wall_seconds=time.time()-began,walking_blocked_reason=None if a.passage else 'No corridor-qualified physical root alignment or measured aperture guarantee; only zero-velocity gait stabilization is requested, never a passage command')
         report['checks']={k:bool(v) for k,v in report['checks'].items()}
-        (a.output/'report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report),flush=True)
+        # Publish only after raw stream, lossless export and trajectory are closed.
     finally:
         raw_file.close()
         (a.output/'trace.json').write_text(json.dumps(traces)+'\n')
-        with gzip.open(a.output/'physics-steps.json.gz','wt') as f:json.dump(physics,f)
+        physics.export(a.output/'physics-steps.json.gz')
         np.savez_compressed(a.output/'trajectory.npz',**states,time_s=actual,terminal_qpos=d.qpos.copy(),terminal_qvel=d.qvel.copy(),terminal_ctrl=d.ctrl.copy(),terminal_time_s=float(d.time));sim.close()
+    report_path=a.output/'report.json.tmp'
+    report_path.write_text(json.dumps(report,indent=2)+'\n');report_path.replace(a.output/'report.json')
+    print(json.dumps(report),flush=True)
     return 0 if report['passed'] else 1
 if __name__=='__main__':raise SystemExit(main())

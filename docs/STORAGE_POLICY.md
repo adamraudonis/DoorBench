@@ -30,3 +30,7 @@ The first cleanup under this audit removed1,439 exact archive-verified local cop
 ## Validation
 
 31 focused tests pass for storage admission, hard-link accounting, transfer-size headroom, export byte identity, failure recovery, streaming records and final collector checksums. No new simulation or GPU run was launched for this storage change. Before resuming robotics work, bring retained evidence under budget and satisfy free-space admission; do not lower the reserve to force a run through.
+
+## Initialized continuation runner
+
+`probe_post_opening.py` now uses the same10GiB reserve,16MiB/s admission allowance and20GiB evidence budget before scene creation, with repeated free-space checks each simulated second. Per-step summaries use `BoundedEvidence` instead of an unbounded in-memory list. Raw transition records remain streamed. The final report is atomically published only after raw records, the byte-verified summary export and trajectory are closed; export failure cannot leave a success report. A plan-only invocation reserves no simulated-duration allowance and still checks host headroom.33 focused tests pass, including rejection of unbounded durations and insufficient storage before model/output creation. This does not establish physical continuation success.
