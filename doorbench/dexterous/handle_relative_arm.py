@@ -22,6 +22,7 @@ class HandleRelativeArmTarget:
     def __init__(self, model, names, root, joints, handle_pose, *, reference_frame="handle"):
         if reference_frame not in ("handle","leaf"):raise ValueError("Explicit handle or leaf reference frame required")
         self.reference_frame=reference_frame
+        self.failure_snapshot=None
         self.m=model;self.d=mujoco.MjData(model);self.names=list(names)
         free=np.flatnonzero(model.jnt_type==mujoco.mjtJoint.mjJNT_FREE)
         if len(free)!=1 or model.jnt_qposadr[free[0]]!=0:
@@ -78,6 +79,13 @@ class HandleRelativeArmTarget:
                 total_evaluations+=fit.nfev;error=residual(fit.x)
                 if fit.success and np.linalg.norm(error[:3])/100<=.0005 and np.linalg.norm(error[3:6])/10<=.005:break
             else:
+                self.failure_snapshot=dict(schema='doorbench.relative-arm-failure.v1',time_s=float(t),reference_frame=self.reference_frame,
+                    names=self.names,root=np.asarray(root).tolist(),joints={n:float(joints[n]) for n in self.names},
+                    reference_pose=np.asarray(handle_pose).tolist(),nominal={n:float(nominal[n]) for n in self.names},
+                    relative_position=self.relative_position.tolist(),relative_rotation=self.relative_rotation.tolist(),
+                    previous_goal=self.goal.tolist(),previous_correction=self.correction.tolist(),
+                    lower=lower.tolist(),upper=upper.tolist(),fit=fit.x.tolist(),residual=error.tolist(),starts=attempts,
+                    scope='Exact failed kinematic-controller inputs; no new physics or successful target')
                 raise ValueError(f'Relative arm target is outside bounded reachability after {attempts} starts: {fit.message}; position={np.linalg.norm(error[:3])/100:.6g}m rotation={np.linalg.norm(error[3:6])/10:.6g}rad')
             self.goal=fit.x-base;self.last_solve=t
             self.solve_info=dict(position_error_m=float(np.linalg.norm(error[:3])/100),rotation_error_rad=float(np.linalg.norm(error[3:6])/10),evaluations=total_evaluations,starts=attempts)

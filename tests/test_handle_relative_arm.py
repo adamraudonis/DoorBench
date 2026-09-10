@@ -37,6 +37,9 @@ def test_unreachable_handle_and_invalid_input_fail_closed():
     m,joints,root,handle=fixture();c=HandleRelativeArmTarget(m,list(ARM_NAMES),root,joints,handle)
     handle[0]+=1
     with pytest.raises(ValueError,match='bounded reachability'):c.target(0,root,joints,handle,joints)
+    assert c.failure_snapshot['reference_pose']==handle.tolist()
+    assert c.failure_snapshot['nominal']==joints
+    assert c.failure_snapshot['starts']==2
     with pytest.raises(ValueError):HandleRelativeArmTarget(m,list(ARM_NAMES),root,{ARM_NAMES[0]:0},handle)
 
 

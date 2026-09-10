@@ -306,3 +306,6 @@ Panel-relative transfer004 stops at37.26s on orientation reachability, with phys
 ### Isaac042 qualified and collected
 
 36s complete:19/19 runtime checks and independent raw-contact qualification pass. Final leaf.08494737rad (4.87degrees); still initialized privileged partial opening. All294 run files,7 planner audit files and17 review files are independently verified off-pod. Actual wide/hand35s frames and diagnostic close-ups were personally inspected. Recorded full-body geometry passes planner-coordinate admission, enabling a measured-state Isaac route rebase. Native transfer005 tests a nominal-seed IK retry under unchanged tolerances; its dispatch is not success. [042 evidence](evidence/isaac042-qualified-partial-opening.json).
+
+
+Transfer005 reproduces the37.26s stop after both IK seeds. The earlier terminal fit does not reproduce actual input closely enough to explain the failure. Added a one-time JSON capture of exact failed root/joint/reference/anchor/nominal/bound inputs, leaving controller and physical behavior unchanged. No tolerance changes. [Failure](evidence/native-index-transfer005-failure.json).

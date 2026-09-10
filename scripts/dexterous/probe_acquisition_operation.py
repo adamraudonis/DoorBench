@@ -307,6 +307,10 @@ def main():
             import traceback
             controller_error=type(exc).__name__+': '+str(exc)
             (args.output/'error.txt').write_text(traceback.format_exc())
+            arm_target=getattr(transfer,'handle_target',None)
+            snapshot=getattr(arm_target,'failure_snapshot',None)
+            if snapshot is not None:
+                (args.output/'relative-arm-failure.json').write_text(json.dumps(snapshot,indent=2,allow_nan=False)+'\n')
         stage('Reducing recorded physical and contact checks')
         report = audit_grasp_steps(physics,physics_dt=m.opt.timestep,expected_duration=args.seconds)
         if archive:
