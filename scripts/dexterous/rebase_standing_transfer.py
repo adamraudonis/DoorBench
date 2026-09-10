@@ -20,23 +20,56 @@ def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    for name in ('source-run','template','output'):p.add_argument('--'+name,type=Path,required=True)
+    group=p.add_mutually_exclusive_group(required=True)
+    group.add_argument('--source-run',type=Path)
+    group.add_argument('--isaac-source',type=Path)
+    for name in ('template','output'):p.add_argument('--'+name,type=Path,required=True)
+    for name in ('isaac-extracted','robot','door','door-usd'):p.add_argument('--'+name,type=Path)
     p.add_argument('--pose-weight',type=float,default=200.)
     p.add_argument('--initial-margin-transition-nodes',type=int,default=20)
     a=p.parse_args();
     if not 100<=a.pose_weight<=1000:raise ValueError('Pose weight must be100..1000')
     if not 10<=a.initial_margin_transition_nodes<=40:raise ValueError('Initial margin transition must use10..40 nodes')
-    source=a.source_run;manifest=json.loads((source/'manifest.json').read_text());cfg=manifest['configuration']
-    inputs=[source/n for n in ('report.json','independent-pad-audit.json','independent-whole-handle-audit.json')]
-    if not all(json.loads(f.read_text())['passed'] for f in inputs):raise ValueError('All grasp and whole-handle source checks required')
-    template=json.loads(a.template.read_text());validate_route_geometry(template)
-    robot=Path(cfg['robot']);door=Path(cfg['door'])/'door.xml'
-    if sha(robot)!=manifest['inputs']['robot']['sha256'] or sha(door)!=manifest['inputs']['door']['door.xml'] or sha(robot)!=template['robot_xml_sha256'] or sha(door)!=template['door_xml_sha256']:raise ValueError('Exact common robot and door inputs required')
-    scene=LandedLeftScene(robot,door);m,d=scene.m,scene.d
-    with np.load(source/'trajectory.npz') as z:frozen=z['terminal_qpos'].copy();at=float(z['terminal_time_s'])
+    template=json.loads(a.template.read_text());source_qualification=None
+    if a.isaac_source:
+        if any(v is None for v in (a.isaac_extracted,a.robot,a.door,a.door_usd)):
+            raise ValueError('Isaac source requires extracted state and original robot/door XML and USD')
+        from doorbench.dexterous.qualified_isaac_grasp import load_qualified_isaac_grasp
+        from doorbench.dexterous.destination_planner_admission import admit_destination_planner
+        source=a.isaac_source;robot=a.robot;door=a.door
+        extracted,qualification=load_qualified_isaac_grasp(source,a.isaac_extracted)
+        if sha(robot)!=extracted['binding']['robot_source_sha256'] or sha(a.door_usd)!=extracted['binding']['door_source_sha256']:
+            raise ValueError('Original bound robot XML and door USD required')
+        motors=json.loads((source/'trial/motor-contract.json').read_text())
+        if template['joint_names']!=motors['joint_names']:raise ValueError('Named posture coordinates differ from the robot')
+        scene=LandedLeftScene(robot,door);m,d=scene.m,scene.d
+        measured,admission=admit_destination_planner(m,extracted,motor_contract=motors,door_source_sha256=sha(a.door_usd))
+        frozen=measured.qpos.copy();at=extracted['binding']['time_s']
+        # Transfer only named posture/root preferences, never old raw qpos
+        # indices, mechanism state or old geometric qualification.
+        posture=np.asarray(template['joint_path'],float);roots=np.asarray(template['root_path'],float)
+        if posture.shape!=(101,len(motors['joint_names'])) or roots.shape!=(101,7) or not np.isfinite(np.r_[posture.ravel(),roots.ravel()]).all() or not np.allclose(np.linalg.norm(roots[:,3:],axis=1),1,atol=1e-6,rtol=0):
+            raise ValueError('Complete finite named posture preferences required')
+        prior=np.tile(frozen,(101,1));namedqa=[m.joint('robot/'+n).qposadr[0] for n in motors['joint_names']]
+        prior[:,namedqa]=posture;prior[:,scene.root:scene.root+7]=roots
+        source_qualification=dict(source=qualification,coordinates=admission,template_scope='Posture preferences only; old clearance is not reused')
+        inputs=[Path(path) for path in qualification['input_sha256']]+[a.door_usd]
+        template.update(robot_path=str(robot),door_path=str(door),robot_xml_sha256=sha(robot),door_xml_sha256=sha(door))
+    else:
+        if any(v is not None for v in (a.isaac_extracted,a.robot,a.door,a.door_usd)):raise ValueError('Isaac inputs require --isaac-source')
+        source=a.source_run;manifest=json.loads((source/'manifest.json').read_text());cfg=manifest['configuration']
+        inputs=[source/n for n in ('report.json','independent-pad-audit.json','independent-whole-handle-audit.json')]
+        if not all(json.loads(f.read_text())['passed'] for f in inputs):raise ValueError('All grasp and whole-handle source checks required')
+        validate_route_geometry(template)
+        robot=Path(cfg['robot']);door=Path(cfg['door'])/'door.xml'
+        if sha(robot)!=manifest['inputs']['robot']['sha256'] or sha(door)!=manifest['inputs']['door']['door.xml'] or sha(robot)!=template['robot_xml_sha256'] or sha(door)!=template['door_xml_sha256']:raise ValueError('Exact common robot and door inputs required')
+        scene=LandedLeftScene(robot,door);m,d=scene.m,scene.d
+        with np.load(source/'trajectory.npz') as z:frozen=z['terminal_qpos'].copy();at=float(z['terminal_time_s'])
+        prior=np.array(json.loads(Path(template['scene_path_source']).read_text())['path_qpos'])
+        inputs.append(source/'trajectory.npz')
     scene.freeze(scene.state_from_qpos(frozen,pose_time_s=at))
-    prior=np.array(json.loads(Path(template['scene_path_source']).read_text())['path_qpos'])
     if prior.shape!=(101,m.nq):raise ValueError('Complete101-node posture template required')
+    input_hashes={str(f):sha(f) for f in [*inputs,a.template,robot,door,Path(__file__)]}
     a.output.mkdir(parents=True,exist_ok=False)
     shutil.copy2(__file__,a.output/'planner-source.py')
     names=['torso']+['right_'+n for n in ('shoulder_pitch','shoulder_roll','shoulder_yaw','elbow','wrist_yaw')]+['rh_WRJ2','rh_WRJ1']+['left_'+n for n in ('shoulder_pitch','shoulder_roll','shoulder_yaw','elbow','wrist_yaw')]+['lh_WRJ2','lh_WRJ1']
@@ -67,7 +100,9 @@ def main():
         re=float(max(np.linalg.norm(Rotation.from_matrix(d.site_xmat[hand].reshape(3,3)@hr.T).as_rotvec()),max(np.linalg.norm(Rotation.from_matrix(d.xmat[b].reshape(3,3)@rot.T).as_rotvec()) for b,rot in zip(feet,fr))))
         row.update(index=i,max_position_error_m=pe,max_rotation_error_rad=re,solver_converged=converged);row['passed']=bool(row['passed'] and pe<=.001 and re<=.01);rows.append(row);path.append(q.tolist())
         if not row['passed']:break
-    result=dict(pose_weight=a.pose_weight,initial_margin_transition_nodes=a.initial_margin_transition_nodes,passed=len(path)==101 and all(r['passed'] for r in rows),physics_steps=0,scope=__doc__,samples=rows,path_qpos=path,input_sha256={str(f):sha(f) for f in [*inputs,a.template,source/'trajectory.npz',robot,door,Path(__file__)]})
+    result=dict(pose_weight=a.pose_weight,initial_margin_transition_nodes=a.initial_margin_transition_nodes,passed=len(path)==101 and all(r['passed'] for r in rows),physics_steps=0,scope=__doc__,samples=rows,path_qpos=path,input_sha256=input_hashes)
+    if input_hashes!={path:sha(path) for path in input_hashes}:raise ValueError('Planning source changed during solve')
+    if source_qualification is not None:result['source_qualification']=source_qualification
     report=a.output/'report.json';report.write_text(json.dumps(result,indent=2,default=lambda v:v.item() if isinstance(v,np.generic) else v.tolist())+'\n')
     print(json.dumps(dict(sampled_passed=result['passed'],nodes=len(path))),flush=True)
     if not result['passed']:return 1
@@ -75,7 +110,11 @@ def main():
     subprocess.run([sys.executable,'scripts/dexterous/audit_standing_transfer_path.py','--robot',str(robot),'--door',str(door),'--path',str(report),'--output',str(proof)],check=True)
     if not json.loads(proof.read_text())['passed']:return 1
     path=np.array(path);jointqa=[m.joint('robot/'+n).qposadr[0] for n in template['joint_names']]
-    template.update(scene_path_source=str(report),scene_path_sha256=sha(report),dense_audit_path=str(proof.resolve()),dense_audit_sha256=sha(proof),root_path=path[:,scene.root:scene.root+7].tolist(),joint_path=path[:,jointqa].tolist(),left_targets=[],attained_time_s=at,attained_trial=str(source),attained_manifest_sha256=sha(source/'manifest.json'))
+    template.update(scene_path_source=str(report),scene_path_sha256=sha(report),dense_audit_path=str(proof.resolve()),dense_audit_sha256=sha(proof),root_path=path[:,scene.root:scene.root+7].tolist(),joint_path=path[:,jointqa].tolist(),left_targets=[],attained_time_s=at,attained_trial=str(source))
+    if source_qualification is None:template['attained_manifest_sha256']=sha(source/'manifest.json')
+    else:
+        template.pop('attained_manifest_sha256',None)
+        template['attained_source_qualification']=source_qualification
     for q in path:
         d.qpos[:]=q;mujoco.mj_kinematics(m,d);rot=d.xmat[scene.leaf].reshape(3,3)
         template['left_targets'].append(dict(phase='left_reach',leaf_rad=float(q[m.joint('leaf_hinge').qposadr[0]]),position=(rot.T@(d.site_xpos[scene.palm]-d.xpos[scene.leaf])).tolist(),normal=(rot.T@d.site_xmat[scene.palm].reshape(3,3)[:,2]).tolist(),nominal=[float(q[m.joint('robot/'+n).qposadr[0]]) for n in JOINT_NAMES]))
