@@ -386,3 +386,14 @@ Twenty focused target, CLI, motor-handoff, preload and arm-controller tests pass
 Tests cover initial continuity, correction size/rate, malformed or unreachable
 states, and no physics stepping in the target generator. This is prospective
 controller code; no physical result exists for the option yet.
+
+Native transfer002 is running the same50s protocol as failed001 with only the
+opt-in handle-relative arm target enabled. Independent pad and whole-handle
+audits are attached; it is visible in Run Center. No physical result yet.
+[Dispatch](evidence/native-index-transfer002-dispatch.json).
+
+The optional3N middle-preload005 comparison was archived privately and verified
+by independent download before local raw eviction. Reports remain, and it is
+not a source for current transfer work. This brought the new native test plus
+850MiB remaining Isaac collection reservation under the20GiB retained limit.
+[Archive receipt](evidence/native-middle005-verified-offload.json).
