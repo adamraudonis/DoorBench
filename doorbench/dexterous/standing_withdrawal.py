@@ -243,7 +243,7 @@ class StandingWithdrawalTeacher:
             if self.panel_force is not None:
                 from .panel_aperture_force import PanelApertureForce
                 terminal=self.panel.plan['final_leaf_angle_rad'] if self.panel_force_profile in ('bounded-pi-stop-v1','bounded-pi-stop-v2') else None
-                self.panel_force=PanelApertureForce(terminal_aperture=terminal,terminal_support_margin_N=.5 if self.panel_force_profile=='bounded-pi-stop-v2' else 0.,stiction_assist=self.panel_stiction_assistance[self.panel_schedule.index],load_profile=self.panel_load_profiles[self.panel_schedule.index])
+                self.panel_force=PanelApertureForce(terminal_aperture=terminal,terminal_support_margin_N=.5 if self.panel_force_profile=='bounded-pi-stop-v2' else 0.,stiction_assist=self.panel_stiction_assistance[self.panel_schedule.index],load_profile=self.panel_load_profiles[self.panel_schedule.index],terminal_minimum_support_N=self.panel_force.terminal_minimum_support_N)
                 if self.support_feedback is not None:self.support_feedback.maximum_target_N=self.panel_force.maximum_target_N
         panel_goal=None;panel_info={}
         if self.panel is not None and t>=self.panel.start_time-1e-8:
