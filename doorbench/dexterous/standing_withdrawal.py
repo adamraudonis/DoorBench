@@ -185,8 +185,7 @@ class StandingWithdrawalTeacher:
             self.panel_load_profiles=[initial_load]
             for entry in config.get('panel_continuations',[]):
                 if sha(entry['path'])!=entry['sha256']:raise ValueError('Continuation plan bytes changed')
-                candidate=StandingPanelReference(scene,entry['path'],self.left,
-                    fixed_foot_targets=entry.get('fixed_foot_targets',False))
+                candidate=StandingPanelReference(scene,entry['path'],self.left)
                 candidate.preserve_stance_reference=entry.get('preserve_stance_reference',False)
                 if type(candidate.preserve_stance_reference) is not bool:raise ValueError('Explicit boolean stance reference continuity required')
                 candidate.material_reference_handoff=entry.get('material_reference_handoff',False)

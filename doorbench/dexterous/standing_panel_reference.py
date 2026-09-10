@@ -8,9 +8,7 @@ from .screened_panel_teacher import validate_attained_panel_state
 
 
 class StandingPanelReference:
-    def __init__(self,scene,plan_path,left,*,fixed_foot_targets=False):
-        if type(fixed_foot_targets) is not bool:raise ValueError('Explicit boolean fixed foot targets required')
-        self.fixed_foot_targets=fixed_foot_targets
+    def __init__(self,scene,plan_path,left):
         self.m=scene.m;self.d=mujoco.MjData(self.m);self.left=left
         with open(plan_path) as f:self.plan=json.load(f)
         p=self.plan;r=p['screen_receipt']
@@ -30,7 +28,6 @@ class StandingPanelReference:
         p=self.plan
         if self.started is None:
             validate_attained_panel_state(p,self.initial_root,root,joints,angle)
-            if self.fixed_foot_targets:stance.freeze_foot_targets()
             self.started=t
             self.root_bias=stance.target_root.copy()-self.initial_root[:3]
             self.rotation_bias=stance.target_rotation@self.rotation.as_matrix().T
@@ -52,4 +49,4 @@ class StandingPanelReference:
         lr=d.xmat[self.leaf].reshape(3,3);local=lr.T@(d.site_xpos[self.lh]-d.xpos[self.leaf]);local[1]-=self.offset
         self.left.path[-1]['position']=local;self.left.path[-1]['nominal']=np.array([targets[n] for n in self.left.names])
         self.left.panel_palm_rotation=lr.T@d.site_xmat[self.lh].reshape(3,3)
-        return targets,d.site_xpos[self.rh].copy(),d.site_xmat[self.rh].reshape(3,3).copy(),dict(panel_fixed_foot_targets=bool(stance.fixed_foot_rotations is not None),panel_started_s=self.started,panel_progress=float(s),panel_reference_aperture_rad=float(reference),panel_measured_aperture_rad=float(angle),panel_maximum_joint_speed_rad_s=float(max(abs(dq[6:]))),panel_maximum_joint_acceleration_rad_s2=float(max(abs(ddq[6:]))))
+        return targets,d.site_xpos[self.rh].copy(),d.site_xmat[self.rh].reshape(3,3).copy(),dict(panel_started_s=self.started,panel_progress=float(s),panel_reference_aperture_rad=float(reference),panel_measured_aperture_rad=float(angle),panel_maximum_joint_speed_rad_s=float(max(abs(dq[6:]))),panel_maximum_joint_acceleration_rad_s2=float(max(abs(ddq[6:]))))

@@ -113,27 +113,3 @@ restore a running simulator. Only use a mechanically qualified attained state
 for continuation planning, followed by the independent geometry and contact
 gates above. Twenty-six focused adapter/binding tests pass; actual040 archive
 extraction remains pending completion and verified collection.
-
-
-## Fixed foot targets for prospective panel continuations
-
-A `panel_continuations` configuration entry may now set `fixed_foot_targets: true`.
-At the validated attained-state handoff this copies the existing foot targets,
-then keeps them independent of subsequent pelvis rotation. Both the inverse
-dynamics stance solver and pose-IK stance variant use the per-foot orientation
-for their orientation residuals and contact-wrench frames. There are no external
-anchors, simulator pose writes, added force allowances or relaxed contact gates.
-The trace reports `panel_fixed_foot_targets`.
-
-The default remains the historical root-coupled behavior, so prior configuration
-replays and the frozen Isaac040 experiment are unchanged. Existing stance target
-biases are retained continuously at handoff: this option does not assert that
-those targets equal the planner's measured initial foot frames. Check that offset
-in the physical comparison. Once frozen, targets remain fixed across subsequent
-segments; a later omitted flag does not reset them to the pelvis.
-
-Seventeen focused foot-target, stance-profile and segment-schedule tests pass.
-No physical comparison has yet qualified this option. The passage019 measured
-error diagnostic still fails; do not relabel it as passing because the controller
-has changed. A prospective trial needs storage admission and independent full
-body/contact audits, with root and foot tracking recorded against their targets.
