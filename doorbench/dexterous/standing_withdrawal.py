@@ -186,6 +186,8 @@ class StandingWithdrawalTeacher:
             for entry in config.get('panel_continuations',[]):
                 if sha(entry['path'])!=entry['sha256']:raise ValueError('Continuation plan bytes changed')
                 candidate=StandingPanelReference(scene,entry['path'],self.left)
+                candidate.preserve_stance_reference=entry.get('preserve_stance_reference',False)
+                if type(candidate.preserve_stance_reference) is not bool:raise ValueError('Explicit boolean stance reference continuity required')
                 if candidate.plan['robot_xml_sha256']!=motors['source_xml_sha256']:raise ValueError('Continuation uses another robot contract')
                 assist=entry.get('stiction_assist',False)
                 if type(assist) is not bool or (assist and profile!='bounded-pi-stop-v2'):raise ValueError('Explicit stiction assistance requires terminal support profile v2')
@@ -235,11 +237,14 @@ class StandingWithdrawalTeacher:
             self.release_started=t
         i=min(len(self.times)-2,max(0,int(np.searchsorted(self.times,clock,side='right')-1)));f=(clock-self.times[i])/(self.times[i+1]-self.times[i])
         q=(1-f)*self.joints[i]+f*self.joints[i+1];targets=dict(zip(self.all_names,q))
+        preceding_stance=self.panel_schedule.pending_stance_reference(t,teacher.stance) if self.panel_schedule is not None else None
         teacher.stance.target_root[:]=(1-f)*self.roots[i,:3]+f*self.roots[i+1,:3]+self.stance_root_bias
         teacher.stance.target_rotation=self.stance_rotation_bias@self.root_rotations(clock).as_matrix()
         teacher.stance.joint_target[:]=np.array([targets[n] for n in self.stance_names])+self.stance_joint_bias
         if self.panel_schedule is not None and self.panel_schedule.advance(t,angles['leaf'],left_panel_load):
             self.panel=self.panel_schedule.active;self.panel_handoff=None
+            if preceding_stance is not None:
+                for name,value in preceding_stance.items():getattr(teacher.stance,name)[:]=value
             if self.panel_force is not None:
                 from .panel_aperture_force import PanelApertureForce
                 terminal=self.panel.plan['final_leaf_angle_rad'] if self.panel_force_profile in ('bounded-pi-stop-v1','bounded-pi-stop-v2') else None

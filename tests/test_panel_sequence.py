@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+import numpy as np
 import pytest
 from doorbench.dexterous.panel_sequence import AttainedPanelSchedule
 
@@ -31,3 +32,17 @@ def test_reordered_or_discontinuous_segments_are_rejected():
     with pytest.raises(ValueError):AttainedPanelSchedule(p)
     p=panels();p[1].plan['initial_leaf_angle_rad']=.3
     with pytest.raises(ValueError):AttainedPanelSchedule(p)
+
+
+def test_continuous_stance_snapshot_precedes_fallback_without_authorizing_hold():
+    p=panels();p[1].preserve_stance_reference=True;c=AttainedPanelSchedule(p)
+    stance=SimpleNamespace(target_root=np.array([.01,-.006,1.]),
+        target_rotation=np.array([[1.,0,0],[0,.999,-.044],[0,.044,.999]]),joint_target=np.array([.1,.2]))
+    assert c.pending_stance_reference(1.9,stance) is None
+    saved=c.pending_stance_reference(2.,stance)
+    stance.target_root[:]=0;stance.target_rotation[:]=0;stance.joint_target[:]=0
+    assert saved['target_root'][2]==1. and saved['target_rotation'][2,1]==.044
+    assert saved['joint_target'].tolist()==[.1,.2]
+    with pytest.raises(ValueError):c.advance(2.,.745,2.5)
+    # Legacy segments neither capture nor alter their established references.
+    assert AttainedPanelSchedule(panels()).pending_stance_reference(2.,stance) is None

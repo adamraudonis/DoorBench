@@ -14,6 +14,17 @@ class AttainedPanelSchedule:
     @property
     def active(self):return self.panels[self.index]
 
+    def pending_stance_reference(self,t,stance):
+        """Capture the preceding target before withdrawal resets its fallback.
+
+        Opt-in preserves historical source replays. Capturing a reference does
+        not authorize transition: advance still requires the measured hold.
+        """
+        if self.index+1==len(self.panels):return None
+        following=self.panels[self.index+1]
+        if not getattr(following,'preserve_stance_reference',False) or t<following.start_time-1e-8:return None
+        return {name:getattr(stance,name).copy() for name in ('target_root','target_rotation','joint_target')}
+
     def advance(self,t,angle,load):
         if not np.isfinite([t,angle,load]).all():raise ValueError('Finite panel handoff required')
         if self.index+1==len(self.panels) or t<self.panels[self.index+1].start_time-1e-8:return False
