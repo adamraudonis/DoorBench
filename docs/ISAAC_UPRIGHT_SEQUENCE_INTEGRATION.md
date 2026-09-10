@@ -308,3 +308,20 @@ The first042 partial checkpoint contains1000 same-clock samples through2.0s,
 with six7-component measured body poses per sample. All values are finite;
 maximum quaternion norm error is1.789e-7. This verifies live recorder output,
 not the final endpoint or opening result. [Prefix check](evidence/isaac042-body-record-prefix.json).
+
+## Carrying the lead controller into native transfer
+
+Preflight rejected the proposed50s native transfer because the CLI originally
+limited handle-lead control to standalone opening. The portable operation
+controller remains active inside `StandingTransferTeacher`; its lead bound can
+therefore be carried into an explicit attained-arm transfer with added fixed-pad
+tracking disabled. The CLI now admits that composition while rejecting return/
+withdrawal and other transfer modes with the lead option. Forty CLI and operation
+teacher tests pass. This enables a prospective physical test, not a success claim;
+all physical thresholds and original force limits are unchanged.
+
+Five completed preparation archives contained identical187,991,341-byte robot
+USD files. After verifying final collection, SHA256 and closed handles, four
+were replaced by hard links to the fifth. All paths and bytes remain; timestamps
+are shared. This removes751,965,364 duplicate logical bytes from retention
+accounting. [Deduplication receipt](evidence/imported-robot-hardlink-dedup042.json).

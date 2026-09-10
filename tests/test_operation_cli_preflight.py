@@ -25,3 +25,20 @@ def test_preflight_still_rejects_unsupported_transfer_composition(tmp_path):
     assert result.returncode==2
     assert 'Operator follow requires standalone operation' in result.stderr
     assert not (tmp_path/'output').exists()
+
+
+def test_lead_controller_can_continue_into_explicit_attained_arm_transfer(tmp_path):
+    args=command(tmp_path);args=args[:args.index('--portable-wrapper')]+[
+        '--portable-wrapper','--operation-operator-lead-limit-rad','.10',
+        '--standing-transfer-path',str(tmp_path/'transfer'),'--standing-transfer-attained-arm',
+        '--standing-transfer-no-fixed-pads','--validate-arguments-only']
+    env={**os.environ,'PYTHONPATH':str(ROOT)}
+    result=subprocess.run(args,cwd=ROOT,env=env,capture_output=True,text=True)
+    assert result.returncode==0,result.stderr
+    assert json.loads(result.stdout)['physics_started'] is False
+    assert not (tmp_path/'output').exists()
+    for unsupported in [args+['--standing-return-path',str(tmp_path/'return')],
+                        [a for a in args if a!='--standing-transfer-attained-arm']]:
+        result=subprocess.run(unsupported,cwd=ROOT,env=env,capture_output=True,text=True)
+        assert result.returncode==2
+        assert 'Operator lead requires' in result.stderr

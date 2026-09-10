@@ -134,7 +134,11 @@ def main():
     args = parser.parse_args()
     if args.operation_handle_hub_avoidance and not args.portable_wrapper:parser.error('Hub avoidance requires portable operation wrapper')
     if args.operation_operator_follow_after_leaf_rad is not None and (not .015<=args.operation_operator_follow_after_leaf_rad<=.05 or not args.portable_wrapper or args.standing_transfer_path):parser.error('Operator follow requires standalone operation and .015..0.05 rad')
-    if args.operation_operator_lead_limit_rad is not None and (not .01<=args.operation_operator_lead_limit_rad<=.15 or not args.portable_wrapper or args.standing_transfer_path):parser.error('Operator lead requires standalone operation and .01..0.15 rad')
+    lead_transfer_supported = (not args.standing_transfer_path or (
+        args.standing_transfer_attained_arm and args.standing_transfer_no_fixed_pads
+        and not args.standing_return_path and not args.standing_withdrawal_path))
+    if args.operation_operator_lead_limit_rad is not None and (not .01<=args.operation_operator_lead_limit_rad<=.15 or not args.portable_wrapper or not lead_transfer_supported):
+        parser.error('Operator lead requires portable opening or attained-arm transfer without fixed pads/return, and .01..0.15 rad')
     if args.operation_leaf_lead_limit_rad is not None and (not .002<=args.operation_leaf_lead_limit_rad<=.03 or not args.portable_wrapper or args.standing_transfer_path):parser.error('Leaf lead bound requires standalone operation and .002..0.03 rad')
     if not .075<=args.operation_leaf_target_rad<=.10:parser.error('Partial opening command must be .075..0.10 rad')
     if args.operation_leaf_target_rad!=.08 and not args.portable_wrapper:parser.error('Explicit leaf target requires portable wrapper')
