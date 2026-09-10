@@ -337,3 +337,8 @@ Run043 native prerequisite passes19/19 runtime checks and both independent conta
 ### September 10: Isaac043 setup failure
 
 Native grasp prerequisite passed, but actual Isaac failed before physics because transfer provenance used `inputs` before initialization. All terminal evidence is verified off-pod, and the endpoint admission correctly rejected the failed run. Fixed initialization order and added a regression that executes the actual provenance block; four targeted tests pass. No transfer success is claimed. Next attempt uses fresh source and output directories.
+
+
+### September 10: Isaac044 fresh dispatch
+
+Fixed source771081693 packaged and remotely verified. Twenty focused tests pass. Storage admission initially rejected the run; archived closed043 evidence to the private draft release, independently verified download checksum, then evicted73 local raw prerequisite files while retaining reports. New admission passes without raising the20GiB retention limit. Both owned-pod guards renewed to 2026-09-11T00:15:47.617140+00:00. Fresh coordinator and native prerequisite are live; collection, close-up review, and qualified endpoint admission are attached. This is dispatch evidence, not transfer success. See `evidence/isaac044-transfer-dispatch.json`.
