@@ -352,3 +352,8 @@ The qualified Isaac endpoint loader now additionally requires a passing independ
 ### September10: Isaac044 first-step recorder failure
 
 All native gates passed. Isaac got past provenance and completed0.002s, then torque calculation failed because new post-step contact recording reused the joint-friction variable name for a16384x3 patch buffer. Renamed the contact buffer; a regression executes the actual recorder block followed by the actual torque expression and verifies preservation of the69 joint coefficients. Five targeted tests pass. This is an integration failure, not failed physical transfer; no transfer was attempted. Next run must use fresh source/output directories.
+
+
+### September10: fresh Isaac045 dispatched
+
+Sourcee853509fb and all packaged hashes verified on the owned A40.24 focused tests pass; original042 source qualification still passes. Both guards remain live with00:15:47UTC September11 teardown; no extension. Storage admission includes86 seconds of evidence plus32MiB of reviews. Closed043/044 intermediate physics chunks were hash checked against independently downloaded archives before removal.045 coordinator183731 is live with collector86114; terminal hand review and updated endpoint qualification are queued. No new physical success is claimed.
