@@ -382,3 +382,8 @@ Personally inspected actual042 left/right images during operation and left-eye i
 ### September10: actual045 acquisition image inspection
 
 Personally inspected actual Isaac hand and wide frame4000 (8s): upright torso, right hand at lever, thumb near-side opposed to four fingers behind the lever. This is visual acquisition evidence only; it cannot establish complete contact/transfer success. Live9.5s diagnostics show all five loaded digits and opposition; independent final audits remain pending. Image hashes recorded in `evidence/isaac045-acquisition-visual-review.json`. No controller or running source changed.
+
+
+### September10: actual Isaac045 transfer starts
+
+At36.502s, the measured-state transfer has started at36.0s, with left progression0.00222, successful stance solve and0.4485degree torso tilt. Last36.002s pad sample is valid. The27.002s sample earlier failed load threshold because middle-finger force was0.133N; that sampled frame had no invalid patches, and28.002s recovered. Keep all intervals for final audits. Activation alone is not complete transfer. Evidence: `evidence/isaac045-transfer-started.json`.
