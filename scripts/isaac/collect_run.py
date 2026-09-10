@@ -118,7 +118,10 @@ def collect(a):
                 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
                 from doorbench.dexterous.storage_budget import check_retained_budget
                 archive_root=next((p for p in target.parents if p.name=='DoorBench-runs'),target.parent)
-                check_retained_budget([archive_root],incoming_bytes=before.get('transfer_bytes',0))
+                retained_roots=[archive_root,Path(__file__).resolve().parents[2]/'out']
+                local_archive=Path.home()/'Desktop/Projects/DoorBench-runs'
+                if local_archive.exists():retained_roots.append(local_archive)
+                check_retained_budget(retained_roots,incoming_bytes=before.get('transfer_bytes',0))
                 with log.open('ab') as stream:
                     subprocess.run(['rsync','-az',*final_transfer_options(before.get('files')),'--timeout=30','--exclude=*.writing','--exclude=*.tmp',
                         '--exclude=*.tmp.*','--exclude=*.writing.*','--exclude=*.pending','--exclude=*.pyc','--exclude=__pycache__','-e',shlex.join(ssh[:-1]),

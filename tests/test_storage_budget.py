@@ -22,3 +22,18 @@ def test_retention_budget_counts_hardlinks_once_and_reserves_next_run(tmp_path, 
     assert budget.check_retained_budget([a,b],incoming_bytes=40)['retained_bytes']==60
     with pytest.raises(OSError,match='budget exceeded'):
         budget.check_retained_budget([a,b],incoming_bytes=41)
+
+
+def test_retention_combines_worktree_and_saved_runs_without_double_count(tmp_path, monkeypatch):
+    monkeypatch.setattr(budget, 'RETAINED_LIMIT_BYTES', 100)
+    worktree = tmp_path / 'out'
+    archives = tmp_path / 'DoorBench-runs'
+    target = archives / 'today' / 'trial'
+    worktree.mkdir()
+    target.mkdir(parents=True)
+    (worktree / 'native').write_bytes(b'x' * 60)
+    (target / 'isaac').write_bytes(b'x' * 30)
+    roots = [target.parent, worktree, archives]
+    assert budget.check_retained_budget(roots, incoming_bytes=10)['retained_bytes'] == 90
+    with pytest.raises(OSError, match='budget exceeded'):
+        budget.check_retained_budget(roots, incoming_bytes=11)
