@@ -290,3 +290,6 @@ The2001-sample audit passes hand/elbow scene clearance, balance, positions and r
 ### September 10: transfer002 mixed-clock diagnosis
 
 The failed compensated transfer retains valid pad contact and passes the joint threshold through its last physical sample at36.66s. Compared with transfer001, its lever returns faster (.7625 versus .8011rad at36.64s); this does not prove causality. A concrete velocity-feedforward defect combines a10ms route with2ms corrections before differentiating, inflating the route contribution by up to5x. Separate component clocks now preserve the same motor caps,2rad/s speed rejection and.08rad correction envelope. Ten focused tests pass. Another physical comparison is required; the wider static IK envelope is not adopted. See [diagnostic evidence](evidence/native-transfer002-mixed-clock-diagnosis.json).
+
+
+Separate-clock transfer003 completed its failed report and both independent audits: the same.08rad envelope was exhausted (position residual.50697mm against.5mm acceptance). Physical joint/motor checks pass and no invalid operation pad patches were reported, but complete-transfer checks fail. The clock repair is verified in isolation; it does not resolve the physical drift. Next investigate base compensation separately from following lever spring return. [Failure evidence](evidence/native-index-transfer003-failure.json).
