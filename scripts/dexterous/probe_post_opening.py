@@ -52,7 +52,7 @@ def main():
     for n in ('robot','door','motors','initial_trajectory','body_reset','output'):p.add_argument('--'+n.replace('_','-'),type=Path,required=True)
     p.add_argument('--passage',action='store_true');p.add_argument('--checkpoint',type=Path);p.add_argument('--seconds',type=float,default=34.);p.add_argument('--phase-seconds',type=float,default=4.);p.add_argument('--arm-gain',type=float,default=10.);p.add_argument('--no-rise',action='store_true');p.add_argument('--plan-only',action='store_true')
     p.add_argument('--inward-roll',type=float,default=0.);p.add_argument('--portable',action='store_true')
-    p.add_argument('--stow-profile',choices=('original-v1','sequential-v2'),default='original-v1')
+    p.add_argument('--stow-profile',choices=('original-v1','sequential-v2','relaxed-v3'),default='original-v1')
     a=p.parse_args()
     if not np.isfinite(a.seconds) or a.seconds<=0:raise ValueError('Finite positive continuation duration required')
     if a.output.exists():raise ValueError('Use fresh output directory')

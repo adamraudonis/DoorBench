@@ -81,7 +81,7 @@ class PostOpeningTeacher:
             raise ValueError('Exact corrected native robot and motor contract required')
         if physics_dt!=.002 or type(passage) is not bool:
             raise ValueError('This H1 adapter requires the qualified 2 ms clock and explicit passage mode')
-        if stow_profile not in ('original-v1','sequential-v2'):
+        if stow_profile not in ('original-v1','sequential-v2','relaxed-v3'):
             raise ValueError('Unknown explicit post-opening stow profile')
         self.stow_profile=stow_profile
         scene=mujoco.MjSpec.from_file(str(door_xml));scene.memory=128*1024*1024
@@ -170,7 +170,10 @@ class PostOpeningTeacher:
             else:
                 from .post_opening_route import plan_sequential_stow
                 self.plan=plan_sequential_stow(self.sim,self.reset,inward_roll=self.inward_roll,
-                    retreat_normal_world=normal,left_style='yaw_first',right_style='lift_yaw')
+                    retreat_normal_world=normal,
+                    left_style='fingers_first' if self.stow_profile=='relaxed-v3' else 'yaw_first',
+                    right_style='lift_yaw',
+                    finger_profile='relaxed-v3' if self.stow_profile=='relaxed-v3' else 'original-v1')
             if not self.plan['passed']:raise ValueError('Newly attained opening state has no qualified static stow route')
             self.controller=StowRiseController(self.sim,self.motors,self.plan,checkpoint=self.checkpoint,phase_seconds=self.phase_seconds,arm_gain=self.arm_gain)
             self.controller.stance.foot_positions=np.array([poses[name][0] for name in self.feet])

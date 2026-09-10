@@ -32,4 +32,9 @@ def test_hand_release_uses_actual_archived_interval_contacts():
     raw=dict(contacts=[dict(body=[0,1],distance_m=-.001,wrench_contact_frame=[3,0,0,0,0,0]),
                        dict(body=[0,1],distance_m=.0002,wrench_contact_frame=[2,0,0,0,0,0]),
                        dict(body=[0,2],distance_m=-.001,wrench_contact_frame=[7,0,0,0,0,0])])
-    assert probe.interval_hand_loads(m,raw)==(1,5.)
+    raw['contacts'] += [dict(body=[1,2],distance_m=-.001,wrench_contact_frame=[20,0,0,0,0,0]),
+                        dict(body=[0,1],distance_m=.001,wrench_contact_frame=[0,0,0,0,0,0])]
+    for contact in raw['contacts']:contact['frame_world']=np.eye(3).tolist()
+    # A loaded positive-gap constraint still prevents release. Self contact and
+    # unloaded separated proximity records do not count as environment support.
+    assert probe.interval_hand_loads(m,raw)==(2,5.)

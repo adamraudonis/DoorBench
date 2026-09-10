@@ -18,8 +18,9 @@ def smooth(u):
     return u**3*(10+u*(-15+6*u))
 
 
-def compact_posture(model, start, reset, *, inward_roll=0.):
+def compact_posture(model, start, reset, *, inward_roll=0.,finger_profile='original-v1'):
     if not np.isfinite(inward_roll) or not 0<=inward_roll<=.1:raise ValueError('Invalid bounded inward shoulder roll')
+    if finger_profile not in ('original-v1','relaxed-v3'):raise ValueError('Unknown stow finger profile')
     q=np.array(start,copy=True)
     values={n:v for n,v in reset['joints'].items() if not any(t in n for t in ('hip','knee','ankle'))}
     for hand in ('lh','rh'):
@@ -27,6 +28,10 @@ def compact_posture(model, start, reset, *, inward_roll=0.):
             for j,v in ((3,.35),(2,.8),(1,.8)):values[f'{hand}_{digit}J{j}']=v
         for j,v in ((5,.5),(4,.7),(3,0),(2,.5),(1,.5)):values[f'{hand}_THJ{j}']=v
         values[f'{hand}_LFJ5']=.12
+        if finger_profile=='relaxed-v3':
+            values[f'{hand}_LFJ5']=0.
+            for digit in ('FF','MF','RF','LF'):
+                for j,v in ((4,0.),(3,.2),(2,.4),(1,.4)):values[f'{hand}_{digit}J{j}']=v
     for side,sign in (('left',-1),('right',1)):values[side+'_shoulder_roll']=sign*inward_roll
     for name,value in values.items():q[model.jnt_qposadr[model.joint('robot/'+name).id]]=value
     return q

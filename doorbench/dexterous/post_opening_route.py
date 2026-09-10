@@ -6,14 +6,14 @@ from .post_opening import plan_stow, compact_posture, screen_state
 
 def plan_sequential_stow(sim, reset, *, inward_roll=.07, retreat_m=.14,
                          retreat_normal_world=None, left_style='fingers_first',
-                         right_style='yaw_first', samples=101):
+                         right_style='yaw_first', samples=101,finger_profile='original-v1'):
     allowed=('fingers_first','yaw_first','lift_yaw','roll_yaw')
     if left_style not in allowed or right_style not in allowed:
         raise ValueError('Unknown explicit stow waypoint style')
     original=plan_stow(sim,reset,inward_roll=inward_roll,retreat_m=retreat_m,
                        retreat_normal_world=retreat_normal_world,samples=samples)
     m=sim.m;d=mujoco.MjData(m);start=sim.d.qpos.copy()
-    target=compact_posture(m,start,reset,inward_roll=inward_roll)
+    target=compact_posture(m,start,reset,inward_roll=inward_roll,finger_profile=finger_profile)
     path=[np.asarray(q) for q,stage in zip(original['path_qpos'],original['stage']) if stage=='release']
     stages=['release']*len(path);bad=[r for r in original['bad_samples'] if r['stage']=='release']
     # Original release can have more failures than its compact bad-sample list.
@@ -57,5 +57,5 @@ def plan_sequential_stow(sim, reset, *, inward_roll=.07, retreat_m=.14,
         bad_samples=bad[:50],bad_sample_count=len(bad),sample_count=len(path),waypoints=waypoints,
         retreat_normal_world=original['retreat_normal_world'],retreat_distance_m=retreat_m,
         inward_shoulder_roll_rad=inward_roll,profile='sequential-stow-v2',
-        left_style=left_style,right_style=right_style,
+        left_style=left_style,right_style=right_style,finger_profile=finger_profile,
         scope='Static measured terminal leaf/root; no dynamic or passage proof')
