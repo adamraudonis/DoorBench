@@ -362,3 +362,8 @@ Sourcee853509fb and all packaged hashes verified on the owned A40.24 focused tes
 ### September10: prevent incremental-collector chunk accumulation
 
 Identified why local intermediate physics chunks survived successful remote exports: incremental rsync copies but never deletes. Added final-manifest-gated, decoded-record comparison before pruning redundant contiguous working chunks.12 collector tests pass, including changed/sparse/still-remote chunks and altered final exports. No live collector or simulator was restarted. Run045 remains active; use the updated cleanup after final collection.
+
+
+### September10: Isaac045 advances past both integration failures
+
+Native runtime, independent pad and whole-handle audits pass. Actual Isaac process188579 reached0.502s with0.4437degree torso tilt; it is live and progressing past the setup and second-step failures. This does not establish grasp or transfer success. Evidence: `evidence/isaac045-physics-started.json`. Collector cleanup is now committed but existing live collector86114 must finish before applying verified redundant-chunk pruning.
