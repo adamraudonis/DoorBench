@@ -39,6 +39,8 @@ def main():
     p.add_argument('--right-hand-retreat-m',type=float,default=0.)
     p.add_argument('--warm-start-screen',type=Path,help='Numerical guesses only from the same exact source state and aperture grid')
     p.add_argument('--pose-tolerance-barrier',action='store_true',help='Prioritize interior hand/foot pose feasibility over posture regularization')
+    p.add_argument('--balance-envelope-barrier',action='store_true',help='Fit inside existing3cm root and1.5cm COM audit bounds; does not change audit limits')
+    p.add_argument('--joint-margin-rad',type=float,default=.001,help='Interior joint margin for fitting, to reserve interpolation clearance')
     p.add_argument('--foot-orientation-weight',type=float,default=10.,help='Declared geometric objective weight; dense foot tolerances stay unchanged')
     p.add_argument('--root-yaw-target-rad',type=float,help='Smooth prescribed upright yaw preference with continuity regularization and3cm root bound')
     p.add_argument('--root-yaw-extent-rad',type=float,help='Explicit upright pivot: allow yaw separately while retaining a0.05rad roll/pitch increment bound')
@@ -50,6 +52,7 @@ def main():
     p.add_argument('--flatten-palm',action='store_true',help='Rotate the actual palm face toward the panel over0.2rad while preserving its collision support plane')
     p.add_argument('--admit-exact-soft-limit-start',action='store_true',help='Retain only the measured initial solver-limit excursion, then smoothly regain the 1mm/rad numeric joint margin within 0.1rad aperture')
     a=p.parse_args()
+    if not .001<=a.joint_margin_rad<=.01:raise ValueError('Joint fit margin must be1..10mrad')
     if not -.04<=a.radius_shift_m<=.04 or not .1<=a.flatten_over_rad<=.6 or not 0<=a.height_drop_m<=.15 or not 0<=a.root_extent_m<=.08 or not 0<=a.root_rotation_rad<=.2 or a.nodes<21:
         raise ValueError('Require bounded declared geometry settings')
     if a.root_rotation_norm_rad is not None and not .01<=a.root_rotation_norm_rad<=.05:raise ValueError('Rotation norm must remain inside the original0.05rad screen')
@@ -114,10 +117,10 @@ def main():
     names += [side+'_'+n for side in ('right','left') for n in ('shoulder_pitch','shoulder_roll','shoulder_yaw','elbow','wrist_yaw')]
     names += ['rh_WRJ2','rh_WRJ1','lh_WRJ2','lh_WRJ1']
     js=np.array([m.joint('robot/'+n).id for n in names]);qa=m.jnt_qposadr[js];initial=base[qa].copy()
-    low=np.r_[np.full(3,-max(1e-12,a.root_extent_m)),np.full(3,-max(1e-12,a.root_rotation_rad)),m.jnt_range[js,0]+.001]
-    high=np.r_[np.full(3,max(1e-12,a.root_extent_m)),np.full(3,max(1e-12,a.root_rotation_rad)),m.jnt_range[js,1]-.001]
+    joint_margin=max(a.joint_margin_rad,.005 if a.root_yaw_target_rad is not None else .001)
+    low=np.r_[np.full(3,-max(1e-12,a.root_extent_m)),np.full(3,-max(1e-12,a.root_rotation_rad)),m.jnt_range[js,0]+joint_margin]
+    high=np.r_[np.full(3,max(1e-12,a.root_extent_m)),np.full(3,max(1e-12,a.root_rotation_rad)),m.jnt_range[js,1]-joint_margin]
     if a.root_yaw_extent_rad is not None:low[5]=-a.root_yaw_extent_rad;high[5]=a.root_yaw_extent_rad
-    if a.root_yaw_target_rad is not None:low[6:]=m.jnt_range[js,0]+.005;high[6:]=m.jnt_range[js,1]-.005
     previous=np.r_[np.zeros(6),initial];rows=[]
     a.output.mkdir(parents=True,exist_ok=False)
     (a.output/'screen-source.py').write_bytes(Path(__file__).read_bytes())
@@ -134,8 +137,8 @@ def main():
     for angle in np.linspace(base[leafq],a.target_aperture_rad,a.nodes):
         if a.admit_exact_soft_limit_start:
             progress=float(np.clip((angle-base[leafq])/.1,0,1));ramp=progress**3*(10+progress*(-15+6*progress))
-            low[6:]=(1-ramp)*np.minimum(m.jnt_range[js,0]+.001,initial-1e-8)+ramp*(m.jnt_range[js,0]+.001)
-            high[6:]=(1-ramp)*np.maximum(m.jnt_range[js,1]-.001,initial+1e-8)+ramp*(m.jnt_range[js,1]-.001)
+            low[6:]=(1-ramp)*np.minimum(m.jnt_range[js,0]+joint_margin,initial-1e-8)+ramp*(m.jnt_range[js,0]+joint_margin)
+            high[6:]=(1-ramp)*np.maximum(m.jnt_range[js,1]-joint_margin,initial+1e-8)+ramp*(m.jnt_range[js,1]-joint_margin)
         state=base.copy();state[leafq]=angle;d.qpos[:]=state;mujoco.mj_kinematics(m,d)
         lr=d.xmat[leaf].reshape(3,3).copy();lp=d.xpos[leaf].copy()
         u=float(np.clip((angle-base[leafq])/.35,0,1));blend=u**3*(10+u*(-15+6*u))
@@ -165,10 +168,11 @@ def main():
             yaw_tilt_barrier=0. if a.root_yaw_extent_rad is None else 1000.*max(0.,np.linalg.norm(x[3:5])-.0499)
             pivot=[] if a.root_yaw_target_rad is None else np.r_[5.*(x[5]-a.root_yaw_target_rad*phase),1000.*max(0.,np.linalg.norm(x[:3])-.0299),.2*(x-anchor)]
             pose_barrier=pose_constraint_barrier(hands,foot,a.foot_orientation_weight) if a.pose_tolerance_barrier else []
+            balance_barrier=[] if not a.balance_envelope_barrier else [10000.*max(0.,np.linalg.norm(x[:3])-.029),10000.*max(0.,np.linalg.norm(d.subtree_com[robot_body,:2]-com[:2])-.014)]
             if a.right_hand_relaxed_orientation:
                 if a.pose_tolerance_barrier:pose_barrier[3]=0.
                 pose_barrier=np.r_[pose_barrier,1000.*max(0.,np.linalg.norm(hands[9:12])/.1-.30)]
-            return np.r_[hands,foot,pose_barrier,upright,elbow_barrier,yaw_tilt_barrier,pivot,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6],0. if a.root_rotation_norm_rad is None else 1000.*max(0.,np.linalg.norm(x[3:6])-(a.root_rotation_norm_rad-.0001))]
+            return np.r_[hands,foot,pose_barrier,balance_barrier,upright,elbow_barrier,yaw_tilt_barrier,pivot,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6],0. if a.root_rotation_norm_rad is None else 1000.*max(0.,np.linalg.norm(x[3:6])-(a.root_rotation_norm_rad-.0001))]
         fit=least_squares(evaluate,np.clip(previous if warm is None else warm[len(rows)],low,high),bounds=(low,high),max_nfev=800,ftol=1e-11,xtol=1e-11,gtol=1e-11)
         previous=fit.x.copy();res=evaluate(previous);mujoco.mj_collision(m,d)
         collisions=[]
