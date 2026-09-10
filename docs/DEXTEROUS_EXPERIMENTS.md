@@ -275,3 +275,8 @@ Fixed an inspected force-input mismatch: standalone operation omitted tangential
 ### September10: queued live friction-accounting check
 
 The previously owned replacement could notresume because its host has no free GPU; its workspace was preserved. Allocated a separate L40S with a two-hour deadline and queued source-verified preparation, native prerequisite and standalone Isaac test under priorhub021 parameters. The test requires fresh local/remote guards and preserves failure evidence through an independent collector. No test result yet. [Allocation evidence](evidence/isaac-friction037-allocation.json).
+
+
+### September10: prevent duplicate evidence downloads
+
+The preparation collector covered the entire source output directory, while a second collector covered the nested experiment. This could download the same recordings twice. The current readiness collector was replaced with one scoped to `out/isaac-ready`; the dedicated experiment collector remains active. Future one-click operation outputs now use a sibling experiments directory. Six launcher/pipeline tests pass, including disjoint collector paths. Existing partial evidence was retained. This explains a possible duplication mechanism, not all historical disk use. [Evidence](evidence/isaac-collector-overlap-fix.json).

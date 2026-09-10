@@ -172,14 +172,20 @@ def dispatch_standing_operation(receipt,session,registry,session_name,work,deadl
     """Attach one bounded physical test to this exact frozen preparation."""
     if receipt['mechanics_profile']!='shadow-loopback-v2':raise ValueError('Corrected hand mechanics required')
     if deadline-time.time()<2400:raise ValueError('At least 40 minutes required for the standing operation pipeline')
-    remote=receipt['remote'];output=remote+'/out/standing-operation'
+    remote=receipt['remote']
+    if not session_name or Path(session_name).name!=session_name or session_name in ('.','..'):
+        raise ValueError('Experiment session must be one directory name')
+    # Preparation collects remote/out. Keep experiment recordings outside that
+    # subtree so its independent collector cannot download the same bytes twice.
+    output=remote+'-experiments/'+session_name+'/standing-operation'
     ssh=ssh_args(receipt['host'],receipt['port'],receipt['key'])
     argv=['python3',remote+'/scripts/isaac/run_standing_operation.py','--source',remote,
         '--ready',receipt['ready_receipt'],'--reference',remote+'/configs/dexterous/door55-standing-acquisition-v1.json',
         '--output',output,'--work',work,'--deadline-unix',str(deadline-60)]
     # A complete/failed/in-progress output is retained, never silently replaced.
     # Background within a script so SSH closes without retaining its stdout pipe.
-    script=f'''if test ! -e {shlex.quote(output)}; then
+    script=f'''mkdir -p {shlex.quote(str(Path(output).parent))}
+if test ! -e {shlex.quote(output)}; then
 nohup {shlex.join(argv)} > {shlex.quote(remote+'/out/standing-operation-coordinator.log')} 2>&1 < /dev/null &
 fi
 '''

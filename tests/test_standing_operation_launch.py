@@ -23,6 +23,9 @@ def test_dispatch_is_bounded_detached_and_collects_task_evidence(tmp_path,monkey
     collector=calls[1][0]
     assert 'coordinator-result.json' in collector and '--detach' in collector
     assert r['deadline_unix']==3940. and r['evidence_collector']=={'pid':123}
+    assert not Path(r['remote']).is_relative_to(Path(receipt['remote'])/'out')
+    assert collector[collector.index('--remote')+1]==r['remote']
+    assert 'mkdir -p ' in script
 
 
 def test_insufficient_budget_does_not_dispatch(tmp_path,monkeypatch):
