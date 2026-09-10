@@ -196,3 +196,9 @@ Sixteen focused recorder, coordinate-mapping and pipeline tests pass. This is
 prospective instrumentation: frozen041 does not contain these measurements. A
 new qualified physical recording is required before full-body planner admission.
 No controller, motor limit, physics timestep or acceptance threshold changed.
+
+The attained-state extraction CLI now includes `measured_bodies` when the archive
+declares the new ordered body recording. It requires the exact bound state epoch,
+complete array shape and valid measured quaternions. Legacy041 remains extractable
+without fabricated body evidence. Sixteen recorder/extraction tests pass; this
+still does not establish full-body kinematic admission on a live run.

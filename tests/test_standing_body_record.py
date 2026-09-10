@@ -21,3 +21,23 @@ def test_rejects_missing_or_invalid_measurements(fault):
     if fault=='nan':poses[0,0]=float('nan')
     if fault=='quaternion':handle[3]=.5
     with pytest.raises(ValueError):pack_standing_body_poses(poses,handle)
+
+
+def test_exact_epoch_extraction_and_rejection():
+    from doorbench.dexterous.standing_body_record import extract_standing_body_poses, POSE_CONVENTION
+    config=dict(standing_planner_body_names=list(PLANNER_BODIES),
+                standing_planner_body_pose_convention=POSE_CONVENTION)
+    poses=np.zeros((2,6,7));poses[:,:,3]=1;poses[1,:,0]=5
+    physics=dict(time_s=np.array([.002,.004]),standing_body_poses=poses)
+    result=extract_standing_body_poses(config,physics,time_s=.004)
+    assert result['geometry_time_s']==.004
+    assert np.asarray(result['body_poses_xyz_wxyz'])[0,0]==5
+    with pytest.raises(ValueError,match='interpolation'):
+        extract_standing_body_poses(config,physics,time_s=.003)
+    with pytest.raises(ValueError,match='inventory'):
+        extract_standing_body_poses({},physics,time_s=.004)
+    with pytest.raises(ValueError,match='Complete'):
+        extract_standing_body_poses(config,dict(physics,standing_body_poses=poses[:1]),time_s=.004)
+    poses[1,0,3]=0
+    with pytest.raises(ValueError,match='quaternions'):
+        extract_standing_body_poses(config,physics,time_s=.004)

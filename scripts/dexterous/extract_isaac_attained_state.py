@@ -10,6 +10,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from doorbench.dexterous.isaac_attained_state import extract_attained_state
+from doorbench.dexterous.standing_body_record import extract_standing_body_poses
 
 
 def main():
@@ -26,16 +27,22 @@ def main():
         with path.open('rb') as stream:
             return hashlib.file_digest(stream, 'sha256').hexdigest()
     hashes = {name: digest(path) for name, path in files.items()}
+    configuration = json.loads(files['configuration.json'].read_text())
+    measured_bodies = None
     with np.load(files['acquisition-physics.npz'], allow_pickle=False) as physics:
         binding = extract_attained_state(
-            configuration=json.loads(files['configuration.json'].read_text()),
+            configuration=configuration,
             motor_contract=json.loads(files['motor-contract.json'].read_text()),
             provenance=json.loads(files['provenance.json'].read_text()),
             physics=physics, time_s=args.time_s)
+        if configuration.get('standing_planner_body_names') is not None:
+            measured_bodies = extract_standing_body_poses(configuration, physics, time_s=binding['time_s'])
     if hashes != {name: digest(path) for name, path in files.items()}:
         raise ValueError('Archive changed during extraction; wait for verified collection')
     result = dict(binding=binding, input_sha256=hashes,
                   scope='Recorded state identity only; no contact, geometry or task qualification')
+    if measured_bodies is not None:
+        result['measured_bodies'] = measured_bodies
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open('x') as stream:
         json.dump(result, stream, indent=2, allow_nan=False)
