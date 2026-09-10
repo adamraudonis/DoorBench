@@ -55,3 +55,23 @@ def test_route_and_compensation_velocities_use_separate_clocks():
         if step>=5:expected[0]+=.05
         np.testing.assert_allclose([c.target_velocity[n] for n in ARM_NAMES],expected,atol=1e-11)
         previous=c.correction.copy()
+
+
+def test_failed_warm_fit_retries_nominal_without_relaxing_limits(monkeypatch):
+    import doorbench.dexterous.handle_relative_arm as module
+    from types import SimpleNamespace
+    original=module.least_squares;calls=[]
+    def first_fit_stalls(fun,x0,**kwargs):
+        calls.append(np.array(x0))
+        if len(calls)==1:
+            # A bounded but inaccurate stationary result must not be accepted.
+            return SimpleNamespace(x=kwargs['bounds'][1].copy(),success=True,nfev=1,message='stalled test fit')
+        return original(fun,x0,**kwargs)
+    monkeypatch.setattr(module,'least_squares',first_fit_stalls)
+    m,joints,root,handle=fixture();c=HandleRelativeArmTarget(m,list(ARM_NAMES),root,joints,handle)
+    target,info=c.target(0,root,joints,handle,joints)
+    assert len(calls)==2 and info['solve']['starts']==2
+    assert target==joints
+    assert info['solve']['position_error_m']<=.0005
+    assert info['solve']['rotation_error_rad']<=.005
+    assert info['correction_limit_rad']==.08

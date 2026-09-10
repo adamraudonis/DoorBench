@@ -68,12 +68,19 @@ class HandleRelativeArmTarget:
                 self.d.qpos[self.armqa]=x;mujoco.mj_kinematics(self.m,self.d)
                 error=(Rotation.from_matrix(self.d.site_xmat[self.site].reshape(3,3))*Rotation.from_matrix(orientation).inv()).as_rotvec()
                 return np.r_[100*(self.d.site_xpos[self.site]-position),10*error,.001*(x-base)]
-            fit=least_squares(residual,np.clip(base+self.goal,lower,upper),bounds=(lower,upper),max_nfev=60,ftol=1e-8,xtol=1e-8,gtol=1e-7)
-            error=residual(fit.x)
-            if not fit.success or np.linalg.norm(error[:3])/100>.0005 or np.linalg.norm(error[3:6])/10>.005:
-                raise ValueError(f'Handle-relative arm target is outside bounded reachability: {fit.message}; position={np.linalg.norm(error[:3])/100:.6g}m rotation={np.linalg.norm(error[3:6])/10:.6g}rad')
+            # A warm start can settle against a wrist stop even when another
+            # arm configuration meets the same pose and joint constraints.
+            # Retry once from the nominal route, never relax acceptance.
+            attempts=0;total_evaluations=0
+            for seed in (base+self.goal,base):
+                attempts+=1
+                fit=least_squares(residual,np.clip(seed,lower,upper),bounds=(lower,upper),max_nfev=60,ftol=1e-8,xtol=1e-8,gtol=1e-7)
+                total_evaluations+=fit.nfev;error=residual(fit.x)
+                if fit.success and np.linalg.norm(error[:3])/100<=.0005 and np.linalg.norm(error[3:6])/10<=.005:break
+            else:
+                raise ValueError(f'Relative arm target is outside bounded reachability after {attempts} starts: {fit.message}; position={np.linalg.norm(error[:3])/100:.6g}m rotation={np.linalg.norm(error[3:6])/10:.6g}rad')
             self.goal=fit.x-base;self.last_solve=t
-            self.solve_info=dict(position_error_m=float(np.linalg.norm(error[:3])/100),rotation_error_rad=float(np.linalg.norm(error[3:6])/10),evaluations=fit.nfev)
+            self.solve_info=dict(position_error_m=float(np.linalg.norm(error[:3])/100),rotation_error_rad=float(np.linalg.norm(error[3:6])/10),evaluations=total_evaluations,starts=attempts)
         # Differentiate the 10 ms route and 2 ms correction on their own
         # clocks. Differentiating their sum treats a route step as a 2 ms
         # change whenever compensation changed in the intervening substeps.

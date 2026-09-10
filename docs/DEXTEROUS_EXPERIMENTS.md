@@ -298,3 +298,6 @@ Separate-clock transfer003 completed its failed report and both independent audi
 ### Panel-relative transfer candidate
 
 An opt-in panel-relative palm target follows leaf swing but does not chase returning lever rotation. It uses the same bounded IK, motor path and separately differentiated target components as transfer003. Five recorded transfer001 poses need at most.0407rad correction; late hand overlap reaches5.2mm, so these are not qualified recovery targets. Test prospectively from the attained grasp under unchanged physical gates.23 focused tests pass. [Screen](evidence/native-leaf-relative-transfer-screen.json).
+
+
+Panel-relative transfer004 stops at37.26s on orientation reachability, with physical joint/motor checks passing. Its terminal state admits a cold nominal solve under the same bounds (.115mm position, .00135rad orientation error, .0627rad correction); this approximate replay suggests a warm-start local solution, not proof of global infeasibility. Added one deterministic nominal retry, retaining bounds and acceptance. [Evidence](evidence/native-index-transfer004-failure.json).
