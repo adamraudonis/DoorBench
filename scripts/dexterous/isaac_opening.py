@@ -652,9 +652,15 @@ def main():
             sensor_actor=SensorBalanceRuntime(a.sensor_balance_robot,motors,sensor_recorder.layout,
                 a.sensor_balance_calibration)
         sensor_actor.reset_episode()
+    record_standing_body_poses=bool(a.acquisition and a.acquisition_stance_profile and not continuous)
+    if record_standing_body_poses:
+        from doorbench.dexterous.standing_body_record import ROBOT_BODIES, PLANNER_BODIES, pack_standing_body_poses
+        standing_body_indices=[robot.body_names.index(name) for name in ROBOT_BODIES]
     release_time=None
     ankle_motors=[i for i,motor in enumerate(motors['actuators']) if any(n in motor['terms'] for n in ('left_ankle','right_ankle'))]
     (out/'configuration.json').write_text(json.dumps(dict(args=vars(a),robot_joint_names=rnames,door_joint_names=dnames,
+        standing_planner_body_names=list(PLANNER_BODIES) if record_standing_body_poses else None,
+        standing_planner_body_pose_convention='World body-origin XYZ/WXYZ at acquisition-physics time_s' if record_standing_body_poses else None,
         dt=dt,robot_mass_kg=float(robot.root_physx_view.get_masses().sum()),latch_scale=scale,
         root_state_convention='actor-origin pose and world actor-origin linear/angular velocity' if (continuous or a.sensor_locomotion_calibration or a.acquisition_stance_profile) else 'legacy IsaacLab actor pose plus world COM linear/angular velocity',
         balance_root_state_convention='balance-steps uses root_link_state_w: actor-origin pose and world actor-origin linear/angular velocity; evaluator only' if a.sensor_balance_calibration else None,
@@ -662,6 +668,7 @@ def main():
         runtime_pose_writes=0,direct_door_commands=bool(a.mechanism_test),contact_material_audit=contact_material_audit,
         scope='Uninterrupted approach, opening, release and traversal; privileged live PhysX development' if continuous else 'Continuous approach through bimanual loaded aperture; privileged live PhysX; no traversal' if full_opening and sequence else 'Contact-free acquisition through bimanual loaded aperture; privileged live PhysX; no approach/traversal' if full_opening else balance_scope if a.sensor_balance_calibration else 'Sensor-only recurrent force actor; declared curriculum objective; no teacher or traversal claim' if sensor_actor else 'Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
     sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py','isaac_joint_passive.py')]
+    if record_standing_body_poses:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/standing_body_record.py')
     if a.panel_push:sources.append(Path(__file__).with_name('panel_push_teacher.py'))
     if a.acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('acquisition_teacher.py','isaac_tendons.py','grasp_verification.py','isaac_pad_audit.py')]
     if a.operation_hub_geometry:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/handle_hub_avoidance.py')
@@ -768,6 +775,7 @@ def main():
     # standalone acquisition. Later source-state planning must not assume rest
     # or finite-difference positions to invent an unrecorded initial velocity.
     acquisition_states={k:[] for k in ('time_s','root','joints','joint_velocity','motor_forces','door','door_velocity','torso_tilt_deg')}
+    if record_standing_body_poses:acquisition_states['standing_body_poses']=[]
     if continuous:
         acquisition_states.update({k:[] for k in ('actual_motor_forces','actual_joint_effort',
             'continuation_body_poses','actual_foot_loads','legacy_root_state_w')})
@@ -1264,6 +1272,9 @@ def main():
                     acquisition_states['actual_motor_forces'].append(last_actual_motor_forces.copy())
                     acquisition_states['actual_joint_effort'].append(delivered.copy())
                 pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
+                if record_standing_body_poses:
+                    acquisition_states['standing_body_poses'].append(pack_standing_body_poses(
+                        robot.data.body_state_w[0,standing_body_indices,:7].cpu().numpy(),pose))
                 rotation=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
                 actual_pad=pad_evaluator.read(physics_dt=dt,time_s=(step+1)*dt,center=pose[:3]+rotation@grip_center,axis=rotation@grip_axis,
                     half_length=grip_half,radius=grip_radius,include_evidence=bool(a.sensor_acquisition_protocol or a.acquisition))

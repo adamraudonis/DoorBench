@@ -182,3 +182,17 @@ need same-epoch feet, torso, both palms and handle poses before that admission c
 be demonstrated. Do not substitute reconstructed values for original measured
 poses. The native transfer rebase CLI also expects native manifest/trajectory
 inputs; a separate bound Isaac input path is still required.
+
+## Same-epoch standing body recording
+
+Standalone standing acquisition now records both ankle bodies, torso, both palms
+and the handle after each physics step, alongside the existing joint/root state.
+The configuration declares their exact order and world body-origin XYZ/WXYZ
+convention; provenance includes the recorder source. Six float32 poses add about
+3 MB uncompressed for a 36-second run. Shape, finite-value and quaternion checks
+reject invalid records without silently normalizing measurements.
+
+Sixteen focused recorder, coordinate-mapping and pipeline tests pass. This is
+prospective instrumentation: frozen041 does not contain these measurements. A
+new qualified physical recording is required before full-body planner admission.
+No controller, motor limit, physics timestep or acceptance threshold changed.
