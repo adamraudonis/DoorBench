@@ -9,6 +9,11 @@ import gzip
 import hashlib
 import json
 from pathlib import Path
+import sys
+
+# A shared virtualenv may be editable-installed against another worktree.
+# Bind the diagnostic to the source beside this script, not that installation.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import mujoco
 import numpy as np
