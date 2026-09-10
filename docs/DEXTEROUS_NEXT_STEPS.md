@@ -859,3 +859,12 @@ Verified archival now admits the160-second native comparison without changing th
 Historical archival batches finished, including13 failed runs, the4 failed bundles,14 other obsolete development bundles,5 pre-hub standing episodes and7 smaller failures. The complete legacy v1 folder and interrupted005 recording were also independently archived; absence of a task result remains absence of qualification. Current hub002/transfer003/return001/release016 dependencies remain local. Additional receipt-based offloading removed obsolete sensor/trace duplicates. Restores remain available under `DoorBench-runs/remote-archives`. The030 final failed Isaac archive is verified too; local numeric records were offloaded, reports/preview frames retained.
 
 A new native process RSS sample is about2.1GiB on this16GiB host; swap use is about0.74GiB with ample disk headroom. This differs from the earlier restart snapshot and is not proof of a leak or its absence. Bounded RSS/free-space sampling for006 is saved in `out/native-standing-hub-panel-006-resource-monitor.json`. No GPU has been resumed or newly allocated.
+
+
+### Native panel006 qualified; wider opening next
+
+The160-second closed-reset episode completed34/34 runtime checks and passed independent pad, whole-handle and panel-support audits. It reaches0.7954054rad (45.57 degrees), with no invalid loaded finger patches or extra handle-assembly patches. The2.4N terminal support floor preserves the original6N cap. Recorded body and left-hand closeups were personally inspected: upright torso and panel support at the endpoint. This is a privileged MuJoCo partial opening, not traversal or an Isaac/sensor-policy result. Machine-readable evidence is in [native-standing-hub-panel-006](evidence/native-standing-hub-panel-006.json).
+
+A candidate continuation source is the actual156.722s state (leaf0.7954060rad, positive velocity2.0628e-8rad/s), raw chunk313. The final state had negative velocity and was not substituted into the nonnegative-velocity admission. Screen toward1.2rad with the existing upright/contact/derivative tolerances before full physical replay.
+
+Replacement pod innosemzr7vkef is preparing Isaac Sim5.1.0 with a separate journal; installer and remote teardown guard were confirmed live at05:10UTC September10. Deadline07:58:08UTC remains enforced. No experiment has been dispatched there yet. The old stopped pod is preserved for its unrecovered031 evidence.
