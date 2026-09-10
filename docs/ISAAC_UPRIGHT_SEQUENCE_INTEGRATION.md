@@ -257,3 +257,14 @@ The file-based admission command is also tested end to end on a generated
 then a1mm measured ankle displacement produces exit1 and a retained failure
 receipt. Seven CLI/combined-admission tests pass. This synthetic boundary test
 does not replace the pending measured042 audit.
+
+042 readiness passed and coordinator124362 launched the native prerequisite;
+collector14641 is attached to its experiment directory. The coordinator log was
+moved into that directory on its existing open inode, outside the immutable
+preparation output. The imported974 collider body/name/type identities match
+the explicit prepared `h1-import.xml` with no missing or unexpected colliders.
+The initial audit attempt correctly rejected the non-expanded native XML; no
+passing result was produced from that input.
+[Dispatch](evidence/isaac-body-poses042-dispatch.json),
+[collider inventory](evidence/isaac042-collider-inventory.json).
+This is readiness and inventory evidence, not a042 opening result.
