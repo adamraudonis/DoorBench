@@ -6,6 +6,6 @@ class ThumbWithdrawalFeedback(FingerWithdrawalFeedback):
     def __init__(self,teacher,local_point):
         super().__init__(teacher,local_point,digit='th')
 
-    def force(self,forces,t,goal,elapsed):
-        result,info=super().force(forces,t,goal,elapsed)
+    def force(self,forces,t,goal,elapsed,*,start_handoff=False):
+        result,info=super().force(forces,t,goal,elapsed,start_handoff=start_handoff)
         return result,{'thumb_'+name:value for name,value in info.items()}

@@ -188,6 +188,8 @@ class StandingWithdrawalTeacher:
                 candidate=StandingPanelReference(scene,entry['path'],self.left)
                 candidate.preserve_stance_reference=entry.get('preserve_stance_reference',False)
                 if type(candidate.preserve_stance_reference) is not bool:raise ValueError('Explicit boolean stance reference continuity required')
+                candidate.material_reference_handoff=entry.get('material_reference_handoff',False)
+                if type(candidate.material_reference_handoff) is not bool:raise ValueError('Explicit boolean material reference handoff required')
                 if candidate.plan['robot_xml_sha256']!=motors['source_xml_sha256']:raise ValueError('Continuation uses another robot contract')
                 assist=entry.get('stiction_assist',False)
                 if type(assist) is not bool or (assist and profile!='bounded-pi-stop-v2'):raise ValueError('Explicit stiction assistance requires terminal support profile v2')
@@ -241,8 +243,10 @@ class StandingWithdrawalTeacher:
         teacher.stance.target_root[:]=(1-f)*self.roots[i,:3]+f*self.roots[i+1,:3]+self.stance_root_bias
         teacher.stance.target_rotation=self.stance_rotation_bias@self.root_rotations(clock).as_matrix()
         teacher.stance.joint_target[:]=np.array([targets[n] for n in self.stance_names])+self.stance_joint_bias
+        material_handoff=False
         if self.panel_schedule is not None and self.panel_schedule.advance(t,angles['leaf'],left_panel_load):
             self.panel=self.panel_schedule.active;self.panel_handoff=None
+            material_handoff=getattr(self.panel,'material_reference_handoff',False)
             if preceding_stance is not None:
                 for name,value in preceding_stance.items():getattr(teacher.stance,name)[:]=value
             if self.panel_force is not None:
@@ -310,7 +314,7 @@ class StandingWithdrawalTeacher:
             if panel_goal is not None:
                 body=self.panel.m.body('robot/rh_thdistal').id
                 goal=self.panel.d.xpos[body]+self.panel.d.xmat[body].reshape(3,3)@self.thumb_local
-            force,thumb_info=self.thumb_feedback.force(force,t,goal,t-self.release_started)
+            force,thumb_info=self.thumb_feedback.force(force,t,goal,t-self.release_started,start_handoff=material_handoff)
             hand_info={**hand_info,**thumb_info}
         if self.finger_pad_feedback and self.release_started is not None:
             digit_info={}
@@ -319,7 +323,7 @@ class StandingWithdrawalTeacher:
                 if panel_goal is not None:
                     body=self.panel.m.body('robot/rh_'+digit+'distal').id
                     goal=self.panel.d.xpos[body]+self.panel.d.xmat[body].reshape(3,3)@local
-                force,digit_info[digit]=feedback.force(force,t,goal,t-self.release_started)
+                force,digit_info[digit]=feedback.force(force,t,goal,t-self.release_started,start_handoff=material_handoff)
             hand_info={**hand_info,'finger_material_feedback':digit_info}
         if self.middle_feedback_enabled and self.release_started is not None:
             middle_info={}
@@ -328,7 +332,7 @@ class StandingWithdrawalTeacher:
                 if panel_goal is not None:
                     body=self.panel.m.body('robot/rh_'+digit+'middle').id
                     goal=self.panel.d.xpos[body]+self.panel.d.xmat[body].reshape(3,3)@local
-                force,middle_info[digit]=feedback.force(force,t,goal,t-self.release_started)
+                force,middle_info[digit]=feedback.force(force,t,goal,t-self.release_started,start_handoff=material_handoff)
             hand_info={**hand_info,'middle_segment_tracking':middle_info}
         if self.release_segment_avoidance is not None and self.release_started is not None:
             force,segment_info=self.release_segment_avoidance.force(force,float(smooth_phase(t-self.release_started)))
