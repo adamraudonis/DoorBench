@@ -251,3 +251,9 @@ PYTHONPATH=. python scripts/dexterous/audit_destination_planner.py \
 A pose mismatch produces a failed evidence receipt; missing or changed input
 identities fail without a passing receipt. This source is newer than frozen042
 and will be used as a separately identified read-only audit after collection.
+
+The file-based admission command is also tested end to end on a generated
+69-joint scene: original model/motor/state files produce a passing receipt,
+then a1mm measured ankle displacement produces exit1 and a retained failure
+receipt. Seven CLI/combined-admission tests pass. This synthetic boundary test
+does not replace the pending measured042 audit.
