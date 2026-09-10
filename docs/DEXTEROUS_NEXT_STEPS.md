@@ -56,6 +56,22 @@ collector receipt before starting another GPU trial. Do not raise the storage
 budget to bypass this failure. The owned-pod guard remains00:15:47UTC; a fresh
 full trial needs a verified extension, storage admission and immutable source.
 
+Run045 final-half-second analysis found28/251 invalid pad samples, from49.520
+to49.964s: principally ring-finger unloading (minimum0N), with little-finger
+minimum0.165N. No invalid loaded contact patches were recorded. See
+[final grasp diagnosis](evidence/isaac045-final-grasp-diagnosis.json). The final
+sample alone was valid and therefore cannot represent sustained success. The
+corrected route substantially improves geometric working-hand preservation;
+keep the existing preload first to measure that correction's physical effect.
+Do not lower the sustained-grasp acceptance requirement.
+
+Passage003 archive download is verified and801 raw files were evicted; the045
+collector resumed. To reserve both next-run evidence and its atomic copy, an
+older completed native wide-opening result is also being archived (local
+PID42832, `out/archive-leverage001-launch.json`). This preserves original bytes
+remotely and keeps compact trajectories/reports local. Check the live process
+and verified receipt before treating that space as available.
+
 ## Next sensor recording requirements
 
 The next fresh Isaac run should capture the new same-run initial sensor packet
