@@ -5,7 +5,10 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 ## Restart checkpoint
 
 Isaac046 is dispatched on the owned A40: coordinator244861, collector45635,
-remote `/workspace/doorbench-standing-transfer046`. It uses the corrected
+remote `/workspace/doorbench-standing-transfer046`. Native runtime and both
+independent contact audits pass. Actual Isaac PID250243 is live during scene
+setup; no actual physics sample or initial sensor packet was observed yet.
+It uses the corrected
 plan004 route (1001 geometric samples passed), same physical limits/preloads,
 new same-run time-zero sensor packet and explicit manipulation camera profile.
 The immutable source is40488922e06626fe;24 focused tests pass. Both guards were
