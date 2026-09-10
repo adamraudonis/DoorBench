@@ -277,3 +277,28 @@ def test_prospective_lower_opening_trigger_still_requires_bolt_clearance():
     assert wrappers[0].open_started is None
     assert wrappers[1].open_started==pytest.approx(1.52)
     assert wrappers[1].info['goal_leaf_rad']==0.
+
+
+def test_attained_hold_cannot_overwrite_live_hub_clearance_force():
+    wrapper = DoorOperationTeacher(Acquisition(), GEOMETRY)
+    for t in np.arange(0., .51, .01):
+        tick(wrapper, t)
+
+    class CapturedHold:
+        def force(self, t, forces, joints, velocities, *, eligible):
+            result = forces.copy()
+            result[0] = 2.0  # Captured posture replaces this finger command.
+            return result, {'attained_hold_started_s': .5}
+
+    class HubFeedback:
+        def force(self, forces, blend):
+            result = forces.copy()
+            result[0] -= .3
+            return result, {'hub_avoidance_force_N': .3}
+
+    wrapper.attained_hold = CapturedHold()
+    wrapper.hub_avoidance = HubFeedback()
+    forces, info = tick(wrapper, 1.6, operator=.8, latch=.012)
+    assert forces[0] == pytest.approx(1.7)
+    np.testing.assert_array_equal(forces[1:], np.arange(6.)[1:])
+    assert info['hub_avoidance_force_N'] == .3

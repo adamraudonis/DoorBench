@@ -189,9 +189,6 @@ class DoorOperationTeacher:
             force,pad_info=self.pad_control.force(force,t-self.started,handle_pose,leaf_pose,angles,
                 dict(operator=reference_h,leaf=goal_l),self.geometry,hand_loads=hand_loads)
             info={**info,**pad_info}
-        if self.hub_avoidance is not None:
-            force,hub_info=self.hub_avoidance.force(force,float(smooth_phase(t-self.started)))
-            info={**info,**hub_info}
         if self.attained_hold is not None:
             eligible=bool(grasp_qualified and (self.attained_hold_stage=='acquisition' or
                 (self.attained_hold_stage=='operator' and self.open_started is not None
@@ -201,6 +198,11 @@ class DoorOperationTeacher:
                  (angles['operator']>=.75 and angles['latch']>=.0105)))))
             force,hold_info=self.attained_hold.force(t,force,joints,velocities,eligible=eligible)
             info={**info,**hold_info}
+        # Attained posture tracking replaces finger efforts. Apply clearance
+        # feedback last so a captured hold cannot cancel live hub protection.
+        if self.hub_avoidance is not None:
+            force,hub_info=self.hub_avoidance.force(force,float(smooth_phase(t-self.started)))
+            info={**info,**hub_info}
         self.info = dict(phase='lever_operation' if self.open_started is None else 'partial_opening',
                          operation_start_s=self.started,opening_start_s=self.open_started,
                          goal_handle_rad=float(goal_h),goal_leaf_rad=float(goal_l),
