@@ -868,3 +868,10 @@ The160-second closed-reset episode completed34/34 runtime checks and passed inde
 A candidate continuation source is the actual156.722s state (leaf0.7954060rad, positive velocity2.0628e-8rad/s), raw chunk313. The final state had negative velocity and was not substituted into the nonnegative-velocity admission. Screen toward1.2rad with the existing upright/contact/derivative tolerances before full physical replay.
 
 Replacement pod innosemzr7vkef is preparing Isaac Sim5.1.0 with a separate journal; installer and remote teardown guard were confirmed live at05:10UTC September10. Deadline07:58:08UTC remains enforced. No experiment has been dispatched there yet. The old stopped pod is preserved for its unrecovered031 evidence.
+
+
+### Wider-panel planning diagnostics
+
+Screen wide001, from the qualified006 state at156.722s toward1.2rad, was stopped after repeated pose failures. At1.02805rad it missed both palm orientation (0.01046rad) and foot orientation (0.00253rad); unchanged dense limits are0.001rad. This is a failed numerical path, not proof that the task is infeasible. No physical rollout used it.
+
+Wide002 tests a4cm inward and8cm downward palm route but its optional pose-interior penalty stalled the first samples at800 solver evaluations and missed the same tolerances. It was stopped as incomplete. Wide003 tests the identical geometry without that optional optimizer penalty, retaining the4-degree torso bound, original feet/hand tolerances, original joint ranges and elbow collision constraint. Its launch receipt/log are `out/standing-panel-wide-003-launch.json` and `.log`; inspect the actual PID before restarting. These small geometric screens produce no physics-step archives. If fixed-foot reach remains insufficient, a supported step/reposition is needed rather than relaxing geometric validity.
