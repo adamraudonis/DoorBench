@@ -6,6 +6,16 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 
 Isaac042 passes its 36-second privileged standing grasp, handle operation and held partial opening, with 19/19 runtime checks and independent raw-contact audits. This is not full opening/traversal or a sensor-only policy. Isaac043 passed its native grasp prerequisite but failed during Isaac setup before physics: the transfer route was appended to the provenance input list before initialization. Its run, endpoint rejection and review evidence are verified off-pod. The initialization-order fix passes four targeted tests, including execution of the actual provenance setup block. Run044 passed all native prerequisites and reached0.002s in Isaac, then failed on step2: the new contact recorder overwrote joint-friction coefficients with a contact-friction array. The local fix uses a distinct name, and an execution regression covers recording followed by the actual next torque expression. Five targeted tests pass. No transfer success is established. Run044 evidence is verified off-pod and bulk native diagnostics are archived with verified hashes. Fresh045 is dispatched from e853509fb with24 focused tests passing, storage admission, collection and both guards verified. Run045 native runtime and both independent contact audits pass. Actual Isaac process188579 has reached0.502s, confirming both early integration fixes; no grasp/transfer result yet. Inspect this process and coordinator183731 before taking action. Do not restart044. Run045 includes the updated endpoint loader binding independent transfer evidence. See [045 dispatch](evidence/isaac045-transfer-dispatch.json). See [042 evidence](evidence/isaac042-qualified-partial-opening.json) and [043 startup failure](evidence/isaac043-startup-failure.json). Owned-pod teardown deadline: 2026-09-11T00:15:47.617140+00:00. See [044 dispatch](evidence/isaac044-transfer-dispatch.json); inspect live handles before continuing.
 
+## Next sensor recording requirements
+
+The next fresh Isaac run should capture the new same-run initial sensor packet
+and explicitly pass `--camera-profile` with the existing fixed manipulation-eye
+profile.042 passes numeric sensor admission but lacks a time-zero packet and its
+actual eye images exclude the hand/handle.045 is immutable and predates these
+changes. Validate actual camera images, initial-label binding and unchanged
+physical gates before actor-history training. Endpoint projection evidence is
+[here](evidence/isaac042-camera-framing.json); it does not prove occlusion-free views.
+
 ## Starting point
 
 September 9, 2026 correction: the upright42.5° native episode passed its

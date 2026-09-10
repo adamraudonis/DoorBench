@@ -82,3 +82,27 @@ def test_same_run_teacher_initial_packet_is_bound_to_first_applied_action(tmp_pa
     else:
         result,receipt=recorded_teacher_start(*args)
         assert receipt['first_applied_action_matches'] and 'motor_forces' not in result
+
+
+def test_same_run_initial_capture_flows_through_training_reader(tmp_path):
+    import hashlib
+    from types import SimpleNamespace
+    from doorbench.dexterous.isaac_sensor_recording import IsaacSensorRecorder
+    from doorbench.dexterous.sensor_demonstrations import SensorDemonstration
+    teacher,_,dims,packet=reset_pair(tmp_path)
+    path=teacher/'motor-contract.json';motors=json.loads(path.read_text())
+    for motor in motors['actuators']:motor['force_range']=[-2.,2.]
+    path.write_text(json.dumps(motors))
+    recorder=SimpleNamespace(control_source='privileged_teacher',times=[],output=teacher/'sensors',
+        layout={'action_order':['x','y','z','w']},builder=SimpleNamespace(observe=lambda **kwargs:packet))
+    IsaacSensorRecorder.record_teacher_initial_decision(recorder,np.zeros(4))
+    path=teacher/'sensors/report.json';report=json.loads(path.read_text())
+    report['teacher_initial_decision_sha256']=hashlib.sha256((teacher/'sensors/teacher-initial-decision.npz').read_bytes()).hexdigest()
+    path.write_text(json.dumps(report))
+    data=SensorDemonstration(teacher)
+    assert data.times.tolist()==[0.,.002,.004,.006,.008]
+    inputs,labels=data.sequence(0,4)
+    np.testing.assert_allclose(labels[:,0],[0.,.1,.2,.3])
+    assert not inputs['images'][0].any()
+    assert data.metadata['reset_observation']['same_run_initial_observation']
+    assert 'motor_forces' not in data.packet(0)

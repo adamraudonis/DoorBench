@@ -372,3 +372,8 @@ Native runtime, independent pad and whole-handle audits pass. Actual Isaac proce
 ### September10: restore the actual cold start for sensor training
 
 Isaac042 sensor admission passes17999 causal examples with about580MB peak loader memory. A bounded CPU actor-history fit was rejected before training because042 lacks a recorded time-zero packet. Added future teacher pre-step capture and hash/action-bound same-run reader admission;32 relevant tests pass. No fabricated observation, checkpoint or policy success. Live045 remains unchanged. Evidence: `evidence/isaac042-sensor-data-admission.json`.
+
+
+### September10: actual eye images expose missing manipulation camera profile
+
+Personally inspected actual042 left/right images during operation and left-eye initial/final frames: upper door/frame dominates, with handle/hand outside view. Measured endpoint projections independently confirm both targets outside native stereo view. Existing fixed45degree-down/100degree manipulation profile includes their origins in both frustums; this proves framing only, not occlusion/detail. Wired explicit `--camera-profile` through the standing coordinator exporter and provenance. Three profile tests,16 initial-recording/reader tests and CLI help check pass. Added full recorder-to-demonstration integration test verifying correct first label.045 remains unchanged; next fresh run must inspect actual profile images.

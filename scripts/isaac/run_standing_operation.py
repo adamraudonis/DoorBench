@@ -34,6 +34,7 @@ def main():
     p.add_argument('--material-pad-profile',choices=('actual-material-v1','actual-material-v2','actual-tangent-v1','measured-pressure-v1'),default='actual-material-v1')
     p.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
     p.add_argument('--wait-for-run',type=Path,help='Wait for this earlier coordinator to finish before using the prepared node')
+    p.add_argument('--camera-profile',type=Path,help='Explicit fixed robot stereo calibration; use configs/dexterous/h1-manipulation-cameras.json for near-handle work')
     p.add_argument('--standing-transfer-route',type=Path,help='Opt-in 50-second actual Isaac transfer after the unchanged36-second native grasp prerequisite')
     p.add_argument('--isaac-timeout-seconds',type=float,default=4200.,help='Wall-clock budget including periodic evidence export')
     p.add_argument('--operation-opening-trigger-rad',type=float,default=.80,help='Controller transition only; final operator and latch acceptance thresholds remain unchanged')
@@ -46,6 +47,8 @@ def main():
     p.add_argument('--operation-index-tendon-offset-rad',type=float,default=0.)
     a=p.parse_args()
     if a.standing_transfer_route is not None and not a.standing_transfer_route.is_file():raise ValueError('Existing screened Isaac transfer route required')
+    if a.camera_profile is not None and not a.camera_profile.is_file():raise ValueError('Existing fixed camera profile required')
+    camera_options=[] if a.camera_profile is None else ['--camera-profile',str(a.camera_profile)]
     transfer_options=[] if a.standing_transfer_route is None else ['--standing-transfer-route',str(a.standing_transfer_route)]
     if not math.isfinite(a.operation_hub_clearance_m) or not .004<=a.operation_hub_clearance_m<=.008:raise ValueError('Hub clearance activation must be 4–8 mm')
     if a.operation_hub_clearance_m!=.004 and not a.operation_handle_hub_avoidance:raise ValueError('Explicit hub avoidance required for changed activation')
@@ -193,10 +196,11 @@ def main():
             started=json.loads((native/'trace.json').read_text())[-1]['teacher'].get('attained_hold_started_s')
             result['native_attained_hold_started_s']=started
             if type(started) not in (int,float) or not 0<started<=35.5:raise ValueError('Native attained hold did not activate with a qualified hold window')
-        run([asset,a.source/'scripts/dexterous/export_sensor_layout.py','--robot',robot,'--output',layout],'robot-sensor-layout',120)
+        run([asset,a.source/'scripts/dexterous/export_sensor_layout.py','--robot',robot,'--output',layout,*camera_options],'robot-sensor-layout',120)
         inputs=[a.ready,a.reference,robot,motors,reference,screen/'geometry-audit.json',native/'report.json',layout,Path(ready['robot_usd']),Path(ready['door_usd'])]
         if a.operation_handle_hub_avoidance:inputs.append(native/'hub-geometry.json')
         if a.standing_transfer_route is not None:inputs.append(a.standing_transfer_route)
+        if a.camera_profile is not None:inputs.append(a.camera_profile)
         (a.output/'provenance.json').write_text(json.dumps(dict(source=frozen,coordinator_sha256=sha(__file__),input_sha256={str(path):sha(path) for path in inputs},scope=result['scope']),indent=2))
         trial=a.output/'trial'
         if a.deadline_unix-time.time()<a.isaac_timeout_seconds+300:raise TimeoutError('Insufficient guarded time for Isaac run and evidence export')

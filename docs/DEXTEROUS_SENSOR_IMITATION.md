@@ -42,3 +42,20 @@ no checkpoint was created. Run045 is already immutable and also predates the
 capture change. A future physics run must validate the new capture before any
 actor-history training claim.32 relevant tests pass; these are not a live sensor
 policy result.
+
+
+## Camera usefulness is a separate gate
+
+Personal inspection of actual042 stereo images at approach, operation and final
+hold shows mostly the upper door/frame. Endpoint projection confirms that both
+the handle origin and right palm lie outside the native45-degree eye view.
+Numeric packet qualification alone does not establish usable visual input.
+
+The existing fixed `configs/dexterous/h1-manipulation-cameras.json` profile tilts
+both eyes down45degrees with100degree field of view. Its endpoint projections
+include both targets, but occlusion and pixel detail still need actual rendering.
+Pass this explicitly as `--camera-profile PATH` to `run_standing_operation.py`;
+the exporter and provenance bind the changed calibration. No target tracking or
+scene-state input is added to the actor. Old checkpoints/calibrations remain
+unchanged.045 is already running with native eyes; validate the profile on a
+future run before using its images as visual-training evidence.
