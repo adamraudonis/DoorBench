@@ -6,8 +6,12 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 
 Isaac046 is dispatched on the owned A40: coordinator244861, collector45635,
 remote `/workspace/doorbench-standing-transfer046`. Native runtime and both
-independent contact audits pass. Actual Isaac PID250243 is live during scene
-setup; no actual physics sample or initial sensor packet was observed yet.
+independent contact audits pass. Actual Isaac PID250243 is live and reached2.502s. The sensor stream has1250
+finite samples and63 frames per eye at2.5s. Its actual time-zero packet passes
+the actor input boundary and original motor-cap checks; all sensor validity
+flags are false and previous action is zero. Final first-action/hash binding
+and visual eye-frame review remain pending. See
+[initial packet check](evidence/isaac046-initial-packet-check.json).
 It uses the corrected
 plan004 route (1001 geometric samples passed), same physical limits/preloads,
 new same-run time-zero sensor packet and explicit manipulation camera profile.
