@@ -91,4 +91,25 @@ tangent feedback, motor limits, distal-pad contract and actual release threshold
 This is privileged controller feedback; it is neither a direct door command nor
 a sensor-only policy. Requested and clipped angles are recorded separately.
 Unit tests verify both lead and lag bounds and that an unretracted bolt cannot
-be bypassed. Native physical/audit qualification is pending.
+be bypassed. The0.06rad native candidate stalled; the0.10rad candidate passed
+native runtime and independent contact checks. Isaac040 is testing the latter;
+its native prerequisite also passed. No Isaac result is yet established.
+
+
+## Extracting a measured standalone state
+
+`scripts/dexterous/extract_isaac_attained_state.py --run RUN_DIRECTORY --time-s EXACT_RECORDED_TIME --output NEW_JSON`
+exports the complete measured root13, all69 joint positions and velocities, and
+all declared door coordinates and velocities. It reads the coordinate order and
+explicit root convention from the same run configuration, binds the original
+motor/door identities, and hashes the input files before and after extraction.
+The output contains a `binding` accepted by the destination-state identity API.
+It rejects missing velocities, nonfinite or differently sized arrays, ambiguous
+clocks, interpolation and legacy COM-velocity metadata. It does not reconstruct
+missing values. Extraction is read-only and existing outputs cannot be overwritten.
+
+This adapter does not qualify a failed grasp, prove imported FK equivalence, or
+restore a running simulator. Only use a mechanically qualified attained state
+for continuation planning, followed by the independent geometry and contact
+gates above. Twenty-six focused adapter/binding tests pass; actual040 archive
+extraction remains pending completion and verified collection.
