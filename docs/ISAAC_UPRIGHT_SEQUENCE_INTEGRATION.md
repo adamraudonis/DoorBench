@@ -350,3 +350,23 @@ thumb THJ5 at0.03048rad beyond its limit. These measured correlations suggest
 examining feedback that maintains the grasp through root tracking errors; they
 do not prove that the earlier solver failures caused the slip. Do not widen
 contact classification or joint limits. [Failure evidence](evidence/native-index-transfer001-failure.json).
+
+## Offline compensation comparison
+
+Five recorded transfer001 states were screened with a bounded7-joint arm solve,
+leaving measured root, torso, fingers and door unchanged. Restoring the original
+world-space palm pose is a poor candidate: at38.922s it deepens index-middle
+geometry overlap from0.066mm to1.276mm. No controller implementing that correction
+was launched.
+
+An alternative preserves the palm transform relative to the measured handle,
+anchored to qualified native004's36s grasp. At38.862/38.922s its solve removes
+index-middle geometric contacts with maximum nominal-joint corrections of
+0.042/0.075rad. Other hand contacts still penetrate as much as1.30/1.88mm; these
+are geometry observations, not validated contact forces. Late post-slip states
+are beyond the0.08rad correction bound and remain invalid. This motivates a
+prospective continuous handle-following controller before slip, not an assertion
+that late recovery works. The solve's bounds include the already attained
+nominal wrist pose so introducing a margin cannot force an initial jump farther
+inside the range. Original physical joint limits remain unchanged.
+[Comparison](evidence/native-transfer001-compensation-screen.json).
