@@ -377,3 +377,8 @@ Isaac042 sensor admission passes17999 causal examples with about580MB peak loade
 ### September10: actual eye images expose missing manipulation camera profile
 
 Personally inspected actual042 left/right images during operation and left-eye initial/final frames: upper door/frame dominates, with handle/hand outside view. Measured endpoint projections independently confirm both targets outside native stereo view. Existing fixed45degree-down/100degree manipulation profile includes their origins in both frustums; this proves framing only, not occlusion/detail. Wired explicit `--camera-profile` through the standing coordinator exporter and provenance. Three profile tests,16 initial-recording/reader tests and CLI help check pass. Added full recorder-to-demonstration integration test verifying correct first label.045 remains unchanged; next fresh run must inspect actual profile images.
+
+
+### September10: actual045 acquisition image inspection
+
+Personally inspected actual Isaac hand and wide frame4000 (8s): upright torso, right hand at lever, thumb near-side opposed to four fingers behind the lever. This is visual acquisition evidence only; it cannot establish complete contact/transfer success. Live9.5s diagnostics show all five loaded digits and opposition; independent final audits remain pending. Image hashes recorded in `evidence/isaac045-acquisition-visual-review.json`. No controller or running source changed.
