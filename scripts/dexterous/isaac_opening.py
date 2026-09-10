@@ -147,6 +147,8 @@ p.add_argument('--hold-attained-grasp',action='store_true',help='Capture origina
 p.add_argument('--operation-actual-pad-control',action='store_true')
 p.add_argument('--operation-material-profile',choices=('actual-material-v1','actual-material-v2','actual-tangent-v1','measured-pressure-v1'),default='actual-material-v1')
 p.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
+p.add_argument('--standing-transfer-route',help='Screened route from a qualified recorded Isaac grasp; privileged motor-driven transfer experiment')
+p.add_argument('--standing-transfer-start-seconds',type=float,default=36.)
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
 p.add_argument('--operator-compliance-gain',type=float,default=0.,help='Bounded palm-reference integral compensation for actual operator-angle error; motor and mechanism limits unchanged')
@@ -209,6 +211,11 @@ p.add_argument('--operation-hub-clearance-m',type=float,default=.004,help='Prosp
 p.add_argument('--operation-operator-follow-after-leaf-rad',type=float,help='Blend toward the measured handle angle after the leaf clears the latch')
 p.add_argument('--validate-arguments-only',action='store_true',help='Validate CLI combinations without starting SimulationApp')
 a=p.parse_args()
+if a.standing_transfer_route and (not a.acquisition or not a.operate_after_acquisition or a.acquisition_stance_profile!='landed-foot-v1' or a.full_opening or a.full_sequence_reset or a.sensor_policy_checkpoint or a.sensor_balance_calibration or a.sensor_locomotion_calibration):
+    p.error('Standing transfer requires standalone privileged landed-foot acquisition and operation')
+if not math.isfinite(a.standing_transfer_start_seconds) or a.standing_transfer_start_seconds<=0 or (a.standing_transfer_route and a.seconds<a.standing_transfer_start_seconds+8.5):
+    p.error('Standing transfer requires positive start time and at least 8.5 seconds for reach and final hold')
+if not a.standing_transfer_route and a.standing_transfer_start_seconds!=36.:p.error('Transfer start override requires an explicit route')
 if a.operation_operator_follow_after_leaf_rad is not None and (not .015<=a.operation_operator_follow_after_leaf_rad<=.05 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Operator follow requires standalone operation and .015..0.05 rad')
 if a.operation_operator_lead_limit_rad is not None and (not .01<=a.operation_operator_lead_limit_rad<=.15 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Operator lead requires standalone operation and .01..0.15 rad')
 if a.operation_leaf_lead_limit_rad is not None and (not .002<=a.operation_leaf_lead_limit_rad<=.03 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Leaf lead bound requires standalone operation and .002..0.03 rad')
@@ -522,6 +529,7 @@ def main():
         prim=stage.GetPrimAtPath('/World/Door/Articulation/Joints/'+n)
         target[0,i]=prim.GetAttribute('doorbench:target_si').Get() or 0.
     controls=None if sensor_control else np.array(ref['controls']);rows=[]
+    standing_transfer=None;transfer_steps=None
     teacher=None;teacher_info={};teacher_control=None;sequence=None;operation=None;sensor_actor=None;full_opening=None;opening_geometry=None;continuous=None
     if a.acquisition:
         from doorbench.dexterous.acquisition_teacher import AcquisitionTeacher
@@ -543,6 +551,13 @@ def main():
                 joint_geometry[role+'_origin']=np.array(joint.GetLocalPos1Attr().Get())
                 joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*map(float,basis))))
             operation=DoorOperationTeacher(teacher,joint_geometry,index_proximal_offset_rad=a.operation_index_proximal_offset_rad,index_tendon_offset_rad=a.operation_index_tendon_offset_rad,release_operator_threshold=a.operation_opening_trigger_rad,handle_hub_avoidance=hub_geometry is not None,hub_clearance_m=a.operation_hub_clearance_m,leaf_target=a.operation_leaf_target_rad,leaf_lead_limit_rad=a.operation_leaf_lead_limit_rad,operator_lead_limit_rad=a.operation_operator_lead_limit_rad,operator_follow_after_leaf_rad=a.operation_operator_follow_after_leaf_rad,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile=a.operation_material_profile if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
+            if a.standing_transfer_route:
+                from doorbench.dexterous.standing_transfer import StandingTransferTeacher
+                from doorbench.dexterous.bounded_evidence import BoundedEvidence
+                standing_transfer=StandingTransferTeacher(operation,motors,a.standing_transfer_route,
+                    start_seconds=a.standing_transfer_start_seconds,fixed_pad_tracking=False,
+                    attained_arm_tracking=True,handoff_seconds=1.)
+                transfer_steps=BoundedEvidence(out/'standing-transfer-chunks')
             if sequence_reset and not a.full_opening:
                 from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
                 sequence=FullSequenceTeacher(a.native_robot,motors,ref,
@@ -672,6 +687,9 @@ def main():
     if a.panel_push:sources.append(Path(__file__).with_name('panel_push_teacher.py'))
     if a.acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('acquisition_teacher.py','isaac_tendons.py','grasp_verification.py','isaac_pad_audit.py')]
     if a.operation_hub_geometry:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/handle_hub_avoidance.py')
+    if a.standing_transfer_route:
+        inputs.append(Path(a.standing_transfer_route))
+        sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('standing_transfer.py','standing_transfer_evaluation.py','attained_arm_tracking.py','transfer_preload.py','motor_handoff.py','bimanual_transfer.py','bounded_evidence.py')]
     if a.operate_after_acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('operation_teacher.py','isaac_opening_measurements.py')]
     if sequence:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
         ('full_sequence_teacher.py','approach_teacher.py','approach_lowering.py','locomotion.py','locomotion_approach.py','locomotion_manipulation.py','locomotion_posture.py','isaac_sensors.py')]
@@ -1093,7 +1111,14 @@ def main():
                             (out/'actual-preparation-screen.json').write_text(json.dumps(sequence.readiness_screen,indent=2)+'\n')
                             (out/'actual-preparation-reference.json').write_text(json.dumps(sequence.actual_preparation)+'\n')
                     else:
-                        forces,teacher_info=operation.force(*measured_args,body[door.body_names.index('leaf')],angles,loads,grasp_qualified=pad_steps[-1]['valid_pad_grasp'])
+                        if standing_transfer:
+                            from doorbench.dexterous.isaac_opening_measurements import panel_surface_loads
+                            leaf_pose=body[door.body_names.index('leaf')]
+                            surface=panel_surface_loads(audit_paths,audit_filters,pairs,leaf_pose)
+                            forces,teacher_info=standing_transfer.force(*measured_args,leaf_pose,angles,loads,
+                                grasp_qualified=pad_steps[-1]['valid_pad_grasp'],left_panel_load=surface['total_normal_load_N'])
+                        else:
+                            forces,teacher_info=operation.force(*measured_args,body[door.body_names.index('leaf')],angles,loads,grasp_qualified=pad_steps[-1]['valid_pad_grasp'])
                 elif not full_opening:forces,teacher_info=teacher.force(*measured_args,loads)
                 if sequence and sequence.readiness_screen is not None and not (out/'actual-preparation-screen.json').exists():
                     (out/'actual-preparation-screen.json').write_text(json.dumps(sequence.readiness_screen,indent=2)+'\n')
@@ -1283,6 +1308,14 @@ def main():
                 pad_steps.append(actual_pad)
                 if step%500==0:
                     (out/'latest-pad-audit.json').write_text(json.dumps(pad_steps[-1],indent=2)+'\n')
+            if standing_transfer:
+                leaf_pose=door.data.body_state_w[0,door.body_names.index('leaf'),:7].cpu().numpy().copy()
+                normal=audit_contacts.get_contact_force_matrix(dt=dt).cpu().numpy().copy()
+                friction,points,counts,starts=[v.cpu().numpy().copy() for v in audit_contacts.get_friction_data(dt)]
+                pairs=contact_force_pairs(normal,friction.reshape(16384,3),counts,starts,capacity=16384)
+                surface=panel_surface_loads(audit_paths,audit_filters,pairs,leaf_pose)
+                transfer_steps.append(dict(time_s=(step+1)*dt,leaf_pose=leaf_pose.tolist(),surface=surface,
+                    stance_status=teacher_info.get('stance_status'),started_s=standing_transfer.started))
             if full_opening:
                 full_measurement=read_full_opening_measurement((step+1)*dt)
                 if frozen_opening_report is None:
@@ -1352,6 +1385,7 @@ def main():
                 if step%500==0:imageio.imwrite(out/f'hand-frame-{step:05d}.png',hand_frame)
             wall_timing.mark('camera_and_video_output')
             if (step+1)%1000==0:
+                if transfer_steps is not None:transfer_steps.flush()
                 checkpoint_prefix()
                 if teacher_queries:teacher_queries.finish(complete=False,executed_steps=len(acquisition_states['time_s']))
             if sensor_recorder and (step+1)%2500==0:sensor_recorder.finish(complete=False)
@@ -1369,6 +1403,7 @@ def main():
                 (out/'early-stop.json').write_text(json.dumps(dict(reason='Robot fell',time_s=(step+1)*dt))+'\n')
                 break
     except BaseException as run_error:
+        if transfer_steps is not None:transfer_steps.export(out/'standing-transfer-steps.json.gz')
         (out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n')
         if passive_guard:
             (out/'joint-passive-invariants.json').write_text(json.dumps(passive_guard.receipt(),indent=2)+'\n')
@@ -1563,6 +1598,13 @@ def main():
                     blocked_reason=sequence.blocked_reason)
                 with gzip.open(out/'full-sequence-steps.json.gz','wt') as stream:write_json_record_array(stream,sequence_steps)
                 (out/'full-sequence-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
+            if standing_transfer:
+                from doorbench.dexterous.standing_transfer_evaluation import standing_transfer_checks
+                transfer_steps.export(out/'standing-transfer-steps.json.gz')
+                operation_checks.update(standing_transfer_checks(transfer_steps,seconds=a.seconds,dt=dt,started_s=standing_transfer.started))
+                operation_report.update(passed=all(operation_checks.values()),
+                    scope='Privileged motor-driven acquisition, partial opening and left-palm transfer; no full opening/traversal or sensor-only policy',
+                    standing_transfer=dict(route=a.standing_transfer_route,started_s=standing_transfer.started,final=standing_transfer.info))
             (out/'operation-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             (out/'report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             print('OPERATION_RESULT '+json.dumps({k:v for k,v in operation_report.items() if k!='final_pad_grasp'}),flush=True)

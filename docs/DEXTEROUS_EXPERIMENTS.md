@@ -319,3 +319,8 @@ The captured failed solve reproduces with zero differences in lower/upper bounds
 ### Isaac042 measured transfer route
 
 Added source-bound Isaac mode to the transfer planner, re-extracting recorded state and requiring original runtime/contact reports plus model-coordinate admission. A1mm altered root is rejected. Route001 fails node41 orientation (.0101246rad >.01). Route002 increases pose weighting to400 without changing gates:101 nodes and independent1001-sample interpolation/collision audit PASS; maximum fixed hand/foot errors.1473mm/.009281rad, maximum torso tilt2.665degrees, extra handle penetration0. Both archives are verified off-pod (9/10 files). This is a geometric candidate; standalone Isaac motor-controller integration and physical transfer remain next. [Evidence](evidence/isaac042-transfer-route.json).
+
+
+### Isaac standing-transfer runtime integration
+
+The opt-in standalone Isaac path now instantiates StandingTransferTeacher after qualified acquisition, applies only original capped motors and records per-step actual panel-pair forces to bounded storage. Final qualification adds complete transfer clock, independently reduced left-palm support and stance checks to every existing physical/handle check. The coordinator keeps its36s native grasp prerequisite and runs50s in Isaac when a screened route is supplied.19 focused local tests pass; CLI tests stub only launcher argument registration. Actual Isaac execution remains unverified.

@@ -34,6 +34,7 @@ def main():
     p.add_argument('--material-pad-profile',choices=('actual-material-v1','actual-material-v2','actual-tangent-v1','measured-pressure-v1'),default='actual-material-v1')
     p.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
     p.add_argument('--wait-for-run',type=Path,help='Wait for this earlier coordinator to finish before using the prepared node')
+    p.add_argument('--standing-transfer-route',type=Path,help='Opt-in 50-second actual Isaac transfer after the unchanged36-second native grasp prerequisite')
     p.add_argument('--isaac-timeout-seconds',type=float,default=4200.,help='Wall-clock budget including periodic evidence export')
     p.add_argument('--operation-opening-trigger-rad',type=float,default=.80,help='Controller transition only; final operator and latch acceptance thresholds remain unchanged')
     p.add_argument('--operation-leaf-target-rad',type=float,default=.08)
@@ -44,6 +45,8 @@ def main():
     p.add_argument('--operation-index-proximal-offset-rad',type=float,default=0.)
     p.add_argument('--operation-index-tendon-offset-rad',type=float,default=0.)
     a=p.parse_args()
+    if a.standing_transfer_route is not None and not a.standing_transfer_route.is_file():raise ValueError('Existing screened Isaac transfer route required')
+    transfer_options=[] if a.standing_transfer_route is None else ['--standing-transfer-route',str(a.standing_transfer_route)]
     if not math.isfinite(a.operation_hub_clearance_m) or not .004<=a.operation_hub_clearance_m<=.008:raise ValueError('Hub clearance activation must be 4–8 mm')
     if a.operation_hub_clearance_m!=.004 and not a.operation_handle_hub_avoidance:raise ValueError('Explicit hub avoidance required for changed activation')
     if not all(math.isfinite(v) for v in a.operation_grasp_offset_in_handle_m) or math.sqrt(sum(v*v for v in a.operation_grasp_offset_in_handle_m))>.01:raise ValueError('Finite palm recentering must remain within1cm')
@@ -61,6 +64,9 @@ def main():
     a.output.mkdir(parents=True,exist_ok=False)
     (a.output/'run.pid').write_text(str(os.getpid()))
     result={'passed':False,'scope':'Privileged standing acquisition and held partial opening; no full opening, traversal or learned actor'}
+    if a.standing_transfer_route is not None:
+        result['scope']='Privileged Isaac acquisition, partial opening and left-palm transfer; native prerequisite checks grasp only; no full opening/traversal or learned actor'
+        result['standing_transfer_route']=str(a.standing_transfer_route)
     result['index_posture_offsets_rad']={'proximal':a.operation_index_proximal_offset_rad,'tendon':a.operation_index_tendon_offset_rad}
     result['isaac_grasp_profile']=a.isaac_grasp_profile
     result['native_prerequisite_grasp_profile']='distal-pad-v1'
@@ -190,10 +196,11 @@ def main():
         run([asset,a.source/'scripts/dexterous/export_sensor_layout.py','--robot',robot,'--output',layout],'robot-sensor-layout',120)
         inputs=[a.ready,a.reference,robot,motors,reference,screen/'geometry-audit.json',native/'report.json',layout,Path(ready['robot_usd']),Path(ready['door_usd'])]
         if a.operation_handle_hub_avoidance:inputs.append(native/'hub-geometry.json')
+        if a.standing_transfer_route is not None:inputs.append(a.standing_transfer_route)
         (a.output/'provenance.json').write_text(json.dumps(dict(source=frozen,coordinator_sha256=sha(__file__),input_sha256={str(path):sha(path) for path in inputs},scope=result['scope']),indent=2))
         trial=a.output/'trial'
         if a.deadline_unix-time.time()<a.isaac_timeout_seconds+300:raise TimeoutError('Insufficient guarded time for Isaac run and evidence export')
-        run([isaac,a.source/'scripts/dexterous/isaac_opening.py','--robot-usd',ready['robot_usd'],'--door-usd',ready['door_usd'],'--motors',motors,'--reference',reference,'--sensor-layout',layout,'--reset-from-acquisition-path','--grasp-profile',a.isaac_grasp_profile,'--joint-passive-profile','backend-dry-v2','--seconds','36','--output',trial,'--headless','--device','cuda:0','--record','--enable_cameras','--sensor-gyro-profile','pose-delta-angle-v1','--acquisition','--native-robot',robot,'--acquisition-stance-profile','landed-foot-v1','--acquisition-pressure-segment','distal','--acquisition-index-finger-force','3','--operate-after-acquisition','--operator-compliance-gain','.2','--operation-min-acquisition-seconds','10.6','--operation-grasp-offset-in-handle-m',*grasp_offset,*isaac_index_options,*hold_options,*isaac_pad_options],'isaac-operation',a.isaac_timeout_seconds,allowed_codes=(0,1))
+        run([isaac,a.source/'scripts/dexterous/isaac_opening.py','--robot-usd',ready['robot_usd'],'--door-usd',ready['door_usd'],'--motors',motors,'--reference',reference,'--sensor-layout',layout,'--reset-from-acquisition-path','--grasp-profile',a.isaac_grasp_profile,'--joint-passive-profile','backend-dry-v2','--seconds','50' if a.standing_transfer_route else '36','--output',trial,'--headless','--device','cuda:0','--record','--enable_cameras','--sensor-gyro-profile','pose-delta-angle-v1','--acquisition','--native-robot',robot,'--acquisition-stance-profile','landed-foot-v1','--acquisition-pressure-segment','distal','--acquisition-index-finger-force','3','--operate-after-acquisition','--operator-compliance-gain','.2','--operation-min-acquisition-seconds','10.6','--operation-grasp-offset-in-handle-m',*grasp_offset,*isaac_index_options,*hold_options,*isaac_pad_options,*transfer_options],'isaac-operation',a.isaac_timeout_seconds,allowed_codes=(0,1))
         # Preserve and independently audit failures as well as successful runs.
         result['isaac_report_emitted']=(trial/'operation-report.json').is_file()
         if not result['isaac_report_emitted']:raise RuntimeError('Isaac exited before its physical report; inspect isaac-operation.log')
@@ -206,6 +213,10 @@ def main():
         result['independent_audit_passed']=bool(audit['accounting_passed'] and audit['independent_raw_contact_audit_complete'])
         result['all_loaded_handle_patches_qualified']=audit['invalid_loaded_patches']==0
         result['passed']=bool(result['isaac_runtime_passed'] and result['independent_audit_passed'] and result['all_loaded_handle_patches_qualified'])
+        if a.standing_transfer_route is not None:
+            run([asset,a.source/'scripts/dexterous/audit_isaac_standing_transfer.py','--trial',trial,'--output',a.output/'isaac-transfer-audit.json'],'isaac-transfer-audit',300,allowed_codes=(0,1))
+            result['independent_transfer_passed']=json.loads((a.output/'isaac-transfer-audit.json').read_text())['passed']
+            result['passed'] &= result['independent_transfer_passed']
         if a.operation_handle_hub_avoidance:
             latest=json.loads((trial/'latest.json').read_text())
             result['isaac_hub_avoidance_activated']=latest['teacher'].get('hub_avoidance_profile')=='little-finger-3N-v1' and latest['teacher'].get('hub_avoidance_blend')==1.
