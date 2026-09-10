@@ -34,6 +34,9 @@ def validate_route_geometry(config):
         d.qpos[:]=q;mujoco.mj_kinematics(m,d);r=d.xmat[scene.leaf].reshape(3,3)
         expected=dict(position=r.T@(d.site_xpos[scene.palm]-d.xpos[scene.leaf]),normal=r.T@d.site_xmat[scene.palm].reshape(3,3)[:,2],nominal=[q[m.joint('robot/'+n).qposadr[0]] for n in JOINT_NAMES])
         if row['phase']!='left_reach' or abs(row['leaf_rad']-q[m.joint('leaf_hinge').qposadr[0]])>1e-12 or any(not np.allclose(row[k],v,atol=1e-12,rtol=0) for k,v in expected.items()):raise ValueError('Left Cartesian targets differ from independently screened FK')
+    from .transfer_contact_geometry import receiving_palm_gap
+    receiving=receiving_palm_gap(m,d)
+    if not receiving['passed'] or abs(receiving['minimum_palm_slab_distance_m']-audit['receiving_palm_geometry']['minimum_palm_slab_distance_m'])>1e-9:raise ValueError('Receiving-palm collision geometry differs from its independent audit')
 
 
 class StandingTransferTeacher:

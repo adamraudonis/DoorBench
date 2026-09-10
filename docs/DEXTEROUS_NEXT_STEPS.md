@@ -30,8 +30,13 @@ original planning bounds. Plan003 progressed through80 nodes but was rejected
 at node79: fixed hand/foot rotation error0.010200rad exceeded0.01rad. Its
 receiving position error was42micrometers. Plan004 repeats this solve with
 pose weight800 rather than400, with every acceptance tolerance unchanged.
-See [003 evidence](evidence/isaac042-transfer-plan003.json). No new route or
-physical transfer is qualified yet.
+See [003 evidence](evidence/isaac042-transfer-plan003.json). Plan004 now passes all101 nodes and1001 dense samples: palm-to-slab gap
+6.529mm, fixed hand/foot maximum position error0.272mm and rotation
+0.004587rad, maximum root tilt2.949degrees, zero extra handle penetration.
+This is unstepped geometry only; actual left-palm support remains unproven.
+Use plan004 for the next physical attempt after045 finishes and collection,
+storage admission and GPU guards are verified. The runtime loader now also
+recomputes final palm distance against the original collision geometry.
 
 ## Next sensor recording requirements
 
