@@ -226,3 +226,8 @@ Isaac evidence serialization now encodes one record per write instead of issuing
 ### Storage limits supersede earlier reserves
 
 The earlier1GiB collector/2GiB launch reserves were insufficient. The active native operation driver and collector now enforce the [development storage policy](STORAGE_POLICY.md):10GiB host reserve, incoming-output headroom, a20GiB retained-evidence budget, and verified removal of redundant export chunks. Older historical instructions mentioning smaller reserves should not be used to bypass these checks.
+
+
+### Monitor processes on their execution host
+
+For a live GPU run, the Run Center registry must use the remote result path plus `ssh_host`, `ssh_port` and `ssh_key`. A collector's local snapshot contains a remote `run.pid`; treating that snapshot as a locally executing run can falsely report stopped, or match an unrelated local PID. Keep the local archive for evidence and query the remote process for live status. This mismatch was corrected for hold032, and a direct remote dashboard snapshot confirmed running while waiting for readiness. An unreachable host is unknown status, not proof of process termination.
