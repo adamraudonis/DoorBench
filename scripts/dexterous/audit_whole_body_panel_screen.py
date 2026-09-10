@@ -110,6 +110,10 @@ def main():
         if palm_vertices is not None:
             fu=float(np.clip((reference_angle-angles[0])/report['configuration'].get('flatten_over_rad',.2),0,1));fb=fu**3*(10+fu*(-15+6*fu))
             local,localr,_=flatten_palm_goal(local,lhr,palm_vertices,fb)
+        twist=report['configuration'].get('palm_twist_rad',0.)
+        if twist:
+            from doorbench.dexterous.palm_panel_geometry import twist_palm_goal
+            localr=twist_palm_goal(localr,twist*blend)
         targetp=leafp+leafr@local;targetr=leafr@localr
         progress=float(sample['progress']);retreat_phase=released_hand_phase(progress)
         right_target_p,right_target_r=released_hand_goal(rhp,rhr,initial[rq:rq+3],x[:6],right_outward,retreat_phase,frame=report['configuration'].get('right_hand_frame','world'),retreat_m=report['configuration'].get('right_hand_retreat_m',0.))

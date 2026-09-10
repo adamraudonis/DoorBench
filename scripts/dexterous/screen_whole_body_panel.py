@@ -51,9 +51,11 @@ def main():
     p.add_argument('--keep-elbow-in-front',action='store_true',help='Conservative original elbow-mesh clearance from the moving panel plane')
     p.add_argument('--elbow-clearance-m',type=float,default=.003,help='Interior elbow-to-panel planning margin; exact dense scene clearance remains mandatory')
     p.add_argument('--elbow-barrier-weight',type=float,default=1000.,help='Soft planning weight; never substitutes for dense acceptance')
+    p.add_argument('--palm-twist-rad',type=float,default=0.,help='Smooth palm rotation about the panel normal; preserves collision vertex depths')
     p.add_argument('--flatten-palm',action='store_true',help='Rotate the actual palm face toward the panel over0.2rad while preserving its collision support plane')
     p.add_argument('--admit-exact-soft-limit-start',action='store_true',help='Retain only the measured initial solver-limit excursion, then smoothly regain the 1mm/rad numeric joint margin within 0.1rad aperture')
     a=p.parse_args()
+    if not np.isfinite(a.palm_twist_rad) or abs(a.palm_twist_rad)>.6:raise ValueError('Bounded palm twist required')
     if not .001<=a.joint_margin_rad<=.01:raise ValueError('Joint fit margin must be1..10mrad')
     if not -.04<=a.radius_shift_m<=.04 or not .1<=a.flatten_over_rad<=.6 or not 0<=a.height_drop_m<=.15 or not 0<=a.root_extent_m<=.08 or not 0<=a.root_rotation_rad<=.2 or a.nodes<21:
         raise ValueError('Require bounded declared geometry settings')
@@ -150,6 +152,9 @@ def main():
         if a.flatten_palm:
             fu=float(np.clip((angle-base[leafq])/a.flatten_over_rad,0,1));fb=fu**3*(10+fu*(-15+6*fu))
             local,goal_rotation,_=flatten_palm_goal(local,local_r,palm_vertices,fb)
+        if a.palm_twist_rad:
+            from doorbench.dexterous.palm_panel_geometry import twist_palm_goal
+            goal_rotation=twist_palm_goal(goal_rotation,a.palm_twist_rad*blend)
         goal_p=lp+lr@local;goal_r=lr@goal_rotation
         phase=float(np.clip((angle-base[leafq])/(a.target_aperture_rad-base[leafq]),0,1));phase=phase**3*(10+phase*(-15+6*phase))
         anchor=previous.copy()

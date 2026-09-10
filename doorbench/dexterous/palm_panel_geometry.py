@@ -38,3 +38,17 @@ def original_palm_vertices(model,data,site):
         cloud.append((world-data.site_xpos[site])@rotation)
     if not cloud:raise ValueError('Missing original palm collision vertices')
     return np.vstack(cloud)
+
+
+def twist_palm_goal(rotation, angle_rad):
+    """Rotate about the panel normal (local Y), preserving every vertex depth.
+
+    This changes the arm's in-plane orientation without changing the palm's
+    normal-facing component or the support-plane offset. Geometry only.
+    """
+    r=np.asarray(rotation,float)
+    if (r.shape!=(3,3) or not np.isfinite(r).all() or not np.isfinite(angle_rad)
+            or abs(angle_rad)>.6 or not np.allclose(r.T@r,np.eye(3),atol=1e-8)
+            or not np.isclose(np.linalg.det(r),1.,atol=1e-8)):
+        raise ValueError('Proper palm rotation and bounded panel-normal twist required')
+    return Rotation.from_rotvec([0.,angle_rad,0.]).as_matrix()@r
