@@ -49,6 +49,8 @@ DOORBENCH_WORK=/local-ssd/doorbench bash scripts/isaac/prepare.sh
 
 A different robot needs an embodiment adapter, new motor/sensor mappings and fresh physical validation. Changing the robot name in the configuration does not retarget a checkpoint. See [the reproduction contract](DEXTEROUS_REPRODUCTION.md) for the larger training and migration protocol.
 
+For the measured-state H1/Shadow transfer workflow, see [standing transfer reproduction](ISAAC_STANDING_TRANSFER.md). It is an ongoing privileged experiment, not a complete policy benchmark.
+
 ## Use the environment
 
 After Run Center shows ready, connect using the saved command, then:
