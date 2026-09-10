@@ -56,4 +56,17 @@ admission before collecting full-rate evidence.
 
 ## Standalone force-accounting correction
 
-The standalone operation branch previously passed only normal contact loads to the teacher, while native compensation and the longer Isaac branches included friction. It now uses the shared validated normal-plus-friction pair reducer for both hands. Portable source capture includes the measurement helper; reports explicitly identify this force convention.24 focused CPU tests pass, including known signed friction vectors, duplicate/truncated buffer rejection and launcher checks. This has not yet been tested on a live GPU and does not repair or reclassify historical runs. See [accounting evidence](evidence/isaac-standalone-friction-accounting.json).
+The standalone operation branch previously passed only normal contact loads to the teacher, while native compensation and the longer Isaac branches included friction. It now uses the shared validated normal-plus-friction pair reducer for both hands. Portable source capture includes the measurement helper; reports explicitly identify this force convention.24 focused CPU tests pass, including known signed friction vectors, duplicate/truncated buffer rejection and launcher checks. Live friction037 completed36s with correct raw force accounting but failed sustained fingertip grasp; it does not qualify partial opening or repair historical runs. See [accounting evidence](evidence/isaac-standalone-friction-accounting.json).
+
+
+## Measured continuation velocities
+
+Standalone acquisition now records `joint_velocity` beside `joints` at every
+post-step archive epoch, in `configuration.json` robot joint order. The values
+come directly from Isaac articulation state; no finite differences or zero
+substitution. Continuous sequence recording retains its existing values. This
+adds about5MB uncompressed per36s/69-joint float32 recording. Older standalone
+archives without this field must not be treated as complete continuation states.
+The recording change does not alter motor commands, physics or acceptance gates;
+verify the field and epoch count in the next actual Isaac archive before relying
+on it for source-state planning.

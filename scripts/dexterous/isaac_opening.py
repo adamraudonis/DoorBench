@@ -757,9 +757,12 @@ def main():
             max_joint_stop_penetration_rad=0.,max_self_penetration_m=0.,max_nonfoot_environment_penetration_m=0.,
             max_hand_door_penetration_m=0.,max_loopback_violation_rad=0.,contact_samples=0,capacity=16384)
     loop_pairs=[(index[f'{side}_{digit}J1'],index[f'{side}_{digit}J2']) for side in ('rh','lh') for digit in ('FF','MF','RF','LF')]
-    acquisition_states={k:[] for k in ('time_s','root','joints','motor_forces','door','door_velocity','torso_tilt_deg')}
+    # Keep measured joint velocities for every physical state archive, including
+    # standalone acquisition. Later source-state planning must not assume rest
+    # or finite-difference positions to invent an unrecorded initial velocity.
+    acquisition_states={k:[] for k in ('time_s','root','joints','joint_velocity','motor_forces','door','door_velocity','torso_tilt_deg')}
     if continuous:
-        acquisition_states.update({k:[] for k in ('joint_velocity','actual_motor_forces','actual_joint_effort',
+        acquisition_states.update({k:[] for k in ('actual_motor_forces','actual_joint_effort',
             'continuation_body_poses','actual_foot_loads','legacy_root_state_w')})
         motor_inverse=np.linalg.pinv(matrix.T)
         if np.linalg.matrix_rank(matrix.T)!=61 or not np.allclose(motor_inverse@matrix.T,np.eye(61),atol=1e-12,rtol=0):
@@ -1244,13 +1247,13 @@ def main():
                 acquisition_states['time_s'].append((step+1)*dt)
                 acquisition_states['root'].append(controller_root_state(robot.data,traverse=bool(continuous or a.sensor_locomotion_calibration or a.acquisition_stance_profile))[0].cpu().numpy().copy())
                 acquisition_states['joints'].append(robot.data.joint_pos[0].cpu().numpy().copy())
+                acquisition_states['joint_velocity'].append(robot.data.joint_vel[0].cpu().numpy().copy())
                 acquisition_states['motor_forces'].append(forces.copy())
                 acquisition_states['door'].append(door.data.joint_pos[0].cpu().numpy().copy())
                 acquisition_states['door_velocity'].append(door.data.joint_vel[0].cpu().numpy().copy())
                 acquisition_states['torso_tilt_deg'].append(float(np.degrees(np.arccos(np.clip(-robot.data.projected_gravity_b[0,2].item(),-1,1)))))
                 if continuous:
                     acquisition_states['legacy_root_state_w'].append(robot.data.root_state_w[0].cpu().numpy().copy())
-                    acquisition_states['joint_velocity'].append(robot.data.joint_vel[0].cpu().numpy().copy())
                     acquisition_states['actual_motor_forces'].append(last_actual_motor_forces.copy())
                     acquisition_states['actual_joint_effort'].append(delivered.copy())
                 pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
