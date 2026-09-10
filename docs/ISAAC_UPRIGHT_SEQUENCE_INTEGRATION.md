@@ -78,3 +78,17 @@ Previously standing acquisition was mislabeled as COM velocity in configuration;
 its numeric recording was actor-origin. This correction applies to future source
 snapshots only. Frozen tangent038 predates it and the joint-velocity addition;
 do not use that archive as a complete continuation state or rewrite its evidence.
+
+## Bounded handle reference experiment
+
+Isaac tangent039 failed: the first excluded index-middle patch appeared at
+17.388s, with the nearest recorded palm reference about0.173rad ahead of the
+actual handle. Close-ups confirm contact migration and final grasp loss.
+`--operation-operator-lead-limit-rad` now optionally clips the palm's operator
+reference around the measured handle angle, after compliance and follow blending.
+The default remains unchanged. The initial native test uses0.06rad with the same
+tangent feedback, motor limits, distal-pad contract and actual release thresholds.
+This is privileged controller feedback; it is neither a direct door command nor
+a sensor-only policy. Requested and clipped angles are recorded separately.
+Unit tests verify both lead and lag bounds and that an unretracted bolt cannot
+be bypassed. Native physical/audit qualification is pending.

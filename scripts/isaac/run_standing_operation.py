@@ -37,6 +37,7 @@ def main():
     p.add_argument('--isaac-timeout-seconds',type=float,default=4200.,help='Wall-clock budget including periodic evidence export')
     p.add_argument('--operation-opening-trigger-rad',type=float,default=.80,help='Controller transition only; final operator and latch acceptance thresholds remain unchanged')
     p.add_argument('--operation-leaf-target-rad',type=float,default=.08)
+    p.add_argument('--operation-operator-lead-limit-rad',type=float,help='Bound palm reference around measured handle angle; original release thresholds remain unchanged')
     p.add_argument('--operation-leaf-lead-limit-rad',type=float)
     p.add_argument('--operation-operator-follow-after-leaf-rad',type=float)
     p.add_argument('--operation-grasp-offset-in-handle-m',nargs=3,type=float,default=(.004,-.003,.0025),help='Explicit bounded handle-frame palm recentering, shared by native and Isaac')
@@ -45,6 +46,7 @@ def main():
     if a.operation_hub_clearance_m!=.004 and not a.operation_handle_hub_avoidance:raise ValueError('Explicit hub avoidance required for changed activation')
     if not all(math.isfinite(v) for v in a.operation_grasp_offset_in_handle_m) or math.sqrt(sum(v*v for v in a.operation_grasp_offset_in_handle_m))>.01:raise ValueError('Finite palm recentering must remain within1cm')
     if a.operation_operator_follow_after_leaf_rad is not None and not .015<=a.operation_operator_follow_after_leaf_rad<=.05:raise ValueError('Operator follow requires .015..0.05 rad')
+    if a.operation_operator_lead_limit_rad is not None and not .01<=a.operation_operator_lead_limit_rad<=.15:raise ValueError('Operator lead must be .01..0.15 rad')
     if a.operation_leaf_lead_limit_rad is not None and not .002<=a.operation_leaf_lead_limit_rad<=.03:raise ValueError('Leaf lead bound must be .002..0.03 rad')
     if not .70<=a.operation_opening_trigger_rad<=.80:raise ValueError('Opening trigger must be .70.. .80 rad')
     if not .075<=a.operation_leaf_target_rad<=.10:raise ValueError('Partial opening command must be .075..0.10 rad')
@@ -73,6 +75,10 @@ def main():
     isaac_pad_options+=['--operation-hub-clearance-m',str(a.operation_hub_clearance_m)]
     result['controller_opening_trigger_rad']=a.operation_opening_trigger_rad
     result['commanded_leaf_target_rad']=a.operation_leaf_target_rad
+    result['operator_lead_limit_rad']=a.operation_operator_lead_limit_rad
+    if a.operation_operator_lead_limit_rad is not None:
+        options=['--operation-operator-lead-limit-rad',str(a.operation_operator_lead_limit_rad)]
+        native_pad_options+=options;isaac_pad_options+=options
     result['leaf_lead_limit_rad']=a.operation_leaf_lead_limit_rad
     result['operator_follow_after_leaf_rad']=a.operation_operator_follow_after_leaf_rad
     if a.operation_operator_follow_after_leaf_rad is not None:

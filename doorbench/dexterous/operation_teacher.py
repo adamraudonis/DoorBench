@@ -41,7 +41,7 @@ class DoorOperationTeacher:
                  operator_target=.87, release_operator_threshold=.80,
                  release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True,
                  operator_compliance_gain=0., operator_compliance_limit=.15,
-                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening', pad_control_profile='commanded-material-v1', leaf_lead_limit_rad=None, operator_follow_after_leaf_rad=None, handle_hub_avoidance=False, hub_clearance_m=.004):
+                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening', pad_control_profile='commanded-material-v1', leaf_lead_limit_rad=None, operator_lead_limit_rad=None, operator_follow_after_leaf_rad=None, handle_hub_avoidance=False, hub_clearance_m=.004):
         if type(fixed_pad_control) is not bool:raise ValueError('Explicit contact-controller flag required')
         if pad_control_profile not in ('commanded-material-v1','actual-material-v1','actual-material-v2','actual-tangent-v1','measured-pressure-v1'):raise ValueError('Unknown pad control profile')
         if type(handle_hub_avoidance) is not bool:raise ValueError('Explicit hub-avoidance flag required')
@@ -51,6 +51,9 @@ class DoorOperationTeacher:
         if handle_hub_avoidance:
             from .handle_hub_avoidance import HandleHubAvoidance
             self.hub_avoidance=HandleHubAvoidance(acquisition_teacher,clearance_m=hub_clearance_m)
+        if operator_lead_limit_rad is not None and (not np.isfinite(operator_lead_limit_rad) or not .01<=operator_lead_limit_rad<=.15):
+            raise ValueError('Measured operator lead must be .01..0.15 rad')
+        self.operator_lead_limit_rad=operator_lead_limit_rad
         self.pad_control_profile=pad_control_profile
         if leaf_lead_limit_rad is not None and (not np.isfinite(leaf_lead_limit_rad) or not .002<=leaf_lead_limit_rad<=.03):raise ValueError('Measured leaf lead must be .002..0.03 rad')
         self.leaf_lead_limit_rad=leaf_lead_limit_rad
@@ -175,6 +178,10 @@ class DoorOperationTeacher:
             self.operator_follow_started=t
         follow=0. if self.operator_follow_started is None else float(smooth_phase(t-self.operator_follow_started))
         reference_h=(1-follow)*(goal_h+self.operator_compliance)+follow*angles['operator']
+        requested_reference_h=reference_h
+        if self.operator_lead_limit_rad is not None:
+            reference_h=float(np.clip(reference_h,angles['operator']-self.operator_lead_limit_rad,
+                                      angles['operator']+self.operator_lead_limit_rad))
         # Ramp the optional reference recenter over one second. This moves a
         # bounded motor controller's target, never the physical hand or handle.
         offset=smooth_phase(t-self.started)*self.grasp_offset
@@ -211,7 +218,7 @@ class DoorOperationTeacher:
                          requested_leaf_goal_rad=float(requested_leaf_goal),leaf_lead_limit_rad=self.leaf_lead_limit_rad,
                          palm_compliance_rotation_rad=self.operator_compliance,
                          operator_follow_started_s=self.operator_follow_started,operator_follow_fraction=follow,
-                         commanded_operator_reference_rad=float(reference_h),operator_follow_after_leaf_rad=self.operator_follow_after_leaf_rad,
+                         commanded_operator_reference_rad=float(reference_h),requested_operator_reference_rad=float(requested_reference_h),operator_lead_limit_rad=self.operator_lead_limit_rad,operator_follow_after_leaf_rad=self.operator_follow_after_leaf_rad,
                          grasp_offset_in_handle_m=offset.tolist(),
                          index_proximal_offset_rad=float(smooth_phase(t-self.started)*self.index_proximal_offset),
                          index_tendon_offset_rad=float(smooth_phase(t-self.started)*self.index_tendon_offset),

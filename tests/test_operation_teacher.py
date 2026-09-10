@@ -332,3 +332,34 @@ def test_captured_fingers_remain_active_while_palm_follows_returning_operator():
     assert info['operator_follow_fraction']==pytest.approx(1.)
     assert forces[0]==.25 and wrapper.attained_hold is hold
     assert info['attained_hold_started_s']==1.8
+
+
+@pytest.mark.parametrize('limit', [0., -.01, .151, float('nan'), float('inf')])
+def test_operator_lead_rejects_invalid_limits(limit):
+    with pytest.raises(ValueError, match='operator lead'):
+        DoorOperationTeacher(Acquisition(), GEOMETRY, operator_lead_limit_rad=limit)
+
+
+def test_operator_lead_caps_reference_without_releasing_a_stalled_handle():
+    wrapper = DoorOperationTeacher(Acquisition(), GEOMETRY,
+                                  operator_lead_limit_rad=.06, operator_compliance_gain=.2)
+    for t in np.arange(0., 8., .01):
+        force, info = tick(wrapper, t, operator=.2)
+        if 'commanded_operator_reference_rad' in info:
+            assert abs(info['commanded_operator_reference_rad']-.2) <= .06+1e-12
+    assert info['requested_operator_reference_rad'] > .8
+    assert wrapper.open_started is None
+    np.testing.assert_array_equal(force, np.arange(6.))
+    # Passing actual release measurements, not the commanded target, opens.
+    _, info = tick(wrapper, 8., operator=.81, latch=.012)
+    assert wrapper.open_started == pytest.approx(8.)
+    assert info['operator_lead_limit_rad'] == .06
+
+
+def test_operator_lead_also_bounds_reference_lag_after_actual_overshoot():
+    wrapper = DoorOperationTeacher(Acquisition(), GEOMETRY, operator_lead_limit_rad=.06)
+    for t in np.arange(0., 6., .01):
+        tick(wrapper, t)
+    _, info = tick(wrapper, 6., operator=1.1)
+    assert info['commanded_operator_reference_rad'] == pytest.approx(1.04)
+    assert wrapper.open_started is None  # bolt has not retracted
