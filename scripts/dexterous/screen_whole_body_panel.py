@@ -47,6 +47,7 @@ def main():
     p.add_argument('--maximum-torso-tilt-deg',type=float,help='Optional absolute upright planning bound, independent of the initial root orientation')
     p.add_argument('--target-aperture-rad',type=float,default=1.2)
     p.add_argument('--nodes',type=int,default=61)
+    p.add_argument('--solver-scaling',choices=('unit','jac'),default='unit',help='Trust-region scaling diagnostic; acceptance tolerances unchanged')
     p.add_argument('--flatten-over-rad',type=float,default=.2)
     p.add_argument('--keep-elbow-in-front',action='store_true',help='Conservative original elbow-mesh clearance from the moving panel plane')
     p.add_argument('--elbow-clearance-m',type=float,default=.003,help='Interior elbow-to-panel planning margin; exact dense scene clearance remains mandatory')
@@ -181,7 +182,7 @@ def main():
                 if a.pose_tolerance_barrier:pose_barrier[3]=0.
                 pose_barrier=np.r_[pose_barrier,1000.*max(0.,np.linalg.norm(hands[9:12])/.1-.30)]
             return np.r_[hands,foot,pose_barrier,balance_barrier,upright,elbow_barrier,yaw_tilt_barrier,pivot,5*(d.subtree_com[robot_body,:2]-com[:2]),.015*(x[6:]-initial),.05*x[:6],0. if a.root_rotation_norm_rad is None else 1000.*max(0.,np.linalg.norm(x[3:6])-(a.root_rotation_norm_rad-.0001))]
-        fit=least_squares(evaluate,np.clip(previous if warm is None else warm[len(rows)],low,high),bounds=(low,high),max_nfev=800,ftol=1e-11,xtol=1e-11,gtol=1e-11)
+        fit=least_squares(evaluate,np.clip(previous if warm is None else warm[len(rows)],low,high),bounds=(low,high),x_scale='jac' if a.solver_scaling=='jac' else 1.,max_nfev=800,ftol=1e-11,xtol=1e-11,gtol=1e-11)
         previous=fit.x.copy();res=evaluate(previous);mujoco.mj_collision(m,d)
         collisions=[]
         for c in d.contact[:d.ncon]:
@@ -196,7 +197,7 @@ def main():
             maximum_foot_position_error_m=max(float(np.linalg.norm(res[12+6*j:15+6*j])/100) for j in range(2)),
             maximum_foot_rotation_error_rad=max(float(np.linalg.norm(res[15+6*j:18+6*j])/a.foot_orientation_weight) for j in range(2)),
             torso_tilt_deg=float(np.degrees(np.arccos(np.clip(up[2],-1,1)))),com_displacement_xy_m=(d.subtree_com[robot_body,:2]-com[:2]).tolist(),
-            forbidden_collisions=collisions,nfev=int(fit.nfev))
+            forbidden_collisions=collisions,nfev=int(fit.nfev),solver_status=int(fit.status),solver_optimality=float(fit.optimality),solver_cost=float(fit.cost),solver_message=str(fit.message))
         if a.keep_elbow_in_front:
             vertices=elbow_vertices@d.xmat[elbow].reshape(3,3).T+d.xpos[elbow]
             row['elbow_panel_plane_gap_m']=float(np.min((vertices-lp)@lr[:,1]*elbow_side))-slab_front
