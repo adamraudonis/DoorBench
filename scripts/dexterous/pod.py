@@ -26,6 +26,9 @@ def api():
 def main():
     p = argparse.ArgumentParser(); p.add_argument('command', choices=['create','status','guard','terminate'])
     p.add_argument('--hours', type=float, default=4.)
+    p.add_argument('--gpu', choices=['NVIDIA L40S','NVIDIA RTX 6000 Ada Generation',
+                                   'NVIDIA A40','NVIDIA GeForce RTX 4090'],
+                   default='NVIDIA L40S', help='Explicit RTX-capable allocation; default remains L40S')
     a = p.parse_args(); rp = api()
     if a.command == 'create':
         if STATE.exists() and json.loads(STATE.read_text()).get('active'):
@@ -34,7 +37,7 @@ def main():
             raise SystemExit('Initial allocation must have a deadline of at most eight hours')
         rp.DEFAULT_POD = dict(rp.DEFAULT_POD, name='doorbench-dexterous-humanoid',
                               volumeInGb=100, minVCPUPerGPU=16)
-        rp.cmd_create(argparse.Namespace(gpu='NVIDIA L40S'))
+        rp.cmd_create(argparse.Namespace(gpu=a.gpu))
         state = json.loads(STATE.read_text()); state.update(active=True, deadline=time.time()+a.hours*3600)
         STATE.write_text(json.dumps(state,indent=2))
         log = STATE.with_suffix('.guard.log')
