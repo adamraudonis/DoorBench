@@ -38,6 +38,24 @@ Use plan004 for the next physical attempt after045 finishes and collection,
 storage admission and GPU guards are verified. The runtime loader now also
 recomputes final palm distance against the original collision geometry.
 
+## Run045 terminal result and collection
+
+Run045 completed50s and is terminal (Isaac PID188579 absent). It failed
+`sustained_pad_grasp` and `final_left_palm_support`; the other22 runtime checks
+passed, as did the independent loaded-handle contact audit. Never use this
+endpoint as a qualified transfer source. See
+[terminal summary](evidence/isaac045-terminal-summary.json).
+
+The full collector is retrying because retained evidence19.28GiB plus its
+1.05GiB atomic-copy reservation exceeds the20GiB budget. A streaming private
+archive of closed failed `out/native-standing-panel-passage-003` is running
+(local PID37766; `out/archive-passage003-launch.json`). It verifies a complete
+independent download before evicting raw transitions/physics locally. Preserve
+reports and compact trajectory. Check that process, its log and the final045
+collector receipt before starting another GPU trial. Do not raise the storage
+budget to bypass this failure. The owned-pod guard remains00:15:47UTC; a fresh
+full trial needs a verified extension, storage admission and immutable source.
+
 ## Next sensor recording requirements
 
 The next fresh Isaac run should capture the new same-run initial sensor packet
