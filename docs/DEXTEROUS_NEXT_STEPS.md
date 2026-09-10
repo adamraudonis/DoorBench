@@ -838,3 +838,12 @@ Screen018 still misses late pose tolerances with a1 cm radial shift. Screen019
 is testing a3 mm shift, motivated by the measured near-threshold hinge moment.
 Thirty-two focused planner/schedule tests pass. No new wider physical pass is
 claimed.
+
+
+### September10: storage admission before resuming physics
+
+The continuation rechecked actual resources: the stopped owned pod still cannot resume because RunPod reports no free GPU on its host. Its temporary resume guard was rolled back; no GPU work was dispatched. Local free space recovered to roughly19–20GiB after cleanup, but native admission found27.14GiB of retained evidence plus2.50GiB reserved for the next160-second episode, exceeding the20GiB retention cap. The cap remains unchanged.
+
+Closed failed recordings are being streamed to the existing private research archive, independently downloaded/hash-verified, then offloaded locally. The first completed archival is `2026-09-09--walked-moving-body-recontact-002` (490,557,440-byte archive); receipts live in `DoorBench-runs/remote-archives`. Current qualified reference dependencies are excluded. Two bounded file batches are documented in `out/archive-older-failed-records-launch.json` and `out/archive-older-failed-records-batch2-launch.json`; inspect their actual PIDs/logs before acting, rather than assuming they finished. Their helper preserves small reports/source inputs and removes only verified matching large recordings.
+
+The next physical comparison is prepared as `out/launch-standing-hub-panel006.py`, reusing the interrupted005 configuration exactly. It now performs both space and retention admission before launching. It has **not** run. Following admission it still requires runtime, pad, whole-handle and external-support audits; neither a larger aperture nor storage work establishes full opening/traversal or sensor-policy success.
