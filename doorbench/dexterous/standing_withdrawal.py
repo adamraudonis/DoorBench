@@ -155,6 +155,9 @@ class StandingWithdrawalTeacher:
         self.panel_force=None
         profile=config.get('panel_aperture_force_profile')
         initial_stiction=config.get('panel_initial_stiction_assist',False)
+        terminal_floor=config.get('panel_terminal_minimum_support_N')
+        if terminal_floor is not None and (not config.get('panel_plan_path') or profile not in ('bounded-pi-stop-v1','bounded-pi-stop-v2')):
+            raise ValueError('Terminal support floor requires a screened stopping plan')
         initial_load=config.get('panel_initial_load_profile','standard-6N-v1')
         if type(initial_stiction) is not bool or initial_load not in ('standard-6N-v1','bounded-7N-v1'):
             raise ValueError('Explicit initial panel assistance and load profile required')
@@ -171,7 +174,7 @@ class StandingWithdrawalTeacher:
             if sha(config['panel_plan_path'])!=config.get('panel_plan_sha256'):raise ValueError('Panel plan bytes changed')
             from .standing_panel_reference import StandingPanelReference
             self.panel=StandingPanelReference(scene,config['panel_plan_path'],self.left)
-            if profile in ('bounded-pi-stop-v1','bounded-pi-stop-v2'):self.panel_force=PanelApertureForce(terminal_aperture=self.panel.plan['final_leaf_angle_rad'],terminal_support_margin_N=.5 if profile=='bounded-pi-stop-v2' else 0.,stiction_assist=initial_stiction,load_profile=initial_load)
+            if profile in ('bounded-pi-stop-v1','bounded-pi-stop-v2'):self.panel_force=PanelApertureForce(terminal_aperture=self.panel.plan['final_leaf_angle_rad'],terminal_support_margin_N=.5 if profile=='bounded-pi-stop-v2' else 0.,stiction_assist=initial_stiction,load_profile=initial_load,terminal_minimum_support_N=terminal_floor)
             if self.panel.plan['robot_xml_sha256']!=motors['source_xml_sha256']:raise ValueError('Panel plan uses another robot contract')
             if self.panel.start_time<self.start_time:raise ValueError('Panel continuation cannot precede withdrawal')
         self.panel_schedule=None

@@ -2,6 +2,10 @@
 
 Execution plan approved by the owner on September 8, 2026 (UTC). This is the next work package under [the full research plan](DEXTEROUS_PLAN.md), not a replacement for its catalogue coverage targets.
 
+## Restart checkpoint
+
+The owner requested an application restart on September10. See [the current restart handoff](../handoffs/RESTART_2026-09-10.md) before acting: local workers are stopped, the GPU is stopped, panel004 reaches45.6° but fails final palm support, and panel005 was deliberately interrupted. Earlier live-status paragraphs below are historical.
+
 ## Starting point
 
 September 9, 2026 correction: the upright42.5° native episode passed its

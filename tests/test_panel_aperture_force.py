@@ -77,3 +77,29 @@ def test_explicit_seven_newton_profile_overcomes_integral_cap_and_still_brakes()
     assert target==2.75
     with pytest.raises(ValueError):PanelApertureForce(load_profile='bounded-7N-v1')
     with pytest.raises(ValueError):PanelApertureForce(load_profile='unbounded')
+
+
+def test_terminal_support_floor_preserves_prebrake_force_and_original_caps():
+    baseline=PanelApertureForce(terminal_aperture=.75,terminal_support_margin_N=.5,stiction_assist=True)
+    supported=PanelApertureForce(terminal_aperture=.75,terminal_support_margin_N=.5,stiction_assist=True,terminal_minimum_support_N=2.4)
+    for i in range(501):
+        t=i*.002
+        original,_=baseline.update(t,.705,.7,2.25)
+        actual,_=supported.update(t,.705,.7,2.25)
+        assert actual==original
+    previous=None
+    for i in range(501,2001):
+        # Overshoot causes the ordinary PI term to request its lowest load.
+        t=i*.002
+        original,_=baseline.update(t,.75,.795,2.25)
+        actual,info=supported.update(t,.75,.795,2.25)
+        assert 2.05<=actual<=6 and info['panel_force_integral_N']<=3
+        if previous is not None: assert abs(actual-previous)<.03
+        previous=actual
+    assert original<2.1 and actual==2.4
+    assert info['terminal_minimum_support_N']==2.4
+    for value in [1.9,2.8,float('nan')]:
+        with pytest.raises(ValueError,match='support floor'):
+            PanelApertureForce(terminal_aperture=.75,terminal_minimum_support_N=value)
+    with pytest.raises(ValueError,match='support floor'):
+        PanelApertureForce(terminal_minimum_support_N=2.4)

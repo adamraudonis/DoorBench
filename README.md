@@ -39,7 +39,7 @@ The unchanged Unitree checkpoint controls leg locomotion, with no handle or lock
 | Engine / controller | Recorded result | UTC date |
 |---|---|---|
 | MuJoCo, upright privileged H1/Shadow teacher | **30/30 runtime checks + independent pad and whole-handle audits passed** over 80.6 s; releases the handle with left-palm support at a 5.97° opening; no traversal ([evidence](docs/evidence/native-standing-hub-withdrawal-016.json)) | September 9, 2026, 22:50 UTC verification |
-| Isaac, upright privileged handle operation | **Failed: 17/19 runtime checks** over 36 s; latch operated, but fingertip contact and held opening were lost ([evidence](docs/evidence/isaac-standing-hub-trigger-028.json)) | September 9, 2026, 22:56 completion |
+| Isaac, upright privileged handle operation | **Failed: 17/19 runtime checks** over 36 s; latch operated, but fingertip contact and held opening were lost ([evidence](docs/evidence/isaac-standing-hub-hold-030.json)) | September 9, 2026, 23:54 UTC completion |
 | Isaac, standing privileged grasp | **15/15 runtime checks**, final opposed fingertip hold; contact accounting verified; no opening | September 9, 2026, 08:20 |
 | Isaac, sensor-driven walking and stopping | **18/18 runtime + 22/22 independent checks** over 10 s; no door interaction | September 9, 2026, 07:36 |
 | MuJoCo, learned motor-target sensor actor | **0/1 complete tasks**; fell after 1.306 s | September 9, 2026, 06:42 |
