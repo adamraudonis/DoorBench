@@ -101,3 +101,7 @@ python3 scripts/isaac/launch.py --config configs/isaac/runtime-v2.json --hours 2
 ```
 
 This command can allocate a new billable node; it is not a resume of the stopped node. The selected journal is inherited by the creation guard and used by remote guard arming and renewal. Keep the same environment variable for status/renewal/teardown commands on that allocation. Omitting it preserves the original default journal. Verify both guards and readiness before dispatching experiments; do not count bootstrap or unit tests as an Isaac task result.
+
+## Reproduce the standing-transfer experiment
+
+After environment readiness, use the [standing-transfer recipe](ISAAC_STANDING_TRANSFER_RECIPE.md) to print or execute the explicit run046 controller settings with your source, reference, route and result paths. Its generated command was compared exactly against the real dispatch. This does not establish physical transfer success or compatibility with another robot.
