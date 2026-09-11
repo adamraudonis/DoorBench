@@ -29,3 +29,14 @@ def test_expired_deadline_and_escaping_camera_rejected():
     with pytest.raises(ValueError):build_command(PROFILE,**{**INPUTS,'now':101.})
     p=copy.deepcopy(PROFILE);p['camera_profile']='../camera.json'
     with pytest.raises(ValueError):build_command(p,**INPUTS)
+
+
+def test_hybrid_recipe_changes_only_explicit_force_control():
+    profile=json.loads((ROOT/'configs/isaac/standing-transfer-h1-shadow-hybrid-v1.json').read_text())
+    original=build_command(PROFILE,**INPUTS)
+    command=build_command(profile,**INPUTS)
+    assert command.count('--standing-transfer-hybrid-support')==1
+    command.remove('--standing-transfer-hybrid-support')
+    assert command==original
+    profile['arguments'].append('--standing-transfer-hybrid-support')
+    with pytest.raises(ValueError):build_command(profile,**INPUTS)

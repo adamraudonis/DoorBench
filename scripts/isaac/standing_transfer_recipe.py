@@ -18,7 +18,9 @@ ARITY = {'--operation-leaf-target-rad': 1, '--operation-handle-hub-avoidance': 0
          '--actual-material-pads': 0, '--material-pad-profile': 1,
          '--operation-operator-lead-limit-rad': 1,
          '--operation-index-proximal-offset-rad': 1,
-         '--operation-index-tendon-offset-rad': 1}
+         '--operation-index-tendon-offset-rad': 1,
+         '--standing-transfer-hybrid-support': 0}
+OPTIONAL = {'--standing-transfer-hybrid-support'}
 
 
 def build_command(profile, *, source, ready, reference, route, output, work,
@@ -36,7 +38,7 @@ def build_command(profile, *, source, ready, reference, route, output, work,
             raise ValueError('Unknown, duplicate or incomplete recipe option: ' + flag)
         seen.add(flag)
         i += ARITY[flag] + 1
-    if seen != set(ARITY):
+    if seen - OPTIONAL != set(ARITY) - OPTIONAL:
         raise ValueError('All declared experiment options must be explicit')
     camera = Path(profile['camera_profile'])
     if camera.is_absolute() or '..' in camera.parts:

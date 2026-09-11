@@ -66,3 +66,9 @@ reducing contact oscillation, not an established fix. The right-hand issue
 requires separate verification. This option has unit and CLI validation only;
 no physical trial with it has run yet. The unchanged native grasp prerequisite
 still runs before the actual Isaac transfer experiment.
+
+The portable wrapper can reproduce run047 using
+`--profile configs/isaac/standing-transfer-h1-shadow-hybrid-v1.json` and the
+usual explicit source, readiness, reference, route, output and guard-deadline
+paths. Its generated command was compared byte-for-byte with the dispatched
+coordinator argv; this verifies configuration equivalence, not physical success.
