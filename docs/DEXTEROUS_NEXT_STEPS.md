@@ -4,36 +4,54 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 
 ## Restart checkpoint
 
-Isaac046 is dispatched on the owned A40: coordinator244861, collector45635,
-remote `/workspace/doorbench-standing-transfer046`. Native runtime and both
-independent contact audits pass. Actual Isaac PID250243 is live and reached2.502s. The sensor stream has1250
-finite samples and63 frames per eye at2.5s. Its actual time-zero packet passes
-the actor input boundary and original motor-cap checks; all sensor validity
-flags are false and previous action is zero. Final first-action/hash binding
-and visual eye-frame review remain pending. See
-[initial packet check](evidence/isaac046-initial-packet-check.json).
-It uses the corrected
-plan004 route (1001 geometric samples passed), same physical limits/preloads,
-new same-run time-zero sensor packet and explicit manipulation camera profile.
-The immutable source is40488922e06626fe;24 focused tests pass. Both guards were
-verified and renewed until2026-09-11T02:32:18.838187+00:00. Storage admission reserves both generated
-evidence and a full atomic verification copy under the unchanged20GiB limit.
-See [046 dispatch](evidence/isaac046-transfer-dispatch.json). Check live handles
-before any restart. Hand-review waiter245085 and endpoint waiter245236 have
-collectors; the endpoint is admitted only if the complete run passes.
+Run047 is the active comparison on the owned A40. Coordinator PID307921 and
+native prerequisite PID308106 were verified live; the native simulation reached
+35.982 of 36 seconds, with final export/audits pending at this checkpoint.
+Recheck those handles and the coordinator result before assuming it is running
+or restarting anything. Remote run: `/workspace/doorbench-standing-transfer047`.
+Local receipt: `out/isaac-standing-transfer047-launch.json`. The collector is
+PID823; hand-review waiter308385/collector1137 and endpoint waiter308092/
+collector1016 are queued. Endpoint admission requires the complete physical run
+to pass. [Dispatch evidence](evidence/isaac047-transfer-dispatch.json).
 
-Isaac045 finished50s and failed sustained final grasp and left-palm support.
-Its run, hand review and rejected endpoint are fully verified off-pod. The
-corrected planner targets the actual panel;045's old route stopped about10cm
-short. Final grasp logs separately found28/251 invalid samples due to unloading.
-No completed physical transfer, full Isaac traversal or sensor-only success yet.
-Qualified042 remains the best completed Isaac standing partial-opening result.
+Run047 uses the same plan004 route, model, grasp preloads, motor limits and
+qualification gates as046, adding `--standing-transfer-hybrid-support`.
+Measured palm contact near the end of the reach activates a two-second blend
+into bounded normal-force feedback. This is a hypothesis for stabilizing support;
+no successful physical result exists for it yet. Its immutable source is
+`/workspace/doorbench-standing-transfer047-source-a164a8ad76bb96e8`, revision
+`666a5c4b2`. The [portable recipe](ISAAC_STANDING_TRANSFER_RECIPE.md) reproduces
+its dispatched argv exactly. Later documentation/recipe changes do not modify
+that running source.
 
-Passage003 and leverage001 archives are both uploaded and independently
-verified;801 and601 raw files respectively were evicted. All reports and compact
-trajectories remain local. The045 collector is recovered;244 redundant local
-chunks were also compared against verified exports and removed. Archive receipts
-are in `DoorBench-runs/remote-archives`. Restore raw records before re-auditing.
+Owned pod `yahfgc3nre7tyu` has replacement local/remote guards99897/307342,
+verified armed through epoch1789099392.1251059 (September11,04:03:12UTC).
+The guard receipt is `out/standing-transfer047-guard-applied.json`. Renew only
+this journaled allocation if necessary. Storage admission reserved generated
+evidence plus an atomic collector copy within20GiB and retained10GiB free-space
+headroom. Nine byte-equivalent checkpoint duplicates were removed after final
+verification, recovering1,087,382,193 logical bytes; final exports remain.
+Receipt: `DoorBench-runs/remote-archives/verified-final-partials-047-preflight.json`.
+
+Run046 finished50 seconds:22/24 runtime checks passed. Sustained grasp and final
+palm support failed; independent loaded-handle patch audit passed and independent
+transfer audit failed. The palm reached the panel, but60/251 final-half-second
+samples fell below2N;34/251 grasp samples failed, with middle/ring unloading.
+All run, hand review and rejected endpoint collectors verified their final
+copies. [Terminal report](evidence/isaac046-terminal-summary.json) and
+[grasp diagnosis](evidence/isaac046-final-grasp-diagnosis.json).
+
+Run045 failed the same two runtime gates, but its receiving palm stopped about
+10cm short. Plan004 corrected that geometric defect; contact in046 does not
+establish stable transfer. Qualified042 remains the best completed Isaac
+standing partial-opening result. No complete Isaac approach/open/traverse/stable
+finish, sensor-only actor success, held-out result or declared coverage target
+has been achieved. Continue the full plan; do not count these partial trials as
+completion or train from them as successful full-task demonstrations.
+
+Passage003 and leverage001 private archives were independently downloaded and
+verified before801 and601 raw files were evicted. Reports and compact
+trajectories remain local. Restore archived raw records before re-auditing.
 
 ## Run045 receiving-palm diagnosis
 
