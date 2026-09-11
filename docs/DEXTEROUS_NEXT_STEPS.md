@@ -4,9 +4,10 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 
 ## Restart checkpoint
 
-Run047 is the active comparison on the owned A40. Coordinator PID307921 and
-native prerequisite PID308106 were verified live; the native simulation reached
-35.982 of 36 seconds, with final export/audits pending at this checkpoint.
+Run047 is the active comparison on the owned A40. Coordinator PID307921 is active. The native36-second prerequisite passed runtime
+and both independent contact audits; native PID308106 is terminal. Actual Isaac
+PID313589 was verified live in startup; its physical result remains pending.
+[Prerequisite evidence](evidence/isaac047-native-prerequisite.json).
 Recheck those handles and the coordinator result before assuming it is running
 or restarting anything. Remote run: `/workspace/doorbench-standing-transfer047`.
 Local receipt: `out/isaac-standing-transfer047-launch.json`. The collector is
