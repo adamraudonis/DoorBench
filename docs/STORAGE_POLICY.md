@@ -75,9 +75,10 @@ chunks. Operation counters reduce the records in one pass and preserve the
 original positive timestamp filter.32 focused tests pass. Run046 is immutable
 and still uses its original recorder; no live physics speedup is claimed.
 
-A full recorded045 comparison is running on the owned pod (PID273373,
-`out/isaac045-bounded-pad-validation-launch.json`). It checks all25001 records
-and original report counters, then removes its temporary duplicate. Inspect
-its terminal result before using this change in a fresh physics run. The local
-final counter helper additionally preserves NaN-filter behavior, covered by a
-focused test; recheck that final helper's counters against the recorded data.
+The complete recorded045 comparison passed: all 25,001 records survived
+losslessly and all four original diagnostic counters matched. A separate pass
+with the final counter helper also matched the original report. The standalone
+recorder validation peaked at 28,972 KiB RSS (about 28 MiB); this does not measure
+whole-Isaac memory or speed. Its temporary duplicate was removed after decoded
+byte verification. Original evidence remains unchanged. See the
+[validation receipt](evidence/isaac045-bounded-pad-validation.json).
