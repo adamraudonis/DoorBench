@@ -1001,8 +1001,7 @@ def main():
         if physics_audit_enabled:
             np.savez_compressed(out/'acquisition-physics.partial.tmp.npz',**acquisition_states)
             os.replace(out/'acquisition-physics.partial.tmp.npz',out/'acquisition-physics.partial.npz')
-            with gzip.open(out/'acquisition-pad-steps.partial.tmp.gz','wt') as stream:write_json_record_array(stream,pad_steps)
-            os.replace(out/'acquisition-pad-steps.partial.tmp.gz',out/'acquisition-pad-steps.partial.json.gz')
+            pad_steps.checkpoint(out/'acquisition-pad-checkpoint.json')
         if full_opening:
             with gzip.open(out/'full-opening-steps.partial.tmp.gz','wt') as stream:write_json_record_array(stream,full_opening_steps)
             os.replace(out/'full-opening-steps.partial.tmp.gz',out/'full-opening-steps.partial.json.gz')

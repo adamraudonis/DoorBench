@@ -72,3 +72,42 @@ def test_first_and_latest_records_do_not_read_closed_chunks(tmp_path, monkeypatc
     assert records[-1]['time']==1
     changed=records[0];changed['contacts'][0]['force']=99
     assert records[0]['contacts'][0]['force']==2.
+
+
+def test_checkpoint_recovers_exact_prefix_without_decoding_old_chunks(tmp_path,monkeypatch):
+    from doorbench.dexterous.bounded_evidence import iter_checkpoint
+    evidence=BoundedEvidence(tmp_path/'chunks',chunk_size=2)
+    rows=[{'time':i,'value':[i]} for i in range(5)]
+    for row in rows:evidence.append(row)
+    target=tmp_path/'checkpoint.json'
+    original=gzip.open
+    def only_writes(path,mode='rb',*args,**kwargs):
+        assert 'w' in mode, 'Checkpoint must not decode previous chunks'
+        return original(path,mode,*args,**kwargs)
+    with monkeypatch.context() as patch:
+        patch.setattr(gzip,'open',only_writes)
+        manifest=evidence.checkpoint(target)
+    assert manifest['complete'] is False and manifest['passed'] is False
+    assert not evidence.pending
+    evidence.append({'time':5})
+    evidence.flush()
+    assert list(iter_checkpoint(target))==rows
+    assert len(evidence)==6
+    evidence.export(tmp_path/'final.json.gz')
+    with gzip.open(tmp_path/'final.json.gz','rt') as f:assert json.load(f)==rows+[{'time':5}]
+
+
+@pytest.mark.parametrize('change',['bytes','hash','count','duplicate','escape','complete'])
+def test_checkpoint_rejects_changed_or_unsafe_evidence(tmp_path,change):
+    from doorbench.dexterous.bounded_evidence import iter_checkpoint
+    evidence=BoundedEvidence(tmp_path/'chunks');evidence.append({'time':0})
+    target=tmp_path/'checkpoint.json';m=evidence.checkpoint(target)
+    if change=='bytes':m['chunks'][0]['bytes']+=1
+    if change=='hash':m['chunks'][0]['sha256']='wrong'
+    if change=='count':m['records']+=1
+    if change=='duplicate':m['chunks']*=2
+    if change=='escape':m['chunks'][0]['file']='../other'
+    if change=='complete':m['complete']=True
+    target.write_text(json.dumps(m))
+    with pytest.raises(ValueError):list(iter_checkpoint(target))
+    assert list(evidence)==[{'time':0}]

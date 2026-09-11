@@ -51,6 +51,30 @@ class BoundedEvidence:
         self.ends.append(self.count)
         self.pending.clear()
 
+    def checkpoint(self, target):
+        """Publish an incomplete, hash-bound prefix without rewriting its data."""
+        if self.exported_path is not None:
+            raise ValueError('Cannot checkpoint finalized evidence')
+        target = Path(target)
+        self.flush()
+        records = []
+        previous = 0
+        for path, end in zip(self.chunks, self.ends):
+            relative = path.resolve().relative_to(target.parent.resolve())
+            with path.open('rb') as stream:
+                digest = hashlib.sha256()
+                for block in iter(lambda: stream.read(1024 * 1024), b''):
+                    digest.update(block)
+            records.append(dict(file=str(relative), records=end-previous,
+                                bytes=path.stat().st_size, sha256=digest.hexdigest()))
+            previous = end
+        manifest = dict(schema='doorbench.bounded-evidence.checkpoint.v1',
+                        complete=False, passed=False, records=self.count, chunks=records)
+        temporary = target.with_suffix(target.suffix + '.pending')
+        temporary.write_text(json.dumps(manifest, indent=2)+'\n')
+        temporary.replace(target)
+        return manifest
+
     def __len__(self):
         return self.count
 
@@ -128,3 +152,42 @@ class BoundedEvidence:
         self.ends.clear()
         for path in old_chunks:
             path.unlink()
+
+
+def iter_checkpoint(target):
+    """Recover only the exact recorded prefix; never interpret it as a pass."""
+    target = Path(target)
+    manifest = json.loads(target.read_text())
+    if (manifest.get('schema') != 'doorbench.bounded-evidence.checkpoint.v1'
+            or manifest.get('complete') is not False or manifest.get('passed') is not False):
+        raise ValueError('Explicit incomplete checkpoint required')
+    chunks = manifest['chunks']
+    if (type(manifest['records']) is not int or manifest['records'] < 0
+            or not isinstance(chunks, list)):
+        raise ValueError('Invalid checkpoint record counts')
+    count = 0
+    seen = set()
+    for entry in chunks:
+        relative = Path(entry['file'])
+        path = target.parent / relative
+        if (relative.is_absolute() or '..' in relative.parts or str(relative) in seen
+                or path.is_symlink() or not path.resolve().is_relative_to(target.parent.resolve())
+                or type(entry['records']) is not int or entry['records'] <= 0):
+            raise ValueError('Unsafe or duplicate checkpoint chunk')
+        seen.add(str(relative))
+        digest = hashlib.sha256()
+        with path.open('rb') as stream:
+            for block in iter(lambda: stream.read(1024 * 1024), b''):
+                digest.update(block)
+        if path.stat().st_size != entry['bytes'] or digest.hexdigest() != entry['sha256']:
+            raise ValueError('Checkpoint chunk changed')
+        actual = 0
+        with gzip.open(path, 'rt') as stream:
+            for line in stream:
+                actual += 1
+                yield json.loads(line)
+        if actual != entry['records']:
+            raise ValueError('Checkpoint chunk record count differs')
+        count += actual
+    if count != manifest['records']:
+        raise ValueError('Checkpoint total record count differs')

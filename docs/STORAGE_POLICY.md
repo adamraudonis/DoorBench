@@ -82,3 +82,28 @@ recorder validation peaked at 28,972 KiB RSS (about 28 MiB); this does not measu
 whole-Isaac memory or speed. Its temporary duplicate was removed after decoded
 byte verification. Original evidence remains unchanged. See the
 [validation receipt](evidence/isaac045-bounded-pad-validation.json).
+
+## Incremental pad checkpoints
+
+Future Isaac source snapshots flush pad chunks and atomically publish
+`acquisition-pad-checkpoint.json` every two simulated seconds, instead of
+recompressing the entire growing history into a second gzip file. The manifest
+records each chunk's compressed byte hash and record count and is explicitly
+incomplete (`complete=false`, `passed=false`). The final
+`acquisition-pad-steps.json.gz` export and its independent audits are unchanged.
+Run047 uses its frozen earlier source and still writes the full checkpoint copy.
+
+For an interrupted run, consume the complete iterator returned by
+`doorbench.dexterous.bounded_evidence.iter_checkpoint(path)` to validate and
+recover its recorded prefix. Exhaust the iterator before accepting recovery:
+record-count failures can be detected at the end. Missing/altered chunks fail
+recovery. After successful final export, use the final gzip file; working chunks
+are removed only after that export is verified, so the earlier checkpoint
+manifest is no longer a recovery source. Keep the manifest alongside its chunk
+subdirectory when moving an incomplete run.
+
+Twenty-five focused storage/collector/provenance tests pass, including exact
+prefix recovery after later appends, no decoding of old chunks when writing a
+checkpoint, and tampered/unsafe manifest rejection. This removes repeated pad
+history serialization and its duplicate file; total Isaac wall-time improvement
+has not yet been measured. Other state and camera checkpoints still have costs.
