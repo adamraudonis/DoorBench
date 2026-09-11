@@ -24,6 +24,9 @@ def test_standing_transfer_preflight_and_incompatible_modes():
     result=subprocess.run(command([]),cwd=ROOT,env=env,capture_output=True,text=True)
     assert result.returncode==0,result.stderr
     assert json.loads(result.stdout)['physics_started'] is False
+    result=subprocess.run(command(['--standing-transfer-hybrid-support']),cwd=ROOT,env=env,capture_output=True,text=True)
+    assert result.returncode==0,result.stderr
+    assert json.loads(result.stdout)['physics_started'] is False
     for extra in [['--seconds','40'],['--full-opening'],['--standing-transfer-start-seconds','nan']]:
         result=subprocess.run(command(extra),cwd=ROOT,env=env,capture_output=True,text=True)
         assert result.returncode!=0

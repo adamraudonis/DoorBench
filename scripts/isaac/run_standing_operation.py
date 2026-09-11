@@ -35,6 +35,7 @@ def main():
     p.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
     p.add_argument('--wait-for-run',type=Path,help='Wait for this earlier coordinator to finish before using the prepared node')
     p.add_argument('--camera-profile',type=Path,help='Explicit fixed robot stereo calibration; use configs/dexterous/h1-manipulation-cameras.json for near-handle work')
+    p.add_argument('--standing-transfer-hybrid-support',action='store_true',help='Experimental measured palm-force transfer control')
     p.add_argument('--standing-transfer-route',type=Path,help='Opt-in 50-second actual Isaac transfer after the unchanged36-second native grasp prerequisite')
     p.add_argument('--isaac-timeout-seconds',type=float,default=4200.,help='Wall-clock budget including periodic evidence export')
     p.add_argument('--operation-opening-trigger-rad',type=float,default=.80,help='Controller transition only; final operator and latch acceptance thresholds remain unchanged')
@@ -50,6 +51,9 @@ def main():
     if a.camera_profile is not None and not a.camera_profile.is_file():raise ValueError('Existing fixed camera profile required')
     camera_options=[] if a.camera_profile is None else ['--camera-profile',str(a.camera_profile)]
     transfer_options=[] if a.standing_transfer_route is None else ['--standing-transfer-route',str(a.standing_transfer_route)]
+    if a.standing_transfer_hybrid_support:
+        if a.standing_transfer_route is None:raise ValueError('Hybrid support requires a transfer route')
+        transfer_options.append('--standing-transfer-hybrid-support')
     if not math.isfinite(a.operation_hub_clearance_m) or not .004<=a.operation_hub_clearance_m<=.008:raise ValueError('Hub clearance activation must be 4–8 mm')
     if a.operation_hub_clearance_m!=.004 and not a.operation_handle_hub_avoidance:raise ValueError('Explicit hub avoidance required for changed activation')
     if not all(math.isfinite(v) for v in a.operation_grasp_offset_in_handle_m) or math.sqrt(sum(v*v for v in a.operation_grasp_offset_in_handle_m))>.01:raise ValueError('Finite palm recentering must remain within1cm')

@@ -47,3 +47,22 @@ Start an evidence collector before execution. Reserve storage for the complete
 pipeline plus its atomic verification copy; retain the original failed results
 as well as successful ones. See [storage policy](STORAGE_POLICY.md). Treat only
 the final coordinator result and required independent audits as qualification.
+
+
+## Experimental palm-force transfer control
+
+The coordinator accepts `--standing-transfer-hybrid-support` with an explicit
+transfer route. It is opt-in and is not part of the qualified baseline recipe.
+After the reach is at least 98% complete and measured palm-only load reaches
+2 N, the controller latches a two-second blend into the existing bounded
+normal-force controller, targeting 4 N. Loss of contact does not restart the
+blend. All actuation remains through the original capped motors; the 8 mm
+contact-seeking limit and physical qualification checks are unchanged.
+
+Motivation: run046 reached the panel, but its recorded final half-second had
+60 of 251 samples below 2 N. Right-hand grasp also unloaded intermittently.
+Replacing normal position-servo action with force feedback is a hypothesis for
+reducing contact oscillation, not an established fix. The right-hand issue
+requires separate verification. This option has unit and CLI validation only;
+no physical trial with it has run yet. The unchanged native grasp prerequisite
+still runs before the actual Isaac transfer experiment.

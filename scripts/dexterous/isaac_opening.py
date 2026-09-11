@@ -149,6 +149,7 @@ p.add_argument('--operation-material-profile',choices=('actual-material-v1','act
 p.add_argument('--attained-hold-stage',choices=('acquisition','operator','aperture','opening'),default='opening')
 p.add_argument('--standing-transfer-route',help='Screened route from a qualified recorded Isaac grasp; privileged motor-driven transfer experiment')
 p.add_argument('--standing-transfer-start-seconds',type=float,default=36.)
+p.add_argument('--standing-transfer-hybrid-support',action='store_true',help='Experimental palm-only force feedback after measured contact; original motor limits and audits remain unchanged')
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
 p.add_argument('--operator-compliance-gain',type=float,default=0.,help='Bounded palm-reference integral compensation for actual operator-angle error; motor and mechanism limits unchanged')
@@ -216,6 +217,7 @@ if a.standing_transfer_route and (not a.acquisition or not a.operate_after_acqui
 if not math.isfinite(a.standing_transfer_start_seconds) or a.standing_transfer_start_seconds<=0 or (a.standing_transfer_route and a.seconds<a.standing_transfer_start_seconds+8.5):
     p.error('Standing transfer requires positive start time and at least 8.5 seconds for reach and final hold')
 if not a.standing_transfer_route and a.standing_transfer_start_seconds!=36.:p.error('Transfer start override requires an explicit route')
+if a.standing_transfer_hybrid_support and not a.standing_transfer_route:p.error('Hybrid transfer support requires an explicit route')
 if a.operation_operator_follow_after_leaf_rad is not None and (not .015<=a.operation_operator_follow_after_leaf_rad<=.05 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Operator follow requires standalone operation and .015..0.05 rad')
 if a.operation_operator_lead_limit_rad is not None and (not .01<=a.operation_operator_lead_limit_rad<=.15 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Operator lead requires standalone operation and .01..0.15 rad')
 if a.operation_leaf_lead_limit_rad is not None and (not .002<=a.operation_leaf_lead_limit_rad<=.03 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Leaf lead bound requires standalone operation and .002..0.03 rad')
@@ -556,7 +558,7 @@ def main():
                 from doorbench.dexterous.bounded_evidence import BoundedEvidence
                 standing_transfer=StandingTransferTeacher(operation,motors,a.standing_transfer_route,
                     start_seconds=a.standing_transfer_start_seconds,fixed_pad_tracking=False,
-                    attained_arm_tracking=True,handoff_seconds=1.)
+                    attained_arm_tracking=True,handoff_seconds=1.,hybrid_support=a.standing_transfer_hybrid_support)
                 transfer_steps=BoundedEvidence(out/'standing-transfer-chunks')
             if sequence_reset and not a.full_opening:
                 from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
@@ -690,7 +692,7 @@ def main():
     if a.acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('acquisition_teacher.py','isaac_tendons.py','grasp_verification.py','isaac_pad_audit.py')]
     if a.operation_hub_geometry:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/handle_hub_avoidance.py')
     if a.standing_transfer_route:
-        sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('standing_transfer.py','transfer_contact_geometry.py','standing_transfer_evaluation.py','attained_arm_tracking.py','transfer_preload.py','motor_handoff.py','bimanual_transfer.py','bounded_evidence.py')]
+        sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('standing_transfer.py','standing_support_feedback.py','transfer_contact_geometry.py','standing_transfer_evaluation.py','attained_arm_tracking.py','transfer_preload.py','motor_handoff.py','bimanual_transfer.py','bounded_evidence.py')]
     if a.operate_after_acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('operation_teacher.py','isaac_opening_measurements.py')]
     if sequence:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
         ('full_sequence_teacher.py','approach_teacher.py','approach_lowering.py','locomotion.py','locomotion_approach.py','locomotion_manipulation.py','locomotion_posture.py','isaac_sensors.py')]
@@ -1121,7 +1123,7 @@ def main():
                             leaf_pose=body[door.body_names.index('leaf')]
                             surface=panel_surface_loads(audit_paths,audit_filters,pairs,leaf_pose)
                             forces,teacher_info=standing_transfer.force(*measured_args,leaf_pose,angles,loads,
-                                grasp_qualified=pad_steps[-1]['valid_pad_grasp'],left_panel_load=surface['total_normal_load_N'])
+                                grasp_qualified=pad_steps[-1]['valid_pad_grasp'],left_panel_load=surface['total_normal_load_N'],left_palm_load=surface['palm_normal_load_N'])
                         else:
                             forces,teacher_info=operation.force(*measured_args,body[door.body_names.index('leaf')],angles,loads,grasp_qualified=pad_steps[-1]['valid_pad_grasp'])
                 elif not full_opening:forces,teacher_info=teacher.force(*measured_args,loads)

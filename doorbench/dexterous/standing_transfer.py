@@ -40,9 +40,11 @@ def validate_route_geometry(config):
 
 
 class StandingTransferTeacher:
-    def __init__(self,operation,motors,path,*,start_seconds=22.,preload_profile='maintain',grasp_shift=(0.,0.,0.),hold_route=False,handoff_seconds=0.,fixed_pad_tracking=True,attained_arm_tracking=False,handle_relative_arm=False,leaf_relative_arm=False):
+    def __init__(self,operation,motors,path,*,start_seconds=22.,preload_profile='maintain',grasp_shift=(0.,0.,0.),hold_route=False,handoff_seconds=0.,fixed_pad_tracking=True,attained_arm_tracking=False,handle_relative_arm=False,leaf_relative_arm=False,hybrid_support=False):
         if not np.isfinite(start_seconds) or start_seconds<=0:raise ValueError('Transfer start must be finite and positive')
         if preload_profile not in PROFILES:raise ValueError('Unknown transfer preload profile')
+        if type(hybrid_support) is not bool:raise ValueError('Explicit hybrid support flag required')
+        self.hybrid_support=hybrid_support;self.support_feedback=None
         self.attained_arm_tracking=attained_arm_tracking;self.arm_tracker=None
         if type(handle_relative_arm) is not bool or (handle_relative_arm and not attained_arm_tracking):
             raise ValueError('Handle-relative targets require explicit attained-arm tracking')
@@ -86,8 +88,22 @@ class StandingTransferTeacher:
         self.start_seconds=start_seconds;self.started=None;self.info={}
         self.rotations=Slerp(np.linspace(0,1,101),Rotation.from_quat(self.roots[:,[4,5,6,3]]))
 
-    def force(self,t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,*,grasp_qualified,left_panel_load):
+    def update_support(self,t,root,joints,leaf_pose,palm_load):
+        """Latch measured palm contact before blending bounded force control."""
+        if not self.hybrid_support:return
+        if palm_load is None or not np.isfinite(palm_load) or palm_load<0:
+            raise ValueError('Hybrid support requires measured palm-only load')
+        if self.support_feedback is None and (self.left.progress<.98 or palm_load<2.):return
+        self.left._read(root,joints)
+        if self.support_feedback is None:
+            from .standing_support_feedback import StandingSupportFeedback
+            self.support_feedback=StandingSupportFeedback(self.left)
+        self.support_feedback.update(t,leaf_pose,palm_load,self.left.support_load_target)
+
+    def force(self,t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,*,grasp_qualified,left_panel_load,left_palm_load=None):
         teacher=self.acquisition
+        if self.hybrid_support and (left_palm_load is None or not np.isfinite(left_palm_load) or left_palm_load<0):
+            raise ValueError('Hybrid support requires measured palm-only load')
         if self.started is None and t>=self.start_seconds-1e-8 and grasp_qualified:
             root=np.asarray(root,float);actual=np.array([joints[n] for n in self.names])
             delta=Rotation.from_quat(root[[4,5,6,3]])*Rotation.from_quat(self.roots[0,[4,5,6,3]]).inv()
@@ -109,6 +125,7 @@ class StandingTransferTeacher:
             teacher.digit_forces=transfer_preload(self.initial_digit_forces,t-self.started,self.preload_profile)
             self.operation.grasp_offset=self.original_grasp_offset+pressure_blend*self.grasp_shift
             self.left.update_targets(self.started if self.hold_route else t,root,joints,leaf_pose,left_panel_load,handle_pose)
+            self.update_support(t,root,joints,leaf_pose,left_palm_load)
             u=float(smooth_phase(self.left.progress));coordinate=u*100;i=min(int(coordinate),99);f=coordinate-i
             root_goal=(1-f)*self.roots[i,:3]+f*self.roots[i+1,:3]
             q=(1-f)*self.joints[i]+f*self.joints[i+1]
