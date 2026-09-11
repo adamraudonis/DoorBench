@@ -80,6 +80,7 @@ def prune_redundant_chunks(root,manifest):
     from doorbench.dexterous.json_record_stream import iter_json_object_array
     root=Path(root);removed=[]
     exports={'physics-chunks':'physics-steps.json.gz',
+        'acquisition-pad-chunks':'acquisition-pad-steps.json.gz',
         'controller-chunks':'controller-steps.json.gz',
         'standing-transfer-chunks':'standing-transfer-steps.json.gz'}
     for dirname,exportname in exports.items():

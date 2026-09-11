@@ -22,6 +22,7 @@ class BoundedEvidence:
         self.ends = []
         self.pending = []
         self.count = 0
+        self.first = None
         self.latest = None
         self.exported_path = None
 
@@ -29,6 +30,8 @@ class BoundedEvidence:
         if self.exported_path is not None:
             raise ValueError("Cannot append to finalized evidence")
         encoded = json.dumps(row, separators=(',', ':'))
+        if self.first is None:
+            self.first = encoded
         self.pending.append(encoded)
         self.latest = encoded
         self.count += 1
@@ -71,6 +74,8 @@ class BoundedEvidence:
             index += self.count
         if not 0 <= index < self.count:
             raise IndexError(index)
+        if index == 0:
+            return json.loads(self.first)
         if index == self.count - 1:
             return json.loads(self.latest)
         if self.exported_path is not None:

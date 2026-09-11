@@ -14,7 +14,7 @@ def test_transfer_route_is_copied_and_hashed_after_input_initialization(tmp_path
     for name in ['robot_usd','door_usd','motors','reference','standing_transfer_route']:
         p=tmp_path/name;p.write_text('{}');setattr(args,name,str(p))
     output=tmp_path/'out';output.mkdir()
-    scope=dict(Path=Path,__file__=str(source),a=args,out=output,record_standing_body_poses=False,
+    scope=dict(Path=Path,__file__=str(source),a=args,out=output,record_standing_body_poses=False,physics_audit_enabled=True,
         sequence=None,full_opening=None,continuous=None,sensor_actor=None,hashlib=hashlib,json=json,time=time)
     exec(compile(ast.Module(body=main.body[start:end],type_ignores=[]),str(source),'exec'),scope)
     route=Path(args.standing_transfer_route)

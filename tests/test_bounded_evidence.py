@@ -58,3 +58,17 @@ def test_failed_export_keeps_recoverable_chunks(tmp_path, monkeypatch):
     assert len(list((tmp_path/'chunks').glob('*.gz')))==2
     assert list(evidence)==rows
     assert not (tmp_path/'final.json.gz').exists()
+
+
+def test_first_and_latest_records_do_not_read_closed_chunks(tmp_path, monkeypatch):
+    import gzip
+    from doorbench.dexterous.bounded_evidence import BoundedEvidence
+    records=BoundedEvidence(tmp_path/'cache',chunk_size=1)
+    records.append({'time':0,'contacts':[{'force':2.}]})
+    records.append({'time':1,'contacts':[{'force':3.}]})
+    def fail(*args,**kwargs):raise AssertionError('Control access must not read old chunks')
+    monkeypatch.setattr(gzip,'open',fail)
+    assert records[0]['time']==0
+    assert records[-1]['time']==1
+    changed=records[0];changed['contacts'][0]['force']=99
+    assert records[0]['contacts'][0]['force']==2.

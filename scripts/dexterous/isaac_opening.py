@@ -683,6 +683,8 @@ def main():
         runtime_pose_writes=0,direct_door_commands=bool(a.mechanism_test),contact_material_audit=contact_material_audit,
         scope='Uninterrupted approach, opening, release and traversal; privileged live PhysX development' if continuous else 'Continuous approach through bimanual loaded aperture; privileged live PhysX; no traversal' if full_opening and sequence else 'Contact-free acquisition through bimanual loaded aperture; privileged live PhysX; no approach/traversal' if full_opening else balance_scope if a.sensor_balance_calibration else 'Sensor-only recurrent force actor; declared curriculum objective; no teacher or traversal claim' if sensor_actor else 'Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
     sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py','isaac_joint_passive.py')]
+    if physics_audit_enabled:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/bounded_evidence.py')
+    if a.operate_after_acquisition:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/operation_pad_counts.py')
     if record_standing_body_poses:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/standing_body_record.py')
     if a.panel_push:sources.append(Path(__file__).with_name('panel_push_teacher.py'))
     if a.acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('acquisition_teacher.py','isaac_tendons.py','grasp_verification.py','isaac_pad_audit.py')]
@@ -815,7 +817,8 @@ def main():
             root_controller_field='root_link_state_w',legacy_diagnostic_field='legacy_root_state_w',
             root_body_name=robot.body_names[0],root_com_offset_in_actor_m=robot.data.body_com_pos_b[0,0].cpu().tolist(),
             angular_velocity_frame='world; converted to body-local only inside native free-joint calculators'),indent=2)+'\n')
-    pad_evaluator=None;pad_steps=[]
+    from doorbench.dexterous.bounded_evidence import BoundedEvidence
+    pad_evaluator=None;pad_steps=BoundedEvidence(out/'acquisition-pad-chunks') if physics_audit_enabled else []
     if physics_audit_enabled:
         from doorbench.dexterous.isaac_pad_audit import PhysXShadowPadAudit
         pad_evaluator=PhysXShadowPadAudit(hand_bodies,hand_contacts,handle_filter_index=0,profile=a.grasp_profile)
@@ -1425,7 +1428,7 @@ def main():
         (out/'trace.json').write_text(json.dumps(rows)+'\n')
         if physics_audit_enabled:
             np.savez_compressed(out/'acquisition-physics.npz',**acquisition_states)
-            with gzip.open(out/'acquisition-pad-steps.json.gz','wt') as stream:write_json_record_array(stream,pad_steps)
+            pad_steps.export(out/'acquisition-pad-steps.json.gz')
         if full_opening:
             with gzip.open(out/'full-opening-steps.json.gz','wt') as stream:write_json_record_array(stream,full_opening_steps)
         if sequence:
@@ -1457,7 +1460,7 @@ def main():
     (out/'trace.json').write_text(json.dumps(rows)+'\n')
     if physics_audit_enabled:np.savez_compressed(out/'acquisition-physics.npz',**acquisition_states)
     if physics_audit_enabled:
-        with gzip.open(out/'acquisition-pad-steps.json.gz','wt') as stream:write_json_record_array(stream,pad_steps)
+        pad_steps.export(out/'acquisition-pad-steps.json.gz')
     if full_opening:
         with gzip.open(out/'full-opening-steps.json.gz','wt') as stream:write_json_record_array(stream,full_opening_steps)
     save_traversal_evidence()
@@ -1566,17 +1569,18 @@ def main():
                 opening_bounded_for_transfer=bool(leaf.max()<=.12))
             offset=sequence.acquisition_started if sequence and sequence.acquisition_started is not None else 0.
             absolute_operation_start=operation.started+offset if operation.started is not None else None
-            operation_rows=[r for r in pad_steps if absolute_operation_start is not None and r['sim_time_s']>=absolute_operation_start]
+            from doorbench.dexterous.operation_pad_counts import operation_pad_counts
+            operation_counts=operation_pad_counts(pad_steps,absolute_operation_start)
             operation_report=dict(report,scope='Continuous live PhysX walk/lower/prepare/acquire/partial opening; no traversal or sensor-only claim' if sequence else 'Live PhysX contact-free acquisition to lever, latch and partial opening; no approach/traversal or sensor-only claim',
                 teacher_hand_loads='Both hands, world-space normal plus distinct friction patches from actual PhysX contact buffers',
                 checks=operation_checks,passed=all(operation_checks.values()),
                 maximum_handle_rad=float(handle.max()),maximum_leaf_rad=float(leaf.max()),
                 final_leaf_rad=float(leaf[-1]),maximum_bolt_retraction_m=float(bolt.max()),
-                operation_invalid_grasp_samples=sum(not r['valid_pad_grasp'] for r in operation_rows),
-                operation_digit_unload_samples=sum(any(v<.2 for v in r['digit_forces_N'].values()) for r in operation_rows),
-                operation_opposition_failure_samples=sum(r.get('minimum_pairwise_finger_alignment',1.)<=.5 or r.get('maximum_thumb_finger_dot',-1.)>=-.5 for r in operation_rows),
+                operation_invalid_grasp_samples=operation_counts['operation_invalid_grasp_samples'],
+                operation_digit_unload_samples=operation_counts['operation_digit_unload_samples'],
+                operation_opposition_failure_samples=operation_counts['operation_opposition_failure_samples'],
                 diagnostic_counter_note='Digit unload counts measured force below 0.2 N; invalid grasp includes geometry and surface failures. Older reports conflated these counters.',
-                operation_invalid_pad_patch_samples=sum(any(not c['pad_qualified'] for c in r['contacts']) for r in operation_rows),
+                operation_invalid_pad_patch_samples=operation_counts['operation_invalid_pad_patch_samples'],
                 operation_reference=dict(operation_start_s=operation.started,opening_start_s=operation.open_started,final_goals=operation.info))
             if operation.started is not None:
                 operation_report['operation_reference'].update(palm_position_in_handle_m=operation.p_relative.tolist(),palm_rotation_in_handle=operation.r_relative.tolist())
