@@ -107,3 +107,10 @@ prefix recovery after later appends, no decoding of old chunks when writing a
 checkpoint, and tampered/unsafe manifest rejection. This removes repeated pad
 history serialization and its duplicate file; total Isaac wall-time improvement
 has not yet been measured. Other state and camera checkpoints still have costs.
+
+
+The full recorded045 checkpoint recovery validation also passed: all25,001
+records matched the original canonical record stream, the input gzip hash
+remained unchanged, and the temporary duplicate was removed. Standalone peak
+RSS was26,636KiB (about26MiB). This is a recorder/recovery measurement, not whole
+Isaac memory or speed. [Full-record validation](evidence/pad-checkpoint-full-record-validation.json).
