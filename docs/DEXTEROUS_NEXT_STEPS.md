@@ -4,35 +4,30 @@ Execution plan approved by the owner on September 8, 2026 (UTC). This is the nex
 
 ## Restart checkpoint
 
-Run047 is the active comparison on the owned A40. Coordinator PID307921 is active. The native36-second prerequisite passed runtime
-and both independent contact audits; native PID308106 is terminal. Actual Isaac
-PID313589 was verified live in startup; its physical result remains pending.
-[Prerequisite evidence](evidence/isaac047-native-prerequisite.json).
-Recheck those handles and the coordinator result before assuming it is running
-or restarting anything. Remote run: `/workspace/doorbench-standing-transfer047`.
-Local receipt: `out/isaac-standing-transfer047-launch.json`. The collector is
-PID823; hand-review waiter308385/collector1137 and endpoint waiter308092/
-collector1016 are queued. Endpoint admission requires the complete physical run
-to pass. [Dispatch evidence](evidence/isaac047-transfer-dispatch.json).
+September 13 recovery: run047 is terminal, not running. Its collected coordinator
+report fails runtime and independent transfer qualification; the independent
+loaded-handle audit passes. Runtime passes22/24 checks, failing sustained grasp
+and final supporting-palm contact. Final49.5–50s has29/251 palm samples below2N
+and22/251 invalid grasp samples. No qualified endpoint or full traversal exists.
+The owned pod guard records termination at epoch1789099392.791014. Do not try to
+resume the old process or renew that expired allocation.
 
-Run047 uses the same plan004 route, model, grasp preloads, motor limits and
-qualification gates as046, adding `--standing-transfer-hybrid-support`.
-Measured palm contact near the end of the reach activates a two-second blend
-into bounded normal-force feedback. This is a hypothesis for stabilizing support;
-no successful physical result exists for it yet. Its immutable source is
-`/workspace/doorbench-standing-transfer047-source-a164a8ad76bb96e8`, revision
-`666a5c4b2`. The [portable recipe](ISAAC_STANDING_TRANSFER_RECIPE.md) reproduces
-its dispatched argv exactly. Later documentation/recipe changes do not modify
-that running source.
+Local evidence is under `DoorBench-runs/2026-09-10/isaac-standing-transfer047`.
+The temporary worktree's missing tracked source was restored from its existing
+HEAD after cleanup; large generated assets were not restored. Existing local
+outputs and final recordings were preserved.
 
-Owned pod `yahfgc3nre7tyu` has replacement local/remote guards99897/307342,
-verified armed through epoch1789099392.1251059 (September11,04:03:12UTC).
-The guard receipt is `out/standing-transfer047-guard-applied.json`. Renew only
-this journaled allocation if necessary. Storage admission reserved generated
-evidence plus an atomic collector copy within20GiB and retained10GiB free-space
-headroom. Nine byte-equivalent checkpoint duplicates were removed after final
-verification, recovering1,087,382,193 logical bytes; final exports remain.
-Receipt: `DoorBench-runs/remote-archives/verified-final-partials-047-preflight.json`.
+The next diagnosis is contact/constraint convergence. Full-rate motor analysis
+is in `out/isaac047-motor-spectrum.json`; contact fluctuations are predominantly
+above100Hz, while most finger motor commands are slowly varying. This is not
+causal proof. Crucially, actual047 configuration already uses `backend-dry-v2`,
+and its passive-property invariant passes. Do not propose switching from the
+legacy explicit tanh friction law as a new047 fix. Inspect collision/constraint
+solver settings and measured motions before choosing a controlled comparison.
+
+The complete objective remains motor-driven approach/open/traverse/stable finish,
+a sensor-only policy and the original held-out/catalogue targets. Partial opening
+and diagnostic improvements do not satisfy it.
 
 Run046 finished50 seconds:22/24 runtime checks passed. Sustained grasp and final
 palm support failed; independent loaded-handle patch audit passed and independent
