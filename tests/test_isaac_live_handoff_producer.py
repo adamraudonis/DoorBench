@@ -10,7 +10,7 @@ from test_isaac_live_transfer_handoff import fixture
 
 
 ACCEPT=next(n for n in ast.walk(MAIN) if isinstance(n,ast.If)
-    and ast.unparse(n.test)=='live_handoff_observer is not None'
+    and 'live_handoff_observer is not None' in ast.unparse(n.test)
     and any(isinstance(v,ast.Call) and isinstance(v.func,ast.Attribute)
         and v.func.attr=='observe_completed_interval' for v in ast.walk(n)))
 LOOP=next(n for n in ast.walk(MAIN) if isinstance(n,ast.For) and ACCEPT in n.body)
@@ -21,7 +21,7 @@ GUARD=LOOP.body[LOOP.body.index(ACCEPT)-1]
 def test_only_valid_completed_delivery_populates_actual_handoff(failed):
     observer,calls,command,info=fixture()
     returned,_=observer.force(0.)
-    scope=dict(live_handoff_observer=observer,delivery_failure='bad delivery' if failed else None,
+    scope=dict(live_handoff_observer=observer,standing_controller=observer,delivery_failure='bad delivery' if failed else None,
         step=0,dt=.002,forces=returned,pad_steps=[{'valid_pad_grasp':True}],
         surface={'palm_normal_load_N':3.},dnames=['leaf_hinge','leaf_handle_hinge','leaf_latch_bolt_slide'],
         door=SimpleNamespace(data=SimpleNamespace(joint_pos=np.array([[.091,0.,0.]]))))

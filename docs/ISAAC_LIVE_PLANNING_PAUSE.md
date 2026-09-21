@@ -227,8 +227,7 @@ authorize this path. Existing source-state and physical entry checks still apply
 Tests exercise real pause publication/response/validation and actual late teacher
 construction using synthetic geometry and mocked physical-source admission.
 They verify no extra transfer calls, unchanged observer history and inherited
-support at entry. A loaded physical planning pause and the full episode-runner
-connection remain unverified and unfinished respectively.
+support at entry. A loaded physical planning pause remains unverified.
 
 The producer's opt-in `--observe-live-transfer-handoff` now creates the observer
 at transfer-controller construction, delegates through it from the first
@@ -238,3 +237,25 @@ transfer and measured-rest stop. At that stop it saves the actual observer
 receipt/state. This option alone preserves normal transfer termination; it does
 not yet activate the planning wait or the withdrawal suffix. Producer-boundary
 tests verify that failed delivery cannot populate accepted motor history.
+
+## Connected producer mode
+
+`--live-transfer-planning-pause` enables startup observation and, at the first
+qualified rest endpoint, publishes `trial/live-planning/request.json` with a
+snapshot under `trial/live-planning/snapshot/`. It requires the original exact
+operation-prefix source, hybrid transfer, rest stop and native geometry.
+`--live-planning-timeout-seconds` bounds file-only polling (default 1,800 seconds,
+maximum 7,200). The detached planner must place a protocol response at the
+request's response path; failed admission or timeout stops and preserves evidence.
+
+The producer captures raw live state before snapshot assembly, checks it again
+after publication, and checks around fresh response admission. It appends the
+admitted withdrawal duration at the next interval using the retained controller.
+The original `--seconds` remains the maximum transfer budget. Prospective leaf,
+continuation and withdrawal records start with the episode; final withdrawal
+checks use its actual extended endpoint. The live-pause authorization is reported
+separately from legacy archive-prefix equality. No saved plant state is restored.
+
+The connection has CPU tests of the real producer branch, suffix clock, file-only
+protocol wait, failure behavior, original 26 phase declarations and argument
+validation. A full loaded local run and physical release remain required.

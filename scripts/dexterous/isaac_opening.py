@@ -160,6 +160,8 @@ p.add_argument('--standing-transfer-support-load-target',type=float,default=4.)
 p.add_argument('--standing-transfer-stop-on-rest',action='store_true',help='Stop at the first original qualified resting transfer window; remains a prefix witness during explicit withdrawal')
 p.add_argument('--standing-withdrawal-route',help='Fresh actual-Isaac source-bound measured-rest withdrawal runtime; requires exact transfer prefix')
 p.add_argument('--observe-live-transfer-handoff',action='store_true',help='Retain actual accepted transfer command/rest history for a later same-episode planning handoff; does not itself pause or start withdrawal')
+p.add_argument('--live-transfer-planning-pause',action='store_true',help='At the qualified transfer endpoint, publish a live snapshot, wait for detached planning, then continue the admitted withdrawal in this episode')
+p.add_argument('--live-planning-timeout-seconds',type=float,default=1800.,help='Bounded wall-clock planning wait; simulation remains stopped at the completed interval')
 p.add_argument('--pause-readback-probe-at-seconds',type=float,help='Explicit diagnostic: suspend the main thread for two wall seconds after this complete interval and verify unchanged live state; no phase qualification')
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
@@ -230,6 +232,14 @@ p.add_argument('--operation-hub-clearance-m',type=float,default=.004,help='Prosp
 p.add_argument('--operation-operator-follow-after-leaf-rad',type=float,help='Blend toward the measured handle angle after the leaf clears the latch')
 p.add_argument('--validate-arguments-only',action='store_true',help='Validate CLI combinations without starting SimulationApp')
 a=p.parse_args()
+if a.live_transfer_planning_pause:a.observe_live_transfer_handoff=True
+if not math.isfinite(a.live_planning_timeout_seconds) or not 0<a.live_planning_timeout_seconds<=7200:
+    p.error('Live planning timeout must be positive and at most 7200 seconds')
+if a.live_transfer_planning_pause and (not a.native_door or any((a.full_opening,a.full_sequence_reset,
+        a.traverse,a.sensor_layout,a.sensor_policy_checkpoint,a.sensor_balance_calibration,
+        a.sensor_locomotion_calibration,a.jev_progress_plan,a.whole_body_return_path,
+        a.whole_body_ungrip_path,a.panel_push,a.mechanism_test,a.pause_readback_probe_at_seconds))):
+    p.error('Live transfer planning requires standalone privileged transfer and original native door geometry')
 from doorbench.dexterous.isaac_jev_progress import validate_isaac_jev_arguments
 try:validate_isaac_jev_arguments(a)
 except ValueError as error:p.error(str(error))
@@ -600,12 +610,13 @@ def main():
     controls=None if sensor_control else np.array(ref['controls']);rows=[]
     standing_transfer=None;standing_controller=None;transfer_steps=None
     live_handoff_observer=None
+    live_planning_pause=None;pending_withdrawal_steps=None;withdrawal_recorder=None
     transfer_rest_stop=None;transfer_rest_triggered=False;transfer_rest_terminated=False;transfer_rest_continued=False
     evaluation_seconds=a.seconds
     def save_transfer_rest_stop():
         if transfer_rest_stop is None:return None
         receipt=dict(schema='doorbench.isaac-transfer-rest-stop-run.v1',maximum_seconds=a.seconds,
-            mode='prefix-only' if a.standing_withdrawal_route else 'terminate',
+            mode='prefix-only' if a.standing_withdrawal_route or a.live_transfer_planning_pause else 'terminate',
             terminated_on_qualified_rest=transfer_rest_terminated,continued_to_withdrawal=transfer_rest_continued,
             detector=transfer_rest_stop.receipt())
         (out/'standing-transfer-rest-stop.json').write_text(json.dumps(receipt,indent=2)+'\n')
@@ -650,6 +661,11 @@ def main():
                     from doorbench.dexterous.isaac_live_transfer_handoff import LiveTransferHandoffObserver
                     live_handoff_observer=LiveTransferHandoffObserver(standing_transfer)
                     standing_controller=live_handoff_observer
+                    if a.live_transfer_planning_pause:
+                        from doorbench.dexterous.isaac_withdrawal_measurements import IsaacWithdrawalMeasurements
+                        withdrawal_geometry=IsaacWithdrawalMeasurements(a.native_door,a.native_robot,rnames)
+                        pending_withdrawal_steps=BoundedEvidence(out/'standing-withdrawal-chunks')
+                        withdrawal_recorder=pending_withdrawal_steps
                 if a.standing_withdrawal_route:
                     from doorbench.dexterous.isaac_withdrawal_runtime import create_isaac_withdrawal_controller
                     from doorbench.dexterous.isaac_withdrawal_measurements import IsaacWithdrawalMeasurements
@@ -670,6 +686,7 @@ def main():
                         raise ValueError('Withdrawal requires the exact admitted original geometry assets')
                     withdrawal_geometry=IsaacWithdrawalMeasurements(a.native_door,a.native_robot,rnames)
                     withdrawal_steps=BoundedEvidence(out/'standing-withdrawal-chunks')
+                    withdrawal_recorder=withdrawal_steps
             if sequence_reset and not a.full_opening:
                 from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
                 sequence=FullSequenceTeacher(a.native_robot,motors,ref,
@@ -780,7 +797,7 @@ def main():
                 a.sensor_balance_calibration)
         sensor_actor.reset_episode()
     record_standing_body_poses=bool(a.acquisition and a.acquisition_stance_profile and not continuous)
-    record_standing_continuation=bool(a.standing_withdrawal_route)
+    record_standing_continuation=bool(a.standing_withdrawal_route or a.live_transfer_planning_pause)
     if record_standing_continuation:
         from doorbench.dexterous.isaac_standing_continuation_measurements import BODY_NAMES,pack_standing_continuation
     if record_standing_body_poses:
@@ -796,7 +813,7 @@ def main():
         standing_planner_body_names=list(PLANNER_BODIES) if record_standing_body_poses else None,
         standing_planner_body_pose_convention='World body-origin XYZ/WXYZ at acquisition-physics time_s' if record_standing_body_poses else None,
         **(dict(standing_leaf_pose_convention='World body-origin XYZ/WXYZ at acquisition-physics time_s',
-            standing_continuation_reference_capture='accepted-command-tail-v1') if a.standing_withdrawal_route else {}),
+            standing_continuation_reference_capture='accepted-command-tail-v1') if record_standing_continuation else {}),
         **(dict(standing_continuation_body_names=list(BODY_NAMES)) if record_standing_continuation else {}),
         dt=dt,robot_mass_kg=float(robot.root_physx_view.get_masses().sum()),latch_scale=scale,
         root_state_convention='actor-origin pose and world actor-origin linear/angular velocity' if (continuous or a.sensor_locomotion_calibration or a.acquisition_stance_profile) else 'legacy IsaacLab actor pose plus world COM linear/angular velocity',
@@ -826,7 +843,10 @@ def main():
     if a.observe_live_transfer_handoff:
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
             ('isaac_live_transfer_handoff.py','resting_transfer.py','withdrawal_motor_capture.py')]
-    if a.standing_withdrawal_route:
+    if a.live_transfer_planning_pause:
+        from doorbench.dexterous.isaac_live_transfer_planning import source_paths as live_planning_source_paths
+        sources += list(live_planning_source_paths())
+    if a.standing_withdrawal_route or a.live_transfer_planning_pause:
         from doorbench.dexterous.isaac_withdrawal_runtime import withdrawal_runtime_source_paths
         sources += list(withdrawal_runtime_source_paths())
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in (
@@ -974,7 +994,7 @@ def main():
         (out/'live-withdrawal-prefix-witness.json').write_text(json.dumps(withdrawal_prefix.receipt(),indent=2)+'\n')
     acquisition_states={k:[] for k in ('time_s','root','joints','joint_velocity','motor_forces','door','door_velocity','torso_tilt_deg')}
     if record_standing_body_poses:acquisition_states['standing_body_poses']=[]
-    if a.standing_withdrawal_route:acquisition_states['standing_leaf_pose']=[]
+    if record_standing_continuation:acquisition_states['standing_leaf_pose']=[]
     if continuous or record_standing_continuation:
         acquisition_states.update({k:[] for k in ('actual_motor_forces','actual_joint_effort',
             'continuation_body_poses','actual_foot_loads','legacy_root_state_w')})
@@ -1207,7 +1227,7 @@ def main():
         teacher_queries=TeacherQueryRecorder(out/'teacher-query-evidence',joint_names=rnames,hand_body_names=hand_paths,dt=dt)
     time_origin=float(sim.current_time)
     pause_probe_counter=None
-    if a.pause_readback_probe_at_seconds is not None:
+    if a.pause_readback_probe_at_seconds is not None or a.live_transfer_planning_pause:
         from doorbench.dexterous.isaac_live_pause_readback import PhysicsStepCounter,capture_native_pause_anchor
         pause_probe_counter=PhysicsStepCounter()
         sim.add_physics_callback('doorbench_pause_probe_steps',pause_probe_counter)
@@ -1220,7 +1240,10 @@ def main():
             from doorbench.dexterous.jev_progress_advisor import JevProgressAdvisor,AsyncJevProgressAdvisor
             jev_gate=IsaacJevProgressGate(jev_plan,AsyncJevProgressAdvisor(JevProgressAdvisor(jev_client)),
                 out,sample_period=a.jev_sample_period)
-        for step in range(round(a.seconds/dt)):
+        if a.live_transfer_planning_pause:
+            from doorbench.dexterous.isaac_live_transfer_planning import LiveEpisodeClock
+        episode_clock=LiveEpisodeClock(a.seconds,dt) if a.live_transfer_planning_pause else range(round(a.seconds/dt))
+        for step in episode_clock:
             wall_timing.start()
             delivery_failure=None
             jev_context=None
@@ -1541,9 +1564,10 @@ def main():
                 if transfer_prefix is not None and not transfer_prefix.complete:
                     from doorbench.dexterous.isaac_prefix_witness import PREFIX_FIELDS
                     transfer_prefix.observe({key:acquisition_states[key][-1] for key in PREFIX_FIELDS})
-                if withdrawal_prefix is not None:
+                if record_standing_continuation:
                     leaf_sample=door.data.body_state_w[0,door.body_names.index('leaf'),:7].cpu().numpy().copy()
                     acquisition_states['standing_leaf_pose'].append(leaf_sample)
+                if withdrawal_prefix is not None:
                     if not withdrawal_prefix.complete:
                         from doorbench.dexterous.isaac_prefix_witness import PREFIX_FIELDS
                         withdrawal_prefix.observe({key:acquisition_states[key][-1] for key in PREFIX_FIELDS},
@@ -1569,13 +1593,13 @@ def main():
                         [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
                     transfer_rest_triggered=transfer_rest_stop.observe((step+1)*dt,pad_steps[-1],transfer_steps[-1],rest_angles)
                     if transfer_rest_triggered:save_transfer_rest_stop()
-                if withdrawal_steps is not None:
+                if withdrawal_recorder is not None:
                     from doorbench.dexterous.isaac_withdrawal_evaluation import pack_withdrawal_row
                     measured_time=(step+1)*dt
                     measured_angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in
                         [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
                     withdrawal_measurement=None
-                    if measured_time>standing_controller.start_time:
+                    if withdrawal_steps is not None and measured_time>standing_controller.start_time:
                         measured_robot_poses=robot.data.body_state_w[0,:,:7].cpu().numpy().copy()
                         measured_door_poses=door.data.body_state_w[0,:,:7].cpu().numpy().copy()
                         measured_poses={name:measured_robot_poses[robot.body_names.index(name)]
@@ -1586,7 +1610,7 @@ def main():
                             root=acquisition_states['root'][-1],joints=dict(zip(rnames,acquisition_states['joints'][-1])),
                             angles=measured_angles,body_poses=measured_poses,
                             handle_pose=measured_door_poses[door.body_names.index('leaf_handle')],leaf_pose=leaf_pose)
-                    withdrawal_steps.append(pack_withdrawal_row(measured_time,measured_angles,pad_steps[-1],
+                    withdrawal_recorder.append(pack_withdrawal_row(measured_time,measured_angles,pad_steps[-1],
                         surface,teacher_info,withdrawal_measurement,leaf_pose=leaf_pose))
                 if standing_continuation_steps is not None:
                     continuation_normal=[value.cpu().numpy().copy() for value in audit_contacts.get_contact_data(dt)]
@@ -1614,7 +1638,7 @@ def main():
                     acquisition_states['actual_foot_loads'].append(full_measurement['continuation']['foot_loads'].copy())
             if delivery_failure is not None:
                 raise RuntimeError(delivery_failure)
-            if live_handoff_observer is not None:
+            if live_handoff_observer is not None and standing_controller is live_handoff_observer:
                 actual_angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in
                     [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
                 live_handoff_observer.observe_completed_interval(command_time_s=step*dt,
@@ -1700,7 +1724,7 @@ def main():
             if rows and (rows[-1]['root'][2]<.45 or rows[-1]['torso_tilt_deg']>45):
                 (out/'early-stop.json').write_text(json.dumps(dict(reason='Robot fell',time_s=(step+1)*dt))+'\n')
                 break
-            if pause_probe_counter is not None and step+1==round(a.pause_readback_probe_at_seconds/dt):
+            if a.pause_readback_probe_at_seconds is not None and pause_probe_counter is not None and step+1==round(a.pause_readback_probe_at_seconds/dt):
                 probe_receipt=dict(schema='doorbench.isaac-pause-readback-probe.v1',passed=False,
                     epoch_s=(step+1)*dt,requested_wall_seconds=2.,authorized_stages=0,
                     scope='Actual state equality during a main-thread suspension; no phase or policy qualification')
@@ -1730,7 +1754,52 @@ def main():
                     raise
                 finally:
                     (out/'pause-readback-probe.json').write_text(json.dumps(probe_receipt,indent=2)+'\n')
-            if transfer_rest_triggered and not a.standing_withdrawal_route:
+            if transfer_rest_triggered and a.live_transfer_planning_pause and live_planning_pause is None:
+                from doorbench.dexterous.isaac_live_transfer_planning import (
+                    plan_from_live_transfer,transfer_phase_declarations,phase_mechanical_audit)
+                epoch=(step+1)*dt
+                phase_checks=transfer_phase_declarations(physics_checks=current_physics_checks(),
+                    states=acquisition_states,pad_steps=pad_steps,transfer_steps=transfer_steps,
+                    transfer=standing_transfer,operation=operation,door_names=dnames,epoch=epoch,
+                    prefix=transfer_prefix,rest=transfer_rest_stop)
+                operation_reference=dict(operation_start_s=operation.started,opening_start_s=operation.open_started,
+                    final_goals=operation.info,palm_position_in_handle_m=operation.p_relative.tolist(),
+                    palm_rotation_in_handle=operation.r_relative.tolist())
+                def capture_live_anchor():
+                    return capture_native_pause_anchor(episode_id=str(out.resolve()),step_index=step+1,
+                        epoch_s=epoch,sim=sim,time_origin=time_origin,counter=pause_probe_counter,
+                        robot=robot,door=door,contacts=audit_contacts,
+                        controllers=live_handoff_observer.retained_objects(),invariant_getters=invariant_getters,
+                        evidence_counts=dict(physical=len(acquisition_states['time_s']),pad=len(pad_steps),
+                            transfer=len(transfer_steps),continuation=len(standing_continuation_steps)))
+                standing_controller,live_planning_pause=plan_from_live_transfer(
+                    directory=out/'live-planning',episode_id=str(out.resolve()),observer=live_handoff_observer,
+                    motors=motors,timeout_seconds=a.live_planning_timeout_seconds,capture_anchor=capture_live_anchor,
+                    snapshot_inputs=dict(acquisition_states=acquisition_states,
+                        writers=dict(pad_steps=pad_steps,transfer_steps=transfer_steps,
+                            continuation_steps=standing_continuation_steps),
+                        source_files={role:(out/name).resolve() for role,name in dict(
+                            configuration='configuration.json',motor_contract='motor-contract.json',
+                            provenance='provenance.json',reset_state='acquisition-reset.json',
+                            transfer_route='standing-transfer-route.json',
+                            grasp_profile_definition='grasp-profile-definition.json').items()},
+                        source_capture_directory=out,source_run=out.resolve().parent,
+                        phase_checks=phase_checks,standing_transfer=dict(route=a.standing_transfer_route,
+                            started_s=standing_transfer.started,final=standing_transfer.info),
+                        operation_reference=operation_reference,max_motor_delivery_error_Nm=max_motor_delivery_error,
+                        mechanical_audit=phase_mechanical_audit(mechanical_audit,phase_checks),
+                        rest_detector=transfer_rest_stop.receipt(),source_prefix_witness=transfer_prefix.receipt()))
+                evaluation_seconds=episode_clock.append_suffix(epoch,standing_controller.duration)
+                withdrawal_steps=pending_withdrawal_steps;pending_withdrawal_steps=None
+                from doorbench.dexterous.isaac_standing_reference_capture import StandingContinuationReferenceTail
+                standing_reference_tail=StandingContinuationReferenceTail(standing_controller,
+                    motor_names=[motor['name'] for motor in motors['actuators']])
+                standing_controller.continuation_reference_capture=standing_reference_tail
+                transfer_rest_continued=True
+                save_transfer_rest_stop()
+                (out/'live-withdrawal-admission.json').write_text(json.dumps(dict(
+                    source_context=standing_controller.source_context.data,pause=live_planning_pause.receipt()),indent=2)+'\n')
+            if transfer_rest_triggered and not a.standing_withdrawal_route and not a.live_transfer_planning_pause:
                 if live_handoff_observer is not None:
                     receipt=live_handoff_observer.require_ready((step+1)*dt,transfer=standing_transfer)
                     (out/'live-transfer-handoff-observer.json').write_text(json.dumps(dict(
@@ -1768,7 +1837,7 @@ def main():
                 observed_final_pad_grasp_hold=bool(len(failed_tail)>=round(.5/dt)+1
                     and all(row['valid_pad_grasp'] for row in failed_tail)),
                 physics_dt_s=dt,physical_evidence_complete=False,runtime_robot_pose_writes=0,direct_door_commands=False,
-                standing_withdrawal=dict(route=a.standing_withdrawal_route,started_s=standing_controller.started_withdrawal,
+                standing_withdrawal=dict(route=a.standing_withdrawal_route or str(standing_controller.isaac_runtime.path),started_s=standing_controller.started_withdrawal,
                     release_started_s=standing_controller.release_started,completed=False,
                     source_admission=standing_controller.source_admission,final=standing_controller.info))
             if standing_transfer is not None:
@@ -1829,6 +1898,8 @@ def main():
             evidence_cleanup.attempt('final_withdrawal_prefix',lambda:(out/'live-withdrawal-prefix-witness.json').write_text(json.dumps(withdrawal_prefix.receipt(),indent=2)+'\n'))
         if transfer_steps is not None:evidence_cleanup.export('final_transfer_export',transfer_steps,out/'standing-transfer-steps.json.gz')
         if withdrawal_steps is not None:evidence_cleanup.export('final_withdrawal_export',withdrawal_steps,out/'standing-withdrawal-steps.json.gz')
+        elif pending_withdrawal_steps is not None:
+            evidence_cleanup.export('final_pending_withdrawal_export',pending_withdrawal_steps,out/'standing-withdrawal-steps.json.gz')
         if standing_continuation_steps is not None:
             evidence_cleanup.export('final_continuation_export',standing_continuation_steps,out/'standing-continuation-steps.json.gz')
             if standing_reference_tail is not None:
@@ -1998,7 +2069,7 @@ def main():
                 if transfer_rest_stop is not None:
                     stop_receipt=save_transfer_rest_stop()
                     operation_checks['qualified_transfer_rest_endpoint']=bool(
-                        transfer_rest_continued if a.standing_withdrawal_route else transfer_rest_terminated)
+                        transfer_rest_continued if a.standing_withdrawal_route or a.live_transfer_planning_pause else transfer_rest_terminated)
                     operation_report.update(passed=all(operation_checks.values()),
                         standing_transfer_rest_stop=stop_receipt,maximum_seconds=a.seconds)
             if withdrawal_steps is not None:
@@ -2006,10 +2077,13 @@ def main():
                 observed_final_pad_grasp_hold=operation_checks['sustained_pad_grasp']
                 completed=bool(standing_controller.started_withdrawal is not None
                     and standing_controller.info.get('withdrawal_progress',0.)>=.999)
-                operation_checks=withdrawal_checks(operation_checks,withdrawal_steps,dt=dt,duration=a.seconds,
+                operation_checks=withdrawal_checks(operation_checks,withdrawal_steps,dt=dt,duration=evaluation_seconds,
                     started=standing_controller.started_withdrawal,release_started=standing_controller.release_started,
                     completed=completed)
-                operation_checks['live_exact_withdrawal_source_prefix']=withdrawal_prefix.receipt()['passed']
+                if live_planning_pause is not None:
+                    operation_checks['same_live_paused_transfer_source']=bool(
+                        live_planning_pause.receipt()['resume_handshake_passed'] and standing_controller.isaac_runtime.entered)
+                else:operation_checks['live_exact_withdrawal_source_prefix']=withdrawal_prefix.receipt()['passed']
                 operation_report.update(checks=operation_checks,passed=all(operation_checks.values()),
                     observed_final_pad_grasp_hold=observed_final_pad_grasp_hold,
                     standing_continuation_capture=dict(observations=len(standing_continuation_steps),
@@ -2017,7 +2091,7 @@ def main():
                         archive='standing-continuation-steps.json.gz',authorized_stages=0,
                         scope='Same-epoch future continuation inputs; no post-opening controller executed'),
                     scope='Initialized-standing privileged motor-driven acquisition, transfer and measured-rest withdrawal; no walking/traversal or sensor-only policy',
-                    standing_withdrawal=dict(route=a.standing_withdrawal_route,started_s=standing_controller.started_withdrawal,
+                    standing_withdrawal=dict(route=a.standing_withdrawal_route or str(standing_controller.isaac_runtime.path),started_s=standing_controller.started_withdrawal,
                         release_started_s=standing_controller.release_started,completed=completed,
                         source_admission=standing_controller.source_admission,final=standing_controller.info))
                 (out/'standing-withdrawal-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')

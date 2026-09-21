@@ -21,6 +21,8 @@ from doorbench.dexterous.isaac_evidence_cleanup import EvidenceCleanup
 
 LEAF_RECORD = next(n for n in RECORD.body if isinstance(n, ast.If)
                    and 'leaf_sample' in names(n) and 'withdrawal_prefix' in names(n))
+LEAF_CAPTURE = next(n for n in RECORD.body if isinstance(n,ast.If)
+    and ast.unparse(n.test)=='record_standing_continuation' and 'leaf_sample' in names(n))
 
 
 def make_scope(s, tmp_path, monkeypatch):
@@ -34,14 +36,17 @@ def make_scope(s, tmp_path, monkeypatch):
         return np.zeros(61), {}
     controller.force = force
     scope.update(standing_controller=controller, withdrawal_prefix=combined,
-                 transfer_prefix=None, withdrawal_prefix_authorized=False)
+                 transfer_prefix=None, withdrawal_prefix_authorized=False,record_standing_continuation=True,
+                 pending_withdrawal_steps=None)
     scope['acquisition_states']['standing_leaf_pose'] = []
     def record(i):
+        scope['record_standing_continuation']=False  # Tiny fixture's core omits separate continuation tensors.
         record_core(i)
         poses = scope['door'].data.body_state_w.value.copy()
         poses[0, 0] = s['leaf'][i]
         scope['door'].data.body_state_w = Tensor(poses)
-        execute([LEAF_RECORD], scope)
+        scope['record_standing_continuation']=True
+        execute([LEAF_CAPTURE,LEAF_RECORD], scope)
     return scope, combined, events, record
 
 
@@ -180,6 +185,7 @@ def test_poststep_geometry_uses_current_cached_state_only_after_release_epoch():
         transfer_rest_stop=None,standing_continuation_steps=None,
         acquisition_states={'root':[root],'joints':[joints]},
         pad_steps=[dict(sim_time_s=.006,valid_pad_grasp=True,contacts=[])])
+    scope['withdrawal_recorder']=scope['withdrawal_steps']
     execute([block], scope)
     assert calls == [] and scope['withdrawal_steps'][-1]['geometry'] is None
     scope['step'] = 3

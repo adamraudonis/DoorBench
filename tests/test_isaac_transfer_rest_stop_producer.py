@@ -19,13 +19,15 @@ from test_isaac_standing_transfer_cli import command, ROOT
 
 SAVE=next(n for n in ast.walk(MAIN) if isinstance(n,ast.FunctionDef) and n.name=='save_transfer_rest_stop')
 STOP=next(n for n in ast.walk(MAIN) if isinstance(n,ast.If)
-    and 'transfer_rest_triggered' in names(n.test) and 'evaluation_seconds' in names(n))
+    and 'transfer_rest_triggered' in names(n.test) and 'evaluation_seconds' in names(n)
+    and any(isinstance(v,ast.Break) for v in n.body))
 
 
 def stop_scope(tmp_path,*,withdrawal=False,triggered=True):
     scope=dict(json=json,out=tmp_path,step=18499,dt=.002,evaluation_seconds=48.,
         live_handoff_observer=None,
-        a=SimpleNamespace(seconds=48.,standing_withdrawal_route='runtime.json' if withdrawal else None),
+        a=SimpleNamespace(seconds=48.,standing_withdrawal_route='runtime.json' if withdrawal else None,
+            live_transfer_planning_pause=False),
         transfer_rest_triggered=triggered,transfer_rest_terminated=False,transfer_rest_continued=False,
         transfer_rest_stop=SimpleNamespace(receipt=lambda:dict(triggered=triggered,terminal_time_s=37. if triggered else None)))
     execute([SAVE],scope)
