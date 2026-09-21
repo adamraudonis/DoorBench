@@ -170,7 +170,7 @@ class ContactView:
         return self.values, self.values, self.counts, self.starts
 
 
-def test_contact_inventory_copies_only_occupied_slots_once_in_actual_order():
+def test_contact_inventory_copies_only_occupied_slots_once():
     view = ContactView()
     result = contact_inventory(view, .002)
     assert view.calls == [('matrix', .002), ('normal', .002), ('friction', .002)]
@@ -178,6 +178,47 @@ def test_contact_inventory_copies_only_occupied_slots_once_in_actual_order():
     assert result['friction']['force'].tolist() == [[3., 4., 5.], [6., 7., 8.]]
     view.values[:] = -1.
     assert result['friction']['force'][0, 0] == 3.
+
+
+def contact_fingerprint(view):
+    from doorbench.dexterous.isaac_live_planning_pause import _encode
+    return _encode(contact_inventory(view,.002))
+
+
+def test_contact_record_permutation_is_equal_without_mutating_backend():
+    view=ContactView()
+    initial=contact_fingerprint(view)
+    view.values[[1,2]]=view.values[[2,1]]
+    permuted=view.values.copy()
+    assert contact_fingerprint(view)==initial
+    assert np.array_equal(view.values,permuted)
+    view.values[1,0]=np.nextafter(view.values[1,0],np.float32(np.inf))
+    assert contact_fingerprint(view)!=initial
+
+
+def test_contact_records_cannot_move_between_pairs_or_lose_duplicates():
+    view=ContactView();view.counts[:]=[[1,1]];view.starts[:]=[[1,2]]
+    initial=contact_fingerprint(view)
+    view.values[[1,2]]=view.values[[2,1]]
+    assert contact_fingerprint(view)!=initial
+    view=ContactView();view.values[2]=view.values[1]
+    initial=contact_fingerprint(view)
+    view.counts[0,1]=1
+    assert contact_fingerprint(view)!=initial
+
+
+def test_contact_sort_preserves_whole_record_associations_and_signed_zero():
+    class IndependentPoints(ContactView):
+        def __init__(self):
+            super().__init__();self.points=self.values.copy()
+        def get_contact_data(self,dt):
+            return self.values[:,:1],self.points,self.values,self.values[:,:1],self.counts,self.starts
+    view=IndependentPoints();initial=contact_fingerprint(view)
+    view.points[[1,2]]=view.points[[2,1]]
+    assert contact_fingerprint(view)!=initial
+    view=ContactView();view.values[1,0]=0.
+    initial=contact_fingerprint(view);view.values[1,0]=-0.
+    assert contact_fingerprint(view)!=initial
 
 
 @pytest.mark.parametrize('first,count', [(-1, 1), (3, 2), (0, -1)])

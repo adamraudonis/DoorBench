@@ -140,7 +140,13 @@ def articulation_inventory(articulation):
 
 
 def contact_inventory(view, dt):
-    """Copy occupied normal/friction slots; preserve actual ordering and indices."""
+    """Copy occupied records in exact byte order within each sensor/filter pair.
+
+    Repeated loaded PhysX queries can permute complete records without stepping.
+    Sort whole records, never individual columns or records across body pairs.
+    Counts, starts, multiplicity and every numeric bit remain part of equality.
+    This only orders detached readback copies; it never changes backend buffers.
+    """
     if dt != .002:
         raise ValueError('Original 500 Hz contact interval required')
 
@@ -149,15 +155,18 @@ def contact_inventory(view, dt):
         counts, starts = arrays[-2:]
         if counts.shape != starts.shape or np.any(counts < 0):
             raise ValueError('Malformed contact slot accounting')
-        slots = []
+        slots = []; ordered_slots = []
         for i in np.ndindex(counts.shape):
             first, count = int(starts[i]), int(counts[i])
             if first < 0 or first + count > len(arrays[0]):
                 raise ValueError('Contact slot outside its actual buffer')
             slots.extend(range(first, first + count))
+            ordered_slots.extend(sorted(range(first, first + count), key=lambda slot:
+                b''.join(np.ascontiguousarray(array[slot]).tobytes() for array in arrays[:-2])))
         selected = np.asarray(slots, dtype=np.int64)
+        ordered = np.asarray(ordered_slots, dtype=np.int64)
         return dict(counts=counts, starts=starts, occupied_indices=selected,
-            **{name:array[selected].copy() for name, array in zip(names, arrays[:-2])})
+            **{name:array[ordered].copy() for name, array in zip(names, arrays[:-2])})
 
     return dict(matrix=_copy(view.get_contact_force_matrix(dt=dt)),
         normal=occupied(view.get_contact_data(dt), ('force', 'point', 'normal', 'distance')),
