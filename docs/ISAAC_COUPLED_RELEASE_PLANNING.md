@@ -145,6 +145,33 @@ alignment threshold. After handle following ends, all RH/handle geometry must
 have at least literal 4 mm clearance. Every sampled final mechanism state must
 also retain the original 40 mm RH/environment clearance.
 
+An Isaac envelope may explicitly declare `admitted_leaf_lower_nodes` alongside
+`admitted_leaf_upper_nodes`. Each is an ordered list of `[elapsed_seconds,
+measured_leaf_radians]` knots spanning the complete duration. The bounds are
+piecewise linear, stay within the original `[0.08, 0.4]` tensor, contain the
+exact initial aperture, and must not cross or collapse at any knot of either
+curve. Unknown `admitted_leaf_*` fields reject rather than being ignored.
+Absent or null lower nodes retain the historical 0.08 lower bound; native
+geometry and controls are unchanged. A declared lower bound is enforced by the
+Isaac coordinate lookup before target evaluation. The dense audit samples that
+same domain, including both bound curves' knots and operator/latch extrema;
+runtime admission requires exact receipt/domain equality.
+
+These bounds describe admissible measured states, not a door command or an
+expected future trajectory. Leaving the domain stops reference production as
+a failure. A final minimum aperture may be needed because the released hand's
+40 mm environment clearance changes as the leaf rotates. It cannot replace the
+actual final support/clearance window or any physical contact gate.
+
+A failed map can supply unchanged numeric coordinates for a prospectively
+restricted child, but its failed evidence must stay immutable. Archive and
+hash the original consumer source bytes before changing them. The child must
+retain the parent map digest and complete historical generation input hashes
+as provenance, bind current consumer helpers separately, and state its exact
+domain changes. Do not rewrite old generation claims to imply those helpers
+generated the original tensor. The child requires a fresh complete independent
+dense audit and cannot inherit a passing label from a coarse frontier study.
+
 Passing geometry does not qualify motor loads, contact forces, dynamic balance,
 mechanism speeds or geometry after rate limiting. The opt-in runtime adapter
 requires the exact live source-prefix witness, constraint-preserving motion

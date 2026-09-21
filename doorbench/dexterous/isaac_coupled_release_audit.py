@@ -11,7 +11,7 @@ import mujoco
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from .isaac_coupled_release_geometry import IsaacCoupledReleaseGeometry
+from .isaac_coupled_release_geometry import IsaacCoupledReleaseGeometry,geometry_domain
 from .landed_left_audit import static_pose_check
 from .qualified_isaac_grasp import digest
 from scripts.dexterous.audit_standing_ungrip import release_surface_scores
@@ -39,24 +39,27 @@ def iter_domain_samples(model,*,coarse=False):
     # uses more knots than the original 81x18 planner resolution.
     midtimes = (model.elapsed[:-1]+model.elapsed[1:])/2
     midangles = (model.angles[:-1]+model.angles[1:])/2
-    upper_nodes = model.plan.get('admitted_leaf_upper_nodes')
-    knots = (np.array([0.,model.plan['duration_s']]) if upper_nodes is None
-        else np.asarray(upper_nodes,float)[:,0])
+    knots = np.array([0.,model.plan['duration_s']])
+    for name in ('admitted_leaf_lower_nodes','admitted_leaf_upper_nodes'):
+        nodes = model.plan.get(name)
+        if nodes is not None: knots = np.unique(np.r_[knots,np.asarray(nodes,float)[:,0]])
     for operator,nt,na in schedules:
         times = np.linspace(0,model.plan['duration_s'],nt)
         if not coarse: times = np.unique(np.r_[times,model.elapsed,midtimes,knots])
         for t in times:
-            upper = model.upper_angle(float(t))
-            angles = np.linspace(model.angles[0],upper,na)
+            lower,upper = model.lower_angle(float(t)),model.upper_angle(float(t))
+            angles = np.linspace(lower,upper,na)
             if not coarse:
                 angles = np.unique(np.r_[angles,model.angles,midangles])
-                angles = angles[(angles>=model.angles[0]) & (angles<=upper)]
+                angles = angles[(angles>=lower) & (angles<=upper)]
             for angle in angles:
                 yield float(t),float(angle),float(operator),float(model.initial[model.bq])
     for latch in (-.001,.001):
         for operator in (lo,hi):
-            for t in np.linspace(0,model.plan['duration_s'],21 if coarse else 81):
-                for angle in np.linspace(model.angles[0],model.upper_angle(float(t)),9 if coarse else 17):
+            times = np.linspace(0,model.plan['duration_s'],21 if coarse else 81)
+            if not coarse: times = np.unique(np.r_[times,knots])
+            for t in times:
+                for angle in np.linspace(model.lower_angle(float(t)),model.upper_angle(float(t)),9 if coarse else 17):
                     yield float(t),float(angle),float(operator),latch
 
 
@@ -205,9 +208,7 @@ def audit_isaac_coupled_envelope(path,*,source_config,coarse=False,progress=None
             physical_admission=False,physical_contact_qualification=False,delivered_motor_force_checked=False,
             dynamic_balance_qualification=False,motion_rate_qualification=False,
             post_motion_limiter_geometry_checked=False,
-            geometry_domain=dict(elapsed_s=[0,p['duration_s']],leaf_rad=[.08,.4],
-                admitted_leaf_upper_nodes=p.get('admitted_leaf_upper_nodes'),
-                operator_rad=p['operator_envelope_rad'],latch_m=[-.001,.001]),
+            geometry_domain=geometry_domain(p),
             input_sha256={**model._file_hashes,**code},
             scope='Detached static measured-angle geometry only. Original actual PhysX source evidence is immutable; no source playback, physical release success, motor/load feasibility, arbitrary mechanism-rate admission or runtime promotion.',
             runtime_requirements='Live exact-prefix witness and original per-step geometry after constraint-preserving rate limiting remain required, with independent actual contact/load/balance gates.')

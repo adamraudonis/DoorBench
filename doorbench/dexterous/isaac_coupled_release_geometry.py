@@ -1,8 +1,8 @@
 """Detached measured-angle geometry initialized from qualified actual PhysX.
 
-The existing geometric evaluator is inherited unchanged. Its native constructor
-is never called: no environment reset, native manifest, or recorded door path
-is used. This private unstepped calculator grants no runtime stage permission.
+The geometric evaluator is inherited; an optional Isaac-only lower aperture
+domain is enforced before its coordinate lookup. The native constructor is
+never called. This private calculator grants no runtime stage permission.
 """
 import json
 from pathlib import Path
@@ -75,6 +75,43 @@ def validate_envelope_binding(plan, data, config_path):
     return hashes
 
 
+def validate_leaf_domain(plan, *, initial_leaf=None):
+    """Validate both piecewise-linear bounds, including between their knots."""
+    known = {'admitted_leaf_upper_nodes','admitted_leaf_lower_nodes'}
+    if any(key.startswith('admitted_leaf_') and key not in known for key in plan):
+        raise ValueError('Unknown admitted leaf domain field would be ignored')
+    duration = plan['duration_s']
+    if type(duration) not in (int,float) or not np.isfinite(duration) or duration <= 0:
+        raise ValueError('Finite positive leaf domain duration required')
+    bounds = []
+    for name,default in (('admitted_leaf_lower_nodes',.08),('admitted_leaf_upper_nodes',.4)):
+        raw = plan.get(name)
+        nodes = np.array([[0.,default],[duration,default]]) if raw is None else np.asarray(raw,float)
+        if (nodes.ndim != 2 or nodes.shape[1] != 2 or len(nodes)<2 or not np.isfinite(nodes).all()
+                or not np.all(np.diff(nodes[:,0])>0) or nodes[0,0] != 0 or nodes[-1,0] != duration
+                or np.any(nodes[:,1]<.08) or np.any(nodes[:,1]>.4)):
+            raise ValueError('Explicit finite bounded leaf domain nodes required: '+name)
+        bounds.append(nodes)
+    lower,upper = bounds
+    knots = np.unique(np.r_[lower[:,0],upper[:,0]])
+    if np.any(np.interp(knots,lower[:,0],lower[:,1]) >= np.interp(knots,upper[:,0],upper[:,1])):
+        raise ValueError('Leaf domain bounds cross or collapse')
+    if initial_leaf is not None and not lower[0,1] <= initial_leaf <= upper[0,1]:
+        raise ValueError('Explicit leaf domain must contain exact source aperture')
+    return lower,upper
+
+
+def geometry_domain(plan):
+    """Canonical receipt contract; absent lower nodes preserve old receipts."""
+    validate_leaf_domain(plan)
+    domain = dict(elapsed_s=[0,plan['duration_s']],leaf_rad=[.08,.4],
+        admitted_leaf_upper_nodes=plan.get('admitted_leaf_upper_nodes'),
+        operator_rad=plan['operator_envelope_rad'],latch_m=[-.001,.001])
+    if 'admitted_leaf_lower_nodes' in plan:
+        domain['admitted_leaf_lower_nodes'] = plan['admitted_leaf_lower_nodes']
+    return domain
+
+
 def validate_map(plan, initial, qa, leaf_qpos, operator_qpos, latch_qpos):
     """Validate raw tensor data before an exact-source evaluation can mask it."""
     if plan.get('joint_names') != JOINT_NAMES:
@@ -106,14 +143,7 @@ def validate_map(plan, initial, qa, leaf_qpos, operator_qpos, latch_qpos):
     through = plan.get('follow_handle_through_route_seconds')
     if type(through) not in (int,float) or not np.isfinite(through) or not 0 <= through < 8:
         raise ValueError('Finite handle-follow clock before original eight-second route end required')
-    nodes = plan.get('admitted_leaf_upper_nodes')
-    if nodes is not None:
-        nodes = np.asarray(nodes,float)
-        if (nodes.ndim != 2 or nodes.shape[1] != 2 or len(nodes)<2 or not np.isfinite(nodes).all()
-                or not np.all(np.diff(nodes[:,0])>0) or nodes[0,0] != 0 or nodes[-1,0] != duration
-                or np.any(nodes[:,1]<angles[0]) or np.any(nodes[:,1]>angles[-1])
-                or nodes[0,1] < initial[leaf_qpos]):
-            raise ValueError('Explicit source-containing progress/aperture subdomain required')
+    validate_leaf_domain(plan,initial_leaf=float(initial[leaf_qpos]))
     return times,angles,values
 
 
@@ -197,6 +227,18 @@ class IsaacCoupledReleaseGeometry(CoupledReleaseGeometry):
 
     def verify_inputs(self):
         _verify_hashes(self._file_hashes)
+
+    def lower_angle(self,elapsed):
+        nodes = self.plan.get('admitted_leaf_lower_nodes')
+        if nodes is None: return float(self.angles[0])
+        nodes = np.asarray(nodes,float)
+        return float(np.interp(elapsed,nodes[:,0],nodes[:,1]))
+
+    def coordinates(self,elapsed,angle):
+        # evaluate() calls this before any private pose writes or references.
+        if not np.isfinite([elapsed,angle]).all() or angle < self.lower_angle(elapsed):
+            raise ValueError('Measured aperture below screened Isaac coupled envelope')
+        return super().coordinates(elapsed,angle)
 
     def close(self):
         # LandedLeftScene owns only MjModel/MjData, with no renderer or process.

@@ -113,3 +113,22 @@ def test_post_limiter_final_environment_gap_uses_current_private_state(monkeypat
     dict(capture_returned_motor_command=True,coupled_motion_projection=None)])
 def test_exact_capture_and_projection_are_mandatory_before_geometry_load(config):
     with pytest.raises(ValueError,match='constraint-preserving'):IsaacCoupledReleaseReference(config,{})
+
+
+def test_runtime_admission_requires_exact_lower_domain_in_independent_receipt(proof):
+    nodes=[[0.,.08],[14.,.08],[15.5,.1],[16.,.1]]
+    proof.geometry.plan['admitted_leaf_lower_nodes']=nodes
+    with pytest.raises(ValueError,match='domain differs'):
+        validate_isaac_coupled_audit(proof.config,proof.geometry,proof.data)
+    proof.audit['geometry_domain']['admitted_leaf_lower_nodes']=copy.deepcopy(nodes);proof.bind()
+    validate_isaac_coupled_audit(proof.config,proof.geometry,proof.data)
+    proof.audit['geometry_domain']['admitted_leaf_lower_nodes'][2][1]=.099
+    proof.bind()
+    with pytest.raises(ValueError,match='domain differs'):
+        validate_isaac_coupled_audit(proof.config,proof.geometry,proof.data)
+
+
+def test_receipt_cannot_smuggle_lower_domain_into_default_plan(proof):
+    proof.audit['geometry_domain']['admitted_leaf_lower_nodes']=[[0.,.08],[16.,.1]];proof.bind()
+    with pytest.raises(ValueError,match='domain differs'):
+        validate_isaac_coupled_audit(proof.config,proof.geometry,proof.data)

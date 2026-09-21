@@ -150,7 +150,7 @@ def test_adapter_uses_unchanged_evaluator_and_never_native_environment(monkeypat
     path=tmp_path/'envelope.json';write(path,plan)
     model=module.IsaacCoupledReleaseGeometry(path,source_config=config)
     assert calls==[True]
-    for name in ('evaluate','coordinates','upper_angle','_correct_arm'):
+    for name in ('evaluate','upper_angle','_correct_arm'):
         assert getattr(module.IsaacCoupledReleaseGeometry,name) is getattr(CoupledReleaseGeometry,name)
     result=model.evaluate(0.,initial[model.lq],initial[model.oq],initial[model.bq])
     np.testing.assert_array_equal(result['qpos'],initial)
@@ -168,3 +168,72 @@ def test_failed_actual_source_admission_propagates_before_any_geometry(monkeypat
     monkeypatch.setattr(module,'LandedLeftScene',lambda *args:pytest.fail('Geometry constructed before source qualification'))
     with pytest.raises(ValueError,match='source qualification failed'):
         module.IsaacCoupledReleaseGeometry(path,source_config=config)
+
+
+@pytest.mark.parametrize('bad',[
+    [[0,.08],[14,.08],[15.5,.1],[15.9,.1]],
+    [[0,.08],[14,.08],[14,.1],[16,.1]],
+    [[0,.079],[16,.1]],[[0,.08],[16,.401]],
+    [[0,.08],[16,float('nan')]],[[0,.08],[16,float('inf')]],
+    [[0,.092],[16,.1]],[[0,.08],[8,.4],[16,.1]],
+    [[0,.1],[16,.1]],[],[0,.08,16,.1],
+])
+def test_lower_domain_rejects_invalid_crossing_or_source_excluding_nodes(bad):
+    plan,initial,qa=map_fixture();plan['admitted_leaf_lower_nodes']=bad
+    with pytest.raises(ValueError):module.validate_map(plan,initial,qa,0,1,2)
+
+
+def test_bounds_are_compared_at_the_union_of_upper_and_lower_knots():
+    plan,initial,qa=map_fixture()
+    plan['admitted_leaf_lower_nodes']=[[0,.08],[16,.2]]
+    # Endpoints pass but the upper-only interior knot crosses the lower line.
+    plan['admitted_leaf_upper_nodes']=[[0,.1],[8,.13],[16,.4]]
+    with pytest.raises(ValueError,match='cross'):
+        module.validate_map(plan,initial,qa,0,1,2)
+
+
+def test_unknown_lower_domain_spelling_is_not_silently_ignored():
+    plan,initial,qa=map_fixture();plan['admitted_leaf_lower_rad']=.1
+    with pytest.raises(ValueError,match='ignored'):
+        module.validate_map(plan,initial,qa,0,1,2)
+
+
+def coordinate_model(*,lower=True):
+    model=module.IsaacCoupledReleaseGeometry.__new__(module.IsaacCoupledReleaseGeometry)
+    model.plan=dict(duration_s=16.,admitted_leaf_upper_nodes=[[0,.11],[16,.4]])
+    if lower:model.plan['admitted_leaf_lower_nodes']=[[0,.08],[14,.08],[15.5,.1],[16,.1]]
+    model.elapsed=np.array([0.,16.]);model.angles=np.array([.08,.4])
+    model.splines=[lambda t,a,grid:np.array(2*t+3*a)]
+    model.m=None;model.d=None
+    return model
+
+
+def test_analytic_coordinate_lookup_enforces_measured_lower_before_pose_evaluation():
+    model=coordinate_model()
+    assert model.lower_angle(14.75)==pytest.approx(.09)
+    np.testing.assert_array_equal(model.coordinates(14.75,.095),[2*14.75+3*.095])
+    np.testing.assert_array_equal(model.coordinates(16.,.1),[32.3])
+    for t,angle in [(14.75,.089999),(16.,.099999),(16.,.400001),(16.001,.11),(-.001,.1),(16.,float('nan'))]:
+        with pytest.raises(ValueError):model.evaluate(t,angle,0.,0.)
+
+
+def test_absent_or_null_lower_domain_keeps_historical_coordinate_values():
+    model=coordinate_model(lower=False)
+    for t,angle in [(0.,.08),(2.,.1),(14.75,.08),(16.,.08),(16.,.4)]:
+        before=CoupledReleaseGeometry.coordinates(model,t,angle)
+        np.testing.assert_array_equal(model.coordinates(t,angle),before)
+        model.plan['admitted_leaf_lower_nodes']=None
+        np.testing.assert_array_equal(model.coordinates(t,angle),before)
+        model.plan.pop('admitted_leaf_lower_nodes')
+    # Native evaluator remains unchanged, even when given an unrelated new field.
+    model.plan['admitted_leaf_lower_nodes']=[[0,.08],[16,.1]]
+    np.testing.assert_array_equal(CoupledReleaseGeometry.coordinates(model,16.,.08),[32.24])
+
+
+def test_lower_nodes_appear_in_receipt_only_when_explicitly_declared():
+    plan,_,_=map_fixture();old=module.geometry_domain(plan)
+    assert 'admitted_leaf_lower_nodes' not in old
+    nodes=[[0,.08],[14,.08],[15.5,.1],[16,.1]]
+    plan['admitted_leaf_lower_nodes']=nodes
+    new=module.geometry_domain(plan)
+    assert new.pop('admitted_leaf_lower_nodes')==nodes and new==old

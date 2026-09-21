@@ -25,6 +25,7 @@ def geometry_model(*,change=None):
             initial_feet_rotations=d.xmat[feet].reshape(2,3,3).copy().tolist(),
             initial_com=d.subtree_com[body].copy().tolist()))
     model.upper_angle=lambda t:float(np.interp(t,[0,16],[.10,.4]))
+    model.lower_angle=lambda t:.08
     def evaluate(t,angle,operator,latch):
         d.qpos[:]=initial;d.qpos[model.lq]=angle;d.qpos[model.oq]=operator;d.qpos[model.bq]=latch
         if change=='feet':d.qpos[scene.root]+=.001001
@@ -168,3 +169,19 @@ def test_source_change_at_end_of_audit_prevents_any_receipt(monkeypatch,tmp_path
     with pytest.raises(ValueError,match='Changed source'):
         audit.audit_isaac_coupled_envelope(tmp_path/'map.json',source_config='source.json')
     assert closed==[True]
+
+
+def test_dense_sampler_honors_lower_curve_and_covers_its_knots_at_all_latch_extrema():
+    model=geometry_model()
+    nodes=[[0.,.08],[14.,.08],[15.5,.1],[16.,.1]]
+    model.plan['admitted_leaf_lower_nodes']=nodes
+    model.lower_angle=lambda t:float(np.interp(t,[n[0] for n in nodes],[n[1] for n in nodes]))
+    points=list(audit.iter_domain_samples(model))
+    assert len(points)>50000
+    assert all(model.lower_angle(t)<=a<=model.upper_angle(t) for t,a,_,_ in points)
+    for operator in (-.01,.01):
+        for latch in (-.001,.001):
+            assert (15.5,.1,operator,latch) in points
+            assert (15.5,model.upper_angle(15.5),operator,latch) in points
+    assert (16.,.08,0.,0.) not in points
+    assert (14.,.08,0.,0.) in points and (16.,.1,0.,0.) in points

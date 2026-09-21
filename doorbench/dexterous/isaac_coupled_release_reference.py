@@ -7,7 +7,7 @@ import numpy as np
 
 from .coupled_release_reference import CoupledReleaseReference
 from .coupled_release_motion import CoupledReferenceMotion
-from .isaac_coupled_release_geometry import IsaacCoupledReleaseGeometry,_verify_hashes
+from .isaac_coupled_release_geometry import IsaacCoupledReleaseGeometry,_verify_hashes,geometry_domain
 from .isaac_coupled_release_audit import SCHEMA,ORIGINAL_LIMITS,ORIGINAL_GEOMETRY_LIMITS
 from .qualified_isaac_grasp import digest
 
@@ -42,8 +42,7 @@ def validate_isaac_coupled_audit(config,geometry,source_data):
     for key in ('physical_admission','physical_contact_qualification','delivered_motor_force_checked',
                 'dynamic_balance_qualification','motion_rate_qualification','post_motion_limiter_geometry_checked','runtime_route_exported'):
         if audit.get(key) is not False:raise ValueError('Static audit cannot manufacture '+key)
-    domain=dict(elapsed_s=[0,p['duration_s']],leaf_rad=[.08,.4],admitted_leaf_upper_nodes=p.get('admitted_leaf_upper_nodes'),
-        operator_rad=p['operator_envelope_rad'],latch_m=[-.001,.001])
+    domain=geometry_domain(p)
     if audit.get('geometry_domain')!=domain:raise ValueError('Isaac live measured-state domain differs from audit')
     maximum=audit.get('maximum',{})
     if set(maximum)!=set(ORIGINAL_LIMITS) or any(type(maximum[k]) not in (int,float)
