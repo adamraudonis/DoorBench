@@ -37,6 +37,25 @@ def _track(hashes,path):
     return actual
 
 
+def _same_contact_diagnostics(measured, recorded):
+    """Preserve exact raw fields and labels; allow derived scalar roundoff only.
+
+    NumPy/SciPy builds can differ in the final floating-point bit of these two
+    recomputed diagnostics. Their physical thresholds and qualification labels
+    are independently recomputed before this equality check and remain exact.
+    """
+    derived={'inward_radial_normal_alignment','axial_clearance_m'}
+    if not isinstance(recorded,list) or len(measured)!=len(recorded):return False
+    for actual,prior in zip(measured,recorded):
+        if not isinstance(prior,dict) or set(actual)!=set(prior):return False
+        for key,value in actual.items():
+            if key in derived:
+                if not (_finite(value) and _finite(prior[key]) and abs(value-prior[key])<=1e-12):return False
+            elif isinstance(value,(bool,np.bool_)) and type(prior[key]) is not bool:return False
+            elif value!=prior[key]:return False
+    return True
+
+
 def _actual_pad(row,t,profile):
     raw=row.get('raw_evidence',{})
     if (not _epoch(row.get('sim_time_s'),t) or not _epoch(row.get('physics_dt_s'),.002)
@@ -56,7 +75,7 @@ def _actual_pad(row,t,profile):
         half_length=lever['half_length'],radius=lever['radius'],profile=profile)
     if (measured['valid_pad_grasp'] is not True or measured['non_digit_handle_force_N']!=0.
             or any(c['pad_qualified'] is not True for c in measured['contacts'])
-            or measured['contacts']!=row.get('contacts')):
+            or not _same_contact_diagnostics(measured['contacts'],row.get('contacts'))):
         raise ValueError('Actual raw grasp/material patches disagree with qualified source')
     pairs=raw['handle_pair_forces_world_N']
     if any(c['body'] not in pairs for c in raw['contacts']):

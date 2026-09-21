@@ -54,6 +54,34 @@ def test_actual_window_reconstructs_contacts_and_palm_force_without_mutation():
     assert values[2:]==before
 
 
+@pytest.mark.parametrize('key',['inward_radial_normal_alignment','axial_clearance_m'])
+def test_derived_contact_roundoff_preserves_recomputed_original_grasp(key):
+    values=window();contact=values[2][125]['contacts'][0]
+    original=contact[key];contact[key]=float(np.nextafter(original,np.inf))
+    assert contact[key]!=original
+    assert validate(values)['window_samples']==251
+
+
+@pytest.mark.parametrize('kind',['alignment','axial','normal_force','position','body_position',
+    'pad_flag','pad_integer','body','digit','missing','extra','nonfinite','bool_scalar'])
+def test_roundoff_comparison_does_not_relax_contact_data_or_classification(kind):
+    values=window();contact=values[2][125]['contacts'][0]
+    if kind=='alignment':contact['inward_radial_normal_alignment']+=2e-12
+    if kind=='axial':contact['axial_clearance_m']+=2e-12
+    if kind=='normal_force':contact['normal_force_N']=float(np.nextafter(contact['normal_force_N'],np.inf))
+    if kind=='position':contact['position'][0]+=1e-16
+    if kind=='body_position':contact['body_position_m'][0]+=1e-16
+    if kind=='pad_flag':contact['pad_qualified']=False
+    if kind=='pad_integer':contact['pad_qualified']=1
+    if kind=='body':contact['body']+='changed'
+    if kind=='digit':contact['digit']='mf'
+    if kind=='missing':contact.pop('axial_clearance_m')
+    if kind=='extra':contact['additional']='not recorded'
+    if kind=='nonfinite':contact['axial_clearance_m']=float('nan')
+    if kind=='bool_scalar':contact['inward_radial_normal_alignment']=True
+    with pytest.raises(ValueError):validate(values)
+
+
 @pytest.mark.parametrize('terminal',[float('nan'),float('inf'),True,.49,1.502])
 def test_invalid_terminal_is_rejected(terminal):
     with pytest.raises(ValueError):validate(window(),terminal=terminal)
