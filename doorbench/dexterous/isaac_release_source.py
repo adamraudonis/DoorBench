@@ -169,6 +169,15 @@ def admit_isaac_release_source(source, *, robot, door_xml, door_usd,
     extracted,motors,qualification=load_local_source(source,source/'independent-contact-audit.json')
     report=json.loads((trial/'operation-report.json').read_text())
     configuration=json.loads((trial/'configuration.json').read_text())
+    if bool(configuration['args'].get('standing_transfer_stop_on_rest'))!=('standing_transfer_rest_stop' in report):
+        raise ValueError('Prospective transfer stop declaration and report disagree')
+    rest_stop_inputs={}
+    if 'standing_transfer_rest_stop' in report:
+        from .isaac_transfer_rest_audit import REST_FILES,validate_transfer_rest_evidence
+        stop_audit=json.loads((source/'isaac-transfer-audit.json').read_text())
+        validate_transfer_rest_evidence(report,stop_audit,trial)
+        for name in REST_FILES:_track(rest_stop_inputs,trial/name)
+        _track(rest_stop_inputs,Path(__file__).with_name('isaac_transfer_rest_audit.py'))
     if (not report.get('standing_transfer') or configuration['args'].get('grasp_profile')!=profile
             or report.get('grasp_profile')!=profile):
         raise ValueError('Qualified actual Isaac palm transfer with the selected profile required')
@@ -182,7 +191,7 @@ def admit_isaac_release_source(source, *, robot, door_xml, door_usd,
     historical=witness.receipt()
     if historical['source_qualification']!=qualification or historical['stage_entry_authorized'] is not False or historical['intervals_verified']!=0:
         raise ValueError('Unchanged source-only qualification without stage authorization required')
-    hashes=dict(historical['input_sha256'])
+    hashes={**historical['input_sha256'],**rest_stop_inputs}
     declaration=trial/'grasp-profile-definition.json'
     spec=json.loads(declaration.read_text())
     original=Path(configuration['args']['grasp_profile_definition'])

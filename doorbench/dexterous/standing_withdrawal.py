@@ -28,11 +28,23 @@ def bound_input_digest(bindings,path):
 
 
 class StandingWithdrawalTeacher:
-    def __init__(self,returned,motors,path):
+    def __init__(self,returned,motors,path,*,_isaac_runtime=None):
         self.returned=returned;self.acquisition=returned.acquisition;self.operation=returned.operation
         self.left=returned.transfer.left;self.started_withdrawal=None;self.release_started=None
         self.qualified_since=None;self.info={};self.handoff=None
-        config=json.loads(Path(path).read_text())
+        self.isaac_runtime=_isaac_runtime;self.inherited_support=None
+        if _isaac_runtime is None:
+            config=json.loads(Path(path).read_text())
+            if config.get('source_engine','native-mujoco')!='native-mujoco':
+                raise ValueError('Isaac withdrawal requires its explicit actual-source runtime factory')
+        else:
+            from .isaac_withdrawal_runtime import IsaacWithdrawalRuntimeAdmission
+            if not isinstance(_isaac_runtime,IsaacWithdrawalRuntimeAdmission) or _isaac_runtime.inherited_support is None:
+                raise ValueError('Fresh actual-Isaac runtime admission and predecessor required')
+            _isaac_runtime.verify(path,motors)
+            config=dict(_isaac_runtime.controller_config)
+            self.source_context=_isaac_runtime.source_context
+            self.inherited_support=_isaac_runtime.inherited_support
         if config.get('schema')!='doorbench.standing-withdrawal.v1':raise ValueError('Explicit standing withdrawal config required')
         self.palm_correction_gain_s_inv=validate_correction_gain(config.get('palm_correction_gain_s_inv',3.))
         capture_returned=config.get('capture_returned_motor_command',False)
@@ -47,7 +59,8 @@ class StandingWithdrawalTeacher:
         self.palm_only_support=self.measured_rest or config.get('palm_only_support',False)
         if type(self.palm_only_support) is not bool:raise ValueError('Explicit palm-only qualification option required')
         self.support_target=float(config.get('left_support_target_N',4.))
-        if not np.isfinite(self.support_target) or not 2<self.support_target<=4:raise ValueError('Withdrawal support target must remain above the original 2 N gate')
+        support_maximum=4. if self.inherited_support is None else self.inherited_support.target_N
+        if not np.isfinite(self.support_target) or not 2<self.support_target<=support_maximum:raise ValueError('Withdrawal support target must remain above the original 2 N gate')
         self.initial_support_target=self.left.support_load_target
         self.hybrid_support=config.get('hybrid_support',False)
         if type(self.hybrid_support) is not bool:raise ValueError('Explicit hybrid support option required')
@@ -87,31 +100,38 @@ class StandingWithdrawalTeacher:
         if type(self.left_full_orientation) is not bool or (self.left_full_orientation and not self.left_arm_only):raise ValueError('Full palm orientation requires isolated left-arm IK')
         self.left_target_velocity=config.get('left_target_velocity',False)
         if type(self.left_target_velocity) is not bool or (self.left_target_velocity and not self.hybrid_support):raise ValueError('Left target velocity requires explicit hybrid support')
-        audit_path=Path(config['audit_path']);screen_path=Path(config['screen_path']);source=Path(config['source_run'])
-        if sha(audit_path)!=config['audit_sha256'] or sha(screen_path)!=config['screen_sha256']:raise ValueError('Withdrawal evidence changed')
-        audit=json.loads(audit_path.read_text());screen=json.loads(screen_path.read_text())
-        self.source_admission=None
-        if self.measured_rest:
-            from .release_source_admission import admit_release_source
-            self.source_admission=admit_release_source(source,
-                profile=config['grasp_profile'],contact_audit_name=config['contact_audit_name'],measured_rest=True)
-            if screen.get('grasp_profile')!=config['grasp_profile'] or audit.get('grasp_profile')!=config['grasp_profile']:
-                raise ValueError('Withdrawal route and dense audit must retain the selected source profile')
-            if screen.get('source_admission')!=self.source_admission:
-                raise ValueError('Withdrawal screen must bind this exact measured-rest source')
-        from .release_motion_admission import validate_motion_screen
-        validate_motion_screen(config,screen_path,source)
-        if audit.get('passed') is not True or audit.get('samples')!=2001 or audit.get('physics_steps')!=0:raise ValueError('Independent dense withdrawal admission required')
-        if bound_input_digest(audit['input_sha256'],screen_path)!=sha(screen_path) or bound_input_digest(audit['input_sha256'],source/'trajectory.npz')!=sha(source/'trajectory.npz'):raise ValueError('Withdrawal audit belongs to another state or route')
-        for name,digest in audit['input_sha256'].items():
-            if sha(name)!=digest:raise ValueError('Withdrawal input bytes changed: '+name)
-        manifest=json.loads((source/'manifest.json').read_text());cfg=manifest['configuration']
-        if manifest['inputs']['robot']['sha256']!=motors['source_xml_sha256']:raise ValueError('Withdrawal requires its original robot motor contract')
-        with np.load(source/'trajectory.npz') as z:actual=z['terminal_qpos'].copy();self.start_time=float(z['terminal_time_s'])
-        self.duration=float(audit['duration_s'])
+        if _isaac_runtime is None:
+            audit_path=Path(config['audit_path']);screen_path=Path(config['screen_path']);source=Path(config['source_run'])
+            if sha(audit_path)!=config['audit_sha256'] or sha(screen_path)!=config['screen_sha256']:raise ValueError('Withdrawal evidence changed')
+            audit=json.loads(audit_path.read_text());screen=json.loads(screen_path.read_text())
+            self.source_admission=None
+            if self.measured_rest:
+                from .release_source_admission import admit_release_source
+                self.source_admission=admit_release_source(source,
+                    profile=config['grasp_profile'],contact_audit_name=config['contact_audit_name'],measured_rest=True)
+                if screen.get('grasp_profile')!=config['grasp_profile'] or audit.get('grasp_profile')!=config['grasp_profile']:
+                    raise ValueError('Withdrawal route and dense audit must retain the selected source profile')
+                if screen.get('source_admission')!=self.source_admission:
+                    raise ValueError('Withdrawal screen must bind this exact measured-rest source')
+            from .release_motion_admission import validate_motion_screen
+            validate_motion_screen(config,screen_path,source)
+            if audit.get('passed') is not True or audit.get('samples')!=2001 or audit.get('physics_steps')!=0:raise ValueError('Independent dense withdrawal admission required')
+            if bound_input_digest(audit['input_sha256'],screen_path)!=sha(screen_path) or bound_input_digest(audit['input_sha256'],source/'trajectory.npz')!=sha(source/'trajectory.npz'):raise ValueError('Withdrawal audit belongs to another state or route')
+            for name,digest in audit['input_sha256'].items():
+                if sha(name)!=digest:raise ValueError('Withdrawal input bytes changed: '+name)
+            manifest=json.loads((source/'manifest.json').read_text());cfg=manifest['configuration']
+            if manifest['inputs']['robot']['sha256']!=motors['source_xml_sha256']:raise ValueError('Withdrawal requires its original robot motor contract')
+            with np.load(source/'trajectory.npz') as z:actual=z['terminal_qpos'].copy();self.start_time=float(z['terminal_time_s'])
+            self.duration=float(audit['duration_s'])
+            robot_path=Path(cfg['robot']);door_xml_path=Path(cfg['door'])/'door.xml'
+        else:
+            source_data=self.source_context.data
+            self.source_admission=source_data['source_admission'];screen=source_data['screen'];audit=source_data['audit']
+            actual=self.source_context.initial_qpos;self.start_time=source_data['start_time_s'];self.duration=source_data['duration_s']
+            robot_path=Path(source_data['robot_path']);door_xml_path=Path(source_data['door_xml_path'])
         if not np.isfinite([self.start_time,self.duration]).all() or self.duration<=0:raise ValueError('Finite positive withdrawal duration required')
         from .landed_left_planner import LandedLeftScene
-        scene=LandedLeftScene(Path(cfg['robot']),Path(cfg['door'])/'door.xml');m=scene.m;d=mujoco.MjData(m);d.qpos[:]=actual;mujoco.mj_kinematics(m,d)
+        scene=LandedLeftScene(robot_path,door_xml_path);m=scene.m;d=mujoco.MjData(m);d.qpos[:]=actual;mujoco.mj_kinematics(m,d)
         rq=int(m.joint('robot/free_base').qposadr[0]);palm=m.site('robot/rh_palm_touch').id;leaf=m.body('leaf').id
         self.initial_leaf=(d.xpos[leaf].copy(),d.xmat[leaf].reshape(3,3).copy())
         initial=dict(time_s=0.,qpos=actual.tolist(),palm_position=d.site_xpos[palm].tolist(),palm_rotation=d.site_xmat[palm].reshape(3,3).tolist())
@@ -240,12 +260,20 @@ class StandingWithdrawalTeacher:
                 raise ValueError('Coupled withdrawal cannot combine separately framed continuation/material feedback routes')
             from .coupled_release_reference import CoupledReleaseReference
             self.coupled=CoupledReleaseReference(config,self.source_admission,actual,self.duration)
+        if _isaac_runtime is not None:
+            self.coupled=_isaac_runtime.reference
+            if not np.array_equal(self.coupled.geometry.initial,actual) or self.coupled.geometry.plan['duration_s']!=self.duration:
+                raise ValueError('Isaac reference must retain constructor source endpoint and duration')
 
     @property
     def started(self):return self.returned.started
 
     @property
     def return_started(self):return self.returned.return_started
+
+    def authorize_source_prefix(self,receipt):
+        if self.isaac_runtime is None:raise ValueError('Combined Isaac source prefix applies only to explicit Isaac mode')
+        self.isaac_runtime.authorize_source_prefix(receipt)
 
     def force(self,t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,*,grasp_qualified,left_panel_load,left_palm_load=None):
         teacher=self.acquisition
@@ -258,6 +286,7 @@ class StandingWithdrawalTeacher:
             if self.qualified_since is None:self.qualified_since=t
         else:self.qualified_since=None
         if self.started_withdrawal is None and t>=self.start_time-1e-8:
+            if getattr(self,'isaac_runtime',None) is not None:self.isaac_runtime.require_entry(t)
             if self.measured_rest and not self.returned.rest.ready:raise ValueError('Half-second actual resting grip and palm-only support required before withdrawal')
             if not grasp_qualified or support<2 or abs(angles['operator'])>.05 or abs(angles['latch'])>.001:raise ValueError('Qualified resting grip and left support required before withdrawal')
             if not np.allclose(root[:7],self.roots[0],atol=1e-5,rtol=0) or not np.allclose([joints[n] for n in self.all_names],self.joints[0],atol=1e-5,rtol=0):raise ValueError('Withdrawal requires its exact attained root and joints')
@@ -338,6 +367,8 @@ class StandingWithdrawalTeacher:
             self.left.support_load_target=float(np.clip(self.left.support_load_target+self.panel_gain*(panel_info['panel_reference_aperture_rad']-angles['leaf']),2.05,3.5))
             panel_info['panel_aperture_feedback_gain_N_per_rad']=self.panel_gain
         self.left.update_targets(t,root,joints,leaf_pose,left_panel_load,handle_pose)
+        if getattr(self,'inherited_support',None) is not None:
+            self.inherited_support.update(t,root,joints,leaf_pose,left_palm_load)
         if self.hybrid_support:
             self.left._read(root,joints)
             if self.support_feedback is None:
@@ -422,6 +453,8 @@ class StandingWithdrawalTeacher:
         self.info.update(coupled_info)
         if coupled_goal is not None:self.info['goal_frame']='measured-leaf-and-handle-with-admitted-world-blend'
         self.info.update(self.motor_capture_info)
+        if getattr(self,'inherited_support',None) is not None:
+            self.info['inherited_support']=self.inherited_support.info.copy()
         if self.measured_rest:
             self.info.update(self.returned.rest.diagnostic())
             self.info['measured_rest_evidence_epoch']='withdrawal_entry'

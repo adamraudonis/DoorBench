@@ -157,6 +157,8 @@ p.add_argument('--standing-transfer-start-seconds',type=float,default=36.)
 p.add_argument('--standing-transfer-hybrid-support',action='store_true',help='Experimental palm-only force feedback after measured contact; original motor limits and audits remain unchanged')
 p.add_argument('--standing-transfer-prefix-source',help='Qualified source compared byte-for-byte against newly recorded physics before transfer')
 p.add_argument('--standing-transfer-support-load-target',type=float,default=4.)
+p.add_argument('--standing-transfer-stop-on-rest',action='store_true',help='Stop at the first original qualified resting transfer window; remains a prefix witness during explicit withdrawal')
+p.add_argument('--standing-withdrawal-route',help='Fresh actual-Isaac source-bound measured-rest withdrawal runtime; requires exact transfer prefix')
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
 p.add_argument('--operator-compliance-gain',type=float,default=0.,help='Bounded palm-reference integral compensation for actual operator-angle error; motor and mechanism limits unchanged')
@@ -212,6 +214,9 @@ if os.name == 'nt':
     # Isaac Lab's import bootstraps Kit DLLs. MuJoCo must load first on Windows;
     # the opposite order fails with WinError1114 even before AppLauncher starts.
     import mujoco
+from doorbench.dexterous.transfer_preload import PROFILES as TRANSFER_PRELOAD_PROFILES
+p.add_argument('--standing-transfer-preload-profile',choices=tuple(TRANSFER_PRELOAD_PROFILES),default='maintain',
+    help='Explicit existing bounded finger preload ramp during transfer; original motor and contact gates remain unchanged')
 from isaaclab.app import AppLauncher
 AppLauncher.add_app_launcher_args(p)
 p.add_argument('--operation-opening-trigger-rad',type=float,default=.80,help='Controller transition only; final operator and latch acceptance thresholds remain unchanged')
@@ -233,7 +238,18 @@ if not math.isfinite(a.standing_transfer_start_seconds) or a.standing_transfer_s
 if not a.standing_transfer_route and a.standing_transfer_start_seconds!=36.:p.error('Transfer start override requires an explicit route')
 if a.standing_transfer_hybrid_support and not a.standing_transfer_route:p.error('Hybrid transfer support requires an explicit route')
 if a.standing_transfer_prefix_source and not a.standing_transfer_route:p.error('Live prefix witness requires an explicit transfer route')
+if a.standing_transfer_stop_on_rest and not a.standing_transfer_route:
+    p.error('Qualified transfer rest stop requires an explicit transfer route')
+if a.standing_transfer_preload_profile!='maintain' and not a.standing_transfer_route:
+    p.error('Transfer preload profile override requires an explicit transfer route')
 if not math.isfinite(a.standing_transfer_support_load_target) or not 2<a.standing_transfer_support_load_target<=8 or (a.standing_transfer_support_load_target!=4. and not a.standing_transfer_route):p.error('Bounded palm support target requires an explicit transfer route')
+if a.standing_withdrawal_route and (not a.standing_transfer_route or not a.standing_transfer_prefix_source
+        or not a.native_door or not a.acquisition or not a.operate_after_acquisition
+        or a.acquisition_stance_profile!='landed-foot-v1' or a.time_scale!=1.
+        or any((a.full_opening,a.full_sequence_reset,a.traverse,a.sensor_layout,a.sensor_policy_checkpoint,
+            a.sensor_balance_calibration,a.sensor_locomotion_calibration,a.jev_progress_plan,
+            a.whole_body_return_path,a.whole_body_ungrip_path,a.panel_push,a.mechanism_test))):
+    p.error('Standing withdrawal requires standalone deterministic landed-foot operation, exact transfer prefix and native door geometry')
 if (not math.isfinite(a.operation_thumb_reference_offset_rad) or abs(a.operation_thumb_reference_offset_rad)>.1
         or (a.operation_thumb_reference_joint is None and a.operation_thumb_reference_offset_rad!=0.)):
     p.error('Thumb correction requires an explicit right-thumb joint and finite offset within 0.1 rad')
@@ -567,7 +583,18 @@ def main():
         prim=stage.GetPrimAtPath('/World/Door/Articulation/Joints/'+n)
         target[0,i]=prim.GetAttribute('doorbench:target_si').Get() or 0.
     controls=None if sensor_control else np.array(ref['controls']);rows=[]
-    standing_transfer=None;transfer_steps=None
+    standing_transfer=None;standing_controller=None;transfer_steps=None
+    transfer_rest_stop=None;transfer_rest_triggered=False;transfer_rest_terminated=False;transfer_rest_continued=False
+    evaluation_seconds=a.seconds
+    def save_transfer_rest_stop():
+        if transfer_rest_stop is None:return None
+        receipt=dict(schema='doorbench.isaac-transfer-rest-stop-run.v1',maximum_seconds=a.seconds,
+            mode='prefix-only' if a.standing_withdrawal_route else 'terminate',
+            terminated_on_qualified_rest=transfer_rest_terminated,continued_to_withdrawal=transfer_rest_continued,
+            detector=transfer_rest_stop.receipt())
+        (out/'standing-transfer-rest-stop.json').write_text(json.dumps(receipt,indent=2)+'\n')
+        return receipt
+    withdrawal_steps=None;withdrawal_geometry=None
     teacher=None;teacher_info={};teacher_control=None;sequence=None;operation=None;sensor_actor=None;full_opening=None;opening_geometry=None;continuous=None
     if a.acquisition:
         from doorbench.dexterous.acquisition_teacher import AcquisitionTeacher
@@ -594,9 +621,31 @@ def main():
                 from doorbench.dexterous.bounded_evidence import BoundedEvidence
                 standing_transfer=StandingTransferTeacher(operation,motors,a.standing_transfer_route,
                     start_seconds=a.standing_transfer_start_seconds,fixed_pad_tracking=False,
+                    preload_profile=a.standing_transfer_preload_profile,
                     attained_arm_tracking=True,handoff_seconds=1.,hybrid_support=a.standing_transfer_hybrid_support,
                     support_load_target=a.standing_transfer_support_load_target)
                 transfer_steps=BoundedEvidence(out/'standing-transfer-chunks')
+                if a.standing_transfer_stop_on_rest:
+                    from doorbench.dexterous.isaac_transfer_rest_stop import TransferRestStop
+                    transfer_rest_stop=TransferRestStop(a.standing_transfer_start_seconds,dt=dt)
+                    save_transfer_rest_stop()
+                standing_controller=standing_transfer
+                if a.standing_withdrawal_route:
+                    from doorbench.dexterous.isaac_withdrawal_runtime import create_isaac_withdrawal_controller
+                    from doorbench.dexterous.isaac_withdrawal_measurements import IsaacWithdrawalMeasurements
+                    standing_controller=create_isaac_withdrawal_controller(standing_transfer,motors,a.standing_withdrawal_route)
+                    if a.seconds!=standing_controller.start_time+standing_controller.duration:
+                        raise ValueError('Withdrawal episode must end at the exact admitted route duration')
+                    context=standing_controller.source_context.data
+                    source_args=json.loads((Path(context['source_run'])/'trial/configuration.json').read_text())['args']
+                    if bool(source_args.get('standing_transfer_stop_on_rest',False))!=a.standing_transfer_stop_on_rest:
+                        raise ValueError('Withdrawal must preserve the source transfer rest-stop mode')
+                    if (Path(a.native_robot).resolve()!=Path(context['robot_path']).resolve()
+                            or Path(a.native_door).resolve()!=Path(context['door_xml_path']).resolve()
+                            or Path(a.door_usd).resolve()!=Path(context['door_usd_path']).resolve()):
+                        raise ValueError('Withdrawal requires the exact admitted original geometry assets')
+                    withdrawal_geometry=IsaacWithdrawalMeasurements(a.native_door,a.native_robot,rnames)
+                    withdrawal_steps=BoundedEvidence(out/'standing-withdrawal-chunks')
             if sequence_reset and not a.full_opening:
                 from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
                 sequence=FullSequenceTeacher(a.native_robot,motors,ref,
@@ -719,6 +768,7 @@ def main():
     (out/'configuration.json').write_text(json.dumps(dict(args={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},robot_joint_names=rnames,door_joint_names=dnames,
         standing_planner_body_names=list(PLANNER_BODIES) if record_standing_body_poses else None,
         standing_planner_body_pose_convention='World body-origin XYZ/WXYZ at acquisition-physics time_s' if record_standing_body_poses else None,
+        **(dict(standing_leaf_pose_convention='World body-origin XYZ/WXYZ at acquisition-physics time_s') if a.standing_withdrawal_route else {}),
         dt=dt,robot_mass_kg=float(robot.root_physx_view.get_masses().sum()),latch_scale=scale,
         root_state_convention='actor-origin pose and world actor-origin linear/angular velocity' if (continuous or a.sensor_locomotion_calibration or a.acquisition_stance_profile) else 'legacy IsaacLab actor pose plus world COM linear/angular velocity',
         balance_root_state_convention='balance-steps uses root_link_state_w: actor-origin pose and world actor-origin linear/angular velocity; evaluator only' if a.sensor_balance_calibration else None,
@@ -739,6 +789,14 @@ def main():
     if a.standing_transfer_prefix_source:
         sources.append(Path(__file__).with_name('plan_local_isaac_transfer.py'))
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('isaac_prefix_witness.py','motor_contract_identity.py','qualified_isaac_grasp.py','isaac_attained_state.py','destination_state_binding.py')]
+    if a.standing_transfer_stop_on_rest:
+        sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/isaac_transfer_rest_stop.py')
+    if a.standing_withdrawal_route:
+        from doorbench.dexterous.isaac_withdrawal_runtime import withdrawal_runtime_source_paths
+        sources += list(withdrawal_runtime_source_paths())
+        sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in (
+            'isaac_withdrawal_prefix_witness.py','isaac_withdrawal_measurements.py',
+            'isaac_withdrawal_evaluation.py','standing_withdrawal_audit.py','json_record_stream.py')]
     if a.operate_after_acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('operation_teacher.py','isaac_opening_measurements.py')]
     if sequence:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
         ('full_sequence_teacher.py','approach_teacher.py','approach_lowering.py','locomotion.py','locomotion_approach.py','locomotion_manipulation.py','locomotion_posture.py','isaac_sensors.py')]
@@ -748,6 +806,18 @@ def main():
     if a.standing_transfer_route:
         inputs.append(Path(a.standing_transfer_route))
         (out/'standing-transfer-route.json').write_bytes(Path(a.standing_transfer_route).read_bytes())
+    if a.standing_withdrawal_route:
+        context=standing_controller.source_context.data
+        for key,label in (('runtime_path','standing-withdrawal-runtime'),('source_config_path','standing-withdrawal-source'),
+                ('coupled_envelope_path','standing-withdrawal-envelope'),('coupled_audit_path','standing-withdrawal-envelope-audit')):
+            path=Path(context[key]);inputs.append(path)
+            (out/(label+'.json')).write_bytes(path.read_bytes())
+        inputs.append(Path(a.native_door))
+        (out/'standing-withdrawal-admission.json').write_text(json.dumps(dict(
+            source_context=context,source_admission=standing_controller.source_admission),indent=2)+'\n')
+        sources=list(dict.fromkeys(path.resolve() for path in sources))
+        if any(not path.is_file() for path in sources):
+            raise ValueError('Complete withdrawal runtime source inventory required before physics')
     if a.native_robot:inputs.append(Path(a.native_robot))
     if a.grasp_profile_definition:inputs.append(Path(a.grasp_profile_definition))
     if sequence:
@@ -815,6 +885,7 @@ def main():
             for name in ('sensor_contract.py','isaac_sensors.py','isaac_sensor_recording.py','pose_gyro.py')]
     (out/'provenance.json').write_text(json.dumps(dict(captured_before_steps_unix=time.time(),
         files={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources+inputs if p.exists()},
+        **(dict(withdrawal_admission_input_sha256=standing_controller.source_context.data['input_sha256']) if a.standing_withdrawal_route else {}),
         camera_note='Native materials and fixed robot sensor cameras' if a.sensor_layout else 'Diagnostic gold handle material; physical properties unchanged'),indent=2)+'\n')
     for source in sources:
         if source.exists():(out/('source-'+source.name)).write_bytes(source.read_bytes())
@@ -847,6 +918,7 @@ def main():
     # standalone acquisition. Later source-state planning must not assume rest
     # or finite-difference positions to invent an unrecorded initial velocity.
     transfer_prefix=None;transfer_prefix_authorized=False
+    withdrawal_prefix=None;withdrawal_prefix_authorized=False
     if a.standing_transfer_prefix_source:
         from doorbench.dexterous.isaac_prefix_witness import LiveIsaacPrefixWitness
         bound_source=standing_transfer.config['attained_source_qualification']['source']
@@ -856,8 +928,16 @@ def main():
             expected_source_state_sha256=bound_source['state_sha256'],stage_start_s=a.standing_transfer_start_seconds,
             runtime_configuration=json.loads((out/'configuration.json').read_text()),runtime_motor_contract=motors)
         (out/'live-prefix-witness.json').write_text(json.dumps(transfer_prefix.receipt(),indent=2)+'\n')
+    if a.standing_withdrawal_route:
+        from doorbench.dexterous.isaac_withdrawal_prefix_witness import LiveIsaacWithdrawalPrefixWitness
+        context=standing_controller.source_context.data
+        withdrawal_prefix=LiveIsaacWithdrawalPrefixWitness(context['source_run'],
+            expected_source_state_sha256=context['source_state_sha256'],stage_start_s=standing_controller.start_time,
+            runtime_configuration=json.loads((out/'configuration.json').read_text()),runtime_motor_contract=motors)
+        (out/'live-withdrawal-prefix-witness.json').write_text(json.dumps(withdrawal_prefix.receipt(),indent=2)+'\n')
     acquisition_states={k:[] for k in ('time_s','root','joints','joint_velocity','motor_forces','door','door_velocity','torso_tilt_deg')}
     if record_standing_body_poses:acquisition_states['standing_body_poses']=[]
+    if a.standing_withdrawal_route:acquisition_states['standing_leaf_pose']=[]
     if continuous:
         acquisition_states.update({k:[] for k in ('actual_motor_forces','actual_joint_effort',
             'continuation_body_poses','actual_foot_loads','legacy_root_state_w')})
@@ -1187,10 +1267,22 @@ def main():
                                 transfer_prefix.require_stage_entry(step*dt)
                                 transfer_prefix_authorized=True
                                 (out/'live-prefix-witness.json').write_text(json.dumps(transfer_prefix.receipt(),indent=2)+'\n')
+                            if withdrawal_prefix is not None and not withdrawal_prefix_authorized and step*dt>=standing_controller.start_time:
+                                if transfer_rest_stop is not None:
+                                    rest=transfer_rest_stop.receipt()
+                                    if not rest['triggered'] or rest['terminal_time_s']!=standing_controller.start_time:
+                                        raise ValueError('Withdrawal requires the same first qualified transfer rest epoch as its source')
+                                permission=withdrawal_prefix.require_stage_entry(step*dt)
+                                standing_controller.authorize_source_prefix(permission)
+                                withdrawal_prefix_authorized=True
+                                if transfer_rest_stop is not None:
+                                    transfer_rest_continued=True
+                                    save_transfer_rest_stop()
+                                (out/'live-withdrawal-prefix-witness.json').write_text(json.dumps(withdrawal_prefix.receipt(),indent=2)+'\n')
                             from doorbench.dexterous.isaac_opening_measurements import panel_surface_loads
                             leaf_pose=body[door.body_names.index('leaf')]
                             surface=panel_surface_loads(audit_paths,audit_filters,pairs,leaf_pose)
-                            forces,teacher_info=standing_transfer.force(*measured_args,leaf_pose,angles,loads,
+                            forces,teacher_info=standing_controller.force(*measured_args,leaf_pose,angles,loads,
                                 grasp_qualified=pad_steps[-1]['valid_pad_grasp'],left_panel_load=surface['total_normal_load_N'],left_palm_load=surface['palm_normal_load_N'])
                         else:
                             progress_options={}
@@ -1395,6 +1487,13 @@ def main():
                 if transfer_prefix is not None and not transfer_prefix.complete:
                     from doorbench.dexterous.isaac_prefix_witness import PREFIX_FIELDS
                     transfer_prefix.observe({key:acquisition_states[key][-1] for key in PREFIX_FIELDS})
+                if withdrawal_prefix is not None:
+                    leaf_sample=door.data.body_state_w[0,door.body_names.index('leaf'),:7].cpu().numpy().copy()
+                    acquisition_states['standing_leaf_pose'].append(leaf_sample)
+                    if not withdrawal_prefix.complete:
+                        from doorbench.dexterous.isaac_prefix_witness import PREFIX_FIELDS
+                        withdrawal_prefix.observe({key:acquisition_states[key][-1] for key in PREFIX_FIELDS},
+                            leaf_pose=leaf_sample,leaf_time_s=(step+1)*dt)
                 rotation=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
                 actual_pad=pad_evaluator.read(physics_dt=dt,time_s=(step+1)*dt,center=pose[:3]+rotation@grip_center,axis=rotation@grip_axis,
                     half_length=grip_half,radius=grip_radius,include_evidence=bool(a.sensor_acquisition_protocol or a.acquisition))
@@ -1411,6 +1510,30 @@ def main():
                 surface=panel_surface_loads(audit_paths,audit_filters,pairs,leaf_pose)
                 transfer_steps.append(dict(time_s=(step+1)*dt,leaf_pose=leaf_pose.tolist(),surface=surface,
                     stance_status=teacher_info.get('stance_status'),started_s=standing_transfer.started))
+                if transfer_rest_stop is not None and not transfer_rest_triggered:
+                    rest_angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in
+                        [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
+                    transfer_rest_triggered=transfer_rest_stop.observe((step+1)*dt,pad_steps[-1],transfer_steps[-1],rest_angles)
+                    if transfer_rest_triggered:save_transfer_rest_stop()
+                if withdrawal_steps is not None:
+                    from doorbench.dexterous.isaac_withdrawal_evaluation import pack_withdrawal_row
+                    measured_time=(step+1)*dt
+                    measured_angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in
+                        [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
+                    withdrawal_measurement=None
+                    if measured_time>standing_controller.start_time:
+                        measured_robot_poses=robot.data.body_state_w[0,:,:7].cpu().numpy().copy()
+                        measured_door_poses=door.data.body_state_w[0,:,:7].cpu().numpy().copy()
+                        measured_poses={name:measured_robot_poses[robot.body_names.index(name)]
+                            for name in withdrawal_geometry.required_robot_body_names}
+                        measured_poses.update({name:measured_door_poses[door.body_names.index(name)]
+                            for name in withdrawal_geometry.required_door_body_names})
+                        withdrawal_measurement=withdrawal_geometry.read(time_s=measured_time,pose_time_s=measured_time,
+                            root=acquisition_states['root'][-1],joints=dict(zip(rnames,acquisition_states['joints'][-1])),
+                            angles=measured_angles,body_poses=measured_poses,
+                            handle_pose=measured_door_poses[door.body_names.index('leaf_handle')],leaf_pose=leaf_pose)
+                    withdrawal_steps.append(pack_withdrawal_row(measured_time,measured_angles,pad_steps[-1],
+                        surface,teacher_info,withdrawal_measurement,leaf_pose=leaf_pose))
             if full_opening:
                 full_measurement=read_full_opening_measurement((step+1)*dt)
                 if frozen_opening_report is None:
@@ -1497,8 +1620,40 @@ def main():
             if rows and (rows[-1]['root'][2]<.45 or rows[-1]['torso_tilt_deg']>45):
                 (out/'early-stop.json').write_text(json.dumps(dict(reason='Robot fell',time_s=(step+1)*dt))+'\n')
                 break
+            if transfer_rest_triggered and not a.standing_withdrawal_route:
+                transfer_rest_terminated=True
+                evaluation_seconds=(step+1)*dt
+                save_transfer_rest_stop()
+                break
     except BaseException as run_error:
         if transfer_steps is not None:transfer_steps.export(out/'standing-transfer-steps.json.gz')
+        if transfer_rest_stop is not None:save_transfer_rest_stop()
+        if transfer_rest_stop is not None and withdrawal_steps is None:
+            failed_end=acquisition_states['time_s'][-1] if acquisition_states['time_s'] else 0.
+            failed_tail=[row for row in pad_steps if failed_end-.5-1e-8<=row['sim_time_s']<=failed_end+1e-8]
+            failed_transfer=dict(passed=False,status='controller_or_backend_failure',error=str(run_error),
+                duration_s=failed_end,maximum_seconds=a.seconds,physics_dt_s=dt,physical_evidence_complete=False,
+                checks=dict(controller_or_backend_succeeded=False,qualified_transfer_rest_endpoint=False,
+                    sustained_pad_grasp=bool(len(failed_tail)>=round(.5/dt)+1 and all(row['valid_pad_grasp'] for row in failed_tail))),
+                runtime_robot_pose_writes=0,direct_door_commands=False,
+                standing_transfer_rest_stop=save_transfer_rest_stop(),
+                standing_transfer=dict(route=a.standing_transfer_route,started_s=standing_transfer.started,final=standing_transfer.info))
+            for name in ('operation-report.json','report.json'):
+                (out/name).write_text(json.dumps(failed_transfer,indent=2)+'\n')
+        if withdrawal_steps is not None:
+            withdrawal_steps.export(out/'standing-withdrawal-steps.json.gz')
+            failed_end=acquisition_states['time_s'][-1] if acquisition_states['time_s'] else 0.
+            failed_tail=[row for row in pad_steps if failed_end-.5-1e-8<=row['sim_time_s']<=failed_end+1e-8]
+            failed_withdrawal=dict(passed=False,status='controller_or_backend_failure',error=str(run_error),
+                duration_s=failed_end,checks=dict(controller_or_backend_succeeded=False),
+                observed_final_pad_grasp_hold=bool(len(failed_tail)>=round(.5/dt)+1
+                    and all(row['valid_pad_grasp'] for row in failed_tail)),
+                physics_dt_s=dt,physical_evidence_complete=False,runtime_robot_pose_writes=0,direct_door_commands=False,
+                standing_withdrawal=dict(route=a.standing_withdrawal_route,started_s=standing_controller.started_withdrawal,
+                    release_started_s=standing_controller.release_started,completed=False,
+                    source_admission=standing_controller.source_admission,final=standing_controller.info))
+            for name in ('standing-withdrawal-report.json','operation-report.json','report.json'):
+                (out/name).write_text(json.dumps(failed_withdrawal,indent=2)+'\n')
         (out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n')
         if passive_guard:
             (out/'joint-passive-invariants.json').write_text(json.dumps(passive_guard.receipt(),indent=2)+'\n')
@@ -1541,8 +1696,12 @@ def main():
         if hand_writer:hand_writer.close()
         raise
     finally:
+        if transfer_rest_stop is not None:save_transfer_rest_stop()
         if transfer_prefix is not None:
             (out/'live-prefix-witness.json').write_text(json.dumps(transfer_prefix.receipt(),indent=2)+'\n')
+        if withdrawal_prefix is not None:
+            (out/'live-withdrawal-prefix-witness.json').write_text(json.dumps(withdrawal_prefix.receipt(),indent=2)+'\n')
+        if withdrawal_steps is not None:withdrawal_steps.export(out/'standing-withdrawal-steps.json.gz')
         if jev_gate is not None:jev_gate.close()
     (out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n')
     save_attained_left_plan()
@@ -1570,10 +1729,10 @@ def main():
         mechanical_audit['passed']=all(mechanical_audit['checks'].values())
         (out/'mechanical-audit.json').write_text(json.dumps(mechanical_audit,indent=2)+'\n')
     if physics_audit_enabled:
-        tail=[r for r in pad_steps if r['sim_time_s']>=a.seconds-.5-1e-8]
+        tail=[r for r in pad_steps if r['sim_time_s']>=evaluation_seconds-.5-1e-8]
         root_states=np.asarray(acquisition_states['root']);motor_forces=np.asarray(acquisition_states['motor_forces'])
         checks=dict(mechanical_audit['checks'])
-        checks.update(complete_physics_steps=len(pad_steps)==round(a.seconds/dt)+1,
+        checks.update(complete_physics_steps=len(pad_steps)==round(evaluation_seconds/dt)+1,
             closed_leaf_start=abs(acquisition_reset['door']['leaf_hinge'])<=.001,
             resting_operator_start=abs(acquisition_reset['door']['leaf_handle_hinge'])<=.001,
             initial_hand_door_contact_buffer_empty=pad_steps[0]['active_contact_count']==0,
@@ -1657,7 +1816,7 @@ def main():
             operation_checks=dict(checks)
             operation_checks.update(acquisition_precedes_operation=operation.started is not None,
                 operator_driven_to_release=bool(handle.max()>=.80 and bolt.max()>=.011),
-                partial_leaf_opening_held=bool(np.all((leaf[times>=a.seconds-.5]>=.075)&(leaf[times>=a.seconds-.5]<=.10))),
+                partial_leaf_opening_held=bool(np.all((leaf[times>=evaluation_seconds-.5]>=.075)&(leaf[times>=evaluation_seconds-.5]<=.10))),
                 opening_bounded_for_transfer=bool(leaf.max()<=.12))
             offset=sequence.acquisition_started if sequence and sequence.acquisition_started is not None else 0.
             absolute_operation_start=operation.started+offset if operation.started is not None else None
@@ -1701,11 +1860,33 @@ def main():
             if standing_transfer:
                 from doorbench.dexterous.standing_transfer_evaluation import standing_transfer_checks
                 transfer_steps.export(out/'standing-transfer-steps.json.gz')
-                operation_checks.update(standing_transfer_checks(transfer_steps,seconds=a.seconds,dt=dt,started_s=standing_transfer.started))
+                operation_checks.update(standing_transfer_checks(transfer_steps,seconds=evaluation_seconds,dt=dt,started_s=standing_transfer.started))
                 if transfer_prefix is not None:operation_checks['live_exact_source_prefix']=transfer_prefix.receipt()['passed']
                 operation_report.update(passed=all(operation_checks.values()),
                     scope='Privileged motor-driven acquisition, partial opening and left-palm transfer; no full opening/traversal or sensor-only policy',
                     standing_transfer=dict(route=a.standing_transfer_route,started_s=standing_transfer.started,final=standing_transfer.info))
+                if transfer_rest_stop is not None:
+                    stop_receipt=save_transfer_rest_stop()
+                    operation_checks['qualified_transfer_rest_endpoint']=bool(
+                        transfer_rest_continued if a.standing_withdrawal_route else transfer_rest_terminated)
+                    operation_report.update(passed=all(operation_checks.values()),
+                        standing_transfer_rest_stop=stop_receipt,maximum_seconds=a.seconds)
+            if withdrawal_steps is not None:
+                from doorbench.dexterous.isaac_withdrawal_evaluation import withdrawal_checks
+                observed_final_pad_grasp_hold=operation_checks['sustained_pad_grasp']
+                completed=bool(standing_controller.started_withdrawal is not None
+                    and standing_controller.info.get('withdrawal_progress',0.)>=.999)
+                operation_checks=withdrawal_checks(operation_checks,withdrawal_steps,dt=dt,duration=a.seconds,
+                    started=standing_controller.started_withdrawal,release_started=standing_controller.release_started,
+                    completed=completed)
+                operation_checks['live_exact_withdrawal_source_prefix']=withdrawal_prefix.receipt()['passed']
+                operation_report.update(checks=operation_checks,passed=all(operation_checks.values()),
+                    observed_final_pad_grasp_hold=observed_final_pad_grasp_hold,
+                    scope='Initialized-standing privileged motor-driven acquisition, transfer and measured-rest withdrawal; no walking/traversal or sensor-only policy',
+                    standing_withdrawal=dict(route=a.standing_withdrawal_route,started_s=standing_controller.started_withdrawal,
+                        release_started_s=standing_controller.release_started,completed=completed,
+                        source_admission=standing_controller.source_admission,final=standing_controller.info))
+                (out/'standing-withdrawal-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             (out/'operation-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             (out/'report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             print('OPERATION_RESULT '+json.dumps({k:v for k,v in operation_report.items() if k!='final_pad_grasp'}),flush=True)
@@ -1793,7 +1974,7 @@ def main():
         print('LOCOMOTION_RESULT '+json.dumps(loco_report),flush=True)
     if passive_guard:
         (out/'joint-passive-invariants.json').write_text(json.dumps(passive_guard.receipt(),indent=2)+'\n')
-    completed_recording=(len(acquisition_states['time_s'])==round(a.seconds/dt) or
+    completed_recording=(len(acquisition_states['time_s'])==round(evaluation_seconds/dt) or
         bool(continuous.done if continuous else full_opening and full_aperture_crossed)) and not (out/'early-stop.json').exists()
     if sensor_recorder:sensor_recorder.finish(complete=completed_recording and len(sensor_recorder.times)==len(acquisition_states['time_s']))
     if teacher_queries:teacher_queries.finish(complete=completed_recording,executed_steps=len(acquisition_states['time_s']))

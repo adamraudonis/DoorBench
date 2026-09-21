@@ -16,8 +16,11 @@ prospective grasp profile, fresh Isaac RH candidate and its distinct passing
 from `trial/motor-contract.json` and independently bound in full.
 
 Keep this source configuration separate from the coupled map. The source loader
-continues to reject native coupled/moving-leaf proofs for Isaac. No existing
-withdrawal constructor or live Isaac helper consumes the new map yet.
+continues to reject native coupled/moving-leaf proofs for Isaac. The opt-in
+[actual-Isaac runtime adapter](ISAAC_WITHDRAWAL_RUNTIME.md) can consume the map
+only through a separate outer runtime document, its distinct passing envelope
+audit, and a completed live source-prefix witness. The detached map itself
+continues to grant no stage or physical qualification.
 
 The new map schema is `doorbench.isaac-coupled-release-envelope.v1`.
 `plan_local_isaac_coupled_release.py` creates it from the freshly admitted Isaac
@@ -71,11 +74,16 @@ before the evaluator's exact-source special case can overwrite anything.
 The following commands are usable only after the specified actual source has
 passed its original physical/contact/transfer gates. Each stage rechecks its
 inputs and retains failures; none promotes a failed source. These example paths
-must be fresh. `transfer-003` is an intended source here, not a claim that it has
-qualified.
+are placeholders and the output must be fresh. Actual transfer-002 and
+transfer-003 failed qualification and cannot supply this pipeline.
+The optional prospective `--standing-transfer-stop-on-rest` mode can select a
+new transfer's first fully qualified resting window before its deadline; see
+[runtime endpoint rules](ISAAC_WITHDRAWAL_RUNTIME.md). Its recorded actual
+terminal epoch is the source epoch for every planning stage. An intermediate
+window found retrospectively in a failed run is not a qualified source.
 
 ```powershell
-$source = 'out/local-isaac-transfer-003'
+$source = 'out/QUALIFIED_ISAAC_TRANSFER'
 $robot = 'out/local-ready/h1-shadow-loopback-v2.xml'
 $doorXml = 'assets/doors/db0055_swing_single/door.xml'
 $doorUsd = 'assets/doors/db0055_swing_single/door.usda'
@@ -138,9 +146,10 @@ have at least literal 4 mm clearance. Every sampled final mechanism state must
 also retain the original 40 mm RH/environment clearance.
 
 Passing geometry does not qualify motor loads, contact forces, dynamic balance,
-mechanism speeds or geometry after rate limiting. A later runtime adapter still
-needs the exact live source-prefix witness, constraint-preserving motion limits,
-per-step post-limiter geometry checks and independent physical contact gates.
+mechanism speeds or geometry after rate limiting. The opt-in runtime adapter
+requires the exact live source-prefix witness, constraint-preserving motion
+limits and per-step post-limiter geometry checks. An actual trial must then pass
+the independent physical contact gates.
 The receipt explicitly leaves those qualifications and stage authorization
 false/zero. No successful map or physical release is claimed by these additions.
 

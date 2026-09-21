@@ -18,10 +18,22 @@ from doorbench.dexterous.isaac_pad_audit import shadow_physx_pad_grasp
 def sha(p):return hashlib.sha256(Path(p).read_bytes()).hexdigest()
 
 
+def final_hold_observation(report, configuration):
+    """Intentional release records final grasp as an observation, not a goal."""
+    if configuration['args'].get('standing_withdrawal_route'):
+        if (not isinstance(report.get('standing_withdrawal'),dict)
+                or type(report.get('observed_final_pad_grasp_hold')) is not bool
+                or 'sustained_pad_grasp' in report['checks']):
+            raise ValueError('Explicit withdrawal phase report and final-grasp observation required')
+        return report['observed_final_pad_grasp_hold']
+    return report['checks']['sustained_pad_grasp']
+
+
 def audit(trial, *, profile="distal-pad-v1"):
     trial=Path(trial)
     if profile not in ('distal-pad-v1','volar-phalange-v1'):raise ValueError('Unknown prospective grasp contract')
-    declared=json.loads((trial/'configuration.json').read_text())['args']['grasp_profile']
+    configuration=json.loads((trial/'configuration.json').read_text())
+    declared=configuration['args']['grasp_profile']
     if declared!=profile:raise ValueError('Audit profile differs from recorded launch declaration; no retrospective upgrade')
     name='operation-report.json' if (trial/'operation-report.json').exists() else 'acquisition-report.json'
     report=json.loads((trial/name).read_text())
@@ -56,7 +68,7 @@ def audit(trial, *, profile="distal-pad-v1"):
             for d in digits:minimum[d]=min(minimum[d],totals[d])
             if not row['valid_pad_grasp']:bad_tail.append(dict(time_s=row['sim_time_s'],reason=row['reason'],pad_loads_N=totals))
     checks.update(anatomical_formula_matches=mismatch==0,qualified_load_accounting_matches=force_error<1e-6,
-        final_hold_report_matches=report['checks']['sustained_pad_grasp']==(not bad_tail),raw_reductions_match=raw_mismatch==0 and raw_force_error<1e-6,
+        final_hold_report_matches=final_hold_observation(report,configuration)==(not bad_tail),raw_reductions_match=raw_mismatch==0 and raw_force_error<1e-6,
         raw_contact_clocks_match=raw_clocks,raw_patch_loads_match_pair_forces=pair_error<1e-3)
     return dict(schema='doorbench.isaac-acquisition-contact-audit.v1',accounting_passed=all(checks.values()),task_passed=report['passed'],
         independent_raw_contact_audit_complete=raw_count==expected and all(checks.values()),checks=checks,

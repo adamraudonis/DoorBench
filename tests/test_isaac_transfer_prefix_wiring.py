@@ -49,6 +49,8 @@ def setup(source_fixture,tmp_path,monkeypatch):
   measured_args=(),angles={},loads={},pad_steps=[dict(valid_pad_grasp=True)],audit_paths=[],audit_filters=[],pairs=[],
   acquisition_states={k:[] for k in (*PREFIX_FIELDS,'torso_tilt_deg')},continuous=None,
   record_standing_body_poses=True,standing_body_indices=np.arange(5),pack_standing_body_poses=pack_standing_body_poses,jev_gate=None)
+ scope.update(standing_controller=scope['standing_transfer'],withdrawal_prefix=None,
+              withdrawal_prefix_authorized=False,withdrawal_steps=None,transfer_rest_stop=None)
  def record(index,*,alter=None):
   row=sample(source_fixture,index)
   if alter:alter(row)

@@ -211,6 +211,13 @@ def prepare_transfer(args,argv,hashes):
     hybrid=getattr(args,'standing_transfer_hybrid_support',False)
     live_witness=getattr(args,'standing_transfer_live_prefix_witness',False)
     support_target=getattr(args,'standing_transfer_support_load_target',4.)
+    preload=getattr(args,'standing_transfer_preload_profile','maintain')
+    rest_stop=getattr(args,'standing_transfer_stop_on_rest',False)
+    if type(rest_stop) is not bool or (rest_stop and (route_path is None or not live_witness)):
+        raise ValueError('Measured transfer rest stop requires an explicit route and live prefix witness')
+    from doorbench.dexterous.transfer_preload import PROFILES
+    if preload not in PROFILES or (preload!='maintain' and route_path is None):
+        raise ValueError('Explicit transfer route and known bounded finger preload profile required')
     if (type(live_witness) is not bool or (live_witness and route_path is None)
             or not math.isfinite(support_target) or not 2<support_target<=8
             or (support_target!=4. and route_path is None)):
@@ -295,6 +302,8 @@ def prepare_transfer(args,argv,hashes):
     if hybrid:argv+=['--standing-transfer-hybrid-support']
     if live_witness:argv+=['--standing-transfer-prefix-source',str(source)]
     if support_target!=4.:argv+=['--standing-transfer-support-load-target',str(support_target)]
+    if preload!='maintain':argv+=['--standing-transfer-preload-profile',preload]
+    if rest_stop:argv+=['--standing-transfer-stop-on-rest']
     return argv,hashes
 
 
@@ -313,6 +322,68 @@ def audit_transfer_prefix(source,trial,start):
     return dict(passed=all(matches.values()),intervals=n,fields=matches,
         input_sha256={str(p.resolve()):sha(p) for p in (source_path,trial_path)},
         scope='Exact recorded physical and commanded-motor prefix; continuation remains a new live episode without a state reset at handoff')
+
+
+def prepare_withdrawal(args,argv,hashes):
+    """Append one freshly admitted stage to the exact qualified transfer recipe."""
+    route=getattr(args,'standing_withdrawal_route',None)
+    if route is None:return argv,hashes
+    if ('--standing-transfer-route' not in argv or '--standing-transfer-prefix-source' not in argv
+            or args.jev_progress_plan is not None):
+        raise ValueError('Withdrawal requires deterministic transfer with its live source-prefix witness')
+    from doorbench.dexterous.isaac_withdrawal_runtime import admit_isaac_withdrawal_runtime
+    admission=admit_isaac_withdrawal_runtime(route)
+    data=admission.source_context.data
+    source=Path(data['source_run']).resolve()
+    launch_path=source/'launch.json';launch=json.loads(launch_path.read_text())
+    old=launch['argv']
+    if '--standing-withdrawal-route' in old or '--standing-transfer-route' not in old:
+        raise ValueError('An original qualified transfer source is required')
+    def recipe(command):
+        result=[];i=0
+        while i<len(command):
+            if command[i] in ('--seconds','--output'):i+=2;continue
+            result.append(command[i]);i+=1
+        return result
+    if recipe(argv)!=recipe(old):
+        raise ValueError('Withdrawal must reproduce all qualified transfer recipe arguments exactly')
+    if (not math.isfinite(args.seconds)
+            or args.seconds!=admission.start_time+admission.duration):
+        raise ValueError('Exact source epoch plus independently audited withdrawal duration required')
+    native_door=data['door_xml_path']
+    if '--native-door' in argv:
+        if Path(argv[argv.index('--native-door')+1]).resolve()!=Path(native_door).resolve():
+            raise ValueError('Withdrawal authored door differs from actual source binding')
+    else:argv=argv+['--native-door',native_door]
+    from doorbench.dexterous.isaac_prefix_witness import historical_source_hashes
+    hashes=dict(hashes)
+    hashes.update(historical_source_hashes(source))
+    hashes.update(verified_hashes(admission.input_sha256,base=ROOT))
+    hashes[str(launch_path)]=sha(launch_path)
+    return argv+['--standing-withdrawal-route',str(route)],hashes
+
+
+def audit_withdrawal_prefix(source,trial,start):
+    """Recheck full core prefix and historical JSON leaf poses independently."""
+    import gzip
+    import numpy as np
+    from doorbench.dexterous.json_record_stream import iter_json_object_array
+    result=audit_transfer_prefix(source,trial,start)
+    path=Path(source)/'trial/standing-transfer-steps.json.gz'
+    before=sha(path);count=0;matches=True
+    with np.load(Path(trial)/'acquisition-physics.npz',allow_pickle=False) as archive:
+        poses=np.asarray(archive['standing_leaf_pose'],dtype=np.float64)
+    with gzip.open(path,'rt') as stream:
+        for count,row in enumerate(iter_json_object_array(stream),start=1):
+            expected=np.asarray(row['leaf_pose'],dtype=np.float64)
+            matches &= (row['time_s']==count*.002 and expected.shape==(7,)
+                and np.isfinite(expected).all() and count<=len(poses)
+                and expected.tobytes()==poses[count-1].tobytes())
+    matches=bool(matches and count==result['intervals'] and before==sha(path))
+    result.update(passed=result['passed'] and matches,leaf_pose_prefix_passed=matches,
+        leaf_comparison='Exact float64 canonical bytes; historical tensor dtype was not recorded')
+    result['input_sha256'][str(path.resolve())]=before
+    return result
 
 
 def runtime_source_paths(argv):
@@ -334,7 +405,13 @@ def runtime_source_paths(argv):
     if '--standing-transfer-prefix-source' in argv:
         paths.append(ROOT/'scripts/dexterous/plan_local_isaac_transfer.py')
         names+=['isaac_prefix_witness.py','motor_contract_identity.py','qualified_isaac_grasp.py','isaac_attained_state.py','destination_state_binding.py']
-    return paths+[ROOT/'doorbench/dexterous'/name for name in names]
+    if '--standing-transfer-stop-on-rest' in argv:names.append('isaac_transfer_rest_stop.py')
+    if '--standing-withdrawal-route' in argv:
+        from doorbench.dexterous.isaac_withdrawal_runtime import withdrawal_runtime_source_paths as withdrawal_sources
+        paths+=list(withdrawal_sources())
+        names+=['isaac_withdrawal_prefix_witness.py','isaac_withdrawal_measurements.py',
+            'isaac_withdrawal_evaluation.py','standing_withdrawal_audit.py','json_record_stream.py']
+    return list(dict.fromkeys(paths+[ROOT/'doorbench/dexterous'/name for name in names]))
 
 
 def verify_runtime_binding(trial,argv,receipt):
@@ -392,6 +469,8 @@ def verify_runtime_binding(trial,argv,receipt):
                 or sha(trial/'standing-transfer-route.json')!=receipt['input_sha256'].get(str(route))
                 or configuration.get('standing_transfer_start_seconds')!=float(argv[argv.index('--standing-transfer-start-seconds')+1])
                 or configuration.get('standing_transfer_hybrid_support',False)!=('--standing-transfer-hybrid-support' in argv)
+                or configuration.get('standing_transfer_stop_on_rest',False)!=('--standing-transfer-stop-on-rest' in argv)
+                or configuration.get('standing_transfer_preload_profile','maintain')!=(argv[argv.index('--standing-transfer-preload-profile')+1] if '--standing-transfer-preload-profile' in argv else 'maintain')
                 or configuration.get('standing_transfer_support_load_target',4.)!=(float(argv[argv.index('--standing-transfer-support-load-target')+1]) if '--standing-transfer-support-load-target' in argv else 4.)):
             raise ValueError('Runtime transfer differs from the exact-source launch')
         prefix_source=argv[argv.index('--standing-transfer-prefix-source')+1] if '--standing-transfer-prefix-source' in argv else None
@@ -407,6 +486,18 @@ def verify_runtime_binding(trial,argv,receipt):
                     or Path(witness.get('source_run','')).resolve()!=Path(prefix_source).resolve()
                     or witness.get('source_qualification')!=route_data['attained_source_qualification']['source']):
                 raise ValueError('Live physical prefix did not authorize the transfer stage')
+    withdrawal_route=argv[argv.index('--standing-withdrawal-route')+1] if '--standing-withdrawal-route' in argv else None
+    if configuration.get('standing_withdrawal_route')!=withdrawal_route:
+        raise ValueError('Runtime withdrawal mode differs from launch')
+    if withdrawal_route is not None:
+        from doorbench.dexterous.isaac_withdrawal_runtime import admit_isaac_withdrawal_runtime
+        admission=admit_isaac_withdrawal_runtime(withdrawal_route)
+        data=admission.source_context.data
+        if (sha(trial/'standing-withdrawal-runtime.json')!=receipt['input_sha256'].get(str(Path(withdrawal_route).resolve()))
+                or Path(configuration.get('native_door','')).resolve()!=Path(data['door_xml_path']).resolve()):
+            raise ValueError('Runtime withdrawal input differs from admitted source')
+        witness=json.loads((trial/'live-withdrawal-prefix-witness.json').read_text())
+        admission.authorize_source_prefix(witness)
 
 
 def stop_child(process,args,receipt):
@@ -422,6 +513,24 @@ def stop_child(process,args,receipt):
         return process.wait(timeout=30)
 
 
+def runtime_duration_passed(report,args,trial):
+    """Only an explicitly recorded measured hold may finish before its deadline."""
+    end=report.get('duration_s',0.)
+    rest_stop=getattr(args,'standing_transfer_stop_on_rest',False)
+    withdrawal=getattr(args,'standing_withdrawal_route',None) is not None
+    if not rest_stop or withdrawal:return math.isfinite(end) and abs(end-args.seconds)<1e-8
+    recorded=report.get('standing_transfer_rest_stop',{})
+    path=trial/'standing-transfer-rest-stop.json'
+    detector=recorded.get('detector',{})
+    return bool(path.exists() and json.loads(path.read_text())==recorded
+        and recorded.get('schema')=='doorbench.isaac-transfer-rest-stop-run.v1'
+        and recorded.get('maximum_seconds')==args.seconds and recorded.get('mode')=='terminate'
+        and recorded.get('terminated_on_qualified_rest') is True
+        and recorded.get('continued_to_withdrawal') is False
+        and detector.get('triggered') is True and detector.get('terminal_time_s')==end
+        and math.isfinite(end) and 0<end<=args.seconds)
+
+
 def execute(args,argv,audit,hashes):
     """Always finalize a failed receipt; completed evidence is audited on failure."""
     args.output.mkdir(parents=True,exist_ok=False)
@@ -432,7 +541,11 @@ def execute(args,argv,audit,hashes):
     runtime_sources=runtime_source_paths(argv)
     sources=(Path(__file__),ROOT/'scripts/dexterous/audit_isaac_acquisition_contacts.py',*runtime_sources)
     transfer='--standing-transfer-route' in argv
+    withdrawal='--standing-withdrawal-route' in argv
     if transfer:sources+=tuple(ROOT/'scripts/dexterous'/name for name in ('audit_isaac_standing_transfer.py',))
+    if '--standing-transfer-stop-on-rest' in argv:
+        sources+=(ROOT/'doorbench/dexterous/isaac_transfer_rest_audit.py',)
+    if withdrawal:sources+=(ROOT/'scripts/dexterous/audit_isaac_standing_withdrawal.py',ROOT/'doorbench/dexterous/isaac_withdrawal_audit.py')
     receipt=dict(scope='Local privileged standing acquisition, lever operation and partial opening; no traversal claim',
         input_sha256=hashes,source_sha256={str(path.resolve()):sha(path) for path in sources},
         runtime_source_sha256={str(path.resolve()):sha(path) for path in runtime_sources},
@@ -449,6 +562,11 @@ def execute(args,argv,audit,hashes):
             offset_rad=args.experimental_thumb_reference_offset_rad,baseline_offset_rad=0.,
             trigger='Measured partial leaf opening 0.075..0.10 rad, operator within 0.05 rad and bolt within 1 mm of rest',
             ramp_seconds=1.,scope='New capped reference experiment; actual contact qualification remains required')
+    if getattr(args,'standing_transfer_preload_profile','maintain')!='maintain':
+        from doorbench.dexterous.transfer_preload import PROFILES
+        receipt['experimental_transfer_preload_change']=dict(profile=args.standing_transfer_preload_profile,
+            targets_N=PROFILES[args.standing_transfer_preload_profile],ramp_seconds=1.,
+            scope='Prospective one-second finger preload blend after qualified transfer entry; original motor and contact limits unchanged')
     for source in sources:(args.output/('source-'+source.name)).write_bytes(source.read_bytes())
     save(args.output/'launch.json',receipt)
     try:
@@ -489,7 +607,7 @@ def execute(args,argv,audit,hashes):
                 receipt['runtime_binding_error_type']=type(error).__name__
             receipt['runtime_passed']=bool(receipt['runtime_binding_passed'] and report.get('passed') is True and passed_checks(report)
                 and not (trial/'early-stop.json').exists() and not (trial/'error.txt').exists()
-                and abs(report.get('duration_s',0.)-args.seconds)<1e-8)
+                and runtime_duration_passed(report,args,trial))
         # Even an acquisition-only failure may contain a useful complete raw prefix.
         audit_inputs=(trial/'configuration.json',trial/'provenance.json',trial/'acquisition-pad-steps.json.gz')
         if all(path.exists() for path in audit_inputs) and (report_path.exists() or (trial/'acquisition-report.json').exists()):
@@ -520,6 +638,10 @@ def execute(args,argv,audit,hashes):
             auditor=ROOT/'scripts/dexterous/audit_isaac_standing_transfer.py'
             if sha(auditor)!=receipt['source_sha256'][str(auditor.resolve())]:
                 raise ValueError('Transfer auditor changed after launch')
+            if '--standing-transfer-stop-on-rest' in argv:
+                helper=ROOT/'doorbench/dexterous/isaac_transfer_rest_audit.py'
+                if sha(helper)!=receipt['source_sha256'][str(helper.resolve())]:
+                    raise ValueError('Transfer rest auditor changed after launch')
             transfer_argv=[str(args.asset_python),str(auditor),'--trial',str(trial),
                 '--output',str(args.output/'isaac-transfer-audit.json')]
             receipt['transfer_audit_argv']=transfer_argv
@@ -533,8 +655,32 @@ def execute(args,argv,audit,hashes):
                 and data.get('producer_matches') is True and passed_checks(data))
         except Exception as error:
             receipt['transfer_audit_error_type']=type(error).__name__
+    if withdrawal:
+        receipt['independent_withdrawal_passed']=False;receipt['withdrawal_source_prefix_passed']=False
+        try:
+            from doorbench.dexterous.isaac_withdrawal_runtime import admit_isaac_withdrawal_runtime
+            route=argv[argv.index('--standing-withdrawal-route')+1]
+            admission=admit_isaac_withdrawal_runtime(route)
+            prefix=audit_withdrawal_prefix(admission.source_context.data['source_run'],trial,admission.start_time)
+            save(args.output/'withdrawal-source-prefix-audit.json',prefix)
+            receipt['withdrawal_source_prefix_passed']=prefix['passed']
+            auditor=ROOT/'scripts/dexterous/audit_isaac_standing_withdrawal.py'
+            for path in (auditor,ROOT/'doorbench/dexterous/isaac_withdrawal_audit.py'):
+                if sha(path)!=receipt['source_sha256'][str(path.resolve())]:raise ValueError('Withdrawal auditor changed after launch')
+            command=[str(args.asset_python),str(auditor),'--trial',str(trial),
+                '--contact-audit',str(args.output/'independent-contact-audit.json'),
+                '--output',str(args.output/'isaac-withdrawal-audit.json')]
+            with (args.output/'independent-withdrawal-audit.log').open('w') as log:
+                result=subprocess.run(command,cwd=ROOT,env=offline_env,stdout=log,stderr=subprocess.STDOUT,creationflags=FLAGS,timeout=1800)
+            receipt['withdrawal_audit_returncode']=result.returncode
+            data=json.loads((args.output/'isaac-withdrawal-audit.json').read_text())
+            verified_hashes(data.get('input_sha256'),base=ROOT,required=(report_path,trial/'standing-withdrawal-steps.json.gz',trial/'acquisition-physics.npz'))
+            receipt['independent_withdrawal_passed']=bool(result.returncode==0 and data.get('passed') is True
+                and data.get('producer_matches') is True and passed_checks(data))
+        except Exception as error:receipt['withdrawal_audit_error_type']=type(error).__name__
     receipt['passed']=bool(receipt.get('returncode')==0 and receipt['runtime_passed'] and receipt['independent_passed']
         and (not transfer or (receipt['independent_transfer_passed'] and receipt['source_prefix_passed']))
+        and (not withdrawal or (receipt['independent_withdrawal_passed'] and receipt['withdrawal_source_prefix_passed']))
         and not receipt.get('timeout') and not receipt.get('launch_error_type') and not receipt.get('audit_error_type'))
     receipt['finished_unix']=time.time()
     save(args.output/'result.json',receipt)
@@ -559,22 +705,27 @@ def main():
     p.add_argument('--standing-transfer-hybrid-support',action='store_true',help='Explicit experiment: blend existing measured palm-normal force feedback after actual contact')
     p.add_argument('--standing-transfer-live-prefix-witness',action='store_true',help='Require byte-exact live source prefix before transfer; permit changed captured controller code')
     p.add_argument('--standing-transfer-support-load-target',type=float,default=4.,help='Bounded prospective palm support target in N, original default 4')
+    p.add_argument('--standing-transfer-preload-profile',choices=('maintain','balanced-4n','index-6n'),default='maintain',help='Explicit bounded finger preload experiment after the qualified grasp prefix')
+    p.add_argument('--standing-transfer-stop-on-rest',action='store_true',help='Finish at the first measured half-second joint grasp/palm rest, with seconds as the hard deadline')
+    p.add_argument('--standing-withdrawal-route',type=Path,help='Fresh actual-Isaac coupled withdrawal runtime following the qualified transfer recipe')
     p.add_argument('--jev-progress-plan',type=Path)
     p.add_argument('--jev-sample-period',type=float,default=.2)
     p.add_argument('--execute',action='store_true')
     args=p.parse_args()
-    if not 20<=args.seconds<=60 or not 300<=args.timeout_seconds<=7200:
-        p.error('Use a 20–60 second trial and 300–7200 second wall budget')
+    maximum_seconds=120 if args.standing_withdrawal_route is not None else 60
+    if not 20<=args.seconds<=maximum_seconds or not 300<=args.timeout_seconds<=7200:
+        p.error('Use the bounded trial duration and 300–7200 second wall budget')
     if not math.isfinite(args.jev_sample_period) or not .05<=args.jev_sample_period<=10.:
         p.error('Jev sample period must be 0.05..10 wall-clock seconds')
     if args.jev_progress_plan is None and args.jev_sample_period!=.2:
         p.error('An explicit Jev sample period requires --jev-progress-plan')
-    for name in ('ready','native_trial','output','asset_python','isaac_python','jev_progress_plan','standing_transfer_source','standing_transfer_route'):
+    for name in ('ready','native_trial','output','asset_python','isaac_python','jev_progress_plan','standing_transfer_source','standing_transfer_route','standing_withdrawal_route'):
         value=getattr(args,name)
         if value is not None:setattr(args,name,value.absolute()) # Preserve short Windows interpreter alias.
     ready,cfg,reference,profile,declaration,hashes=verified_inputs(args)
     argv,audit=commands(args,ready,cfg,reference,profile,declaration)
     argv,hashes=prepare_transfer(args,argv,hashes)
+    argv,hashes=prepare_withdrawal(args,argv,hashes)
     if not args.execute:
         print(json.dumps(dict(physics_started=False,operation=argv,independent_audit=audit),indent=2));return 0
     if args.jev_progress_plan is not None and not os.environ.get('TYPESAFE_API_KEY'):

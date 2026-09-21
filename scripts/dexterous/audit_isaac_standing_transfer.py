@@ -18,6 +18,11 @@ def main():
     result=dict(passed=bool(r['passed'] and matching and all(checks.values())),checks=checks,producer_matches=matching,
         scope='Independent reduction of recorded actual panel force vectors; original physics and raw handle audits remain separately required',
         input_sha256={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in [report_path,stream_path]})
+    configuration=json.loads((a.trial/'configuration.json').read_text())
+    if configuration['args'].get('standing_transfer_stop_on_rest') or 'standing_transfer_rest_stop' in r:
+        from doorbench.dexterous.isaac_transfer_rest_audit import audit_transfer_rest_stop
+        result['rest_stop']=audit_transfer_rest_stop(a.trial)
+        result['passed'] &= result['rest_stop']['passed']
     with a.output.open('x') as f:json.dump(result,f,indent=2);f.write('\n')
     print(json.dumps(result));return 0 if result['passed'] else 1
 
