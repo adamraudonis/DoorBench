@@ -73,15 +73,30 @@ This is a privileged evaluator/controller experiment. The sampled map does not
 establish real force continuity, sensor-only perception, successful release,
 wide opening, walking or traversal.
 
-## Prepared experiment and preserved diagnostics
+## Physical diagnostic and preserved failures
 
-The ready configuration and exact original-prefix command are in
+The first configuration and exact original-prefix command are in
 `out/local-planning/coupled-release-runtime-003/withdrawal.json` and
 `command.json`. The command selects a fresh `out/local-native-release-003`
 directory, retains the original acquisition/operation/transfer recipe, starts
-transfer at 36 s and measured-rest withdrawal at 50 s, and runs to 66 s. It adds
-the qualified coupled reference, actual predecessor motor capture and isolated
+transfer at 36 s and measured-rest withdrawal at 50 s, and requested 66 s. It adds
+the geometrically admitted coupled reference, actual predecessor motor capture and isolated
 full-orientation left-arm tracking. It does not add Jev or a progress governor.
+
+The actual run stopped before the next motor submission at **54.296 s**. The
+independent coordinate limiter moved the nominal right foot 1.003737 mm from its
+fixed pose, exceeding the original 1 mm gate. The unlimited admitted target had
+only 0.139008 mm error. Root rotation had reached the 0.03 rad/s limit and lagged
+its desired rotation by 0.982 mrad, while the right knee lagged by 3.798 mrad.
+Thus independently clamping a coupled body pose broke the fixed-foot constraint.
+The exact failed state is reproduced without physics in
+`out/local-native-release-003/coupled-stop-diagnosis.json`.
+
+The recorded physical prefix also contains loaded invalid right-hand patches;
+its final-half-second minimum receiving palm-only load is 1.547 N, below 2 N.
+The nominal reference failure is not the only failure, and fixing it does not
+qualify the recorded release. All original failed contact/support evidence stays
+unchanged.
 
 The archived capture002 observation replay has exact clock agreement but stops
 at 57.810 s when acceleration-limited nominal palm tracking exceeds the original
@@ -98,5 +113,55 @@ interrupted to prioritize the physical diagnostic. It is not a completed
 controller replay. The interruption is retained in
 `out/local-planning/coupled-teacher-replay-002/interrupted.json`.
 
-The focused motion/domain/admission/path/bridge/capture regression suite passes
-77 tests. No physical release success is inferred from these tests or screens.
+## Prospective coupled motion projection
+
+`coupled_motion_projection: fixed-poses-v1` explicitly enables a small constrained
+projection of the body reference. Default behavior remains the historical
+independent limiter. The projection jointly considers both fixed feet and both
+measured-frame palms. It changes root, torso, leg, arm and wrist references only;
+finger references and measured mechanism coordinates are not optimization
+variables. The independently admitted geometry evaluator and envelope006 bytes
+remain unchanged.
+
+An archive comparison executes the exact release003 reference and limiter next
+to the current default implementation. All 2,148 accepted target sets, root
+poses, motion states, velocities and diagnostics are bit-identical, followed by
+the same 54.296 s terminal gate. The receipt is
+`out/local-planning/coupled-projection-default-regression.json`.
+
+Each 500 Hz reference step is restricted to the original root speed balls and
+scalar joint velocity/acceleration intervals. A private-model Jacobian maps
+world-relative rotation-vector derivatives through MuJoCo's quaternion velocity
+convention. Two local convex solves minimize pose error while requesting the
+original pose bounds with a 1% linearization reserve. Finite approximate solver
+results are normalized back into the same motion set; optimizer status is logged
+and does not constitute admission. The motion limiter independently rechecks all
+rates, then the existing exact nonlinear pose, collision, joint, anatomical,
+COM, panel-gap and handle-clearance guards decide whether the reference may be
+returned. Any rejection remains terminal. No plant state is set or stepped by
+the projection.
+
+The final implementation passes 88 focused tests, including analytic
+acceleration integrals, rejected-step atomicity, vector speed balls, projected
+velocity history, nonzero-pose Jacobian finite differences, finger isolation,
+and finite/nonfinite solver outcomes. The complete closed release003 prefix,
+including its terminal failed state, passes all 2,149 reference evaluations:
+maximum nominal foot error 0.385 µm and palm error 0.134 µm. The replay is
+`out/local-planning/coupled-projection-006/replay.json`; it is counterfactual
+reference evidence and does not alter physical contact classifications.
+
+A full replay attempt against the older capture-only release002 remains failed:
+at 58.292 s the right-palm orientation error reaches 0.010171 rad, exceeding the
+unchanged 0.01 rad bound. Position errors remain at most 0.221 mm. The terminal
+diagnostic is preserved in
+`out/local-planning/coupled-projection-005/replay.json`; no suffix after that
+rejection is claimed to pass. This does not prove mathematical infeasibility or
+predict the new controller's physical mechanism motion.
+
+The isolated prospective native004 command is
+`out/local-planning/coupled-release-runtime-004/command.json`. Its only controller
+configuration change from native003 is the explicit projection option. It
+retains the original preload taper, phase timing, map, physical and motor gates,
+and 66 s requested duration. The config hash and exact runtime helper hashes are
+recorded alongside the command. Preparing the command does not launch physics or
+claim a qualified release.

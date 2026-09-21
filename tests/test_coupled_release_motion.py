@@ -64,3 +64,50 @@ def test_stationary_goal_is_braked_without_overshoot():
         assert value[6]<=.02+1e-12
         assert info['joint_acceleration_rad_s2']<=3.+1e-10
     assert value[6]==pytest.approx(.02,abs=1e-9)
+
+
+@pytest.mark.parametrize('index,delta',[(0,.000041),(3,.000061),(6,.000013)])
+def test_projection_cannot_bypass_limits_or_commit_a_rejected_step(index,delta):
+    motion=CoupledReferenceMotion(np.zeros(7));motion.update(50.,np.zeros(7))
+    def invalid(candidate,previous,velocity,dt):
+        previous[:]=999.;velocity[:]=999.  # Inputs are isolated copies.
+        candidate[:]=0.;candidate[index]=delta
+        return candidate,{}
+    with pytest.raises(ValueError,match='original reference motion limits'):
+        motion.update(50.002,np.zeros(7),project=invalid)
+    assert motion.time==50.
+    assert np.array_equal(motion.value,np.zeros(7))
+    assert np.array_equal(motion.velocity,np.zeros(7))
+
+
+def test_projection_root_limit_is_a_vector_ball_not_three_axis_limits():
+    motion=CoupledReferenceMotion(np.zeros(7));motion.update(0.,np.zeros(7))
+    def invalid(candidate,*args):
+        candidate[:3]=.00003
+        return candidate,{}
+    with pytest.raises(ValueError,match='original reference motion limits'):
+        motion.update(.002,np.zeros(7),project=invalid)
+
+
+def test_projected_velocity_is_the_next_acceleration_reference():
+    motion=CoupledReferenceMotion(np.zeros(7));motion.update(0.,np.zeros(7))
+    def correction(candidate,*args):
+        candidate[6]=.000004
+        return candidate,{'method':'analytic fixture'}
+    _,info=motion.update(.002,np.ones(7),project=correction)
+    assert motion.velocity[6]==pytest.approx(.002)
+    assert info['projection']['method']=='analytic fixture'
+    value,info=motion.update(.004,np.ones(7))
+    assert motion.velocity[6]==pytest.approx(.008)
+    assert value[6]==pytest.approx(.00002)
+    assert info['joint_acceleration_rad_s2']==pytest.approx(3.)
+
+
+def test_projection_exception_and_initial_capture_do_not_mutate_motion():
+    motion=CoupledReferenceMotion(np.zeros(7))
+    def reject(*args):raise ValueError('infeasible pose')
+    motion.update(0.,np.zeros(7),project=reject)  # Exact initial capture needs no solve.
+    with pytest.raises(ValueError,match='infeasible pose'):
+        motion.update(.002,np.ones(7),project=reject)
+    assert motion.time==0.
+    assert np.array_equal(motion.value,np.zeros(7))

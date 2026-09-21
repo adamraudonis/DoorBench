@@ -14,7 +14,7 @@ class CoupledReferenceMotion:
         if self.value.ndim!=1 or len(self.value)<7 or not np.isfinite(self.value).all():raise ValueError('Finite coupled reference coordinates required')
         self.velocity=np.zeros_like(self.value);self.time=None
 
-    def update(self,t,desired):
+    def update(self,t,desired,*,project=None):
         desired=np.asarray(desired,float)
         if desired.shape!=self.value.shape or not np.isfinite(np.r_[t,desired]).all():raise ValueError('Finite complete coupled reference required')
         if self.time is None:
@@ -38,8 +38,22 @@ class CoupledReferenceMotion:
         velocity[6:]=np.where(close,distance/dt,velocity[6:])
         velocity[6:]=np.clip(velocity[6:],self.velocity[6:]-3.*dt,self.velocity[6:]+3.*dt)
         velocity[6:]=np.clip(velocity[6:],-1.2,1.2)
-        acceleration=(velocity[6:]-self.velocity[6:])/dt
         result=self.value+velocity*dt
+        projection={}
+        if project is not None:
+            # Projection is a reference-only feasibility operation. It receives
+            # copies and cannot commit state or bypass the original limits.
+            result,projection=project(result.copy(),self.value.copy(),self.velocity.copy(),dt)
+            result=np.asarray(result,float)
+            if result.shape!=self.value.shape or not np.isfinite(result).all():raise ValueError('Finite complete projected reference required')
+            velocity=(result-self.value)/dt
+            if (np.linalg.norm(velocity[:3])>.02+1e-12
+                    or np.linalg.norm(velocity[3:6])>.03+1e-12
+                    or np.max(abs(velocity[6:]))>1.2+1e-12
+                    or np.max(abs(velocity[6:]-self.velocity[6:]))>3.*dt+1e-12):
+                raise ValueError('Coupled projection violates original reference motion limits')
+        acceleration=(velocity[6:]-self.velocity[6:])/dt
         info=dict(limited=not np.allclose(result,desired,atol=1e-12,rtol=0),joint_speed_rad_s=float(np.max(abs(velocity[6:]))),joint_acceleration_rad_s2=float(np.max(abs(acceleration))),root_speed_m_s=float(np.linalg.norm(velocity[:3])),root_rotation_speed_rad_s=float(np.linalg.norm(velocity[3:6])))
+        if project is not None:info['projection']=projection
         self.value=result;self.velocity=velocity;self.time=float(t)
         return result.copy(),info
