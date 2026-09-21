@@ -41,8 +41,9 @@ are placeholders, not an admitted experiment:
 }
 ```
 
-Only optional `scope` metadata may be added. The required options cannot be
-disabled. Source qualification, actual normalized endpoint, original assets,
+Optional `scope` metadata and the explicitly experimental
+[`withdrawal_palm_load_profile`](ISAAC_WITHDRAWAL_PALM_PROFILE.md) may be added.
+The required options cannot be disabled. Source qualification, actual normalized endpoint, original assets,
 prospective profile, full motor contract, and all proof hashes are rechecked.
 The map keeps its static status and zero authorized stages; live entry has a
 separate witness.

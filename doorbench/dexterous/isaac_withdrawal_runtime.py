@@ -12,7 +12,8 @@ import numpy as np
 from .isaac_coupled_release_geometry import load_isaac_coupled_source,_verify_hashes
 from .isaac_coupled_release_reference import IsaacCoupledReleaseReference
 from .isaac_prefix_witness import PREFIX_FIELDS
-from .isaac_withdrawal_support import InheritedIsaacPalmSupport
+from .isaac_withdrawal_support import (InheritedIsaacPalmSupport,
+    ReleaseQualifiedPalmLoadProfile,validate_palm_load_profile_name)
 from .motor_contract_identity import motor_contract_fingerprint
 from .qualified_isaac_grasp import digest
 from .standing_body_record import POSE_CONVENTION
@@ -28,12 +29,15 @@ PATH_KEYS=('source_config_path','coupled_envelope_path','coupled_audit_path')
 def _document(path):
     path=Path(path).resolve();before=digest(path);config=json.loads(path.read_text())
     allowed={'schema','scope',*REQUIRED_OPTIONS,*PATH_KEYS,
-             'source_config_sha256','coupled_envelope_sha256','coupled_audit_sha256'}
+             'source_config_sha256','coupled_envelope_sha256','coupled_audit_sha256',
+             'withdrawal_palm_load_profile'}
     if config.get('schema')!=SCHEMA or set(config)-allowed:
         raise ValueError('Explicit minimal Isaac withdrawal runtime schema required')
     for key,expected in REQUIRED_OPTIONS.items():
         if type(config.get(key)) is not type(expected) or config[key]!=expected:
             raise ValueError('Required source-bound Isaac runtime option: '+key)
+    if 'withdrawal_palm_load_profile' in config:
+        validate_palm_load_profile_name(config['withdrawal_palm_load_profile'])
     hashes={str(path):before}
     for key in PATH_KEYS:
         value=config.get(key)
@@ -72,6 +76,9 @@ class IsaacWithdrawalRuntimeAdmission:
         self.predecessor_route=Path(recorded['standing_transfer_route']).resolve()
         self.predecessor_start=float(recorded['standing_transfer_start_seconds'])
         self.inherited_support=None;self.target_N=float(target)
+        self.support_profile=config.get('withdrawal_palm_load_profile')
+        if self.support_profile is not None:
+            ReleaseQualifiedPalmLoadProfile(self.support_profile,target,data['duration_s'])
         self.reference=IsaacCoupledReleaseReference(config,data)
         hashes.update(source_hashes);hashes.update(data['input_sha256']);hashes.update(self.reference.input_sha256)
         hashes[str(configuration_path.resolve())]=digest(configuration_path)
@@ -82,6 +89,7 @@ class IsaacWithdrawalRuntimeAdmission:
             source_config_path=str(Path(config['source_config_path']).resolve()),
             coupled_envelope_path=str(Path(config['coupled_envelope_path']).resolve()),
             coupled_audit_path=str(Path(config['coupled_audit_path']).resolve()))
+        if self.support_profile is not None:data['withdrawal_palm_load_profile']=self.support_profile
         self.source_context=WithdrawalSourceContext(json.dumps(data,sort_keys=True,separators=(',',':'),allow_nan=False))
         identity_keys=('schema','source_engine','source_run','screen_path','screen_sha256',
             'audit_path','audit_sha256','measured_rest_transfer','grasp_profile','contact_audit_name',
@@ -111,7 +119,11 @@ class IsaacWithdrawalRuntimeAdmission:
                 or Path(transfer.path).resolve()!=self.predecessor_route
                 or transfer.start_seconds!=self.predecessor_start):
             raise ValueError('One exact qualified live predecessor route and start required')
-        self.inherited_support=InheritedIsaacPalmSupport(transfer,self.target_N)
+        if self.support_profile is None:
+            self.inherited_support=InheritedIsaacPalmSupport(transfer,self.target_N)
+        else:
+            self.inherited_support=InheritedIsaacPalmSupport(transfer,self.target_N,
+                profile=self.support_profile,duration_s=self.duration)
 
     def verify(self,path,motors):
         if Path(path).resolve()!=self.path or motor_contract_fingerprint(motors)!=self.source_context.data['motor_contract_sha256']:

@@ -368,7 +368,11 @@ class StandingWithdrawalTeacher:
             panel_info['panel_aperture_feedback_gain_N_per_rad']=self.panel_gain
         self.left.update_targets(t,root,joints,leaf_pose,left_panel_load,handle_pose)
         if getattr(self,'inherited_support',None) is not None:
-            self.inherited_support.update(t,root,joints,leaf_pose,left_palm_load)
+            if getattr(self.inherited_support,'profile',None) is None:
+                self.inherited_support.update(t,root,joints,leaf_pose,left_palm_load)
+            else:
+                self.inherited_support.update(t,root,joints,leaf_pose,left_palm_load,
+                    release_started_s=self.release_started)
         if self.hybrid_support:
             self.left._read(root,joints)
             if self.support_feedback is None:
