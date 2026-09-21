@@ -165,3 +165,37 @@ retains the original preload taper, phase timing, map, physical and motor gates,
 and 66 s requested duration. The config hash and exact runtime helper hashes are
 recorded alongside the command. Preparing the command does not launch physics or
 claim a qualified release.
+
+## Separate prospective palm feedback gain
+
+The actual release003 right-hand material error is dominated by palm tracking
+late in the prefix. At 54.2 s the measured palm position error is 1.845 mm and
+the index middle-link material error is 1.402 mm, while finger-only error in the
+actual palm frame is 0.351 mm. The preload taper is therefore left unchanged.
+The source-bound decomposition remains in
+`out/local-native-release-003/independent-material-lag-diagnostic.json`.
+
+The original palm correction first reaches its 0.06 rad/s rate bound at 54.088 s:
+104 of 2,147 recorded update intervals, all after the first loaded invalid patch
+at 53.906 s. At 53.904 s its largest correction rate is 0.018853 rad/s. The
+explicit withdrawal option `palm_correction_gain_s_inv: 6.0` doubles that request
+to 0.037705 rad/s on the same observation, still below the unchanged cap. Default
+gain remains 3/s; the permitted explicit range is finite and positive through
+6/s. The original 0.06 rad offset limit, joint limits, motor limits, damping,
+handoff and preload taper are unchanged. The selected gain is logged.
+
+An unstepped same-observation replay reproduces all 2,148 recorded original
+offsets exactly. The new default implementation is also bit-identical. For
+gain 6/s, first rate saturation occurs at 53.976 s and maximum accumulated offset
+is 0.029391 rad, below 0.06 rad. Its stronger correction can act before the first
+invalid patch, but fixed recorded observations cannot demonstrate improved
+physical tracking or contact. The diagnostic is
+`out/local-native-release-003/palm-feedback-gain-diagnostic.json`.
+
+The separate, unexecuted native005 recipe is
+`out/local-planning/coupled-release-runtime-005/command.json`. It adds only gain
+6/s to the projection-only native004 config, which remains preserved. The
+combined regression suite passes 105 tests, including analytic unsaturated gain
+response, unchanged saturation limits, zero-interval capture, invalid-gain
+rejection and withdrawal config validation. No physical release result is
+inferred from these checks.

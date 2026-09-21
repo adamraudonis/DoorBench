@@ -8,7 +8,7 @@ from scipy.spatial.transform import Rotation,Slerp
 from .operation_teacher import smooth_phase,pose_components
 from .attained_arm_tracking import AttainedArmTracking
 from .attained_hand_tracking import AttainedHandTracking
-from .return_palm_feedback import ReturnPalmFeedback
+from .return_palm_feedback import ReturnPalmFeedback,validate_correction_gain
 from .motor_handoff import MotorHandoff
 
 
@@ -34,6 +34,7 @@ class StandingWithdrawalTeacher:
         self.qualified_since=None;self.info={};self.handoff=None
         config=json.loads(Path(path).read_text())
         if config.get('schema')!='doorbench.standing-withdrawal.v1':raise ValueError('Explicit standing withdrawal config required')
+        self.palm_correction_gain_s_inv=validate_correction_gain(config.get('palm_correction_gain_s_inv',3.))
         capture_returned=config.get('capture_returned_motor_command',False)
         if type(capture_returned) is not bool:raise ValueError('Explicit delegated-command capture option required')
         self.motor_capture=None;self.motor_capture_info={}
@@ -268,7 +269,7 @@ class StandingWithdrawalTeacher:
             self.started_withdrawal=t
             self.arm=AttainedArmTracking(teacher,joints,self.previous_force)
             self.hand=AttainedHandTracking(teacher,joints,self.previous_force)
-            self.palm=ReturnPalmFeedback(teacher,root,joints,handle_pose,self.operation.geometry)
+            self.palm=ReturnPalmFeedback(teacher,root,joints,handle_pose,self.operation.geometry,correction_gain_s_inv=self.palm_correction_gain_s_inv)
             self.preload=self.hand.preload.copy()
             # Geometric routes describe attained poses. The balance controller
             # already has small reference offsets needed to hold that pose under
@@ -326,7 +327,7 @@ class StandingWithdrawalTeacher:
             if self.panel.started is None:
                 self.panel_previous_force=teacher.last_force.copy()
                 self.arm=AttainedArmTracking(teacher,joints,self.panel_previous_force)
-                self.palm=ReturnPalmFeedback(teacher,root,joints,handle_pose,self.operation.geometry)
+                self.palm=ReturnPalmFeedback(teacher,root,joints,handle_pose,self.operation.geometry,correction_gain_s_inv=self.palm_correction_gain_s_inv)
             targets,position,rotation,panel_info=self.panel.update(t,root,joints,angles['leaf'],teacher.stance)
             panel_goal=(position,rotation)
         self.left.support_load_target=self.initial_support_target+float(smooth_phase(elapsed/2.))*(self.support_target-self.initial_support_target)
