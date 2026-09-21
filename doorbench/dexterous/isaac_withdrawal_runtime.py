@@ -182,7 +182,7 @@ def withdrawal_runtime_source_paths():
         'standing_withdrawal.py','withdrawal_motor_capture.py','withdrawal_source_context.py','resting_transfer.py',
         'coupled_release_reference.py','coupled_release_motion.py','coupled_release_geometry.py',
         'isaac_coupled_release_geometry.py','isaac_coupled_release_audit.py','isaac_release_geometry_audit.py',
-        'isaac_release_planning.py','isaac_release_source.py','isaac_pad_audit.py','isaac_prefix_witness.py',
+        'isaac_release_planning.py','isaac_release_source.py','isaac_release_context_reconciliation.py','isaac_pad_audit.py','isaac_prefix_witness.py',
         'landed_left_planner.py','landed_left_audit.py','grasp_verification.py','qualified_isaac_grasp.py',
         'isaac_attained_state.py','standing_body_record.py','motor_contract_identity.py',
         'destination_state_binding.py','destination_planner_admission.py','destination_planning_coordinates.py',

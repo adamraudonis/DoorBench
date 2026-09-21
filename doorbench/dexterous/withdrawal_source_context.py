@@ -112,6 +112,12 @@ def _isaac(config, motors, measured_rest, source, screen_path, audit_path, scree
         raise ValueError('Original actual Isaac contact audit required')
     context = admit_isaac_release_context(source, robot=config['robot_path'],
         door_xml=config['door_xml_path'], door_usd=config['door_usd_path'], profile=config['grasp_profile'])
+    from .isaac_release_context_reconciliation import reconcile_isaac_release_context
+    context, reconciliation = reconcile_isaac_release_context(screen, context)
+    if reconciliation['difference_count']:
+        # Diagnostic output is captured in the launch log, outside the immutable
+        # source identity used by all downstream candidate/audit comparisons.
+        print('ISAAC_SOURCE_RECONCILIATION '+json.dumps(reconciliation,sort_keys=True),flush=True)
     admission = context.admission
     validate_candidate_binding(screen, context)
     if (screen.get('runtime_route_exported') is not False
@@ -146,6 +152,8 @@ def _isaac(config, motors, measured_rest, source, screen_path, audit_path, scree
         if _bound_digest(audit['input_sha256'], name) != expected:
             raise ValueError('Isaac audit omits candidate/source evidence: ' + name)
     hashes = _verified_hashes(audit['input_sha256'])
+    helper = Path(__file__).with_name('isaac_release_context_reconciliation.py').resolve()
+    hashes[str(helper)] = digest(helper)
     motor_path = source/'trial/motor-contract.json'
     if admission['input_sha256'].get(str(motor_path.resolve())) != digest(motor_path):
         raise ValueError('Original Isaac motor contract bytes must be source-bound')

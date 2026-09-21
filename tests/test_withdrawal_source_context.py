@@ -123,6 +123,7 @@ def test_native_original_bindings_remain_required(native,change):
 @pytest.fixture
 def isaac(tmp_path,monkeypatch):
     from doorbench.dexterous import isaac_release_planning
+    from doorbench.dexterous import isaac_release_context_reconciliation
     run=tmp_path/'isaac source';trial=run/'trial';trial.mkdir(parents=True)
     robot,xml,usd=[tmp_path/name for name in ('robot.xml','door.xml','door.usda')]
     for path in (robot,xml,usd):path.write_text('synthetic '+path.name)
@@ -147,6 +148,11 @@ def isaac(tmp_path,monkeypatch):
     def admit(*args,**kwargs):
         calls.append((args,kwargs));return context
     monkeypatch.setattr(isaac_release_planning,'admit_isaac_release_context',admit)
+    # This binding-only fixture replaces the entire physical-source admission
+    # boundary with a tiny synthetic context. Reconciliation's full real-context
+    # and original-gate contract is exercised in its dedicated integration suite.
+    monkeypatch.setattr(isaac_release_context_reconciliation,'reconcile_isaac_release_context',
+        lambda candidate,fresh: (fresh,dict(difference_count=0)))
     screen=dict(schema='doorbench.isaac-profiled-release-candidate.v1',source_engine='isaac-physx',
         physics_steps=0,source_sample_playback=0,grasp_profile='volar-phalange-v1',
         source_context_sha256='b'*64,source_admission=copy.deepcopy(admission),
