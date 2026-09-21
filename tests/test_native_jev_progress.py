@@ -1,5 +1,5 @@
 """Native Jev integration contracts; no physics or live model calls."""
-from dataclasses import replace
+from dataclasses import asdict, replace
 import json
 import os
 from pathlib import Path
@@ -131,3 +131,25 @@ def test_default_path_does_not_import_jev_or_construct_a_transport(tmp_path):
         env={**os.environ,'PYTHONPATH':str(ROOT)},capture_output=True,text=True)
     assert result.returncode==0,result.stderr
     assert not (tmp_path/'output').exists()
+
+
+def test_native_gate_rejects_isaac_advisory_policy_before_opening_a_log(tmp_path):
+    plan=AstraPlan('native-nondefault-rejected','lever_operation','Fixture only',
+        progress_policy='local_guard_with_jev_advice')
+    with pytest.raises(ValueError,match='Native Jev progress supports only require_jev'):
+        NativeJevProgressGate(plan,None,tmp_path)
+    assert not (tmp_path/'jev-progress.jsonl').exists()
+
+
+def test_native_run_rejects_nondefault_policy_before_credentials_assets_or_physics(tmp_path):
+    plan=AstraPlan('native-nondefault-rejected','lever_operation','Fixture only',
+        progress_policy='local_guard_with_jev_advice')
+    plan_path=tmp_path/'advisory-plan.json'
+    plan_path.write_text(json.dumps(asdict(plan)))
+    args=cli(tmp_path,['--portable-wrapper','--record-transitions','--jev-progress-plan',str(plan_path)])
+    args.remove('--validate-arguments-only')
+    env={**os.environ,'PYTHONPATH':str(ROOT)};env.pop('TYPESAFE_API_KEY',None)
+    result=subprocess.run(args,cwd=ROOT,env=env,capture_output=True,text=True)
+    assert result.returncode!=0
+    assert 'Native Jev progress supports only require_jev' in result.stderr
+    assert 'API key' not in result.stderr and not (tmp_path/'output').exists()

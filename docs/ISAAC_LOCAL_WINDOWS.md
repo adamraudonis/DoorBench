@@ -164,6 +164,34 @@ the handoff. Qualification additionally requires an exact archived state,
 velocity and commanded-motor prefix and an independent palm-support audit.
 This stage still establishes only receiving support, not release or traversal.
 
+### Bounded late thumb reference experiment
+
+The local launcher also accepts `--experimental-thumb-reference-joint rh_THJ5`
+and `--experimental-thumb-reference-offset-rad .02`. This is a declared change
+to one nominal motor reference, within the original authored joint range. It
+waits for measured partial opening (0.075–0.10 rad), operator rest (±0.05 rad)
+and latch rest (±0.001 m), then uses a one-second quintic ramp. It does not set
+the physical joint angle, increase the motor cap, or change contact criteria.
+
+The first 24 s trial, `out/local-isaac-thumb-001`, used palm offset
+`--experimental-grasp-offset-in-handle-m .004 -.0025 .0025` and the above thumb
+change. It failed the final sustained-grasp check, while passing the other 18
+operation checks and independent contact accounting with zero invalid loaded
+surfaces. Its final 155/251 grasp samples were valid; the last contiguous window
+was 23.692–24.000 s, only 0.308 s elapsed. The failed result is retained.
+`independent-thumb-response.json` and its accompanying analysis separate the
+nominal target, actual joint motion, motor command and individual contact pairs.
+The fresh `out/local-isaac-thumb-002` repeated the same recipe to 28 s and
+passes all 19 operation checks plus independent contact/task auditing of all
+14,000 intervals with zero invalid loaded patches. Brief earlier grasp
+interruptions remain in the record. This qualifies partial opening, not
+release or traversal. Its actual endpoint produced the new
+`out/local-planning/isaac-qualified-transfer-001/transfer.json` after all 1,001
+geometry samples and exact measured-body kinematic admission passed.
+The new `out/local-isaac-transfer-001` tests a 42 s episode: the same first 28 s
+followed by 14 s for left-palm receiving support. Read its physical result
+independently; passing route geometry does not establish palm load.
+
 ## Verified destination and Windows fixes
 
 The local destination is Windows 11 with an RTX 5070 (12 GB), driver 591.86,
@@ -200,6 +228,22 @@ Set `TYPESAFE_API_KEY` in the process environment, then opt in with
 `--jev-sample-period .2`. The standalone native probe additionally requires
 `--portable-wrapper --record-transitions`. Credentials are not recorded.
 The default path makes no API calls.
+
+`configs/isaac/astra-jev-press-plan-v2.json` is a separate prospective Isaac
+experiment. Its explicit `progress_policy: local_guard_with_jev_advice` permits
+fresh full local admission when no fresh model directive is available. A fresh
+Jev pause retains its original lease through a missing reply or provider error;
+an accepted request for Astra remains latched until the episode or versioned
+plan changes. The arbitration class supports this change at its boundary, but
+the standalone runner reads one plan at launch and has no live Astra-plan inbox.
+Editing its plan file does not clear a running escalation latch. Current contact,
+load, balance, mechanical and clock checks still
+apply to every step. Records distinguish model decisions, retained model pauses,
+local fallback and Astra escalation. The original v1 plan still requires Jev.
+The new policy has CPU tests but no completed physical trial yet. Use the existing
+`--jev-progress-plan` option to select it; no new runner option is required.
+The native probe rejects this policy explicitly because its adapter currently
+supports only the original model-required mode.
 
 The operation launcher accepts the same Jev plan and sample-period arguments
 for standalone Isaac pressing. The opt-in gate consumes solved PhysX contact

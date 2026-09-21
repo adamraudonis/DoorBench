@@ -2,8 +2,10 @@
 
 The independent local guard constructs an admissible action set. Jev may pause
 even when the guard permits progress; the deterministic comparator is only an
-experiment metric. Missing, expired, malformed or low-confidence advice pauses
-the reference progression clock while the plant's grip/balance loops keep running.
+experiment metric. By default, missing, expired, malformed or low-confidence
+advice pauses the reference progression clock while grip/balance loops continue.
+The separately selected local-guard policy can use fresh complete local admission
+without a model reply, and records every such decision as local fallback.
 """
 from __future__ import annotations
 
@@ -13,7 +15,7 @@ import math
 import time
 import urllib.error
 
-from .jev_advisor import AstraPlan, MODEL, _finite
+from .jev_advisor import AstraPlan, MODEL, PROGRESS_POLICIES, _finite
 
 PHASES = ("acquisition", "lever_operation", "partial_opening", "complete")
 DIGITS = ("ff", "mf", "rf", "lf", "th")
@@ -264,3 +266,134 @@ class AsyncJevProgressAdvisor:
     def close(self):
         self._closed = True
         self._pool.shutdown(wait=False, cancel_futures=True)
+
+
+# Explicit optional local-guard policy; no transport, physics, or motor API.
+@dataclass(frozen=True)
+class ProgressDecision:
+    allow_progress: bool
+    source: str
+    reason: str
+    model_advice_used: bool = False
+    astra_escalation_latched: bool = False
+    model_sample_id: int | None = None
+    model_capture_monotonic_s: float | None = None
+    model_simulation_time_s: float | None = None
+    model_permission_expires_monotonic_s: float | None = None
+
+
+class ProgressArbitrator:
+    """Fresh local admission with optional, bounded model advice.
+
+    A live model pause survives a missing/error reply without extending its
+    original lease. A credible Astra request latches until a valid new plan or
+    episode; invalid clocks/context cannot clear it. Fallback is never model
+    permission, and neither policy can override a false local guard.
+    """
+    def __init__(self, policy="require_jev"):
+        if policy not in PROGRESS_POLICIES:
+            raise ValueError("Explicit progress arbitration policy required")
+        self.policy = policy
+        self.key = None
+        self.escalated = False
+        self.retired_keys = set()
+        self.previous = None
+        self.pause = None
+
+    @staticmethod
+    def _fresh(snapshot, plan, advice, now_s):
+        return bool(advice is not None
+            and advice.episode_id == snapshot.episode_id
+            and advice.plan_id == plan.plan_id
+            and advice.phase == snapshot.phase == plan.phase
+            and type(advice.accepted) is bool
+            and type(advice.sample_id) is int and 0 <= advice.sample_id <= snapshot.sample_id
+            and _finite(advice.simulation_time_s)
+            and 0 <= advice.simulation_time_s <= snapshot.simulation_time_s
+            and snapshot.simulation_time_s-advice.simulation_time_s <= .25
+            and all(_finite(v) for v in (advice.capture_monotonic_s, advice.received_monotonic_s))
+            and 0 <= advice.capture_monotonic_s <= snapshot.capture_monotonic_s
+            and 0 <= now_s-advice.capture_monotonic_s <= .75
+            and advice.capture_monotonic_s <= advice.received_monotonic_s <= now_s
+            and advice.model == MODEL and _finite(advice.confidence)
+            and .7 <= advice.confidence <= 1.)
+
+    @classmethod
+    def _leased(cls, snapshot, plan, advice, now_s):
+        return bool(cls._fresh(snapshot, plan, advice, now_s)
+            and advice.accepted is True
+            and advice.evaluation_reason == "accepted_progress_advice"
+            and advice.permission_rejection_reason is None
+            and advice.action in ("continue_press", "pause_press")
+            and advice.proposed_action == advice.action
+            and _finite(advice.permission_expires_monotonic_s)
+            and advice.received_monotonic_s <= now_s <= advice.permission_expires_monotonic_s
+            and advice.permission_expires_monotonic_s <= advice.capture_monotonic_s+.75
+            and advice.permission_expires_monotonic_s <= advice.received_monotonic_s+.35)
+
+    @staticmethod
+    def _model_decision(advice, reason):
+        return ProgressDecision(advice.action == "continue_press", "jev", reason,
+            model_advice_used=True, model_sample_id=advice.sample_id,
+            model_capture_monotonic_s=advice.capture_monotonic_s,
+            model_simulation_time_s=advice.simulation_time_s,
+            model_permission_expires_monotonic_s=advice.permission_expires_monotonic_s)
+
+    def choose(self, snapshot, plan, advice, *, now_s):
+        """Consume a typed reply after per-tick advisor revalidation.
+
+        Recheck identity, both clocks and the live local guard here as well.
+        The freshness/confidence limits match the existing press protocol;
+        this alternative does not extend a provider lease.
+        """
+        current = (_finite(now_s)
+            and 0 <= now_s-snapshot.capture_monotonic_s <= .75)
+        if self.previous is not None:
+            episode, sample_id, simulation_time, captured, wall = self.previous
+            current = bool(current and now_s >= wall)
+            if episode == snapshot.episode_id:
+                current = bool(current and snapshot.sample_id >= sample_id
+                    and snapshot.simulation_time_s >= simulation_time
+                    and snapshot.capture_monotonic_s >= captured
+                    and ((snapshot.sample_id == sample_id) == (snapshot.simulation_time_s == simulation_time)))
+        key = (snapshot.episode_id, plan.plan_id)
+        context = bool(current and snapshot.phase == plan.phase == "lever_operation"
+                       and key not in self.retired_keys)
+        if not context:
+            # Invalid/future/retired context cannot erase a real escalation.
+            if self.escalated:
+                return ProgressDecision(False, "astra_escalation", "awaiting_new_astra_plan",
+                                        astra_escalation_latched=True)
+            return ProgressDecision(False, "local_guard", "current_context_or_clock_invalid")
+        if key != self.key:
+            if self.key is not None:
+                self.retired_keys.add(self.key)
+            self.key, self.escalated, self.pause = key, False, None
+        self.previous = (snapshot.episode_id, snapshot.sample_id, snapshot.simulation_time_s,
+                         snapshot.capture_monotonic_s, now_s)
+        fresh = self._fresh(snapshot, plan, advice, now_s)
+        if (fresh and advice.proposed_action == "request_astra"
+                and advice.accepted is False and advice.action == "pause_press"
+                and advice.permission_rejection_reason is None
+                and advice.evaluation_reason == "model_requested_astra"):
+            self.escalated = True
+        if self.escalated:
+            return ProgressDecision(False, "astra_escalation", "awaiting_new_astra_plan",
+                                    astra_escalation_latched=True)
+        leased = self._leased(snapshot, plan, advice, now_s)
+        if self.pause is not None and not self._leased(snapshot, plan, self.pause, now_s):
+            self.pause = None
+        if leased:
+            newer = self.pause is None or advice.sample_id > self.pause.sample_id
+            if newer:
+                self.pause = advice if advice.action == "pause_press" else None
+        local = "continue_press" in admissible_actions(snapshot, plan)
+        if not local:
+            return ProgressDecision(False, "local_guard", "current_local_admission_failed")
+        if self.pause is not None:
+            return self._model_decision(self.pause, "fresh_model_advice" if advice is self.pause else "live_prior_model_pause")
+        if leased:
+            return self._model_decision(advice, "fresh_model_advice")
+        if self.policy == "local_guard_with_jev_advice":
+            return ProgressDecision(True, "local_fallback", "current_local_admission_without_fresh_model_advice")
+        return ProgressDecision(False, "required_model", "no_fresh_model_permission")

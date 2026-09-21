@@ -25,6 +25,7 @@ MODEL = "jev-1.13.0"
 SCHEMA = "doorbench.jev-advisor.v1"
 SOURCES = frozenset(("synthetic", "isaac-telemetry", "native-telemetry"))
 ACTIONS = ("hold", "increase_angle", "decrease_angle", "reacquire_contact", "request_astra")
+PROGRESS_POLICIES = ("require_jev", "local_guard_with_jev_advice")
 
 
 def _finite(value: float) -> bool:
@@ -43,6 +44,9 @@ class AstraPlan:
     contact_threshold_N: float = .15
     excessive_load_N: float = 15.
     maximum_slip_mps: float = .02
+    # Explicit opt-in for the press-clock adapter. Older plans retain the
+    # original model-required behavior; this never authorizes motor commands.
+    progress_policy: str = "require_jev"
 
     def __post_init__(self):
         if not all(isinstance(v, str) and 0 < len(v) <= 1000 for v in
@@ -54,6 +58,8 @@ class AstraPlan:
             raise ValueError("Plan bounds must be finite and positive")
         if self.maximum_angle_step_rad > .05 or self.contact_threshold_N >= self.excessive_load_N:
             raise ValueError("Invalid bounded angle step or contact thresholds")
+        if self.progress_policy not in PROGRESS_POLICIES:
+            raise ValueError("Explicit supported Jev progress policy required")
 
 
 @dataclass(frozen=True)

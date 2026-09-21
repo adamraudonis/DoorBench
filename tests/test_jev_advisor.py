@@ -18,6 +18,19 @@ def fixture():
     return sample, plan
 
 
+def test_old_plan_defaults_to_required_model_and_new_policy_is_explicit():
+    _, plan = fixture()
+    assert plan.progress_policy == "require_jev"
+    assert replace(plan, progress_policy="local_guard_with_jev_advice").progress_policy == "local_guard_with_jev_advice"
+
+
+@pytest.mark.parametrize("policy", ["", "continue", "local_guard", None, True, 1, [], {}])
+def test_invalid_plan_progress_policy_is_rejected(policy):
+    _, plan = fixture()
+    with pytest.raises(ValueError, match="progress policy"):
+        replace(plan, progress_policy=policy)
+
+
 def response(action="increase_angle", contact=.99, confidence=.99):
     probabilities = {name: (1. if name == action else 0.) for name in ACTIONS}
     return {"model": MODEL, "answers": {

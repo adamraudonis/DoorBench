@@ -1,6 +1,6 @@
 """CPU-only synthetic fixtures for the real Isaac adapter; no simulator/API call."""
 import ast
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import hashlib
 import json
 from pathlib import Path
@@ -240,3 +240,209 @@ def test_actual_script_has_opt_in_boundary_before_engine_and_cleanup_in_finally(
     assert "finally:\n        if jev_gate is not None:jev_gate.close()" in source
     assert "('jev_advisor.py','jev_progress_advisor.py','isaac_jev_progress.py')" in source
     assert "out/'jev-progress-plan-input.json'" in source
+
+
+def test_versioned_plan_selects_policy_through_existing_parser_and_protocol(monkeypatch, tmp_path):
+    from test_isaac_traversal_runner import run_parser
+    _, old_plan = fixture()
+    plan = replace(old_plan, plan_id="synthetic-local-guard-v2", progress_policy="local_guard_with_jev_advice")
+    original = tmp_path / "plan-v2.json"
+    content = (json.dumps(asdict(plan), indent=3)+"\n").encode()
+    original.write_bytes(content)
+    monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-parser-fixture-no-request")
+    args = run_parser(monkeypatch, ["--acquisition", "--operate-after-acquisition",
+        "--native-robot", "robot.xml", "--acquisition-stance-profile", "landed-foot-v1",
+        "--open-on-latch-clear", "--jev-progress-plan", str(original)])
+    assert args.jev_progress_plan == original
+    parsed, used = read_jev_plan(original)
+    receipt = write_jev_protocol(tmp_path, plan=parsed, plan_bytes=used, source_path=original,
+        grasp_profile="volar-phalange-v1", sample_period=.2, physics_dt=.002)
+    assert receipt["progress_policy"] == "local_guard_with_jev_advice"
+    assert receipt["progress_policy_source"] == "plan"
+    assert receipt["missing_advice_behavior"] == "fresh_full_local_admission_required"
+    assert receipt["astra_escalation_latches"] and receipt["retain_unexpired_model_pause"]
+    assert (tmp_path / "jev-progress-plan-input.json").read_bytes() == content
+    assert receipt["plan_sha256"] == hashlib.sha256(content).hexdigest()
+
+
+def test_older_plan_without_policy_preserves_required_model_protocol(tmp_path):
+    _, plan = fixture()
+    data = asdict(plan)
+    del data["progress_policy"]
+    path = tmp_path / "old-plan.json"
+    path.write_text(json.dumps(data))
+    parsed, used = read_jev_plan(path)
+    assert parsed.progress_policy == "require_jev"
+    receipt = write_jev_protocol(tmp_path, plan=parsed, plan_bytes=used, source_path=path,
+        grasp_profile="volar-phalange-v1", sample_period=.2, physics_dt=.002)
+    assert receipt["progress_policy"] == "require_jev"
+    assert receipt["missing_advice_behavior"] == "pause_press"
+    assert not receipt["astra_escalation_latches"] and not receipt["retain_unexpired_model_pause"]
+
+
+def test_canonical_v2_plan_explicitly_opts_in_and_retains_v1_numeric_bounds():
+    root = Path(__file__).parents[1]
+    old, _ = read_jev_plan(root / "configs/isaac/astra-jev-press-plan-v1.json")
+    new, _ = read_jev_plan(root / "configs/isaac/astra-jev-press-plan-v2.json")
+    assert old.progress_policy == "require_jev"
+    assert new.progress_policy == "local_guard_with_jev_advice"
+    assert old.plan_id != new.plan_id
+    for field in ("angle_tolerance_rad", "maximum_angle_step_rad", "contact_threshold_N",
+                  "excessive_load_N", "maximum_slip_mps"):
+        assert getattr(old, field) == getattr(new, field)
+
+
+def test_optional_constructor_override_and_protocol_override_are_explicit(tmp_path):
+    values, plan = fixture()
+    now = [10.]
+    gate = IsaacJevProgressGate(plan, ImmediateWorker(now), tmp_path,
+        policy="local_guard_with_jev_advice", clock=lambda: now[0])
+    try:
+        allow, context = gate.choose(**values)
+        assert allow and context["progress_policy_source"] == "explicit_override"
+        assert context["decision_source"] == "local_fallback" and not context["model_advice_used"]
+    finally:
+        gate.close()
+    receipt = write_jev_protocol(tmp_path, plan=plan, plan_bytes=json.dumps(asdict(plan)).encode(),
+        source_path=tmp_path/"source.json", grasp_profile="volar-phalange-v1", sample_period=.2,
+        physics_dt=.002, policy="local_guard_with_jev_advice")
+    assert receipt["progress_policy_source"] == "explicit_override"
+    assert receipt["plan"]["progress_policy"] == "require_jev"
+    assert receipt["progress_policy"] == "local_guard_with_jev_advice"
+
+
+@pytest.mark.parametrize("kind", ["missing", "provider_error", "expired", "low_confidence"])
+def test_opt_in_current_local_fallback_is_never_counted_as_a_model_decision(tmp_path, kind):
+    values, plan = fixture()
+    plan = replace(plan, progress_policy="local_guard_with_jev_advice")
+    now = [10.]
+    worker = ImmediateWorker(now)
+    gate = IsaacJevProgressGate(plan, worker, tmp_path, clock=lambda: now[0], sample_period=10.)
+    try:
+        assert gate.choose(**values)[0]  # Initial missing advice uses current guard only.
+        if kind == "missing":
+            worker.latest = None
+        elif kind == "provider_error":
+            worker.latest = replace(worker.latest, accepted=False, action="pause_press", model=None,
+                proposed_action=None, reason="provider_http_529", evaluation_reason="provider_http_529")
+        elif kind == "expired":
+            now[0] = 10.36
+        else:
+            worker.latest = replace(worker.latest, accepted=False, action="pause_press",
+                confidence=.5, reason="low_confidence", evaluation_reason="low_confidence")
+        allow, context = gate.choose(**values)
+        assert allow and context["action"] == context["decision_action"] == "continue_press"
+        assert context["decision_source"] == "local_fallback" and not context["model_advice_used"]
+        assert context["decision_model_sample_id"] is None
+        gate.record_submission(context, INFO)
+        result = gate.summary()
+        assert result["local_fallback_intervals"] == 1 and result["model_decision_intervals"] == 0
+    finally:
+        gate.close()
+
+
+@pytest.mark.parametrize("bad", ["grasp", "balance", "force", "source", "motor", "mechanics"])
+@pytest.mark.parametrize("action", [None, "continue_press"])
+def test_advisory_policy_never_progresses_on_false_or_missing_current_local_evidence(tmp_path, bad, action):
+    values, plan = fixture()
+    plan = replace(plan, progress_policy="local_guard_with_jev_advice")
+    now = [10.]
+    worker = ImmediateWorker(now)
+    gate = IsaacJevProgressGate(plan, worker, tmp_path, clock=lambda: now[0])
+    try:
+        gate.choose(**values)
+        if action is None:
+            worker.latest = None
+        if bad == "grasp": values["pad"]["valid_pad_grasp"] = False
+        if bad == "balance": values["stance_status"] = None
+        if bad == "force": values["pad"]["digit_forces_N"]["mf"] = .1
+        if bad == "source": values["pad"]["raw_evidence"] = {}
+        if bad == "motor": values["motor_caps_ok"] = False
+        if bad == "mechanics": values["mechanical_audit"] = {}
+        allow, context = gate.choose(**values)
+        assert not allow and context["decision_source"] == "local_guard"
+        assert not context["model_advice_used"] and context["decision_model_sample_id"] is None
+    finally:
+        gate.close()
+
+
+def test_provider_error_keeps_original_live_model_pause_and_origin_then_expires(tmp_path):
+    values, plan = fixture()
+    plan = replace(plan, progress_policy="local_guard_with_jev_advice")
+    now = [10.]
+    worker = ImmediateWorker(now, "pause_press")
+    gate = IsaacJevProgressGate(plan, worker, tmp_path, clock=lambda: now[0], sample_period=10.)
+    try:
+        gate.choose(**values)
+        now[0] = 10.01
+        allow, context = gate.choose(**values)
+        assert not allow and context["model_advice_used"]
+        assert context["decision_model_sample_id"] == 6000
+        worker.latest = replace(worker.latest, sample_id=6001, simulation_time_s=12.002,
+            capture_monotonic_s=10.03, received_monotonic_s=10.04, permission_expires_monotonic_s=10.04,
+            accepted=False, action="pause_press", model=None, proposed_action=None,
+            reason="provider_http_529", evaluation_reason="provider_http_529")
+        now[0] = 10.05
+        current, _ = fixture(12.004)
+        allow, context = gate.choose(**current)
+        assert not allow and context["decision_reason"] == "live_prior_model_pause"
+        assert context["advisor_reason"] == "provider_http_529"
+        assert context["advice_sample_id"] == 6001 and context["decision_model_sample_id"] == 6000
+        assert context["decision_model_permission_expires_monotonic_s"] == pytest.approx(10.35)
+        assert context["decision_model_age_wall_s"] == pytest.approx(.05)
+        gate.record_submission(context, INFO)
+        now[0] = 10.36
+        allow, context = gate.choose(**current)
+        assert allow and context["decision_source"] == "local_fallback" and not context["model_advice_used"]
+        assert context["decision_model_sample_id"] is None
+        gate.record_submission(context, INFO)
+        summary = gate.summary()
+        assert summary["retained_model_pause_intervals"] == summary["model_decision_intervals"] == 1
+        assert summary["local_fallback_intervals"] == 1
+    finally:
+        gate.close()
+
+
+def test_advisory_runtime_error_uses_only_fresh_current_local_guard(tmp_path):
+    values, plan = fixture()
+    plan = replace(plan, progress_policy="local_guard_with_jev_advice")
+    class BrokenWorker:
+        def poll(self, *_): raise RuntimeError("sensitive transport diagnostic")
+        def close(self): pass
+    gate = IsaacJevProgressGate(plan, BrokenWorker(), tmp_path, clock=lambda: 10.)
+    try:
+        allow, context = gate.choose(**values)
+        assert allow and context["decision_source"] == "local_fallback"
+        assert context["advisor_reason"] == "advisor_runtime_error_RuntimeError"
+        assert not context["model_advice_used"]
+        values["pad"]["valid_pad_grasp"] = False
+        allow, context = gate.choose(**values)
+        assert not allow and context["decision_source"] == "local_guard"
+    finally:
+        gate.close()
+    assert "sensitive transport diagnostic" not in (tmp_path / "jev-progress.jsonl").read_text()
+
+
+def test_advisory_escalation_survives_reply_expiry_until_a_new_versioned_plan(tmp_path):
+    values, plan = fixture()
+    plan = replace(plan, progress_policy="local_guard_with_jev_advice")
+    now = [10.]
+    worker = ImmediateWorker(now, "request_astra")
+    gate = IsaacJevProgressGate(plan, worker, tmp_path, clock=lambda: now[0], sample_period=10.)
+    try:
+        gate.choose(**values)
+        now[0] = 10.01
+        allow, context = gate.choose(**values)
+        assert not allow and context["astra_escalation_latched"]
+        assert context["decision_source"] == "astra_escalation"
+        now[0] = 11.
+        allow, context = gate.choose(**values)
+        assert not allow and context["astra_escalation_latched"]
+        assert context["advisor_reason"] == "advice_or_latest_telemetry_expired"
+        gate.plan = replace(plan, plan_id="new-reviewed-astra-version")
+        worker.latest = None
+        allow, context = gate.choose(**values)
+        assert allow and context["decision_source"] == "local_fallback"
+        assert not context["astra_escalation_latched"] and not context["model_advice_used"]
+    finally:
+        gate.close()

@@ -68,6 +68,8 @@ def native_progress_snapshot(*,episode_id,sample_id,now_s,phase,physics_row,stan
 class NativeJevProgressGate:
     """Optional nonblocking lever-progress experiment and causal JSONL record."""
     def __init__(self,plan,advisor,output,*,sample_period=.2,clock=time.monotonic):
+        if plan.progress_policy != 'require_jev':
+            raise ValueError('Native Jev progress supports only require_jev')
         self.plan,self.advisor,self.output=plan,advisor,Path(output)
         self.sample_period,self.clock=sample_period,clock
         self.last_submit=None;self.prior_loads=None;self.seen=set();self.closed=False
@@ -289,6 +291,8 @@ def main():
     if args.jev_progress_plan is not None:
         from doorbench.dexterous.jev_advisor import AstraPlan,JevClient
         jev_plan=AstraPlan(**json.loads(args.jev_progress_plan.read_text(encoding='utf-8')))
+        if jev_plan.progress_policy != 'require_jev':
+            raise ValueError('Native Jev progress supports only require_jev')
         jev_client=JevClient()  # Validate the credential before physics; no HTTP request here.
     from doorbench.dexterous.storage_budget import check_storage, check_retained_budget, EVIDENCE_BYTES_PER_SECOND
     storage_admission = check_storage(args.output, seconds_remaining=args.seconds)

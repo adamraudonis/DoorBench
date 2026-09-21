@@ -5,23 +5,29 @@ copies of the preceding solved contact interval and the current physical state.
 This is object-identified simulation evidence, not visual or tactile inference.
 """
 from dataclasses import asdict
+from collections import Counter
 import hashlib
 import json
 from pathlib import Path
 import statistics
 import time
 
-from .jev_advisor import AstraPlan, MODEL, _finite
-from .jev_progress_advisor import DIGITS, ProgressSnapshot
+from .jev_advisor import AstraPlan, MODEL, PROGRESS_POLICIES, _finite
+from .jev_progress_advisor import DIGITS, ProgressSnapshot, ProgressArbitrator, ProgressDecision
 
 CONTACT_SOURCE = "privileged_physx_digit_handle_contact"
 
 
 def validate_isaac_jev_arguments(args):
     period = args.jev_sample_period
+    policy = getattr(args, "jev_progress_policy", "require_jev")
+    if policy not in PROGRESS_POLICIES:
+        raise ValueError("Explicit supported Jev progress policy required")
     if not _finite(period) or not .05 <= period <= 10.:
         raise ValueError("Jev sample period must be 0.05..10 wall-clock seconds")
     if args.jev_progress_plan is None:
+        if policy != "require_jev":
+            raise ValueError("Local progress with Jev advice requires --jev-progress-plan")
         if period != .2:
             raise ValueError("An explicit Jev sample period requires --jev-progress-plan")
         return
@@ -44,7 +50,12 @@ def read_jev_plan(path):
     return plan, content
 
 
-def write_jev_protocol(output, *, plan, plan_bytes, source_path, grasp_profile, sample_period, physics_dt):
+def write_jev_protocol(output, *, plan, plan_bytes, source_path, grasp_profile, sample_period, physics_dt,
+                       policy=None):
+    policy_source = "plan" if policy is None else "explicit_override"
+    policy = plan.progress_policy if policy is None else policy
+    if policy not in PROGRESS_POLICIES:
+        raise ValueError("Explicit supported Jev progress policy required")
     output = Path(output)
     (output / "jev-progress-plan-input.json").write_bytes(plan_bytes)
     receipt = dict(schema="doorbench.isaac-jev-progress.v1", plan=asdict(plan),
@@ -52,6 +63,11 @@ def write_jev_protocol(output, *, plan, plan_bytes, source_path, grasp_profile, 
         model=MODEL, sample_period_wall_s=sample_period, physics_dt_s=physics_dt,
         maximum_observation_age_wall_s=.75, maximum_observation_age_simulation_s=.25,
         permission_duration_wall_s=.35, minimum_model_confidence=.7,
+        progress_policy=policy,
+        progress_policy_source=policy_source,
+        missing_advice_behavior="pause_press" if policy == "require_jev" else "fresh_full_local_admission_required",
+        astra_escalation_latches=policy == "local_guard_with_jev_advice",
+        retain_unexpired_model_pause=policy == "local_guard_with_jev_advice",
         phase="lever_operation", default_other_phase_progress=True,
         contact_source=CONTACT_SOURCE, grasp_profile=grasp_profile,
         contact_epoch="preceding solved PhysX interval ending at current controller time",
@@ -125,17 +141,33 @@ def isaac_progress_snapshot(*, episode_id, sample_id, simulation_time_s, now_s,
 
 
 class IsaacJevProgressGate:
-    """Nonblocking controller boundary with separate reply and submission logs."""
-    def __init__(self, plan, advisor, output, *, sample_period=.2, clock=time.monotonic):
+    """Nonblocking controller boundary with separate reply and submission logs.
+
+    The standalone runner supplies one plan at launch and has no live Astra-plan
+    inbox. The arbitrator can admit a new plan/episode at its class boundary;
+    editing a plan file cannot clear a running standalone escalation latch.
+    """
+    def __init__(self, plan, advisor, output, *, sample_period=.2, clock=time.monotonic,
+                 policy=None):
         if not _finite(sample_period) or not .05 <= sample_period <= 10.:
             raise ValueError("Jev sample period must be 0.05..10 wall-clock seconds")
         self.plan, self.advisor, self.output = plan, advisor, Path(output)
+        self.policy_source = "plan" if policy is None else "explicit_override"
+        policy = plan.progress_policy if policy is None else policy
+        if policy not in PROGRESS_POLICIES:
+            raise ValueError("Explicit supported Jev progress policy required")
+        self.policy = policy
+        # The default keeps the original advance/exception path exactly.
+        self.arbitrator = None if policy == "require_jev" else ProgressArbitrator(policy)
         self.sample_period, self.clock = sample_period, clock
         self.last_submit = self.prior_loads = self.failure = None
         self.seen, self.latencies = set(), []
+        self.decision_sources = Counter()
         self.closed = False
         self.counts = dict(requests_submitted=0, advisor_replies_consumed=0, model_replies_consumed=0,
-            continue_intervals=0, pause_intervals=0, astra_requests=0)
+            continue_intervals=0, pause_intervals=0, astra_requests=0,
+            model_decision_intervals=0, local_fallback_intervals=0,
+            retained_model_pause_intervals=0, astra_escalation_intervals=0)
         self.stream = (self.output / "jev-progress.jsonl").open("w", encoding="utf-8")
 
     def write(self, value):
@@ -171,12 +203,41 @@ class IsaacJevProgressGate:
             self.failure = "advisor_runtime_error_"+type(exc).__name__
             advice = None
             self.write(dict(event="advisor_failure", reason=self.failure, sample_id=snapshot.sample_id))
-        allow = bool(self.failure is None and advice is not None and advice.advance)
+        advisor_reason = self.failure or ("awaiting_advice" if advice is None else advice.reason)
+        if self.arbitrator is None:
+            allow = bool(self.failure is None and advice is not None and advice.advance)
+            used = bool(self.failure is None and advice is not None and advice.accepted
+                and (allow or (advice.action == "pause_press"
+                    and 0 <= now-advice.capture_monotonic_s <= .75
+                    and now <= advice.permission_expires_monotonic_s)))
+            source = ("jev" if used else "advisor_error" if self.failure else
+                      "local_guard" if not snapshot.local_continue_allowed else "required_model")
+            decision = ProgressDecision(allow, source, advisor_reason, model_advice_used=used,
+                model_sample_id=advice.sample_id if used else None,
+                model_capture_monotonic_s=advice.capture_monotonic_s if used else None,
+                model_simulation_time_s=advice.simulation_time_s if used else None,
+                model_permission_expires_monotonic_s=advice.permission_expires_monotonic_s if used else None)
+        else:
+            decision = self.arbitrator.choose(snapshot, self.plan, advice, now_s=now)
+            allow = decision.allow_progress
+        decision_action = "continue_press" if allow else "pause_press"
         return allow, dict(event="controller_submission", sample_id=snapshot.sample_id,
             simulation_time_s=snapshot.simulation_time_s, capture_monotonic_s=now,
             allow_progress=allow, advice_sample_id=None if advice is None else advice.sample_id,
-            action="pause_press" if advice is None else advice.action,
-            reason=self.failure or ("awaiting_advice" if advice is None else advice.reason),
+            action=("pause_press" if advice is None else advice.action) if self.arbitrator is None else decision_action,
+            reason=advisor_reason if self.arbitrator is None else decision.reason,
+            advisor_action=None if advice is None else advice.action,
+            advisor_reason=advisor_reason,
+            proposed_model_action=None if advice is None else advice.proposed_action,
+            progress_policy=self.policy, decision_action=decision_action,
+            progress_policy_source=self.policy_source,
+            decision_source=decision.source, decision_reason=decision.reason,
+            model_advice_used=decision.model_advice_used,
+            astra_escalation_latched=decision.astra_escalation_latched,
+            decision_model_sample_id=decision.model_sample_id,
+            decision_model_age_wall_s=None if decision.model_capture_monotonic_s is None else now-decision.model_capture_monotonic_s,
+            decision_model_age_simulation_s=None if decision.model_simulation_time_s is None else snapshot.simulation_time_s-decision.model_simulation_time_s,
+            decision_model_permission_expires_monotonic_s=decision.model_permission_expires_monotonic_s,
             advice_age_wall_s=None if advice is None else now-advice.capture_monotonic_s,
             advice_age_simulation_s=None if advice is None else snapshot.simulation_time_s-advice.simulation_time_s,
             local_continue_allowed=snapshot.local_continue_allowed, sensor_valid=snapshot.sensor_valid,
@@ -185,19 +246,29 @@ class IsaacJevProgressGate:
 
     def record_submission(self, context, info):
         self.counts["continue_intervals" if context["allow_progress"] else "pause_intervals"] += 1
+        self.decision_sources[context.get("decision_source", "unclassified")] += 1
+        self.counts["model_decision_intervals"] += int(context.get("model_advice_used", False))
+        self.counts["local_fallback_intervals"] += int(context.get("decision_source") == "local_fallback")
+        self.counts["retained_model_pause_intervals"] += int(context.get("decision_reason") == "live_prior_model_pause")
+        self.counts["astra_escalation_intervals"] += int(context.get("astra_escalation_latched", False))
         self.write(dict(context, progress={key: info[key] for key in
             ("press_progress_s", "opening_progress_s", "progress_rate")}))
         if (self.counts["continue_intervals"]+self.counts["pause_intervals"]) % 100 == 0:
             self.stream.flush()
 
     def summary(self):
-        return dict(scope="Live asynchronous Jev decisions gate privileged PhysX lever progression only; no vision, release, traversal or learned-policy claim",
+        scope = ("Live asynchronous Jev decisions gate privileged PhysX lever progression only; no vision, release, traversal or learned-policy claim"
+                 if self.policy == "require_jev" else
+                 "Fresh full local admission with asynchronous Jev advice for privileged PhysX lever progression; local fallback is not a model decision; no vision, release, traversal or learned-policy claim")
+        return dict(scope=scope, progress_policy=self.policy, progress_policy_source=self.policy_source,
+            decision_sources=dict(self.decision_sources),
             plan_id=self.plan.plan_id, model=MODEL, sample_period_wall_s=self.sample_period,
             **self.counts, latency_ms_mean=statistics.mean(self.latencies) if self.latencies else None,
             latency_ms_median=statistics.median(self.latencies) if self.latencies else None,
             latency_ms_max=max(self.latencies) if self.latencies else None,
             contact_source=CONTACT_SOURCE, decision_log="jev-progress.jsonl",
             count_note="Requests count worker submissions; invalid evidence can abstain before HTTP. Model replies count unique parsed provider replies, separately from every physical submission reusing their lease.",
+            decision_count_note="Decision sources count recorded physical submissions. Retained pause leases identify their original model sample; local_fallback intervals are never model decisions.",
             failure=self.failure, api_key_saved=False)
 
     def close(self):

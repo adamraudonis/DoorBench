@@ -11,10 +11,12 @@ import math
 import os
 from pathlib import Path
 import subprocess
+import sys
 import time
 import xml.etree.ElementTree as ET
 
 ROOT=Path(__file__).resolve().parents[2]
+sys.path.insert(0,str(ROOT))
 FLAGS=getattr(subprocess,'CREATE_NO_WINDOW',0) if os.name=='nt' else 0
 
 
