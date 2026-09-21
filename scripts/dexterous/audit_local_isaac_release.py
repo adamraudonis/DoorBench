@@ -9,6 +9,7 @@ ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT))
 from doorbench.dexterous.isaac_release_geometry_audit import audit_isaac_release_candidate
 from doorbench.dexterous.qualified_isaac_grasp import digest
+from doorbench.dexterous.isaac_release_source_dispatch import PAUSED_SOURCE_KIND
 
 
 def main():
@@ -17,13 +18,16 @@ def main():
         parser.add_argument('--'+name,type=Path,required=True)
     parser.add_argument('--duration',type=float,default=16.)
     parser.add_argument('--grasp-profile',choices=('distal-pad-v1','volar-phalange-v1'),default='volar-phalange-v1')
+    parser.add_argument('--source-kind',choices=(PAUSED_SOURCE_KIND,))
+    parser.add_argument('--phase-audit',type=Path)
     args=parser.parse_args()
     if args.output.exists():raise FileExistsError('Preserve previous independent audit evidence')
     args.output.parent.mkdir(parents=True,exist_ok=True)
     try:
         result=audit_isaac_release_candidate(args.candidate,source=args.isaac_source,
             robot=args.robot,door_xml=args.door_xml,door_usd=args.door_usd,
-            duration_s=args.duration,profile=args.grasp_profile)
+            duration_s=args.duration,profile=args.grasp_profile,
+            source_kind=args.source_kind,phase_audit_path=args.phase_audit)
         result['input_sha256'][str(Path(__file__).resolve())]=digest(__file__)
     except Exception as error:
         result=dict(schema='doorbench.isaac-release-dense-geometry-audit.v1',passed=False,

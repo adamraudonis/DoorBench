@@ -46,11 +46,12 @@ def numeric_coupled_preferences(document):
 
 
 def make_isaac_withdrawal_source_config(*,source,candidate,dense_audit,robot,door_xml,door_usd,
-                                       profile='volar-phalange-v1'):
+                                       profile='volar-phalange-v1',source_kind=None,phase_audit_path=None):
     """Build and fully validate detached configuration; never a runtime route."""
-    from .isaac_release_planning import admit_isaac_release_context
+    from .isaac_release_source_dispatch import admit_release_planning_source
     from .withdrawal_source_context import load_withdrawal_source_context
-    context = admit_isaac_release_context(source,robot=robot,door_xml=door_xml,door_usd=door_usd,profile=profile)
+    context = admit_release_planning_source(source,robot=robot,door_xml=door_xml,door_usd=door_usd,
+        profile=profile,source_kind=source_kind,phase_audit_path=phase_audit_path)
     source = Path(source).resolve();candidate = Path(candidate).resolve();dense_audit = Path(dense_audit).resolve()
     admission = context.admission
     audit = json.loads(dense_audit.read_text())
@@ -63,7 +64,15 @@ def make_isaac_withdrawal_source_config(*,source,candidate,dense_audit,robot,doo
         start_time_s=context.terminal_time_s,duration_s=audit['duration_s'],
         authorized_stages=0,runtime_route_exported=False,
         scope='Detached actual-Isaac release planning inputs. No live constructor or stage permission exported.')
-    motors = json.loads((source/'trial/motor-contract.json').read_text())
+    if source_kind is not None:
+        result.pop('contact_audit_name')
+        result.update(source_kind=source_kind,source_run=admission['source_run'],
+            source_snapshot_path=str(source),source_snapshot_sha256=digest(source),
+            motor_contract_path=str(context.motor_contract_path),configuration_path=str(context.configuration_path))
+        if phase_audit_path is not None:
+            result.update(phase_audit_path=str(Path(phase_audit_path).resolve()),phase_audit_sha256=digest(phase_audit_path))
+    motor_path=context.motor_contract_path if source_kind is not None else source/'trial/motor-contract.json'
+    motors = json.loads(motor_path.read_text())
     checked = load_withdrawal_source_context(result,motors,measured_rest=True)
     if checked.data['source_admission'] != admission:
         raise ValueError('Actual source changed between configuration admissions')
@@ -103,6 +112,7 @@ def _seed_model(source_config,preferences):
         authorized_stages=0,physical_admission=False,runtime_route_exported=False,geometric_admission=False,
         preferences_are_numeric_only=True,
         aperture_boundary_semantics='Prospective admissible measured-angle bounds, not a commanded or recorded door trajectory')
+    if 'source_kind' in data:plan['source_kind']=data['source_kind']
     validate_map(plan,initial,qa,lq,oq,bq)
     validate_envelope_binding(plan,data,source_config)
     # The unsolved tensor lives only inside this private workspace. It is never
@@ -208,6 +218,8 @@ def generate_isaac_coupled_envelope(source_config,preferences=None,*,progress=No
         (isaac_coupled_release_geometry,coupled_release_geometry,isaac_release_geometry_audit,
          landed_left_planner,operation_teacher)]}
     model = _seed_model(source_config,preferences)
+    from .isaac_release_source_dispatch import source_paths
+    code.update({str(path):digest(path) for path in source_paths(model.source_data.get('source_kind'))})
     try:
         coordinates,residuals,converged,evaluations = _solve_map(model,preferences,progress=progress)
         plan = copy.deepcopy(model.plan)

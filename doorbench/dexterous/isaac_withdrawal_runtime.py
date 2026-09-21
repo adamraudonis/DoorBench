@@ -56,6 +56,8 @@ class IsaacWithdrawalRuntimeAdmission:
         self.path=Path(path).resolve();config,hashes=_document(self.path)
         context,source_hashes=load_isaac_coupled_source(config['source_config_path'])
         data=context.data
+        if data.get('source_kind') is not None:
+            raise ValueError('Paused live source requires a distinct retained-controller runtime factory')
         if motors is None:
             motors=json.loads((Path(data['source_run'])/'trial/motor-contract.json').read_text())
         if data['motor_contract_sha256']!=motor_contract_fingerprint(motors):

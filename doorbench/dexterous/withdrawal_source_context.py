@@ -100,7 +100,7 @@ def _native(config, motors, measured_rest, source, screen_path, audit_path, scre
 
 
 def _isaac(config, motors, measured_rest, source, screen_path, audit_path, screen, audit):
-    from .isaac_release_planning import admit_isaac_release_context
+    from .isaac_release_source_dispatch import admit_release_planning_source,validate_source_kind
     from .isaac_release_geometry_audit import validate_candidate_binding, ORIGINAL_LIMITS
     if measured_rest is not True or config.get('measured_rest_transfer') is not True:
         raise ValueError('Isaac withdrawal requires explicit measured-rest transfer admission')
@@ -108,16 +108,28 @@ def _isaac(config, motors, measured_rest, source, screen_path, audit_path, scree
                    or name in ('panel_plan_path', 'panel_plan_sha256', 'panel_continuations')]
     if unsupported:
         raise ValueError('Native motion/coupled/panel proofs are not admitted for Isaac: ' + ', '.join(sorted(unsupported)))
-    if config.get('contact_audit_name') != 'independent-contact-audit.json':
+    source_kind=validate_source_kind(config.get('source_kind'))
+    if source_kind is None and config.get('contact_audit_name') != 'independent-contact-audit.json':
         raise ValueError('Original actual Isaac contact audit required')
-    context = admit_isaac_release_context(source, robot=config['robot_path'],
-        door_xml=config['door_xml_path'], door_usd=config['door_usd_path'], profile=config['grasp_profile'])
-    from .isaac_release_context_reconciliation import reconcile_isaac_release_context
-    context, reconciliation = reconcile_isaac_release_context(screen, context)
-    if reconciliation['difference_count']:
-        # Diagnostic output is captured in the launch log, outside the immutable
-        # source identity used by all downstream candidate/audit comparisons.
-        print('ISAAC_SOURCE_RECONCILIATION '+json.dumps(reconciliation,sort_keys=True),flush=True)
+    phase_audit=config.get('phase_audit_path')
+    if phase_audit is not None and digest(phase_audit)!=config.get('phase_audit_sha256'):
+        raise ValueError('Paused phase audit changed')
+    context = admit_release_planning_source(source, robot=config['robot_path'],
+        door_xml=config['door_xml_path'], door_usd=config['door_usd_path'], profile=config['grasp_profile'],
+        source_kind=source_kind,phase_audit_path=phase_audit)
+    if source_kind is None:
+        from .isaac_release_context_reconciliation import reconcile_isaac_release_context
+        context, reconciliation = reconcile_isaac_release_context(screen, context)
+        if reconciliation['difference_count']:
+            # Keep existing completed-source reconciliation unchanged. Paused
+            # sources currently require exact fresh context identity.
+            print('ISAAC_SOURCE_RECONCILIATION '+json.dumps(reconciliation,sort_keys=True),flush=True)
+    else:
+        if (digest(source)!=config.get('source_snapshot_sha256')
+                or Path(config.get('motor_contract_path','')).resolve()!=context.motor_contract_path.resolve()
+                or Path(config.get('configuration_path','')).resolve()!=context.configuration_path.resolve()
+                or config['source_run']!=context.admission['source_run']):
+            raise ValueError('Paused source paths/identity differ from its fresh admission')
     admission = context.admission
     validate_candidate_binding(screen, context)
     if (screen.get('runtime_route_exported') is not False
@@ -127,6 +139,7 @@ def _isaac(config, motors, measured_rest, source, screen_path, audit_path, scree
             or config.get('start_time_s') != context.terminal_time_s):
         raise ValueError('Explicit Isaac source state and exact stage epoch required')
     if (audit.get('schema') != 'doorbench.isaac-release-dense-geometry-audit.v1'
+            or audit.get('source_kind') != source_kind
             or audit.get('source_engine') != 'isaac-physx' or audit.get('passed') is not True
             or audit.get('samples') != 2001 or audit.get('physics_steps') != 0
             or audit.get('active_state_writes') != 0 or audit.get('source_sample_playback') != 0
@@ -154,7 +167,7 @@ def _isaac(config, motors, measured_rest, source, screen_path, audit_path, scree
     hashes = _verified_hashes(audit['input_sha256'])
     helper = Path(__file__).with_name('isaac_release_context_reconciliation.py').resolve()
     hashes[str(helper)] = digest(helper)
-    motor_path = source/'trial/motor-contract.json'
+    motor_path = context.motor_contract_path if source_kind is not None else source/'trial/motor-contract.json'
     if admission['input_sha256'].get(str(motor_path.resolve())) != digest(motor_path):
         raise ValueError('Original Isaac motor contract bytes must be source-bound')
     recorded_motors = json.loads(motor_path.read_text())
@@ -173,7 +186,7 @@ def _isaac(config, motors, measured_rest, source, screen_path, audit_path, scree
     if not rows or not np.array_equal(np.asarray(rows[0].get('qpos')), context.qpos):
         raise ValueError('Isaac first route row differs from exact normalized source coordinates')
     context.verify_inputs()
-    return dict(source_engine='isaac-physx', source_admission=admission,
+    result = dict(source_engine='isaac-physx', source_admission=admission,
         initial_qpos=context.qpos.tolist(), start_time_s=context.terminal_time_s,
         duration_s=float(duration), robot_path=admission['robot_path'],
         door_xml_path=admission['door_xml_path'], door_usd_path=admission['door_usd_path'],
@@ -182,6 +195,12 @@ def _isaac(config, motors, measured_rest, source, screen_path, audit_path, scree
         live_exact_prefix_required=True,
         motor_contract_sha256=motor_contract_fingerprint(recorded_motors),
         motor_binding_scope='Complete static original contract; no delivered-force feasibility inferred')
+    if source_kind is not None:
+        result.pop('live_exact_prefix_required')
+        result.update(source_kind=source_kind,live_pause_authorization_required=True,
+            source_snapshot_path=str(source),source_snapshot_sha256=digest(source),
+            motor_contract_path=str(context.motor_contract_path),configuration_path=str(context.configuration_path))
+    return result
 
 
 def load_withdrawal_source_context(config, motors, *, measured_rest):
@@ -201,7 +220,10 @@ def load_withdrawal_source_context(config, motors, *, measured_rest):
     engine = config.get('source_engine', 'native-mujoco')
     if engine not in ('native-mujoco', 'isaac-physx'):
         raise ValueError('Unknown explicit withdrawal source engine')
-    source = Path(config['source_run']).resolve()
+    from .isaac_release_source_dispatch import validate_source_kind
+    source_kind=validate_source_kind(config.get('source_kind'))
+    if source_kind is not None and engine!='isaac-physx':raise ValueError('Paused source kind requires explicit PhysX engine')
+    source = Path(config['source_snapshot_path'] if source_kind is not None else config['source_run']).resolve()
     screen_path, audit_path = [Path(config[name]).resolve() for name in ('screen_path','audit_path')]
     before = {str(screen_path):digest(screen_path), str(audit_path):digest(audit_path)}
     if before[str(screen_path)] != config['screen_sha256'] or before[str(audit_path)] != config['audit_sha256']:
@@ -214,7 +236,7 @@ def load_withdrawal_source_context(config, motors, *, measured_rest):
         raise ValueError('Finite positive withdrawal duration required')
     result['input_sha256'].update(before)
     _verified_hashes(result['input_sha256'])
-    result.update(schema='doorbench.withdrawal-source-context.v1', source_run=str(source),
+    result.update(schema='doorbench.withdrawal-source-context.v1', source_run=(config['source_run'] if source_kind is not None else str(source)),
         screen_path=str(screen_path), audit_path=str(audit_path), screen=screen, audit=audit,
         authorized_stages=0, physical_release_qualification=False,
         scope='Detached admission/state/assets only; no plant or motor interface. Original constructor reference checks and live-stage gates remain required.')

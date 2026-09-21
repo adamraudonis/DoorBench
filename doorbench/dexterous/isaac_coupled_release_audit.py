@@ -193,6 +193,8 @@ def audit_isaac_coupled_envelope(path,*,source_config,coarse=False,progress=None
         landed_left_audit,grasp_verification,withdrawal_source_context,audit_standing_ungrip)
     code = {str(Path(p).resolve()):digest(p) for p in [__file__]+[module.__file__ for module in modules]}
     model = IsaacCoupledReleaseGeometry(path,source_config=source_config)
+    from .isaac_release_source_dispatch import source_paths
+    code.update({str(path):digest(path) for path in source_paths(model.source_data.get('source_kind'))})
     try:
         result = audit_geometry(model,coarse=coarse,progress=progress)
         model.verify_inputs()
@@ -212,6 +214,9 @@ def audit_isaac_coupled_envelope(path,*,source_config,coarse=False,progress=None
             input_sha256={**model._file_hashes,**code},
             scope='Detached static measured-angle geometry only. Original actual PhysX source evidence is immutable; no source playback, physical release success, motor/load feasibility, arbitrary mechanism-rate admission or runtime promotion.',
             runtime_requirements='Live exact-prefix witness and original per-step geometry after constraint-preserving rate limiting remain required, with independent actual contact/load/balance gates.')
+        if data.get('source_kind') is not None:
+            result['source_kind']=data['source_kind']
+            result['runtime_requirements']='One unchanged same-live pause handshake, fresh phase qualification, retained controller observers and original per-step geometry/motor/contact gates remain required.'
         return result
     finally:
         model.close()

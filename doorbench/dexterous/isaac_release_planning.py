@@ -147,15 +147,15 @@ def generate_release_candidate(context, preferences):
     Numerical radial/retreat arithmetic is ported from the existing explicit
     profiled release planner. No old trajectory or native restart is consumed.
     """
-    if not isinstance(context, IsaacReleasePlanningContext):
-        raise ValueError('Admitted actual-source planning context required')
+    from .isaac_release_source_dispatch import require_planning_context
+    source_kind = require_planning_context(context)
     values = numeric_release_preferences(preferences)
     rows, material_segments, material_points, residual = _generate_profiled_rows(context, values)
     initial = context.qpos
     if not rows or not np.array_equal(np.asarray(rows[0]['qpos']), initial):
         raise ValueError('Generated route changed the exact normalized source endpoint')
     context.verify_inputs()
-    return dict(schema='doorbench.isaac-profiled-release-candidate.v1',
+    result = dict(schema='doorbench.isaac-profiled-release-candidate.v1',
         source_engine='isaac-physx', source_context_sha256=context.sha256,
         source_admission=context.admission, initial_qpos=initial.tolist(),
         initial_time_s=context.terminal_time_s, configuration=values,
@@ -166,6 +166,10 @@ def generate_release_candidate(context, preferences):
         geometric_admission=False, physical_contact_qualification=False,
         runtime_route_exported=False, original_gates_unchanged=True,
         scope='Fresh unstepped candidate from qualified actual PhysX coordinates/material patches. Requires independent original geometry/anatomy/whole-handle/velocity gates and a new physical episode; no native state or success inherited.')
+    if source_kind is not None:
+        result['source_kind'] = source_kind
+        result['scope'] = 'Fresh unstepped candidate from an independently qualified paused live transfer prefix. No completed-run, static-proof or resume authority; a guarded same-live continuation requires fresh geometry and retained-controller authorization.'
+    return result
 
 
 def _generate_profiled_rows(context, preferences):

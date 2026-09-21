@@ -18,6 +18,7 @@ def validate_isaac_coupled_audit(config,geometry,source_data):
         raise ValueError('Isaac coupled runtime evidence bytes changed')
     audit=json.loads(path.read_text());g=geometry;p=g.plan
     if (audit.get('schema')!=SCHEMA or audit.get('source_engine')!='isaac-physx'
+            or audit.get('source_kind')!=source_data.get('source_kind')
             or audit.get('passed') is not True or audit.get('coarse_diagnostic') is not False
             or type(audit.get('samples')) is not int or audit['samples']<50000
             or audit.get('failed_samples')!=0 or audit.get('failures')!=[]

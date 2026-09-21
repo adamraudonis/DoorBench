@@ -11,6 +11,7 @@ sys.path.insert(0,str(ROOT))
 from doorbench.dexterous.isaac_coupled_release_planning import (
     generate_isaac_coupled_envelope,numeric_coupled_preferences)
 from doorbench.dexterous.qualified_isaac_grasp import digest
+from doorbench.dexterous.isaac_release_source_dispatch import source_paths
 
 
 def run(args):
@@ -24,6 +25,7 @@ def run(args):
             ('isaac_coupled_release_planning.py','isaac_coupled_release_geometry.py',
              'coupled_release_geometry.py','isaac_release_geometry_audit.py','withdrawal_source_context.py',
              'isaac_release_planning.py','isaac_release_source.py','landed_left_planner.py','operation_teacher.py')]
+        paths=list(dict.fromkeys([*paths,*source_paths(None)]))
         hashes={str(path):digest(path) for path in paths}
         for path in paths:
             frozen=output/('source-'+path.name)
@@ -32,6 +34,15 @@ def run(args):
         if args.preferences:hashes[str(args.preferences.resolve())]=preference_hash
         plan=generate_isaac_coupled_envelope(args.source_config,preferences,
             progress=lambda row:print(json.dumps(row),flush=True))
+        # Optional live-source helpers were hashed by the numerical generator
+        # before its solve. Copy those exact bytes, never silently rebind them.
+        for path in source_paths(plan.get('source_kind')):
+            if path in paths:continue
+            if plan['input_sha256'].get(str(path))!=digest(path):
+                raise ValueError('Live source helper changed before capture')
+            frozen=output/('source-'+path.name);shutil.copy2(path,frozen)
+            hashes[str(path)]=digest(path);hashes[str(frozen)]=digest(frozen)
+            if hashes[str(path)]!=hashes[str(frozen)]:raise ValueError('Live source helper changed during capture')
         plan['input_sha256'].update(hashes)
         plan['preferences_source']=str(args.preferences.resolve()) if args.preferences else None
         for name,expected in plan['input_sha256'].items():

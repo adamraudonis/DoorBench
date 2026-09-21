@@ -183,3 +183,20 @@ The readback inventory includes inactive zero-valued direct-wrench buffers.
 Robot invariant getters are captured; extension to an explicit door-property
 inventory is still required before claiming those properties are checked across
 a loaded planning pause. No serialized MuJoCo state is restored to a plant.
+
+## Explicit planner source mode
+
+Release planning, dense audit and withdrawal-source preparation accept
+`--source-kind paused-live-isaac-transfer-v1`; the source argument then names
+the immutable snapshot JSON. Optional `--phase-audit` is freshly recomputed
+and compared. Omitting the source kind retains completed-archive behavior.
+The coupled planner propagates the source kind and captured helper hashes.
+Bindings keep the live episode directory separate from the snapshot path and
+use its explicit motor/configuration paths. Candidate and audit source kinds
+must agree with fresh admission. Detached planning grants no live authority.
+
+The legacy withdrawal runtime explicitly rejects paused-source contexts.
+A distinct retained-controller runtime and producer handshake remain required
+before this mode can resume physical control. Synthetic downstream tests cover
+snapshot identity, motor/configuration path substitution and completed-artifact
+rejection; they do not establish physical release performance.

@@ -28,6 +28,9 @@ ORIGINAL_LIMITS = dict(position_error_m=.001, rotation_error_rad=.01,
 
 def validate_candidate_binding(candidate, context):
     """An old audit label can neither provide source identity nor skip checks."""
+    source_kind = context.admission.get('source_kind')
+    if candidate.get('source_kind') != source_kind:
+        raise ValueError('Candidate changes the explicit actual source kind')
     if (candidate.get('schema') != 'doorbench.isaac-profiled-release-candidate.v1'
             or candidate.get('source_engine') != 'isaac-physx'
             or candidate.get('physics_steps') != 0
@@ -219,16 +222,19 @@ def audit_geometry(scene, candidate, actual, *, duration_s):
 
 
 def audit_isaac_release_candidate(candidate_path, *, source, robot, door_xml,
-                                 door_usd, duration_s=16., profile='volar-phalange-v1'):
-    from .isaac_release_planning import admit_isaac_release_context
+                                 door_usd, duration_s=16., profile='volar-phalange-v1',
+                                 source_kind=None, phase_audit_path=None):
+    from .isaac_release_source_dispatch import admit_release_planning_source,source_paths
     candidate_path = Path(candidate_path).resolve()
     initial_sha = digest(candidate_path)
     primitives = [Path(__file__).resolve(), Path(static_pose_check.__code__.co_filename).resolve(),
                   Path(release_surface_scores.__code__.co_filename).resolve(),
                   Path(shadow_surface_qualified.__code__.co_filename).resolve()]
+    primitives += list(source_paths(source_kind))
     primitive_hashes = {str(path):digest(path) for path in primitives}
     candidate = json.loads(candidate_path.read_text())
-    context = admit_isaac_release_context(source,robot=robot,door_xml=door_xml,door_usd=door_usd,profile=profile)
+    context = admit_release_planning_source(source,robot=robot,door_xml=door_xml,door_usd=door_usd,
+        profile=profile,source_kind=source_kind,phase_audit_path=phase_audit_path)
     validate_candidate_binding(candidate, context)
     scene = context.scene()
     result = audit_geometry(scene, candidate, context.qpos, duration_s=duration_s)
@@ -246,4 +252,5 @@ def audit_isaac_release_candidate(candidate_path, *, source, robot, door_xml,
                       **primitive_hashes},
         runtime_route_exported=False, source_sample_playback=0,
         scope='Independent 2001-sample original-model fixed-mechanism geometry/anatomy/reference-speed audit from an actual qualified PhysX source. No torque, load, dynamic balance, moving-leaf envelope, physical release, or traversal qualification; no candidate promotion.')
+    if source_kind is not None:result['source_kind'] = source_kind
     return result

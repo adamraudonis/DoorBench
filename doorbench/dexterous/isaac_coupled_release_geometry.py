@@ -45,6 +45,7 @@ def _verify_hashes(bindings):
 def validate_envelope_binding(plan, data, config_path):
     """The current independently admitted source remains the authority."""
     if (plan.get('schema') != SCHEMA or plan.get('source_engine') != 'isaac-physx'
+            or plan.get('source_kind') != data.get('source_kind')
             or data.get('source_engine') != 'isaac-physx'
             or plan.get('source_admission') != data['source_admission']
             or plan.get('source_context_sha256') != data['source_context_sha256']
@@ -154,7 +155,9 @@ def load_isaac_coupled_source(source_config):
     config = json.loads(path.read_text())
     if config.get('source_engine') != 'isaac-physx':
         raise ValueError('Explicit actual-Isaac withdrawal source required')
-    motor_path = Path(config['source_run'])/'trial/motor-contract.json'
+    from .isaac_release_source_dispatch import validate_source_kind
+    source_kind=validate_source_kind(config.get('source_kind'))
+    motor_path = Path(config['motor_contract_path']) if source_kind is not None else Path(config['source_run'])/'trial/motor-contract.json'
     motors = json.loads(motor_path.read_text())
     context = load_withdrawal_source_context(config,motors,measured_rest=True)
     if digest(path) != before:
