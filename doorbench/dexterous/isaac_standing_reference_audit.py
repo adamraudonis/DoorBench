@@ -71,7 +71,7 @@ def _optional_state(value,width,label,*,with_time=False,now=None):
     else:_array(value['value'],(width,),label)
 
 
-def _consistency(row,static,tracking,motors,joint_names):
+def _consistency(row,static,tracking,motors,joint_names,*,active_support_target=None):
     """Check algebraic relationships without running FK, QP or a controller."""
     coupled=row['coupled'];names=_names(coupled['joint_names'],joint_names,'coupled joint order')
     values=_array(coupled['value'],(75,),'accepted coupled values')
@@ -154,8 +154,10 @@ def _consistency(row,static,tracking,motors,joint_names):
     _same(left['normal_world'],leaf_rotation[:,1],'actual support panel normal',atol=1e-10)
     if (support['previous_s']!=t or support['previous_leaf_time_s']!=t
             or support['live_feedback_identity_retained'] is not True
-            or left['support_target_N']!=left['hybrid_normal_target_N']
+            or left['hybrid_normal_target_N']!=(left['support_target_N']
+                if active_support_target is None else active_support_target)
             or left['support_target_N']!=support['maximum_target_N']
+            or active_support_target is not None and left['support_target_N']!=6.
             or not 2<float(left['support_target_N'])<=8):
         raise ValueError('Unchanged same-epoch source-bound support required')
     _array(row['right']['goal_position_world'],(3,),'requested RH touch-site goal')
@@ -192,6 +194,8 @@ def admit_standing_reference_tail(trial, continuation_audit, expected_epoch_s, e
             or any(type(runtime.get(k)) is not type(v) or runtime[k]!=v for k,v in required.items())
             or any(k in runtime for k in ('finger_velocity_feedforward','panel_plan_path','hybrid_support','thumb_pad_feedback','finger_pad_feedback'))):
         raise ValueError('Original minimal Isaac withdrawal runtime declaration required')
+    if 'withdrawal_palm_load_profile' in context and 'withdrawal_palm_load_profile' not in runtime:
+        raise ValueError('Captured support profile cannot be absent from its bound runtime')
     runtime_path=Path(configuration['args']['standing_withdrawal_route']).resolve()
     binding={k:context[k] for k in ('runtime_path','runtime_sha256','motor_contract_sha256','source_state_sha256')}
     if (configuration.get('standing_continuation_reference_capture')!='accepted-command-tail-v1'
@@ -240,9 +244,13 @@ def admit_standing_reference_tail(trial, continuation_audit, expected_epoch_s, e
     for i,sample in enumerate(iter_npz_records(trial/'acquisition-physics.npz',SHAPES,expected_rows=count)):
         if i in need:samples[i]=sample
     if len(samples)!=len(need):raise ValueError('Every commanded and observed source interval required')
+    support_profile=None
+    if 'withdrawal_palm_load_profile' in runtime:
+        from .isaac_standing_support_profile_audit import audit_palm_profile
+        support_profile=audit_palm_profile(trial,runtime,context,rows,end=end,count=count,hashes=hashes)
     diagnosed=[]
     roles={'leaf':'leaf_hinge','operator':'leaf_handle_hinge','latch':'leaf_latch_bolt_slide'}
-    for row in rows:
+    for row_index,row in enumerate(rows):
         before=samples[round(row['command_time_s']/DT)-1];after=samples[round(row['post_step_time_s']/DT)-1]
         actual=row['observed_input'];order=_names(actual['joint_names'],names,'actual command input joint order')
         index=[names.index(n) for n in order]
@@ -261,7 +269,8 @@ def admit_standing_reference_tail(trial, continuation_audit, expected_epoch_s, e
         force=_array(row['returned_motor_command'],(61,),'returned motor command').astype(dtype)
         if dtype!=after['motor_forces'].dtype or force.tobytes()!=after['motor_forces'].tobytes():
             raise ValueError('Returned command must exactly equal the actual submitted motor vector')
-        diagnosed.append(_consistency(row,static,tracking,motors,names))
+        diagnosed.append(_consistency(row,static,tracking,motors,names,
+            active_support_target=None if support_profile is None else support_profile['tail_active_targets_N'][row_index]))
     first=diagnosed[0]
     if any(d['names']!=first['names'] or d['postnames']!=first['postnames']
             or rows[i]['coupled']['root_coordinate_origin_xyz_wxyz']!=rows[0]['coupled']['root_coordinate_origin_xyz_wxyz'] for i,d in enumerate(diagnosed)):
@@ -295,6 +304,7 @@ def admit_standing_reference_tail(trial, continuation_audit, expected_epoch_s, e
         source_binding=binding,reference_tail_sha256=hashes[str(paths['tail'])],
         observation_admission=observed,tail=copy.deepcopy(rows),static_controller_data=copy.deepcopy(static),
         attained_tracking_contract=copy.deepcopy(tracking),input_sha256=hashes,
+        **({} if support_profile is None else {'support_profile_accounting':support_profile}),
         diagnostics=dict(command_times_s=times.tolist(),coordinate_joint_names=latest['names'],
             accepted_nominal_values=values.tolist(),stored_coordinate_velocity=velocities.tolist(),
             finite_difference_coordinate_velocity=finite_velocity.tolist(),finite_difference_coordinate_acceleration=acceleration.tolist(),
