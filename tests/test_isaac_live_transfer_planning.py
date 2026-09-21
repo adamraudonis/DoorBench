@@ -83,6 +83,10 @@ def test_actual_protocol_wait_does_not_advance_or_reconstruct_controller(tmp_pat
     if changed:
         with pytest.raises(ValueError,match='changed during'):run()
         assert events==[('ready',.502)] and (folder/'producer-failure.json').exists()
+        assert not (folder/'request.json').exists()
+        changed_readback=json.loads((folder/'changed-anchor.json').read_text())
+        assert changed_readback['measurement_fingerprint']!=json.loads((folder/'terminal.json').read_text())['anchor']['measurement_fingerprint']
+        assert json.loads((folder/'anchor-changes.json').read_text())['change_count']>0
     else:
         controller,pause=run()
         assert controller is observer and pause.state=='resumed'

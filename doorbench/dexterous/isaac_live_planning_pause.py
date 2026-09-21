@@ -167,7 +167,31 @@ class LivePlanningPause:
                 or type(value['epoch_s']) not in (int,float) or not math.isfinite(value['epoch_s'])
                 or abs(value['epoch_s']-value['step_index']*DT)>1e-10):
             raise ValueError('Exact same-live-process anchor required')
-        if self.anchor is not None and value!=self.anchor:raise ValueError('Live state, controller, clock or evidence changed during planning pause')
+        if self.anchor is not None and value!=self.anchor:
+            changes=[]
+            def compare(before,after,path):
+                if type(before) is dict and type(after) is dict:
+                    for key in sorted(set(before)|set(after)):
+                        compare(before.get(key),after.get(key),path+'/'+str(key))
+                elif type(before) is list and type(after) is list and len(before)==len(after):
+                    for i,(old,new) in enumerate(zip(before,after)):compare(old,new,path+'/'+str(i))
+                elif before!=after:
+                    changes.append(dict(path=path,before=before,after=after))
+            compare(self.anchor,value,'')
+            try:
+                self._persist('changed-anchor.json',value)
+                self._persist('anchor-changes.json',dict(changes=changes,change_count=len(changes),
+                    scope='Exact observed differences; no normalization, tolerance or restoration applied'))
+            except Exception:pass  # Do not mask the original equality failure.
+            raise ValueError('Live state, controller, clock or evidence changed during planning pause')
+
+    def bind_initial_anchor(self,anchor):
+        """Retain the pre-copy readback before any planning request is visible."""
+        def operation():
+            if self.state!='capturing' or self.anchor is not None:
+                raise ValueError('One initial live anchor before snapshot copying required')
+            self._time();self._anchor(anchor);self.anchor=copy.deepcopy(anchor)
+        return self._guard(operation)
 
     def _inside(self,path):
         path=Path(path)

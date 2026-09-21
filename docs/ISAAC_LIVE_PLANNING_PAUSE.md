@@ -259,3 +259,13 @@ separately from legacy archive-prefix equality. No saved plant state is restored
 The connection has CPU tests of the real producer branch, suffix clock, file-only
 protocol wait, failure behavior, original 26 phase declarations and argument
 validation. A full loaded local run and physical release remain required.
+
+The first loaded trial reached the rest endpoint at 42.548 seconds and assembled
+the full snapshot, with all 26 producer declarations passing. It then aborted
+on post-copy anchor inequality before withdrawal. All requested evidence cleanup
+succeeded. That version did not save the differing readback, so the cause cannot
+be inferred from the generic error. The guard now preserves `changed-anchor.json`
+and `anchor-changes.json`, and binds the initial anchor before copying. Request
+publication occurs only after the post-copy comparison passes, avoiding a worker
+launch for an already-invalid pause. This diagnostic correction does not relax
+equality or establish that the loaded pause works.

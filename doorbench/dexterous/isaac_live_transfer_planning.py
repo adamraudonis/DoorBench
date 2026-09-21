@@ -66,10 +66,11 @@ def plan_from_live_transfer(*,directory,episode_id,observer,motors,timeout_secon
         retained_objects=observer.retained_objects(),timeout_seconds=timeout_seconds)
     try:
         anchor=capture_anchor()
+        pause.bind_initial_anchor(anchor)
         assembled=assemble_paused_transfer_snapshot(pause.directory/'snapshot',
             pause_token=pause.pause_token,anchor=anchor,observer_state=observer.snapshot(),**snapshot_inputs)
-        pause.publish(assembled['snapshot_path'],anchor)
         pause._anchor(capture_anchor())
+        pause.publish(assembled['snapshot_path'],anchor)
         print('LIVE_TRANSFER_PLANNING_REQUEST '+str(pause.request_path),flush=True)
         while pause.poll() is None:sleep(.25)
         admitted=[]
