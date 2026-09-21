@@ -123,6 +123,13 @@ class LivePlanningPause:
         self.timeout=float(timeout_seconds);self.deadline=self.started_wall+self.timeout
         self.state='capturing';self.failure=None;self.anchor=None;self.snapshot=None;self.response=None
         self.request_path=self.directory/'request.json';self.response_path=self.directory/(self.pause_token+'.response.json')
+        self._resume_consumer=None
+
+    def claim_resume(self,consumer):
+        """Bind this completed handshake to one retained runtime admission."""
+        if self.state!='resumed' or self.failure is not None or self._resume_consumer is not None or consumer is None:
+            raise ValueError('Completed live pause can be consumed by exactly one runtime')
+        self._resume_consumer=consumer
 
     def _time(self):
         now=float(self._clock())

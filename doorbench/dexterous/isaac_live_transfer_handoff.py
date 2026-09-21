@@ -125,3 +125,10 @@ class LiveTransferHandoffObserver:
             motor_capture=dict(previous_time=capture.previous_time,
                 previous_command=(None if capture.previous_command is None else capture.previous_command.tolist()),
                 step_seconds=capture.step_seconds,caps=capture.caps.tolist()))
+
+    def retained_objects(self):
+        """Strong identity inventory for the producer's same-process pause."""
+        return dict(handoff_observer=self,transfer=self.transfer,rest=self.rest,
+            motor_capture=self.motor_capture,acquisition=self.acquisition,
+            operation=self.operation,left=self.transfer.left,
+            support_feedback=self.transfer.support_feedback)

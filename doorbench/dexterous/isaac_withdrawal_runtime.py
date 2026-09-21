@@ -21,17 +21,18 @@ from .withdrawal_source_context import WithdrawalSourceContext
 
 
 SCHEMA='doorbench.isaac-standing-withdrawal-runtime.v1'
+PAUSED_SCHEMA='doorbench.paused-isaac-standing-withdrawal-runtime.v1'
 REQUIRED_OPTIONS=dict(capture_returned_motor_command=True,inherit_transfer_support=True,
     left_arm_only=True,left_full_orientation=True,coupled_motion_projection='fixed-poses-v1')
 PATH_KEYS=('source_config_path','coupled_envelope_path','coupled_audit_path')
 
 
-def _document(path):
+def _document(path,*,schema=SCHEMA):
     path=Path(path).resolve();before=digest(path);config=json.loads(path.read_text())
     allowed={'schema','scope',*REQUIRED_OPTIONS,*PATH_KEYS,
              'source_config_sha256','coupled_envelope_sha256','coupled_audit_sha256',
              'withdrawal_palm_load_profile'}
-    if config.get('schema')!=SCHEMA or set(config)-allowed:
+    if config.get('schema')!=schema or set(config)-allowed:
         raise ValueError('Explicit minimal Isaac withdrawal runtime schema required')
     for key,expected in REQUIRED_OPTIONS.items():
         if type(config.get(key)) is not type(expected) or config[key]!=expected:
@@ -53,17 +54,26 @@ def _document(path):
 class IsaacWithdrawalRuntimeAdmission:
     """Freshly admitted context, private reference and explicit entry gate."""
     def __init__(self,path,motors=None):
-        self.path=Path(path).resolve();config,hashes=_document(self.path)
+        self._initialize(path,motors,paused=False)
+
+    def _initialize(self,path,motors,*,paused):
+        from .isaac_release_source_dispatch import PAUSED_SOURCE_KIND
+        schema=PAUSED_SCHEMA if paused else SCHEMA
+        self.path=Path(path).resolve();config,hashes=_document(self.path,schema=schema)
         context,source_hashes=load_isaac_coupled_source(config['source_config_path'])
         data=context.data
-        if data.get('source_kind') is not None:
+        if not paused and data.get('source_kind') is not None:
             raise ValueError('Paused live source requires a distinct retained-controller runtime factory')
+        if paused and (data.get('source_kind')!=PAUSED_SOURCE_KIND
+                or data.get('live_pause_authorization_required') is not True):
+            raise ValueError('Distinct freshly admitted paused source required')
         if motors is None:
-            motors=json.loads((Path(data['source_run'])/'trial/motor-contract.json').read_text())
+            motor_path=Path(data['motor_contract_path']) if paused else Path(data['source_run'])/'trial/motor-contract.json'
+            motors=json.loads(motor_path.read_text())
         if data['motor_contract_sha256']!=motor_contract_fingerprint(motors):
             raise ValueError('Live original motor contract differs from admitted source')
         source_config=json.loads(Path(config['source_config_path']).read_text())
-        configuration_path=Path(data['source_run'])/'trial/configuration.json'
+        configuration_path=Path(data['configuration_path']) if paused else Path(data['source_run'])/'trial/configuration.json'
         if data['input_sha256'].get(str(configuration_path.resolve()))!=digest(configuration_path):
             raise ValueError('Original transfer settings must be bound by actual source admission')
         recorded=json.loads(configuration_path.read_text())['args']
@@ -84,8 +94,11 @@ class IsaacWithdrawalRuntimeAdmission:
         self.reference=IsaacCoupledReleaseReference(config,data)
         hashes.update(source_hashes);hashes.update(data['input_sha256']);hashes.update(self.reference.input_sha256)
         hashes[str(configuration_path.resolve())]=digest(configuration_path)
+        if paused:
+            for name in ('isaac_withdrawal_runtime.py','isaac_live_transfer_handoff.py','isaac_live_planning_pause.py'):
+                helper=Path(__file__).with_name(name).resolve();hashes[str(helper)]=digest(helper)
         self.input_sha256=_verify_hashes(hashes)
-        data.update(runtime_path=str(self.path),runtime_sha256=digest(self.path),runtime_schema=SCHEMA,
+        data.update(runtime_path=str(self.path),runtime_sha256=digest(self.path),runtime_schema=schema,
             input_sha256=self.input_sha256.copy(),inherited_support_target_N=float(target),
             inherited_support_mode='qualified-predecessor-palm-only-v1',
             source_config_path=str(Path(config['source_config_path']).resolve()),
@@ -96,6 +109,9 @@ class IsaacWithdrawalRuntimeAdmission:
         identity_keys=('schema','source_engine','source_run','screen_path','screen_sha256',
             'audit_path','audit_sha256','measured_rest_transfer','grasp_profile','contact_audit_name',
             'robot_path','door_xml_path','door_usd_path','source_state_sha256','start_time_s','duration_s')
+        if paused:
+            identity_keys=tuple(key for key in identity_keys if key!='contact_audit_name')+(
+                'source_kind','source_snapshot_path','source_snapshot_sha256','motor_contract_path','configuration_path')
         self.controller_config={**{key:source_config[key] for key in identity_keys},**REQUIRED_OPTIONS,
             'palm_only_support':True,'left_support_target_N':float(target)}
         # The outer document's coupled proof is consumed by the distinct Isaac
@@ -184,6 +200,113 @@ class IsaacWithdrawalRuntimeAdmission:
         self.entered=True
 
 
+class PausedIsaacWithdrawalRuntimeAdmission(IsaacWithdrawalRuntimeAdmission):
+    """Late admission; the actual retained observers replace archive replay."""
+    def __init__(self,path,motors=None):
+        self._initialize(path,motors,paused=True)
+        self.observer=None;self.pause=None
+
+    def bind_observer(self,observer):
+        from .isaac_live_transfer_handoff import LiveTransferHandoffObserver
+        if type(observer) is not LiveTransferHandoffObserver or self.observer is not None:
+            raise ValueError('One actual retained live transfer observer required')
+        observer.require_ready(self.start_time)
+        if observer.snapshot()!=self.source_admission['observer_state']:
+            raise ValueError('Live rest/motor history differs from admitted snapshot')
+        self.bind_predecessor(observer.transfer)
+        self.observer=observer
+
+    def motor_capture_for(self,returned):
+        if returned is not self.observer or self.observer is None:
+            raise ValueError('Late controller must retain the observed predecessor')
+        self.observer.require_ready(self.start_time)
+        return self.observer.motor_capture
+
+    def authorize_source_prefix(self,receipt):
+        raise ValueError('Paused source requires a live planning handshake, not an archive prefix')
+
+    def planning_receipt(self,pause):
+        """Bind fresh admission to the file response during validate_resume."""
+        from .isaac_live_planning_pause import LivePlanningPause
+        if type(pause) is not LivePlanningPause or pause.state!='response_ready':
+            raise ValueError('Actual pending same-process planning response required')
+        document=pause.response['document'];files=document['files']
+        source=self.source_admission
+        if (Path(files['runtime']['path']).resolve()!=self.path
+                or files['runtime']['sha256']!=digest(self.path)
+                or json.loads(Path(files['context']['path']).read_text())!=source
+                or json.loads(Path(files['phase_audit']['path']).read_text())!=source['source_qualification']
+                or document['source_context_sha256']!=self.source_context.data['source_context_sha256']
+                or pause.snapshot['path']!=source['snapshot_path']
+                or pause.snapshot['sha256']!=source['snapshot_sha256']):
+            raise ValueError('Planning response differs from fresh paused runtime admission')
+        hashes=dict(self.input_sha256)
+        for path,expected in {**pause.snapshot['files'],**pause.response['files'],
+                pause.snapshot['path']:pause.snapshot['sha256'],str(pause.response_path):pause.response['sha256']}.items():
+            if path in hashes and hashes[path]!=expected:raise ValueError('Conflicting pause input identity')
+            hashes[path]=expected
+        return dict(passed=True,snapshot_sha256=source['snapshot_sha256'],
+            source_context_sha256=document['source_context_sha256'],input_sha256=_verify_hashes(hashes))
+
+    def authorize_live_pause(self,pause):
+        from .isaac_live_planning_pause import LivePlanningPause
+        try:
+            if (self.failure is not None or self.authorized or self.entered or self.observer is None
+                    or type(pause) is not LivePlanningPause or pause.state!='resumed' or pause.failure is not None):
+                raise ValueError('One successful actual live pause and retained observer required')
+            source=self.source_admission;live=source['live_pause'];receipt=pause.receipt()
+            if (pause.pause_token!=live['pause_token'] or pause.episode_id!=live['episode_id']
+                    or any(pause.anchor.get(key)!=live[key] for key in (
+                        'step_index','epoch_s','controller_identity','measurement_fingerprint','controller_fingerprint'))
+                    or pause.anchor['epoch_s']!=self.start_time
+                    or pause.snapshot['path']!=source['snapshot_path']
+                    or pause.snapshot['sha256']!=source['snapshot_sha256']
+                    or receipt['resume_handshake_passed'] is not True):
+                raise ValueError('Live pause identity differs from the admitted snapshot')
+            for name,value in self.observer.retained_objects().items():
+                if pause._objects.get(name) is not value:
+                    raise ValueError('Pause did not retain the actual controller object: '+name)
+            trusted=receipt['trusted_admission']
+            if (trusted.get('passed') is not True
+                    or trusted.get('snapshot_sha256')!=source['snapshot_sha256']
+                    or trusted.get('source_context_sha256')!=self.source_context.data['source_context_sha256']):
+                raise ValueError('Fresh runtime admission missing from live handshake')
+            hashes=_verify_hashes(trusted['input_sha256'])
+            for path,expected in self.input_sha256.items():
+                if hashes.get(path)!=expected:raise ValueError('Live handshake omits runtime evidence')
+            self.observer.require_ready(self.start_time)
+            if self.observer.snapshot()!=source['observer_state']:
+                raise ValueError('Retained observer changed during planning')
+            pause.claim_resume(self)
+            self.pause=pause;self.prefix_receipt=copy.deepcopy(receipt);self.authorized=True
+        except Exception as error:
+            self.failure=self.failure or str(error);self.authorized=False
+            raise ValueError('Paused release authorization failed: '+self.failure) from error
+
+    def require_entry(self,t):
+        if self.observer is None or self.pause is None:
+            raise ValueError('Authorized retained live controller required')
+        self.observer.require_ready(t)
+        if self.observer.snapshot()!=self.source_admission['observer_state']:
+            raise ValueError('Retained observers changed before physical entry')
+        super().require_entry(t)
+
+
+def admit_paused_isaac_withdrawal_runtime(runtime_path,motors=None):
+    return PausedIsaacWithdrawalRuntimeAdmission(runtime_path,motors)
+
+
+def create_paused_isaac_withdrawal_controller(observer,motors,runtime_path,*,admission,pause):
+    """Construct only after the producer's no-update handshake succeeds."""
+    from .standing_withdrawal import StandingWithdrawalTeacher
+    if type(admission) is not PausedIsaacWithdrawalRuntimeAdmission:
+        raise ValueError('Distinct fresh paused runtime admission required')
+    admission.verify(runtime_path,motors)
+    admission.bind_observer(observer)
+    admission.authorize_live_pause(pause)
+    return StandingWithdrawalTeacher(observer,motors,runtime_path,_isaac_runtime=admission)
+
+
 def admit_isaac_withdrawal_runtime(runtime_path,motors=None):
     """Read-only launcher preflight; no active plant/controller is required."""
     return IsaacWithdrawalRuntimeAdmission(runtime_path,motors)
@@ -193,6 +316,7 @@ def withdrawal_runtime_source_paths():
     """Explicit additional runtime/admission sources; callers deduplicate paths."""
     package=Path(__file__).resolve().parent;root=package.parents[1]
     names=('isaac_withdrawal_runtime.py','isaac_withdrawal_support.py','isaac_coupled_release_reference.py',
+        'isaac_live_transfer_handoff.py','isaac_live_planning_pause.py','isaac_release_source_dispatch.py',
         'standing_withdrawal.py','withdrawal_motor_capture.py','withdrawal_source_context.py','resting_transfer.py',
         'coupled_release_reference.py','coupled_release_motion.py','coupled_release_geometry.py',
         'isaac_coupled_release_geometry.py','isaac_coupled_release_audit.py','isaac_release_geometry_audit.py',

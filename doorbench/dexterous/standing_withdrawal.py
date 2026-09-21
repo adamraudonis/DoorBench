@@ -52,7 +52,10 @@ class StandingWithdrawalTeacher:
         self.motor_capture=None;self.motor_capture_info={}
         if capture_returned:
             from .withdrawal_motor_capture import WithdrawalMotorCapture
-            self.motor_capture=WithdrawalMotorCapture(self.acquisition.caps)
+            from .isaac_withdrawal_runtime import PausedIsaacWithdrawalRuntimeAdmission
+            self.motor_capture=(_isaac_runtime.motor_capture_for(returned)
+                if isinstance(_isaac_runtime,PausedIsaacWithdrawalRuntimeAdmission)
+                else WithdrawalMotorCapture(self.acquisition.caps))
         self.measured_rest=bool(getattr(returned,'requires_measured_rest',False))
         if config.get('measured_rest_transfer',False) != self.measured_rest:
             raise ValueError('Withdrawal must explicitly identify its measured-rest transfer bridge')

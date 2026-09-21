@@ -196,7 +196,32 @@ use its explicit motor/configuration paths. Candidate and audit source kinds
 must agree with fresh admission. Detached planning grants no live authority.
 
 The legacy withdrawal runtime explicitly rejects paused-source contexts.
-A distinct retained-controller runtime and producer handshake remain required
-before this mode can resume physical control. Synthetic downstream tests cover
+The producer handshake remains required before this mode can resume physical
+control. Synthetic downstream tests cover
 snapshot identity, motor/configuration path substitution and completed-artifact
 rejection; they do not establish physical release performance.
+
+## Late withdrawal runtime
+
+The distinct `doorbench.paused-isaac-standing-withdrawal-runtime.v1` document
+uses the same bounded controller options and three evidence paths as the legacy
+runtime, with a paused-source configuration. Admit it using
+`admit_paused_isaac_withdrawal_runtime`. During `LivePlanningPause.validate_resume`,
+its `planning_receipt(pause)` binds the freshly admitted source, context, phase
+audit, runtime and all response files. The producer still supplies independent
+raw backend/controller readbacks before and after this detached admission.
+
+Only after that succeeds, call `create_paused_isaac_withdrawal_controller` with
+the actual `LiveTransferHandoffObserver`, motors, runtime path, admission and
+pause. The pause's retained inventory must include `observer.retained_objects()`.
+The factory compares the original observer snapshot and preserves its exact
+motor capture, rest window, transfer, acquisition, operation, left controller
+and support feedback. It creates no replacement history. A completed pause can
+be consumed by only one runtime admission; archive-prefix receipts cannot
+authorize this path. Existing source-state and physical entry checks still apply.
+
+Tests exercise real pause publication/response/validation and actual late teacher
+construction using synthetic geometry and mocked physical-source admission.
+They verify no extra transfer calls, unchanged observer history and inherited
+support at entry. A loaded physical planning pause and the full episode-runner
+connection remain unverified and unfinished respectively.
