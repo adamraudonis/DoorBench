@@ -12,12 +12,15 @@ from pathlib import Path
 
 
 class BoundedEvidence:
-    def __init__(self, path, chunk_size=250):
+    def __init__(self, path, chunk_size=250, *, compression_level=3):
         if not isinstance(chunk_size, int) or chunk_size < 1:
             raise ValueError('Positive chunk size required')
+        if type(compression_level) is not int or not 1 <= compression_level <= 9:
+            raise ValueError('Compression level must be an integer from 1 through 9')
         self.path = Path(path)
         self.path.mkdir(parents=True, exist_ok=False)
         self.chunk_size = chunk_size
+        self.compression_level = compression_level
         self.chunks = []
         self.ends = []
         self.pending = []
@@ -43,7 +46,7 @@ class BoundedEvidence:
             return
         path = self.path / f'{len(self.chunks):06d}.jsonl.gz'
         temporary = path.with_suffix('.pending')
-        with gzip.open(temporary, 'wt') as stream:
+        with gzip.open(temporary, 'wt', compresslevel=self.compression_level) as stream:
             for row in self.pending:
                 stream.write(row + '\n')
         temporary.replace(path)
@@ -132,7 +135,7 @@ class BoundedEvidence:
         def write(stream, value):
             expected.update(value.encode('utf-8'))
             stream.write(value)
-        with gzip.open(temporary, 'wt', encoding='utf-8') as stream:
+        with gzip.open(temporary, 'wt', encoding='utf-8', compresslevel=self.compression_level) as stream:
             write(stream, '[')
             for index, row in enumerate(self):
                 if index:

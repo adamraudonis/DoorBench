@@ -108,6 +108,40 @@ checkpoint, and tampered/unsafe manifest rejection. This removes repeated pad
 history serialization and its duplicate file; total Isaac wall-time improvement
 has not yet been measured. Other state and camera checkpoints still have costs.
 
+## Prospective gzip compression cost
+
+New `BoundedEvidence(path, chunk_size=250, *, compression_level=3)` instances use
+gzip level **3** for both working chunks and the verified final export. The
+keyword accepts integers 1 through 9, excluding booleans; an explicit 9 retains
+the former compression setting. Existing callers require no new controller or
+launcher argument. This is an intentional prospective storage default change.
+Old source snapshots and archive bytes remain unchanged.
+
+Serialization, record order/counts, chunk sizes, gzip JSON formats, checkpoint
+hashes, decoded SHA-256 export verification and failure recovery stay intact.
+Compression changes new compressed file hashes, so each new run captures its
+current helper source and its own archive identities. It does not rewrite
+historical proofs or authorize a changed physical prefix.
+
+A standard-library-only repeat under the actual Isaac environment's Python
+3.11.9 used the same saved original decoded bytes from 250 finalized local
+continuation records (9,468,856 bytes) and 250 pad records (1,643,868 bytes).
+Five rotated repetitions at levels 9, 1, 3 and 6 all decompressed to identical
+bytes and SHA-256 digests. No AppLauncher, Kit, physics or API was loaded.
+
+| Sample | Level 9 median | Level 3 median | Compression speed ratio | Compressed size increase |
+|---|---:|---:|---:|---:|
+| Continuation | 432.031 ms | 69.406 ms | 6.22× | 12.77% |
+| Pad | 54.858 ms | 12.525 ms | 4.38× | 16.69% |
+
+These are compression-only in-memory microbenchmarks on the initial half-second
+of one failed development archive. Sampling, JSON conversion, disk I/O,
+decompression, per-step audits and GPU synchronization were excluded. No
+whole-run or final-export wall-time improvement has yet been measured. The
+separate scratch report and original Python 3.12 benchmark remain preserved at
+`work/gzip-evidence-benchmark/isaac311-repeat/report-isaac311.json` and
+`work/gzip-evidence-benchmark/report.json` in the local task workspace.
+
 
 The full recorded045 checkpoint recovery validation also passed: all25,001
 records matched the original canonical record stream, the input gzip hash
