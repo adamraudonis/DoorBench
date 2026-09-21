@@ -93,7 +93,7 @@ class CoupledReleaseReference:
         mujoco.mj_kinematics(g.m,d);mujoco.mj_comPos(g.m,d)
         return rotation
 
-    def _pose_residual_jacobian(self,value,result):
+    def _pose_residual_jacobian(self,value,result,*,with_com=False):
         """World-frame palm/foot errors and derivatives in reference coordinates.
 
         MuJoCo free-joint angular velocity is not a world-relative rotvec
@@ -132,7 +132,14 @@ class CoupledReleaseReference:
             inverse_right=np.eye(3)+.5*skew+factor*(skew@skew)
             errors.extend(((position-actualp)/.001,angle/.01))
             jacobians.extend((-jp@mapping/.001,-inverse_right@jr@mapping/.01))
-        return np.concatenate(errors),np.concatenate(jacobians)
+        pose_error,pose_jacobian=np.concatenate(errors),np.concatenate(jacobians)
+        if not with_com:return pose_error,pose_jacobian
+        # Reuse the same installed model state and world-rotvec velocity map.
+        # COM is a constraint only; it is not appended to the pose objective.
+        mujoco.mj_jacSubtreeCom(m,d,jp,self.robotbody)
+        com_error=(d.subtree_com[self.robotbody,:2]-np.asarray(g.c['initial_com'])[:2])/.015
+        com_jacobian=(jp@mapping)[:2]/.015
+        return pose_error,pose_jacobian,com_error,com_jacobian
 
     def _project_reference(self,candidate,previous,previous_velocity,dt,result):
         """Fit all four poses together within the original per-step motion set.
@@ -165,7 +172,8 @@ class CoupledReleaseReference:
         # motion bounds; both stay relative to the same previous accepted step.
         for _ in range(2):
             trial=candidate.copy();trial[columns]=origin+scale*choice
-            error,jac=self._pose_residual_jacobian(trial,result);matrix=jac*scale
+            error,jac,com_error,com_jac=self._pose_residual_jacobian(trial,result,with_com=True);matrix=jac*scale
+            com_matrix=com_jac*scale
             center=choice.copy();regularizer=1e-5
             def objective(x):
                 residual=error+matrix@(x-center);delta=x-preferred
@@ -177,8 +185,13 @@ class CoupledReleaseReference:
             def pose_jac(x):
                 residual=(error+matrix@(x-center)).reshape(-1,3)
                 return -2.*np.einsum('ij,ijk->ik',residual,matrix.reshape(-1,3,len(x)))
+            def com_ball(x):
+                residual=com_error+com_matrix@(x-center)
+                return .99**2-float(residual@residual)
+            def com_ball_jac(x):
+                return -2.*(com_error+com_matrix@(x-center))@com_matrix
             solved=minimize(objective,choice,jac=gradient,bounds=list(zip(lower,upper)),
-                constraints=[dict(type='ineq',fun=balls,jac=ball_jac),dict(type='ineq',fun=pose_balls,jac=pose_jac)],method='SLSQP',
+                constraints=[dict(type='ineq',fun=balls,jac=ball_jac),dict(type='ineq',fun=pose_balls,jac=pose_jac),dict(type='ineq',fun=com_ball,jac=com_ball_jac)],method='SLSQP',
                 options=dict(ftol=1e-12,maxiter=160))
             if not np.isfinite(solved.x).all():raise ValueError('Coupled pose projection produced nonfinite coordinates')
             # Optimizer convergence is not kinematic admission. A finite

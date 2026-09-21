@@ -11,27 +11,30 @@ from doorbench.dexterous.coupled_release_reference import CoupledReleaseReferenc
 import doorbench.dexterous.coupled_release_reference as reference_module
 
 
-def fixture_reference():
+def fixture_reference(*,asymmetric_mass=False):
     # Four articulated chains have independently fixed world-frame end poses.
     # No robot assets, historical trajectories, simulator step, or motor exists.
     branches=[];names=[]
     for i,(x,y,z) in enumerate([(0,.2,-.6),(0,-.2,-.6),(.3,.2,.2),(.3,-.2,.2)]):
         names += [f'j{i}a',f'j{i}b']
+        tip_mass=' mass="7"' if asymmetric_mass and i==2 else ''
         branches.append(f'''<body name="b{i}" pos="{x} {y} {z}">
           <joint name="robot/j{i}a" axis="0 1 0"/><geom type="sphere" size=".02"/>
           <body name="tip{i}" pos=".1 0 0"><joint name="robot/j{i}b" axis="1 0 0"/>
-          <geom type="sphere" size=".02"/><site name="site{i}" pos=".03 0 .02"/></body></body>''')
+          <geom type="sphere" size=".02"{tip_mass}/><site name="site{i}" pos=".03 0 .02"/></body></body>''')
     model=mujoco.MjModel.from_xml_string('<mujoco><worldbody><body pos="0 0 .8"><freejoint name="robot/free_base"/><geom type="sphere" size=".1"/>'+''.join(branches)+'</body></worldbody></mujoco>')
     data=mujoco.MjData(model);initial=data.qpos.copy()
     quat=Rotation.from_euler('xyz',[.13,-.07,.21]).as_quat();initial[3:7]=quat[[3,0,1,2]]
-    data.qpos[:]=initial;mujoco.mj_kinematics(model,data)
+    data.qpos[:]=initial;mujoco.mj_kinematics(model,data);mujoco.mj_comPos(model,data)
     ref=CoupledReleaseReference.__new__(CoupledReleaseReference)
     ref.names=names;ref.qa=np.array([model.joint('robot/'+name).qposadr[0] for name in names])
     ref.body_columns=np.arange(6+len(names));ref.feet=[model.body('tip0').id,model.body('tip1').id]
+    ref.robotbody=int(model.jnt_bodyid[model.joint('robot/free_base').id])
     ref.geometry=SimpleNamespace(m=model,d=data,initial=initial,rq=0,names=names,
         initial_rotation=Rotation.from_quat(initial[3:7][[1,2,3,0]]),
         lh=model.site('site2').id,rh=model.site('site3').id,
-        c={'initial_feet_positions':[data.xpos[b].copy() for b in ref.feet],
+        c={'initial_com':data.subtree_com[ref.robotbody].copy(),
+           'initial_feet_positions':[data.xpos[b].copy() for b in ref.feet],
            'initial_feet_rotations':[data.xmat[b].reshape(3,3).copy() for b in ref.feet]})
     result={}
     for label,site in [('left',ref.geometry.lh),('right',ref.geometry.rh)]:
@@ -50,6 +53,42 @@ def test_world_rotvec_jacobian_matches_independent_central_differences():
         numeric[:,i]=(ep-em)/2e-6
     assert np.max(abs(jac-numeric))<1e-5
     assert np.linalg.norm(error)>1.  # Nonzero rotation/translation residual, not an identity-only check.
+
+
+def test_com_jacobian_matches_nonzero_world_rotvec_and_asymmetric_mass():
+    ref,result=fixture_reference(asymmetric_mass=True)
+    # Off-center, unequal mass makes root rotation contribute to subtree COM.
+    value=np.linspace(-.04,.035,len(ref.body_columns));value[:3]*=.1
+    pose,jac,error,com_jac=ref._pose_residual_jacobian(value,result,with_com=True)
+    numeric=np.zeros_like(com_jac)
+    for i in range(len(value)):
+        minus=value.copy();plus=value.copy();minus[i]-=1e-6;plus[i]+=1e-6
+        em=ref._pose_residual_jacobian(minus,result,with_com=True)[2]
+        ep=ref._pose_residual_jacobian(plus,result,with_com=True)[2]
+        numeric[:,i]=(ep-em)/2e-6
+    assert np.max(abs(com_jac-numeric))<1e-6
+    assert np.linalg.norm(com_jac[:,3:6])>.1
+    ordinary=ref._pose_residual_jacobian(value,result)
+    assert np.array_equal(pose,ordinary[0])
+    assert np.array_equal(jac,ordinary[1])
+
+
+def test_com_ball_is_a_constraint_without_a_centering_objective(monkeypatch):
+    ref,result=fixture_reference();initial=np.zeros(len(ref.body_columns));calls=[]
+    def independent_residuals(value,result,*,with_com=False):
+        assert with_com
+        return np.zeros(24),np.zeros((24,len(initial))),np.array([.999,0.]),np.zeros((2,len(initial)))
+    ref._pose_residual_jacobian=independent_residuals
+    def capture(fun,x,*,constraints,jac,**kwargs):
+        calls.append(True)
+        assert fun(x)==0.  # COM has a nonzero residual but no objective cost.
+        assert np.array_equal(jac(x),np.zeros_like(x))
+        assert len(constraints)==3
+        assert constraints[2]['fun'](x)<0.
+        return SimpleNamespace(x=x,success=False,status=8,message='diagnostic COM infeasible',nit=1)
+    monkeypatch.setattr(reference_module,'minimize',capture)
+    ref._project_reference(initial,initial,initial,.002,result)
+    assert calls
 
 
 def test_coupled_projection_preserves_fixed_poses_and_original_motion_bounds():

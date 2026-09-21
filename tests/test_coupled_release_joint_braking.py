@@ -70,7 +70,7 @@ def projector_fixture():
     reference=CoupledReleaseReference.__new__(CoupledReleaseReference)
     reference.geometry=SimpleNamespace(m=model,names=['test_wrist'])
     reference.body_columns=np.arange(7)
-    reference._pose_residual_jacobian=lambda value,result:(np.zeros(24),np.zeros((24,7)))
+    reference._pose_residual_jacobian=lambda value,result,**kwargs:(np.zeros(24),np.zeros((24,7)),np.zeros(2),np.zeros((2,7)))
     return reference
 
 
