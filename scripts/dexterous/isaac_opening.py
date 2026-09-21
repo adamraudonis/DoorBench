@@ -756,6 +756,9 @@ def main():
                 a.sensor_balance_calibration)
         sensor_actor.reset_episode()
     record_standing_body_poses=bool(a.acquisition and a.acquisition_stance_profile and not continuous)
+    record_standing_continuation=bool(a.standing_withdrawal_route)
+    if record_standing_continuation:
+        from doorbench.dexterous.isaac_standing_continuation_measurements import BODY_NAMES,pack_standing_continuation
     if record_standing_body_poses:
         from doorbench.dexterous.standing_body_record import ROBOT_BODIES, PLANNER_BODIES, pack_standing_body_poses
         standing_body_indices=[robot.body_names.index(name) for name in ROBOT_BODIES]
@@ -769,6 +772,7 @@ def main():
         standing_planner_body_names=list(PLANNER_BODIES) if record_standing_body_poses else None,
         standing_planner_body_pose_convention='World body-origin XYZ/WXYZ at acquisition-physics time_s' if record_standing_body_poses else None,
         **(dict(standing_leaf_pose_convention='World body-origin XYZ/WXYZ at acquisition-physics time_s') if a.standing_withdrawal_route else {}),
+        **(dict(standing_continuation_body_names=list(BODY_NAMES)) if record_standing_continuation else {}),
         dt=dt,robot_mass_kg=float(robot.root_physx_view.get_masses().sum()),latch_scale=scale,
         root_state_convention='actor-origin pose and world actor-origin linear/angular velocity' if (continuous or a.sensor_locomotion_calibration or a.acquisition_stance_profile) else 'legacy IsaacLab actor pose plus world COM linear/angular velocity',
         balance_root_state_convention='balance-steps uses root_link_state_w: actor-origin pose and world actor-origin linear/angular velocity; evaluator only' if a.sensor_balance_calibration else None,
@@ -796,7 +800,8 @@ def main():
         sources += list(withdrawal_runtime_source_paths())
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in (
             'isaac_withdrawal_prefix_witness.py','isaac_withdrawal_measurements.py',
-            'isaac_withdrawal_evaluation.py','standing_withdrawal_audit.py','json_record_stream.py')]
+            'isaac_withdrawal_evaluation.py','standing_withdrawal_audit.py','json_record_stream.py',
+            'isaac_standing_continuation_measurements.py','isaac_post_opening_measurements.py')]
     if a.operate_after_acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('operation_teacher.py','isaac_opening_measurements.py')]
     if sequence:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
         ('full_sequence_teacher.py','approach_teacher.py','approach_lowering.py','locomotion.py','locomotion_approach.py','locomotion_manipulation.py','locomotion_posture.py','isaac_sensors.py')]
@@ -938,9 +943,10 @@ def main():
     acquisition_states={k:[] for k in ('time_s','root','joints','joint_velocity','motor_forces','door','door_velocity','torso_tilt_deg')}
     if record_standing_body_poses:acquisition_states['standing_body_poses']=[]
     if a.standing_withdrawal_route:acquisition_states['standing_leaf_pose']=[]
-    if continuous:
+    if continuous or record_standing_continuation:
         acquisition_states.update({k:[] for k in ('actual_motor_forces','actual_joint_effort',
             'continuation_body_poses','actual_foot_loads','legacy_root_state_w')})
+        if record_standing_continuation:acquisition_states['pre_step_joint_velocity']=[]
         motor_inverse=np.linalg.pinv(matrix.T)
         if np.linalg.matrix_rank(matrix.T)!=61 or not np.allclose(motor_inverse@matrix.T,np.eye(61),atol=1e-12,rtol=0):
             raise ValueError('Exact full-rank 61-motor transmission required for delivered-force readback')
@@ -958,6 +964,14 @@ def main():
             root_body_name=robot.body_names[0],root_com_offset_in_actor_m=robot.data.body_com_pos_b[0,0].cpu().tolist(),
             angular_velocity_frame='world; converted to body-local only inside native free-joint calculators'),indent=2)+'\n')
     from doorbench.dexterous.bounded_evidence import BoundedEvidence
+    standing_continuation_steps=BoundedEvidence(out/'standing-continuation-chunks') if record_standing_continuation else None
+    if record_standing_continuation:
+        (out/'standing-continuation-contract.json').write_text(json.dumps(dict(
+            schema='doorbench.isaac-standing-continuation-capture.v1',sensor_paths=audit_paths,
+            filter_paths=audit_filters.tolist(),capacity=16384,body_pose_order=list(BODY_NAMES),
+            dt_s=dt,clock='completed PhysX interval, global episode time',
+            normal_and_friction_slots_are_independent=True,authorized_stages=0,
+            scope='Captured inputs for later source-bound continuation; no controller or stage permission'),indent=2)+'\n')
     pad_evaluator=None;pad_steps=BoundedEvidence(out/'acquisition-pad-chunks') if physics_audit_enabled else []
     if physics_audit_enabled:
         from doorbench.dexterous.isaac_pad_audit import PhysXShadowPadAudit
@@ -1140,6 +1154,8 @@ def main():
             np.savez_compressed(out/'acquisition-physics.partial.tmp.npz',**acquisition_states)
             os.replace(out/'acquisition-physics.partial.tmp.npz',out/'acquisition-physics.partial.npz')
             pad_steps.checkpoint(out/'acquisition-pad-checkpoint.json')
+            if standing_continuation_steps is not None:
+                standing_continuation_steps.checkpoint(out/'standing-continuation-checkpoint.json')
         if full_opening:
             with gzip.open(out/'full-opening-steps.partial.tmp.gz','wt') as stream:write_json_record_array(stream,full_opening_steps)
             os.replace(out/'full-opening-steps.partial.tmp.gz',out/'full-opening-steps.partial.json.gz')
@@ -1171,7 +1187,7 @@ def main():
             wall_timing.start()
             delivery_failure=None
             jev_context=None
-            pos=robot.data.joint_pos[0].cpu().numpy();vel=robot.data.joint_vel[0].cpu().numpy()
+            pos=robot.data.joint_pos[0].cpu().numpy();vel=robot.data.joint_vel[0].cpu().numpy().copy()
             ctrl=np.zeros(len(kp)) if sensor_actor else controls[min(int(step*dt*50/a.time_scale),len(controls)-1)].copy()
             if teacher and not a.acquisition:
                 if step%10==0:
@@ -1376,7 +1392,7 @@ def main():
                 if sequence and foot_initial is None:foot_initial=robot.data.body_state_w[0,foot_bodies,2].cpu().numpy().copy()
                 delivered=robot.root_physx_view.get_dof_actuation_forces()[0].cpu().numpy()
                 max_motor_delivery_error=max(max_motor_delivery_error,float(np.max(np.abs(delivered-torque))))
-                if continuous:
+                if continuous or record_standing_continuation:
                     try:
                         last_actual_motor_forces,residual=actual_motor_delivery(delivered,vel,matrix,motor_inverse,damp,friction)
                         max_transmission_residual=max(max_transmission_residual,residual)
@@ -1476,10 +1492,11 @@ def main():
                 acquisition_states['door'].append(door.data.joint_pos[0].cpu().numpy().copy())
                 acquisition_states['door_velocity'].append(door.data.joint_vel[0].cpu().numpy().copy())
                 acquisition_states['torso_tilt_deg'].append(float(np.degrees(np.arccos(np.clip(-robot.data.projected_gravity_b[0,2].item(),-1,1)))))
-                if continuous:
+                if continuous or record_standing_continuation:
                     acquisition_states['legacy_root_state_w'].append(robot.data.root_state_w[0].cpu().numpy().copy())
                     acquisition_states['actual_motor_forces'].append(last_actual_motor_forces.copy())
                     acquisition_states['actual_joint_effort'].append(delivered.copy())
+                    if record_standing_continuation:acquisition_states['pre_step_joint_velocity'].append(vel.copy())
                 pose=door.data.body_state_w[0,door.body_names.index('leaf_handle'),:7].cpu().numpy()
                 if record_standing_body_poses:
                     acquisition_states['standing_body_poses'].append(pack_standing_body_poses(
@@ -1534,6 +1551,22 @@ def main():
                             handle_pose=measured_door_poses[door.body_names.index('leaf_handle')],leaf_pose=leaf_pose)
                     withdrawal_steps.append(pack_withdrawal_row(measured_time,measured_angles,pad_steps[-1],
                         surface,teacher_info,withdrawal_measurement,leaf_pose=leaf_pose))
+                if standing_continuation_steps is not None:
+                    continuation_normal=[value.cpu().numpy().copy() for value in audit_contacts.get_contact_data(dt)]
+                    robot_body_poses=robot.data.body_state_w[0,:,:7].cpu().numpy().copy()
+                    door_body_poses=door.data.body_state_w[0,:,:7].cpu().numpy().copy()
+                    continuation_poses={name:robot_body_poses[robot.body_names.index(name)]
+                        for name in BODY_NAMES if not name.startswith('leaf')}
+                    continuation_poses.update({name:door_body_poses[door.body_names.index(name)]
+                        for name in BODY_NAMES if name.startswith('leaf')})
+                    observation=pack_standing_continuation(time_s=(step+1)*dt,pose_time_s=(step+1)*dt,
+                        sensor_paths=audit_paths,filter_paths=audit_filters,normal_matrix=normal,
+                        normal_buffers=continuation_normal,
+                        friction_buffers=(transfer_friction,points,counts,starts),body_poses=continuation_poses,
+                        capacity=16384,physics_qualified=delivery_failure is None)
+                    standing_continuation_steps.append(observation)
+                    acquisition_states['continuation_body_poses'].append(np.array([continuation_poses[name] for name in BODY_NAMES]))
+                    acquisition_states['actual_foot_loads'].append(np.asarray(observation['foot_loads_N']))
             if full_opening:
                 full_measurement=read_full_opening_measurement((step+1)*dt)
                 if frozen_opening_report is None:
@@ -1702,6 +1735,7 @@ def main():
         if withdrawal_prefix is not None:
             (out/'live-withdrawal-prefix-witness.json').write_text(json.dumps(withdrawal_prefix.receipt(),indent=2)+'\n')
         if withdrawal_steps is not None:withdrawal_steps.export(out/'standing-withdrawal-steps.json.gz')
+        if standing_continuation_steps is not None:standing_continuation_steps.export(out/'standing-continuation-steps.json.gz')
         if jev_gate is not None:jev_gate.close()
     (out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n')
     save_attained_left_plan()
@@ -1882,6 +1916,10 @@ def main():
                 operation_checks['live_exact_withdrawal_source_prefix']=withdrawal_prefix.receipt()['passed']
                 operation_report.update(checks=operation_checks,passed=all(operation_checks.values()),
                     observed_final_pad_grasp_hold=observed_final_pad_grasp_hold,
+                    standing_continuation_capture=dict(observations=len(standing_continuation_steps),
+                        body_pose_order=list(BODY_NAMES),maximum_motor_input_reconstruction_residual_Nm=max_transmission_residual,
+                        archive='standing-continuation-steps.json.gz',authorized_stages=0,
+                        scope='Same-epoch future continuation inputs; no post-opening controller executed'),
                     scope='Initialized-standing privileged motor-driven acquisition, transfer and measured-rest withdrawal; no walking/traversal or sensor-only policy',
                     standing_withdrawal=dict(route=a.standing_withdrawal_route,started_s=standing_controller.started_withdrawal,
                         release_started_s=standing_controller.release_started,completed=completed,

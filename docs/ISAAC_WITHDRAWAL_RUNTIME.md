@@ -164,3 +164,21 @@ Per-step evidence includes inherited support history and actual-command capture
 diagnostics. Offline prefix comparison, independent raw contact accounting,
 and `isaac-withdrawal-audit.json` remain separate required checks. Transient
 contact failures are retained; final clearance alone cannot qualify the run.
+
+The explicit withdrawal mode additionally captures future continuation inputs
+throughout the same episode. `standing-continuation-contract.json` declares the
+contact row/filter layout and body-origin order: both ankles, both palms, leaf
+and handle. `standing-continuation-steps.json.gz` contains the completed-interval
+foot loads, full hand force vectors, external-contact counts, measured release
+normal, body poses and separate sparse normal/friction patch buffers. Empty
+buffer capacity is omitted; occupied slot indices and values are retained.
+These observations do not execute or authorize a post-opening controller.
+
+The physics archive also retains `continuation_body_poses`, `actual_foot_loads`,
+`actual_joint_effort`, `actual_motor_forces`, `pre_step_joint_velocity` and the
+legacy root diagnostic. The motor fields retain the existing legacy names:
+they reconstruct the backend's **submitted actuation input**, not an independent
+measurement of delivered physical torque. Reconstruction uses a copied velocity
+from before that exact physics step. The recorded contract and maximum residual
+make that distinction explicit; normal force-cap and transmission checks apply.
+Failure finalization exports the captured prefix without granting stage authority.

@@ -174,7 +174,7 @@ def test_poststep_geometry_uses_current_cached_state_only_after_release_epoch():
         audit_contacts=contact,audit_paths=[],audit_filters=[],
         contact_force_pairs=lambda *args,**kwargs:np.zeros((1,1,3)),panel_surface_loads=lambda *args:surface,
         transfer_steps=[],withdrawal_steps=[],teacher_info={'phase':'standing_withdrawal','stance_status':'solved'},
-        transfer_rest_stop=None,
+        transfer_rest_stop=None,standing_continuation_steps=None,
         acquisition_states={'root':[root],'joints':[joints]},
         pad_steps=[dict(sim_time_s=.006,valid_pad_grasp=True,contacts=[])])
     execute([block], scope)

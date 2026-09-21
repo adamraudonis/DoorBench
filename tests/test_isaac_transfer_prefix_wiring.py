@@ -47,10 +47,10 @@ def setup(source_fixture,tmp_path,monkeypatch):
   standing_transfer=SimpleNamespace(force=force),step=0,dt=.002,out=tmp_path,
   body=[np.zeros(7)],door=SimpleNamespace(body_names=['leaf','leaf_handle']),
   measured_args=(),angles={},loads={},pad_steps=[dict(valid_pad_grasp=True)],audit_paths=[],audit_filters=[],pairs=[],
-  acquisition_states={k:[] for k in (*PREFIX_FIELDS,'torso_tilt_deg')},continuous=None,
+  acquisition_states={k:[] for k in (*PREFIX_FIELDS,'torso_tilt_deg')},continuous=None,record_standing_continuation=False,
   record_standing_body_poses=True,standing_body_indices=np.arange(5),pack_standing_body_poses=pack_standing_body_poses,jev_gate=None)
  scope.update(standing_controller=scope['standing_transfer'],withdrawal_prefix=None,
-              withdrawal_prefix_authorized=False,withdrawal_steps=None,transfer_rest_stop=None)
+              withdrawal_prefix_authorized=False,withdrawal_steps=None,transfer_rest_stop=None,standing_continuation_steps=None)
  def record(index,*,alter=None):
   row=sample(source_fixture,index)
   if alter:alter(row)
