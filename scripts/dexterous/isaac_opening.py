@@ -159,6 +159,7 @@ p.add_argument('--standing-transfer-prefix-source',help='Qualified source compar
 p.add_argument('--standing-transfer-support-load-target',type=float,default=4.)
 p.add_argument('--standing-transfer-stop-on-rest',action='store_true',help='Stop at the first original qualified resting transfer window; remains a prefix witness during explicit withdrawal')
 p.add_argument('--standing-withdrawal-route',help='Fresh actual-Isaac source-bound measured-rest withdrawal runtime; requires exact transfer prefix')
+p.add_argument('--pause-readback-probe-at-seconds',type=float,help='Explicit diagnostic: suspend the main thread for two wall seconds after this complete interval and verify unchanged live state; no phase qualification')
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
 p.add_argument('--operator-compliance-gain',type=float,default=0.,help='Bounded palm-reference integral compensation for actual operator-angle error; motor and mechanism limits unchanged')
@@ -231,6 +232,15 @@ a=p.parse_args()
 from doorbench.dexterous.isaac_jev_progress import validate_isaac_jev_arguments
 try:validate_isaac_jev_arguments(a)
 except ValueError as error:p.error(str(error))
+if a.pause_readback_probe_at_seconds is not None:
+    probe=a.pause_readback_probe_at_seconds
+    if (not math.isfinite(probe) or not 0<probe<a.seconds
+            or abs(probe/.002-round(probe/.002))>1e-8 or not a.acquisition
+            or a.acquisition_stance_profile!='landed-foot-v1'
+            or any((a.standing_withdrawal_route,a.full_opening,a.full_sequence_reset,a.traverse,
+                a.sensor_layout,a.sensor_policy_checkpoint,a.sensor_balance_calibration,
+                a.sensor_locomotion_calibration,a.jev_progress_plan,a.panel_push,a.mechanism_test))):
+        p.error('Pause readback probe requires an exact 500 Hz interior epoch and standalone landed-foot acquisition')
 if a.standing_transfer_route and (not a.acquisition or not a.operate_after_acquisition or a.acquisition_stance_profile!='landed-foot-v1' or a.full_opening or a.full_sequence_reset or a.sensor_policy_checkpoint or a.sensor_balance_calibration or a.sensor_locomotion_calibration):
     p.error('Standing transfer requires standalone privileged landed-foot acquisition and operation')
 if not math.isfinite(a.standing_transfer_start_seconds) or a.standing_transfer_start_seconds<=0 or (a.standing_transfer_route and a.seconds<a.standing_transfer_start_seconds+8.5):
@@ -786,6 +796,9 @@ def main():
         scope='Uninterrupted approach, opening, release and traversal; privileged live PhysX development' if continuous else 'Continuous approach through bimanual loaded aperture; privileged live PhysX; no traversal' if full_opening and sequence else 'Contact-free acquisition through bimanual loaded aperture; privileged live PhysX; no approach/traversal' if full_opening else balance_scope if a.sensor_balance_calibration else 'Sensor-only recurrent force actor; declared curriculum objective; no teacher or traversal claim' if sensor_actor else 'Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
     sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py','isaac_joint_passive.py','locomotion_manipulation.py','isaac_evidence_cleanup.py')]
     if a.review_render_profile:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/isaac_rendering.py')
+    if a.pause_readback_probe_at_seconds is not None:
+        sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
+            ('isaac_live_pause_readback.py','isaac_live_planning_pause.py')]
     if jev_plan is not None:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('jev_advisor.py','jev_progress_advisor.py','isaac_jev_progress.py')]
     if physics_audit_enabled:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/bounded_evidence.py')
     if a.operate_after_acquisition:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/operation_pad_counts.py')
@@ -1180,6 +1193,11 @@ def main():
         from doorbench.dexterous.teacher_query_recording import TeacherQueryRecorder
         teacher_queries=TeacherQueryRecorder(out/'teacher-query-evidence',joint_names=rnames,hand_body_names=hand_paths,dt=dt)
     time_origin=float(sim.current_time)
+    pause_probe_counter=None
+    if a.pause_readback_probe_at_seconds is not None:
+        from doorbench.dexterous.isaac_live_pause_readback import PhysicsStepCounter,capture_native_pause_anchor
+        pause_probe_counter=PhysicsStepCounter()
+        sim.add_physics_callback('doorbench_pause_probe_steps',pause_probe_counter)
     from doorbench.dexterous.wall_phase_timer import WallPhaseTimer
     wall_timing=WallPhaseTimer()
     jev_gate=None
@@ -1662,6 +1680,36 @@ def main():
             if rows and (rows[-1]['root'][2]<.45 or rows[-1]['torso_tilt_deg']>45):
                 (out/'early-stop.json').write_text(json.dumps(dict(reason='Robot fell',time_s=(step+1)*dt))+'\n')
                 break
+            if pause_probe_counter is not None and step+1==round(a.pause_readback_probe_at_seconds/dt):
+                probe_receipt=dict(schema='doorbench.isaac-pause-readback-probe.v1',passed=False,
+                    epoch_s=(step+1)*dt,requested_wall_seconds=2.,authorized_stages=0,
+                    scope='Actual state equality during a main-thread suspension; no phase or policy qualification')
+                def capture_probe_anchor():
+                    controllers={name:value for name,value in dict(acquisition=teacher,operation=operation,
+                        standing_transfer=standing_transfer,standing_controller=standing_controller).items() if value is not None}
+                    return capture_native_pause_anchor(episode_id=str(out.resolve()),step_index=step+1,
+                        epoch_s=(step+1)*dt,sim=sim,time_origin=time_origin,counter=pause_probe_counter,
+                        robot=robot,door=door,contacts=audit_contacts,controllers=controllers,
+                        invariant_getters=invariant_getters,evidence_counts=dict(
+                            physical=len(acquisition_states['time_s']),pad=len(pad_steps),
+                            transfer=0 if transfer_steps is None else len(transfer_steps)))
+                try:
+                    probe_before=capture_probe_anchor()
+                    (out/'pause-probe-before.json').write_text(json.dumps(probe_before,indent=2)+'\n')
+                    probe_started=time.monotonic()
+                    time.sleep(2.)
+                    probe_after=capture_probe_anchor()
+                    (out/'pause-probe-after.json').write_text(json.dumps(probe_after,indent=2)+'\n')
+                    probe_receipt.update(elapsed_wall_seconds=time.monotonic()-probe_started,
+                        actual_physics_callbacks=pause_probe_counter.receipt(),
+                        exact_anchor_equal=probe_before==probe_after)
+                    if probe_before!=probe_after:raise RuntimeError('Live pause probe changed actual state or controller inventory')
+                    probe_receipt['passed']=True
+                except BaseException as probe_error:
+                    probe_receipt.update(error_type=type(probe_error).__name__,error=str(probe_error))
+                    raise
+                finally:
+                    (out/'pause-readback-probe.json').write_text(json.dumps(probe_receipt,indent=2)+'\n')
             if transfer_rest_triggered and not a.standing_withdrawal_route:
                 transfer_rest_terminated=True
                 evaluation_seconds=(step+1)*dt
