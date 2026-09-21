@@ -43,6 +43,14 @@ def numeric_release_preferences(document):
         value = result[key]
         if type(value) not in (int, float) or not np.isfinite(value) or not low <= value <= high:
             raise ValueError('Original bounded release preference required: ' + key)
+    # Omission preserves the historical preference payload as well as the
+    # historical .01 arithmetic. This is a prospective numerical choice, not a
+    # material-error tolerance or permission to change the independent gates.
+    if 'thumb_posture_continuity_weight' in values:
+        value = values['thumb_posture_continuity_weight']
+        if type(value) not in (int, float) or not np.isfinite(value) or not .01 <= value <= .1:
+            raise ValueError('Bounded thumb posture/continuity weight required (.01 to .1)')
+        result['thumb_posture_continuity_weight'] = value
     for key in ('whole_body', 'coordinated_release'):
         if type(result[key]) is not bool:
             raise ValueError('Explicit boolean release preference required: ' + key)
@@ -54,6 +62,14 @@ def numeric_release_preferences(document):
     if result['coordinated_release'] and result['retreat_profile'] != 'slide-lift':
         raise ValueError('Coordinated release requires the free-end slide')
     return result
+
+
+def _digit_regularization(v, preference, previous, *, thumb, extending,
+                          thumb_posture_continuity_weight=.01):
+    """Keep legacy digit arithmetic; opt in only the thumb's two soft terms."""
+    posture_weight = thumb_posture_continuity_weight if thumb else (.25 if extending else .01)
+    continuity_weight = thumb_posture_continuity_weight if thumb else .01
+    return posture_weight*(v-preference), continuity_weight*(v-previous)
 
 
 @dataclass(frozen=True)
@@ -256,7 +272,10 @@ def _generate_profiled_rows(context, preferences):
                     requested=material['point']+material['radial']*a.radial_clearance_m*separation
                     if extending:requested=material['point']+separation*(material['relaxed_point']-material['point'])
                     material_errors.extend(100*(current-requested))
-                return np.r_[material_errors,1000*np.asarray(gaps),loop,(.25 if extending else .01)*(v-preference),.01*(v-digit['previous'])]
+                posture, continuity = _digit_regularization(v, preference, digit['previous'],
+                    thumb=digit['names'][0].startswith('rh_TH'), extending=extending,
+                    thumb_posture_continuity_weight=preferences.get('thumb_posture_continuity_weight', .01))
+                return np.r_[material_errors,1000*np.asarray(gaps),loop,posture,continuity]
             if time>0:
                 low=digit['low'].copy();high=digit['high'].copy()
                 if 'rh_THJ3' in digit['names']:

@@ -27,6 +27,9 @@ def run(args):
     try:
         preferences = numeric_release_preferences(
             json.loads(args.preferences.read_text()) if args.preferences else {})
+        if getattr(args, 'thumb_posture_continuity_weight', None) is not None:
+            preferences['thumb_posture_continuity_weight'] = args.thumb_posture_continuity_weight
+            preferences = numeric_release_preferences(preferences)
         names = ('isaac_release_planning.py', 'isaac_release_source.py', 'isaac_prefix_witness.py',
             'qualified_isaac_grasp.py', 'isaac_attained_state.py', 'standing_body_record.py',
             'motor_contract_identity.py', 'destination_state_binding.py',
@@ -68,6 +71,8 @@ def main():
         parser.add_argument('--'+name, type=Path, required=True)
     parser.add_argument('--preferences', type=Path,
                         help='Old report contributes bounded numeric design choices only')
+    parser.add_argument('--thumb-posture-continuity-weight', type=float,
+                        help='Opt-in thumb-only soft posture/continuity weight [.01, .1]; omitted uses historical .01')
     parser.add_argument('--grasp-profile', choices=('distal-pad-v1', 'volar-phalange-v1'),
                         default='volar-phalange-v1')
     return run(parser.parse_args())
