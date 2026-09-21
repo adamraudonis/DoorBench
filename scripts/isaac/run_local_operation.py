@@ -411,7 +411,8 @@ def runtime_source_paths(argv):
         paths+=list(withdrawal_sources())
         names+=['isaac_withdrawal_prefix_witness.py','isaac_withdrawal_measurements.py',
             'isaac_withdrawal_evaluation.py','standing_withdrawal_audit.py','json_record_stream.py',
-            'isaac_standing_continuation_measurements.py','isaac_post_opening_measurements.py']
+            'isaac_standing_continuation_measurements.py','isaac_post_opening_measurements.py',
+            'isaac_standing_reference_capture.py']
     return list(dict.fromkeys(paths+[ROOT/'doorbench/dexterous'/name for name in names]))
 
 

@@ -458,4 +458,12 @@ class StandingWithdrawalTeacher:
         if self.measured_rest:
             self.info.update(self.returned.rest.diagnostic())
             self.info['measured_rest_evidence_epoch']='withdrawal_entry'
+        # Explicit Isaac-only observation of existing locals; no reference or
+        # feedback is evaluated again, and the original force is returned as-is.
+        if getattr(self,'isaac_runtime',None) is not None and getattr(self,'continuation_reference_capture',None) is not None:
+            self.continuation_reference_capture.capture_command(self,t,post_feedback_targets=targets,
+                right_goal_position=goal,right_goal_rotation=rotation,returned_command=force,
+                finger_reference_velocity=reference_velocity,grip_preload_scale=scale,
+                measured_root=root,measured_joints=joints,measured_velocities=velocities,
+                measured_handle_pose=handle_pose,measured_leaf_pose=leaf_pose,measured_angles=angles)
         return force,self.info

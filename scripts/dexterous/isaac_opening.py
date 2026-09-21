@@ -594,7 +594,7 @@ def main():
             detector=transfer_rest_stop.receipt())
         (out/'standing-transfer-rest-stop.json').write_text(json.dumps(receipt,indent=2)+'\n')
         return receipt
-    withdrawal_steps=None;withdrawal_geometry=None
+    withdrawal_steps=None;withdrawal_geometry=None;standing_reference_tail=None
     teacher=None;teacher_info={};teacher_control=None;sequence=None;operation=None;sensor_actor=None;full_opening=None;opening_geometry=None;continuous=None
     if a.acquisition:
         from doorbench.dexterous.acquisition_teacher import AcquisitionTeacher
@@ -634,6 +634,10 @@ def main():
                     from doorbench.dexterous.isaac_withdrawal_runtime import create_isaac_withdrawal_controller
                     from doorbench.dexterous.isaac_withdrawal_measurements import IsaacWithdrawalMeasurements
                     standing_controller=create_isaac_withdrawal_controller(standing_transfer,motors,a.standing_withdrawal_route)
+                    from doorbench.dexterous.isaac_standing_reference_capture import StandingContinuationReferenceTail
+                    standing_reference_tail=StandingContinuationReferenceTail(standing_controller,
+                        motor_names=[motor['name'] for motor in motors['actuators']])
+                    standing_controller.continuation_reference_capture=standing_reference_tail
                     if a.seconds!=standing_controller.start_time+standing_controller.duration:
                         raise ValueError('Withdrawal episode must end at the exact admitted route duration')
                     context=standing_controller.source_context.data
@@ -771,7 +775,8 @@ def main():
     (out/'configuration.json').write_text(json.dumps(dict(args={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},robot_joint_names=rnames,door_joint_names=dnames,
         standing_planner_body_names=list(PLANNER_BODIES) if record_standing_body_poses else None,
         standing_planner_body_pose_convention='World body-origin XYZ/WXYZ at acquisition-physics time_s' if record_standing_body_poses else None,
-        **(dict(standing_leaf_pose_convention='World body-origin XYZ/WXYZ at acquisition-physics time_s') if a.standing_withdrawal_route else {}),
+        **(dict(standing_leaf_pose_convention='World body-origin XYZ/WXYZ at acquisition-physics time_s',
+            standing_continuation_reference_capture='accepted-command-tail-v1') if a.standing_withdrawal_route else {}),
         **(dict(standing_continuation_body_names=list(BODY_NAMES)) if record_standing_continuation else {}),
         dt=dt,robot_mass_kg=float(robot.root_physx_view.get_masses().sum()),latch_scale=scale,
         root_state_convention='actor-origin pose and world actor-origin linear/angular velocity' if (continuous or a.sensor_locomotion_calibration or a.acquisition_stance_profile) else 'legacy IsaacLab actor pose plus world COM linear/angular velocity',
@@ -801,7 +806,8 @@ def main():
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in (
             'isaac_withdrawal_prefix_witness.py','isaac_withdrawal_measurements.py',
             'isaac_withdrawal_evaluation.py','standing_withdrawal_audit.py','json_record_stream.py',
-            'isaac_standing_continuation_measurements.py','isaac_post_opening_measurements.py')]
+            'isaac_standing_continuation_measurements.py','isaac_post_opening_measurements.py',
+            'isaac_standing_reference_capture.py')]
     if a.operate_after_acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('operation_teacher.py','isaac_opening_measurements.py')]
     if sequence:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
         ('full_sequence_teacher.py','approach_teacher.py','approach_lowering.py','locomotion.py','locomotion_approach.py','locomotion_manipulation.py','locomotion_posture.py','isaac_sensors.py')]
@@ -1577,6 +1583,9 @@ def main():
                     acquisition_states['actual_foot_loads'].append(full_measurement['continuation']['foot_loads'].copy())
             if delivery_failure is not None:
                 raise RuntimeError(delivery_failure)
+            if standing_reference_tail is not None and standing_controller.started_withdrawal is not None:
+                standing_reference_tail.observe_completed_interval(command_time_s=step*dt,
+                    post_step_time_s=(step+1)*dt,returned_command=forces)
             if sensor_recorder:
                 previous_action=2*(forces-force_ranges[:,0])/(force_ranges[:,1]-force_ranges[:,0])-1
                 sensor_recorder.update(robot_data=robot.data,dt=dt,time_s=(step+1)*dt,
@@ -1735,7 +1744,10 @@ def main():
         if withdrawal_prefix is not None:
             (out/'live-withdrawal-prefix-witness.json').write_text(json.dumps(withdrawal_prefix.receipt(),indent=2)+'\n')
         if withdrawal_steps is not None:withdrawal_steps.export(out/'standing-withdrawal-steps.json.gz')
-        if standing_continuation_steps is not None:standing_continuation_steps.export(out/'standing-continuation-steps.json.gz')
+        if standing_continuation_steps is not None:
+            standing_continuation_steps.export(out/'standing-continuation-steps.json.gz')
+            if standing_reference_tail is not None:
+                (out/'standing-continuation-reference-tail.json').write_text(json.dumps(standing_reference_tail.receipt(),indent=2,allow_nan=False)+'\n')
         if jev_gate is not None:jev_gate.close()
     (out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n')
     save_attained_left_plan()
