@@ -91,28 +91,31 @@ also requires a 41-node / 401-sample audited return route. A new explicit
 those references while reporting a distinct measured-rest event. It must leave
 `return_started` unset and must not forge a completed return route or return
 milestone. A preceding source audit and the live half-second actual palm/volar
-grasp/rest gate are still required. This bridge and runner wiring are proposed,
-not implemented or qualified here.
+grasp/rest gate are still required. This bridge and native runner wiring are
+now implemented and tested; see `LOCAL_MEASURED_REST_RELEASE.md`. The first
+continuous 66 s release trial repeats transfer003's first 50 s exactly and
+clears the RH by at least 0.161984 m. It remains a failed release: the LH palm
+loses support after 60.958 s, and 2,315 loaded RH patches cross original
+anatomical or lever-end boundaries. A revised coupled palm/body path and RH
+release clearance are required before this becomes a qualified continuation.
 
 ## Route generation after a qualified receiving endpoint
 
 `plan_direct_standing_release.py` already builds a fresh measured release with
 bounded radial separation, optional free-end axial slide and subsequent lift.
 It uses the source's actual terminal coordinates and original collision model.
-Its current file loader expects `independent-pad-audit.json`, while some local
-runs use `independent-contact-audit.json`; use an explicit local admission
-adapter retaining the original hash bindings, not fabricated source files.
-Its nearest material points currently come from distal geometry. The selected
-volar source can have loaded middle phalanges: capture the actual loaded palmar
-material points as well and preserve whole-finger and hub clearance checking.
+The new `release_source_admission.py` adapter binds the actual local contact
+report, original source hashes and the final 251 samples. It does not fabricate
+historical source files. The selected-volar path now captures actual dominant
+loaded palmar material points, including middle phalanges, and preserves
+whole-finger and hub clearance checking.
 
-Two existing independent geometric auditors, `audit_standing_return_route.py`
-and `audit_standing_ungrip.py`, currently hardcode the distal-only
-`shadow_surface_qualified` contract. A prospective volar continuation needs an
-explicit source-bound profile option in those audits, with the original distal
-score retained. No existing result should be relabeled and no anatomy, force,
-penetration or hold threshold should be lowered. This plumbing is a required
-implementation task before using their results for the broader contract.
+`audit_standing_ungrip.py` now accepts the explicit source-bound grasp profile
+and retains the original distal counters. The first new route passed all
+2,001 geometric samples; that did not predict the loaded-contact success of
+release001. `audit_standing_return_route.py` still needs corresponding profile
+plumbing if a future source actually requires a lever-return motion. No existing
+result is relabeled and no anatomy, force, penetration or hold threshold changes.
 
 The dense withdrawal audit retains 2,001 samples, exact source start, 1 mm /
 0.01 rad fixed hand/foot bounds, 4 degree torso bound, 3 mm nonfoot penetration

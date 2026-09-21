@@ -26,6 +26,11 @@ class StandingWithdrawalTeacher:
         self.qualified_since=None;self.info={};self.handoff=None
         config=json.loads(Path(path).read_text())
         if config.get('schema')!='doorbench.standing-withdrawal.v1':raise ValueError('Explicit standing withdrawal config required')
+        self.measured_rest=bool(getattr(returned,'requires_measured_rest',False))
+        if config.get('measured_rest_transfer',False) != self.measured_rest:
+            raise ValueError('Withdrawal must explicitly identify its measured-rest transfer bridge')
+        self.palm_only_support=self.measured_rest or config.get('palm_only_support',False)
+        if type(self.palm_only_support) is not bool:raise ValueError('Explicit palm-only qualification option required')
         self.support_target=float(config.get('left_support_target_N',4.))
         if not np.isfinite(self.support_target) or not 2<self.support_target<=4:raise ValueError('Withdrawal support target must remain above the original 2 N gate')
         self.initial_support_target=self.left.support_load_target
@@ -70,6 +75,15 @@ class StandingWithdrawalTeacher:
         audit_path=Path(config['audit_path']);screen_path=Path(config['screen_path']);source=Path(config['source_run'])
         if sha(audit_path)!=config['audit_sha256'] or sha(screen_path)!=config['screen_sha256']:raise ValueError('Withdrawal evidence changed')
         audit=json.loads(audit_path.read_text());screen=json.loads(screen_path.read_text())
+        self.source_admission=None
+        if self.measured_rest:
+            from .release_source_admission import admit_release_source
+            self.source_admission=admit_release_source(source,
+                profile=config['grasp_profile'],contact_audit_name=config['contact_audit_name'],measured_rest=True)
+            if screen.get('grasp_profile')!=config['grasp_profile'] or audit.get('grasp_profile')!=config['grasp_profile']:
+                raise ValueError('Withdrawal route and dense audit must retain the selected source profile')
+            if screen.get('source_admission')!=self.source_admission:
+                raise ValueError('Withdrawal screen must bind this exact measured-rest source')
         from .release_motion_admission import validate_motion_screen
         validate_motion_screen(config,screen_path,source)
         if audit.get('passed') is not True or audit.get('samples')!=2001 or audit.get('physics_steps')!=0:raise ValueError('Independent dense withdrawal admission required')
@@ -208,13 +222,19 @@ class StandingWithdrawalTeacher:
     @property
     def return_started(self):return self.returned.return_started
 
-    def force(self,t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,*,grasp_qualified,left_panel_load):
+    def force(self,t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,*,grasp_qualified,left_panel_load,left_palm_load=None):
         teacher=self.acquisition
-        if grasp_qualified:
+        if self.palm_only_support and (left_palm_load is None or not np.isfinite(left_palm_load) or left_palm_load<0):
+            raise ValueError('Actual finite palm-only support required for withdrawal')
+        support=left_palm_load if self.palm_only_support else left_panel_load
+        if self.measured_rest and self.started_withdrawal is None:
+            self.returned.observe_rest(t,grasp_qualified=grasp_qualified,left_palm_load=left_palm_load,angles=angles)
+        if grasp_qualified and (not self.palm_only_support or support>=2):
             if self.qualified_since is None:self.qualified_since=t
         else:self.qualified_since=None
         if self.started_withdrawal is None and t>=self.start_time-1e-8:
-            if not grasp_qualified or left_panel_load<2 or abs(angles['operator'])>.05 or abs(angles['latch'])>.001:raise ValueError('Qualified resting grip and left support required before withdrawal')
+            if self.measured_rest and not self.returned.rest.ready:raise ValueError('Half-second actual resting grip and palm-only support required before withdrawal')
+            if not grasp_qualified or support<2 or abs(angles['operator'])>.05 or abs(angles['latch'])>.001:raise ValueError('Qualified resting grip and left support required before withdrawal')
             if not np.allclose(root[:7],self.roots[0],atol=1e-5,rtol=0) or not np.allclose([joints[n] for n in self.all_names],self.joints[0],atol=1e-5,rtol=0):raise ValueError('Withdrawal requires its exact attained root and joints')
             if any(abs(angles[n]-v)>1e-5 for n,v in self.initial_angles.items()):raise ValueError('Withdrawal door state differs from its audited source')
             self.previous_force=teacher.last_force.copy();self.started_withdrawal=t
@@ -231,11 +251,11 @@ class StandingWithdrawalTeacher:
             self.stance_joint_bias=teacher.stance.joint_target.copy()-np.array([joints[n] for n in self.stance_names])
             if self.left_arm_only:self.left.isolate_left_arm(root,joints,leaf_pose=leaf_pose if self.left_full_orientation else None)
         if self.started_withdrawal is None:
-            force,self.info=self.returned.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified,left_panel_load=left_panel_load)
+            force,self.info=self.returned.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified,left_panel_load=left_panel_load,**({'left_palm_load':left_palm_load} if self.measured_rest else {}))
             return force,self.info
         elapsed=t-self.started_withdrawal;clock=float(smooth_phase(elapsed/self.duration))*self.times[-1]
         if clock>=self.release_clock and self.release_started is None:
-            if self.qualified_since is None or t-self.qualified_since<.5 or left_panel_load<2:raise ValueError('Half-second opposed grip and left support required at intentional release')
+            if self.qualified_since is None or t-self.qualified_since<.5 or support<2:raise ValueError('Half-second opposed grip and left support required at intentional release')
             self.release_started=t
         i=min(len(self.times)-2,max(0,int(np.searchsorted(self.times,clock,side='right')-1)));f=(clock-self.times[i])/(self.times[i+1]-self.times[i])
         q=(1-f)*self.joints[i]+f*self.joints[i+1];targets=dict(zip(self.all_names,q))
@@ -349,4 +369,8 @@ class StandingWithdrawalTeacher:
             self.panel_schedule.observe(t,panel_info['panel_progress'],angles['leaf'],left_panel_load)
             panel_info['panel_segment_index']=self.panel_schedule.index
         self.info={**panel_info,**info,**self.left.info,**arm_info,**hand_info,**palm_info,'phase':'standing_panel_continuation' if panel_goal is not None else 'standing_withdrawal','withdrawal_started_s':self.started_withdrawal,'release_started_s':self.release_started,'withdrawal_progress':float(smooth_phase(elapsed/self.duration)),'withdrawal_clock_s':clock,'grip_preload_scale':scale,'goal_frame':'attained-resting-world','stance_reference_preserved':True,'stance_reference_root_offset_m':self.stance_root_bias.tolist(),'stance_reference_joint_offset_rad':dict(zip(self.stance_names,self.stance_joint_bias.tolist())),'controller_scope':'Privileged screened upright withdrawal; only original capped motors'}
+        self.info['withdrawal_qualification_support_surface']='left_palm_only' if self.palm_only_support else 'left_panel_total'
+        if self.measured_rest:
+            self.info.update(self.returned.rest.diagnostic())
+            self.info['measured_rest_evidence_epoch']='withdrawal_entry'
         return force,self.info

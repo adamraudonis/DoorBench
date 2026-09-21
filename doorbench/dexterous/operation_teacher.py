@@ -41,7 +41,7 @@ class DoorOperationTeacher:
                  operator_target=.87, release_operator_threshold=.80,
                  release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True,
                  operator_compliance_gain=0., operator_compliance_limit=.15,
-                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening', pad_control_profile='commanded-material-v1', leaf_lead_limit_rad=None, operator_lead_limit_rad=None, operator_follow_after_leaf_rad=None, handle_hub_avoidance=False, hub_clearance_m=.004, progress_resume_seconds=.2):
+                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening', pad_control_profile='commanded-material-v1', leaf_lead_limit_rad=None, operator_lead_limit_rad=None, operator_follow_after_leaf_rad=None, handle_hub_avoidance=False, hub_clearance_m=.004, progress_resume_seconds=.2, thumb_reference_joint=None, thumb_reference_offset_rad=0.):
         if type(fixed_pad_control) is not bool:raise ValueError('Explicit contact-controller flag required')
         if pad_control_profile not in ('commanded-material-v1','actual-material-v1','actual-material-v2','actual-tangent-v1','measured-pressure-v1'):raise ValueError('Unknown pad control profile')
         if type(handle_hub_avoidance) is not bool:raise ValueError('Explicit hub-avoidance flag required')
@@ -84,6 +84,20 @@ class DoorOperationTeacher:
         if self.index_proximal_offset:
             self.index_column=acquisition_teacher.names.index('rh_FFJ3')
             self.index_reference=float(acquisition_teacher.path[-1,self.index_column])
+        if (thumb_reference_joint not in (None,'rh_THJ1','rh_THJ2','rh_THJ3','rh_THJ4','rh_THJ5')
+                or not np.isfinite(thumb_reference_offset_rad) or abs(thumb_reference_offset_rad)>.1
+                or (thumb_reference_joint is None and thumb_reference_offset_rad!=0.)):
+            raise ValueError('Explicit right-thumb joint and finite reference offset within 0.1 rad required')
+        self.thumb_reference_joint=thumb_reference_joint
+        self.thumb_reference_offset=float(thumb_reference_offset_rad)
+        self.thumb_reference=None
+        self.thumb_reference_started=None
+        if thumb_reference_joint is not None:
+            self.thumb_column=acquisition_teacher.names.index(thumb_reference_joint)
+            self.thumb_reference=float(acquisition_teacher.path[-1,self.thumb_column])
+            joint=acquisition_teacher.m.joint(thumb_reference_joint)
+            if not joint.range[0]<=self.thumb_reference+self.thumb_reference_offset<=joint.range[1]:
+                raise ValueError('Thumb reference correction exceeds original authored joint limits')
         self.acquisition = acquisition_teacher
         self.geometry = {k:np.asarray(joint_geometry[k], float) for k in
                          ('operator_origin','operator_axis','leaf_origin','leaf_axis')}
@@ -250,6 +264,13 @@ class DoorOperationTeacher:
             teacher.path[-1,self.index_column]=self.index_reference+smooth_phase(self.press_progress_s)*self.index_proximal_offset
         if self.index_tendon_reference is not None:
             teacher.path[-1,self.index_tendon_columns]=self.index_tendon_reference+smooth_phase(self.press_progress_s)*self.index_tendon_offset/2
+        if self.thumb_reference is not None:
+            if (self.thumb_reference_started is None and self.open_started is not None
+                    and .075<=angles['leaf']<=.10 and abs(angles['operator'])<=.05
+                    and abs(angles['latch'])<=.001):
+                self.thumb_reference_started=t
+            thumb_blend=0. if self.thumb_reference_started is None else float(smooth_phase(t-self.thumb_reference_started))
+            teacher.path[-1,self.thumb_column]=self.thumb_reference+thumb_blend*self.thumb_reference_offset
         teacher.positions[-1] = pos
         teacher.rotations[-1] = rot
         force, info = teacher.force(t,root,joints,velocities,handle_pose,hand_loads)
@@ -281,6 +302,9 @@ class DoorOperationTeacher:
                          grasp_offset_in_handle_m=offset.tolist(),
                          index_proximal_offset_rad=float(smooth_phase(self.press_progress_s)*self.index_proximal_offset),
                          index_tendon_offset_rad=float(smooth_phase(self.press_progress_s)*self.index_tendon_offset),
+                         thumb_reference_joint=self.thumb_reference_joint,
+                         thumb_reference_started_s=self.thumb_reference_started,
+                         thumb_reference_offset_rad=0. if self.thumb_reference is None else thumb_blend*self.thumb_reference_offset,
                          actual_handle_rad=angles['operator'],actual_leaf_rad=angles['leaf'],
                          actual_bolt_m=angles['latch'],**self._progress_info())
         return force, {**info,**self.info}

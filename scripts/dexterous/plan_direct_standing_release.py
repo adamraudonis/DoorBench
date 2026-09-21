@@ -27,6 +27,9 @@ def sha(path):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source-run',type=Path,required=True)
+    parser.add_argument('--grasp-profile',choices=('distal-pad-v1','volar-phalange-v1'),default='distal-pad-v1')
+    parser.add_argument('--contact-audit-name',default='independent-pad-audit.json')
+    parser.add_argument('--measured-rest-transfer',action='store_true',help='Admit an actual palm-supported resting transfer without claiming commanded return')
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--radial-clearance-m',type=float,default=.018)
     parser.add_argument('--finger-profile',choices=('radial','extend'),default='radial')
@@ -45,10 +48,13 @@ def main():
         raise ValueError('Explicit thumb J3 planning margin must be 1–80 mrad')
     if a.coordinated_release and a.retreat_profile!='slide-lift':
         raise ValueError('Coordinated release requires the free-end slide')
-    source=a.source_run
-    evidence=[source/n for n in ('report.json','independent-pad-audit.json','independent-whole-handle-audit.json')]
-    if not all(json.loads(p.read_text()).get('passed') is True for p in evidence):
-        raise ValueError('Fully qualified physical resting source required')
+    source=a.source_run.resolve()
+    from doorbench.dexterous.release_source_admission import admit_release_source
+    admission=admit_release_source(source,profile=a.grasp_profile,
+        contact_audit_name=a.contact_audit_name,measured_rest=a.measured_rest_transfer)
+    if a.grasp_profile!='distal-pad-v1' and not a.measured_rest_transfer:
+        raise ValueError('Volar direct-release planning requires explicit measured-rest source admission')
+    evidence=[Path(p) for p in admission['input_sha256']]
     manifest=json.loads((source/'manifest.json').read_text());cfg=manifest['configuration']
     robot=Path(cfg['robot']);door=Path(cfg['door'])
     if sha(robot)!=manifest['inputs']['robot']['sha256'] or sha(door/'door.xml')!=manifest['inputs']['door']['door.xml']:
@@ -90,8 +96,19 @@ def main():
             points=np.zeros(6);gap=mujoco.mj_geomDistance(m,d,g,lever,.2,points)
             near.append((gap,points.copy()))
         gap,points=min(near,key=lambda x:x[0])
-        if abs(gap)>.01:raise ValueError('Every attained fingertip must be near the lever')
-        local=d.xmat[body].reshape(3,3).T@(points[:3]-d.xpos[body])
+        if a.grasp_profile=='distal-pad-v1':
+            if abs(gap)>.01:raise ValueError('Every attained fingertip must be near the lever')
+            local=d.xmat[body].reshape(3,3).T@(points[:3]-d.xpos[body])
+        else:
+            # Track the dominant actually loaded material patch for this digit.
+            # Every remaining finger shape still enters the obstacle residual
+            # and the independent selected-profile dense geometry audit.
+            contacts=[c for c in admission['measured_rest']['endpoint_contacts']
+                if c['digit']==digit.lower() and c['pad_qualified'] and c['normal_force_N']>0]
+            if not contacts:raise ValueError('Actual qualified material patch required for every release digit')
+            contact=max(contacts,key=lambda c:c['normal_force_N'])
+            body=m.body(contact['body']).id;local=np.array(contact['body_position_m'])
+            points[:3]=d.xpos[body]+d.xmat[body].reshape(3,3)@local
         radial=points[:3]-center;radial-=axis*(radial@axis);radial/=np.linalg.norm(radial)
         low=np.minimum(base[qa],m.jnt_range[ids,0]+.001);high=np.maximum(base[qa],m.jnt_range[ids,1]-.001)
         relaxed=base[qa].copy()
@@ -165,6 +182,8 @@ def main():
         q=d.qpos.copy();actual_p=d.site_xpos[palm].copy();actual_R=d.site_xmat[palm].reshape(3,3).copy()
         rows.append(dict(time_s=float(time),phase='grasp_adjustment' if time==0 else 'measured_release' if time<=3 else 'clearance_lift',qpos=q.tolist(),palm_position=actual_p.tolist(),palm_rotation=actual_R.tolist(),requested_palm_position=target.tolist(),joints={n:float(q[m.joint('robot/'+n).qposadr[0]]) for n in body_names},finger_joints={n:float(q[m.joint('robot/'+n).qposadr[0]]) for n in finger_names}))
     report=dict(scope=__doc__,initial_time_s=start,source_trajectory_sha256=sha(source/'trajectory.npz'),robot_xml_sha256=sha(robot),planner_source_path=str(frozen),planner_source_sha256=sha(frozen),configuration=dict(source_run=str(source),radial_clearance_m=a.radial_clearance_m,finger_profile=a.finger_profile,retreat_profile=a.retreat_profile,whole_body=a.whole_body,coordinated_release=a.coordinated_release,thumb_j3_margin_rad=a.thumb_j3_margin_rad,early_palm_clearance_m=a.early_palm_clearance_m,early_palm_direction=a.early_palm_direction),source_evidence_sha256={str(p):sha(p) for p in evidence},maximum_pad_goal_residual_m=worst,trials=[dict(rows=rows)])
+    report.update(grasp_profile=a.grasp_profile,source_admission=admission,
+        release_material_points=[dict(body=m.body(digit['body']).name,body_position_m=digit['local'].tolist()) for digit in digits])
     (a.output/'report.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(dict(nodes=len(rows),maximum_pad_goal_residual_m=worst,physics_steps=0)),flush=True)
     sim.close()

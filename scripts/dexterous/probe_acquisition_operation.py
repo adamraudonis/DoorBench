@@ -216,6 +216,7 @@ def main():
     parser.add_argument('--index-proximal-offset-rad',type=float,default=0.)
     parser.add_argument('--pressure-segment',choices=['nearest','distal'],default='nearest')
     parser.add_argument('--standing-withdrawal-path',type=Path,help='Independently screened withdrawal after the qualified standing return')
+    parser.add_argument('--standing-measured-rest',action='store_true',help='Explicit measured-rest transfer bridge to withdrawal; does not execute or claim a return')
     parser.add_argument('--standing-return-palm-feedback',action='store_true',help='Experimental bounded privileged palm correction during return')
     parser.add_argument('--standing-return-support-load',type=float,help='Explicit left support target during return, above the original 2 N gate')
     parser.add_argument('--standing-return-hold-finger-posture',action='store_true',help='Experimental attained coupled finger posture with original motor limits')
@@ -258,7 +259,7 @@ def main():
     if args.operation_operator_follow_after_leaf_rad is not None and (not .015<=args.operation_operator_follow_after_leaf_rad<=.05 or not args.portable_wrapper or args.standing_transfer_path):parser.error('Operator follow requires standalone operation and .015..0.05 rad')
     lead_transfer_supported = (not args.standing_transfer_path or (
         args.standing_transfer_attained_arm and args.standing_transfer_no_fixed_pads
-        and not args.standing_return_path and not args.standing_withdrawal_path))
+        and not args.standing_return_path and (not args.standing_withdrawal_path or args.standing_measured_rest)))
     if args.operation_operator_lead_limit_rad is not None and (not .01<=args.operation_operator_lead_limit_rad<=.15 or not args.portable_wrapper or not lead_transfer_supported):
         parser.error('Operator lead requires portable opening or attained-arm transfer without fixed pads/return, and .01..0.15 rad')
     if args.operation_leaf_lead_limit_rad is not None and (not .002<=args.operation_leaf_lead_limit_rad<=.03 or not args.portable_wrapper or args.standing_transfer_path):parser.error('Leaf lead bound requires standalone operation and .002..0.03 rad')
@@ -271,7 +272,9 @@ def main():
     if args.standing_transfer_handle_relative_arm and args.standing_transfer_leaf_relative_arm:parser.error("Choose one relative arm reference frame")
     if (args.standing_transfer_handle_relative_arm or args.standing_transfer_leaf_relative_arm) and (not args.standing_transfer_path or not args.standing_transfer_attained_arm or not args.standing_transfer_no_fixed_pads or args.standing_return_path):
         parser.error('Handle-relative targets require explicit attained-arm transfer without return')
-    if args.standing_withdrawal_path and not args.standing_return_path:parser.error('Withdrawal requires a standing return route')
+    if args.standing_measured_rest and (not args.standing_transfer_path or not args.standing_withdrawal_path or args.standing_return_path or not args.record_transitions):
+        parser.error('Measured-rest bridge requires recorded transfer and withdrawal routes, without a return route')
+    if args.standing_withdrawal_path and not (args.standing_return_path or args.standing_measured_rest):parser.error('Withdrawal requires a standing return route or explicit measured-rest transfer bridge')
     if args.standing_transfer_support_load is not None and (not args.standing_transfer_path or not np.isfinite(args.standing_transfer_support_load) or not 2<args.standing_transfer_support_load<=8):
         parser.error('Transfer support load requires an explicit transfer route and a target above 2 N and at most 8 N')
     if (args.standing_return_palm_feedback or args.standing_return_hold_finger_posture or args.standing_return_support_load is not None) and not args.standing_return_path:parser.error('Finger posture continuation requires an explicit return path')
@@ -372,11 +375,18 @@ def main():
     if args.standing_return_path:
         from doorbench.dexterous.standing_return import StandingReturnTeacher
         transfer=StandingReturnTeacher(transfer,motors,args.standing_return_path,hold_finger_posture=args.standing_return_hold_finger_posture,support_load_target=args.standing_return_support_load,palm_feedback=args.standing_return_palm_feedback)
+    resting_transfer=None
+    if args.standing_measured_rest:
+        from doorbench.dexterous.resting_transfer import RestingTransferBridge
+        resting_transfer=RestingTransferBridge(transfer)
+        transfer=resting_transfer
     withdrawal_pairs=None
     if args.standing_withdrawal_path:
         from doorbench.dexterous.standing_withdrawal import StandingWithdrawalTeacher
         from doorbench.dexterous.standing_withdrawal_audit import clearance_pairs,environment_clearance,withdrawal_checks
         transfer=StandingWithdrawalTeacher(transfer,motors,args.standing_withdrawal_path)
+        if args.standing_measured_rest and transfer.source_admission['grasp_profile']!=args.grasp_profile:
+            raise ValueError('Live withdrawal must retain its source-bound grasp profile')
         withdrawal_pairs=clearance_pairs(m)
     traces = [];recorder=archive=None;controller_steps=BoundedEvidence(args.output/'controller-chunks')
     if args.record_transitions:
@@ -427,7 +437,7 @@ def main():
                     force,info = (transfer or operation).force(float(d.time),root,measured_joints,measured_velocities,
                         np.r_[d.xpos[hb],d.xquat[hb]],np.r_[d.xpos[lb],d.xquat[lb]],
                         dict(operator=d.qpos[m.jnt_qposadr[hj]],leaf=d.qpos[m.jnt_qposadr[lj]],latch=d.qpos[m.jnt_qposadr[bj]]),
-                        loads,grasp_qualified=physics[-1]['pad_grasp']['valid_pad_grasp'],**progress_options,**({'left_panel_load':recorder.left_surface['total_normal_load_N']} if transfer else {}))
+                        loads,grasp_qualified=physics[-1]['pad_grasp']['valid_pad_grasp'],**progress_options,**({'left_panel_load':recorder.left_surface['total_normal_load_N']} if transfer else {}),**({'left_palm_load':recorder.left_surface['palm_normal_load_N']} if args.standing_measured_rest else {}))
                     goal_info = transfer.info if transfer else operation.info
                 else:
                     force, info = teacher.force(float(d.time),root,measured_joints,measured_velocities,np.r_[d.xpos[hb],d.xquat[hb]],loads)
@@ -495,6 +505,9 @@ def main():
         if args.standing_withdrawal_path:
             report['checks']=withdrawal_checks(report['checks'],physics,dt=m.opt.timestep,duration=args.seconds,started=transfer.started_withdrawal,release_started=transfer.release_started,completed=transfer.info.get('withdrawal_progress',0)>=.999)
             report['standing_withdrawal']=dict(route=str(args.standing_withdrawal_path),started_s=transfer.started_withdrawal,release_started_s=transfer.release_started,final=transfer.info)
+            if resting_transfer is not None:
+                report['checks']['measured_rest_observed']=resting_transfer.rest.verified_at is not None
+                report['measured_rest_transfer']={**resting_transfer.rest.diagnostic(),'source_admission':transfer.source_admission}
             if transfer.panel is not None:
                 target=transfer.panel.plan['final_leaf_angle_rad']
                 report['checks']['standing_panel_started']=transfer.panel.started is not None

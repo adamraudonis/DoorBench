@@ -145,6 +145,8 @@ p.add_argument('--acquisition-pressure-segment',choices=['distal'],help='Apply t
 p.add_argument('--operation-grasp-offset-in-handle-m',nargs=3,type=float,help='Optional handle-frame reference recenter, at most 10 mm; one-second smooth ramp')
 p.add_argument('--operation-index-proximal-offset-rad',type=float,default=0.,help='Bounded index proximal reference offset, smoothly applied during operation')
 p.add_argument('--operation-index-tendon-offset-rad',type=float,default=0.,help='Bounded summed index tendon reference offset, split over FFJ1/2')
+p.add_argument('--operation-thumb-reference-joint',choices=tuple('rh_THJ'+str(i) for i in range(1,6)),help='Explicit new thumb reference experiment after measured resting partial opening')
+p.add_argument('--operation-thumb-reference-offset-rad',type=float,default=0.,help='At most 0.1 rad, applied over one second after measured lever rest; original force and joint caps retained')
 p.add_argument('--operation-min-acquisition-seconds',type=float,default=0.,help='Earliest qualified grasp-to-operation handoff')
 p.add_argument('--hold-attained-grasp',action='store_true',help='Capture original coupled finger targets after a qualified partial opening')
 p.add_argument('--operation-actual-pad-control',action='store_true')
@@ -228,6 +230,12 @@ if not math.isfinite(a.standing_transfer_start_seconds) or a.standing_transfer_s
     p.error('Standing transfer requires positive start time and at least 8.5 seconds for reach and final hold')
 if not a.standing_transfer_route and a.standing_transfer_start_seconds!=36.:p.error('Transfer start override requires an explicit route')
 if a.standing_transfer_hybrid_support and not a.standing_transfer_route:p.error('Hybrid transfer support requires an explicit route')
+if (not math.isfinite(a.operation_thumb_reference_offset_rad) or abs(a.operation_thumb_reference_offset_rad)>.1
+        or (a.operation_thumb_reference_joint is None and a.operation_thumb_reference_offset_rad!=0.)):
+    p.error('Thumb correction requires an explicit right-thumb joint and finite offset within 0.1 rad')
+if a.operation_thumb_reference_joint is not None and (not a.acquisition or not a.operate_after_acquisition
+        or a.full_opening or a.full_sequence_reset or a.jev_progress_plan):
+    p.error('Thumb correction currently requires standalone deterministic acquisition and operation')
 if a.operation_operator_follow_after_leaf_rad is not None and (not .015<=a.operation_operator_follow_after_leaf_rad<=.05 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Operator follow requires standalone operation and .015..0.05 rad')
 if a.operation_operator_lead_limit_rad is not None and (not .01<=a.operation_operator_lead_limit_rad<=.15 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Operator lead requires standalone operation and .01..0.15 rad')
 if a.operation_leaf_lead_limit_rad is not None and (not .002<=a.operation_leaf_lead_limit_rad<=.03 or not a.operate_after_acquisition or a.full_opening or a.full_sequence_reset):p.error('Leaf lead bound requires standalone operation and .002..0.03 rad')
@@ -576,7 +584,7 @@ def main():
                 basis=np.eye(3)['XYZ'.index(joint.GetAxisAttr().Get())]
                 joint_geometry[role+'_origin']=np.array(joint.GetLocalPos1Attr().Get())
                 joint_geometry[role+'_axis']=np.array(joint.GetLocalRot1Attr().Get().Transform(Gf.Vec3f(*map(float,basis))))
-            operation=DoorOperationTeacher(teacher,joint_geometry,index_proximal_offset_rad=a.operation_index_proximal_offset_rad,index_tendon_offset_rad=a.operation_index_tendon_offset_rad,release_operator_threshold=a.operation_opening_trigger_rad,handle_hub_avoidance=hub_geometry is not None,hub_clearance_m=a.operation_hub_clearance_m,leaf_target=a.operation_leaf_target_rad,leaf_lead_limit_rad=a.operation_leaf_lead_limit_rad,operator_lead_limit_rad=a.operation_operator_lead_limit_rad,operator_follow_after_leaf_rad=a.operation_operator_follow_after_leaf_rad,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile=a.operation_material_profile if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage)
+            operation=DoorOperationTeacher(teacher,joint_geometry,index_proximal_offset_rad=a.operation_index_proximal_offset_rad,index_tendon_offset_rad=a.operation_index_tendon_offset_rad,release_operator_threshold=a.operation_opening_trigger_rad,handle_hub_avoidance=hub_geometry is not None,hub_clearance_m=a.operation_hub_clearance_m,leaf_target=a.operation_leaf_target_rad,leaf_lead_limit_rad=a.operation_leaf_lead_limit_rad,operator_lead_limit_rad=a.operation_operator_lead_limit_rad,operator_follow_after_leaf_rad=a.operation_operator_follow_after_leaf_rad,wait_for_press_completion=not a.open_on_latch_clear,operator_compliance_gain=a.operator_compliance_gain,min_acquisition_seconds=a.operation_min_acquisition_seconds,grasp_offset_in_handle_m=a.operation_grasp_offset_in_handle_m or (0.,0.,0.),fixed_pad_control=a.operation_actual_pad_control,pad_control_profile=a.operation_material_profile if a.operation_actual_pad_control else "commanded-material-v1",hold_attained_grasp=a.hold_attained_grasp,attained_hold_stage=a.attained_hold_stage,thumb_reference_joint=a.operation_thumb_reference_joint,thumb_reference_offset_rad=a.operation_thumb_reference_offset_rad)
             if a.standing_transfer_route:
                 from doorbench.dexterous.standing_transfer import StandingTransferTeacher
                 from doorbench.dexterous.bounded_evidence import BoundedEvidence

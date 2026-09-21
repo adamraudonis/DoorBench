@@ -175,6 +175,14 @@ def commands(args,ready,cfg,reference,profile,declaration):
             or math.sqrt(sum(v*v for v in override))>.01):
         raise ValueError('Experimental grasp offset must be a finite vector within the original 10 mm limit')
     argv+=['--operation-grasp-offset-in-handle-m',*map(str,override if override is not None else cfg['grasp_offset_in_handle_m'])]
+    thumb_joint=getattr(args,'experimental_thumb_reference_joint',None)
+    thumb_offset=getattr(args,'experimental_thumb_reference_offset_rad',0.)
+    if (thumb_joint not in (None,'rh_THJ1','rh_THJ2','rh_THJ3','rh_THJ4','rh_THJ5')
+            or not math.isfinite(thumb_offset) or abs(thumb_offset)>.1
+            or (thumb_joint is None and thumb_offset!=0.)):
+        raise ValueError('Explicit right-thumb joint and finite offset within 0.1 rad required')
+    if thumb_joint is not None:
+        argv+=['--operation-thumb-reference-joint',thumb_joint,'--operation-thumb-reference-offset-rad',str(thumb_offset)]
     if cfg.get('operation_fixed_pad_control'):
         argv+=['--operation-actual-pad-control','--operation-material-profile',cfg['operation_pad_control_profile']]
     if cfg.get('operation_handle_hub_avoidance'):
@@ -343,6 +351,10 @@ def verify_runtime_binding(trial,argv,receipt):
             raise ValueError('Runtime experiment mode differs from launch: '+flag)
     if configuration.get('open_on_latch_clear') is not ('--open-on-latch-clear' in argv):
         raise ValueError('Runtime latch transition differs from launch')
+    if '--operation-thumb-reference-joint' in argv:
+        if (configuration.get('operation_thumb_reference_joint')!=argv[argv.index('--operation-thumb-reference-joint')+1]
+                or configuration.get('operation_thumb_reference_offset_rad')!=float(argv[argv.index('--operation-thumb-reference-offset-rad')+1])):
+            raise ValueError('Runtime thumb reference differs from the declared experiment')
     offset_flag='--operation-grasp-offset-in-handle-m'
     if offset_flag in argv:
         index=argv.index(offset_flag)
@@ -396,6 +408,11 @@ def execute(args,argv,audit,hashes):
         receipt['experimental_controller_change']=dict(
             parameter='operation_grasp_offset_in_handle_m',qualified_native_baseline=baseline,
             requested=list(override),scope='New PhysX experiment; native baseline qualification does not establish this changed controller')
+    if getattr(args,'experimental_thumb_reference_joint',None) is not None:
+        receipt['experimental_thumb_reference_change']=dict(joint=args.experimental_thumb_reference_joint,
+            offset_rad=args.experimental_thumb_reference_offset_rad,baseline_offset_rad=0.,
+            trigger='Measured partial leaf opening 0.075..0.10 rad, operator within 0.05 rad and bolt within 1 mm of rest',
+            ramp_seconds=1.,scope='New capped reference experiment; actual contact qualification remains required')
     for source in sources:(args.output/('source-'+source.name)).write_bytes(source.read_bytes())
     save(args.output/'launch.json',receipt)
     try:
@@ -499,6 +516,8 @@ def main():
     p.add_argument('--review-render-profile',choices=('native-materials-v1',))
     p.add_argument('--experimental-grasp-offset-in-handle-m',nargs=3,type=float,
         help='Explicit new PhysX experiment: replace the native baseline offset within its original 10 mm bound; all physical/contact acceptance checks remain unchanged')
+    p.add_argument('--experimental-thumb-reference-joint',choices=tuple('rh_THJ'+str(i) for i in range(1,6)))
+    p.add_argument('--experimental-thumb-reference-offset-rad',type=float,default=0.)
     p.add_argument('--standing-transfer-source',type=Path,help='Qualified local Isaac operation whose exact prefix is rerun')
     p.add_argument('--standing-transfer-route',type=Path,help='Fresh independently screened route planned from that actual Isaac endpoint')
     p.add_argument('--jev-progress-plan',type=Path)
