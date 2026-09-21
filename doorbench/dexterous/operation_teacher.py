@@ -41,7 +41,7 @@ class DoorOperationTeacher:
                  operator_target=.87, release_operator_threshold=.80,
                  release_bolt_threshold=.011, leaf_target=.08, wait_for_press_completion=True,
                  operator_compliance_gain=0., operator_compliance_limit=.15,
-                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening', pad_control_profile='commanded-material-v1', leaf_lead_limit_rad=None, operator_lead_limit_rad=None, operator_follow_after_leaf_rad=None, handle_hub_avoidance=False, hub_clearance_m=.004):
+                 freeze_compliance_on_release=True, grasp_offset_in_handle_m=(0.,0.,0.), index_proximal_offset_rad=0., index_tendon_offset_rad=0., fixed_pad_control=False, hold_attained_grasp=False, attained_hold_stage='opening', pad_control_profile='commanded-material-v1', leaf_lead_limit_rad=None, operator_lead_limit_rad=None, operator_follow_after_leaf_rad=None, handle_hub_avoidance=False, hub_clearance_m=.004, progress_resume_seconds=.2):
         if type(fixed_pad_control) is not bool:raise ValueError('Explicit contact-controller flag required')
         if pad_control_profile not in ('commanded-material-v1','actual-material-v1','actual-material-v2','actual-tangent-v1','measured-pressure-v1'):raise ValueError('Unknown pad control profile')
         if type(handle_hub_avoidance) is not bool:raise ValueError('Explicit hub-avoidance flag required')
@@ -113,7 +113,50 @@ class DoorOperationTeacher:
         self.operator_compliance_limit=operator_compliance_limit
         self.operator_compliance=0.
         self.qualified_since = self.last_time = self.started = self.open_started = None
+        if not np.isfinite(progress_resume_seconds) or not .02<=progress_resume_seconds<=1.:
+            raise ValueError('Progress resumption must take 0.02..1 seconds')
+        self.progress_resume_seconds=float(progress_resume_seconds)
+        self.progress_gated=False
+        self.progress_allowed=True
+        self.progress_rate=1.
+        self.press_progress_s=self.open_progress_s=0.
+        self.resume_elapsed_s=0.
         self.info = dict(phase='acquisition')
+
+    def _advance_progress(self,t,elapsed,allow_progress):
+        """Advance reference clocks only; feedback continues at actual plant time.
+
+        With no pause, retain the historical subtraction expressions exactly.
+        After a pause, integrate a quintic rate ramp on resumption. Integrating
+        its analytic antiderivative makes elapsed progress independent of how
+        the same interval is divided into controller ticks.
+        """
+        if not allow_progress:
+            self.progress_gated=True
+            self.progress_allowed=False
+            self.progress_rate=0.
+            self.resume_elapsed_s=0.
+            return
+        if not self.progress_gated:
+            self.press_progress_s=t-self.started
+            self.open_progress_s=0. if self.open_started is None else t-self.open_started
+            return
+        previous=self.resume_elapsed_s
+        self.resume_elapsed_s+=elapsed
+        duration=self.progress_resume_seconds
+        def integral(value):
+            u=min(1.,value/duration)
+            return duration*(2.5*u**4-3.*u**5+u**6)+max(0.,value-duration)
+        advance=integral(self.resume_elapsed_s)-integral(previous)
+        self.press_progress_s+=advance
+        if self.open_started is not None:self.open_progress_s+=advance
+        self.progress_rate=float(smooth_phase(self.resume_elapsed_s/duration))
+        self.progress_allowed=True
+
+    def _progress_info(self):
+        return dict(progress_gate_active=self.progress_gated,progress_allowed=self.progress_allowed,
+                    progress_rate=self.progress_rate,press_progress_s=self.press_progress_s,
+                    opening_progress_s=self.open_progress_s,progress_resume_seconds=self.progress_resume_seconds)
 
     def _bind(self, t, handle_pose, angles):
         hp, hr = pose_components(handle_pose)
@@ -130,35 +173,49 @@ class DoorOperationTeacher:
         teacher.rotation_integral[:] = 0.
         self.info = dict(phase='lever_operation',operation_start_s=t,goal_leaf_rad=0.)
 
-    def force(self, t, root, joints, velocities, handle_pose, leaf_pose, angles, hand_loads, *, grasp_qualified):
+    def force(self, t, root, joints, velocities, handle_pose, leaf_pose, angles, hand_loads, *, grasp_qualified, allow_progress=True):
         """Return native-capped motors; qualify transitions using actual contact data.
 
         ``angles`` contains operator/leaf angles in radians and latch retraction
         in metres. ``grasp_qualified`` is supplied by the active plant's pad audit;
         no contact is inferred from the reference path. A >50 ms observation gap
         breaks the qualification hold. The physical per-step audit is separate.
+
+        Optional ``allow_progress=False`` holds the press/opening reference
+        clocks and defers new phase transitions. Stance, grasp feedback,
+        compliance, material-pad control and hub protection still consume real
+        time and measured state. It does not freeze the robot or release a hand.
         """
         angles = {key:float(angles[key]) for key in ('operator','leaf','latch')}
         if not np.isfinite([t,*angles.values()]).all():
             raise ValueError('Nonfinite operation measurements')
         if not isinstance(grasp_qualified,(bool,np.bool_)):
             raise ValueError('Explicit actual grasp qualification is required')
+        if not isinstance(allow_progress,(bool,np.bool_)):
+            raise ValueError('Explicit boolean progress permission is required')
         if self.last_time is not None and t < self.last_time-1e-9:
             raise ValueError('Operation clock went backwards')
         stale = self.last_time is not None and t-self.last_time > .05+1e-9
-        elapsed=0. if self.last_time is None else min(.05,t-self.last_time)
+        measured_elapsed=0. if self.last_time is None else max(0.,t-self.last_time)
+        elapsed=min(.05,measured_elapsed)
         self.last_time = t
         teacher = self.acquisition
         if self.started is None:
+            self.progress_allowed=bool(allow_progress)
+            if not allow_progress:
+                self.progress_gated=True
+                self.progress_rate=0.
+                self.resume_elapsed_s=0.
             force, info = teacher.force(t,root,joints,velocities,handle_pose,hand_loads)
             if stale or not grasp_qualified or info.get('path_fraction',0) < .999:
                 self.qualified_since = None
             elif self.qualified_since is None:
                 self.qualified_since = t
-            if self.qualified_since is not None and t-self.qualified_since >= self.qualified_hold_seconds-1e-9 and t >= self.min_acquisition_seconds-1e-9:
+            if allow_progress and self.qualified_since is not None and t-self.qualified_since >= self.qualified_hold_seconds-1e-9 and t >= self.min_acquisition_seconds-1e-9:
                 self._bind(t,handle_pose,angles)
-            return force, {**info,**self.info}
-        goal_h = self.initial_handle+(self.operator_target-self.initial_handle)*smooth_phase((t-self.started)/self.press_seconds)
+            return force, {**info,**self.info,**self._progress_info()}
+        self._advance_progress(t,measured_elapsed,bool(allow_progress))
+        goal_h = self.initial_handle+(self.operator_target-self.initial_handle)*smooth_phase(self.press_progress_s/self.press_seconds)
         # Compensate compliant finger deflection with a bounded palm-reference
         # rotation. The actual operator target and joint limits do not change;
         # this is controller memory, never a door pose/force command.
@@ -166,11 +223,13 @@ class DoorOperationTeacher:
             self.operator_compliance=float(np.clip(self.operator_compliance+
                 self.operator_compliance_gain*elapsed*(goal_h-angles['operator']),
                 0.,self.operator_compliance_limit))
-        press_ready = not self.wait_for_press_completion or t >= self.started+self.press_seconds
-        if self.open_started is None and press_ready and angles['operator'] >= self.release_operator_threshold and angles['latch'] >= self.release_bolt_threshold:
+        press_complete=(self.press_progress_s>=self.press_seconds if self.progress_gated else t>=self.started+self.press_seconds)
+        press_ready = not self.wait_for_press_completion or press_complete
+        if allow_progress and self.open_started is None and press_ready and angles['operator'] >= self.release_operator_threshold and angles['latch'] >= self.release_bolt_threshold:
             self.open_started = t
             self.initial_leaf_goal = self.info.get('goal_leaf_rad',0.)
-        goal_l = 0. if self.open_started is None else self.initial_leaf_goal+(self.leaf_target-self.initial_leaf_goal)*smooth_phase((t-self.open_started)/self.opening_seconds)
+            self.open_progress_s=0.
+        goal_l = 0. if self.open_started is None else self.initial_leaf_goal+(self.leaf_target-self.initial_leaf_goal)*smooth_phase(self.open_progress_s/self.opening_seconds)
         requested_leaf_goal=goal_l
         if self.open_started is not None and self.leaf_lead_limit_rad is not None:
             goal_l=min(goal_l,angles['leaf']+self.leaf_lead_limit_rad)
@@ -184,13 +243,13 @@ class DoorOperationTeacher:
                                       angles['operator']+self.operator_lead_limit_rad))
         # Ramp the optional reference recenter over one second. This moves a
         # bounded motor controller's target, never the physical hand or handle.
-        offset=smooth_phase(t-self.started)*self.grasp_offset
+        offset=smooth_phase(self.press_progress_s)*self.grasp_offset
         pos, rot = reproject_grasp(handle_pose,leaf_pose,angles,dict(operator=reference_h,leaf=goal_l),
                                   self.p_relative+offset,self.r_relative,self.geometry)
         if self.index_reference is not None:
-            teacher.path[-1,self.index_column]=self.index_reference+smooth_phase(t-self.started)*self.index_proximal_offset
+            teacher.path[-1,self.index_column]=self.index_reference+smooth_phase(self.press_progress_s)*self.index_proximal_offset
         if self.index_tendon_reference is not None:
-            teacher.path[-1,self.index_tendon_columns]=self.index_tendon_reference+smooth_phase(t-self.started)*self.index_tendon_offset/2
+            teacher.path[-1,self.index_tendon_columns]=self.index_tendon_reference+smooth_phase(self.press_progress_s)*self.index_tendon_offset/2
         teacher.positions[-1] = pos
         teacher.rotations[-1] = rot
         force, info = teacher.force(t,root,joints,velocities,handle_pose,hand_loads)
@@ -202,7 +261,7 @@ class DoorOperationTeacher:
             eligible=bool(grasp_qualified and (self.attained_hold_stage=='acquisition' or
                 (self.attained_hold_stage=='operator' and self.open_started is not None
                  and angles['operator']>=.75 and angles['latch']>=.0105) or
-                (self.open_started is not None and t>=self.open_started+self.opening_seconds
+                (self.open_started is not None and (self.open_progress_s>=self.opening_seconds if self.progress_gated else t>=self.open_started+self.opening_seconds)
                 and .075<=angles['leaf']<=.10 and (self.attained_hold_stage=='aperture' or
                  (angles['operator']>=.75 and angles['latch']>=.0105)))))
             force,hold_info=self.attained_hold.force(t,force,joints,velocities,eligible=eligible)
@@ -220,8 +279,8 @@ class DoorOperationTeacher:
                          operator_follow_started_s=self.operator_follow_started,operator_follow_fraction=follow,
                          commanded_operator_reference_rad=float(reference_h),requested_operator_reference_rad=float(requested_reference_h),operator_lead_limit_rad=self.operator_lead_limit_rad,operator_follow_after_leaf_rad=self.operator_follow_after_leaf_rad,
                          grasp_offset_in_handle_m=offset.tolist(),
-                         index_proximal_offset_rad=float(smooth_phase(t-self.started)*self.index_proximal_offset),
-                         index_tendon_offset_rad=float(smooth_phase(t-self.started)*self.index_tendon_offset),
+                         index_proximal_offset_rad=float(smooth_phase(self.press_progress_s)*self.index_proximal_offset),
+                         index_tendon_offset_rad=float(smooth_phase(self.press_progress_s)*self.index_tendon_offset),
                          actual_handle_rad=angles['operator'],actual_leaf_rad=angles['leaf'],
-                         actual_bolt_m=angles['latch'])
+                         actual_bolt_m=angles['latch'],**self._progress_info())
         return force, {**info,**self.info}

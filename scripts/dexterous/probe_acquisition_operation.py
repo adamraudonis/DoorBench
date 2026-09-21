@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import time
 
 import mujoco
 import numpy as np
@@ -22,6 +23,114 @@ from doorbench.dexterous.acquisition_teacher import AcquisitionTeacher
 from doorbench.dexterous.environment import DexterousDoorEnv
 from doorbench.dexterous.grasp_verification import native_grasp_sample, audited_native_step, audit_grasp_steps
 from doorbench.dexterous.provenance import capture
+
+
+def validate_jev_progress_arguments(args):
+    if not np.isfinite(args.jev_sample_period) or not .05<=args.jev_sample_period<=10.:
+        raise ValueError('Jev sample period must be 0.05..10 wall-clock seconds')
+    if args.jev_progress_plan is not None:
+        if not args.portable_wrapper or not args.record_transitions or args.standing_transfer_path:
+            raise ValueError('Jev progress requires standalone portable operation and full transition recording')
+    elif args.jev_sample_period!=.2:
+        raise ValueError('An explicit Jev sample period requires --jev-progress-plan')
+
+
+def native_progress_snapshot(*,episode_id,sample_id,now_s,phase,physics_row,stance_status,
+                             simulation_time_s,physics_dt,prior_loads=None):
+    """Copy existing measured native evidence; never query or step the plant.
+
+    Contact values are privileged digit/lever normal-force sums. They are not
+    camera inference or finite tactile sensors. Balance combines the current
+    measured posture with the preceding completed stance solve; that solve's
+    status is not re-described as a fresh solution at this state.
+    """
+    from doorbench.dexterous.jev_progress_advisor import DIGITS,ProgressSnapshot
+    row=physics_row;pad=row['pad_grasp']
+    values=tuple(float(pad['digit_forces_N'][digit]) for digit in DIGITS)
+    time_aligned=abs(float(row['sim_time_s'])-simulation_time_s)<=max(1e-8,physics_dt*1e-5)
+    valid=bool(row['finite'] and time_aligned and all(np.isfinite(values)))
+    posture=bool(row['root_height_m']>.7 and 0<=row['torso_tilt_deg']<12)
+    balance=None if stance_status is None else bool(posture and stance_status in ('solved','solved inaccurate'))
+    physical=bool(valid and row['numerical_warnings']==0 and row['native_motor_limits']
+        and 0<=row['max_joint_limit_violation_rad']<=.02
+        and 0<=row['max_shadow_loopback_violation_rad']<=.02
+        and 0<=row['max_nonfoot_penetration_m']<=.003
+        and row['external_wrench_max']==0 and row['applied_generalized_force_max']==0)
+    grip=bool(pad['valid_pad_grasp'])
+    return ProgressSnapshot(episode_id=episode_id,sample_id=sample_id,
+        simulation_time_s=float(simulation_time_s),capture_monotonic_s=float(now_s),phase=phase,
+        normal_loads_N=values,grip_stable=grip,balance_ready=balance,
+        local_continue_allowed=bool(physical and grip and balance is True),
+        contact_source='privileged_digit_handle_contact',sensor_valid=valid,
+        prior_normal_loads_N=prior_loads)
+
+
+class NativeJevProgressGate:
+    """Optional nonblocking lever-progress experiment and causal JSONL record."""
+    def __init__(self,plan,advisor,output,*,sample_period=.2,clock=time.monotonic):
+        self.plan,self.advisor,self.output=plan,advisor,Path(output)
+        self.sample_period,self.clock=sample_period,clock
+        self.last_submit=None;self.prior_loads=None;self.seen=set();self.closed=False
+        self.counts=dict(requests_submitted=0,model_replies_consumed=0,
+                         continue_intervals=0,pause_intervals=0,astra_requests=0)
+        self.latencies=[]
+        self.stream=(self.output/'jev-progress.jsonl').open('w',encoding='utf-8')
+
+    def write(self,value):
+        self.stream.write(json.dumps(value,allow_nan=False)+'\n')
+
+    def choose(self,**measurements):
+        now=self.clock()
+        snapshot=native_progress_snapshot(now_s=now,prior_loads=self.prior_loads,**measurements)
+        advice=self.advisor.poll(snapshot,self.plan)
+        if advice is not None and advice.sample_id not in self.seen:
+            self.seen.add(advice.sample_id)
+            self.counts['model_replies_consumed']+=1
+            if advice.latency_ms is not None:self.latencies.append(advice.latency_ms)
+            self.counts['astra_requests']+=int(advice.proposed_action=='request_astra')
+            self.write(dict(event='reply_consumed',consumed_sample_id=snapshot.sample_id,
+                consumed_simulation_time_s=snapshot.simulation_time_s,advice=advice.to_dict()))
+        if self.last_submit is None or now-self.last_submit>=self.sample_period:
+            if self.advisor.submit(snapshot,self.plan):
+                from dataclasses import asdict
+                self.last_submit=now;self.prior_loads=tuple(snapshot.normal_loads_N)
+                self.counts['requests_submitted']+=1
+                self.write(dict(event='request_submitted',snapshot=asdict(snapshot),
+                    preceding_stance_status=measurements['stance_status']))
+        allow=bool(advice is not None and advice.advance)
+        context=dict(event='controller_submission',sample_id=snapshot.sample_id,
+            simulation_time_s=snapshot.simulation_time_s,capture_monotonic_s=now,
+            allow_progress=allow,advice_sample_id=None if advice is None else advice.sample_id,
+            action='pause_press' if advice is None else advice.action,
+            reason='awaiting_advice' if advice is None else advice.reason,
+            advice_age_wall_s=None if advice is None else now-advice.capture_monotonic_s,
+            advice_age_simulation_s=None if advice is None else snapshot.simulation_time_s-advice.simulation_time_s,
+            local_continue_allowed=snapshot.local_continue_allowed,
+            actual_grasp_qualified=snapshot.grip_stable,preceding_stance_status=measurements['stance_status'])
+        return allow,context
+
+    def record_submission(self,context,info):
+        self.counts['continue_intervals' if context['allow_progress'] else 'pause_intervals']+=1
+        context=dict(context,progress={key:info[key] for key in ('press_progress_s','opening_progress_s','progress_rate')})
+        self.write(context)
+        if sum(self.counts[k] for k in ('continue_intervals','pause_intervals'))%100==0:self.stream.flush()
+
+    def summary(self):
+        return dict(scope='Live asynchronous Jev decisions gate privileged native lever progression only; no vision, release, traversal or learned-policy claim',
+            plan_id=self.plan.plan_id,sample_period_wall_s=self.sample_period,**self.counts,
+            latency_ms_mean=float(np.mean(self.latencies)) if self.latencies else None,
+            latency_ms_max=max(self.latencies) if self.latencies else None,
+            contact_source='privileged_digit_handle_contact',
+            balance_source='current measured posture and preceding completed stance-solver status',
+            decision_log='jev-progress.jsonl',api_key_saved=False)
+
+    def close(self):
+        if self.closed:return
+        self.closed=True
+        self.advisor.close()
+        result=self.summary();self.write(dict(event='closed',**result))
+        self.stream.close()
+        (self.output/'jev-progress-summary.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
 
 
 def smooth(value):
@@ -94,6 +203,8 @@ def main():
     parser.add_argument('--press-seconds', type=float, default=5.)
     parser.add_argument('--stance-profile',choices=['landed-foot-v1'])
     parser.add_argument('--record-transitions',action='store_true')
+    parser.add_argument('--grasp-profile',choices=('distal-pad-v1','volar-phalange-v1'),default='distal-pad-v1',help='Prospectively selected anatomy contract; original distal score is retained')
+    parser.add_argument('--grasp-profile-definition',type=Path,help='Frozen source-bound declaration for an opt-in grasp profile')
     parser.add_argument('--portable-wrapper', action='store_true')
     parser.add_argument('--open-on-latch-clear', action='store_true')
     parser.add_argument('--operator-compliance-gain',type=float,default=0.)
@@ -114,6 +225,7 @@ def main():
     parser.add_argument('--standing-transfer-attained-arm',action='store_true',help='Experimental: track screened attained arm joints with measured initial motor preload')
     parser.add_argument('--standing-transfer-no-fixed-pads',action='store_true',help='Ablation: preserve operation digit controller without extra transfer pad tracking')
     parser.add_argument('--standing-transfer-start-seconds',type=float,default=22.)
+    parser.add_argument('--standing-transfer-support-load',type=float,help='Prospective LH panel load target above 2 N and at most 8 N; default 4 N, original palm gate and motor caps unchanged')
     parser.add_argument('--standing-transfer-handoff-seconds',type=float,default=0.)
     parser.add_argument('--standing-transfer-hold-route',action='store_true',help='Diagnostic: hold body/left route at its initial pose; never a completed transfer')
     parser.add_argument('--standing-transfer-preload-profile',choices=('maintain','balanced-4n','index-6n'),default='maintain')
@@ -132,8 +244,16 @@ def main():
     parser.add_argument('--landed-foot-max-iterations',type=int,default=50000,help='Explicit solver work budget; physical limits and convergence tolerances remain unchanged')
     parser.add_argument('--operation-handle-hub-avoidance',action='store_true',help='Explicit bounded little-finger motor repulsion from the handle hub')
     parser.add_argument('--operation-hub-clearance-m',type=float,default=.004,help='Prospective 4–8 mm hub-avoidance activation; force cap remains 3 N')
+    parser.add_argument('--jev-progress-plan',type=Path,help='Opt-in live Jev lever-progress decisions under this explicit AstraPlan; TYPESAFE_API_KEY required')
+    parser.add_argument('--jev-sample-period',type=float,default=.2,help='Minimum wall-clock seconds between asynchronous Jev requests; no physics sleeps')
     parser.add_argument('--validate-arguments-only',action='store_true',help='Validate CLI combinations without reading assets or starting physics')
     args = parser.parse_args()
+    if args.grasp_profile!='distal-pad-v1' and (args.grasp_profile_definition is None or not args.record_transitions):
+        parser.error('An opt-in grasp profile requires a frozen declaration and actual transition recording')
+    if args.grasp_profile_definition is not None and args.grasp_profile=='distal-pad-v1':
+        parser.error('A grasp-profile declaration requires an explicit opt-in profile')
+    try:validate_jev_progress_arguments(args)
+    except ValueError as error:parser.error(str(error))
     if args.operation_handle_hub_avoidance and not args.portable_wrapper:parser.error('Hub avoidance requires portable operation wrapper')
     if args.operation_operator_follow_after_leaf_rad is not None and (not .015<=args.operation_operator_follow_after_leaf_rad<=.05 or not args.portable_wrapper or args.standing_transfer_path):parser.error('Operator follow requires standalone operation and .015..0.05 rad')
     lead_transfer_supported = (not args.standing_transfer_path or (
@@ -152,6 +272,8 @@ def main():
     if (args.standing_transfer_handle_relative_arm or args.standing_transfer_leaf_relative_arm) and (not args.standing_transfer_path or not args.standing_transfer_attained_arm or not args.standing_transfer_no_fixed_pads or args.standing_return_path):
         parser.error('Handle-relative targets require explicit attained-arm transfer without return')
     if args.standing_withdrawal_path and not args.standing_return_path:parser.error('Withdrawal requires a standing return route')
+    if args.standing_transfer_support_load is not None and (not args.standing_transfer_path or not np.isfinite(args.standing_transfer_support_load) or not 2<args.standing_transfer_support_load<=8):
+        parser.error('Transfer support load requires an explicit transfer route and a target above 2 N and at most 8 N')
     if (args.standing_return_palm_feedback or args.standing_return_hold_finger_posture or args.standing_return_support_load is not None) and not args.standing_return_path:parser.error('Finger posture continuation requires an explicit return path')
     if not args.standing_transfer_path and (args.standing_return_path or args.standing_transfer_attained_arm or args.standing_transfer_no_fixed_pads or args.standing_transfer_start_seconds!=22. or args.standing_transfer_hold_route or args.standing_transfer_handoff_seconds or args.standing_transfer_preload_profile!='maintain' or any(args.standing_transfer_grasp_shift)):
         parser.error('Transfer options require an explicit transfer route')
@@ -160,6 +282,11 @@ def main():
     if not np.isfinite(args.operation_hub_clearance_m) or not .004<=args.operation_hub_clearance_m<=.008:parser.error('Hub clearance activation must be 4–8 mm')
     if args.validate_arguments_only:
         print(json.dumps(dict(arguments_valid=True,physics_started=False)));return
+    jev_plan=jev_client=None
+    if args.jev_progress_plan is not None:
+        from doorbench.dexterous.jev_advisor import AstraPlan,JevClient
+        jev_plan=AstraPlan(**json.loads(args.jev_progress_plan.read_text(encoding='utf-8')))
+        jev_client=JevClient()  # Validate the credential before physics; no HTTP request here.
     from doorbench.dexterous.storage_budget import check_storage, check_retained_budget, EVIDENCE_BYTES_PER_SECOND
     storage_admission = check_storage(args.output, seconds_remaining=args.seconds)
     retained_roots=[args.output.parent]
@@ -171,14 +298,21 @@ def main():
     if not json.loads((args.reference.parent/'geometry-audit.json').read_text())['passed']:
         raise ValueError('Unscreened acquisition route')
     ref, motors = json.loads(args.reference.read_text()), json.loads(args.motors.read_text())
+    if args.grasp_profile_definition is not None:
+        declaration=json.loads(args.grasp_profile_definition.read_text())
+        robot_sha=hashlib.sha256(args.robot.read_bytes()).hexdigest()
+        if declaration.get('profile')!=args.grasp_profile or declaration.get('robot_xml_sha256')!=robot_sha or motors.get('source_xml_sha256')!=robot_sha:
+            raise ValueError('Grasp declaration, robot and motor contract must identify the same embodiment')
     # Capture the actual imported controller tree even while this driver lives
     # in an isolated worktree, and retain the executed driver as an override.
     controller_root = Path(inspect.getfile(AcquisitionTeacher)).resolve().parents[2]
     capture(controller_root, args.output, {k:str(v) if isinstance(v, Path) else v for k,v in vars(args).items()})
     from doorbench.dexterous.controller_input_snapshot import snapshot_controller_inputs
     snapshot_controller_inputs([args.reference,args.motors,args.reference.parent/'geometry-audit.json',
-        args.standing_transfer_path,args.standing_return_path,args.standing_withdrawal_path],
+        args.standing_transfer_path,args.standing_return_path,args.standing_withdrawal_path,args.jev_progress_plan,args.grasp_profile_definition],
         args.output/'controller-inputs')
+    if args.grasp_profile_definition is not None:
+        shutil.copy2(args.grasp_profile_definition,args.output/'grasp-profile-definition.json')
     (args.output/'storage-admission.json').write_text(json.dumps(storage_admission,indent=2)+'\n')
     (args.output/'run.pid').write_text(str(os.getpid()))
     def stage(label):
@@ -227,13 +361,13 @@ def main():
     if args.standing_transfer_path:
         if not args.portable_wrapper or not args.record_transitions:raise ValueError('Standing transfer requires portable operation and full physical evidence')
         from doorbench.dexterous.standing_transfer import StandingTransferTeacher
-        transfer=StandingTransferTeacher(operation,motors,args.standing_transfer_path,start_seconds=args.standing_transfer_start_seconds,fixed_pad_tracking=not args.standing_transfer_no_fixed_pads,attained_arm_tracking=args.standing_transfer_attained_arm,preload_profile=args.standing_transfer_preload_profile,grasp_shift=args.standing_transfer_grasp_shift,hold_route=args.standing_transfer_hold_route,handoff_seconds=args.standing_transfer_handoff_seconds,handle_relative_arm=args.standing_transfer_handle_relative_arm,leaf_relative_arm=args.standing_transfer_leaf_relative_arm)
+        transfer=StandingTransferTeacher(operation,motors,args.standing_transfer_path,start_seconds=args.standing_transfer_start_seconds,fixed_pad_tracking=not args.standing_transfer_no_fixed_pads,attained_arm_tracking=args.standing_transfer_attained_arm,preload_profile=args.standing_transfer_preload_profile,grasp_shift=args.standing_transfer_grasp_shift,hold_route=args.standing_transfer_hold_route,handoff_seconds=args.standing_transfer_handoff_seconds,handle_relative_arm=args.standing_transfer_handle_relative_arm,leaf_relative_arm=args.standing_transfer_leaf_relative_arm,support_load_target=4. if args.standing_transfer_support_load is None else args.standing_transfer_support_load)
     hand_names = {b:m.body(b).name.removeprefix('robot/') for b in range(m.nbody)
                   if m.body(b).name.startswith(('robot/rh_', 'robot/lh_'))}
     from doorbench.dexterous.bounded_evidence import BoundedEvidence
     from itertools import islice
     physics = BoundedEvidence(args.output/'physics-chunks')
-    physics.append(native_grasp_sample(sim, 'leaf_handle_lever_col_n', handle_joint='leaf_handle_hinge'))
+    physics.append(native_grasp_sample(sim, 'leaf_handle_lever_col_n', handle_joint='leaf_handle_hinge',profile=args.grasp_profile))
     states = {key:[] for key in ('qpos', 'qvel', 'ctrl')}
     if args.standing_return_path:
         from doorbench.dexterous.standing_return import StandingReturnTeacher
@@ -248,8 +382,18 @@ def main():
     if args.record_transitions:
         from doorbench.dexterous.native_transition_audit import NativeTransitionRecorder
         from doorbench.dexterous.native_transition_archive import NativeTransitionArchive
-        recorder=NativeTransitionRecorder(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge');archive=NativeTransitionArchive(args.output/'raw-transitions')
+        recorder=NativeTransitionRecorder(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge',profile=args.grasp_profile);archive=NativeTransitionArchive(args.output/'raw-transitions')
+    jev_gate=None
     try:
+        if jev_plan is not None:
+            from doorbench.dexterous.jev_progress_advisor import JevProgressAdvisor,AsyncJevProgressAdvisor
+            from dataclasses import asdict
+            advisor=AsyncJevProgressAdvisor(JevProgressAdvisor(jev_client))
+            jev_gate=NativeJevProgressGate(jev_plan,advisor,args.output,sample_period=args.jev_sample_period)
+            (args.output/'jev-progress-plan.json').write_text(json.dumps(dict(plan=asdict(jev_plan),
+                plan_sha256=hashlib.sha256(args.jev_progress_plan.read_bytes()).hexdigest(),
+                sample_period_wall_s=args.jev_sample_period,physics_dt_s=float(m.opt.timestep),
+                phase='lever_operation',default_other_phase_progress=True,api_key_saved=False),indent=2)+'\n')
         controller_error=None
         try:
             for step in range(round(args.seconds/m.opt.timestep)):
@@ -273,18 +417,27 @@ def main():
                 root = np.r_[d.qpos[sim.root_qadr:sim.root_qadr+7],d.qvel[sim.root_vadr:sim.root_vadr+3],
                              rot@d.qvel[sim.root_vadr+3:sim.root_vadr+6]]
                 measured_joints, measured_velocities = dict(zip(teacher.names,d.qpos[qa])),dict(zip(teacher.names,d.qvel[va]))
+                progress_options={};jev_context=None
+                if jev_gate is not None and operation.started is not None and operation.open_started is None:
+                    allow,jev_context=jev_gate.choose(episode_id=str(args.output.resolve()),sample_id=step,
+                        phase='lever_operation',physics_row=physics[-1],stance_status=teacher.info.get('stance_status'),
+                        simulation_time_s=float(d.time),physics_dt=float(m.opt.timestep))
+                    progress_options['allow_progress']=allow
                 if args.portable_wrapper:
                     force,info = (transfer or operation).force(float(d.time),root,measured_joints,measured_velocities,
                         np.r_[d.xpos[hb],d.xquat[hb]],np.r_[d.xpos[lb],d.xquat[lb]],
                         dict(operator=d.qpos[m.jnt_qposadr[hj]],leaf=d.qpos[m.jnt_qposadr[lj]],latch=d.qpos[m.jnt_qposadr[bj]]),
-                        loads,grasp_qualified=physics[-1]['pad_grasp']['valid_pad_grasp'],**({'left_panel_load':recorder.left_surface['total_normal_load_N']} if transfer else {}))
+                        loads,grasp_qualified=physics[-1]['pad_grasp']['valid_pad_grasp'],**progress_options,**({'left_panel_load':recorder.left_surface['total_normal_load_N']} if transfer else {}))
                     goal_info = transfer.info if transfer else operation.info
                 else:
                     force, info = teacher.force(float(d.time),root,measured_joints,measured_velocities,np.r_[d.xpos[hb],d.xquat[hb]],loads)
                 d.ctrl[aids] = force
+                if jev_context is not None:
+                    info=dict(info,jev_progress=jev_context)
+                    jev_gate.record_submission(jev_context,info)
                 if recorder:
                     recorder.before_step();sim.plant.step();row,raw=recorder.after_step();archive.write(raw);controller_steps.append(dict(time_s=float(d.time)-m.opt.timestep,**info))
-                else:row = audited_native_step(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge')
+                else:row = audited_native_step(sim,'leaf_handle_lever_col_n',handle_joint='leaf_handle_hinge',profile=args.grasp_profile)
                 if transfer:row['left_surface']=recorder.left_surface.copy()
                 if withdrawal_pairs is not None and d.time>=transfer.start_time-1e-8:
                     row['right_environment_clearance_m']=environment_clearance(m,d,withdrawal_pairs)
@@ -311,8 +464,12 @@ def main():
             snapshot=getattr(arm_target,'failure_snapshot',None)
             if snapshot is not None:
                 (args.output/'relative-arm-failure.json').write_text(json.dumps(snapshot,indent=2,allow_nan=False)+'\n')
+        if jev_gate is not None:jev_gate.close()
         stage('Reducing recorded physical and contact checks')
         report = audit_grasp_steps(physics,physics_dt=m.opt.timestep,expected_duration=args.seconds)
+        report['grasp_profile']=args.grasp_profile
+        distal_tail=[r for r in physics if r['sim_time_s']>=args.seconds-.5-1e-8]
+        report['original_distal_pad_hold']=bool(len(distal_tail)>=round(.5/m.opt.timestep)+1 and all(r['pad_grasp'].get('distal_pad_grasp',r['pad_grasp'])['valid_pad_grasp'] for r in distal_tail))
         if archive:
             archive.close(complete=controller_error is None)
             controller_steps.export(args.output/'controller-steps.json.gz')
@@ -353,6 +510,7 @@ def main():
             maximum_leaf_rad=max(r['door_q'] for r in physics),final_leaf_rad=physics[-1]['door_q'],
             maximum_bolt_retraction_m=max(r.get('bolt_slide_m',0) for r in physics),
             final_contacts=physics[-1]['pad_grasp'])
+        if jev_gate is not None:report['jev_progress_experiment']=jev_gate.summary()
         operation_rows = lambda:(r for r in physics if operation.started is not None and r['sim_time_s'] >= operation.started)
         report['operation_digit_unload_samples'] = sum(not r['pad_grasp']['valid_pad_grasp'] for r in operation_rows())
         report['operation_invalid_pad_patch_samples'] = sum(any(not c['pad_qualified'] for c in r['pad_grasp']['contacts']) for r in operation_rows())
@@ -385,6 +543,7 @@ def main():
         report_tmp.replace(args.output/'report.json')
         print(json.dumps({k:v for k,v in report.items() if k!='final_contacts'}),flush=True)
     finally:
+        if jev_gate is not None:jev_gate.close()
         if archive and not archive.closed:archive.close(complete=False)
         sim.close()
     raise SystemExit(0 if report['passed'] else 1)

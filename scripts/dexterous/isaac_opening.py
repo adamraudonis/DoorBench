@@ -128,6 +128,9 @@ p.add_argument('--reference',required=True)
 p.add_argument('--output',required=True)
 p.add_argument('--seconds',type=float,default=12.)
 p.add_argument('--record',action='store_true')
+p.add_argument('--review-render-profile',choices=['native-materials-v1'],help='Opt-in session-only visual material correction and diagnostic lighting')
+p.add_argument('--jev-progress-plan',type=Path,help='Opt-in Astra plan for asynchronous Jev permission during standalone lever pressing')
+p.add_argument('--jev-sample-period',type=float,default=.2,help='Minimum wall seconds between Jev requests; physics and motor clocks remain unchanged')
 p.add_argument('--sensor-layout',help='Record finite robot-mounted sensors; teacher remains privileged')
 p.add_argument('--sensor-gyro-profile',choices=['backend-angular-velocity-v1','pose-delta-angle-v1'],default='backend-angular-velocity-v1',help='Explicit ideal own-body delta-angle sensor alternative; accelerometer and estimator remain unchanged')
 p.add_argument('--time-scale',type=float,default=1.,help='Slower motor-reference clock; physics dt is unchanged')
@@ -201,6 +204,10 @@ p.add_argument('--stance-qp',action='store_true',help='Privileged inverse-dynami
 p.add_argument('--press-feedforward',action='store_true',help='Task-space pressure via bounded robot motors')
 p.add_argument('--panel-push',action='store_true',help='Development: reacquire open-palm panel contact after handle release, through bounded motors')
 p.add_argument('--mechanism-test',action='store_true',help='Non-robot calibration: apply known forces directly to door joints')
+if os.name == 'nt':
+    # Isaac Lab's import bootstraps Kit DLLs. MuJoCo must load first on Windows;
+    # the opposite order fails with WinError1114 even before AppLauncher starts.
+    import mujoco
 from isaaclab.app import AppLauncher
 AppLauncher.add_app_launcher_args(p)
 p.add_argument('--operation-opening-trigger-rad',type=float,default=.80,help='Controller transition only; final operator and latch acceptance thresholds remain unchanged')
@@ -212,6 +219,9 @@ p.add_argument('--operation-hub-clearance-m',type=float,default=.004,help='Prosp
 p.add_argument('--operation-operator-follow-after-leaf-rad',type=float,help='Blend toward the measured handle angle after the leaf clears the latch')
 p.add_argument('--validate-arguments-only',action='store_true',help='Validate CLI combinations without starting SimulationApp')
 a=p.parse_args()
+from doorbench.dexterous.isaac_jev_progress import validate_isaac_jev_arguments
+try:validate_isaac_jev_arguments(a)
+except ValueError as error:p.error(str(error))
 if a.standing_transfer_route and (not a.acquisition or not a.operate_after_acquisition or a.acquisition_stance_profile!='landed-foot-v1' or a.full_opening or a.full_sequence_reset or a.sensor_policy_checkpoint or a.sensor_balance_calibration or a.sensor_locomotion_calibration):
     p.error('Standing transfer requires standalone privileged landed-foot acquisition and operation')
 if not math.isfinite(a.standing_transfer_start_seconds) or a.standing_transfer_start_seconds<=0 or (a.standing_transfer_route and a.seconds<a.standing_transfer_start_seconds+8.5):
@@ -286,6 +296,12 @@ if not .70<=a.operation_opening_trigger_rad<=.80:raise ValueError('Opening trigg
 if not math.isfinite(a.operation_hub_clearance_m) or not .004<=a.operation_hub_clearance_m<=.008:p.error('Hub clearance activation must be 4–8 mm')
 if a.validate_arguments_only:
     print(json.dumps(dict(arguments_valid=True,physics_started=False)));raise SystemExit(0)
+jev_plan=jev_plan_bytes=jev_client=None
+if a.jev_progress_plan is not None:
+    from doorbench.dexterous.isaac_jev_progress import read_jev_plan
+    from doorbench.dexterous.jev_advisor import JevClient
+    jev_plan,jev_plan_bytes=read_jev_plan(a.jev_progress_plan)
+    jev_client=JevClient()  # Credential validation only; no HTTP before a live gate request.
 if a.record or a.sensor_layout:a.enable_cameras=True
 launcher=AppLauncher(a);app=launcher.app
 import numpy as np
@@ -373,6 +389,14 @@ def main():
     # The exported door file has a default prim; its authored world floor is retained.
     # door.usda already has a solid floor at z=0; a second floor doubles contacts.
     sim_utils.DomeLightCfg(intensity=1800.).func('/World/Light',sim_utils.DomeLightCfg(intensity=1800.))
+    review_render_audit=None
+    if a.review_render_profile:
+        from doorbench.dexterous.isaac_rendering import restore_robot_visual_materials,configure_diagnostic_lighting
+        review_render_audit=dict(profile=a.review_render_profile,
+            materials=restore_robot_visual_materials(stage,'/World/H1'),
+            lighting=configure_diagnostic_lighting(stage,'/World/Light'))
+        (out/'review-render-audit.json').write_text(json.dumps(review_render_audit,indent=2)+'\n')
+        stage.GetSessionLayer().Export(str((out/'review-render-session.usda').resolve()))
     # Diagnostic gold makes black finger pads distinguishable from the lever.
     material=UsdShade.Material.Define(stage,'/World/DiagnosticHandle')
     shader=UsdShade.Shader.Define(stage,'/World/DiagnosticHandle/Shader')
@@ -675,7 +699,11 @@ def main():
         standing_body_indices=[robot.body_names.index(name) for name in ROBOT_BODIES]
     release_time=None
     ankle_motors=[i for i,motor in enumerate(motors['actuators']) if any(n in motor['terms'] for n in ('left_ankle','right_ankle'))]
-    (out/'configuration.json').write_text(json.dumps(dict(args=vars(a),robot_joint_names=rnames,door_joint_names=dnames,
+    if jev_plan is not None:
+        from doorbench.dexterous.isaac_jev_progress import write_jev_protocol
+        write_jev_protocol(out,plan=jev_plan,plan_bytes=jev_plan_bytes,source_path=a.jev_progress_plan,
+            grasp_profile=a.grasp_profile,sample_period=a.jev_sample_period,physics_dt=dt)
+    (out/'configuration.json').write_text(json.dumps(dict(args={k:str(v) if isinstance(v,Path) else v for k,v in vars(a).items()},robot_joint_names=rnames,door_joint_names=dnames,
         standing_planner_body_names=list(PLANNER_BODIES) if record_standing_body_poses else None,
         standing_planner_body_pose_convention='World body-origin XYZ/WXYZ at acquisition-physics time_s' if record_standing_body_poses else None,
         dt=dt,robot_mass_kg=float(robot.root_physx_view.get_masses().sum()),latch_scale=scale,
@@ -685,6 +713,8 @@ def main():
         runtime_pose_writes=0,direct_door_commands=bool(a.mechanism_test),contact_material_audit=contact_material_audit,
         scope='Uninterrupted approach, opening, release and traversal; privileged live PhysX development' if continuous else 'Continuous approach through bimanual loaded aperture; privileged live PhysX; no traversal' if full_opening and sequence else 'Contact-free acquisition through bimanual loaded aperture; privileged live PhysX; no approach/traversal' if full_opening else balance_scope if a.sensor_balance_calibration else 'Sensor-only recurrent force actor; declared curriculum objective; no teacher or traversal claim' if sensor_actor else 'Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
     sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py','isaac_joint_passive.py')]
+    if a.review_render_profile:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/isaac_rendering.py')
+    if jev_plan is not None:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('jev_advisor.py','jev_progress_advisor.py','isaac_jev_progress.py')]
     if physics_audit_enabled:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/bounded_evidence.py')
     if a.operate_after_acquisition:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/operation_pad_counts.py')
     if record_standing_body_poses:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/standing_body_record.py')
@@ -697,6 +727,8 @@ def main():
     if sequence:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
         ('full_sequence_teacher.py','approach_teacher.py','approach_lowering.py','locomotion.py','locomotion_approach.py','locomotion_manipulation.py','locomotion_posture.py','isaac_sensors.py')]
     inputs=[Path(a.robot_usd),Path(a.door_usd),Path(a.motors),Path(a.reference)]
+    if jev_plan is not None:inputs += [out/'jev-progress-plan-input.json',out/'jev-progress-plan.json']
+    if a.review_render_profile:inputs += [out/'review-render-audit.json',out/'review-render-session.usda']
     if a.standing_transfer_route:
         inputs.append(Path(a.standing_transfer_route))
         (out/'standing-transfer-route.json').write_bytes(Path(a.standing_transfer_route).read_bytes())
@@ -1022,10 +1054,17 @@ def main():
     time_origin=float(sim.current_time)
     from doorbench.dexterous.wall_phase_timer import WallPhaseTimer
     wall_timing=WallPhaseTimer()
+    jev_gate=None
     try:
+        if jev_plan is not None:
+            from doorbench.dexterous.isaac_jev_progress import IsaacJevProgressGate
+            from doorbench.dexterous.jev_progress_advisor import JevProgressAdvisor,AsyncJevProgressAdvisor
+            jev_gate=IsaacJevProgressGate(jev_plan,AsyncJevProgressAdvisor(JevProgressAdvisor(jev_client)),
+                out,sample_period=a.jev_sample_period)
         for step in range(round(a.seconds/dt)):
             wall_timing.start()
             delivery_failure=None
+            jev_context=None
             pos=robot.data.joint_pos[0].cpu().numpy();vel=robot.data.joint_vel[0].cpu().numpy()
             ctrl=np.zeros(len(kp)) if sensor_actor else controls[min(int(step*dt*50/a.time_scale),len(controls)-1)].copy()
             if teacher and not a.acquisition:
@@ -1124,7 +1163,21 @@ def main():
                             forces,teacher_info=standing_transfer.force(*measured_args,leaf_pose,angles,loads,
                                 grasp_qualified=pad_steps[-1]['valid_pad_grasp'],left_panel_load=surface['total_normal_load_N'],left_palm_load=surface['palm_normal_load_N'])
                         else:
-                            forces,teacher_info=operation.force(*measured_args,body[door.body_names.index('leaf')],angles,loads,grasp_qualified=pad_steps[-1]['valid_pad_grasp'])
+                            progress_options={}
+                            if jev_gate is not None and operation.started is not None and operation.open_started is None:
+                                preceding_motor=acquisition_states['motor_forces'][-1] if acquisition_states['motor_forces'] else None
+                                allow_progress,jev_context=jev_gate.choose(episode_id=str(out.resolve()),sample_id=step,
+                                    simulation_time_s=step*dt,phase='lever_operation',pad=pad_steps[-1],
+                                    grasp_profile=a.grasp_profile,root_state=measured_args[1].tolist(),
+                                    joint_position=pos.tolist(),joint_velocity=vel.tolist(),
+                                    torso_tilt_deg=float(np.degrees(np.arccos(np.clip(-robot.data.projected_gravity_b[0,2].item(),-1,1)))),
+                                    stance_status=teacher_info.get('stance_status'),mechanical_audit=mechanical_audit,
+                                    motor_delivery_error=max_motor_delivery_error,
+                                    motor_caps_ok=bool(preceding_motor is not None and np.all(preceding_motor>=force_ranges[:,0]-1e-5) and np.all(preceding_motor<=force_ranges[:,1]+1e-5)),
+                                    physics_dt=dt)
+                                progress_options['allow_progress']=allow_progress
+                            forces,teacher_info=operation.force(*measured_args,body[door.body_names.index('leaf')],angles,loads,
+                                grasp_qualified=pad_steps[-1]['valid_pad_grasp'],**progress_options)
                 elif not full_opening:forces,teacher_info=teacher.force(*measured_args,loads)
                 if sequence and sequence.readiness_screen is not None and not (out/'actual-preparation-screen.json').exists():
                     (out/'actual-preparation-screen.json').write_text(json.dumps(sequence.readiness_screen,indent=2)+'\n')
@@ -1164,6 +1217,7 @@ def main():
                 effort[0,dnames.index('leaf_hinge')]=3. if step*dt>1.5 else 0.
                 door.set_joint_effort_target(effort)
             robot.write_data_to_sim();door.write_data_to_sim()
+            if jev_context is not None:jev_gate.record_submission(jev_context,teacher_info)
             wall_timing.mark('controller_and_submission')
             contacts.clear();sim.step(render=False)
             wall_timing.mark('physics_step')
@@ -1453,6 +1507,8 @@ def main():
         if writer:writer.close()
         if hand_writer:hand_writer.close()
         raise
+    finally:
+        if jev_gate is not None:jev_gate.close()
     (out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n')
     save_attained_left_plan()
     if balance_contact_stream:

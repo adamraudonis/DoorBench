@@ -17,7 +17,7 @@ import mujoco
 import numpy as np
 from doorbench.dexterous.environment import DexterousDoorEnv
 from doorbench.dexterous.native_transition_archive import NativeTransitionArchive
-from doorbench.dexterous.grasp_verification import pad_opposition, shadow_surface_qualified
+from doorbench.dexterous.grasp_verification import pad_opposition, shadow_surface_qualified, grasp_profile
 from doorbench.dexterous.json_record_stream import iter_json_object_array
 from doorbench.dexterous.interval_clock import validate_step_epochs
 
@@ -25,7 +25,8 @@ from doorbench.dexterous.interval_clock import validate_step_epochs
 def sha(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def raw_pad_evidence(model,raw,lever):
+def raw_pad_evidence(model,raw,lever,*,profile='distal-pad-v1'):
+    grasp_profile(profile)
     contacts=[c for c in raw['contacts'] if lever in c['geom']]
     if not contacts:return pad_opposition([],np.zeros(3),np.array([1.,0,0])),[]
     poses=dict(zip(raw['body_ids'],zip(raw['body_positions_world_m'],raw['body_rotations_world'])))
@@ -44,7 +45,7 @@ def raw_pad_evidence(model,raw,lever):
         relative=position-center;axial=float(relative@axis);radial=relative-axial*axis
         alignment=float((br@outward)@(-radial/np.linalg.norm(radial))) if np.linalg.norm(radial)>1e-8 else 0.
         margin=float(model.geom_size[lever,1]-abs(axial))
-        pad=bool(shadow_surface_qualified(match.group(1),match.group(2),local_point,outward) and margin>=.001 and alignment>.8)
+        pad=bool(shadow_surface_qualified(match.group(1),match.group(2),local_point,outward,profile=profile) and margin>=.001 and alignment>.8)
         patches.append(dict(digit=match.group(1),position=position.tolist(),normal_force_N=max(0.,float(c['wrench_contact_frame'][0])),pad_qualified=pad))
     return pad_opposition(patches,center,axis),patches
 
@@ -59,6 +60,11 @@ def audit(trial,*,phase='grasp'):
         provenance_name='provenance.json';physics_name='physics.jsonl.gz';prov=json.loads((trial/provenance_name).read_text());robot=Path(prov['parameters']['robot']);door=Path(prov['parameters']['door']);door=door if door.is_dir() else door.parent
         robot_hash=prov['robot_xml_sha256'];door_hash=prov['door_xml_sha256'];duration=report['requested_duration_s']
     if sha(robot)!=robot_hash or sha(door/'door.xml')!=door_hash:raise ValueError('Actual source asset bytes changed')
+    profile=grasp_profile(cfg.get('grasp_profile','distal-pad-v1') if array_format else prov['parameters'].get('grasp_profile','distal-pad-v1'))
+    if profile!='distal-pad-v1':
+        declaration=json.loads((trial/'grasp-profile-definition.json').read_text())
+        if declaration.get('profile')!=profile or declaration.get('robot_xml_sha256')!=robot_hash or report.get('grasp_profile')!=profile:
+            raise ValueError('Recorded prospective grasp declaration differs from trial provenance')
     sim=DexterousDoorEnv(door,robot,json.loads(robot.with_suffix('.audit.json').read_text()),frame_skip=1)
     m=sim.m;lever=m.geom('leaf_handle_lever_col_n').id
     opposed_end=duration;clearance_pairs=[];clearance_count=0;minimum_clearance=float('inf');clearance_error=0.
@@ -96,7 +102,7 @@ def audit(trial,*,phase='grasp'):
                 t=expected_epoch
                 end=validate_step_epochs(raw,row,t)
                 expected_epoch=end
-                result,patches=raw_pad_evidence(m,raw,lever)
+                result,patches=raw_pad_evidence(m,raw,lever,profile=profile)
                 if any(c['normal_force_N']>0 for c in patches) and first_touch is None:first_touch=t
                 if result['valid_pad_grasp']!=row['pad_grasp']['valid_pad_grasp']:mismatches.append(n)
                 for k in min_final:
@@ -123,11 +129,14 @@ def audit(trial,*,phase='grasp'):
     checks=dict(physical_report_passed=report['passed'],complete_actual_interval_record=n==round(duration/.002),
         exact_classification=not mismatches,matching_qualified_pad_loads=force_error<1e-8,
         all_loaded_patches_original_distal=bad_patches==0,final_original_opposed_window=final_count>=251 and final_valid and best*.002>=.5)
+    if profile!='distal-pad-v1':
+        checks['all_loaded_patches_selected_profile']=checks.pop('all_loaded_patches_original_distal')
+        checks['final_selected_opposed_window']=checks.pop('final_original_opposed_window')
     if phase=='standing-withdrawal':
-        checks['opposed_window_before_intentional_release']=checks.pop('final_original_opposed_window')
+        checks['opposed_window_before_intentional_release']=checks.pop('final_original_opposed_window' if profile=='distal-pad-v1' else 'final_selected_opposed_window')
         checks['final_hand_clear_of_environment']=clearance_count>=251 and minimum_clearance>=.04
         checks['matching_recorded_final_clearance']=clearance_error<1e-8
-    result=dict(passed=all(checks.values()),checks=checks,interval_count=n,maximum_qualified_pad_force_difference_N=force_error,
+    result=dict(passed=all(checks.values()),checks=checks,grasp_profile=profile,interval_count=n,maximum_qualified_pad_force_difference_N=force_error,
         classification_mismatch_steps=mismatches,invalid_loaded_patches=bad_patches,first_positive_pad_contact_s=first_touch,
         first_qualified_interval_start_s=first_valid,strongest_qualified_hold_s=best*.002,strongest_hold_end_s=bestend,
         final_half_second_minimum_pad_force_N={k:v if np.isfinite(v) else None for k,v in min_final.items()},final_window_intervals=final_count,

@@ -40,8 +40,9 @@ def validate_route_geometry(config):
 
 
 class StandingTransferTeacher:
-    def __init__(self,operation,motors,path,*,start_seconds=22.,preload_profile='maintain',grasp_shift=(0.,0.,0.),hold_route=False,handoff_seconds=0.,fixed_pad_tracking=True,attained_arm_tracking=False,handle_relative_arm=False,leaf_relative_arm=False,hybrid_support=False):
+    def __init__(self,operation,motors,path,*,start_seconds=22.,preload_profile='maintain',grasp_shift=(0.,0.,0.),hold_route=False,handoff_seconds=0.,fixed_pad_tracking=True,attained_arm_tracking=False,handle_relative_arm=False,leaf_relative_arm=False,hybrid_support=False,support_load_target=4.):
         if not np.isfinite(start_seconds) or start_seconds<=0:raise ValueError('Transfer start must be finite and positive')
+        if not np.isfinite(support_load_target) or not 2<support_load_target<=8:raise ValueError('Transfer support target must be above 2 N and at most the original 8 N feedforward')
         if preload_profile not in PROFILES:raise ValueError('Unknown transfer preload profile')
         if type(hybrid_support) is not bool:raise ValueError('Explicit hybrid support flag required')
         self.hybrid_support=hybrid_support;self.support_feedback=None
@@ -84,7 +85,7 @@ class StandingTransferTeacher:
         leftnames=c['left_joint_names'];rows=[]
         for row in c['left_targets']:
             rows.append({**row,**{k:np.asarray(row[k],float) for k in ('position','normal','nominal')}})
-        self.left=LeftPalmContact(self.acquisition,motors,(leftnames,rows),fixed_waist=attained_arm_tracking,track_fixed_pads=fixed_pad_tracking,reach_seconds=8.,contact_force=8.,maximum_normal_offset=.008)
+        self.left=LeftPalmContact(self.acquisition,motors,(leftnames,rows),fixed_waist=attained_arm_tracking,track_fixed_pads=fixed_pad_tracking,reach_seconds=8.,contact_force=8.,maximum_normal_offset=.008,support_load_target=support_load_target)
         self.start_seconds=start_seconds;self.started=None;self.info={}
         self.rotations=Slerp(np.linspace(0,1,101),Rotation.from_quat(self.roots[:,[4,5,6,3]]))
 

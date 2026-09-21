@@ -17,7 +17,9 @@ The robotics collection contains **985 doors**. The **15 [pet doors](https://ada
 
 ## Isaac Sim
 
-**Start Isaac easily:** double-click [Start Isaac Sim.command](Start%20Isaac%20Sim.command), or run `python3 scripts/isaac/launch.py`. It opens a live Run Center and checks the GPU environment before marking it ready. [Setup and cluster instructions](docs/ISAAC_ONE_CLICK.md).
+**Local Windows GPU:** follow [the local Isaac setup and experiment guide](docs/ISAAC_LOCAL_WINDOWS.md). `scripts/isaac/run_local_windows.py` verifies import, standing and walking; `scripts/isaac/run_local_operation.py` runs a source-bound standing door experiment. These launch directly on the local GPU and do not allocate cloud machines. The local RTX 5070 walking fixture passed; complete H1 door opening and traversal remain in development.
+
+The older macOS/cluster launcher is retained at [Start Isaac Sim.command](Start%20Isaac%20Sim.command) and `scripts/isaac/launch.py`. Its [cluster instructions](docs/ISAAC_ONE_CLICK.md) are separate from the local Windows workflow.
 
 [![Sixteen Unitree G1 robots traversing sixteen doors simultaneously in native Isaac Sim](docs/media/isaac-g1-4x4.gif)](https://github.com/adamraudonis/DoorBench/releases/download/g1-isaac-2026-09-06/isaac-g1-4x4.mp4)
 
