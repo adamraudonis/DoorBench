@@ -14,6 +14,35 @@ from .grasp_verification import shadow_surface_qualified
 from .landed_left_audit import static_pose_check
 
 
+def _joint_projection_velocity_interval(position,velocity,dt,joint_range,*,name):
+    """Original scalar motion set intersected with position/braking bounds.
+
+    The .02 rad allowance is exactly the existing static joint audit, not an
+    expanded actuator or authored joint limit. For next outward speed v,
+    v**2/(2*a)+v*dt/2+a*dt**2/8 bounds discrete stopping distance. Requiring
+    that bound to fit in the remaining distance starts braking before an
+    acceleration-limited reference becomes impossible to stop inside it.
+    """
+    values=np.asarray([position,velocity,dt,*joint_range],float)
+    if values.shape!=(5,) or not np.isfinite(values).all() or not 0<dt<=.00200001 or joint_range[0]>=joint_range[1]:
+        raise ValueError('Finite original projected joint interval required: '+name)
+    lower_position=float(joint_range[0]-.02);upper_position=float(joint_range[1]+.02)
+    if position<lower_position-1e-12 or position>upper_position+1e-12:
+        raise ValueError(f'Projected joint prior position outside original audit interval: {name}; q={position!r}; allowed=[{lower_position!r},{upper_position!r}]')
+    distance=np.maximum(0.,[position-lower_position,upper_position-position])
+    stopping=np.maximum(0.,np.sqrt(6.*distance)-1.5*dt)
+    outward=np.minimum(distance/dt,stopping)
+    lower=max(-1.2,velocity-3.*dt,-float(outward[0]))
+    upper=min(1.2,velocity+3.*dt,float(outward[1]))
+    if lower>upper:
+        if lower-upper>1e-12:
+            raise ValueError(f'Projected joint has no original position/braking/motion intersection: {name}; q={position!r}; v={velocity!r}; dt={dt!r}; allowed=[{lower_position!r},{upper_position!r}]; velocity_intersection=[{lower!r},{upper!r}]; outward_caps={outward.tolist()!r}')
+        # Only resolve arithmetic noise within the motion gate's existing
+        # 1e-12 velocity tolerance. No state or authored limit is changed.
+        lower=upper=(lower+upper)/2.
+    return lower,upper
+
+
 def validate_admission(config):
     envelope=Path(config['coupled_envelope_path']);audit_path=Path(config['coupled_audit_path'])
     if sha(envelope)!=config['coupled_envelope_sha256'] or sha(audit_path)!=config['coupled_audit_sha256']:raise ValueError('Coupled withdrawal evidence bytes changed')
@@ -119,6 +148,13 @@ class CoupledReleaseReference:
         lower=np.full(len(columns),-1.);upper=np.ones(len(columns))
         lower[6:]=np.maximum(-1.2,previous_velocity[columns[6:]]-3.*dt)/1.2
         upper[6:]=np.minimum(1.2,previous_velocity[columns[6:]]+3.*dt)/1.2
+        bounded_joints=0
+        for i,name in enumerate(self.geometry.names,6):
+            joint=self.geometry.m.joint('robot/'+name)
+            if not self.geometry.m.jnt_limited[joint.id]:continue
+            low,high=_joint_projection_velocity_interval(origin[i],previous_velocity[columns[i]],dt,
+                self.geometry.m.jnt_range[joint.id],name=joint.name)
+            lower[i]=low/1.2;upper[i]=high/1.2;bounded_joints+=1
         preferred=np.clip(preferred,lower,upper);choice=preferred.copy()
         def balls(x):return np.array([1.-x[:3]@x[:3],1.-x[3:6]@x[3:6]])
         def ball_jac(x):
@@ -157,7 +193,7 @@ class CoupledReleaseReference:
             iterations+=solved.nit;change=np.max(abs(feasible-choice));choice=feasible
             if change<1e-8:break
         projected=candidate.copy();projected[columns]=origin+scale*choice
-        return projected,dict(method='fixed-poses-v1',iterations=int(iterations),body_coordinates=len(columns),maximum_coordinate_change=float(np.max(abs(projected-candidate))),solver_status=statuses)
+        return projected,dict(method='fixed-poses-v1',iterations=int(iterations),body_coordinates=len(columns),maximum_coordinate_change=float(np.max(abs(projected-candidate))),solver_status=statuses,joint_position_braking_bounds=bounded_joints)
 
     def _inspect(self,result):
         g=self.geometry;m,d=g.m,g.d;c=g.c;check=static_pose_check(m,d,coordinate=1.);mujoco.mj_comPos(m,d)
