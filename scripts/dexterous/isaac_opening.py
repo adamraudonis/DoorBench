@@ -155,6 +155,8 @@ p.add_argument('--attained-hold-stage',choices=('acquisition','operator','apertu
 p.add_argument('--standing-transfer-route',help='Screened route from a qualified recorded Isaac grasp; privileged motor-driven transfer experiment')
 p.add_argument('--standing-transfer-start-seconds',type=float,default=36.)
 p.add_argument('--standing-transfer-hybrid-support',action='store_true',help='Experimental palm-only force feedback after measured contact; original motor limits and audits remain unchanged')
+p.add_argument('--standing-transfer-prefix-source',help='Qualified source compared byte-for-byte against newly recorded physics before transfer')
+p.add_argument('--standing-transfer-support-load-target',type=float,default=4.)
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
 p.add_argument('--operator-compliance-gain',type=float,default=0.,help='Bounded palm-reference integral compensation for actual operator-angle error; motor and mechanism limits unchanged')
@@ -230,6 +232,8 @@ if not math.isfinite(a.standing_transfer_start_seconds) or a.standing_transfer_s
     p.error('Standing transfer requires positive start time and at least 8.5 seconds for reach and final hold')
 if not a.standing_transfer_route and a.standing_transfer_start_seconds!=36.:p.error('Transfer start override requires an explicit route')
 if a.standing_transfer_hybrid_support and not a.standing_transfer_route:p.error('Hybrid transfer support requires an explicit route')
+if a.standing_transfer_prefix_source and not a.standing_transfer_route:p.error('Live prefix witness requires an explicit transfer route')
+if not math.isfinite(a.standing_transfer_support_load_target) or not 2<a.standing_transfer_support_load_target<=8 or (a.standing_transfer_support_load_target!=4. and not a.standing_transfer_route):p.error('Bounded palm support target requires an explicit transfer route')
 if (not math.isfinite(a.operation_thumb_reference_offset_rad) or abs(a.operation_thumb_reference_offset_rad)>.1
         or (a.operation_thumb_reference_joint is None and a.operation_thumb_reference_offset_rad!=0.)):
     p.error('Thumb correction requires an explicit right-thumb joint and finite offset within 0.1 rad')
@@ -590,7 +594,8 @@ def main():
                 from doorbench.dexterous.bounded_evidence import BoundedEvidence
                 standing_transfer=StandingTransferTeacher(operation,motors,a.standing_transfer_route,
                     start_seconds=a.standing_transfer_start_seconds,fixed_pad_tracking=False,
-                    attained_arm_tracking=True,handoff_seconds=1.,hybrid_support=a.standing_transfer_hybrid_support)
+                    attained_arm_tracking=True,handoff_seconds=1.,hybrid_support=a.standing_transfer_hybrid_support,
+                    support_load_target=a.standing_transfer_support_load_target)
                 transfer_steps=BoundedEvidence(out/'standing-transfer-chunks')
             if sequence_reset and not a.full_opening:
                 from doorbench.dexterous.full_sequence_teacher import FullSequenceTeacher
@@ -731,6 +736,9 @@ def main():
     if a.operation_hub_geometry:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/handle_hub_avoidance.py')
     if a.standing_transfer_route:
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('standing_transfer.py','standing_support_feedback.py','transfer_contact_geometry.py','standing_transfer_evaluation.py','attained_arm_tracking.py','transfer_preload.py','motor_handoff.py','bimanual_transfer.py','bounded_evidence.py')]
+    if a.standing_transfer_prefix_source:
+        sources.append(Path(__file__).with_name('plan_local_isaac_transfer.py'))
+        sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('isaac_prefix_witness.py','motor_contract_identity.py','qualified_isaac_grasp.py','isaac_attained_state.py','destination_state_binding.py')]
     if a.operate_after_acquisition:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('operation_teacher.py','isaac_opening_measurements.py')]
     if sequence:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
         ('full_sequence_teacher.py','approach_teacher.py','approach_lowering.py','locomotion.py','locomotion_approach.py','locomotion_manipulation.py','locomotion_posture.py','isaac_sensors.py')]
@@ -838,6 +846,16 @@ def main():
     # Keep measured joint velocities for every physical state archive, including
     # standalone acquisition. Later source-state planning must not assume rest
     # or finite-difference positions to invent an unrecorded initial velocity.
+    transfer_prefix=None;transfer_prefix_authorized=False
+    if a.standing_transfer_prefix_source:
+        from doorbench.dexterous.isaac_prefix_witness import LiveIsaacPrefixWitness
+        bound_source=standing_transfer.config['attained_source_qualification']['source']
+        if Path(standing_transfer.config['attained_trial']).resolve()!=Path(a.standing_transfer_prefix_source).resolve():
+            raise ValueError('Live prefix source must match the admitted transfer route')
+        transfer_prefix=LiveIsaacPrefixWitness(a.standing_transfer_prefix_source,
+            expected_source_state_sha256=bound_source['state_sha256'],stage_start_s=a.standing_transfer_start_seconds,
+            runtime_configuration=json.loads((out/'configuration.json').read_text()),runtime_motor_contract=motors)
+        (out/'live-prefix-witness.json').write_text(json.dumps(transfer_prefix.receipt(),indent=2)+'\n')
     acquisition_states={k:[] for k in ('time_s','root','joints','joint_velocity','motor_forces','door','door_velocity','torso_tilt_deg')}
     if record_standing_body_poses:acquisition_states['standing_body_poses']=[]
     if continuous:
@@ -1165,6 +1183,10 @@ def main():
                             (out/'actual-preparation-reference.json').write_text(json.dumps(sequence.actual_preparation)+'\n')
                     else:
                         if standing_transfer:
+                            if transfer_prefix is not None and not transfer_prefix_authorized and step*dt>=a.standing_transfer_start_seconds:
+                                transfer_prefix.require_stage_entry(step*dt)
+                                transfer_prefix_authorized=True
+                                (out/'live-prefix-witness.json').write_text(json.dumps(transfer_prefix.receipt(),indent=2)+'\n')
                             from doorbench.dexterous.isaac_opening_measurements import panel_surface_loads
                             leaf_pose=body[door.body_names.index('leaf')]
                             surface=panel_surface_loads(audit_paths,audit_filters,pairs,leaf_pose)
@@ -1370,6 +1392,9 @@ def main():
                 if record_standing_body_poses:
                     acquisition_states['standing_body_poses'].append(pack_standing_body_poses(
                         robot.data.body_state_w[0,standing_body_indices,:7].cpu().numpy(),pose))
+                if transfer_prefix is not None and not transfer_prefix.complete:
+                    from doorbench.dexterous.isaac_prefix_witness import PREFIX_FIELDS
+                    transfer_prefix.observe({key:acquisition_states[key][-1] for key in PREFIX_FIELDS})
                 rotation=Rotation.from_quat([*pose[4:7],pose[3]]).as_matrix()
                 actual_pad=pad_evaluator.read(physics_dt=dt,time_s=(step+1)*dt,center=pose[:3]+rotation@grip_center,axis=rotation@grip_axis,
                     half_length=grip_half,radius=grip_radius,include_evidence=bool(a.sensor_acquisition_protocol or a.acquisition))
@@ -1516,6 +1541,8 @@ def main():
         if hand_writer:hand_writer.close()
         raise
     finally:
+        if transfer_prefix is not None:
+            (out/'live-prefix-witness.json').write_text(json.dumps(transfer_prefix.receipt(),indent=2)+'\n')
         if jev_gate is not None:jev_gate.close()
     (out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n')
     save_attained_left_plan()
@@ -1675,6 +1702,7 @@ def main():
                 from doorbench.dexterous.standing_transfer_evaluation import standing_transfer_checks
                 transfer_steps.export(out/'standing-transfer-steps.json.gz')
                 operation_checks.update(standing_transfer_checks(transfer_steps,seconds=a.seconds,dt=dt,started_s=standing_transfer.started))
+                if transfer_prefix is not None:operation_checks['live_exact_source_prefix']=transfer_prefix.receipt()['passed']
                 operation_report.update(passed=all(operation_checks.values()),
                     scope='Privileged motor-driven acquisition, partial opening and left-palm transfer; no full opening/traversal or sensor-only policy',
                     standing_transfer=dict(route=a.standing_transfer_route,started_s=standing_transfer.started,final=standing_transfer.info))

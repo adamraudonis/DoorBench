@@ -29,7 +29,8 @@ class StandingSupportFeedback:
             l.target_velocity+=dt/(.04+dt)*(velocity-l.target_velocity)
         self.previous_target=(float(t),q.copy())
 
-    def __init__(self, left, *, maximum_target_N=4.):
+    def __init__(self, left, *, maximum_target_N=None):
+        if maximum_target_N is None:maximum_target_N=left.support_load_target
         if not np.isfinite(maximum_target_N) or not 2<maximum_target_N<=8:raise ValueError("Explicit bounded palm-load range required")
         self.maximum_target_N=float(maximum_target_N)
         self.left=left;self.previous=None;self.started=None

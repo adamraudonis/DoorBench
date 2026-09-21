@@ -192,6 +192,38 @@ The new `out/local-isaac-transfer-001` tests a 42 s episode: the same first 28 s
 followed by 14 s for left-palm receiving support. Read its physical result
 independently; passing route geometry does not establish palm load.
 
+Both 42 s receiving-palm trials completed normally but failed sustained right
+grip and final palm support. All loaded handle patches remained on the declared
+surfaces. Transfer002 adds only `--standing-transfer-hybrid-support`; its
+physical states and commands match transfer001 through 38.440 s, immediately
+after actual palm contact admitted the feedback blend.
+
+| Final half-second, 251 samples | Transfer001 | Hybrid transfer002 |
+| --- | ---: | ---: |
+| Palm load at least 2 N | 173 | 241 |
+| Mean palm load, N | 2.536 | 3.957 |
+| Minimum palm load, N | 0 | 0.865 |
+| Valid opposed right grip | 247 | 248 |
+
+After the hybrid blend finishes, no simultaneous 0.5 s palm/grip hold exists;
+the longest is 0.200 s of interval coverage. The final half-second support dips
+remain short and are not steadily disappearing. The next prospective trial
+uses `--standing-transfer-support-load-target 6` with the same 42 s duration,
+hybrid feedback, source and route. This changes the target only; original motor
+caps, anatomy, support threshold and hold length remain unchanged. It is a
+force-margin hypothesis, with no claimed physical success before the new audit.
+
+`--standing-transfer-live-prefix-witness` permits a new controller implementation
+while preserving original source qualification and captured historical code.
+It compares every newly recorded 500 Hz state, velocity, body pose and commanded
+motor vector to the qualified source, including exact dtypes and bytes. At the
+source's terminal epoch it must authorize stage entry before the first transfer
+command. A mismatch stops the episode; the archive is never used to set physical
+state or issue saved commands. The result is saved in `live-prefix-witness.json`
+and required by both the physical report and launcher. Current source files are
+captured separately and must remain unchanged during execution. The default
+launcher retains its stricter unchanged-source prerequisite unless opted in.
+
 ## Verified destination and Windows fixes
 
 The local destination is Windows 11 with an RTX 5070 (12 GB), driver 591.86,

@@ -96,6 +96,18 @@ def _historical_inputs(trial, provenance):
     return tracked, captured
 
 
+def historical_source_hashes(source_run):
+    """Verify original captures and assets without requiring today's code bytes.
+
+    This admits historical evidence only. A live witness must still compare all
+    newly executed samples before any continuation command may be submitted.
+    """
+    trial = Path(source_run).resolve() / 'trial'
+    provenance = json.loads((trial / 'provenance.json').read_text())
+    hashes, _ = _historical_inputs(trial, provenance)
+    return hashes
+
+
 def _coordinates(configuration):
     result = {key: configuration.get(key) for key in COORDINATE_FIELDS}
     if any(value is None for value in result.values()):

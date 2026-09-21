@@ -209,6 +209,12 @@ def prepare_transfer(args,argv,hashes):
     route_path=getattr(args,'standing_transfer_route',None)
     source=getattr(args,'standing_transfer_source',None)
     hybrid=getattr(args,'standing_transfer_hybrid_support',False)
+    live_witness=getattr(args,'standing_transfer_live_prefix_witness',False)
+    support_target=getattr(args,'standing_transfer_support_load_target',4.)
+    if (type(live_witness) is not bool or (live_witness and route_path is None)
+            or not math.isfinite(support_target) or not 2<support_target<=8
+            or (support_target!=4. and route_path is None)):
+        raise ValueError('Explicit transfer route and bounded support/prefix experiment required')
     if type(hybrid) is not bool or (hybrid and route_path is None):
         raise ValueError('Hybrid palm support requires an explicit transfer route')
     if route_path is None and source is None:return argv,hashes
@@ -250,7 +256,11 @@ def prepare_transfer(args,argv,hashes):
     # prerequisite, not evidence that the old attained endpoint will recur.
     provenance=json.loads((source/'trial/provenance.json').read_text())['files']
     hashes=dict(hashes)
-    hashes.update(verified_hashes(provenance,base=ROOT))
+    if live_witness:
+        from doorbench.dexterous.isaac_prefix_witness import historical_source_hashes
+        hashes.update(historical_source_hashes(source))
+    else:
+        hashes.update(verified_hashes(provenance,base=ROOT))
     hashes.update(verified_hashes(qualification['input_sha256'],base=ROOT))
     plan_path=Path(route['scene_path_source'])
     plan=json.loads(plan_path.read_text())
@@ -283,6 +293,8 @@ def prepare_transfer(args,argv,hashes):
         hashes[str(path.resolve())]=sha(path)
     argv=argv+['--standing-transfer-route',str(route_path),'--standing-transfer-start-seconds',str(start)]
     if hybrid:argv+=['--standing-transfer-hybrid-support']
+    if live_witness:argv+=['--standing-transfer-prefix-source',str(source)]
+    if support_target!=4.:argv+=['--standing-transfer-support-load-target',str(support_target)]
     return argv,hashes
 
 
@@ -319,6 +331,9 @@ def runtime_source_paths(argv):
     if '--standing-transfer-route' in argv:
         names+=['standing_transfer.py','standing_support_feedback.py','transfer_contact_geometry.py',
             'standing_transfer_evaluation.py','attained_arm_tracking.py','transfer_preload.py','motor_handoff.py','bimanual_transfer.py']
+    if '--standing-transfer-prefix-source' in argv:
+        paths.append(ROOT/'scripts/dexterous/plan_local_isaac_transfer.py')
+        names+=['isaac_prefix_witness.py','motor_contract_identity.py','qualified_isaac_grasp.py','isaac_attained_state.py','destination_state_binding.py']
     return paths+[ROOT/'doorbench/dexterous'/name for name in names]
 
 
@@ -376,8 +391,22 @@ def verify_runtime_binding(trial,argv,receipt):
         if (Path(configuration.get('standing_transfer_route','')).resolve()!=route
                 or sha(trial/'standing-transfer-route.json')!=receipt['input_sha256'].get(str(route))
                 or configuration.get('standing_transfer_start_seconds')!=float(argv[argv.index('--standing-transfer-start-seconds')+1])
-                or configuration.get('standing_transfer_hybrid_support',False)!=('--standing-transfer-hybrid-support' in argv)):
+                or configuration.get('standing_transfer_hybrid_support',False)!=('--standing-transfer-hybrid-support' in argv)
+                or configuration.get('standing_transfer_support_load_target',4.)!=(float(argv[argv.index('--standing-transfer-support-load-target')+1]) if '--standing-transfer-support-load-target' in argv else 4.)):
             raise ValueError('Runtime transfer differs from the exact-source launch')
+        prefix_source=argv[argv.index('--standing-transfer-prefix-source')+1] if '--standing-transfer-prefix-source' in argv else None
+        if configuration.get('standing_transfer_prefix_source')!=prefix_source:
+            raise ValueError('Runtime live prefix source differs from launch')
+        if prefix_source is not None:
+            witness=json.loads((trial/'live-prefix-witness.json').read_text())
+            route_data=json.loads(route.read_text())
+            if (witness.get('schema')!='doorbench.live-isaac-prefix-witness.v1'
+                    or witness.get('passed') is not True or witness.get('stage_entry_authorized') is not True
+                    or witness.get('prefix_complete') is not True or witness.get('failure') is not None
+                    or witness.get('intervals_verified')!=witness.get('intervals_required')
+                    or Path(witness.get('source_run','')).resolve()!=Path(prefix_source).resolve()
+                    or witness.get('source_qualification')!=route_data['attained_source_qualification']['source']):
+                raise ValueError('Live physical prefix did not authorize the transfer stage')
 
 
 def stop_child(process,args,receipt):
@@ -528,6 +557,8 @@ def main():
     p.add_argument('--standing-transfer-source',type=Path,help='Qualified local Isaac operation whose exact prefix is rerun')
     p.add_argument('--standing-transfer-route',type=Path,help='Fresh independently screened route planned from that actual Isaac endpoint')
     p.add_argument('--standing-transfer-hybrid-support',action='store_true',help='Explicit experiment: blend existing measured palm-normal force feedback after actual contact')
+    p.add_argument('--standing-transfer-live-prefix-witness',action='store_true',help='Require byte-exact live source prefix before transfer; permit changed captured controller code')
+    p.add_argument('--standing-transfer-support-load-target',type=float,default=4.,help='Bounded prospective palm support target in N, original default 4')
     p.add_argument('--jev-progress-plan',type=Path)
     p.add_argument('--jev-sample-period',type=float,default=.2)
     p.add_argument('--execute',action='store_true')

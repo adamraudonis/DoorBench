@@ -157,6 +157,18 @@ def test_transfer_hybrid_support_is_explicit_and_added_after_unchanged_prefix(tm
         m.prepare_transfer(args,argv,hashes)
 
 
+def test_transfer_target_is_prospective_and_retains_original_bounds(tmp_path,monkeypatch):
+    m,args,argv,hashes,route=transfer_fixture(tmp_path,monkeypatch)
+    args.standing_transfer_support_load_target=6.
+    changed,_=m.prepare_transfer(args,argv,hashes)
+    assert changed[:len(argv)]==argv
+    assert changed[-2:]==['--standing-transfer-support-load-target','6.0']
+    for value in (2.,8.01,float('nan'),float('inf')):
+        args.standing_transfer_support_load_target=value
+        with pytest.raises(ValueError,match='bounded support'):
+            m.prepare_transfer(args,argv,hashes)
+
+
 @pytest.mark.parametrize('mutation',['missing_source','wrong_epoch','wrong_source','changed_controller','short_trial','live_jev','changed_provenance'])
 def test_transfer_rejects_unbound_source_or_changed_prefix(tmp_path,monkeypatch,mutation):
     m,args,argv,hashes,route=transfer_fixture(tmp_path,monkeypatch)
