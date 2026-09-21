@@ -6,7 +6,7 @@ import pytest
 from scipy.spatial.transform import Rotation, Slerp
 
 from doorbench.dexterous.isaac_live_pause_readback import (
-    RAW_ARTICULATION_GETTERS, PhysicsStepCounter, articulation_inventory,
+    RAW_ARTICULATION_GETTERS, ARTICULATION_PROPERTY_GETTERS, PhysicsStepCounter, articulation_inventory,
     contact_inventory, controller_inventory, capture_native_pause_anchor,
 )
 
@@ -65,7 +65,8 @@ def test_unknown_state_is_not_silently_excluded(value):
 
 class Backend:
     def __init__(self):
-        self.values = {name:np.zeros((1, 3), dtype=np.float32) for name in RAW_ARTICULATION_GETTERS}
+        self.values = {name:np.zeros((1, 3), dtype=np.float32) for name in
+            (*RAW_ARTICULATION_GETTERS,*ARTICULATION_PROPERTY_GETTERS)}
         self.calls = []
 
     def __getattr__(self, name):
@@ -108,13 +109,22 @@ def articulation():
 def test_articulation_reads_backend_and_existing_caches_without_lazy_update():
     value = articulation()
     result = articulation_inventory(value)
-    assert value.root_physx_view.calls == list(RAW_ARTICULATION_GETTERS)
+    assert value.root_physx_view.calls == [*RAW_ARTICULATION_GETTERS,*ARTICULATION_PROPERTY_GETTERS]
     value.root_physx_view.values['get_dof_positions'][0, 0] = 2.
     value._data._root_state_w.data[0, 0] = 7.
     value._joint_effort_target_sim[0] = 8.
     assert result['backend']['get_dof_positions'][0, 0] == 0.
     assert result['cache']['_root_state_w']['data'][0, 0] == 1.
     assert result['submission_targets']['_joint_effort_target_sim'][0] == 1.
+
+
+@pytest.mark.parametrize('getter',ARTICULATION_PROPERTY_GETTERS)
+def test_physical_property_changes_are_copied_and_detected(getter):
+    value=articulation();before=articulation_inventory(value)
+    value.root_physx_view.values[getter][0,0]=1.
+    after=articulation_inventory(value)
+    assert before['backend'][getter][0,0]==0.
+    assert after['backend'][getter][0,0]==1.
 
 
 def test_new_unsupported_cache_and_missing_submission_buffer_reject():

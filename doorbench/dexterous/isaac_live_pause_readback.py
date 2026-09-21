@@ -18,6 +18,13 @@ RAW_ARTICULATION_GETTERS = (
     'get_dof_actuation_forces', 'get_dof_projected_joint_forces',
 )
 
+ARTICULATION_PROPERTY_GETTERS = (
+    'get_masses', 'get_inertias', 'get_coms', 'get_dof_limits',
+    'get_dof_stiffnesses', 'get_dof_dampings', 'get_dof_armatures',
+    'get_dof_friction_properties', 'get_dof_max_forces', 'get_dof_max_velocities',
+    'get_material_properties', 'get_contact_offsets', 'get_rest_offsets',
+)
+
 
 def _copy(value):
     if type(value).__module__.split('.')[0] == 'torch':
@@ -95,7 +102,8 @@ def articulation_inventory(articulation):
     All installed numeric data fields and TimestampedBuffers are included.
     """
     view = articulation.root_physx_view
-    backend = {name:_copy(getattr(view, name)()) for name in RAW_ARTICULATION_GETTERS}
+    backend = {name:_copy(getattr(view, name)()) for name in
+        (*RAW_ARTICULATION_GETTERS, *ARTICULATION_PROPERTY_GETTERS)}
     data = vars(articulation)['_data']
     cache = {}
     for name, value in sorted(vars(data).items()):

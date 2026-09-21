@@ -180,9 +180,13 @@ a stricter newly introduced clock check before waiting; the correction preserves
 the existing producer clock tolerance while comparing raw pause clocks exactly.
 
 The readback inventory includes inactive zero-valued direct-wrench buffers.
-Robot invariant getters are captured; extension to an explicit door-property
-inventory is still required before claiming those properties are checked across
-a loaded planning pause. No serialized MuJoCo state is restored to a plant.
+Both articulations now capture 13 explicit property tensors: masses, inertias,
+centers of mass, joint limits, stiffness, damping, armature, friction, effort and
+velocity caps, materials, contact offsets and rest offsets. Actual local
+probe003 passes exact before/after equality with these fields and resumes the
+same episode through 2.002 and 2.004 seconds (1,002 complete physical samples).
+This remains a contact-free probe, not a loaded-pause qualification.
+No serialized MuJoCo state is restored to a plant.
 
 ## Explicit planner source mode
 
@@ -225,3 +229,12 @@ construction using synthetic geometry and mocked physical-source admission.
 They verify no extra transfer calls, unchanged observer history and inherited
 support at entry. A loaded physical planning pause and the full episode-runner
 connection remain unverified and unfinished respectively.
+
+The producer's opt-in `--observe-live-transfer-handoff` now creates the observer
+at transfer-controller construction, delegates through it from the first
+command, and accepts observations only after the matching interval's raw
+contact recording and motor-delivery check. It requires the exact-source hybrid
+transfer and measured-rest stop. At that stop it saves the actual observer
+receipt/state. This option alone preserves normal transfer termination; it does
+not yet activate the planning wait or the withdrawal suffix. Producer-boundary
+tests verify that failed delivery cannot populate accepted motor history.

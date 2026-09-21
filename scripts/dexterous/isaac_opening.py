@@ -159,6 +159,7 @@ p.add_argument('--standing-transfer-prefix-source',help='Qualified source compar
 p.add_argument('--standing-transfer-support-load-target',type=float,default=4.)
 p.add_argument('--standing-transfer-stop-on-rest',action='store_true',help='Stop at the first original qualified resting transfer window; remains a prefix witness during explicit withdrawal')
 p.add_argument('--standing-withdrawal-route',help='Fresh actual-Isaac source-bound measured-rest withdrawal runtime; requires exact transfer prefix')
+p.add_argument('--observe-live-transfer-handoff',action='store_true',help='Retain actual accepted transfer command/rest history for a later same-episode planning handoff; does not itself pause or start withdrawal')
 p.add_argument('--pause-readback-probe-at-seconds',type=float,help='Explicit diagnostic: suspend the main thread for two wall seconds after this complete interval and verify unchanged live state; no phase qualification')
 p.add_argument('--operate-after-acquisition',action='store_true',help='After 0.5 s of actual qualified grasp, press the lever and hold a partial opening through robot motors')
 p.add_argument('--open-on-latch-clear',action='store_true',help='Start the smooth opening ramp on measured release, without waiting for the press-reference timer')
@@ -248,6 +249,10 @@ if not math.isfinite(a.standing_transfer_start_seconds) or a.standing_transfer_s
 if not a.standing_transfer_route and a.standing_transfer_start_seconds!=36.:p.error('Transfer start override requires an explicit route')
 if a.standing_transfer_hybrid_support and not a.standing_transfer_route:p.error('Hybrid transfer support requires an explicit route')
 if a.standing_transfer_prefix_source and not a.standing_transfer_route:p.error('Live prefix witness requires an explicit transfer route')
+if a.observe_live_transfer_handoff and (not a.standing_transfer_route or not a.standing_transfer_prefix_source
+        or not a.standing_transfer_stop_on_rest or not a.standing_transfer_hybrid_support
+        or a.time_scale!=1. or a.standing_withdrawal_route):
+    p.error('Live handoff observation requires exact-source hybrid transfer with measured rest stop and no archive withdrawal')
 if a.standing_transfer_stop_on_rest and not a.standing_transfer_route:
     p.error('Qualified transfer rest stop requires an explicit transfer route')
 if a.standing_transfer_preload_profile!='maintain' and not a.standing_transfer_route:
@@ -594,6 +599,7 @@ def main():
         target[0,i]=prim.GetAttribute('doorbench:target_si').Get() or 0.
     controls=None if sensor_control else np.array(ref['controls']);rows=[]
     standing_transfer=None;standing_controller=None;transfer_steps=None
+    live_handoff_observer=None
     transfer_rest_stop=None;transfer_rest_triggered=False;transfer_rest_terminated=False;transfer_rest_continued=False
     evaluation_seconds=a.seconds
     def save_transfer_rest_stop():
@@ -640,6 +646,10 @@ def main():
                     transfer_rest_stop=TransferRestStop(a.standing_transfer_start_seconds,dt=dt)
                     save_transfer_rest_stop()
                 standing_controller=standing_transfer
+                if a.observe_live_transfer_handoff:
+                    from doorbench.dexterous.isaac_live_transfer_handoff import LiveTransferHandoffObserver
+                    live_handoff_observer=LiveTransferHandoffObserver(standing_transfer)
+                    standing_controller=live_handoff_observer
                 if a.standing_withdrawal_route:
                     from doorbench.dexterous.isaac_withdrawal_runtime import create_isaac_withdrawal_controller
                     from doorbench.dexterous.isaac_withdrawal_measurements import IsaacWithdrawalMeasurements
@@ -813,6 +823,9 @@ def main():
         sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('isaac_prefix_witness.py','motor_contract_identity.py','qualified_isaac_grasp.py','isaac_attained_state.py','destination_state_binding.py')]
     if a.standing_transfer_stop_on_rest:
         sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/isaac_transfer_rest_stop.py')
+    if a.observe_live_transfer_handoff:
+        sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in
+            ('isaac_live_transfer_handoff.py','resting_transfer.py','withdrawal_motor_capture.py')]
     if a.standing_withdrawal_route:
         from doorbench.dexterous.isaac_withdrawal_runtime import withdrawal_runtime_source_paths
         sources += list(withdrawal_runtime_source_paths())
@@ -1601,6 +1614,13 @@ def main():
                     acquisition_states['actual_foot_loads'].append(full_measurement['continuation']['foot_loads'].copy())
             if delivery_failure is not None:
                 raise RuntimeError(delivery_failure)
+            if live_handoff_observer is not None:
+                actual_angles={role:float(door.data.joint_pos[0,dnames.index(name)]) for role,name in
+                    [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
+                live_handoff_observer.observe_completed_interval(command_time_s=step*dt,
+                    post_step_time_s=(step+1)*dt,returned_command=forces,
+                    grasp_qualified=bool(pad_steps[-1]['valid_pad_grasp']),
+                    left_palm_load=surface['palm_normal_load_N'],angles=actual_angles,submission_valid=True)
             if standing_reference_tail is not None and standing_controller.started_withdrawal is not None:
                 standing_reference_tail.observe_completed_interval(command_time_s=step*dt,
                     post_step_time_s=(step+1)*dt,returned_command=forces)
@@ -1711,6 +1731,10 @@ def main():
                 finally:
                     (out/'pause-readback-probe.json').write_text(json.dumps(probe_receipt,indent=2)+'\n')
             if transfer_rest_triggered and not a.standing_withdrawal_route:
+                if live_handoff_observer is not None:
+                    receipt=live_handoff_observer.require_ready((step+1)*dt,transfer=standing_transfer)
+                    (out/'live-transfer-handoff-observer.json').write_text(json.dumps(dict(
+                        observation=receipt,state=live_handoff_observer.snapshot()),indent=2)+'\n')
                 transfer_rest_terminated=True
                 evaluation_seconds=(step+1)*dt
                 save_transfer_rest_stop()
