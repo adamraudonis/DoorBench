@@ -114,6 +114,12 @@ class ProgressAdvice:
     latency_ms: float | None = None
     comparator_action: str | None = None
     simulation_time_s: float = 0.
+    # Immutable evaluation provenance stays distinct from per-tick permission.
+    evaluation_reason: str | None = None
+    permission_rejection_reason: str | None = None
+    provider_error_streak: int = 0
+    retry_backoff_s: float = 0.
+    retry_not_before_monotonic_s: float = 0.
 
     @property
     def advance(self) -> bool:
@@ -136,6 +142,10 @@ class JevProgressAdvisor:
         self.minimum_confidence = minimum_confidence
 
     def evaluate(self, sample: ProgressSnapshot, plan: AstraPlan) -> ProgressAdvice:
+        result = self._evaluate(sample, plan)
+        return replace(result, evaluation_reason=result.reason)
+
+    def _evaluate(self, sample: ProgressSnapshot, plan: AstraPlan) -> ProgressAdvice:
         started = self.clock()
         receipt = ProgressAdvice(sample.episode_id, sample.sample_id, plan.plan_id, sample.phase,
                                  sample.capture_monotonic_s, started, started,
@@ -193,7 +203,9 @@ class JevProgressAdvisor:
         elif advice.advance and "continue_press" not in admissible_actions(latest, plan):
             reason = "local_guard_removed_progress_permission"
         if reason:
-            return replace(advice, accepted=False, action="pause_press", reason=reason)
+            return replace(advice, accepted=False, action="pause_press", reason=reason,
+                           evaluation_reason=advice.evaluation_reason or advice.reason,
+                           permission_rejection_reason=reason)
         return advice
 
 
@@ -203,16 +215,27 @@ class AsyncJevProgressAdvisor:
     The controller calls poll at every physics decision to recheck permissions.
     It advances the progression clock only when the returned advice.advance is
     true. None means pause. submit never discards an unconsumed completed reply.
+    Provider errors back off new submissions without sleeping or extending any
+    advice lease. Errors still replace prior advice and keep progress paused.
     """
 
-    def __init__(self, advisor: JevProgressAdvisor):
+    def __init__(self, advisor: JevProgressAdvisor, *, error_backoff_initial_s=.25,
+                 error_backoff_maximum_s=2.):
+        if (not all(_finite(v) for v in (error_backoff_initial_s, error_backoff_maximum_s))
+                or not .05 <= error_backoff_initial_s <= error_backoff_maximum_s <= 10.):
+            raise ValueError("Provider retry backoff must be within 0.05..10 wall seconds")
         self.advisor = advisor
+        self.error_backoff_initial_s = float(error_backoff_initial_s)
+        self.error_backoff_maximum_s = float(error_backoff_maximum_s)
+        self._provider_error_streak = 0
+        self._retry_delay_s = self._retry_not_before_s = 0.
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="doorbench-jev-progress")
         self._future = self._latest = None
         self._closed = False
 
     def submit(self, sample: ProgressSnapshot, plan: AstraPlan) -> bool:
-        if self._closed or self._future is not None:
+        if (self._closed or self._future is not None
+                or self.advisor.clock() < self._retry_not_before_s):
             return False
         self._future = self._pool.submit(self.advisor.evaluate, sample, plan)
         return True
@@ -223,6 +246,17 @@ class AsyncJevProgressAdvisor:
         if self._future is not None and self._future.done():
             future, self._future = self._future, None
             self._latest = future.result()
+            result_reason = self._latest.evaluation_reason or self._latest.reason
+            if result_reason.startswith("provider_") or result_reason == "invalid_provider_response":
+                self._provider_error_streak += 1
+                self._retry_delay_s = (self.error_backoff_initial_s if self._provider_error_streak == 1
+                    else min(self.error_backoff_maximum_s, self._retry_delay_s*2.))
+                self._retry_not_before_s = self._latest.received_monotonic_s+self._retry_delay_s
+            elif self._latest.model is not None:
+                self._provider_error_streak = 0
+                self._retry_delay_s = self._retry_not_before_s = 0.
+            self._latest = replace(self._latest, provider_error_streak=self._provider_error_streak,
+                retry_backoff_s=self._retry_delay_s, retry_not_before_monotonic_s=self._retry_not_before_s)
         if self._latest is None:
             return None
         return self.advisor.revalidate(self._latest, latest, plan)

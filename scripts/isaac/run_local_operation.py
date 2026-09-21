@@ -170,7 +170,11 @@ def commands(args,ready,cfg,reference,profile,declaration):
         'operation_leaf_lead_limit_rad':'operation-leaf-lead-limit-rad','operation_operator_follow_after_leaf_rad':'operation-operator-follow-after-leaf-rad'}
     for key,option in mapped.items():
         if cfg.get(key) is not None:argv+=['--'+option,str(cfg[key])]
-    argv+=['--operation-grasp-offset-in-handle-m',*map(str,cfg['grasp_offset_in_handle_m'])]
+    override=getattr(args,'experimental_grasp_offset_in_handle_m',None)
+    if override is not None and (len(override)!=3 or not all(math.isfinite(v) for v in override)
+            or math.sqrt(sum(v*v for v in override))>.01):
+        raise ValueError('Experimental grasp offset must be a finite vector within the original 10 mm limit')
+    argv+=['--operation-grasp-offset-in-handle-m',*map(str,override if override is not None else cfg['grasp_offset_in_handle_m'])]
     if cfg.get('operation_fixed_pad_control'):
         argv+=['--operation-actual-pad-control','--operation-material-profile',cfg['operation_pad_control_profile']]
     if cfg.get('operation_handle_hub_avoidance'):
@@ -190,6 +194,120 @@ def passed_checks(report):
     return bool(report.get('checks')) and all(value is True for value in report['checks'].values())
 
 
+def prepare_transfer(args,argv,hashes):
+    """Admit a fresh route from this controller's qualified actual PhysX endpoint."""
+    route_path=getattr(args,'standing_transfer_route',None)
+    source=getattr(args,'standing_transfer_source',None)
+    if route_path is None and source is None:return argv,hashes
+    if route_path is None or source is None:
+        raise ValueError('Transfer requires both a qualified Isaac source and its fresh route')
+    if args.jev_progress_plan is not None:
+        raise ValueError('Transfer starts from a deterministic operation baseline, without live Jev')
+    from scripts.dexterous.plan_local_isaac_transfer import load_local_source
+    from doorbench.dexterous.standing_transfer import validate_route_geometry
+    extracted,motors,qualification=load_local_source(source,source/'independent-contact-audit.json')
+    route=json.loads(route_path.read_text())
+    if (route.get('schema')!='doorbench.standing-transfer.v1'
+            or route.get('geometric_screen_passed') is not True
+            or route.get('attained_source_qualification',{}).get('source')!=qualification
+            or Path(route.get('attained_trial','')).resolve()!=source.resolve()
+            or route.get('attained_time_s')!=qualification['time_s']):
+        raise ValueError('Transfer route does not identify this qualified actual Isaac source')
+    validate_route_geometry(route)
+    source_launch=source/'launch.json'
+    launch=json.loads(source_launch.read_text())
+    if '--standing-transfer-route' in launch['argv'] or '--jev-progress-plan' in launch['argv']:
+        raise ValueError('Expected a standalone deterministic source operation')
+    def prefix_command(command):
+        # The same physical controller is rerun from its original initial state.
+        result=[];i=1
+        while i<len(command):
+            if command[i] in ('--output','--seconds'):i+=2;continue
+            result.append(command[i]);i+=1
+        return result
+    if prefix_command(argv)!=prefix_command(launch['argv']):
+        raise ValueError('Transfer must reproduce the qualified source controller arguments exactly')
+    start=qualification['time_s']
+    if not math.isfinite(start) or args.seconds<start+8.5:
+        raise ValueError('Transfer needs the actual source duration plus 8.5 seconds')
+    configuration=json.loads((source/'trial/configuration.json').read_text())['args']
+    if configuration.get('standing_transfer_route') or configuration.get('jev_progress_plan'):
+        raise ValueError('Source measurements must come from a standalone operation')
+    # Replaying a prefix after its controller implementation changed is a new
+    # prerequisite, not evidence that the old attained endpoint will recur.
+    provenance=json.loads((source/'trial/provenance.json').read_text())['files']
+    hashes=dict(hashes)
+    hashes.update(verified_hashes(provenance,base=ROOT))
+    hashes.update(verified_hashes(qualification['input_sha256'],base=ROOT))
+    plan_path=Path(route['scene_path_source'])
+    plan=json.loads(plan_path.read_text())
+    if (plan.get('schema')!='doorbench.local-isaac-transfer-planning.v1'
+            or plan.get('passed') is not True or plan.get('source_qualification')!=qualification):
+        raise ValueError('Geometric plan must qualify the same actual Isaac source')
+    plan_inputs=verified_hashes(plan.get('input_sha256'),base=ROOT)
+    qualified_inputs=verified_hashes(qualification['input_sha256'],base=ROOT)
+    if any(plan_inputs.get(path)!=digest for path,digest in qualified_inputs.items()):
+        raise ValueError('Geometric plan omits or changes the qualified source evidence')
+    from doorbench.dexterous.landed_left_planner import LandedLeftScene
+    from doorbench.dexterous.destination_planner_admission import admit_destination_planner
+    import numpy as np
+    robot=Path(route['robot_path']);door=Path(route['door_path'])
+    actual_robot=Path(argv[argv.index('--native-robot')+1])
+    actual_door=Path(argv[argv.index('--door-usd')+1])
+    if sha(robot)!=sha(actual_robot) or sha(door)!=sha(actual_door.with_name('door.xml')):
+        raise ValueError('Geometric plan assets differ from the verified physical source')
+    scene=LandedLeftScene(robot,door)
+    measured,admission=admit_destination_planner(scene.m,extracted,
+        motor_contract=motors,door_source_sha256=sha(actual_door))
+    path=np.asarray(plan.get('path_qpos'),float)
+    if (plan.get('destination_admission')!=admission
+            or route['attained_source_qualification'].get('coordinates')!=admission
+            or path.shape!=(101,len(measured.qpos)) or not np.isfinite(path).all()
+            or not np.array_equal(path[0],measured.qpos)):
+        raise ValueError('Geometric plan must begin at the exact normalized admitted endpoint')
+    hashes.update(plan_inputs)
+    for path in (source_launch,route_path,plan_path,Path(route['dense_audit_path'])):
+        hashes[str(path.resolve())]=sha(path)
+    argv=argv+['--standing-transfer-route',str(route_path),'--standing-transfer-start-seconds',str(start)]
+    return argv,hashes
+
+
+def audit_transfer_prefix(source,trial,start):
+    """Require recorded physical state and commanded motors to repeat the source."""
+    import numpy as np
+    source_path=Path(source)/'trial/acquisition-physics.npz'
+    trial_path=Path(trial)/'acquisition-physics.npz'
+    fields=('time_s','root','joints','joint_velocity','motor_forces','door','door_velocity','standing_body_poses')
+    with np.load(source_path,allow_pickle=False) as before,np.load(trial_path,allow_pickle=False) as after:
+        n=len(before['time_s'])
+        if not n or abs(float(before['time_s'][-1])-start)>1e-8:
+            raise ValueError('Recorded source endpoint differs from transfer epoch')
+        matches={key:bool(key in after.files and len(after[key])>=n
+            and np.array_equal(before[key],after[key][:n])) for key in fields}
+    return dict(passed=all(matches.values()),intervals=n,fields=matches,
+        input_sha256={str(p.resolve()):sha(p) for p in (source_path,trial_path)},
+        scope='Exact recorded physical and commanded-motor prefix; continuation remains a new live episode without a state reset at handoff')
+
+
+def runtime_source_paths(argv):
+    """Sources recorded by the supported standalone Isaac operation modes.
+
+    Keep this fail-closed list aligned with the producer's provenance registry.
+    A new runtime mode must declare its helpers before its results can qualify.
+    """
+    paths=[ROOT/'scripts/dexterous'/name for name in ('isaac_opening.py','physx_teacher.py')]
+    names=['stance.py','reset.py','contact_audit.py','isaac_materials.py','isaac_joint_passive.py',
+        'bounded_evidence.py','operation_pad_counts.py','standing_body_record.py','acquisition_teacher.py',
+        'isaac_tendons.py','grasp_verification.py','isaac_pad_audit.py','operation_teacher.py','isaac_opening_measurements.py']
+    if '--review-render-profile' in argv:names.append('isaac_rendering.py')
+    if '--operation-hub-geometry' in argv:names.append('handle_hub_avoidance.py')
+    if '--jev-progress-plan' in argv:names+=['jev_advisor.py','jev_progress_advisor.py','isaac_jev_progress.py']
+    if '--standing-transfer-route' in argv:
+        names+=['standing_transfer.py','standing_support_feedback.py','transfer_contact_geometry.py',
+            'standing_transfer_evaluation.py','attained_arm_tracking.py','transfer_preload.py','motor_handoff.py','bimanual_transfer.py']
+    return paths+[ROOT/'doorbench/dexterous'/name for name in names]
+
+
 def verify_runtime_binding(trial,argv,receipt):
     configuration=json.loads((trial/'configuration.json').read_text())['args']
     provenance=json.loads((trial/'provenance.json').read_text())['files']
@@ -197,21 +315,50 @@ def verify_runtime_binding(trial,argv,receipt):
     source=str((ROOT/'scripts/dexterous/isaac_opening.py').resolve())
     if recorded.get(source)!=receipt['source_sha256'][source]:
         raise ValueError('Runtime source differs from the launched source')
+    runtime_sources=receipt['runtime_source_sha256']
+    if {name for name in recorded if Path(name).suffix=='.py'}!=set(runtime_sources):
+        raise ValueError('Runtime helper inventory differs from the captured source registry')
+    for name,digest in runtime_sources.items():
+        if recorded.get(name)!=digest:
+            raise ValueError('Runtime helper differs from the captured source: '+name)
+    # Some transfer helpers are imported only at handoff, after the producer's
+    # initial provenance snapshot. Keep their files fixed through execution.
+    verified_hashes(runtime_sources,base=ROOT)
+    for name,digest in receipt['input_sha256'].items():
+        if name in recorded and recorded[name]!=digest:
+            raise ValueError('Runtime shared input differs from the admitted source: '+name)
     for flag in ('robot-usd','door-usd','motors','native-robot','reference'):
         path=Path(argv[argv.index('--'+flag)+1]).resolve()
         if (recorded.get(str(path))!=receipt['input_sha256'].get(str(path))
                 or Path(configuration[flag.replace('-','_')]).resolve()!=path):
             raise ValueError('Runtime input differs from verified launch: '+flag)
+    if '--grasp-profile-definition' in argv:
+        path=Path(argv[argv.index('--grasp-profile-definition')+1]).resolve()
+        if (recorded.get(str(path))!=receipt['input_sha256'].get(str(path))
+                or Path(configuration.get('grasp_profile_definition','')).resolve()!=path):
+            raise ValueError('Runtime grasp declaration differs from the verified launch')
     for flag in ('grasp-profile','review-render-profile','jev-progress-plan'):
         expected=argv[argv.index('--'+flag)+1] if '--'+flag in argv else None
         if configuration.get(flag.replace('-','_'))!=expected:
             raise ValueError('Runtime experiment mode differs from launch: '+flag)
     if configuration.get('open_on_latch_clear') is not ('--open-on-latch-clear' in argv):
         raise ValueError('Runtime latch transition differs from launch')
+    offset_flag='--operation-grasp-offset-in-handle-m'
+    if offset_flag in argv:
+        index=argv.index(offset_flag)
+        expected=[float(value) for value in argv[index+1:index+4]]
+        if configuration.get('operation_grasp_offset_in_handle_m')!=expected:
+            raise ValueError('Runtime grasp offset differs from the declared experiment')
     if '--jev-progress-plan' in argv:
         plan=Path(argv[argv.index('--jev-progress-plan')+1]).resolve()
         if sha(trial/'jev-progress-plan-input.json')!=receipt['input_sha256'].get(str(plan)):
             raise ValueError('Runtime Jev plan differs from the verified plan')
+    if '--standing-transfer-route' in argv:
+        route=Path(argv[argv.index('--standing-transfer-route')+1]).resolve()
+        if (Path(configuration.get('standing_transfer_route','')).resolve()!=route
+                or sha(trial/'standing-transfer-route.json')!=receipt['input_sha256'].get(str(route))
+                or configuration.get('standing_transfer_start_seconds')!=float(argv[argv.index('--standing-transfer-start-seconds')+1])):
+            raise ValueError('Runtime transfer differs from the exact-source launch')
 
 
 def stop_child(process,args,receipt):
@@ -234,11 +381,21 @@ def execute(args,argv,audit,hashes):
     if args.jev_progress_plan is None:env.pop('TYPESAFE_API_KEY',None)
     # Argument validation and independent scoring never need the model credential.
     offline_env=dict(env);offline_env.pop('TYPESAFE_API_KEY',None)
-    sources=(Path(__file__),ROOT/'scripts/dexterous/isaac_opening.py',ROOT/'scripts/dexterous/audit_isaac_acquisition_contacts.py')
+    runtime_sources=runtime_source_paths(argv)
+    sources=(Path(__file__),ROOT/'scripts/dexterous/audit_isaac_acquisition_contacts.py',*runtime_sources)
+    transfer='--standing-transfer-route' in argv
+    if transfer:sources+=tuple(ROOT/'scripts/dexterous'/name for name in ('audit_isaac_standing_transfer.py',))
     receipt=dict(scope='Local privileged standing acquisition, lever operation and partial opening; no traversal claim',
         input_sha256=hashes,source_sha256={str(path.resolve()):sha(path) for path in sources},
+        runtime_source_sha256={str(path.resolve()):sha(path) for path in runtime_sources},
         argv=argv,audit_argv=audit,started_unix=time.time(),api_key_saved=False,
         passed=False,runtime_passed=False,independent_passed=False,physics_started=False)
+    override=getattr(args,'experimental_grasp_offset_in_handle_m',None)
+    if override is not None:
+        baseline=json.loads((args.native_trial/'manifest.json').read_text())['configuration']['grasp_offset_in_handle_m']
+        receipt['experimental_controller_change']=dict(
+            parameter='operation_grasp_offset_in_handle_m',qualified_native_baseline=baseline,
+            requested=list(override),scope='New PhysX experiment; native baseline qualification does not establish this changed controller')
     for source in sources:(args.output/('source-'+source.name)).write_bytes(source.read_bytes())
     save(args.output/'launch.json',receipt)
     try:
@@ -299,7 +456,32 @@ def execute(args,argv,audit,hashes):
                     and passed_checks(data) and data.get('invalid_loaded_patches')==0)
     except Exception as error:
         receipt['audit_error_type']=type(error).__name__
+    if transfer:
+        receipt['independent_transfer_passed']=False
+        receipt['source_prefix_passed']=False
+        try:
+            prefix=audit_transfer_prefix(args.standing_transfer_source,trial,
+                float(argv[argv.index('--standing-transfer-start-seconds')+1]))
+            save(args.output/'source-prefix-audit.json',prefix)
+            receipt['source_prefix_passed']=prefix['passed']
+            auditor=ROOT/'scripts/dexterous/audit_isaac_standing_transfer.py'
+            if sha(auditor)!=receipt['source_sha256'][str(auditor.resolve())]:
+                raise ValueError('Transfer auditor changed after launch')
+            transfer_argv=[str(args.asset_python),str(auditor),'--trial',str(trial),
+                '--output',str(args.output/'isaac-transfer-audit.json')]
+            receipt['transfer_audit_argv']=transfer_argv
+            with (args.output/'independent-transfer-audit.log').open('w') as log:
+                result=subprocess.run(transfer_argv,cwd=ROOT,env=offline_env,stdout=log,stderr=subprocess.STDOUT,creationflags=FLAGS,timeout=600)
+            receipt['transfer_audit_returncode']=result.returncode
+            data=json.loads((args.output/'isaac-transfer-audit.json').read_text())
+            verified_hashes(data.get('input_sha256'),base=ROOT,
+                required=(report_path,trial/'standing-transfer-steps.json.gz'))
+            receipt['independent_transfer_passed']=bool(result.returncode==0 and data.get('passed') is True
+                and data.get('producer_matches') is True and passed_checks(data))
+        except Exception as error:
+            receipt['transfer_audit_error_type']=type(error).__name__
     receipt['passed']=bool(receipt.get('returncode')==0 and receipt['runtime_passed'] and receipt['independent_passed']
+        and (not transfer or (receipt['independent_transfer_passed'] and receipt['source_prefix_passed']))
         and not receipt.get('timeout') and not receipt.get('launch_error_type') and not receipt.get('audit_error_type'))
     receipt['finished_unix']=time.time()
     save(args.output/'result.json',receipt)
@@ -315,6 +497,10 @@ def main():
     p.add_argument('--timeout-seconds',type=float,default=3600.)
     p.add_argument('--open-on-latch-clear',action='store_true')
     p.add_argument('--review-render-profile',choices=('native-materials-v1',))
+    p.add_argument('--experimental-grasp-offset-in-handle-m',nargs=3,type=float,
+        help='Explicit new PhysX experiment: replace the native baseline offset within its original 10 mm bound; all physical/contact acceptance checks remain unchanged')
+    p.add_argument('--standing-transfer-source',type=Path,help='Qualified local Isaac operation whose exact prefix is rerun')
+    p.add_argument('--standing-transfer-route',type=Path,help='Fresh independently screened route planned from that actual Isaac endpoint')
     p.add_argument('--jev-progress-plan',type=Path)
     p.add_argument('--jev-sample-period',type=float,default=.2)
     p.add_argument('--execute',action='store_true')
@@ -325,11 +511,12 @@ def main():
         p.error('Jev sample period must be 0.05..10 wall-clock seconds')
     if args.jev_progress_plan is None and args.jev_sample_period!=.2:
         p.error('An explicit Jev sample period requires --jev-progress-plan')
-    for name in ('ready','native_trial','output','asset_python','isaac_python','jev_progress_plan'):
+    for name in ('ready','native_trial','output','asset_python','isaac_python','jev_progress_plan','standing_transfer_source','standing_transfer_route'):
         value=getattr(args,name)
         if value is not None:setattr(args,name,value.absolute()) # Preserve short Windows interpreter alias.
     ready,cfg,reference,profile,declaration,hashes=verified_inputs(args)
     argv,audit=commands(args,ready,cfg,reference,profile,declaration)
+    argv,hashes=prepare_transfer(args,argv,hashes)
     if not args.execute:
         print(json.dumps(dict(physics_started=False,operation=argv,independent_audit=audit),indent=2));return 0
     if args.jev_progress_plan is not None and not os.environ.get('TYPESAFE_API_KEY'):

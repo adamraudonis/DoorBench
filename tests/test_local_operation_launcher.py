@@ -85,6 +85,121 @@ def test_verified_native_and_ready_bind_all_selected_assets_and_derived_hub(tmp_
         assert hashes[str(path.resolve())]==m.sha(path)
 
 
+def test_explicit_grasp_experiment_changes_only_declared_reference(tmp_path,monkeypatch):
+    m,args,ready,cfg=native_fixture(tmp_path,monkeypatch)
+    values=m.verified_inputs(args)
+    baseline,audit=m.commands(args,*values[:5])
+    args.experimental_grasp_offset_in_handle_m=[.004,-.0025,.0025]
+    changed,changed_audit=m.commands(args,*values[:5])
+    index=changed.index('--operation-grasp-offset-in-handle-m')
+    assert changed[index+1:index+4]==['0.004','-0.0025','0.0025']
+    assert changed[:index+1]==baseline[:index+1] and changed[index+4:]==baseline[index+4:]
+    assert audit==changed_audit
+    assert cfg['grasp_offset_in_handle_m']==[.004,-.003,.0025]
+
+
+@pytest.mark.parametrize('offset',[[.011,0,0],[0,float('nan'),0],[0,0,float('inf')]])
+def test_grasp_experiment_retains_original_finite_bound(tmp_path,monkeypatch,offset):
+    m,args,ready,cfg=native_fixture(tmp_path,monkeypatch)
+    values=m.verified_inputs(args)
+    args.experimental_grasp_offset_in_handle_m=offset
+    with pytest.raises(ValueError,match='original 10 mm'):
+        m.commands(args,*values[:5])
+
+
+def transfer_fixture(tmp_path,monkeypatch):
+    import numpy as np
+    from scripts.dexterous import plan_local_isaac_transfer as planner
+    from doorbench.dexterous import standing_transfer,landed_left_planner,destination_planner_admission
+    m,args,ready,cfg=native_fixture(tmp_path,monkeypatch)
+    values=m.verified_inputs(args)
+    argv,audit=m.commands(args,*values[:5])
+    source=tmp_path/'isaac source';source.mkdir()
+    args.standing_transfer_source=source;args.standing_transfer_route=tmp_path/'route.json';args.seconds=34.
+    write(source/'launch.json',dict(argv=argv))
+    write(source/'trial/configuration.json',dict(args=dict(standing_transfer_route=None,jev_progress_plan=None)))
+    write(source/'trial/provenance.json',dict(files={str(args.ready):m.sha(args.ready)}))
+    evidence=source/'independent-contact-audit.json';write(evidence,dict(synthetic=True))
+    qualification=dict(passed=True,time_s=24.,state_sha256='synthetic-state',input_sha256={str(evidence):m.sha(evidence)})
+    measured_qpos=np.array([0.,0.,1.,1.,0.,0.,0.,.25])
+    admission=dict(passed=True,state_sha256=qualification['state_sha256'],synthetic=True)
+    plan=tmp_path/'plan.json';write(plan,dict(schema='doorbench.local-isaac-transfer-planning.v1',passed=True,
+        source_qualification=qualification,destination_admission=admission,
+        path_qpos=np.tile(measured_qpos,(101,1)).tolist(),input_sha256={str(evidence):m.sha(evidence)}))
+    dense=tmp_path/'dense.json';write(dense,dict(synthetic=True))
+    route=dict(schema='doorbench.standing-transfer.v1',geometric_screen_passed=True,
+        attained_source_qualification=dict(source=json.loads(json.dumps(qualification)),coordinates=admission),attained_trial=str(source),attained_time_s=24.,
+        scene_path_source=str(plan),dense_audit_path=str(dense),robot_path=cfg['robot'],door_path=str(Path(cfg['door'])/'door.xml'))
+    write(args.standing_transfer_route,route)
+    monkeypatch.setattr(planner,'load_local_source',lambda *a: ({}, {}, qualification))
+    monkeypatch.setattr(standing_transfer,'validate_route_geometry',lambda route: None)
+    monkeypatch.setattr(landed_left_planner,'LandedLeftScene',lambda *a: SimpleNamespace(m='synthetic unstepped scene'))
+    monkeypatch.setattr(destination_planner_admission,'admit_destination_planner',
+        lambda *a,**kw: (SimpleNamespace(qpos=measured_qpos),admission))
+    return m,args,argv,values[-1],route
+
+
+def test_transfer_uses_exact_actual_source_time_and_keeps_prefix(tmp_path,monkeypatch):
+    m,args,argv,hashes,route=transfer_fixture(tmp_path,monkeypatch)
+    changed,bound=m.prepare_transfer(args,argv,hashes)
+    assert changed==argv+['--standing-transfer-route',str(args.standing_transfer_route),'--standing-transfer-start-seconds','24.0']
+    assert str(args.standing_transfer_route) in bound
+
+
+@pytest.mark.parametrize('mutation',['missing_source','wrong_epoch','wrong_source','changed_controller','short_trial','live_jev','changed_provenance'])
+def test_transfer_rejects_unbound_source_or_changed_prefix(tmp_path,monkeypatch,mutation):
+    m,args,argv,hashes,route=transfer_fixture(tmp_path,monkeypatch)
+    if mutation=='missing_source':args.standing_transfer_source=None
+    elif mutation=='wrong_epoch':
+        route['attained_time_s']=36.;write(args.standing_transfer_route,route)
+    elif mutation=='wrong_source':
+        route['attained_source_qualification']['source']['state_sha256']='different';write(args.standing_transfer_route,route)
+    elif mutation=='changed_controller':argv=argv+['--operator-compliance-gain','0.1']
+    elif mutation=='short_trial':args.seconds=32.
+    elif mutation=='live_jev':args.jev_progress_plan=tmp_path/'plan.json'
+    elif mutation=='changed_provenance':args.ready.write_text('changed after source')
+    with pytest.raises(ValueError):m.prepare_transfer(args,argv,hashes)
+
+
+@pytest.mark.parametrize('mutation',['other_plan_source','missing_source_input','changed_endpoint','renormalized_again',
+    'wrong_admission','wrong_route_admission','other_robot','other_door'])
+def test_transfer_plan_must_bind_source_and_exact_normalized_endpoint(tmp_path,monkeypatch,mutation):
+    m,args,argv,hashes,route=transfer_fixture(tmp_path,monkeypatch)
+    path=Path(route['scene_path_source']);plan=json.loads(path.read_text())
+    if mutation=='other_plan_source':plan['source_qualification']['state_sha256']='another qualified source'
+    elif mutation=='missing_source_input':
+        unrelated=tmp_path/'unrelated.json';write(unrelated,dict(synthetic=True))
+        plan['input_sha256']={str(unrelated):m.sha(unrelated)}
+    elif mutation=='changed_endpoint':plan['path_qpos'][0][-1]+=1e-12
+    elif mutation=='renormalized_again':plan['path_qpos'][0][3]=.999999
+    elif mutation=='wrong_admission':plan['destination_admission']['state_sha256']='other state'
+    elif mutation=='wrong_route_admission':route['attained_source_qualification']['coordinates']['state_sha256']='other state'
+    else:
+        other=tmp_path/(mutation+'.xml');other.write_text('different model')
+        route['robot_path' if mutation=='other_robot' else 'door_path']=str(other)
+    write(path,plan);write(args.standing_transfer_route,route)
+    with pytest.raises(ValueError):m.prepare_transfer(args,argv,hashes)
+
+
+def test_transfer_prefix_checks_actual_velocities_and_commanded_motors(tmp_path,monkeypatch):
+    import numpy as np
+    m=module(monkeypatch,tmp_path)
+    source=tmp_path/'source/trial';source.mkdir(parents=True)
+    destination=tmp_path/'destination';destination.mkdir()
+    data={key:np.zeros((3,2)) for key in ('root','joints','joint_velocity','motor_forces','door','door_velocity','standing_body_poses')}
+    data['time_s']=np.array([.002,.004,.006])
+    np.savez(source/'acquisition-physics.npz',**data)
+    extended={key:np.concatenate([value,value[-1:]]) for key,value in data.items()}
+    np.savez(destination/'acquisition-physics.npz',**extended)
+    assert m.audit_transfer_prefix(source.parent,destination,.006)['passed']
+    extended['motor_forces'][2,0]=1e-8
+    np.savez(destination/'acquisition-physics.npz',**extended)
+    report=m.audit_transfer_prefix(source.parent,destination,.006)
+    assert not report['passed'] and not report['fields']['motor_forces']
+    assert 'commanded-motor' in report['scope'] and 'delivered-motor' not in report['scope']
+    with pytest.raises(ValueError,match='epoch'):m.audit_transfer_prefix(source.parent,destination,.008)
+
+
 @pytest.mark.parametrize('mutation',['audit_from_other_run','changed_raw_chunk','motor_snapshot','hub','profile','missing_ready_hash','missing_loopbacks'])
 def test_stale_or_mismatched_prerequisites_fail_before_launch(tmp_path,monkeypatch,mutation):
     m,args,ready,cfg=native_fixture(tmp_path,monkeypatch)
@@ -134,8 +249,8 @@ def test_exact_argument_mapping_preserves_spaces_offsets_profiles_and_native_lat
 
 def execution_fixture(tmp_path,monkeypatch,*,preflight=0,process_code=0,audit_code=0,timeout=False,audit_error=False,task_passed=True):
     m=module(monkeypatch,tmp_path)
-    for name in ('isaac_opening.py','audit_isaac_acquisition_contacts.py'):
-        path=tmp_path/'scripts/dexterous'/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('synthetic executable')
+    for path in [*m.runtime_source_paths([]),tmp_path/'scripts/dexterous/audit_isaac_acquisition_contacts.py']:
+        path.parent.mkdir(parents=True,exist_ok=True);path.write_text('synthetic executable')
     args=SimpleNamespace(output=tmp_path/'experiment',jev_progress_plan=None,timeout_seconds=3600.,seconds=24.)
     proof=tmp_path/'proof.json';write(proof,dict(synthetic=True));args.hashes={str(proof):m.sha(proof)}
     args.argv=['isaac'];args.input_files={}
@@ -164,8 +279,8 @@ def execution_fixture(tmp_path,monkeypatch,*,preflight=0,process_code=0,audit_co
             trial=args.output/'trial'
             write(trial/'operation-report.json',dict(passed=task_passed,duration_s=24.,checks=dict(physical=task_passed)))
             write(trial/'configuration.json',dict(args=dict(args.input_files,grasp_profile='distal-pad-v1',open_on_latch_clear=False)))
-            operation=tmp_path/'scripts/dexterous/isaac_opening.py'
-            write(trial/'provenance.json',dict(files=dict(args.hashes,**{str(operation.resolve()):m.sha(operation)})))
+            runtime={str(path.resolve()):m.sha(path) for path in m.runtime_source_paths(command)}
+            write(trial/'provenance.json',dict(files=dict(args.hashes,**runtime)))
             (trial/'acquisition-pad-steps.json.gz').write_bytes(b'synthetic interval bytes')
         def wait(self,timeout=None):
             self.waits+=1
@@ -255,6 +370,50 @@ def test_runtime_report_must_bind_actual_source_mode_and_requested_duration(tmp_
     assert m.execute(args,args.argv,['audit'],args.hashes)==1
     result=json.loads((args.output/'result.json').read_text())
     assert not result['runtime_passed'] and result['independent_passed']
+
+
+@pytest.mark.parametrize('mutation',['missing_helper','uncaptured_helper','different_helper_digest','helper_changed_after_snapshot','shared_input'])
+def test_runtime_helper_or_shared_input_mismatch_cannot_qualify(tmp_path,monkeypatch,mutation):
+    m,args,calls=execution_fixture(tmp_path,monkeypatch)
+    helper=tmp_path/'doorbench/dexterous/acquisition_teacher.py'
+    shared=tmp_path/'shared-controller-input.json';write(shared,dict(synthetic=True))
+    args.hashes[str(shared.resolve())]=m.sha(shared)
+    original=m.subprocess.Popen
+    def altered(command,**kw):
+        process=original(command,**kw);path=args.output/'trial/provenance.json'
+        data=json.loads(path.read_text())
+        if mutation=='missing_helper':data['files'].pop(str(helper.resolve()))
+        elif mutation=='uncaptured_helper':data['files'][str((tmp_path/'uncaptured-helper.py').resolve())]='0'*64
+        elif mutation=='different_helper_digest':data['files'][str(helper.resolve())]='0'*64
+        elif mutation=='helper_changed_after_snapshot':helper.write_text('changed before deferred import')
+        else:data['files'][str(shared.resolve())]='0'*64
+        write(path,data);return process
+    monkeypatch.setattr(m.subprocess,'Popen',altered)
+    assert m.execute(args,args.argv,['audit'],args.hashes)==1
+    result=json.loads((args.output/'result.json').read_text())
+    assert not result['runtime_binding_passed'] and result['independent_passed']
+
+
+def test_transfer_only_helpers_are_captured_and_required_in_runtime_provenance(tmp_path,monkeypatch):
+    m,args,calls=execution_fixture(tmp_path,monkeypatch)
+    additional=set(m.runtime_source_paths(['--standing-transfer-route']))-set(m.runtime_source_paths([]))
+    assert {p.name for p in additional}=={'standing_transfer.py','standing_support_feedback.py',
+        'transfer_contact_geometry.py','standing_transfer_evaluation.py','attained_arm_tracking.py',
+        'transfer_preload.py','motor_handoff.py','bimanual_transfer.py'}
+    assert m.execute(args,args.argv,['audit'],args.hashes)==0
+    receipt=json.loads((args.output/'result.json').read_text());trial=args.output/'trial'
+    provenance=json.loads((trial/'provenance.json').read_text())
+    for path in additional:
+        path.write_text('synthetic transfer helper')
+        receipt['runtime_source_sha256'][str(path.resolve())]=m.sha(path)
+        provenance['files'][str(path.resolve())]=m.sha(path)
+    write(trial/'provenance.json',provenance)
+    m.verify_runtime_binding(trial,args.argv,receipt)
+    # Even a helper that is first used at handoff must have an exact recording.
+    provenance['files'].pop(str((tmp_path/'doorbench/dexterous/attained_arm_tracking.py').resolve()))
+    write(trial/'provenance.json',provenance)
+    with pytest.raises(ValueError,match='Runtime helper'):
+        m.verify_runtime_binding(trial,args.argv,receipt)
 
 
 def test_audit_receipt_from_another_trial_cannot_satisfy_success(tmp_path,monkeypatch):

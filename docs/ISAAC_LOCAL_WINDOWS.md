@@ -136,12 +136,33 @@ those thresholds. The render option restores intended body materials in a
 session layer and uses subdued lighting. An actual 14-second physical prefix
 was byte-for-byte identical with and without that rendering change.
 
+An explicitly new target-engine experiment can additionally set
+`--experimental-grasp-offset-in-handle-m X Y Z`. The vector must remain within
+the original 10 mm reference bound. Its receipt records both the qualified
+native baseline and the changed PhysX parameter; native qualification is not
+inherited by the changed controller. Every actual Isaac physical/contact check
+must still pass. This is useful when contact geometry differs between engines.
+
 `plan_local_standing_transfer.py` can construct a fresh left-hand path from a
 qualified native recording and the tracked numeric left-palm preferences.
 It verifies the exact recorded state, model and independent audits, then runs
 the original dense geometry screen. Failed-source development is explicit
 and cannot emit a runtime route. Passing geometry permits a physical trial;
 it does not prove palm support or a completed handoff.
+
+For a qualified **Isaac** endpoint use `plan_local_isaac_transfer.py`, which
+extracts the recorded root, joints, velocities and body poses and retains the
+original destination kinematic admission. A native route supplies numerical
+left-hand preferences only. To execute the resulting route, add
+`--standing-transfer-source out/QUALIFIED-ISAAC-SOURCE` and
+`--standing-transfer-route out/FRESH-ISAAC-PLAN/transfer.json` to the same local
+operation command. Use at least the source duration plus 8.5 seconds.
+The launcher requires the original controller arguments and source files,
+derives the handoff time from the actual qualified source epoch, and reruns the
+physical prefix from its original initial state. It does not reset the robot at
+the handoff. Qualification additionally requires an exact archived state,
+velocity and commanded-motor prefix and an independent palm-support audit.
+This stage still establishes only receiving support, not release or traversal.
 
 ## Verified destination and Windows fixes
 
@@ -196,6 +217,18 @@ surface contact lasted longer and the peak index load increased. One paired
 episode does not establish model superiority; API delays and the resume ramp
 also affect the result. The comparison counts unique replies separately from
 reused per-step decisions.
+
+The first local Isaac paired trial produced 1,359 parsed model replies
+(1,351 continue, eight pause), all matching the request-time local comparator.
+At least 146 explicit provider errors were recorded. Its 89 resumptions and
+existing smooth ramps removed 6.61 s of reference progress over the 24 s trial.
+The final grasp passed, but the maximum handle angle was 0.79734 rad, below the
+unchanged 0.80 rad opening trigger, and the door did not open. The different
+amount of completed motion prevents interpreting its lower motion measures as
+a better opening policy. Provider failures now use nonblocking exponential
+retry backoff from 0.25 to 2 wall seconds; logs retain the original evaluation
+reason separately from later permission expiry. These transport fixes have
+synthetic tests, but were not part of that already-recorded experiment.
 
 API references: [TypeSafe API](https://docs.typesafe.ai/api),
 [Jev 1.13 model limitations](https://docs.typesafe.ai/model-jaggedness/jev-1.13).
