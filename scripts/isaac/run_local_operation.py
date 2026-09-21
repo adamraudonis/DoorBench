@@ -393,8 +393,8 @@ def runtime_source_paths(argv):
     A new runtime mode must declare its helpers before its results can qualify.
     """
     paths=[ROOT/'scripts/dexterous'/name for name in ('isaac_opening.py','physx_teacher.py')]
-    names=['stance.py','reset.py','contact_audit.py','isaac_materials.py','isaac_joint_passive.py',
-        'bounded_evidence.py','operation_pad_counts.py','standing_body_record.py','acquisition_teacher.py',
+    names=['stance.py','locomotion_manipulation.py','reset.py','contact_audit.py','isaac_materials.py','isaac_joint_passive.py',
+        'bounded_evidence.py','isaac_evidence_cleanup.py','operation_pad_counts.py','standing_body_record.py','acquisition_teacher.py',
         'isaac_tendons.py','grasp_verification.py','isaac_pad_audit.py','operation_teacher.py','isaac_opening_measurements.py']
     if '--review-render-profile' in argv:names.append('isaac_rendering.py')
     if '--operation-hub-geometry' in argv:names.append('handle_hub_avoidance.py')

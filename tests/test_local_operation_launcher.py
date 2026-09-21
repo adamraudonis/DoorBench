@@ -396,9 +396,10 @@ def test_runtime_report_must_bind_actual_source_mode_and_requested_duration(tmp_
 
 
 @pytest.mark.parametrize('mutation',['missing_helper','uncaptured_helper','different_helper_digest','helper_changed_after_snapshot','shared_input'])
-def test_runtime_helper_or_shared_input_mismatch_cannot_qualify(tmp_path,monkeypatch,mutation):
+@pytest.mark.parametrize('helper_name',['acquisition_teacher.py','locomotion_manipulation.py','isaac_evidence_cleanup.py'])
+def test_runtime_helper_or_shared_input_mismatch_cannot_qualify(tmp_path,monkeypatch,mutation,helper_name):
     m,args,calls=execution_fixture(tmp_path,monkeypatch)
-    helper=tmp_path/'doorbench/dexterous/acquisition_teacher.py'
+    helper=tmp_path/'doorbench/dexterous'/helper_name
     shared=tmp_path/'shared-controller-input.json';write(shared,dict(synthetic=True))
     args.hashes[str(shared.resolve())]=m.sha(shared)
     original=m.subprocess.Popen

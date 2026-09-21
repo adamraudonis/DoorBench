@@ -784,7 +784,7 @@ def main():
         simulator_effort_limits=robot.root_physx_view.get_dof_max_forces()[0].cpu().tolist(),
         runtime_pose_writes=0,direct_door_commands=bool(a.mechanism_test),contact_material_audit=contact_material_audit,
         scope='Uninterrupted approach, opening, release and traversal; privileged live PhysX development' if continuous else 'Continuous approach through bimanual loaded aperture; privileged live PhysX; no traversal' if full_opening and sequence else 'Contact-free acquisition through bimanual loaded aperture; privileged live PhysX; no approach/traversal' if full_opening else balance_scope if a.sensor_balance_calibration else 'Sensor-only recurrent force actor; declared curriculum objective; no teacher or traversal claim' if sensor_actor else 'Continuous walk/lower/prepare/acquire/partial opening; privileged live PhysX; no traversal' if sequence else 'Contact-free acquisition and partial opening; privileged live PhysX; no traversal' if a.operate_after_acquisition else 'Contact-free acquisition teacher; privileged live PhysX; no opening or traversal' if a.acquisition else 'Direct-force mechanism calibration; NOT robot opening' if a.mechanism_test else 'Privileged near-handle motor reference; live PhysX; no traversal'),indent=2)+'\n')
-    sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py','isaac_joint_passive.py')]
+    sources=[Path(__file__),Path(__file__).with_name('physx_teacher.py')]+[Path(__file__).resolve().parents[2]/'doorbench/dexterous'/n for n in ('stance.py','reset.py','contact_audit.py','isaac_materials.py','isaac_joint_passive.py','locomotion_manipulation.py','isaac_evidence_cleanup.py')]
     if a.review_render_profile:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/isaac_rendering.py')
     if jev_plan is not None:sources += [Path(__file__).resolve().parents[2]/'doorbench/dexterous'/name for name in ('jev_advisor.py','jev_progress_advisor.py','isaac_jev_progress.py')]
     if physics_audit_enabled:sources.append(Path(__file__).resolve().parents[2]/'doorbench/dexterous/bounded_evidence.py')
@@ -1668,8 +1668,13 @@ def main():
                 save_transfer_rest_stop()
                 break
     except BaseException as run_error:
-        if transfer_steps is not None:transfer_steps.export(out/'standing-transfer-steps.json.gz')
-        if transfer_rest_stop is not None:save_transfer_rest_stop()
+        from doorbench.dexterous.isaac_evidence_cleanup import EvidenceCleanup,preserve_core_evidence
+        evidence_cleanup=EvidenceCleanup(run_error)
+        # Preserve core observations before diagnostic report construction can
+        # fail while reading a damaged stream or requesting another receipt.
+        preserve_core_evidence(evidence_cleanup,out,rows,acquisition_states,pad_steps,physics_audit_enabled)
+        if transfer_steps is not None:evidence_cleanup.export('failed_transfer_export',transfer_steps,out/'standing-transfer-steps.json.gz')
+        if transfer_rest_stop is not None:evidence_cleanup.attempt('failed_transfer_rest_receipt',save_transfer_rest_stop)
         if transfer_rest_stop is not None and withdrawal_steps is None:
             failed_end=acquisition_states['time_s'][-1] if acquisition_states['time_s'] else 0.
             failed_tail=[row for row in pad_steps if failed_end-.5-1e-8<=row['sim_time_s']<=failed_end+1e-8]
@@ -1681,9 +1686,9 @@ def main():
                 standing_transfer_rest_stop=save_transfer_rest_stop(),
                 standing_transfer=dict(route=a.standing_transfer_route,started_s=standing_transfer.started,final=standing_transfer.info))
             for name in ('operation-report.json','report.json'):
-                (out/name).write_text(json.dumps(failed_transfer,indent=2)+'\n')
+                evidence_cleanup.attempt('failed_transfer_report_'+name,lambda name=name:(out/name).write_text(json.dumps(failed_transfer,indent=2)+'\n'))
         if withdrawal_steps is not None:
-            withdrawal_steps.export(out/'standing-withdrawal-steps.json.gz')
+            evidence_cleanup.export('failed_withdrawal_export',withdrawal_steps,out/'standing-withdrawal-steps.json.gz')
             failed_end=acquisition_states['time_s'][-1] if acquisition_states['time_s'] else 0.
             failed_tail=[row for row in pad_steps if failed_end-.5-1e-8<=row['sim_time_s']<=failed_end+1e-8]
             failed_withdrawal=dict(passed=False,status='controller_or_backend_failure',error=str(run_error),
@@ -1694,12 +1699,21 @@ def main():
                 standing_withdrawal=dict(route=a.standing_withdrawal_route,started_s=standing_controller.started_withdrawal,
                     release_started_s=standing_controller.release_started,completed=False,
                     source_admission=standing_controller.source_admission,final=standing_controller.info))
+            if standing_transfer is not None:
+                failed_withdrawal['standing_transfer']=dict(route=a.standing_transfer_route,
+                    started_s=standing_transfer.started,final=standing_transfer.info)
+                from doorbench.dexterous.standing_transfer_evaluation import standing_transfer_checks
+                transfer_failure_checks=evidence_cleanup.attempt('failed_prefix_transfer_checks',lambda:
+                    standing_transfer_checks(transfer_steps,seconds=failed_end,dt=dt,started_s=standing_transfer.started))
+                if transfer_failure_checks is not None:failed_withdrawal['checks'].update(transfer_failure_checks)
+            if transfer_rest_stop is not None:
+                failed_withdrawal['standing_transfer_rest_stop']=evidence_cleanup.attempt('failed_withdrawal_transfer_rest_receipt',save_transfer_rest_stop)
             for name in ('standing-withdrawal-report.json','operation-report.json','report.json'):
-                (out/name).write_text(json.dumps(failed_withdrawal,indent=2)+'\n')
-        (out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n')
+                evidence_cleanup.attempt('failed_withdrawal_report_'+name,lambda name=name:(out/name).write_text(json.dumps(failed_withdrawal,indent=2)+'\n'))
+        evidence_cleanup.attempt('failed_wall_timing',lambda:(out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n'))
         if passive_guard:
-            (out/'joint-passive-invariants.json').write_text(json.dumps(passive_guard.receipt(),indent=2)+'\n')
-        save_attained_left_plan()
+            evidence_cleanup.attempt('failed_passive_invariants',lambda:(out/'joint-passive-invariants.json').write_text(json.dumps(passive_guard.receipt(),indent=2)+'\n'))
+        evidence_cleanup.attempt('failed_attained_left_plan',save_attained_left_plan)
         if balance_contact_stream:
             balance_contact_stream.close()
             with gzip.open(out/'balance-steps.json.gz','wt') as stream:write_json_record_array(stream,balance_steps)
@@ -1708,12 +1722,6 @@ def main():
                 physical_evidence_complete=False,teacher_fallback=False)
             for name in ('balance-report.json','report.json'):
                 (out/name).write_text(json.dumps(failed_balance,indent=2)+'\n')
-        # Preserve the actual executed prefix even when a controller or backend
-        # error prevents normal qualification. These files never imply a pass.
-        (out/'trace.json').write_text(json.dumps(rows)+'\n')
-        if physics_audit_enabled:
-            np.savez_compressed(out/'acquisition-physics.npz',**acquisition_states)
-            pad_steps.export(out/'acquisition-pad-steps.json.gz')
         if full_opening:
             with gzip.open(out/'full-opening-steps.json.gz','wt') as stream:write_json_record_array(stream,full_opening_steps)
         if sequence:
@@ -1732,32 +1740,37 @@ def main():
                 runtime_robot_pose_writes=0,direct_door_commands=False)
             for name in ('traversal-report.json','report.json'):
                 (out/name).write_text(json.dumps(failure_report,indent=2)+'\n')
-        if sensor_recorder:sensor_recorder.finish(complete=False)
-        if teacher_queries:teacher_queries.finish(complete=False,executed_steps=len(acquisition_states['time_s']))
-        if writer:writer.close()
-        if hand_writer:hand_writer.close()
+        if sensor_recorder:evidence_cleanup.attempt('failed_sensor_recorder',lambda:sensor_recorder.finish(complete=False))
+        if teacher_queries:evidence_cleanup.attempt('failed_teacher_queries',lambda:teacher_queries.finish(complete=False,executed_steps=len(acquisition_states['time_s'])))
         raise
     finally:
-        if transfer_rest_stop is not None:save_transfer_rest_stop()
+        import sys
+        from doorbench.dexterous.isaac_evidence_cleanup import EvidenceCleanup,write_new_json,preserve_core_evidence
+        # Preserve the same primary exception, including when an earlier
+        # exception-handler operation itself failed. Every independent final
+        # export is attempted before cleanup can propagate any failure.
+        if 'evidence_cleanup' not in locals():evidence_cleanup=EvidenceCleanup(sys.exc_info()[1])
+        if transfer_rest_stop is not None:evidence_cleanup.attempt('final_transfer_rest_receipt',save_transfer_rest_stop)
         if transfer_prefix is not None:
-            (out/'live-prefix-witness.json').write_text(json.dumps(transfer_prefix.receipt(),indent=2)+'\n')
+            evidence_cleanup.attempt('final_transfer_prefix',lambda:(out/'live-prefix-witness.json').write_text(json.dumps(transfer_prefix.receipt(),indent=2)+'\n'))
         if withdrawal_prefix is not None:
-            (out/'live-withdrawal-prefix-witness.json').write_text(json.dumps(withdrawal_prefix.receipt(),indent=2)+'\n')
-        if withdrawal_steps is not None:withdrawal_steps.export(out/'standing-withdrawal-steps.json.gz')
+            evidence_cleanup.attempt('final_withdrawal_prefix',lambda:(out/'live-withdrawal-prefix-witness.json').write_text(json.dumps(withdrawal_prefix.receipt(),indent=2)+'\n'))
+        if transfer_steps is not None:evidence_cleanup.export('final_transfer_export',transfer_steps,out/'standing-transfer-steps.json.gz')
+        if withdrawal_steps is not None:evidence_cleanup.export('final_withdrawal_export',withdrawal_steps,out/'standing-withdrawal-steps.json.gz')
         if standing_continuation_steps is not None:
-            standing_continuation_steps.export(out/'standing-continuation-steps.json.gz')
+            evidence_cleanup.export('final_continuation_export',standing_continuation_steps,out/'standing-continuation-steps.json.gz')
             if standing_reference_tail is not None:
-                (out/'standing-continuation-reference-tail.json').write_text(json.dumps(standing_reference_tail.receipt(),indent=2,allow_nan=False)+'\n')
-        if jev_gate is not None:jev_gate.close()
+                evidence_cleanup.attempt('final_reference_tail',lambda:write_new_json(out/'standing-continuation-reference-tail.json',standing_reference_tail.receipt()))
+        if jev_gate is not None:evidence_cleanup.attempt('final_jev_close',jev_gate.close)
+        if writer:evidence_cleanup.attempt('final_video_close',writer.close)
+        if hand_writer:evidence_cleanup.attempt('final_hand_video_close',hand_writer.close)
+        preserve_core_evidence(evidence_cleanup,out,rows,acquisition_states,pad_steps,physics_audit_enabled)
+        evidence_cleanup.finish(out/'evidence-cleanup.json',active_error=sys.exc_info()[1])
     (out/'wall-timing.json').write_text(json.dumps(wall_timing.receipt(),indent=2)+'\n')
     save_attained_left_plan()
     if balance_contact_stream:
         balance_contact_stream.close()
         with gzip.open(out/'balance-steps.json.gz','wt') as stream:write_json_record_array(stream,balance_steps)
-    (out/'trace.json').write_text(json.dumps(rows)+'\n')
-    if physics_audit_enabled:np.savez_compressed(out/'acquisition-physics.npz',**acquisition_states)
-    if physics_audit_enabled:
-        pad_steps.export(out/'acquisition-pad-steps.json.gz')
     if full_opening:
         with gzip.open(out/'full-opening-steps.json.gz','wt') as stream:write_json_record_array(stream,full_opening_steps)
     save_traversal_evidence()
@@ -1905,7 +1918,6 @@ def main():
                 (out/'full-sequence-report.json').write_text(json.dumps(operation_report,indent=2)+'\n')
             if standing_transfer:
                 from doorbench.dexterous.standing_transfer_evaluation import standing_transfer_checks
-                transfer_steps.export(out/'standing-transfer-steps.json.gz')
                 operation_checks.update(standing_transfer_checks(transfer_steps,seconds=evaluation_seconds,dt=dt,started_s=standing_transfer.started))
                 if transfer_prefix is not None:operation_checks['live_exact_source_prefix']=transfer_prefix.receipt()['passed']
                 operation_report.update(passed=all(operation_checks.values()),
@@ -2028,8 +2040,6 @@ def main():
         bool(continuous.done if continuous else full_opening and full_aperture_crossed)) and not (out/'early-stop.json').exists()
     if sensor_recorder:sensor_recorder.finish(complete=completed_recording and len(sensor_recorder.times)==len(acquisition_states['time_s']))
     if teacher_queries:teacher_queries.finish(complete=completed_recording,executed_steps=len(acquisition_states['time_s']))
-    if writer:writer.close()
-    if hand_writer:hand_writer.close()
     print('PHYSX_RUN_COMPLETE',flush=True)
 
 failed=False

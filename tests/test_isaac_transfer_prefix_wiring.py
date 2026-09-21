@@ -50,7 +50,8 @@ def setup(source_fixture,tmp_path,monkeypatch):
   acquisition_states={k:[] for k in (*PREFIX_FIELDS,'torso_tilt_deg')},continuous=None,record_standing_continuation=False,
   record_standing_body_poses=True,standing_body_indices=np.arange(5),pack_standing_body_poses=pack_standing_body_poses,jev_gate=None)
  scope.update(standing_controller=scope['standing_transfer'],withdrawal_prefix=None,
-              withdrawal_prefix_authorized=False,withdrawal_steps=None,transfer_rest_stop=None,standing_continuation_steps=None)
+              withdrawal_prefix_authorized=False,withdrawal_steps=None,transfer_rest_stop=None,standing_continuation_steps=None,
+              rows=[],physics_audit_enabled=False,transfer_steps=None,writer=None,hand_writer=None)
  def record(index,*,alter=None):
   row=sample(source_fixture,index)
   if alter:alter(row)

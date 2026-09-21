@@ -17,6 +17,7 @@ from test_isaac_transfer_prefix_wiring import (setup, ENTRY, RECORD, FINAL, exec
                                                names, Tensor, MAIN, SOURCE)
 from test_isaac_standing_transfer_cli import command, ROOT
 from doorbench.dexterous.isaac_prefix_witness import PrefixDivergenceError
+from doorbench.dexterous.isaac_evidence_cleanup import EvidenceCleanup
 
 LEAF_RECORD = next(n for n in RECORD.body if isinstance(n, ast.If)
                    and 'leaf_sample' in names(n) and 'withdrawal_prefix' in names(n))
@@ -111,12 +112,14 @@ def test_exception_path_exports_partial_release_stream_and_failed_report(tmp_pat
     branch = next(n for n in handler.body if isinstance(n, ast.If) and 'failed_withdrawal' in names(n))
     exports = []
     scope = dict(json=json, out=tmp_path, run_error=ValueError('Synthetic domain rejection'), dt=.002,
-        withdrawal_steps=SimpleNamespace(export=lambda path: exports.append(path.name)),
+        withdrawal_steps=SimpleNamespace(exported_path=None,export=lambda path: exports.append(path.name)),
+        standing_transfer=None,transfer_rest_stop=None,
         acquisition_states={'time_s':[.002,.004]},
         pad_steps=[dict(sim_time_s=.002,valid_pad_grasp=True),dict(sim_time_s=.004,valid_pad_grasp=True)],
         a=SimpleNamespace(standing_withdrawal_route='prospective.json'),
         standing_controller=SimpleNamespace(started_withdrawal=None,release_started=None,
             source_admission={'synthetic':True},info={'failed':True}))
+    scope['evidence_cleanup']=EvidenceCleanup(scope['run_error'])
     execute([branch], scope)
     assert exports == ['standing-withdrawal-steps.json.gz']
     for name in ('standing-withdrawal-report.json','operation-report.json','report.json'):

@@ -189,7 +189,7 @@ def withdrawal_runtime_source_paths():
         'destination_return_kinematics.py','release_material_targets.py','attained_arm_tracking.py',
         'attained_hand_tracking.py','return_palm_feedback.py','motor_handoff.py','standing_support_feedback.py',
         'robot_design_identity.py','robot_identity.py','json_record_stream.py',
-        'isaac_transfer_rest_audit.py','isaac_transfer_rest_stop.py')
+        'isaac_transfer_rest_audit.py','isaac_transfer_rest_stop.py','locomotion_manipulation.py')
     return tuple(package/name for name in names)+(root/'scripts/dexterous/plan_local_isaac_transfer.py',
         root/'scripts/dexterous/plan_local_standing_transfer.py',root/'scripts/dexterous/audit_standing_ungrip.py')
 

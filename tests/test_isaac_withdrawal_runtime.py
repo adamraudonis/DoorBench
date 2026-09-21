@@ -195,6 +195,7 @@ def test_controller_registry_is_local_existing_absolute_and_unique():
     assert all(isinstance(p,Path) and p.is_absolute() and p.is_file() for p in paths)
     assert Path(module.__file__).resolve() in paths
     assert 'isaac_withdrawal_support.py' in [p.name for p in paths]
+    assert 'locomotion_manipulation.py' in [p.name for p in paths]
 
 
 def test_factory_uses_fresh_admission_then_detached_bridge(runtime,monkeypatch):

@@ -153,6 +153,7 @@ def test_actual_poststep_inputs_trigger_only_after_251_joint_valid_samples(detec
 
 
 def test_exception_report_retains_actual_pad_observation_and_failed_endpoint(tmp_path):
+    from doorbench.dexterous.isaac_evidence_cleanup import EvidenceCleanup
     branch=next(n for n in ast.walk(MAIN) if isinstance(n,ast.If) and 'failed_transfer' in names(n)
         and 'withdrawal_steps' in names(n.test))
     scope=stop_scope(tmp_path,triggered=False)
@@ -161,6 +162,7 @@ def test_exception_report_retains_actual_pad_observation_and_failed_endpoint(tmp
         pad_steps=[dict(sim_time_s=i*.002,valid_pad_grasp=True) for i in range(250,501)],
         standing_transfer=SimpleNamespace(started=.002,info={}))
     scope['a'].standing_transfer_route='route.json'
+    scope['evidence_cleanup']=EvidenceCleanup(scope['run_error'])
     execute([branch],scope)
     report=json.loads((tmp_path/'operation-report.json').read_text())
     assert not report['passed'] and report['duration_s']==1. and report['maximum_seconds']==48.
