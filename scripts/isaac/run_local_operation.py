@@ -208,6 +208,9 @@ def prepare_transfer(args,argv,hashes):
     """Admit a fresh route from this controller's qualified actual PhysX endpoint."""
     route_path=getattr(args,'standing_transfer_route',None)
     source=getattr(args,'standing_transfer_source',None)
+    hybrid=getattr(args,'standing_transfer_hybrid_support',False)
+    if type(hybrid) is not bool or (hybrid and route_path is None):
+        raise ValueError('Hybrid palm support requires an explicit transfer route')
     if route_path is None and source is None:return argv,hashes
     if route_path is None or source is None:
         raise ValueError('Transfer requires both a qualified Isaac source and its fresh route')
@@ -279,6 +282,7 @@ def prepare_transfer(args,argv,hashes):
     for path in (source_launch,route_path,plan_path,Path(route['dense_audit_path'])):
         hashes[str(path.resolve())]=sha(path)
     argv=argv+['--standing-transfer-route',str(route_path),'--standing-transfer-start-seconds',str(start)]
+    if hybrid:argv+=['--standing-transfer-hybrid-support']
     return argv,hashes
 
 
@@ -371,7 +375,8 @@ def verify_runtime_binding(trial,argv,receipt):
         route=Path(argv[argv.index('--standing-transfer-route')+1]).resolve()
         if (Path(configuration.get('standing_transfer_route','')).resolve()!=route
                 or sha(trial/'standing-transfer-route.json')!=receipt['input_sha256'].get(str(route))
-                or configuration.get('standing_transfer_start_seconds')!=float(argv[argv.index('--standing-transfer-start-seconds')+1])):
+                or configuration.get('standing_transfer_start_seconds')!=float(argv[argv.index('--standing-transfer-start-seconds')+1])
+                or configuration.get('standing_transfer_hybrid_support',False)!=('--standing-transfer-hybrid-support' in argv)):
             raise ValueError('Runtime transfer differs from the exact-source launch')
 
 
@@ -522,6 +527,7 @@ def main():
     p.add_argument('--experimental-thumb-reference-offset-rad',type=float,default=0.)
     p.add_argument('--standing-transfer-source',type=Path,help='Qualified local Isaac operation whose exact prefix is rerun')
     p.add_argument('--standing-transfer-route',type=Path,help='Fresh independently screened route planned from that actual Isaac endpoint')
+    p.add_argument('--standing-transfer-hybrid-support',action='store_true',help='Explicit experiment: blend existing measured palm-normal force feedback after actual contact')
     p.add_argument('--jev-progress-plan',type=Path)
     p.add_argument('--jev-sample-period',type=float,default=.2)
     p.add_argument('--execute',action='store_true')

@@ -146,6 +146,17 @@ def test_transfer_uses_exact_actual_source_time_and_keeps_prefix(tmp_path,monkey
     assert str(args.standing_transfer_route) in bound
 
 
+def test_transfer_hybrid_support_is_explicit_and_added_after_unchanged_prefix(tmp_path,monkeypatch):
+    m,args,argv,hashes,route=transfer_fixture(tmp_path,monkeypatch)
+    args.standing_transfer_hybrid_support=True
+    changed,bound=m.prepare_transfer(args,argv,hashes)
+    assert changed[:len(argv)]==argv
+    assert changed[-1]=='--standing-transfer-hybrid-support'
+    args.standing_transfer_route=None
+    with pytest.raises(ValueError,match='explicit transfer route'):
+        m.prepare_transfer(args,argv,hashes)
+
+
 @pytest.mark.parametrize('mutation',['missing_source','wrong_epoch','wrong_source','changed_controller','short_trial','live_jev','changed_provenance'])
 def test_transfer_rejects_unbound_source_or_changed_prefix(tmp_path,monkeypatch,mutation):
     m,args,argv,hashes,route=transfer_fixture(tmp_path,monkeypatch)

@@ -26,6 +26,12 @@ class StandingWithdrawalTeacher:
         self.qualified_since=None;self.info={};self.handoff=None
         config=json.loads(Path(path).read_text())
         if config.get('schema')!='doorbench.standing-withdrawal.v1':raise ValueError('Explicit standing withdrawal config required')
+        capture_returned=config.get('capture_returned_motor_command',False)
+        if type(capture_returned) is not bool:raise ValueError('Explicit delegated-command capture option required')
+        self.motor_capture=None;self.motor_capture_info={}
+        if capture_returned:
+            from .withdrawal_motor_capture import WithdrawalMotorCapture
+            self.motor_capture=WithdrawalMotorCapture(self.acquisition.caps)
         self.measured_rest=bool(getattr(returned,'requires_measured_rest',False))
         if config.get('measured_rest_transfer',False) != self.measured_rest:
             raise ValueError('Withdrawal must explicitly identify its measured-rest transfer bridge')
@@ -237,7 +243,11 @@ class StandingWithdrawalTeacher:
             if not grasp_qualified or support<2 or abs(angles['operator'])>.05 or abs(angles['latch'])>.001:raise ValueError('Qualified resting grip and left support required before withdrawal')
             if not np.allclose(root[:7],self.roots[0],atol=1e-5,rtol=0) or not np.allclose([joints[n] for n in self.all_names],self.joints[0],atol=1e-5,rtol=0):raise ValueError('Withdrawal requires its exact attained root and joints')
             if any(abs(angles[n]-v)>1e-5 for n,v in self.initial_angles.items()):raise ValueError('Withdrawal door state differs from its audited source')
-            self.previous_force=teacher.last_force.copy();self.started_withdrawal=t
+            self.previous_force=teacher.last_force.copy()
+            if self.motor_capture is not None:
+                self.motor_capture_info=self.motor_capture.diagnostic(t,self.previous_force)
+                self.previous_force=self.motor_capture.capture(t)
+            self.started_withdrawal=t
             self.arm=AttainedArmTracking(teacher,joints,self.previous_force)
             self.hand=AttainedHandTracking(teacher,joints,self.previous_force)
             self.palm=ReturnPalmFeedback(teacher,root,joints,handle_pose,self.operation.geometry)
@@ -252,6 +262,7 @@ class StandingWithdrawalTeacher:
             if self.left_arm_only:self.left.isolate_left_arm(root,joints,leaf_pose=leaf_pose if self.left_full_orientation else None)
         if self.started_withdrawal is None:
             force,self.info=self.returned.force(t,root,joints,velocities,handle_pose,leaf_pose,angles,hand_loads,grasp_qualified=grasp_qualified,left_panel_load=left_panel_load,**({'left_palm_load':left_palm_load} if self.measured_rest else {}))
+            if self.motor_capture is not None:self.motor_capture.observe(t,force)
             return force,self.info
         elapsed=t-self.started_withdrawal;clock=float(smooth_phase(elapsed/self.duration))*self.times[-1]
         if clock>=self.release_clock and self.release_started is None:
@@ -370,6 +381,7 @@ class StandingWithdrawalTeacher:
             panel_info['panel_segment_index']=self.panel_schedule.index
         self.info={**panel_info,**info,**self.left.info,**arm_info,**hand_info,**palm_info,'phase':'standing_panel_continuation' if panel_goal is not None else 'standing_withdrawal','withdrawal_started_s':self.started_withdrawal,'release_started_s':self.release_started,'withdrawal_progress':float(smooth_phase(elapsed/self.duration)),'withdrawal_clock_s':clock,'grip_preload_scale':scale,'goal_frame':'attained-resting-world','stance_reference_preserved':True,'stance_reference_root_offset_m':self.stance_root_bias.tolist(),'stance_reference_joint_offset_rad':dict(zip(self.stance_names,self.stance_joint_bias.tolist())),'controller_scope':'Privileged screened upright withdrawal; only original capped motors'}
         self.info['withdrawal_qualification_support_surface']='left_palm_only' if self.palm_only_support else 'left_panel_total'
+        self.info.update(self.motor_capture_info)
         if self.measured_rest:
             self.info.update(self.returned.rest.diagnostic())
             self.info['measured_rest_evidence_epoch']='withdrawal_entry'
