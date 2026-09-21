@@ -19,6 +19,14 @@ def sha(path):
     return h.hexdigest()
 
 
+def bound_input_digest(bindings,path):
+    """Compare identical files across relative/absolute Windows path spellings."""
+    resolved=Path(path).resolve()
+    matches={digest for name,digest in bindings.items() if Path(name).resolve()==resolved}
+    if len(matches)>1:raise ValueError('Conflicting digest aliases for the same withdrawal input')
+    return next(iter(matches),None)
+
+
 class StandingWithdrawalTeacher:
     def __init__(self,returned,motors,path):
         self.returned=returned;self.acquisition=returned.acquisition;self.operation=returned.operation
@@ -93,7 +101,7 @@ class StandingWithdrawalTeacher:
         from .release_motion_admission import validate_motion_screen
         validate_motion_screen(config,screen_path,source)
         if audit.get('passed') is not True or audit.get('samples')!=2001 or audit.get('physics_steps')!=0:raise ValueError('Independent dense withdrawal admission required')
-        if audit['input_sha256'].get(str(screen_path))!=sha(screen_path) or audit['input_sha256'].get(str(source/'trajectory.npz'))!=sha(source/'trajectory.npz'):raise ValueError('Withdrawal audit belongs to another state or route')
+        if bound_input_digest(audit['input_sha256'],screen_path)!=sha(screen_path) or bound_input_digest(audit['input_sha256'],source/'trajectory.npz')!=sha(source/'trajectory.npz'):raise ValueError('Withdrawal audit belongs to another state or route')
         for name,digest in audit['input_sha256'].items():
             if sha(name)!=digest:raise ValueError('Withdrawal input bytes changed: '+name)
         manifest=json.loads((source/'manifest.json').read_text());cfg=manifest['configuration']
@@ -221,6 +229,16 @@ class StandingWithdrawalTeacher:
             self.panel_schedule=AttainedPanelSchedule(panels)
         self.panel_force_profile=profile
         self.initial_angles={name:float(actual[m.joint(joint).qposadr[0]]) for name,joint in [('operator','leaf_handle_hinge'),('leaf','leaf_hinge'),('latch','leaf_latch_bolt_slide')]}
+        self.coupled=None
+        coupled_keys=('coupled_envelope_path','coupled_envelope_sha256','coupled_audit_path','coupled_audit_sha256')
+        if any(key in config for key in coupled_keys):
+            if not all(key in config for key in coupled_keys):raise ValueError('Complete explicit coupled reference evidence required')
+            if not self.measured_rest or not self.left_arm_only or not self.left_full_orientation:
+                raise ValueError('Coupled withdrawal requires measured-rest source and isolated full-orientation left-arm tracking')
+            if self.panel is not None or self.hybrid_support or self.thumb_pad_feedback or self.finger_pad_feedback or self.middle_feedback_enabled:
+                raise ValueError('Coupled withdrawal cannot combine separately framed continuation/material feedback routes')
+            from .coupled_release_reference import CoupledReleaseReference
+            self.coupled=CoupledReleaseReference(config,self.source_admission,actual,self.duration)
 
     @property
     def started(self):return self.returned.started
@@ -274,6 +292,24 @@ class StandingWithdrawalTeacher:
         teacher.stance.target_root[:]=(1-f)*self.roots[i,:3]+f*self.roots[i+1,:3]+self.stance_root_bias
         teacher.stance.target_rotation=self.stance_rotation_bias@self.root_rotations(clock).as_matrix()
         teacher.stance.joint_target[:]=np.array([targets[n] for n in self.stance_names])+self.stance_joint_bias
+        coupled_goal=None;coupled_info={}
+        if self.coupled is not None:
+            try:targets,position,rotation,goal,goal_rotation,coupled_info=self.coupled.update(t,elapsed,angles,leaf_pose,handle_pose)
+            except Exception:
+                self.info={**self.info,'coupled_reference_failed':True,'coupled_reference_failure':self.coupled.failure_snapshot}
+                raise
+            if abs(coupled_info['coupled_reference_release_clock_s']-clock)>1e-10:
+                raise ValueError('Coupled reference and withdrawal route clocks differ')
+            teacher.stance.target_root[:]=position+self.stance_root_bias
+            teacher.stance.target_rotation=self.stance_rotation_bias@rotation
+            teacher.stance.joint_target[:]=np.array([targets[n] for n in self.stance_names])+self.stance_joint_bias
+            self.left.path[-1]['nominal']=np.array([targets[n] for n in self.left.names])
+            self.left.panel_palm_rotation=self.coupled.geometry.localr.copy()
+            # Keep the original contact reference offset and force loop. The
+            # coupled map supplies the reachable body/arm nominal posture.
+            coupled_goal=(goal,goal_rotation)
+            coupled_info['coupled_nominal_reference_only']=True
+            coupled_info['coupled_existing_contact_and_motor_feedback_retained']=True
         material_handoff=False
         if self.panel_schedule is not None and self.panel_schedule.advance(t,angles['leaf'],left_panel_load):
             self.panel=self.panel_schedule.active;self.panel_handoff=None
@@ -314,6 +350,7 @@ class StandingWithdrawalTeacher:
         # Following the moving leaf here lets both hands chase an opening door
         # during the regrasp, instead of retaining the screened working pose.
         goal=(1-f)*self.positions[i]+f*self.positions[i+1];rotation=self.rotations(clock).as_matrix()
+        if coupled_goal is not None:goal,rotation=coupled_goal
         if panel_goal is not None:goal,rotation=panel_goal
         targets,palm_info=self.palm.world_targets(t,targets,root,joints,goal,rotation)
         force,arm_info=self.arm.force(force,t,targets,joints,velocities)
@@ -381,6 +418,8 @@ class StandingWithdrawalTeacher:
             panel_info['panel_segment_index']=self.panel_schedule.index
         self.info={**panel_info,**info,**self.left.info,**arm_info,**hand_info,**palm_info,'phase':'standing_panel_continuation' if panel_goal is not None else 'standing_withdrawal','withdrawal_started_s':self.started_withdrawal,'release_started_s':self.release_started,'withdrawal_progress':float(smooth_phase(elapsed/self.duration)),'withdrawal_clock_s':clock,'grip_preload_scale':scale,'goal_frame':'attained-resting-world','stance_reference_preserved':True,'stance_reference_root_offset_m':self.stance_root_bias.tolist(),'stance_reference_joint_offset_rad':dict(zip(self.stance_names,self.stance_joint_bias.tolist())),'controller_scope':'Privileged screened upright withdrawal; only original capped motors'}
         self.info['withdrawal_qualification_support_surface']='left_palm_only' if self.palm_only_support else 'left_panel_total'
+        self.info.update(coupled_info)
+        if coupled_goal is not None:self.info['goal_frame']='measured-leaf-and-handle-with-admitted-world-blend'
         self.info.update(self.motor_capture_info)
         if self.measured_rest:
             self.info.update(self.returned.rest.diagnostic())
